@@ -19336,5 +19336,3143 @@
     "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
     "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSelectFromFSReturnsEmbeddedBundleMetadata": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/asset.rs",
+    "conclusion": "已覆盖：Pine worker 内置 bundle 资源选择、校验与加载",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(asset)'"
+  },
+  "TestSelectReturnsUnavailableWhenAssetMissing": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/asset.rs",
+    "conclusion": "已覆盖：Pine worker 内置 bundle 资源选择、校验与加载",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(asset)'"
+  },
+  "TestSelectReturnsEmbeddedBundleWhenStaged": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/asset.rs",
+    "conclusion": "已覆盖：Pine worker 内置 bundle 资源选择、校验与加载",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(asset)'"
+  },
+  "TestBundleNameIsPlatformIndependent": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/asset.rs",
+    "conclusion": "已覆盖：Pine worker 内置 bundle 资源选择、校验与加载",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(asset)'"
+  },
+  "TestCatalogActivityWriteFailureDoesNotBlockControlState": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略目录管理、插件规整、实例生命周期与仓储失败隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestCatalogDefinitionSyncExplainsLatestRefreshableAndBusyStates": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略目录管理、插件规整、实例生命周期与仓储失败隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestCatalogNormalizationAndClonePreserveCallerIsolation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略目录管理、插件规整、实例生命周期与仓储失败隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestCatalogInstanceCreateUpdateAndDeleteRespectStoppedBoundary": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略目录管理、插件规整、实例生命周期与仓储失败隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestCatalogInstanceOperationsClassifyInvalidAndMissingResources": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略目录管理、插件规整、实例生命周期与仓储失败隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestCatalogDefinitionRefreshPreservesPlacementAndClassifiesLinkedInstances": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略目录管理、插件规整、实例生命周期与仓储失败隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestCatalogRefreshInstanceDefinitionUsesConfiguredDefinitionStore": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略目录管理、插件规整、实例生命周期与仓储失败隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestCatalogPluginLifecyclePersistsSortedMetadataAndOperations": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略目录管理、插件规整、实例生命周期与仓储失败隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestCatalogPluginLifecycleClassifiesMissingResource": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略目录管理、插件规整、实例生命周期与仓储失败隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestCatalogNormalizesLegacySnapshotAndDropsRuntimeOnlyFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略目录管理、插件规整、实例生命周期与仓储失败隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestCatalogNormalizationPreservesExplicitUnsupportedRuntimeForValidation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略目录管理、插件规整、实例生命周期与仓储失败隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestCatalogPluginCompatibilityAndUninstallCommandsDescribeHostBoundary": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略目录管理、插件规整、实例生命周期与仓储失败隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestCatalogConstructionPropagatesRepositoryLoadFailure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略目录管理、插件规整、实例生命周期与仓储失败隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestCatalogFailedSavesLeaveDurableRepositorySnapshotUnchanged": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略目录管理、插件规整、实例生命周期与仓储失败隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestCatalogReturnsIndependentCopiesAcrossRepositoryAndCallers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略目录管理、插件规整、实例生命周期与仓储失败隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestNormalizeBindingPrefersExplicitInstruments": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实例绑定、运行时投影与视图状态管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestNormalizeBindingBackfillsLegacyParams": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实例绑定、运行时投影与视图状态管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestApplyParamsWritesCanonicalBindingFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实例绑定、运行时投影与视图状态管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestNormalizeBindingPreservesSupportedChartType": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实例绑定、运行时投影与视图状态管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestRiskAndBindingAuditDetails": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实例绑定、运行时投影与视图状态管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestNormalizeBindingAcceptsLegacyArrayPayloadsAndDropsInvalidEntries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实例绑定、运行时投影与视图状态管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestBindingConversionBoundaryTypes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实例绑定、运行时投影与视图状态管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestApplyParamsHandlesNilAndClearsStaleOptionalFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实例绑定、运行时投影与视图状态管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestInstanceViewHandlesUntypedRuntimeAndNilParams": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实例绑定、运行时投影与视图状态管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestRuntimeAndSourceFormatFromParams": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实例绑定、运行时投影与视图状态管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestDefinitionIDFromParamsTrimsStringValues": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实例绑定、运行时投影与视图状态管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestStartableRequiresPineV6AndPineRuntime": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实例绑定、运行时投影与视图状态管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestToInstanceViewNormalizesBindingAndCopiesParams": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实例绑定、运行时投影与视图状态管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestBuildInstanceIDUsesDefinitionOrDefaultPrefix": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实例绑定、运行时投影与视图状态管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestDefaultPineProducesEscapedCanonicalStarterStrategy": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestServiceDelegatesDefinitionVersionHistoryWithIdentityPreserved": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestCommandsFromOrderIntentsRejectsInvalidAtomicOCOLegs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestWorkerIntentDirectionAliasesPreserveTradingSide": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestExecuteBarCommandsPreflightsBeforeBrokerSideEffects": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestAtomicPineOrderValidationRejectsUnsafeGroupShapes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestAtomicPineOrderSubmissionIsAllOrNothing": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestPositionAwareCloseNeverCrossesTheWrongSide": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestIgnoredOrderWarningsRetainFallbackIdentityAndSymbol": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveOrderQuantityRespectsMinimumAndPrecision": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestCancelByIntentDeduplicatesAliasesAndToleratesStaleMappings": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestManagerMaintenanceStateAndPollingConfiguration": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestManagerCompatibilityResolversAndCommandBoundariesFailClosed": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestStrategyRuntimeRequiresStreamingCandlesForLiveAndNotifyOnly": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestStrategyRuntimeRejectsUnhealthyActiveProviderUnlessExchangeOverrideOwnsHealth": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestStrategyRuntimeResolvesExactBoundBrokerWithoutLegacyFallback": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestLiveStrategyRequiresExplicitBrokerAccountBinding": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestNotifyOnlyLoadsRealtimeMarketDataWithoutBrokerAccount": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestManagerInputLoadingReportsEachUnavailableDependency": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestManagerActivationReservationAndUnknownTradeBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestManagerBuildSymbolRequiresMarketAndPineWorker": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestRuntimeBuildCallbacksRecordErrorsAndIgnoredOrders": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestManagerCloseAggregatesNamedSessionErrorsOnce": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestManagerCloseWaitsForInFlightStartAndCollectsItsCloseError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestManagerCloseJoinsBackgroundSyncBeforeClosingPineSession": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestNilRuntimeBoundariesReturnEmptyState": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestTradeCommandFuncsRequireCallbacksAndDelegateCommands": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestLiveOrderPassesStopPriceToExecutionGateway": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestRuntimeRiskEvaluatesOrderLimits": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestLiveCancelOnlyRemovesSuccessfullyCancelledTrackedOrders": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestMarketDayStartUsesOrderSymbolTimezone": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestSubmittedOrderCountKeepsInstanceScopeWithinMarketDay": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestPineWorkerLiveUsesStatefulSessionAfterWarmup": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestPineWorkerLiveRemainingConstructorAndWarmupErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestPineWorkerLiveRemainingMarketAndSizerBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestPineWorkerLiveRemainingEquityPriceAndParamBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestPineWorkerLiveSessionFailureBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestLiveWarningSinkRecordsOnlyActionableOrderWarnings": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestRuntimeSnapshotIdentityAndAccountHelpers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestRuntimeRejectsBeforeAnyBrokerSubmission": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestRuntimePropagatesGatewayFailureAndSortsObservations": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestRuntimeAccountAcceptsBlankCurrencyBalance": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestStrategyRuntimeManagerUsesExplicitDependenciesInsteadOfServerOwnership": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestStrategyRuntimeManagerStartValidationAndReservationBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestStrategySymbolRuntimeTradeBucketsAndOrderSignals": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestStrategyRuntimeAccountAndFormattingBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestStrategyRuntimeSymbolMarketAndStartErrorBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestStrategyRuntimeRefreshAndSyncErrorBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestRuntimeRiskRejectionRecordsAuditAndPauseTransition": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestSubscriptionLeaseAndWarmupFailuresRollBackRuntime": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestRuntimePanicReleasesSubscriptionLease": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestKLineSubscriptionRefsSkipMalformedSymbols": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestStrategyRuntimeSymbolKeepsPollingAndLateTradeFailuresVisible": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestStrategyRuntimeSymbolFallbacksAvoidPanicsDuringShutdown": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs",
+    "conclusion": "已覆盖：策略实盘/模拟运行实例生命周期、订阅更新与风险关停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
+  },
+  "TestCandleFromKLinePreservesClosedBarWireFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestNewLiveCommandExecutorRetainsInjectedControlPorts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorSubmitsOrders": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorRejectsQuantityPctWithoutSizing": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorRejectsMissingQuantity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorSizesEntryQuantityPctFromEquity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorSizesCloseQuantityPctFromPosition": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorDefaultsCloseToFullPosition": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorTagsShortOrders": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorIgnoresCloseWithoutPosition": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorIgnoresQuantityBelowMarketStep": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorIgnoresHKOddLotBelowBoardLot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorIgnoresOrdersWhenMarketRulesUnavailable": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorGroupsRepeatedIgnoredOrderWarnings": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorAutoCloseCoversShortPosition": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorHonorsExplicitShortCloseAndOptionalWarnings": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorCancelsTrackedOrders": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorCancelAll": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorRejectsAtomicBracketBeforeAnySubmission": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorSubmitsParentOCOBracketAtomically": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorRejectsMalformedAtomicBracket": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorPropagatesExecutorErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorBusinessBoundaryErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorGeneratedOrderIDStopsAndTrackingFallbacks": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveCommandExecutorCancelBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestManagerReconfigureRejectsNilManager": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestLiveSessionContextWatcherExitsWhenSessionCloses": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestOpenLiveSessionCleansUpWhenRunnerClosesBeforeRegistration": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestLiveSessionContextWatcherCancellationBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestLiveSessionCloseInitializesCompletionSignal": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestResolveConfigReportsUnavailableEmbeddedBundle": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestResolveConfigHonorsRuntimeFallbacksAndConfiguredWorkerLimits": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestResolveWorkDirFindsRepositoryFromExternalBundleAfterGetwdFailure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestManagerDoesNotPublishWhenBacktestRunnerCannotBeBuilt": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestBacktestRunnerWaitsForCapacityAndPropagatesStartupFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestRunnerAndSessionNilAndClosedLifecycleBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestManagerCloseDrainsActiveLiveSession": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestResolveConfigUsesEnvironmentAndSettings": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestResolveConfigSelectsEmbeddedAssetAndExternalOverride": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestResolveConfigDisabledAndInvalidLimits": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestResolveConfigUsesWorkerDefaultsAndRuntimePrecedence": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestResolveConfigFindsRepositoryAndHonorsProtoOverride": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestRuntimeDependencyOptionsAndDefaultFactories": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestRuntimePathAndWorkDirFallbacks": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestManagerBuildsPublishesAndRetiresRunnerPairs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestManagerDoesNotPublishPartialPairAndRollsBack": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestManagerNilClosedAndNonClosableRunnerBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestEphemeralRunnerConcurrencyAndLiveSessionLifecycle": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestEphemeralRunnerFailureBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestEphemeralRunnerOpenSessionFailureBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine 独立运行时恢复契约、故障隔离与运行控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestOptionalRuntimeControlValuesCoverTimeAndPositionEdges": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：运行时策略控制、可选参数风控规避与语义策略",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestEvaluateRiskOffModeIgnoresConfiguredLimits": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：运行时策略控制、可选参数风控规避与语义策略",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestEvaluateRiskAppliesRuntimeLimits": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：运行时策略控制、可选参数风控规避与语义策略",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestEvaluateRiskMonitorModeRecordsButDoesNotReject": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：运行时策略控制、可选参数风控规避与语义策略",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestNormalizeRiskSettingsClearsOffModeLimits": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：运行时策略控制、可选参数风控规避与语义策略",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestMarketDayStartUTCUsesOrderSymbolTimezone": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：运行时策略控制、可选参数风控规避与语义策略",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestObservationFromSnapshotFormatsTimesAndDefaultsStatus": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：运行时策略控制、可选参数风控规避与语义策略",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestPositionMatchesMarketQualifiedSymbols": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：运行时策略控制、可选参数风控规避与语义策略",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestFormatNumberNormalizesNegativeZero": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：运行时策略控制、可选参数风控规避与语义策略",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestLiveExecutionLimitationsAllowsBrokerExecutedPineSemantics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：运行时策略控制、可选参数风控规避与语义策略",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestServiceDelegatesStoresAndRuntime": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestServiceListDefinitionsPropagatesStoreError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestServicePineAnalyzerOption": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestServiceAnalyzePineRejectsUnsupportedSourceFormat": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestServiceStartInstanceRejectsNotStartableBeforeRuntimeStart": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestServiceStartInstanceMapsPineWorkerCapacityToBusyError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestServiceStartInstancePreservesLookupRuntimeAndTransitionFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestServiceStartInstanceRefreshesLiveMarketStreamAfterSuccess": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestServicePauseAndStopInstancesStopRuntimeAfterStateTransition": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestServiceDelegatesCatalogRuntimeAndLifecycleEntryPoints": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestDefinitionViewJSONRemainsFlat": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestInstanceBindingJSONContract": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/service.rs",
+    "conclusion": "已覆盖：策略管理服务、实盘命令路由与类型转换契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(service)'"
+  },
+  "TestNormalizeSourceFormatDefaultsToPineV6": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
+    "conclusion": "已覆盖：Pine 脚本规范元数据、参数契约与源码格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+  },
+  "TestValidateScriptAndSupportsInstantiation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
+    "conclusion": "已覆盖：Pine 脚本规范元数据、参数契约与源码格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+  },
+  "TestValidateScriptAcceptsPineV6Source": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
+    "conclusion": "已覆盖：Pine 脚本规范元数据、参数契约与源码格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+  },
+  "TestValidateScriptRejectsUnsupportedFormatAndInvalidSource": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
+    "conclusion": "已覆盖：Pine 脚本规范元数据、参数契约与源码格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+  },
+  "TestMatchingFunctionCallParenHandlesQuotesAndEscapes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseIndicatorTimeUnitValueSupportsQuotedAndMinuteCountInputs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseMovingAverageOptionalArgsCoversSourceAndTimeUnitSemantics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParsePriceSourceAndBuildMovingAverageKeyWithSource": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestNormalizeFallbackHelpersCoverDefaultBranches": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseFunctionCall": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestSplitArguments": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestNormalizeFunctionName": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseMovingAverageType": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestNormalizeMovingAverageType": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseIndicatorTimeUnitValue": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestNormalizeIndicatorTimeUnit": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestBuildMovingAverageKey": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseQuantityMode": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestNormalizeQuantityMode": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseProtectMode": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestNormalizeProtectMode": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseProtectDirection": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestNormalizeProtectDirection": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseProtectWindowPolicy": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestNormalizeProtectWindowPolicy": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParsePositiveInt": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParsePositiveFloat": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParsePercentage": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestExpectOnePositiveIntArg": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestExpectPositiveIntArgs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestIntsToStrings": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestAdvancedRequirementParserRejectsMalformedShapes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestFixedTimeframeValidationRejectsEveryRequirementFamily": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestRiskSpecificationRejectsMalformedTimeAndPolicyContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseIndicatorRequirementKeysCoversSourceAwareAdvancedAndRiskKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseIndicatorRequirementKeysCoversLegacyCloseBasedFamilies": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestIndicatorRequirementsFromPlanTrimsBlankKeysAndStaysStrict": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseIndicatorRequirementKeysStrictRejectsInvalidBusinessKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseIndicatorRequirementKeysRejectsEveryKeyFamilyBoundary": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseIndicatorRequirementKeysRejectsMalformedVariants": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestMovingAverageAndRiskKeyParsingBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestIndicatorTimeUnitAndSourceNormalizationBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestSortedIndicatorConfigsRespectDeterministicBusinessPriority": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestSortedRiskAndDivergenceConfigsRespectTieBreakers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestCalculateIndicatorWarmupBarsCoversSourceAwareWindowsAndDivergences": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestEstimateTradingPeriodBarsHandlesFallbackAndInvalidInputs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestAdvancedIndicatorLookbackReflectsWarmupSemantics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestValidateFixedTimeframeRequirementsCoversAllConfigFamilies": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestFormatFixedTimeframeLabels": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestResolveIntervalMinutesSupportsBrokerIntervalsAndSafeFallbacks": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestWarmupBarsFromPlanUsesLargestIndicatorRequirement": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestWarmupBarsFromPlanForSymbolUsesMarketTradingProfiles": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestWarmupBarsFromPlanForSymbolUsesExtendedTradingDayWhenEnabled": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestWarmupBarsFromPlanDoesNotApplyRuntimeSeriesFloor": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestWarmupBarsFromPlanHandlesDivergenceAndProtectLookback": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestWarmupBarsFromScriptMatchesPlanWithExtendedHours": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestWarmupBarsFromScriptFallsBackToGenericTradingCalendarForUnknownSymbol": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestRequestSecurityTimeframeRequirementsValidateAgainstStrategyInterval": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestWarmupBarsFromScriptRejectsInvalidScript": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestWarmupBarsFromPlanRejectsInvalidIndicatorKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestPlanRequirementsCollectsLoopExitDivergenceAndLegacyProtectKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestIRStatementKindsAndSourceRangesStayStableForDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestPlanRequirementsKeepsBranchLocalIndicatorAliases": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestPlanRequirementsCollectsLoopObjectAndExitExpressions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestPlanRequirementsRejectsBusinessInvalidIndicatorParameters": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestPlanRequirementsRejectsNilAndUnsupportedStatements": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseIndicatorBindingSupportedMatrix": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseIndicatorBindingValidationMatrix": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestCollectExpressionRequirementsHandlesInvalidAndBaseIndicatorForms": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseIndicatorBindingBusinessKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseIndicatorBindingRejectsInvalidBusinessParameters": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestAdvancedIndicatorBindingsRejectTrailingTimeframeArguments": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestCollectExpressionRequirementsCoversCompoundIndicatorExpressions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestCollectExpressionRequirementsRejectsInvalidCompoundIndicatorCalls": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestProtectAndDivergenceKeyBusinessBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseIndicatorBindingNormalizesSourceAwareIndicators": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestParseIndicatorBindingRejectsInvalidIndicatorParameters": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestBuildDivergenceRequirementKeySupportsExpectedIndicators": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestPlanRequirementsCollectsPineIndicatorsAndRuntimeNeeds": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestPlanRequirementsRejectsInvalidIndicatorBinding": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestPlanRequirementsRejectsInvalidMovingAverageType": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestPlanRequirementsRejectsUnsupportedOrderQuantityMode": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestPlanRequirementsRejectsInvalidProtectTimeUnit": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestPlanRequirementsDetectsPositionVariablesInExpressions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestPlanRequirementsIndicatorKeysMatchRuntimeBindingParity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestPlanRequirementsPreservesLegacyCloseKeysAndSourceAwareKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestPlanRequirementsRejectsUnsupportedWindowSource": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestPlanRequirementsCollectsAdvancedIndicatorBindings": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestPlanRequirementsCollectsExpressionIndicatorsAcrossStatementShapes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
+    "conclusion": "已覆盖：指标绑定提取、IR 中间表示与指标预热执行计划规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+  },
+  "TestCollectionHelperBusinessBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCollectionObjectFieldAndHistoryBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestObjectDefinitionAndMethodArgumentBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompilerDiagnosticsPreserveActionablePlannerAndRemoteErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRequestSecurityPurityCoversOptionalAndBuiltinRecovery": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestPineEditorRecoveryAndCapabilityEvidenceContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestUnsupportedSyntaxDiagnosticsDescribeUnsafeRequestSecurityContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestTupleHelpersRejectMalformedIndicatorArityWithoutInventingAliases": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestTALoweringLeavesMalformedCallsUntouched": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileRejectsInvalidControlFlowAndUDFContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompilePreservesDescendingAndConditionalLoopSemantics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestControlFlowParserRetainsUserFunctionAndCollectionLoopSemantics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestObjectLifecycleParserCoversFieldsMultilineMethodsAndReceivers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCollectionParserKeepsHistoryAndExpressionContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestParseExpressionRejectsBlankInput": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestParseExpressionParsesTrimmedExpressions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestParseExpressionRejectsInvalidSyntax": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestExtendedTickerRequestSecuritySupportsCurrentSymbolOnly": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileAcceptsExtendedTickerAndChartFlags": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRequestSecuritySupportedTAFamiliesKeepTheirExecutionContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCollectionExecutionParserKeepsReceiverAndErrorBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestTupleLoweringHelpersMaintainAliasAndArityContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompilerHeadersAndLexicalHelpersRetainPineV6Rules": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestObjectExecutionParserPreservesDeclaredTypeContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCollectionLexicalParserRejectsMalformedHistoryAndNamespaceReferences": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestUDFAndDynamicLoopHelpersProtectRuntimeBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestTALoweringHelpersKeepNativePineArgumentSemantics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestObjectAndCollectionParserFailureContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRequestSecurityAndTupleContractsRejectUnsafeExpressions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestOrderAndTupleHelperContractsKeepTradeInstructionsUnambiguous": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestObjectNamedArgumentNormalizationBusinessBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestObjectMethodLoweringHandlesHistoryNamedDefaultsAndExpressionReceivers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCollectionStatementsAndReadLoweringBusinessBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileRejectsInvalidObjectAndCollectionContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestObjectDeclarationContractsRejectMalformedDomainTypesAndMethods": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestObjectCallsPreserveNamedArgumentAndOverloadSafety": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestOrderCommandRejectionsPropagateToPineCallers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRequestSecurityTupleValidationKeepsParserBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestOrderMetadataRejectsAmbiguousInputsAndKeepsSupportedPositionals": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestBenchmarkBusinessScriptsCompileAsRegressionCases": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptIncludesV20CollectionAndDeclarationSemantics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestPineV20LanguageFoundationGate": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReportsCollectionOperationSignatureDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptIncludesCollectionMethodStyleOperations": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptIncludesTypedCollectionDeclarations": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV21ExecutableCollectionCore": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV21CollectionAliases": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV21BBWAndCOG": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV22StructuredASTGeneralTupleAndDynamicLoops": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV22PureUDTAndMethodSubset": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV23NamedObjectArgsAndPureMethodBody": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV23LocalObjectFieldReassignment": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV23RequestSecurityPureObjectAndCollectionExpressions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV24CollectionExpansionAndMTFStoch": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV24NamedObjectMethodExpressionAndRuntimeLoopFallback": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV25ArrayStringAndTimeframeHelpers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV26CollectionIterationHistoryAndObjectCollectionFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV27CollectionTimeframeAndMTFHelpers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV28ObjectHistoryMethodChainAndExportMetadata": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV29ObjectHistoryMethodReceiverAndMTFHistoryExpression": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReportsV29RequestSecurityDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReportsV32RequestSecurityDiagnosticMatrix": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV30SemanticDeclarationModelAndVaripPolicy": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReportsCollectionTypeDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReportsCollectionMethodStyleSignatureDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReportsDeclarationSemanticDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReportsTypeAndMethodRegistryDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReportsImportAliasDeclarationDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReportsObjectOperationSignatureDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsMovingAverageRequestSecuritySubset": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsPineStdev": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsCommonTradingViewTAFunctions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV14WindowMomentumAndStatefulIndicators": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV14RequestSecurityPureExpression": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV15RequestSecurityCommonTAExpression": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV16RequestSecurityTupleWhitelist": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptIncludesV17SemanticSummary": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReportsSupportedTASemanticSignatures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReportsSupportedUtilitySemanticSignatures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReportsSemanticSignatureDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV15StaticForLoopControl": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsInputMathCrossAndSourceAwareMovingAverages": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsPineStrategyPositionVariables": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptSupportsTrendAndStatefulTAFunctions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptSupportsSarBarstateSessionAndPineConstants": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsOrderQtyPercentStrategyOrderAndCloseAll": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileIgnoresVisualCallsWithWarning": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReturnsVisualMetadata": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestParseScriptLowersPineStrategyToIR": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileRejectsPublicInternalHelperCalls": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReportsPublicInternalHelperDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileAcceptsNativePineIndicatorPublicEntry": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileUsesStrategyDefaultQuantityForEntryWithoutQty": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileParsesBacktestStrategyMetadata": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompilePreservesOrderNotificationMetadataAndImmediateClose": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileExplicitEntryQtyOverridesStrategyDefaultQuantity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestValidateScriptRejectsUnsupportedPineRuntimeFeature": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsMultiBarHistoryReferences": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestValidateScriptReportsUnsupportedHistoryReferences": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsStrategyExitSubset": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileCapturesWhenExpressionsForWorkflowOrders": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsStrategyExitProfitLossTicks": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileCapturesStrategyExitSpecificMetadata": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsPendingStopAndCancelOrders": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsCloseAllPositionalMetadata": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsClosePositionalQty": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestValidateScriptReportsUnsupportedAdvancedOrders": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReportsV40BrokerBoundaryDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsFrameworkLanguageFeatures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV12AdvancedIndicators": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV12AdvancedIndicatorsInStaticIntradaySecurity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV13MigrationIndicators": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsV13IndicatorsInStaticIntradaySecurity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsAllowEntryInRiskDeclaration": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsRuntimeRiskDeclarations": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompatibilityScoreAndSupportedFeatureIDsAreRegistryDriven": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsExpressionUDFAndStaticForUnroll": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestValidateScriptReportsUnsupportedUDFAndStaticForCases": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReportsV33AdvancedLanguageBoundaryDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileSupportsSwitchAndMultiStatementUDF": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptReturnsStructuredUnsupportedDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestAnalyzeScriptPreservesOriginalLineNumbers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestHistoryReferencesIgnoreStringLiterals": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestIncompleteColorAndRequestCallsRemainRecoverable": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestUDFExpansionRetainsWhitespaceAndUnwindsRejectedArguments": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestMethodAndControlFlowFailuresKeepSourceContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestNestedLoopStateAndImportRecoveryRemainStable": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestOrderAndTupleErrorsPreserveExecutableBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestOrderCallsRejectUnknownNamedArgumentsBeforePlanning": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestSourceAnnotationsAndCommentsKeepTheirSeparateRoles": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestParserHelperContractsCoverEmptyHeadersAndLexicalEdges": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestValidationAndDynamicWhileHelpersKeepDiagnosticsActionable": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRuntimeLoopAndTupleParserErrorContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCollectionParserHelperErrorsPreserveExecutableBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestMalformedNamespaceCallsRemainVisibleForValidation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestStaticLoopBoundsRejectNonTerminatingUserRanges": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestTupleIndicatorsExposeUnsupportedCallHistory": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestParserRejectsMalformedUDFAndStatementBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestObjectArgumentRecoveryRejectsOverrunAndPreservesDefaults": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCollectionScannerRejectsDamagedAndUnknownCalls": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestParseScriptPublicEntryReturnsProgramAndPropagatesErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestTALoweringBoundariesPreserveInvalidNativeCalls": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestPineMovingAverageTypeCoversNativeAliases": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRequestSecurityArgsFromLineCoversAssignmentForms": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestStrategyQuantityAndMetadataBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRequestSecurityPurityRejectsUnsafeLoweredExpressions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRequestSecurityRejectsMalformedAdvancedIndicatorArguments": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRequestSecurityDiagnosticsRejectUnsafeOrAmbiguousInputs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRequestSecurityLoweringRetainsOnlyPureStaticExpressions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRequestSecurityLoweringRejectsUnrepresentableExecutionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestObjectDefinitionParserProtectsTypeAndMethodContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestOrderAndParserBoundaryContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestDynamicForBoundsUseRuntimeFallback": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestNormalizationPreservesInvalidUserSyntaxAndErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestMalformedTAExpressionsRemainVisibleForValidation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestControlFlowErrorsRemainActionableBeforeRuntime": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRequestSecurityLoweringHelperBusinessBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRequestSecurityPurityAndMergeArgumentBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRequestSecurityAdvancedTALoweringBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestSemanticHelpersHandleDeclarationAndParameterBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestSemanticHelpersReflectPineCollectionAndObjectContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestSemanticHelpersReportMalformedScriptBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestSemanticHelpersCoverObjectAndVisualFallbacks": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestSharedPineStructureCorpusMatchesBackendIR": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestStrategyRiskArgumentParsersCoverBusinessBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileCoversTrailPriceExitAndShortCloseBusinessSemantics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestValidateScriptReportsRiskDeclarationBoundaryErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestParseStrategyCallCoversOrderLifecycleBusinessBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestParseStrategyCallRejectsUnsupportedOrderBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestParseStrategyCallRejectsInvalidTradingExpressions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestGeneralTupleAssignmentsKeepPineAliasContract": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestCompileRejectsMalformedSwitchAndTupleContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestUDFExpansionRejectsMalformedRecursiveAndDeepCalls": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestUDFExpansionSkipsMembersAndExpandsStandaloneCalls": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRequestSecurityValidationExplainsMalformedAndUnsafeExpressions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRequestSecurityExpressionTASubsetValidation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRequestSecurityTupleAliasExtractionPreservesAssignmentContract": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestRejectUnsupportedReturnsRuntimeAndCollectionBusinessErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestStrategyDeclarationInvalidConstantsFallBackWithWarnings": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestStrategyDeclarationWithoutArgumentsUsesBusinessDefaults": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestExpressionAndHistoryValidationRejectsInvalidBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestPublicHelperGuardReturnsActionableMigrationErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
+    "conclusion": "已覆盖：Pine 语法词法解析、AST lower、语义检查与合约规划",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+  },
+  "TestDisabledPayloadDocumentsCommunityAGPL": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs",
+    "conclusion": "已覆盖：Pine 引擎会话生命周期、多实例运行时与资源池化管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(pool)'"
+  },
+  "TestPinetsWorkerClientEngineInfoAndRunIndicator": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs",
+    "conclusion": "已覆盖：Pine 引擎会话生命周期、多实例运行时与资源池化管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(pool)'"
+  },
+  "TestPinetsWorkerClientMapsRuntimeErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs",
+    "conclusion": "已覆盖：Pine 引擎会话生命周期、多实例运行时与资源池化管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(pool)'"
+  },
+  "TestExternalModeFromEnvAndDisabledShadowPayload": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs",
+    "conclusion": "已覆盖：Pine 引擎会话生命周期、多实例运行时与资源池化管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(pool)'"
+  },
+  "TestShadowPayloadReportsWorkerStartupFailure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs",
+    "conclusion": "已覆盖：Pine 引擎会话生命周期、多实例运行时与资源池化管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(pool)'"
+  },
+  "TestShadowPayloadRunsConfiguredWorkerAndReturnsExternalResult": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs",
+    "conclusion": "已覆盖：Pine 引擎会话生命周期、多实例运行时与资源池化管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(pool)'"
+  },
+  "TestCommunityAGPLModeBlocksExecutionWhenNoticeCannotBeFound": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs",
+    "conclusion": "已覆盖：Pine 引擎会话生命周期、多实例运行时与资源池化管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(pool)'"
+  },
+  "TestExternalEnginePayloadFromResultMapsSuccessAndFailure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs",
+    "conclusion": "已覆盖：Pine 引擎会话生命周期、多实例运行时与资源池化管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(pool)'"
+  },
+  "TestPinetsWorkerClientCallHandlesProtocolFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs",
+    "conclusion": "已覆盖：Pine 引擎会话生命周期、多实例运行时与资源池化管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(pool)'"
+  },
+  "TestWorkerErrorStringAndStderrSuffix": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs",
+    "conclusion": "已覆盖：Pine 引擎会话生命周期、多实例运行时与资源池化管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(pool)'"
+  },
+  "TestPinetsWorkerConfigurationAndStartupErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs",
+    "conclusion": "已覆盖：Pine 引擎会话生命周期、多实例运行时与资源池化管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(pool)'"
+  },
+  "TestPinetsWorkerClientCapturesBoundedStderr": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs",
+    "conclusion": "已覆盖：Pine 引擎会话生命周期、多实例运行时与资源池化管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(pool)'"
+  },
+  "TestPinetsWorkerClientCloseWaitsForOwnedWorkers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs",
+    "conclusion": "已覆盖：Pine 引擎会话生命周期、多实例运行时与资源池化管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(pool)'"
+  },
+  "TestShadowPayloadForScriptExecutesRepositoryWorker": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs",
+    "conclusion": "已覆盖：Pine 引擎会话生命周期、多实例运行时与资源池化管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(pool)'"
+  },
+  "TestRepositoryRelativePineTSAssetsAreDiscoverable": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs",
+    "conclusion": "已覆盖：Pine 引擎会话生命周期、多实例运行时与资源池化管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(pool)'"
+  },
+  "TestPinetsWorkerClientProtocolBoundaryFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs",
+    "conclusion": "已覆盖：Pine 引擎会话生命周期、多实例运行时与资源池化管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(pool)'"
+  },
+  "TestOptionalTypeAssertionReturnsZeroForUnexpectedType": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
+    "conclusion": "已覆盖：Pine 脚本规范元数据、参数契约与源码格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+  },
+  "TestPineSpecSkillMetadataAndResources": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
+    "conclusion": "已覆盖：Pine 脚本规范元数据、参数契约与源码格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+  },
+  "TestPineSpecRejectsUnknownSectionsAndKeepsFallbackFormattingStable": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
+    "conclusion": "已覆盖：Pine 脚本规范元数据、参数契约与源码格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+  },
+  "TestExamplesParseAndPlan": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
+    "conclusion": "已覆盖：Pine 脚本规范元数据、参数契约与源码格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+  },
+  "TestGoldenExamplesAnalyzeAndPlan": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
+    "conclusion": "已覆盖：Pine 脚本规范元数据、参数契约与源码格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+  },
+  "TestBuildToolPayloadSectionsAndExamples": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
+    "conclusion": "已覆盖：Pine 脚本规范元数据、参数契约与源码格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+  },
+  "TestBuildToolPayloadIncludesSupportMatrix": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
+    "conclusion": "已覆盖：Pine 脚本规范元数据、参数契约与源码格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+  },
+  "TestBuildToolPayloadIncludesBrokerBoundary": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
+    "conclusion": "已覆盖：Pine 脚本规范元数据、参数契约与源码格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+  },
+  "TestGeneratedPineSupportSnapshotIsCurrent": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
+    "conclusion": "已覆盖：Pine 脚本规范元数据、参数契约与源码格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+  },
+  "TestSkillResourcesContainSpecAndExamples": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
+    "conclusion": "已覆盖：Pine 脚本规范元数据、参数契约与源码格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+  },
+  "TestClientRunScriptSuccessAppliesMetadataDefaults": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestClientRunScriptRejectsInvalidRequestBeforeTransport": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestJSONSizeMatchesMarshalForRunScriptRequest": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestClientRunScriptMapsTransportError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestClientRunScriptMapsTimeout": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestClientRunScriptMapsWorkerError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestClientRunScriptRejectsMismatchedJobID": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestClientRunScriptRejectsPerformanceGateFailure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestClientRunScriptDoesNotApplyPerformanceGateByDefault": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestNewClientRequiresTransport": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestGRPCDialerCreatesManagedTransport": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestGRPCDialerRejectsNilReceiver": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestGRPCTransportRunScriptAndHealthCheck": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestGRPCTransportRequiresClient": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestPineTSHardCutDoesNotExposeGoPineRuntime": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerReadinessFailuresCloseTransportAndRespectCancellation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerStartStopAndSnapshot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerRunScriptRoundRobinsHealthyWorkers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerPinsLiveSessionAndClearsItOnClose": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerReservesLiveSessionBeforeOpenCompletes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerRunScriptQueuesWhenAllWorkersBusy": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerRunScriptRejectsWhenBusyIfConfigured": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerCheckHealthRestartsFailedWorker": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerCheckHealthReportsRestartFailure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerStartCleansUpAfterDialFailure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerStartDialFailureIncludesProcessDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerStartRetriesDialUntilWorkerReady": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerStopReturnsFirstCloseError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerRequiresDependenciesAndStart": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestJSONSizeMatchesMarshalAcrossPayloadShapes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestEstimateRunScriptRequestJSONSizeHandlesNilAndEmptyCollections": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestEstimateCandleJSONSizeRejectsNonFiniteFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestNodeWorkerLauncherDefaultsAndMaterializationBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestNodeWorkerLauncherRemovesMaterializedBundleWhenContextAlreadyCanceled": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestOSWorkerProcessDiagnosticsAndNilBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestOSWorkerProcessForcesTerminationOnTimeoutAndCancellation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestPineworkerInterruptIgnoringHelperProcess": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestNodeWorkerLauncherMaterializesBundleWithArgs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestNodeWorkerLauncherRejectsBadChecksum": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestNodeWorkerLauncherStopKillsLongRunningProcess": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestNewNodeWorkerLauncherRequiresBundle": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestNodeWorkerEnvironmentPreservesNodeOptionsWithoutOldSpaceOverride": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestNodeWorkerLauncherRejectsNilReceiver": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestNodeWorkerLauncherReturnsStartErrorAndRemovesFile": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerProcessSmokeWithNodeWorker": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerRealPineTSProcessSmoke": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestPineWorkerProtoCompilesAndExposesContract": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestProtoMappingRoundTripRequestAndResponse": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestCandleBatchEncodingGoldenVector": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestProtoMappingHandlesNilResponses": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestHealthFromProtoCopiesCapabilities": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestRequestToProtoDoesNotAliasNilOrMutableParams": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestTailBufferRetainsOnlyConfiguredProcessLogTail": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestPerformanceGateRejectsLatencyAndThroughputBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerConfigAndCandleTimeBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestClientDefaultsAndResponseIdentityBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestGRPCTransportPropagatesRPCFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerSelectionCapacityAndErrorBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestWorkerManagerDiagnosticErrorFormatting": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestNormalizeRuntimeMigratesLegacyRuntime": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestDefaultWorkerConfigScalesByCPU": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestValidateRunScriptRequest": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestValidateRunScriptRequestAnalyzeModeAllowsNoCandles": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestValidateRunScriptRequestLiveSessionContract": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestValidateRunScriptRequestRejectsTooManyCandles": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestRunScriptPayloadSizeRejectsNonFiniteCandle": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestCheckPerformanceGate": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
+    "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
   }
 }
