@@ -171,6 +171,10 @@ fn fixture() -> (axum::Router, Arc<RecordingPort>) {
             path: "/api/v1/settings/ui".into(),
         },
         RouteSpec {
+            method: "PATCH".into(),
+            path: "/api/v1/settings/ui".into(),
+        },
+        RouteSpec {
             method: "GET".into(),
             path: "/api/v1/ws/live".into(),
         },
@@ -275,6 +279,44 @@ async fn browser_write_requires_allowed_origin_and_csrf() {
     };
     let denied = router.clone().oneshot(request(None)).await.expect("denied");
     assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+    let accepted = router
+        .oneshot(request(Some("csrf-token")))
+        .await
+        .expect("accepted");
+    assert_eq!(accepted.status(), StatusCode::OK);
+    assert_eq!(
+        accepted.headers()["access-control-allow-origin"],
+        "https://jftrade.local"
+    );
+    assert!(
+        !port
+            .requests
+            .lock()
+            .expect("requests")
+            .last()
+            .expect("accepted request")
+            .desktop_trusted
+    );
+}
+
+#[tokio::test]
+async fn auth_treats_patch_as_session_write_requiring_csrf() {
+    // Parity: internal/api/middleware/auth_test.go:153 TestAuthTreatsPatchAsSessionWrite
+    let (router, port) = fixture();
+    let request = |csrf: Option<&str>| {
+        let mut builder = Request::builder()
+            .method(Method::PATCH)
+            .uri("/api/v1/settings/ui")
+            .header("cookie", "jftrade_web_session=session-token")
+            .header("origin", "https://jftrade.local");
+        if let Some(csrf) = csrf {
+            builder = builder.header("x-csrf-token", csrf);
+        }
+        builder.body(Body::from("{}")).expect("request")
+    };
+    let denied = router.clone().oneshot(request(None)).await.expect("denied");
+    assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+
     let accepted = router
         .oneshot(request(Some("csrf-token")))
         .await
