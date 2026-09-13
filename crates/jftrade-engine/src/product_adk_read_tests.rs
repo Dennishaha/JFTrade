@@ -412,6 +412,69 @@ async fn request_adk_json_response(address: SocketAddr, method: &str, path: &str
 }
 
 #[test]
+fn adk_read_routes_clamp_pagination_beyond_available_items() {
+    // Parity: go:452dea11:internal/api/assistant/routes_payload_pagination_test.go:65 TestAssistantRoutesClampPaginationBeyondAvailableItems
+    // Verifies that large offsets (e.g. offset=10000) return empty collections with returned: 0 rather than erroring.
+    use jftrade_store_sqlite::{AdkArtifactStore, AdkSessionStore, AdkStore, initialize_current};
+    use rusqlite::Connection;
+    use std::fs::File;
+    use std::path::Path;
+
+    fn init_db(path: &Path, component: &str) {
+        File::create(path).expect("create database file");
+        let connection = Connection::open(path).expect("open sqlite");
+        initialize_current(&connection, component).expect("initialize schema");
+    }
+
+    let dir = tempdir().expect("tempdir");
+    let adk_path = dir.path().join("adk.db");
+    let session_path = dir.path().join("sessions.db");
+    let artifact_path = dir.path().join("artifacts.db");
+
+    init_db(&adk_path, "adk");
+    init_db(&session_path, "adk-session");
+    init_db(&artifact_path, "adk-artifact");
+
+    let store = Arc::new(AdkStore::open(&adk_path).expect("open adk store"));
+    let session_store = Arc::new(AdkSessionStore::open(&session_path).expect("open session store"));
+    let artifact_store =
+        Arc::new(AdkArtifactStore::open(&artifact_path).expect("open artifact store"));
+
+    let port = crate::product::product_production_ports::product_production_ports_adk::ProductionAdkPort::new_for_test(
+        store,
+        session_store,
+        artifact_store,
+        dir.path().join("settings.json"),
+    );
+
+    for (path, collection_key) in [
+        ("/api/v1/adk/audit", "events"),
+        ("/api/v1/adk/agents", "agents"),
+        ("/api/v1/adk/optimization-tasks", "tasks"),
+    ] {
+        let output = dispatch_adk_read(Some(&port), "GET", path, "limit=1&offset=10000")
+            .unwrap_or_else(|e| {
+                panic!("clamped pagination beyond available items for {path} failed: {e:?}")
+            });
+        match output {
+            AdkReadOutput::Json(value) => {
+                let page = value.get("page").expect("page object present");
+                assert_eq!(page["returned"], 0, "path {path} returned count");
+                assert_eq!(page["hasMore"], false, "path {path} hasMore");
+                assert!(
+                    value
+                        .get(collection_key)
+                        .and_then(Value::as_array)
+                        .is_some_and(|arr| arr.is_empty()),
+                    "path {path} empty collection"
+                );
+            }
+            AdkReadOutput::Stream(_) => panic!("unexpected stream output for {path}"),
+        }
+    }
+}
+
+#[test]
 fn adk_read_pagination_rejects_non_positive_limits_and_negative_offsets() {
     for query in ["limit=0", "limit=-1", "offset=-1"] {
         let failure = dispatch_adk_read(None, "GET", "/api/v1/adk/audit", query)
