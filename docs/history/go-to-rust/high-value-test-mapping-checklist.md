@@ -197,4 +197,5 @@
    - [x] 补齐 ADK 工具描述符 requiresApprovalIn 空数组序列化契约断言（`63e754d5`）。
    - [x] 补齐 Web 登出下发 Max-Age=0 过期 Cookie 清理会话契约断言（`109bdfbf`）。
    - [x] 补齐实盘风控快照初始化空向量非空切片集合契约断言（`7c6a03f8`）。
+   - [x] 补齐全量失效会话使既有 Web Session 变为 unauthenticated 契约断言（`428771cc`）。
    - [x] 补齐 K 线查询窗口 from_time >= to_time 异常时自动重置为 36h 默认回看断言（`84ff20a4`）。
