@@ -297,9 +297,12 @@ fn adk_read_dynamic_routes_validate_suffixes_and_identifiers() {
     assert_eq!(route_for("/api/v1/adk/runs//stream"), None);
     assert_eq!(route_for("/api/v1/adk/sessions//context"), None);
 
+    // Parity: internal/api/assistant/adk_routes_test.go:787 TestADKSessionNegativeRoutes
     for (path, message) in [
         ("/api/v1/adk/runs/%20/stream", "runId is invalid"),
+        ("/api/v1/adk/runs/%zz/stream", "runId is invalid"),
         ("/api/v1/adk/sessions/%20/context", "sessionId is invalid"),
+        ("/api/v1/adk/sessions/%zz/context", "sessionId is invalid"),
         (
             "/api/v1/adk/workflows/%20/triggers",
             "workflowId is invalid",
