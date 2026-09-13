@@ -247,31 +247,65 @@ def main():
     # without pretending that filename-level matching proves behavior parity.
     inventory_path = "docs/history/go-to-rust/test-parity-inventory.md"
     prior_rows = {}
+    prior_by_name = {}
     if os.path.exists(inventory_path):
         for line in open(inventory_path, encoding="utf-8"):
             if not line.startswith("| ["):
                 continue
             cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
             if len(cells) >= 8:
-                match = re.search(r"`go:[^:]+:(.+)`", cells[1])
+                match = re.search(r"`go:[^:]+:([^`]+)`<br>`([^`]+)`", cells[1])
                 if match:
                     prior_rows[match.group(1)] = cells
+                    prior_by_name[match.group(2)] = cells
+    manual_path = "docs/history/go-to-rust/manual-test-mappings.json"
+    manual_details = {}
+    if os.path.exists(manual_path):
+        import json
+        manual_details = json.load(open(manual_path, encoding="utf-8"))
     curated_path = "docs/history/go-to-rust/high-value-test-mapping-checklist.md"
     curated_names = set()
+    curated_details = {}
     if os.path.exists(curated_path):
         curated = open(curated_path, encoding="utf-8").read()
         curated_names = set(re.findall(r"<br>`(Test[A-Za-z0-9_]+)`", curated))
+        for line in curated.splitlines():
+            if not (line.startswith("| [x] |") or line.startswith("| [~] |")):
+                continue
+            parts = [p.strip() for p in line.split("|")[1:-1]]
+            if len(parts) >= 9:
+                m = re.search(r"`(Test[A-Za-z0-9_]+)`", parts[1])
+                if m:
+                    curated_details[m.group(1)] = {
+                        "status": parts[0],
+                        "rust_entry": parts[4],
+                        "conclusion": f"{parts[5]}：{parts[6]}",
+                        "command": parts[8],
+                    }
     rust_by_domain = {key: [crate for crate in crates] for key, _, _, crates in DOMAIN_MAPPING}
     with open(inventory_path, "w", encoding="utf-8") as fp:
         fp.write("# Go → Rust 全量测试索引\n\n")
         fp.write("本文件由 `scripts/compatibility/audit_test_parity.py` 生成，是 Go→Rust 全量逐测试人工核对入口。每行的 `[ ]` 表示尚未完成人工确认；自动推导的业务域和 crate 仅是候选，不能视为已覆盖。确认后将该行改为 `[x]` 并填写 Rust 测试名称、差异结论和验证命令；无法迁移的测试必须标记为边界/不适用并说明原因。\n\n")
-        confirmed = sum(test["name"] in curated_names for test in go_tests)
-        fp.write(f"当前进度：`[x]` {confirmed} / `{len(go_tests)}`，待核对 `{len(go_tests) - confirmed}`。脚本只会把高价值清单中已有明确证据的同名测试标记为 `[x]`；其余项目必须按功能域人工补充。\n\n")
+        # Precalculate status per test to display accurate progress in summary
+        test_statuses = {}
+        for test in go_tests:
+            prior = prior_rows.get(f"{test['file']}:{test['line']}") or prior_by_name.get(test["name"])
+            if test["name"] in manual_details:
+                test_statuses[test["name"]] = manual_details[test["name"]]["status"]
+            elif test["name"] in curated_details:
+                test_statuses[test["name"]] = curated_details[test["name"]]["status"]
+            elif prior and len(prior) >= 8 and (prior[0] in ("[x]", "[~]") or prior[5] != "待人工填写"):
+                test_statuses[test["name"]] = prior[0]
+            else:
+                test_statuses[test["name"]] = "[ ]"
+
+        confirmed = sum(s in ("[x]", "[~]") for s in test_statuses.values())
+        fp.write(f"当前进度：已确认 `{confirmed}` / `{len(go_tests)}`，待核对 `{len(go_tests) - confirmed}`。\n\n")
         by_domain = {}
         for test in go_tests:
             bucket = by_domain.setdefault(test["domain"], [0, 0])
             bucket[0] += 1
-            bucket[1] += test["name"] in curated_names
+            bucket[1] += (test_statuses.get(test["name"]) in ("[x]", "[~]"))
         fp.write("| 业务域 | 已确认 | 待核对 |\n|---|---:|---:|\n")
         for domain in sorted(by_domain):
             total, done = by_domain[domain]
@@ -282,11 +316,28 @@ def main():
             risk = "高风险" if test["high_risk"] else "普通边界"
             crates = ", ".join(rust_by_domain.get(test["domain"], [])) or "待人工归类"
             source = f"`go:{go_revision}:{test['file']}:{test['line']}`<br>`{test['name']}`"
-            status = "[x]" if test["name"] in curated_names else "[ ]"
-            prior = prior_rows.get(f"{test['file']}:{test['line']}")
-            if prior and len(prior) >= 8:
+            prior = prior_rows.get(f"{test['file']}:{test['line']}") or prior_by_name.get(test["name"])
+            if test["name"] in manual_details:
+                c = manual_details[test["name"]]
+                status = c["status"]
+                rust_entry = c["rust_entry"]
+                conclusion = c["conclusion"]
+                command = c["command"]
+            elif test["name"] in curated_details:
+                c = curated_details[test["name"]]
+                status = c["status"]
+                rust_entry = c["rust_entry"]
+                conclusion = c["conclusion"]
+                command = c["command"]
+            elif prior and len(prior) >= 8 and (prior[0] in ("[x]", "[~]") or prior[5] != "待人工填写"):
                 status, _, _, _, _, rust_entry, conclusion, command = prior[:8]
+                detail = curated_details[test["name"]]
+                status = detail["status"]
+                rust_entry = detail["rust_entry"]
+                conclusion = detail["conclusion"]
+                command = detail["command"]
             else:
+                status = "[ ]"
                 rust_entry, conclusion, command = "待人工填写", "待人工核对", "待人工填写"
             fp.write(f"| {status} | {source} | {test['domain']} | {risk} | `{crates}` | {rust_entry} | {conclusion} | {command} |\n")
 
