@@ -716,6 +716,7 @@ fn input_and_atomic_bracket_validation_errors() {
 
 #[test]
 fn market_order_fills_on_next_open_with_liquidity_cap() {
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:89 TestConservativeBarExecutorFillsMarketOrderOnNextOpenWithLiquidityCap
     let case = json!({
         "id": "next-open-liquidity-cap",
         "symbol": "US.AAPL",
@@ -857,6 +858,7 @@ fn market_order_fills_on_next_open_with_liquidity_cap() {
 
 #[test]
 fn parent_bracket_runs_atomically_with_stop_first_protection() {
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:147 TestConservativeBarExecutorRunsParentBracketAtomicallyAndStopFirst
     let case = json!({
         "id": "atomic-parent-bracket-stop-first",
         "symbol": "US.AAPL",
@@ -1075,6 +1077,7 @@ fn parent_bracket_runs_atomically_with_stop_first_protection() {
 
 #[test]
 fn atomic_child_without_parent_is_rejected() {
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:196 TestConservativeBarExecutorRejectsAtomicChildWithoutParent
     let case = json!({
         "id": "broken-bracket",
         "symbol": "US.AAPL",
@@ -1112,6 +1115,7 @@ fn atomic_child_without_parent_is_rejected() {
 
 #[test]
 fn atomic_bracket_fills_on_signal_close() {
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:214 TestConservativeBarExecutorFillsAtomicBracketOnSignalClose
     let case = json!({
         "id": "close-bracket",
         "symbol": "US.AAPL",
@@ -1326,6 +1330,7 @@ fn atomic_bracket_fills_on_signal_close() {
 
 #[test]
 fn canceling_parent_order_cancels_all_protective_children() {
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:245 TestConservativeBarExecutorCancelParentCancelsProtectiveChildren
     let case = json!({
         "id": "cancel-parent-cascade",
         "symbol": "US.AAPL",
@@ -1480,6 +1485,7 @@ fn canceling_parent_order_cancels_all_protective_children() {
 
 #[test]
 fn reduce_only_order_without_position_is_canceled() {
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:276 TestConservativeBarExecutorCancelsReduceOnlyOrderWithoutPosition
     let case = json!({
         "id": "reduce-only-no-pos",
         "symbol": "US.AAPL",
@@ -1550,6 +1556,7 @@ fn reduce_only_order_without_position_is_canceled() {
 
 #[test]
 fn reduce_only_fill_is_limited_to_open_position() {
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:302 TestConservativeBarExecutorLimitsReduceOnlyFillToOpenPosition
     let case = json!({
         "id": "oversized-reduce-only",
         "symbol": "US.AAPL",
@@ -1720,6 +1727,7 @@ fn reduce_only_fill_is_limited_to_open_position() {
 
 #[test]
 fn explicit_cancel_orders_and_unmatched_target_handling() {
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:336 TestConservativeBarExecutorCancelOrders
     let case = json!({
         "id": "explicit-cancel",
         "symbol": "US.AAPL",
@@ -1867,6 +1875,7 @@ fn explicit_cancel_orders_and_unmatched_target_handling() {
 
 #[test]
 fn process_orders_on_close_executes_at_signal_close_price() {
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:383 TestConservativeBarExecutorProcessOrdersOnCloseUsesSignalClose
     let case = json!({
         "id": "same-close-point",
         "symbol": "US.AAPL",
@@ -1967,6 +1976,7 @@ fn process_orders_on_close_executes_at_signal_close_price() {
 
 #[test]
 fn sell_market_order_applies_downward_slippage() {
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:412 TestConservativeBarExecutorSellMarketAndSlippage
     let case = json!({
         "id": "sell-market-slippage",
         "symbol": "US.AAPL",
@@ -2075,6 +2085,7 @@ fn sell_market_order_applies_downward_slippage() {
 
 #[test]
 fn limit_order_receives_favorable_gap_improvement() {
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:447 TestConservativeBarExecutorLimitOrderGetsGapImprovement
     let case = json!({
         "id": "buy-limit-gap-improvement",
         "symbol": "US.AAPL",
@@ -2177,6 +2188,7 @@ fn limit_order_receives_favorable_gap_improvement() {
 
 #[test]
 fn limit_sell_open_improvement_intrabar_and_close_point() {
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:477 TestConservativeBarExecutorLimitSellAndClosePointBranches
     // 1. Close-point fill
     let close_case = json!({
         "id": "sell-limit-close",
@@ -2443,6 +2455,7 @@ fn limit_sell_open_improvement_intrabar_and_close_point() {
 
 #[test]
 fn stop_market_and_stop_limit_orders_execution() {
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:515 TestConservativeBarExecutorStopOrders
     let case = json!({
         "id": "stop-orders-execution",
         "symbol": "US.AAPL",
@@ -2682,6 +2695,7 @@ fn stop_market_and_stop_limit_orders_execution() {
 
 #[test]
 fn warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order() {
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:575 TestConservativeBarExecutorWarningsAndUnmatchedOrders
     let case = json!({
         "id": "warnings-and-unsupported",
         "symbol": "US.AAPL",
@@ -2760,6 +2774,7 @@ fn warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order() {
 
 #[test]
 fn liquidity_warnings_for_sub_step_and_below_min_quantity() {
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:602 TestConservativeBarExecutorLiquidityWarnings
     // 1. Below quantity step
     let step_case = json!({
         "id": "below-step-warning",
@@ -3634,6 +3649,7 @@ fn matching_and_pricing_helper_branches_behavior() {
 
 #[test]
 fn cancel_skips_unmatched_pending_orders_without_side_effects() {
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:771 TestConservativeBarExecutorCancelSkipsUnmatchedPendingOrders
     let case = json!({
         "id": "cancel-unmatched-skip",
         "symbol": "US.AAPL",
