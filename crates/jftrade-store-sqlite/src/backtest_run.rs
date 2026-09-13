@@ -302,6 +302,8 @@ impl BacktestRunStore {
             return Ok(false);
         };
 
+        // Parity: internal/store/backtest/store_failure_test.go:121 TestStoreCanceledMaintenanceDoesNotMutateRuns
+        // Verifies non-terminal (running/queued) backtest runs are protected from deletion or cancellation mutations
         if status == "running" || status == "queued" {
             return Err(BacktestRunStoreError::NotTerminal(id.to_owned()));
         }
