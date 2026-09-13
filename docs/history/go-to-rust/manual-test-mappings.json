@@ -4534,5 +4534,1505 @@
     "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
     "conclusion": "已覆盖：自选股快照跨多源路由 (Futu/Yahoo/AKShare)、权限错误穿透、不可用边界判定与盘后/前收盘价回退处理",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestDataManagementADKCleanupAndCompactionPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/lib.rs`",
+    "conclusion": "已覆盖：SQLite 数据维护治理、VACUUM 碎片整理、重建计划与存储异常边界保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDatabaseMaintenanceADKBusyAndPurgeBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/lib.rs`",
+    "conclusion": "已覆盖：SQLite 数据维护治理、VACUUM 碎片整理、重建计划与存储异常边界保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestServerCloseClosesAssistantHTTPTransport": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestBrokerReadQueryDefaultMarket": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestDataManagementBackendRemainingOperations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/lib.rs`",
+    "conclusion": "已覆盖：SQLite 数据维护治理、VACUUM 碎片整理、重建计划与存储异常边界保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDatabaseMaintenanceRemainingBusyReasons": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/lib.rs`",
+    "conclusion": "已覆盖：SQLite 数据维护治理、VACUUM 碎片整理、重建计划与存储异常边界保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDataManagementRemainingPurgeAndCompactBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/lib.rs`",
+    "conclusion": "已覆盖：SQLite 数据维护治理、VACUUM 碎片整理、重建计划与存储异常边界保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDataManagementRemainingStorePurgeFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/lib.rs`",
+    "conclusion": "已覆盖：SQLite 数据维护治理、VACUUM 碎片整理、重建计划与存储异常边界保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestCompactBacktestRejectsInvalidDatabasePath": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/lib.rs`",
+    "conclusion": "已覆盖：SQLite 数据维护治理、VACUUM 碎片整理、重建计划与存储异常边界保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDataManagementStatusErrorIsIgnoredByPathLookup": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/lib.rs`",
+    "conclusion": "已覆盖：SQLite 数据维护治理、VACUUM 碎片整理、重建计划与存储异常边界保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestBacktestRunMaintenanceKeepsMemoryAndDatabaseInSync": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/lib.rs`",
+    "conclusion": "已覆盖：SQLite 数据维护治理、VACUUM 碎片整理、重建计划与存储异常边界保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDataManagementServerCleanupAndCompactionPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/lib.rs`",
+    "conclusion": "已覆盖：SQLite 数据维护治理、VACUUM 碎片整理、重建计划与存储异常边界保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDataManagementAdaptersRejectBusyRuntimeAndMapStalePreview": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/lib.rs`",
+    "conclusion": "已覆盖：SQLite 数据维护治理、VACUUM 碎片整理、重建计划与存储异常边界保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestTranslateDataManagementErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/lib.rs`",
+    "conclusion": "已覆盖：SQLite 数据维护治理、VACUUM 碎片整理、重建计划与存储异常边界保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDesktopTokenMiddlewareProtectsHTTPAndWebSocket": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
+    "conclusion": "已覆盖：Desktop 令牌鉴权、受信任本地源放行、CSRF 防护与 SPA 前端静态路由分发",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopSidecarDoesNotDoubleAsBrowserListener": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
+    "conclusion": "已覆盖：Desktop 令牌鉴权、受信任本地源放行、CSRF 防护与 SPA 前端静态路由分发",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopDevelopmentWithoutInjectedTokenRemainsTrusted": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
+    "conclusion": "已覆盖：Desktop 令牌鉴权、受信任本地源放行、CSRF 防护与 SPA 前端静态路由分发",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopDevelopmentWebListenerStillRequiresPasswordSession": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
+    "conclusion": "已覆盖：Desktop 令牌鉴权、受信任本地源放行、CSRF 防护与 SPA 前端静态路由分发",
+    "command": "pnpm run check:quick"
+  },
+  "TestStandaloneServerWithoutDesktopTokenIsNotTrusted": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
+    "conclusion": "已覆盖：Desktop 令牌鉴权、受信任本地源放行、CSRF 防护与 SPA 前端静态路由分发",
+    "command": "pnpm run check:quick"
+  },
+  "TestExecutionPushHandlersWriteBackAndNotify": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestRecordPlacedOrderReusesExistingBrokerDiscoveredOrder": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestNormalizeInstrumentInput": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketTradeFromTickUsesExplicitVolumeDelta": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestMarketTradeFromTickKeepsDecimalVolumeWhenLegacyQuantityOverflows": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestMarketTradeFromTickRejectsAmbiguousOrInvalidDelta": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestLiveHeartbeatActiveInstrumentDeduplicationBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestLiveStreamDiagnosticsUseConfiguredLimit": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestLiveWebSocketUsesActivePollOnlyProviderBehindLegacyFutuSelection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestLiveWebSocketBackendProviderAndNilBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestLiveWebSocketBackendPollsExplicitBrokerSnapshots": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestMarketDepthWebSocketSendsInitialPayload": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestMarketDepthOpenDError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestMarketSecurityDetailsWebSocketSendsInitialPayload": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestMarketInstrumentResolverEndpointUsesSearchWithoutQuoteSubscription": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketInstrumentResolverQualifiedInputOnlyQueriesSelectedLeaf": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketCandlesEndpointIncludesCurrentRealtimeBucket": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestBusinessNotificationsAndOptionalSecurityFieldsPreserveWireSemantics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestMarketQueryAndExecutionPayloadFallbacksRemainDeterministic": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestRealTradeControlPathPrefersExplicitOverride": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestWorkflowMarketAdaptersRejectInvalidInputsAndPreserveMetadata": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestExchangeCalendarAlertRecordingHonorsNotificationSetting": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/notification.rs`",
+    "conclusion": "已覆盖：系统与市场通知源聚合分发、生命周期管理与通道故障优雅隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestLiveNotificationFromExchangeCalendarAlertMapsSourceAndCategory": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/notification.rs`",
+    "conclusion": "已覆盖：系统与市场通知源聚合分发、生命周期管理与通道故障优雅隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestServerCloseUnregistersOnlyItsBBGONotificationSink": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/notification.rs`",
+    "conclusion": "已覆盖：系统与市场通知源聚合分发、生命周期管理与通道故障优雅隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestLiveNotificationEventMapContract": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/notification.rs`",
+    "conclusion": "已覆盖：系统与市场通知源聚合分发、生命周期管理与通道故障优雅隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRecordLiveNotificationCallsSink": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/notification.rs`",
+    "conclusion": "已覆盖：系统与市场通知源聚合分发、生命周期管理与通道故障优雅隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestSystemNotificationTestRouteReturnsDeliveryStatus": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/notification.rs`",
+    "conclusion": "已覆盖：系统与市场通知源聚合分发、生命周期管理与通道故障优雅隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRecordLiveNotificationSinkPanicDoesNotDropEvent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/notification.rs`",
+    "conclusion": "已覆盖：系统与市场通知源聚合分发、生命周期管理与通道故障优雅隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestSwaggerRoutesRedirectToBrowsableDocumentation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestOpenAPICoversRegisteredAPIRoutes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestCapabilityCatalogAPISurfacesAreRegistered": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestServerTradingStoreAndGatewaySmallBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestProductInfrastructureRemainingNilAndFallbackBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestProductLifecycleFeeUpdatesPersistOnlyOnLiveOrderLedger": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestPredictionAndPreviewPersistenceRejectsStaleOrChangedBindings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestProductLifecycleSnapshotIdentityAndRuntimeHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestProductLifecycleExecutionGatewayGuardsAndSubscriptionFallback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestProductLifecycleStartupBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestRequestObservabilityInjectsStableContextAndRecordsSummary": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestRequestObservabilityReplacesUnsafeRequestID": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestStartupIntegrationRemainsEffectiveWithoutPersistedBrokerSettings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestPersistenceStoreUnwrapsStartupIntegrationForMCPSettings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestFutuBrokerRefreshesAfterRuntimeResetAndStaysHiddenWhenDisabled": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestExplicitFutuResolutionRestoresRuntimeBrokerAlongsideOtherBrokers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestActiveBrokerWaitsForFutuRuntimeResetInvalidation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestStrategyRuntimeObservationAppearsInStrategiesAndSystemStatus": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestStrategyRuntimeObservationPersistsAcrossServerRestart": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestStrategyRuntimePanicAutoReconcilesToStopped": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestStrategyRuntimePollsClosedKLinesWhenTradePushStalls": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestStrategyRuntimeNotifyOnlyEmitsSignalNotification": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestStrategyRuntimeStartEnsuresMissingMarketMetadata": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestStrategyRuntimeStartRejectsWhenInstanceWorkerLimitReached": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestStrategyRuntimeLiveWorkerRequestIncludesModeCandlesAndParams": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestStrategyRuntimeLiveWorkerErrorRecordsRuntimeError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestStrategyRuntimeOrderUsesSharedPreTradeRiskGateway": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestStrategyRuntimeLiveModeRecordsExecutionOrder": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestStrategyRuntimeRiskCloseOnlyRejectsBuyOrder": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestStrategyRuntimeLiveSizesEntryQuantityPctFromEquity": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestStrategyRuntimeLiveUsesExplicitQuantityBeforeQuantityPct": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestStrategyRuntimeLiveSizesCloseQuantityPctFromPosition": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestStrategyRuntimeLiveDefaultsCloseToFullPosition": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestStrategyRuntimeLiveIgnoredOrderRecordsRuntimeEvidence": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestStrategyRuntimeLiveCancelsTrackedOrderFromWorkerCommand": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestStrategyRuntimeExecutesOnlyCurrentBarWorkerIntent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestStrategyRuntimeSkipsWhenWorkerReturnsNoCurrentBarIntent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestStrategyRuntimeRefreshesBrokerPositionsBeforeSellOnKLineClose": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestStrategyRuntimeDisconnectedBrokerRefreshKeepsCachedState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestSecurityChangeCancelsExistingWebStream": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
+    "conclusion": "已覆盖：Desktop 令牌鉴权、受信任本地源放行、CSRF 防护与 SPA 前端静态路由分发",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerCloseUsesApplicationResourceOrderAndStableAggregation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerCloseStopsBacktestBeforeMarketDataRuntime": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestPersistentAssemblyStopsAndRollsBackInReverseOpenOrder": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestBacktestRouteAcceptsExplicitMarketAndCode": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest_runtime.rs`",
+    "conclusion": "已覆盖：回测运行生命周期调度、历史数据提供商装配与执行结果持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestEnqueueBacktestUsesPineInitialCapitalWhenRequestOmitsBalance": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest_runtime.rs`",
+    "conclusion": "已覆盖：回测运行生命周期调度、历史数据提供商装配与执行结果持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestServerBootstrapRemainingFailureAndFallbackPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerRemainingPublicSettersAndRuntimeBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerRemainingBrokerAndSystemOptionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerBootstrapPersistsUnavailableDatabaseReasons": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerOptionCallbacksExposeNilRuntimeStatesSafely": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerBootstrapBuildsBrokerBridgeForEnabledIntegration": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestWorkflowAndMarketRuntimeBoundaryHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestStrategyRuntimeBrokerBridgeDelegates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestTimeStatusAndDefaultScriptBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestStrategyBindingHelpersNormalizeLooseAPIParams": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerCloseAggregatesPineWorkerRunnerErrorsOnce": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerSidecarFrontendRuntimeConfigFollowsSecuritySettings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestBrokerExecutionExchangeDoesNotReuseStrategyMarketDataOverride": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerCalendarOptionsAndOperationsRemainingBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestInstantiatePineStrategyDefinitionBuildsCompiledPlan": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestInstantiateStrategyDefinitionRejectsMalformedJSON": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketDataSubscriptionHeartbeat": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerSystemAndSettingsOptionCallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerStrategyDemandWithRuntimeManager": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerRuntimeRiskControlsDelegateToControlPlane": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerSettingsSideEffectsPropagateRuntimeChanges": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestDataManagementBackendNilManagerBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestShouldStartForAPIOnlyArgs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestPersistenceOnlySettingsStoreKeepsConcreteStore": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestExchangeCalendarOperationContextIgnoresRequestCancellation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestNewServerUsesStrategyRuntimeDBEnvOverride": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerCloseStopsMarketdataAndPreventsExchangeRevival": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestBacktestRouteUsesDerivedStrategyWarmup": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestFutuRuntimeAndHealthDiagnoseEnabledButUnreachableOpenD": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestFutuOpenDHealthRejectsOldBuildAndGuidesUpgrade": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestServerSettingsStoreDefaultsAndPersistsMarketDataSelection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置读写规范化、新手引导状态持久化与安全凭证加密隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestStartupKeepsConfiguredYFinanceWhenHelperCannotActivate": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置读写规范化、新手引导状态持久化与安全凭证加密隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestWebAccessSettingsDefaultToDesktopOnly": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
+    "conclusion": "已覆盖：Desktop 令牌鉴权、受信任本地源放行、CSRF 防护与 SPA 前端静态路由分发",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopCanEnablePasswordProtectedWebWithoutExposingPassword": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
+    "conclusion": "已覆盖：Desktop 令牌鉴权、受信任本地源放行、CSRF 防护与 SPA 前端静态路由分发",
+    "command": "pnpm run check:quick"
+  },
+  "TestWebAccessCannotBeEnabledWithoutPassword": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
+    "conclusion": "已覆盖：Desktop 令牌鉴权、受信任本地源放行、CSRF 防护与 SPA 前端静态路由分发",
+    "command": "pnpm run check:quick"
+  },
+  "TestBrowserSessionCannotChangeWebExposure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
+    "conclusion": "已覆盖：Desktop 令牌鉴权、受信任本地源放行、CSRF 防护与 SPA 前端静态路由分发",
+    "command": "pnpm run check:quick"
+  },
+  "TestDisablingWebImmediatelyInvalidatesBrowserButNotDesktop": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
+    "conclusion": "已覆盖：Desktop 令牌鉴权、受信任本地源放行、CSRF 防护与 SPA 前端静态路由分发",
+    "command": "pnpm run check:quick"
+  },
+  "TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime.rs`",
+    "conclusion": "已覆盖：策略定义生命周期保护、运行态对账修复、Pine 订阅与工作流回放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'"
+  },
+  "TestStrategyRuntimeRemainingDependencyBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime.rs`",
+    "conclusion": "已覆盖：策略定义生命周期保护、运行态对账修复、Pine 订阅与工作流回放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'"
+  },
+  "TestNewStrategyRuntimeManagerDisabledExchange": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime.rs`",
+    "conclusion": "已覆盖：策略定义生命周期保护、运行态对账修复、Pine 订阅与工作流回放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'"
+  },
+  "TestStrategyRuntimeRejectsPollOnlyMarketDataProvider": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime.rs`",
+    "conclusion": "已覆盖：策略定义生命周期保护、运行态对账修复、Pine 订阅与工作流回放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'"
+  },
+  "TestStrategyRuntimeAdapterAllowsBrokerExecutedLiveSemantics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestStrategyRuntimeNilBoundariesIgnoreMarketTicks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime.rs`",
+    "conclusion": "已覆盖：策略定义生命周期保护、运行态对账修复、Pine 订阅与工作流回放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'"
+  },
+  "TestWorkflowSnapshotAndLiveTradeReplayReachBusinessConsumers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime.rs`",
+    "conclusion": "已覆盖：策略定义生命周期保护、运行态对账修复、Pine 订阅与工作流回放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'"
+  },
+  "TestWorkflowSnapshotReturnsProviderFailureAfterStaleCache": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime.rs`",
+    "conclusion": "已覆盖：策略定义生命周期保护、运行态对账修复、Pine 订阅与工作流回放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'"
+  },
+  "TestStrategyRuntimeHoldsExactKLineLeasesUntilStopAndClose": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime.rs`",
+    "conclusion": "已覆盖：策略定义生命周期保护、运行态对账修复、Pine 订阅与工作流回放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'"
+  },
+  "TestNewServerReconcilesPersistedActiveStrategyStates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime.rs`",
+    "conclusion": "已覆盖：策略定义生命周期保护、运行态对账修复、Pine 订阅与工作流回放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'"
+  },
+  "TestTradingOrderCancellationRejectsInvalidPersistedOrders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestTradingOrderCancellationPropagatesBrokerFailuresAndPersistsAcceptedCancel": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestFutuWatchlistProbeErrorRemainingStates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组运行时边界、标的导入校验与跨多数据源聚合",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestFutuWatchlistBrokerRemainingAvailabilityAndCapabilities": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组运行时边界、标的导入校验与跨多数据源聚合",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestInitializeWatchlistServiceNilBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组运行时边界、标的导入校验与跨多数据源聚合",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestLiveWebSocketSendsHeartbeat": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestLiveWebSocketSendsSystemNotification": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestLiveWebSocketSendsBBGONotification": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestLiveWebSocketHeartbeatReportsStaleMarketData": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestLiveWebSocketInitialMarketTickRefreshesObservedAt": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestLiveWebSocketSendsConsoleRefresh": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestBacktestSyncUsesAssembledMarketDataRuntime": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest_runtime.rs`",
+    "conclusion": "已覆盖：回测运行生命周期调度、历史数据提供商装配与执行结果持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestBacktestSyncRejectsActualAKShareOneYearUSFiveMinuteRange": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest_runtime.rs`",
+    "conclusion": "已覆盖：回测运行生命周期调度、历史数据提供商装配与执行结果持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestLiveBacktestHistoricalProviders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest_runtime.rs`",
+    "conclusion": "已覆盖：回测运行生命周期调度、历史数据提供商装配与执行结果持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestLiveBABAOneYearBacktestProviderSwitchMatrix": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest_runtime.rs`",
+    "conclusion": "已覆盖：回测运行生命周期调度、历史数据提供商装配与执行结果持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestNewServerReloadsPersistedBacktestRuns": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest_runtime.rs`",
+    "conclusion": "已覆盖：回测运行生命周期调度、历史数据提供商装配与执行结果持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestBacktestRouteDeletesTerminalRuns": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest_runtime.rs`",
+    "conclusion": "已覆盖：回测运行生命周期调度、历史数据提供商装配与执行结果持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestBacktestListReturnsLightweightRunsAndResultReturnsDetail": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest_runtime.rs`",
+    "conclusion": "已覆盖：回测运行生命周期调度、历史数据提供商装配与执行结果持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestBacktestRoutesCreateRuntimeLayoutForMissingBacktestDir": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest_runtime.rs`",
+    "conclusion": "已覆盖：回测运行生命周期调度、历史数据提供商装配与执行结果持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestBrokerFundsIncludesMarginFields": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerQuoteWithoutLeaseIsDegraded": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerQuoteMissingSymbol": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerKLinesDisconnected": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerKLinesMissingSymbol": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerSecuritiesDisconnected": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerSecuritiesMissingSymbol": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerReadRoutesRejectInvalidQueryShape": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerReadRoutesKeepValidDisconnectedShape": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerUnlockDisconnectedOpenD": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerUnlockInvalidPayload": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerPlaceOrderNoBroker": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerPlaceOrderInvalidPayload": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerCancelOrdersNoBroker": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerCancelOrdersInvalidPayload": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerFundsSummaryHasAllFields": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestNewBrokerRoutesReturnJSON": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerGinRoutesRejectIncompletePaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerReadEndpointsReturnExchangeBackedData": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerFundsEndpointReturnsDisconnectedSummary": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerRuntimeDescriptorIncludesReadFeatures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestContractSystemStatus": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestContractSettings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestContractMarketDataMarkets": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestContractBrokerRuntime": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestContractStrategyDefinitions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestContractBacktests": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestExecutionOrderRoutesPlaceListEventsAndCancel": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestExecutionOrderRoutesNormalizeUSPricePrecision": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestExecutionOrderRoutesPropagateUSSessionSelection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestExecutionOrderRoutesAcceptExplicitCodeWithMarket": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestExecutionOrderRoutesRejectBareSymbolWithoutMarket": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestExecutionOrdersEndpointFiltersByTradingEnvironmentAndScope": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestExecutionOrdersEndpointDefaultTradingEnvironmentFromSettings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestExecutionOrdersSyncBrokerOrdersAndTracksWorkerState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerServesFrontendAssetsAndSPAFallback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
+    "conclusion": "已覆盖：Desktop 令牌鉴权、受信任本地源放行、CSRF 防护与 SPA 前端静态路由分发",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopWebAccessHandlerServesProxiedDevelopmentUIAtRoot": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
+    "conclusion": "已覆盖：Desktop 令牌鉴权、受信任本地源放行、CSRF 防护与 SPA 前端静态路由分发",
+    "command": "pnpm run check:quick"
+  },
+  "TestFrontendServerBoundaryHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
+    "conclusion": "已覆盖：Desktop 令牌鉴权、受信任本地源放行、CSRF 防护与 SPA 前端静态路由分发",
+    "command": "pnpm run check:quick"
+  },
+  "TestRunAPIOnlyStopsAfterCallerCancellation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
+    "conclusion": "已覆盖：Desktop 令牌鉴权、受信任本地源放行、CSRF 防护与 SPA 前端静态路由分发",
+    "command": "pnpm run check:quick"
+  },
+  "TestStartForRunArgsUsesInterfaceSettingsForAPIBindWhileWebIsDisabled": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
+    "conclusion": "已覆盖：Desktop 令牌鉴权、受信任本地源放行、CSRF 防护与 SPA 前端静态路由分发",
+    "command": "pnpm run check:quick"
+  },
+  "TestInstallersPreserveDegradedStartupWhenAssistantDatabasesAreUnavailable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketDepthEndpointRouting": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestMarketDepthEndpointMethodNotAllowed": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestMarketDepthEndpointPutNotAllowed": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestMarketDepthRouteDoesNotCollide": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：WebSocket 实时行情深度推送、心跳保活、连接事件广播与档位截断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestMarketProfilesEndpoint": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestNormalizeMarketInstrumentEndpoint": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestOpenAPIPreservesLegacySchemaNames": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestOpenAPISpecStable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestOpenAPIDocumentsExplicitErrorResponses": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestOpenAPIDocumentsWritableRequestBodies": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestOpenAPIDocumentsTypedBrokerRuntimeResponse": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestPluginCatalogLifecycleEndpoints": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestPortfolioCashBalancesEndpointReturnsEmptyBalances": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestPortfolioReconciliationEndpointsAreRemoved": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestPortfolioRoutesReturnDegradedEmptyStateWithoutConfiguredBroker": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestServerInitializesResearchDatabaseAndPresetRoutes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestResearchPresetRoutesReturn503WhenDatabaseCannotOpen": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestAPIBaseURLForBindNormalizesWildcardHost": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestRuntimeDefaultsAndLayoutBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerSidecarBoundaryMethodsAreNilSafe": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestStrategyDefinitionEndpoints": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestStrategyDefinitionCreateGeneratesUUIDWhenIDMissing": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestStrategyDefinitionRejectsInvalidScriptPayloads": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestDeleteMissingStrategyDefinitionReturnsNotFound": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestBrokerIntegrationSavePersistsWithoutMutatingRuntimeEnv": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestSettingsStoreDirectSaveDoesNotMutateRuntimeEnv": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestBrokerSettingsExposeNullIntegrationUntilFirstSave": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestFutuRuntimeAndHealthStayNeutralWithoutSavedEnabledIntegration": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestManagedBrokerAccountCRUDReflectsInBrokerSettings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestUIAppearanceSavePersistsToSettings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
+    "conclusion": "已覆盖：券商交易网关路由、订单撤单契约、组合购买力试算与风控规则硬阻断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+  },
+  "TestEnsureBootstrapFilePersistsInterfaceDefaults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置读写规范化、新手引导状态持久化与安全凭证加密隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestInterfaceSettingsUsesStoredOverride": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置读写规范化、新手引导状态持久化与安全凭证加密隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestNormalizeManagedBrokerAccountAppliesDefaults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置读写规范化、新手引导状态持久化与安全凭证加密隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestNormalizeFutuConfigAppliesDefaults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置读写规范化、新手引导状态持久化与安全凭证加密隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestNormalizeExecutionSettingsAppliesDefaultsAndBounds": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置读写规范化、新手引导状态持久化与安全凭证加密隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestOnboardingDefaultsAndSave": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置读写规范化、新手引导状态持久化与安全凭证加密隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestOnboardingRoutesSuggestOobeUntilCompleted": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置读写规范化、新手引导状态持久化与安全凭证加密隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestOnboardingReopensWhenRuntimeDependencyFailsAfterCompletion": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置读写规范化、新手引导状态持久化与安全凭证加密隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestStrategiesEndpointReturnsList": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime.rs`",
+    "conclusion": "已覆盖：策略定义生命周期保护、运行态对账修复、Pine 订阅与工作流回放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'"
+  },
+  "TestStrategiesEndpointIncludesPersistedRuntimeLogTail": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime.rs`",
+    "conclusion": "已覆盖：策略定义生命周期保护、运行态对账修复、Pine 订阅与工作流回放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'"
+  },
+  "TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime.rs`",
+    "conclusion": "已覆盖：策略定义生命周期保护、运行态对账修复、Pine 订阅与工作流回放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'"
+  },
+  "TestInstantiateStoredDefinitionRejectsLegacySourceFormat": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime.rs`",
+    "conclusion": "已覆盖：策略定义生命周期保护、运行态对账修复、Pine 订阅与工作流回放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'"
+  },
+  "TestStrategyDefinitionPreviewUsesRequestedSymbolAndExtendedHours": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime.rs`",
+    "conclusion": "已覆盖：策略定义生命周期保护、运行态对账修复、Pine 订阅与工作流回放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'"
+  },
+  "TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime.rs`",
+    "conclusion": "已覆盖：策略定义生命周期保护、运行态对账修复、Pine 订阅与工作流回放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'"
+  },
+  "TestSwaggerUIAvailable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestOpenAPISpecExposesCorePaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：OpenAPI 规范快照、JSON 契约模型校验与 Schema 一致性门禁",
+    "command": "pnpm run check:contracts"
+  },
+  "TestSystemStatusEndpointReturnsStatus": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestRequestObservabilityMiddlewarePropagatesRequestID": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestSystemStatusReflectsUpdatedAPIPort": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ServerCore 顶层业务路由分发、中间件链拓扑装配与优雅停机调度",
+    "command": "pnpm run check:quick"
+  },
+  "TestServerInitializesWatchlistDatabaseAndDefaultGroup": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组运行时边界、标的导入校验与跨多数据源聚合",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestWatchlistRoutesReturn503WhenDatabaseCannotOpen": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组运行时边界、标的导入校验与跨多数据源聚合",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
   }
 }
