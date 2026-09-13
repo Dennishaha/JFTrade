@@ -265,6 +265,57 @@ fn adk_provider_save_preserves_request_timeout_ms() {
     );
 }
 
+#[test]
+// Parity: internal/api/assistant/routes_payload_pagination_test.go:27 TestAssistantRoutesRejectMalformedMutationPayloads
+// Verifies all 21 ADK mutation routes fail-closed with 400 BAD_REQUEST on malformed JSON payload (`{"`)
+fn adk_mutation_routes_reject_malformed_mutation_payloads() {
+    let cases = [
+        ("POST", "/api/v1/adk/sessions"),
+        (
+            "POST",
+            "/api/v1/adk/sessions/session-unknown/context/compact",
+        ),
+        ("PUT", "/api/v1/adk/sessions/session-unknown"),
+        (
+            "PATCH",
+            "/api/v1/adk/sessions/session-unknown/composer-state",
+        ),
+        ("PATCH", "/api/v1/adk/runs/run-unknown/objective"),
+        ("POST", "/api/v1/adk/runs/run-unknown/input-response"),
+        ("POST", "/api/v1/adk/tasks"),
+        ("PUT", "/api/v1/adk/tasks/task-unknown"),
+        ("POST", "/api/v1/adk/memory"),
+        ("POST", "/api/v1/adk/providers"),
+        ("PUT", "/api/v1/adk/providers/provider-unknown"),
+        ("POST", "/api/v1/adk/agents"),
+        ("PUT", "/api/v1/adk/agents/agent-unknown"),
+        ("POST", "/api/v1/adk/skills"),
+        ("POST", "/api/v1/adk/workflows"),
+        ("PUT", "/api/v1/adk/workflows/workflow-unknown"),
+        ("POST", "/api/v1/adk/workflows/workflow-unknown/run"),
+        ("POST", "/api/v1/adk/workflows/workflow-unknown/triggers"),
+        (
+            "PUT",
+            "/api/v1/adk/workflows/workflow-unknown/triggers/trigger-unknown",
+        ),
+        ("POST", "/api/v1/adk/workflow-triggers/trigger-unknown/run"),
+        ("POST", "/api/v1/adk/workflow-webhooks/trigger-unknown"),
+    ];
+
+    for (method, path) in cases {
+        let req = request_with_body(method, path, br#"{"#);
+        let response = dispatch_adk_mutation(&req, None, FIXTURE_TIMESTAMP);
+        assert_eq!(
+            response.status, 400,
+            "route {method} {path} should return 400"
+        );
+        assert_eq!(
+            response.body["error"]["code"], "BAD_REQUEST",
+            "route {method} {path} error code"
+        );
+    }
+}
+
 fn fixture() -> Fixture {
     let fixture: Fixture = serde_json::from_str(include_str!(
         "../../../tests/fixtures/compatibility/api-transport/adk-mutations.json"
