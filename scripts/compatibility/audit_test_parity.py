@@ -289,23 +289,25 @@ def main():
         # Precalculate status per test to display accurate progress in summary
         test_statuses = {}
         for test in go_tests:
-            prior = prior_rows.get(f"{test['file']}:{test['line']}") or prior_by_name.get(test["name"])
+            key = f"{test['file']}:{test['line']}"
+            prior = prior_rows.get(key) or prior_by_name.get(test["name"])
             if test["name"] in manual_details:
-                test_statuses[test["name"]] = manual_details[test["name"]]["status"]
+                test_statuses[key] = manual_details[test["name"]]["status"]
             elif test["name"] in curated_details:
-                test_statuses[test["name"]] = curated_details[test["name"]]["status"]
+                test_statuses[key] = curated_details[test["name"]]["status"]
             elif prior and len(prior) >= 8 and (prior[0] in ("[x]", "[~]") or prior[5] != "待人工填写"):
-                test_statuses[test["name"]] = prior[0]
+                test_statuses[key] = prior[0]
             else:
-                test_statuses[test["name"]] = "[ ]"
+                test_statuses[key] = "[ ]"
 
         confirmed = sum(s in ("[x]", "[~]") for s in test_statuses.values())
         fp.write(f"当前进度：已确认 `{confirmed}` / `{len(go_tests)}`，待核对 `{len(go_tests) - confirmed}`。\n\n")
         by_domain = {}
         for test in go_tests:
+            key = f"{test['file']}:{test['line']}"
             bucket = by_domain.setdefault(test["domain"], [0, 0])
             bucket[0] += 1
-            bucket[1] += (test_statuses.get(test["name"]) in ("[x]", "[~]"))
+            bucket[1] += (test_statuses.get(key) in ("[x]", "[~]"))
         fp.write("| 业务域 | 已确认 | 待核对 |\n|---|---:|---:|\n")
         for domain in sorted(by_domain):
             total, done = by_domain[domain]

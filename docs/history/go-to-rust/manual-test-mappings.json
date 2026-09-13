@@ -26368,5 +26368,527 @@
     "rust_entry": "不适用：Go 专用测试质量分析工具",
     "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
     "command": "pnpm run check:quick"
+  },
+  "TestADKOptimizationTaskCanBeQueriedAndCancelled": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_adk_read_tests.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(optimization_task)'`"
+  },
+  "TestADKSessionDetailOmitsResolvedApprovalGroups": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_adk_read_tests.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'`"
+  },
+  "TestADKAuditRouteRejectsInvalidPagination": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_adk_read_tests.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'`"
+  },
+  "TestADKChatStreamEmitsSessionRunAndFinalEvents": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E \"test(adk_chat_stream)\"`"
+  },
+  "TestADKProviderSaveReturnsRequestTimeoutMs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_adk_read_tests.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'`"
+  },
+  "TestADKSessionNegativeRoutes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_adk_read_tests.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'`"
+  },
+  "TestHistoricalKLineSyncerCancelsInFlightProviderPage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest_sync)'`"
+  },
+  "TestHistoricalKLineSyncerRetriesTransientPageAndRejectsCapabilitiesDuringPreflight": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest_sync)'`"
+  },
+  "TestHistoricalKLineSyncerRejectsEmptyProviderResult": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest_sync)'`"
+  },
+  "TestHistoricalKLineSyncerRejectsBrokenPagination": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest_sync)'`"
+  },
+  "TestHistoricalProviderRetryExhaustionAndTimerCancellation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest_sync)'`"
+  },
+  "TestBacktestExecutionPersistsFailureWhenRunnerReturnsNil": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_backtest_task.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E \"test(backtests_write)\"`"
+  },
+  "TestBacktestExecutionRecoversRunnerPanicIntoFailedRun": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_backtest_task.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E \"test(backtests_write)\"`"
+  },
+  "TestStartScriptRejectsBlankResearchScript": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-backtest/src/service.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest`"
+  },
+  "TestResultViewRejectsBadRequestsAndPreservesEmptyRunShape": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_backtests_tests.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E \"test(backtests_read)\"`"
+  },
+  "TestBacktestStartDoesNotLeakLifecycleTaskWhenQueuePersistenceFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_backtest_task.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E \"test(backtests_write)\"`"
+  },
+  "TestMarketSessionsForCandleSessions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/tests/marketdata_runtime_candle_sessions_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(marketdata_runtime_candle_sessions_parity)'`"
+  },
+  "TestMarketDataRuntimePreservesRealtimeTicksWhenDelayedFallbackFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/tests/fake_framed_opend_runtime_tests.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E \"test(test_fallback_establishment_recovery_and_count_semantics)\"`"
+  },
+  "TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/futu_marketdata_facade.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu`"
+  },
+  "TestTickFromTradeInheritsLatestQuoteFieldsThroughCache": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/futu_marketdata_facade.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu`"
+  },
+  "TestMarketDataRuntimeExchangeResetAndStreamLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/tests/provider_runtime_recovery.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E \"test(latest_demand_replaces_stale_replay_while_reconnect_is_pending)\"`"
+  },
+  "TestMarketDataRuntimeFiltersFallbackInstrumentsFromPushStream": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/tests/fake_framed_opend_runtime_tests.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E \"test(test_reconnect_and_demand_replay_with_framed_opend)\"`"
+  },
+  "TestFallbackTickerMapProjectsOnlyRequestedUsableSnapshots": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/futu_marketdata_facade.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu`"
+  },
+  "TestFallbackSnapshotConversionRejectsInvalidValuesAndUsesClassification": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/futu_marketdata_facade.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu`"
+  },
+  "TestLiveNotificationFromResponseRoutesProtocolPayloadsToNeutralCategories": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/lib.rs (notification_parity.rs)`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu`"
+  },
+  "TestNeutralNotificationBuildersHandleNilAndStatusTransitions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/lib.rs (notification_parity.rs)`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu`"
+  },
+  "TestBrokerKLineCandlesResponseProjectsStrictPage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/tests/broker_candles_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+  },
+  "TestBrokerKLineCandlesResponseHandlesTerminalAndBoundedPages": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/tests/broker_candles_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+  },
+  "TestBrokerKLineHelpersClassifySessionsAndNumbers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/tests/broker_candles_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+  },
+  "TestBrokerKLinePaginationRejectsInvalidBoundedAndPagedMetadata": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/tests/broker_candles_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+  },
+  "TestCacheDeduplicatesPromotesAndInherits": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/tests/cache_freshness_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+  },
+  "TestCacheFreshnessRetentionAndMaximum": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/tests/cache_freshness_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+  },
+  "TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/tests/cache_extended_session_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+  },
+  "TestCachePromotesUSRegularCloseWhenAfterHoursTradeArrives": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/tests/cache_us_regular_close_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+  },
+  "TestCacheRetainsNewExtendedQuoteWhenPriceIsUnchanged": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/tests/cache_promotes_after_hours_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+  },
+  "TestTickCandlesVolumeWindowAndLimit": {
+    "status": "[~]",
+    "rust_entry": "`crates/jftrade-marketdata/src/cache.rs`",
+    "conclusion": "部分覆盖：Rust 缺少同等 TickCandles 投影 API；Go 语义为默认 15 分钟窗口、显式 `VolumeDelta`、负值归零、limit 截断并保留 session",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+  },
+  "TestTickCandlesUsesExplicitVolumeDeltaAcrossTradingDays": {
+    "status": "[~]",
+    "rust_entry": "`crates/jftrade-marketdata/src/cache.rs`",
+    "conclusion": "部分覆盖：Rust 缺少跨交易日 TickCandles 投影；Go 要求窗口跨日时使用每条 tick 的显式 `VolumeDelta`（12/7），不能用累计 volume 或跨日差分推导",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+  },
+  "TestParseChangedGoLinesReportsPureRenameWithoutInventingChangedStatements": {
+    "status": "[x]",
+    "rust_entry": "`scripts/quality/check-coverage.py`",
+    "conclusion": "已覆盖：明确不适用",
+    "command": "`python3 scripts/compatibility/audit_test_parity.py`"
+  },
+  "TestAnalyzeProfilesRejectsEmptyBusinessCoverage": {
+    "status": "[x]",
+    "rust_entry": "`scripts/quality/check-coverage.py`",
+    "conclusion": "已覆盖：明确不适用",
+    "command": "`pnpm run check:quick`"
+  },
+  "TestDesktopShutdownCancelsStartupAndReclaimsLateResources": {
+    "status": "[x]",
+    "rust_entry": "`apps/desktop/src-tauri/src/native_lifecycle.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- stop_product_is_idempotent`"
+  },
+  "TestDesktopAssetHandlerDoesNotFallbackForMissingStaticAsset": {
+    "status": "[x]",
+    "rust_entry": "`apps/desktop/src-tauri/src/native_tests.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- required_asset_does_not_fallback`"
+  },
+  "TestListDesktopLogDaysAndReadsFilteredPage": {
+    "status": "[x]",
+    "rust_entry": "`apps/desktop/src-tauri/src/native_tests.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days`"
+  },
+  "TestDesktopLogPageCapsLimitAndPaginatesAllLines": {
+    "status": "[x]",
+    "rust_entry": "`apps/desktop/src-tauri/src/native_tests.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days`"
+  },
+  "TestDesktopLogPageTailOffsetReturnsLastPageInFileOrder": {
+    "status": "[x]",
+    "rust_entry": "`apps/desktop/src-tauri/src/native_tests.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days`"
+  },
+  "TestDesktopLogPageTailOffsetAppliesFiltersBeforePaging": {
+    "status": "[x]",
+    "rust_entry": "`apps/desktop/src-tauri/src/native_tests.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days`"
+  },
+  "TestListDesktopLogDaysMissingDirReturnsEmpty": {
+    "status": "[x]",
+    "rust_entry": "`apps/desktop/src-tauri/src/native_tests.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days`"
+  },
+  "TestServiceFallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-datamanagement/src/maintenance.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement`"
+  },
+  "TestMarketDataProviderRuntimeRollback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-settings/src/market_data_provider.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-settings -E \"test(active_failure_rolls_back)\"`"
+  },
+  "TestMarketDataProviderReportsPersistenceAndRollbackFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-settings/src/market_data_provider.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-settings -E \"test(active_failure_rolls_back)\"`"
+  },
+  "TestMarketDataProviderReadsWaitForRuntimeRollback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-settings/src/market_data_provider.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-settings -E \"test(provider_normalization_matches_current_go_defaults)\"`"
+  },
+  "TestServicePreservesSecurityAndMCPFallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-settings/src/security.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-settings -E \"test(listener_failure_rolls_back_password_and_port_together)\"`"
+  },
+  "TestDefaultCallbacksReturnEmptyMaps": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-settings/src/onboarding.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-settings -E 'test(default_onboarding_inputs)'`"
+  },
+  "TestFutuWatchlistReaderMarksDuplicateNamesAmbiguousAndCachesReads": {
+    "status": "[~]",
+    "rust_entry": "`crates/jftrade-watchlist/src/lib.rs`",
+    "conclusion": "部分覆盖：Rust 缺少 Futu remote watchlist reader；Go 语义要求规范化重名组标记 ambiguous、稳定唯一 remote ID、禁止导入歧义组，并缓存普通读取且 fresh 读取绕过缓存",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist`"
+  },
+  "TestFutuWatchlistSnapshotDoesNotSplitGlobalOrCanceledFailures": {
+    "status": "[~]",
+    "rust_entry": "`crates/jftrade-watchlist/src/lib.rs`",
+    "conclusion": "部分覆盖：Rust 缺少远程快照批处理错误边界；Go 要求全局 provider/cancel 错误整体失败，不拆成逐标的伪成功结果",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist`"
+  },
+  "TestFutuWatchlistSnapshotUsesDelayedFallbackWhenSubscriptionQuotaIsFull": {
+    "status": "[~]",
+    "rust_entry": "`crates/jftrade-watchlist/src/lib.rs`",
+    "conclusion": "部分覆盖：Rust 缺少订阅配额感知的延时快照回退；Go 在 quota full 时必须保留可用延时值并避免重复订阅",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist`"
+  },
+  "TestWatchlistQuotePreservesSnapshotDisplayMetadataAndAvoidsUnknownTimezoneGuess": {
+    "status": "[~]",
+    "rust_entry": "`crates/jftrade-watchlist/src/lib.rs`",
+    "conclusion": "部分覆盖：Rust 缺少远程 quote projection；Go 要求保留 snapshot display metadata，未知交易所时区不得猜测或伪造",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist`"
+  },
+  "TestWatchlistQuoteSelectsExtendedSessionPriceAndChange": {
+    "status": "[~]",
+    "rust_entry": "`crates/jftrade-watchlist/src/lib.rs`",
+    "conclusion": "部分覆盖：Rust 缺少 extended-session quote 选择器；Go 按盘前/盘后有效价与涨跌幅优先级投影，不能回退到未知或过期字段",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist`"
+  },
+  "TestStoreCanceledMaintenanceDoesNotMutateRuns": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest_sync_store.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite`"
+  },
+  "TestInMemoryStoreImplementsRunLifecycleAndCancellation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest_sync_store.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite`"
+  },
+  "TestSyncTaskStoreReturnsSnapshotsAndCancelsProgress": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest_sync_store.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite`"
+  },
+  "TestCalendarStoreEmptyLoadAndDeleteAreIdempotent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/exchange_calendar_store.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite`"
+  },
+  "TestSaveSnapshotValidatesInputsAndResolvesYearFallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/exchange_calendar_store.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite`"
+  },
+  "TestSettingsNormalizationHandlesFallbacksAndBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings-file/tests/store_recovery_test.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file`"
+  },
+  "TestFailedSettingSavesRollbackAllRuntimeState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings-file/tests/store_recovery_test.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file`"
+  },
+  "TestFailedBootstrapAndMigrationRollbackRuntimeState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings-file/tests/store_recovery_test.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file`"
+  },
+  "TestFailedManagedAccountCRUDRollsBackBackingArray": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings-file/tests/store_recovery_test.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file`"
+  },
+  "TestSettingsStoreRejectsMalformedOrUnreadableInput": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings-file/tests/store_recovery_test.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file`"
+  },
+  "TestSelectFromFSTreatsMissingAndEmptyBundlesAsUnavailable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-pine/src/lib.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine`"
+  },
+  "TestCatalogActivityReturnsEmptyPagesWhenActivityStoreIsUnavailable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_strategy.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_activity)'`"
+  },
+  "TestCatalogActivityQueryFailureReturnsKnownEmptyPage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_strategy.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_activity)'`"
+  },
+  "TestCatalogPrivateBusinessHelpersHandleEmptyAndUnknownInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime_mutation.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(binding_normalization)'`"
+  },
+  "TestCatalogRuntimeTransitionsPersistStateAndActivity": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime_port.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_runtime)'`"
+  },
+  "TestCatalogRuntimeFailureReconcilesOnlyRunningInstance": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime_port.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_runtime)'`"
+  },
+  "TestCatalogStartupReconcileResetsStaleRunningAndPausedState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime_port.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(restore_)'`"
+  },
+  "TestCatalogActivitySupportsPagingFilteringAndRuntimeObservationEnrichment": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_strategy.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_activity)'`"
+  },
+  "TestClassifiedStrategyErrorsMatchSentinelKinds": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-strategy/src/errors.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy`"
+  },
+  "TestNormalizeBrokerAccountDropsEmptyInput": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-strategy/src/instancebinding.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy`"
+  },
+  "TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/tests/order_execution_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+  },
+  "TestFakeBrokerConformanceCancelAcceptedAndCancelRejected": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/tests/order_cancel_flow_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+  },
+  "TestServicePortfolioAndFallbackResponses": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/tests/order_reconciliation_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+  },
+  "TestServiceBrokerWriteAndTimeoutBehaviors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_execution_orders.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E \"test(execution_orders)\"`"
+  },
+  "TestRealTradeControlPlaneHardStopReleaseIsSingleShot": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/tests/order_fencing_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+  },
+  "TestRealTradeControlPlaneHardStopsBlockUntilEveryEntryReleased": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/tests/order_fencing_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+  },
+  "TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/tests/order_validation_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+  },
+  "TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/tests/order_rollback_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+  },
+  "TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/tests/order_execution_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+  },
+  "TestExecutionDetailsResolverAndOrderUpdateCacheFailureBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/tests/order_reconciliation_parity.rs`",
+    "conclusion": "已覆盖：语义一致",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
   }
 }
