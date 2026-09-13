@@ -96,8 +96,10 @@ async fn removed_auth_token_route_returns_not_found() {
         path: "/api/v1/auth/session".into(),
     }])
     .expect("auth-session route");
-    let mut access = AccessPolicy::default();
-    access.desktop_token = Some("fixture-desktop-token".into());
+    let access = AccessPolicy {
+        desktop_token: Some("fixture-desktop-token".into()),
+        ..AccessPolicy::default()
+    };
     let state = ApiState::new(
         routes,
         access,

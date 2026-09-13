@@ -11,6 +11,14 @@ import glob
 import json
 import sys
 
+
+def branch_revision(branch: str) -> str:
+    """Return a stable short revision for report provenance."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--short", branch], capture_output=True, text=True
+    )
+    return result.stdout.strip() if result.returncode == 0 else "unknown"
+
 DOMAIN_MAPPING = [
     # (domain_key, domain_label, go_path_prefixes, rust_crates_or_paths)
     (
@@ -212,10 +220,13 @@ def main():
         fp.write("# Go 与 Rust 测试用例全景对齐审计报告\n\n")
         fp.write("本报告由 `scripts/compatibility/audit_test_parity.py` 自动扫描生成。\n\n")
         fp.write("## 1. 总体概况\n\n")
-        fp.write(f"- **Go 分支（`go:452dea11`）测试总数**：{total_go}\n")
+        go_revision = branch_revision("go")
+        current_revision = branch_revision("HEAD")
+        fp.write(f"- **Go 分支（`go:{go_revision}`）测试总数**：{total_go}\n")
         fp.write(f"- **Go 高风险测试用例数**（涉及分页、缓存、时区、对账、断连重连等）：{total_go_hr}\n")
         fp.write(f"- **Rust 当前测试总数**：{total_rust}\n")
-        fp.write(f"- **总体测试覆盖比率**：{total_ratio}\n\n")
+        fp.write(f"- **总体测试覆盖比率**：{total_ratio}\n")
+        fp.write(f"- **Rust 基线（`{current_revision}`）**：当前工作树\n\n")
         fp.write("## 2. 分领域对齐矩阵\n\n")
         fp.write("| 业务领域 | Go 测试数 | Go 高风险数 | Rust 测试数 | 迁移比例 |\n")
         fp.write("| :--- | :--- | :--- | :--- | :--- |\n")
