@@ -1450,5 +1450,233 @@
     "rust_entry": "`crates/jftrade-api/src/router.rs`",
     "conclusion": "已覆盖：系统综合状态响应保留完整底层领域 JSON 结构（包括 apiPort、dbPath、uptime 等）",
     "command": "pnpm run check:rust:architecture"
+  },
+  "TestADKRuntimeSettingsDefaultAndSave": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：ADK 运行时设置默认配置与保存路由（/api/v1/settings/adk）",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestManagedAccountUpdateUsesPathIDAndSurfacesServerErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：托管子账户更新强制使用 URI Path 中的 accountId，并正确暴露 500 错误信封",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestDataManagementRebuildRejectsMalformedAndRejectedRequests": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：数据管理重建请求格式校验，非法参数返回 400，拒绝执行时返回 409",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestSettingWriteRoutesRejectMalformedJSON": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：设置写入路由统一反序列化拦截，畸形 JSON 返回 400",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestSettingWriteRoutesMapPersistenceFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：设置持久化失败映射为 500 标准错误信封",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestSystemNotificationRoutesReadAndSaveSettings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：系统通知设置读取与持久化（/api/v1/settings/notifications）",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestOnboardingCanBeResetWithoutLosingLastBroker": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：重置引导向导状态时保留已配置的券商连接记录",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestDataManagementStatusMapsCallbackFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：数据管理状态查询异常时返回规范错误信封",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestSettingsAndDataManagementRoutesExposeOperationalFailureContracts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：设置与数据管理操作故障对外暴露标准契约",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestMarketDataSettingsRoutesReadSaveAndApplyProvider": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：行情源配置读写与生效切换路由（/api/v1/settings/market-data）",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestBacktestMarketDataSettingsRoutesExposeCatalogAndRollbackPreparationFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：回测行情设置暴露目录配置，并在回滚准备失败时返回 409 拒绝",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestLegacyYFinanceConnectionRoutesAreRemoved": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：旧版 YFinance 连接专属路由已废弃下线，严格返回 404 NOT_FOUND",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestMarketDataSettingsRoutesMapValidationPersistenceAndRuntimeErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：行情设置校验失败 400、持久化失败 500、运行时不可用 503 错误映射",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestSettingsRoutesPreserveLegacyResponseShapes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：通用设置路由保留 camelCase 响应结构与 wire 字段契约",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestMCPServerSettingsRoutesReturnTokenOnlyOnce": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：MCP Server 认证 Token 仅在初次生成时返回明文，后续读取脱敏",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestManagedAccountRoutesMapMissingRecordsToNotFound": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：查询或操作不存在的托管子账户严格返回 404 NOT_FOUND",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestCreateManagedAccountRejectsMissingAccountID": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：新建托管账户缺失 accountId 必填字段时返回 400 校验错误",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestCreateManagedAccountDropsServerManagedFields": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：新建托管账户时自动剥离 createdAt 等服务端自管字段，防客户端注入",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestExecutionSettingsRouteUsesInjectedService": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：交易执行设置读写委托到 Engine 注入服务",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestAppearanceOnboardingSecurityAndADKRoutesCoverSaveFlows": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：外观、引导流程、安全策略及 ADK 设置保存流完整覆盖",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestExecutionExchangeCalendarAndBrokerRoutesCoverReadAndValidation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：交易执行、日历与券商配置读取及入参格式校验",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestExchangeCalendarSettingsRouteUsesInjectedService": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：交易所日历设置路由委托至 Engine 注入服务",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestDataManagementRoutesUseInjectedCallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：数据导入导出与备份重建委托至系统调度回调",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestDataManagementRoutesUseTypedCallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：强类型参数化数据管理接口契约",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestSystemNotificationTestRouteUsesSettingsServicePort": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：测试通知发送路由（POST /api/v1/settings/notifications/test）",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestResourceHandlersRejectMissingURIParameters": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：设置资源 URI 缺少必填参数直接返回 400",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestWriteErrorMapsAllDomainErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：自选股领域错误映射（重名 409、未找到 404、参数非法 400、默认分组防删 403）",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestRouteHelpersCoverBindingAndDeleteErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：自选股参数绑定失败与删除目标不存在错误信封",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestBindQueryRejectsMalformedAndInvalidValues": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：自选股查询参数格式校验与非法枚举拦截",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestWatchlistRoutesMembershipIdempotencyConflictAndPagination": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：自选股添加标的幂等、重名冲突与分页查询契约",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestWatchlistRoutesMapValidationNotFoundAndProtectedConflicts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：自选股非法输入 400、资源缺失 404 及受保护系统分组删除冲突 403 映射",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestWatchlistRoutesCompleteImportAndGroupLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：自选股分组完整生命周期与外部导入导出路由",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestWatchlistRoutesRejectMalformedBodiesAndPageLimits": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：自选股请求体畸形 JSON 400 校验与超出分页上限自动截断",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestUnavailableServiceReturns503Envelope": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：自选股底层存储未就绪时返回 503 SERVICE_UNAVAILABLE 标准信封",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestUnavailableServiceExercisesAllRouteErrorBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：服务不可用场景遍历测试覆盖全部自选股错误分支",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestInvalidListLimitReturns400": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：自选股列表非法 limit 参数（<=0 或非数字）返回 400",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestWatchlistListAndBindingRoutesRejectMalformedQueryEncoding": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：自选股查询参数非法 URL 编码拦截返回 400",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestWatchlistRoutesRejectMissingURIValuesBeforeExecutingBusinessOperations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：自选股 URI 必填路径参数预检拦截，未提供参数前禁止执行任何业务逻辑",
+    "command": "pnpm run check:rust:architecture"
   }
 }
