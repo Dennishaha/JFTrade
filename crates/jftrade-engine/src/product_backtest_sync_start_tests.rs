@@ -102,6 +102,40 @@ fn sync_request_defaults_match_public_contract_without_provider_success() {
     );
 }
 
+#[test]
+fn sync_request_session_scope_parity_with_go() {
+    // Parity: go:452dea11:internal/backtest/sync_test.go:412 TestParseSessionScope
+    for (input, want) in [
+        ("", "regular"),
+        ("regular", "regular"),
+        ("extended", "extended"),
+    ] {
+        let payload = json!({
+            "market": "US",
+            "code": "AAPL",
+            "since": "2026-08-01T00:00:00Z",
+            "until": "2026-08-02T00:00:00Z",
+            "sessionScope": input,
+        });
+        let req = parse_sync_request(&payload).expect("valid session scope");
+        assert_eq!(req.session_scope, want);
+    }
+
+    for invalid in ["legacy", "unknown", " regular ", "EXTENDED"] {
+        let payload = json!({
+            "market": "US",
+            "code": "AAPL",
+            "since": "2026-08-01T00:00:00Z",
+            "until": "2026-08-02T00:00:00Z",
+            "sessionScope": invalid,
+        });
+        assert!(matches!(
+            parse_sync_request(&payload),
+            Err(BacktestsWritePortError::BadRequest(_))
+        ));
+    }
+}
+
 fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
     let directory = tempfile::tempdir().expect("temporary directory");
     let runs_path = directory.path().join("backtest-runs.db");

@@ -104,8 +104,9 @@ pub(super) fn parse_sync_request(payload: &Value) -> Result<SyncRequest, Backtes
             "until must be after since".to_owned(),
         ));
     }
-    let session_scope = match text("sessionScope").unwrap_or("regular") {
-        "regular" | "extended" => text("sessionScope").unwrap_or("regular").to_owned(),
+    let session_scope = match text("sessionScope").unwrap_or("") {
+        "" | "regular" => "regular".to_owned(),
+        "extended" => "extended".to_owned(),
         _ => {
             return Err(BacktestsWritePortError::BadRequest(
                 "sessionScope must be regular or extended".to_owned(),
