@@ -423,4 +423,14 @@ mod tests {
         assert_eq!(snapshot.kill_switch_events[0].id, "kill");
         assert!(snapshot.hard_stop_events.is_empty());
     }
+
+    #[test]
+    fn test_pre_trade_risk_snapshot_uses_empty_vectors_not_null() {
+        // Parity: internal/trading/execution_test.go:687 TestPreTradeRiskSnapshotUsesNonNilEmptySlices
+        let risk_snapshot =
+            RealTradeRiskSnapshot::from_control_state(RealTradeControlState::default(), None);
+        assert!(risk_snapshot.hard_stop_entries.is_empty());
+        assert!(risk_snapshot.hard_stop_events.is_empty());
+        assert!(risk_snapshot.kill_switch_events.is_empty());
+    }
 }
