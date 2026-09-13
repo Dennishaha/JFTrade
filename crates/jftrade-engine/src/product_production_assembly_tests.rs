@@ -2710,6 +2710,22 @@ mod product_production_assembly_tests {
             "CANCELLED"
         );
 
+        // Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:1124 TestCancelRunOnTerminalStateIsNoop
+        let (repeat_cancel_status, repeat_cancel_resp) = request_json_with_status(
+            address,
+            "POST",
+            "/api/v1/adk/runs/production-cancel-run/cancel",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(repeat_cancel_status, 200);
+        assert_eq!(repeat_cancel_resp["data"]["status"], "CANCELLED");
+        assert_eq!(
+            repeat_cancel_resp["data"]["cancelledAt"],
+            cancel_response["data"]["cancelledAt"]
+        );
+
         let (late_input_status, late_input_response) = request_json_with_status(
             address,
             "POST",
