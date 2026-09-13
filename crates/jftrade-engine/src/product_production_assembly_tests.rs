@@ -126,6 +126,9 @@ mod product_production_assembly_tests {
                 .is_some(),
             "direct production start with a trade runtime must compose reconciliation"
         );
+        // Parity: internal/app/apiserver/servercoretest/frontend_test.go:198 TestRunAPIOnlyStopsAfterCallerCancellation
+        let status_res = http_get(handle.startup_record().address, "/api/v1/system/status").await;
+        assert_eq!(status_res.0, 200, "system status reachable before shutdown");
         handle.shutdown().await.expect("shutdown product");
 
         let restarted = start_product(config)
