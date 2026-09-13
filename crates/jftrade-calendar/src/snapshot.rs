@@ -517,6 +517,24 @@ mod tests {
         let non_existent = CalendarSnapshotStore::new(directory.path().join("non_existent"));
         let loaded_empty = non_existent.load();
         assert!(loaded_empty.snapshots.is_empty());
+
+        let sample_snapshot = CalendarSnapshot {
+            market_code: "US".to_string(),
+            source_id: "nyse_official".to_string(),
+            from: WireTimestamp::from_str("2026-01-01T00:00:00Z").unwrap(),
+            to: WireTimestamp::from_str("2026-12-31T00:00:00Z").unwrap(),
+            schedules: Vec::new(),
+            fetched_at: WireTimestamp::from_str("2026-01-01T00:00:00Z").unwrap(),
+            valid_until: WireTimestamp::from_str("2026-12-31T00:00:00Z").unwrap(),
+            checksum: "chk".to_string(),
+        };
+
+        // Delete with empty store root succeeds idempotently
+        let empty_store = CalendarSnapshotStore::new(Path::new(""));
+        assert!(empty_store.delete(&sample_snapshot).is_ok());
+
+        // Delete with non-existent snapshot file returns Ok(())
+        assert!(store.delete(&sample_snapshot).is_ok());
     }
 
     #[test]
