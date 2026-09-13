@@ -52,6 +52,8 @@ impl BrokerSettingsStorePort for RecordingStore {
     }
 }
 
+// Parity: internal/store/settingsfile/store_test.go:154 TestCreateManagedAccountRequiresAccountIDAndOwnsServerFields
+// Verifies accountId is required and client-owned identity/timestamps are cleared in favor of server-owned fields
 #[test]
 fn blank_account_id_is_rejected_before_persistence() {
     let store = Arc::new(RecordingStore::default());
