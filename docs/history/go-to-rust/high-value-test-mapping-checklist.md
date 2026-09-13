@@ -194,4 +194,5 @@
    - [x] 补齐废弃投资组合现金对账路由严格返回 JSON 404 NOT_FOUND 契约断言（`1b8804bb`）。
    - [x] 补齐投资组合现金余额响应显式包含 balances 字段断言（`359eb3d0`）。
    - [x] 补齐券商设置初次保存前暴露 null integration 与默认端口（11110/11111）断言（`696c67fc`）。
+   - [x] 补齐 ADK 工具描述符 requiresApprovalIn 空数组序列化契约断言（`63e754d5`）。
    - [x] 补齐 K 线查询窗口 from_time >= to_time 异常时自动重置为 36h 默认回看断言（`84ff20a4`）。
