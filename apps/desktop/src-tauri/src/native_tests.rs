@@ -182,4 +182,27 @@ mod tests {
         ));
     }
 
+
+    #[test]
+    fn stop_product_is_idempotent_across_concurrent_invocations() {
+        use std::sync::{Arc, Mutex};
+        use std::thread;
+
+        let product = Arc::new(Mutex::new(None));
+        let p1 = Arc::clone(&product);
+        let p2 = Arc::clone(&product);
+
+        let t1 = thread::spawn(move || {
+            stop_product(&p1);
+        });
+        let t2 = thread::spawn(move || {
+            stop_product(&p2);
+        });
+
+        t1.join().expect("t1 join");
+        t2.join().expect("t2 join");
+
+        assert!(product.lock().unwrap().is_none());
+    }
+
 }
