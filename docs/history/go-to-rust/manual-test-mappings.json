@@ -2800,5 +2800,311 @@
     "rust_entry": "`crates/jftrade-store-sqlite/src/lib.rs`",
     "conclusion": "已覆盖：数据源初始化故障触发连接回滚与排空停止",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite"
+  },
+  "TestAPIServerHelperBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：API Server 辅助函数输入边界、空指针防御与默认参数回退",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestLoadFrontendFSPreservesUnavailableAndEmbeddedAssetSemantics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：静态前端嵌入资产在生产与未打包场景下的回退与 404 语义",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestWaitDesktopAPIReadyCoversAuthorizationAndTimeout": {
+    "status": "[x]",
+    "rust_entry": "`apps/desktop/src-tauri/src/main.rs`",
+    "conclusion": "已覆盖：Tauri 桌面就绪检测、桌面通信鉴权 Token 与启动超时重试",
+    "command": "pnpm run check:rust:workspace"
+  },
+  "TestStartDesktopWithConfigClosesSidecarWhenReadinessTargetFails": {
+    "status": "[x]",
+    "rust_entry": "`apps/desktop/src-tauri/src/main.rs`",
+    "conclusion": "已覆盖：桌面就绪探测失败时自动杀死已拉起的后台 Rust sidecar 子进程",
+    "command": "pnpm run check:rust:workspace"
+  },
+  "TestStartForRunArgsInitializesRuntimeLayout": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：启动参数解析并自动确保数据根目录、日志目录等运行时目录布局",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestStartForRunArgsDisabledReturnsNoop": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：配置禁用状态启动立即返回空操作并退出",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestStartDesktopDoesNotMutatePersistedWebAccessSettings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：桌面运行时启动绝不污染或覆盖已持久化的 Web 访问网络配置",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestResolveDesktopRuntimeConfigUsesProfileBindInsteadOfPersistedInterfaceBind": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：优先采纳 Profile 指定的绑定地址而非文件持久化的网卡绑定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestResolveDesktopRuntimeConfigRejectsEphemeralAPIBind": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：桌面主服务严格拦截动态随机端口 (:0) 绑定请求",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestStartDesktopWithConfigKeepsResolvedProfileBind": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：桌面服务启动全程保持解析出的正确 Profile 地址",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestResolvePackagedDesktopRuntimeRequiresLoopback": {
+    "status": "[x]",
+    "rust_entry": "`apps/desktop/src-tauri/src/main.rs`",
+    "conclusion": "已覆盖：正式打包的桌面发行版强制绑定 127.0.0.1 环回地址保障安全",
+    "command": "pnpm run check:rust:workspace"
+  },
+  "TestStartDesktopStartsAPIButNotLegacyGUIServer": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "边界保留：Rust 版本只启动核心 API 服务，不拉取任何旧 Wails GUI 服务",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestStartDesktopAllowsWailsDevOrigin": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：开发模式下允许本地前端热更新服务源建立跨域通信",
+    "command": "pnpm run check:rust:workspace"
+  },
+  "TestDesktopTrustedOriginsDeriveDevelopmentPort": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：自动根据配置推导开发环境受信任的前端端口并加入白名单",
+    "command": "pnpm run check:rust:workspace"
+  },
+  "TestStartDesktopAllowsPackagedWailsOrigins": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：生产打包模式下信任 Tauri 专有自定义 schema 原生协议源",
+    "command": "pnpm run check:rust:workspace"
+  },
+  "TestStartDesktopReportsAPIBindFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：底层套接字绑定失败（端口被占用）时准确生成可读的致命错误报告",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestDependenciesApplyScheduledDatabaseRebuildBeforeStartup": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：服务启动前严格先执行预定的数据库 Schema 迁移与完整性重构",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite"
+  },
+  "TestRunAPIOnlyReturnsAfterContextCancellation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：收到关闭信号后等待内部任务排空并优雅退出执行流",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestCheckNodeRuntimeDependencyOK": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：Node.js 运行时环境依赖版本合规探测通过",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestCheckNodeRuntimeDependencyReportsMissing": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：宿主机缺失 Node.js 时精准生成缺失提示与安装指引",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestCheckNodeRuntimeDependencyUsesMacOSCommonPathFallback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：macOS 常见路径回退探测（如 /opt/homebrew/bin、/usr/local/bin）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestCheckNodeRuntimeDependencyMissingMessageListsMacOSAttempts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：探测失败错误消息中逐一列出已尝试检索的所有候选路径",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestCheckNodeRuntimeDependencyReportsOutdatedInvalidAndCommandError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：Node.js 版本过旧、输出异常或执行崩溃时的分类诊断",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeDependenciesAggregatesRequiredStatus": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：聚合所有外部运行时依赖（Node/Python）健康状态报告",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestNodeRuntimeDependencyMessagesHandleInvalidAndTruncatedOutput": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：安全清洗被截断或非法的子进程输出，防止日志解析 panic",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeFallbacksAndEnvironmentOverridesRemainUsable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：环境变量覆盖优先级高于默认配置且保持可用性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestResearchDatabasePathAndRuntimeResource": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：投研数据库路径正确隔离推导并挂载至运行时资源注册表",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeResourcesDeclareOwnersAndDerivedPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：静态显式声明各运行时文件与目录的权威写入所有者",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeResourcesHonorRealTradeControlPathOverride": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：支持实盘风控控制文件路径自定义配置覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeResourceSummaryIncludesCountAndItems": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：运行时资源摘要完整输出托管资源数量与详细清单",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestLaunchDefaultsForDevelopmentMode": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：开发调试模式默认启动参数（热重载、详细日志等级）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestLaunchDefaultsForEmbeddedFrontendMode": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：生产嵌入模式启动默认参数（单端口路由复用、缓存头）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestBindHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：IP 地址与端口绑定辅助工具校验",
+    "command": "pnpm run check:rust:workspace"
+  },
+  "TestEnsureRuntimeLayout": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：自动递归创建缺失的配置目录、数据目录与缓存目录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimePathEnvOverrides": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：JFTRADE_HOME 环境变量自定义根路径解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimePathDerivationFallsBackForRelativeSettings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：相对路径配置自动锚定到工作区或用户主目录绝对路径",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestDeriveDesktopLogPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：滚动日志与崩溃转储文件路径安全推导",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestBindHelpersRejectMalformedAndIPv6Binds": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：严格拦截非法 IP 地址格式与不支持的未规范 IPv6 绑定",
+    "command": "pnpm run check:rust:workspace"
+  },
+  "TestIntegrationWithEnvDefaults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：外部集成模块与环境变量默认值协同工作",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestNilHandleSupportsOptionalRuntimeAssembly": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：可选运行时句柄为 None 时平稳降级，不阻断核心主程序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestHandlePublishesRuntimeGroupsBeforeShutdown": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：在停机动作执行前向订阅方发布最后一次运行时快照",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestHandleRejectsConcreteResourcesAfterShutdown": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：系统进入停机状态后拒绝任何新的业务资源注册注入",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestHandleRestoresCalendarResolverOnShutdown": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：日历解析器在停机时还原初始回退状态",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestHandleRefusesPublicationWhenResourceGroupAlreadyClosed": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：资源组处于已关闭状态时拒绝触发事件发布",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestHandleConcurrentCloseIsIdempotentAndAggregatesErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：多任务并发调用 Handle::close 保持原子幂等并聚合错误",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestHandleClosesConsumersBeforeProvidersAndProvidersInReverseOrder": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：严格先关闭数据消费者，再按逆序关闭底层行情提供商",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestHandleSerializesStrategyRuntimeAndPineRunnerUpdates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：串行化策略运行时与 Pine 脚本执行器状态更新，消除竞态",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestHandleClosesPineRunnersInjectedAfterShutdown": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：停机后传入的 Pine 执行器立即终止并释放其 Node 进程",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestHandleRejectsAssistantRuntimeInjectedAfterShutdown": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：停机后注入 Assistant 运行时立即返回关闭错误",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestHandleCloseAndAssistantPublicationAreAtomic": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：Handle 关闭与 Assistant 状态发布的原子事务保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestHandleCreatesAndRegistersOnePineManagerConcurrently": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：并发创建时通过 OnceCell 保证全局仅注册一个 PineManager 单例",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
   }
 }
