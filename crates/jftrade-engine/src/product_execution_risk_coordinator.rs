@@ -383,6 +383,8 @@ mod tests {
     }
 
     #[test]
+    // Parity: internal/api/trading/execution_test.go:47 TestHandleExecutionPlaceReturnsRiskRejectionEnvelope
+    // Verifies REAL trading environment pre-trade risk rejection blocks order placement and returns 403/409 risk envelope
     fn real_order_rejects_when_kill_switch_active() {
         let dir = TempDir::new().unwrap();
         let path = write_control_file(
