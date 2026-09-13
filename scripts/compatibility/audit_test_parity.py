@@ -275,6 +275,11 @@ def main():
     if os.path.exists(manual_path):
         import json
         manual_details = json.load(open(manual_path, encoding="utf-8"))
+
+    def manual_for(test):
+        """Resolve a mapping by immutable Go location, with legacy name fallback."""
+        key = f"{test['file']}:{test['line']}:{test['name']}"
+        return manual_details.get(key) or manual_details.get(test["name"])
     curated_path = "docs/history/go-to-rust/high-value-test-mapping-checklist.md"
     curated_names = set()
     curated_details = {}
@@ -303,8 +308,9 @@ def main():
         for test in go_tests:
             key = f"{test['file']}:{test['line']}"
             prior = prior_rows.get(key) or prior_by_name.get(test["name"])
-            if test["name"] in manual_details:
-                test_statuses[key] = manual_details[test["name"]]["status"]
+            detail = manual_for(test)
+            if detail:
+                test_statuses[key] = detail["status"]
             elif test["name"] in curated_details:
                 test_statuses[key] = curated_details[test["name"]]["status"]
             elif prior and len(prior) >= 8 and (prior[0] in ("[x]", "[~]") or prior[5] != "待人工填写"):
@@ -331,8 +337,8 @@ def main():
             crates = ", ".join(rust_by_domain.get(test["domain"], [])) or "待人工归类"
             source = f"`go:{go_revision}:{test['file']}:{test['line']}`<br>`{test['name']}`"
             prior = prior_rows.get(f"{test['file']}:{test['line']}") or prior_by_name.get(test["name"])
-            if test["name"] in manual_details:
-                c = manual_details[test["name"]]
+            c = manual_for(test)
+            if c:
                 status = c["status"]
                 rust_entry = c["rust_entry"]
                 conclusion = c["conclusion"]
