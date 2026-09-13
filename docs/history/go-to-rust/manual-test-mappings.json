@@ -1678,5 +1678,353 @@
     "rust_entry": "`crates/jftrade-api/src/router.rs`",
     "conclusion": "已覆盖：自选股 URI 必填路径参数预检拦截，未提供参数前禁止执行任何业务逻辑",
     "command": "pnpm run check:rust:architecture"
+  },
+  "TestAnalyzeStrategyPineRouteReturnsDiagnosticsAndRequirements": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：Pine 脚本静态分析路由（POST /api/v1/strategy/pine/analyze）返回语法诊断与依赖需求",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestAnalyzeStrategyPineRouteOmitsASTByDefault": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：Pine 分析路由默认省略庞大 AST 树以优化传输体积，支持参数显式请求",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestAnalyzeStrategyPineRouteRejectsUnsupportedSourceFormat": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：Pine 分析请求拒绝非法的源码格式声明，返回 400 校验错误",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestAnalyzeStrategyPineRouteReportsUnsupportedSyntax": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：Pine 源码包含暂不支持的语法特性时返回结构化警告诊断列表",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestAnalyzeStrategyPineRouteReturnsV20ParseOnlyMetadata": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：Pine V20 解析元数据契约返回与版本声明识别",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestAnalyzeStrategyPineRouteReturnsObjectSignatureDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：对象签名与函数调用参数不匹配时的诊断信息返回",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestAnalyzeStrategyPineRouteReturnsImportAliasDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：库导入别名冲突或未解析时的静态诊断返回",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestAnalyzeStrategyPineRouteReturnsTypeMethodRegistryDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：类型方法注册表与内置函数签名诊断契约",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestStrategyDefinitionPreviewQueryRejectsInvalidBooleans": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：策略定义预览接口非法布尔查询参数拦截返回 400",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestStrategyRoutesRejectMissingBoundURIParamsAtHandlerBoundary": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：策略路由缺少路径参数（strategyId/instanceId）直接拦截返回 400",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestStrategyStartRouteMapsPreflightRuntimeAndTransitionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：策略实例启动前置检查（运行时就绪、状态转移合法性）与边界错误映射",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestStrategyActivityRoutesRejectMalformedPagination": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：策略运行日志活动分页参数格式校验（limit/offset 非负整数约束）",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestAnalyzePineRouteCoversSuccessMalformedAndAnalysisFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：Pine 分析路由完整覆盖成功（200）、请求畸形（400）与分析执行错误（422）",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestDefinitionRoutesMapReadWriteAndDeleteFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：策略定义读写与删除时底层存储故障的标准 500/404 错误映射",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestDefinitionOrchestrationRoutesMapBusinessFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：存在活跃运行实例时删除策略定义冲突返回 409 CONFLICT",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestInstanceMutationRoutesMapCatalogFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：策略实例变动时目录与状态机故障的信封映射",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestPluginRoutesRejectWhitespaceIdentifiers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：策略插件标识符空白字符校验与非法字符拦截返回 400",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestWriteStrategyErrorIgnoresNil": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：Rust 强类型 Result 防御空错误，无业务错误时返回 Ok 信封",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestDefinitionRoutesNormalizeCreateUpdateAndDeleteGuards": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：策略定义创建、更新与删除防重重名冲突保护",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestDefinitionVersionRoutesExposeHistoryAndSnapshots": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：策略定义版本历史追溯与快照回滚接口契约",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestInstantiateApplyAndLifecycleRoutesFollowBusinessStateTransitions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：策略实例化、参数应用与启动/停止生命周期状态机推进",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestDeleteInstanceRouteMapsBusinessOutcomes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：删除运行中实例返回 409 冲突，已停止实例幂等安全清理返回 200",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestStrategyRoutesMapValidationAndBusinessErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：策略模块全面校验与业务异常映射矩阵",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestActivityRoutesNormalizePaginationAndTimeFilters": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：策略日志分页与时间区间过滤参数归一化与上限截断",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestPluginRoutesCoverCatalogOperationMutationAndGuidance": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：策略插件目录查询、配置变动与引导接口契约",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestPluginMutationRoutesMapNotFoundAndInternalFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：插件不存在返回 404，执行异常返回 500 标准信封",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestWriteStrategyErrorMapsBusinessErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：策略领域错误至 HTTP 状态码的统一映射逻辑",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestEnrichDefinitionResponseDefaultsAndQueryOverride": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：策略定义详情响应附带运行时状态与查询参数覆盖补全",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestHandleGetDefinitionReturnsNotFoundAndBadQuery": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：查询不存在策略返回 404，非法参数返回 400",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestHandleAnalyzePineMapsValidationErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：Pine 分析请求体校验异常统一映射为 400 VALIDATION_FAILED",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestExecutionProductRoutesBuyingPowerComboLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：期权/股票组合购买力试算与测算生命周期路由（POST /api/v1/trading/buying-power）",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestExecutionProductRoutesValidationAndServiceErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：购买力试算参数校验 400 与券商未就绪 503 错误映射",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestExecutionCommandErrorMapsRequestAndBrokerFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：交易指令入参错误 400 与券商执行失败 502/503 错误映射",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestHandleExecutionPlaceReturnsRiskRejectionEnvelope": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：风控硬阻断与下单拦截返回标准拒绝信封（422 UNPROCESSABLE_ENTITY）",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestHandleExecutionPlaceRejectsEquityAmountModeSpoof": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：下单金额模式篡改伪造数量校验拦截返回 400",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestHandleExecutionOrdersNormalizesScopeAndFilter": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：订单列表查询范围（active/all/history）与标的过滤参数归一化",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestHandleExecutionCancelReturnsMappedEnvelope": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：撤单请求执行完成返回撤单回执标准信封",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestTradingQueryHelpersNormalizeAndValidate": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：交易查询辅助函数时间范围合法性、标的代码与订单 ID 格式校验",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestExecutionPlacePreviewAndEventsRoutes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：下单预览测算（保证金/费用）与交易执行事件流接口契约",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestHandleExecutionOrderDetailsReturnsCanonicalReceiptAndNotFound": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：订单详情查询返回标准订单凭据，不存在订单返回 404 NOT_FOUND",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestExecutionRoutesValidatePayloadsAndMapHandlerErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：交易执行各路由请求体验证与 Handler 错误信封映射",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestExecutionOrdersRouteSwitchesBetweenActiveAndHistorySync": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：订单查询路由根据 scope 参数动态无缝切换内存活跃订单与历史持久化对账数据",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestExecutionHandlersRejectMissingInternalOrderIDAndTrimWhitespace": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：订单处理路由拦截缺失 internalOrderId 并对字符串进行空白字符清洗",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestExecutionOrderDetailsRouteMapsMissingAndStoreFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：订单详情查询未找到返回 404，存储故障返回 500",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestTradingOpenAPIDocumentationRoutesMatchGinRegistration": {
+    "status": "[x]",
+    "rust_entry": "`contracts/openapi/openapi.json`",
+    "conclusion": "已覆盖：交易相关全部 HTTP 路由严格同步至 OpenAPI 规范并通过契约门禁检查",
+    "command": "pnpm run check:contracts"
+  },
+  "TestPortfolioRoutesUseBrokerSnapshotsAndMissingBrokerSemantics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：资产持仓组合快照查询路由，券商未连接时返回 503 明确提示",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestBrokerWriteRoutesMapBodyBrokerAndOperationOutcomes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：券商写操作（交易解锁、下单配置）映射操作结果与状态信封",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestBrokerReadRoutesPreserveDegradedBackendFailureSemantics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：券商接口降级与故障时向前端暴露优雅容错与降级标记",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestBrokerReadRoutesRejectMissingAndInvalidOptionalInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：券商只读接口校验必填参数并拒绝非法可选输入格式",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestTradingRouteHelpersWriteHTTPBoundaryErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：交易路由辅助函数写入统一结构化 HTTP 边界错误",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestPortfolioReadUnknownResourceIsNotFound": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：请求未知的投资组合子资源路径返回 404 NOT_FOUND",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestTradingRoutesRejectMalformedQueryEncodingBeforeDispatch": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：交易路由在派发前校验并拒绝非法 URL 编码的查询参数",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestBrokerReadHandlersSerializeEmptyCollectionsAsArrays": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：券商只读列表（持仓、订单、成交）在空数据时序列化为 [] 而非 null",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestTradingReadHandlersValidateAndNormalizeBusinessQueries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：交易只读处理器校验标的代码、市场类别并归一化查询参数",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestBrokerRoutesPreserveFallbackSemanticsAndRequestValidation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：券商操作路由保留回退语义与入参校验拦截",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestBrokerWriteRoutesClassifyUnsupportedTradingAndUnlock": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：券商交易不支持或未解锁交易密码时返回 403 明确操作指引",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestBrokerReadRoutesCoverOrdersFillsQuotesKLinesAndSecurities": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：券商综合只读路由全面覆盖订单、成交、实时报价、K 线与标的资产",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestBrokerReadRoutesRejectInvalidScopeAndNumericQueryValues": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：券商查询路由拒绝非法 scope 声明及负数/非数字等非法查询参数",
+    "command": "pnpm run check:rust:architecture"
   }
 }
