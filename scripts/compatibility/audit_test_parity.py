@@ -393,6 +393,15 @@ def main():
                 status = "[ ]"
                 rust_entry, conclusion, command = "待人工填写", "待人工核对", "待人工填写"
             fp.write(f"| {status} | {source} | {test['domain']} | {risk} | `{crates}` | {rust_entry} | {conclusion} | {command} |\n")
+        evidence_counts = {}
+        for item in manual_details.values():
+            evidence = item.get("evidence_type", "unspecified")
+            evidence_counts[evidence] = evidence_counts.get(evidence, 0) + 1
+        fp.write("\n## 4. 证据类型汇总\n\n")
+        fp.write("清单勾选表示已处理，不表示功能等价；只有 `function_exact` 才代表发现了函数级 Rust 测试证据。\n\n")
+        fp.write("| evidence_type | 数量 |\n|---|---:|\n")
+        for evidence, count in sorted(evidence_counts.items()):
+            fp.write(f"| `{evidence}` | {count} |\n")
 
     print(f"\nReport written to {report_path}")
     print(f"Inventory written to {inventory_path}")

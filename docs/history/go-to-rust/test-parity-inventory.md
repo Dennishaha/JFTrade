@@ -4470,3 +4470,13 @@
 | [~] | `go:452dea11:pkg/broker/research_screen_test.go:11`<br>`TestFactorRefIdentityAndStableConstruction` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` | `crates/jftrade-trading/src/broker.rs` | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib |
 | [~] | `go:452dea11:pkg/broker/research_screen_test.go:31`<br>`TestNewFactorRefRejectsUnrepresentableOrInvalidParameters` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` | `crates/jftrade-trading/src/broker.rs` | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib |
 | [~] | `go:452dea11:pkg/broker/research_screen_test.go:46`<br>`TestResearchScreenRateLimitErrorContract` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` | `crates/jftrade-trading/src/broker.rs` | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib |
+
+## 4. 证据类型汇总
+
+清单勾选表示已处理，不表示功能等价；只有 `function_exact` 才代表发现了函数级 Rust 测试证据。
+
+| evidence_type | 数量 |
+|---|---:|
+| `boundary` | 69 |
+| `function_exact` | 50 |
+| `missing` | 4333 |
