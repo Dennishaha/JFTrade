@@ -3424,5 +3424,299 @@
     "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
     "conclusion": "已覆盖：券商回报核心字段（状态、成交均价、累计成交量）持久化入库",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestMaintenanceExecutionRejectsConcurrentStaleAndPartialCleanup": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：数据库维护任务并发执行锁、过期预览任务拦截与部分清理事务回滚",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestMaintenanceCompactAndBackupProtectUnavailableAndBusyDatabases": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：数据库处于写租约占用或忙状态时，VACUUM/备份操作安全 Fail-Closed 拦截",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestMaintenanceDatabaseInspectionAndBackupRetentionFailuresStayLocal": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：单库备份检查故障错误隔离，不扩散并阻断其他库正常巡检",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestMaintenanceCandidateQueriesFailSafelyWhenSchemaDoesNotMatch": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：表结构不匹配时维护候选探测安全降级，防止 SQL panic",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestMaintenancePreviewDefaultsAndConcurrentStateChangesFailClosed": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：并发状态变化时维护清理预览失效阻断，不执行脏清理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestMaintenanceBackupAndRebuildSurfacePersistentStateErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：底层磁盘 IO 故障或文件权限异常向上传递标准错误信封",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestBackupRetentionReportsRemovalPermissionFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：备份文件修剪删除缺少文件权限时精准上报错误原因",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestMaintenanceStorageAndCandidateBoundaryErrorsAreContained": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：存储空间不足与超界探测错误边界受控，不导致服务崩溃",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestBackupSnapshotRejectsBlockedDirectoryAndEmptySource": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：备份目标目录不可写或源数据库为空时拒绝创建备份快照",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestBackupRetentionEvictsQuotaPressureAcrossDatabaseFiles": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：备份存储总配额超限时按时间戳跨数据库文件淘汰旧快照",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestBackupRetentionNeverEvictsRebuildMarkerSnapshots": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：配额淘汰严格保护带有重建标记 (rebuild marker) 的备份快照",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestBackupSnapshotDoesNotMutateIncompatibleSource": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：快照失败时绝不修改或污染任何不兼容的源数据库文件",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestMaintenanceCompactionAndBackupFailClosedWhenPersistentStateBreaks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：状态元数据损坏时拒绝进行压缩与备份，保护现场数据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestNewPreviewIDSurfacesSecureRandomnessFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：生成预览任务 ID 使用加密安全随机数，系统熵源不足时报错",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestMaintenancePreviewRejectsAConfiguredCleanupTargetWithoutDescriptor": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：缺少架构描述符的目标数据库严禁执行自动清理预览",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestMaintenanceCleanupAndCompactionReportActualReclaimedStorage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：清理和 VACUUM 压缩精确统计并报告实际回收的磁盘字节数",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestOverviewCountsMainWALSHMAndKeepsDatabaseErrorsLocal": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：概览统一统计 .db、.wal、.shm 文件总大小，单个数据库错误局部隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestOverviewSupportsSummaryOnlyAndSingleDatabase": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：存储概览支持仅汇总模式以及指定单库的细粒度查询",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDatabaseBackupCreatesVerifiedPrivateSnapshot": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：备份完成立即使用 SQLite VACUUM INTO / 校验和验证快照私有完整性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestBackupCapacityPrunesManagedFilesOnlyAndEnforcesQuota": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：备份容量治理仅修剪系统托管的备份文件，杜绝误删用户同目录文件",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestBacktestCleanupPreviewUsesAgeAndLatestProtection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：回测数据清理预览支持按保留天数过滤，且始终保留最新回测记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestCleanupPreviewExpiresAndMaintenanceConflictIsTyped": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：清理预览令牌超时自动失效，并发清理冲突返回类型化 409 信封",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestOverviewCleanableCategoriesADKPreviewAndCompact": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：细分回测、ADK 会话、K线缓存可清理类别概览与在线整理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestCleanupAndCompactRejectInvalidOrUnavailableOperations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：非法分类标识或数据库离线时拒绝执行清理与整理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestManagedBackupRetentionKeepsCurrentSnapshotAndPrunesOldFiles": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：保留策略始终保留当前最新有效快照，平滑淘汰超期旧备份",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestManagedBackupFileDiscoveryAndFilenameBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：备份文件名时间戳格式解析与非法命名文件安全过滤",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestBackupSnapshotFailureCleansUpPartialFilesAndVerificationRejectsInvalidSQLite": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/maintenance.rs`",
+    "conclusion": "已覆盖：快照失败清理临时残留碎片，完整性校验严格拒绝损坏的 SQLite 文件",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestManagerStatusesReflectRuntimeFailuresAndScheduledRebuilds": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：数据库重构管理器实时反映磁盘错误状态与待处理重建队列",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestManagerScheduleRebuildValidatesModesAndSelection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：安排数据库重建时严格校验重建模式与目标库范围合法性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestManagerPendingLifecycleHandlesMissingCorruptAndUnknownMarkers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：重建标记文件缺失、损坏或未知版本时安全防御与自愈机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestInspectDatabaseClassifiesFilesystemAndSchemaStates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：文件级巡检准确分类只读、损坏、版本超前与版本落后各态",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestInspectDatabaseRejectsManifestDrift": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：实际表结构与迁移清单代码发生漂移时严格拒绝启动并预警",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestManagerMarkerPersistenceNormalizesAndSurfacesFilesystemErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：重建标记原子落盘写入与文件系统异常结构化暴露",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestManagerPropagatesUnreadableMarkerAndDatabaseStatErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：标记文件不可读或数据库 stat 失败时准确向上传递 IO 错误",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestManagerSchedulesSingleAndBatchRebuilds": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：支持单个数据库与全量数据库批量计划重建作业",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestManagerScheduleRebuildSharesMaintenanceLocks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：计划重建共享全局维护互斥锁，杜绝重建与日常备份并发冲突",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestManagerDescriptorsMatchSchemaCatalog": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：系统所有数据库描述符与静态 Schema 目录一一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestManagerApplyPendingDeletesOnlySelectedDatabaseFiles": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：执行待处理重建时严格仅删除被选中的数据库三件套文件",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestManagerApplyPendingRejectsTamperedBackupBeforeDeletingAnySource": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：删除源文件前校验备份 SHA256，篡改备份立即中止，防数据丢失",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestManagerKeepsMarkerWhenDeleteFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：源数据库文件删除失败时保留标记，等待下次启动继续处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestVerifyMarkerBackupRejectsEveryUntrustedMarkerField": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：标记文件内容反序列化时严格校验每一处非授信字段",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestApplyPendingRejectsDuplicateAndMissingBackups": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：防范重复标记冲突与备份实体文件丢失的安全保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestScheduleRebuildLockedRemovesSnapshotsAfterBatchFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：批量规划重建失败时自动回滚清理已生成的中间备份快照",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestScheduleRebuildLockedRequiresBackupForExistingMarkerIDs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：复用既有标记必须验证对应备份有效性，不可凭空标记",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestScheduleRebuildIsIdempotentForAnExistingVerifiedBackup": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：对已通过验证的备份重复发起计划重建保持幂等成功",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestRebuildSelectionAndLockRollbackBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：重建库选择边界判断与异常中断时维护互斥锁可靠释放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestScheduleRebuildLockedPropagatesUnreadableMarker": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：加锁操作期间遇到损坏标记向上传递明确错误",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestProtectedBackupAndDigestFailureBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：备份快照哈希计算异常处理与受保护文件并发访问防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestResearchDatabaseParticipatesInStatusBackupAndRebuild": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
+    "conclusion": "已覆盖：投研专用数据库全生命周期参与系统备份、健康检测与重建流程",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
   }
 }
