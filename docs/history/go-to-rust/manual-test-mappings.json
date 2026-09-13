@@ -118,5 +118,119 @@
     "rust_entry": "`crates/jftrade-api/src/observability.rs`",
     "conclusion": "部分映射：Rust observability transport 忽略未声明查询参数；ADK 指标业务筛选仍需 assistant 侧断言",
     "command": "`pnpm run check:rust:workspace`"
+  },
+  "TestADKTaskAndMemoryWorkflowRoutes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs`；OpenAPI 路由契约",
+    "conclusion": "已覆盖：ADK task 与 memory 路由由 API transport 统一暴露，内部状态由 assistant engine 负责",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestADKOptimizationTaskNegativeRoutes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`；`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：优化任务非法参数、不存在任务及取消失败均统一映射为标准 API 错误信封",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestAssistantChatCompatibilityRouteIsGone": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs:442`",
+    "conclusion": "已覆盖：严格断言 /api/v1/assistant/chat 返回 404 NOT_FOUND 且不处理任何请求",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestADKSnapshotAndToolsRoutesReturnCatalogData": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`；OpenAPI `/api/v1/adk/snapshot` 与 `/api/v1/adk/tools`",
+    "conclusion": "已覆盖：快照与工具目录路由返回标准 envelope 数据",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestADKAuditRouteFiltersByKindAndSubjectID": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`；OpenAPI `/api/v1/adk/audit`",
+    "conclusion": "已覆盖：审计路由入参解析、类型与主体 ID 过滤透传至存储层",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`；assistant runtime compatibility replay",
+    "conclusion": "已覆盖：工具执行可见失败包裹在成功完成的响应信封中，不导致 transport 崩溃",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestADKChatStreamReturnsFinalEventForCompletedRunWithToolFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/sse.rs`；assistant stream replay",
+    "conclusion": "已覆盖：SSE 流在工具失败时依然产出标准 final 事件序列与完整 run 状态",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/sse.rs`；assistant runtime 容错",
+    "conclusion": "已覆盖：最终消息写入异常时 SSE 流优雅降级，保障客户端接收终态",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestADKChatStreamReturnsErrorEventForInvalidPayload": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/sse.rs`；`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：非法 payload 请求直接产出 SSE error 事件并安全关闭通道",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestADKProviderSaveRejectsInvalidPayload": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`；`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：Provider 校验失败时返回 400 BAD_REQUEST 结构化错误",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestADKAgentSaveValidationFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`；OpenAPI `/api/v1/adk/agents`",
+    "conclusion": "已覆盖：Agent 保存时对禁用 provider、缺失密钥及未知工具/技能的参数校验失败响应",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestADKSkillInstallAndUninstallFailureRoutes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`；OpenAPI `/api/v1/adk/skills`",
+    "conclusion": "已覆盖：非法技能 URL 安装与尝试卸载内置技能的错误响应契约",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestADKBindAgentWithPreinstalledNeodataFinancialSearch": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`；技能与 Agent 绑定契约",
+    "conclusion": "已覆盖：预装技能与 Agent 关联的保存与创建链路",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestADKRunNegativeRoutes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`；`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：非法 session/run ID 及取消不存在 run 的 400/404 错误映射",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestADKApprovalNegativeAndIdempotentRoutes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`；approval resolution 路由",
+    "conclusion": "已覆盖：审批路由的幂等性以及非法审批请求的标准错误拦截",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestADKSessionsCRUDAndFilteringRoutes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`；OpenAPI `/api/v1/adk/sessions`",
+    "conclusion": "已覆盖：ADK 会话 CRUD、过滤以及工作流关联元数据的 HTTP 契约与信封",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestADKChatStreamTransportPreservesEventIdentityAndPayload": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/sse.rs`；`crates/jftrade-api/tests/transport_contracts.rs`",
+    "conclusion": "已覆盖：SSE 流事件 ID、类型、序列号及 payload 序列化与传输无损保留",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestADKWorkflowDefinitionTriggerAndRunRoutes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`；OpenAPI `/api/v1/adk/workflows`",
+    "conclusion": "已覆盖：工作流定义、触发器及运行全套路由的 HTTP transport 与参数绑定",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestADKWorkflowRoutesRejectInvalidInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`；`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：工作流、触发器创建与运行中各类非法入参的标准 400/404 错误信封",
+    "command": "pnpm run check:compatibility:assistant-runtime"
   }
 }
