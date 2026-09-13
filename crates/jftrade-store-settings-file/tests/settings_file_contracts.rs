@@ -213,6 +213,8 @@ fn product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields() {
         });
         assert_eq!(actual, test_case.expected, "case {}", test_case.name);
     }
+    // Parity: internal/store/settingsfile/store_test.go:83 TestSaveIntegrationPersistsWithoutChangingRuntimeEnv
+    // Verifies Futu integration config persistence without mutating environment variables
     assert!(corpus.futu_install_cases.len() >= 4);
     for test_case in corpus.futu_install_cases {
         let directory = tempdir().expect("temporary Futu install directory");
