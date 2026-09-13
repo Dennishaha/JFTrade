@@ -292,6 +292,14 @@ def main():
         raise ValueError(
             f"manual mappings must use file:line:test composite keys; found {len(malformed_keys)} legacy keys"
         )
+    expected_keys = {f"{item['file']}:{item['line']}:{item['name']}" for item in go_tests}
+    actual_keys = set(manual_details)
+    missing_keys = expected_keys - actual_keys
+    extra_keys = actual_keys - expected_keys
+    if missing_keys or extra_keys:
+        raise ValueError(
+            f"manual mapping key set mismatch: missing={len(missing_keys)} extra={len(extra_keys)}"
+        )
     invalid_evidence = [
         key for key, item in manual_details.items()
         if item.get("status") == "[x]" and item.get("evidence_type") != "function_exact"

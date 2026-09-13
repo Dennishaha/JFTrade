@@ -28883,9 +28883,9 @@
   },
   "pkg/strategy/pine/parse_test.go:10:TestParseScriptLowersPineStrategyToIR": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::native_pipeline_parses_lowers_and_plans_strategy_requirements",
+    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(native_pipeline_parses_lowers_and_plans_strategy_requirements)'",
     "evidence_type": "missing"
   },
   "pkg/strategy/pine/parse_test.go:54:TestCompileRejectsPublicInternalHelperCalls": {
@@ -31154,13 +31154,6 @@
     "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
     "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib",
-    "evidence_type": "missing"
-  },
-  "pkg/strategy/pine/parse_test.go:13:TestParseScriptLowersPineStrategyToIR": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::native_pipeline_parses_lowers_and_plans_strategy_requirements",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(native_pipeline_parses_lowers_and_plans_strategy_requirements)'",
     "evidence_type": "missing"
   }
 }
