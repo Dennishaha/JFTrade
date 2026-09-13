@@ -351,3 +351,42 @@ async fn unknown_api_is_json_but_frontend_uses_spa_fallback() {
             .is_empty()
     );
 }
+
+#[tokio::test]
+async fn legacy_assistant_chat_route_is_strictly_not_found() {
+    // Parity: go:452dea11:internal/api/assistant/adk_ops_test.go:448 TestAssistantChatCompatibilityRouteIsGone
+    let port = Arc::new(RecordingPort::default());
+    let routes = RouteCatalog::new([RouteSpec {
+        method: "POST".into(),
+        path: "/api/v1/adk/chat/stream".into(),
+    }])
+    .expect("routes");
+    let router = build_router(ApiState::new(
+        routes,
+        AccessPolicy {
+            desktop_mode: true,
+            enforce_access: false,
+            ..AccessPolicy::default()
+        },
+        port.clone(),
+    ));
+
+    let response = router
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/v1/assistant/chat")
+                .header("content-type", "application/json")
+                .body(Body::from(json!({"prompt": "hello"}).to_string()))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        response.headers()["content-type"],
+        "application/json; charset=utf-8"
+    );
+    assert_eq!(port.requests.lock().expect("requests").len(), 0);
+}
