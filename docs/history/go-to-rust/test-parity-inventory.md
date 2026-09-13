@@ -2,6 +2,8 @@
 
 本文件由 `scripts/compatibility/audit_test_parity.py` 生成，是 Go→Rust 全量逐测试人工核对入口。每行的 `[ ]` 表示尚未完成人工确认；自动推导的业务域和 crate 仅是候选，不能视为已覆盖。确认后将该行改为 `[x]` 并填写 Rust 测试名称、差异结论和验证命令；无法迁移的测试必须标记为边界/不适用并说明原因。
 
+当前进度：`[x]` 101 / `4451`，待核对 `4350`。脚本只会把高价值清单中已有明确证据的同名测试标记为 `[x]`；其余项目必须按功能域人工补充。
+
 | 状态 | Go 测试 | 业务域 | 风险 | Rust crate 候选 |
 |---|---|---|---|---|
 | [ ] | `go:452dea11:cmd/jftrade-api/main_test.go:13`<br>`TestValidateArgsAllowsNoArgs` | api_transport | 普通边界 | `crates/jftrade-api` |
