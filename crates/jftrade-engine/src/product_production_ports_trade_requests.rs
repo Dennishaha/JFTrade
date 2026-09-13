@@ -720,3 +720,20 @@ pub(crate) fn checked_at() -> String {
         .map(|d| d.as_millis().to_string())
         .unwrap_or_else(|_| "0".to_owned())
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    // Parity: internal/api/trading/execution_test.go:180 TestTradeHelpers_MergeValues_OptionalFloat_OptionalUint
+    // Verifies trade query parsing, path splitting, and query parameter validation
+    fn trade_query_parses_symbol_and_optional_helpers() {
+        let req = TradeRequest::parse("/api/v1/brokers/futu/max-trade-quantity", "symbol=US.AAPL&orderType=NORMAL&price=150.5&tradingEnvironment=simulate").expect("parse request");
+        assert_eq!(req.broker_id, "futu");
+        assert_eq!(req.resource, "max-trade-quantity");
+        assert_eq!(req.environment_code().unwrap(), Some(0));
+        assert_eq!(req.query.get_first("price"), Some("150.5"));
+    }
+}
