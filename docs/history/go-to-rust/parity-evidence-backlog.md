@@ -73,3 +73,8 @@
 | `internal/integration/akshare/boundaries_test.go` | 14 |
 | `internal/app/apiserver/servercore/runtime_trading_test.go` | 13 |
 | `internal/assistant/engine/mcp_server_test.go` | 13 |
+
+## 最近验证
+
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked`：20/20 通过（nextest run `ba80ce7b-485a-4c2d-9ea1-08011ea97730`）。
+- 该结果仅证明 `jftrade-strategy` 当前测试集合可执行，不会自动提升未建立函数级映射的 `[~]` 条目。
