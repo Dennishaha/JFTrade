@@ -223,6 +223,8 @@ mod tests {
     use super::*;
 
     #[test]
+    // Parity: internal/store/settingsfile/store_test.go:184 TestNormalizeExchangeCalendarSettingsRewritesLegacySourceIDs
+    // Verifies legacy source rewrite (hkex_official -> hk_gov_1823_ical) and deduplication of enabled sources
     fn legacy_sources_and_invalid_overrides_match_go_normalization() {
         let settings = normalize_exchange_calendar_settings(ExchangeCalendarSettings {
             auto_refresh_enabled: false,
