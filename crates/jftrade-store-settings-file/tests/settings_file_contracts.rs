@@ -857,6 +857,8 @@ fn test_failed_setting_saves_rollback_all_runtime_state() {
     assert_eq!(loaded.down_color, "#445566");
 }
 
+// Parity: internal/store/settingsfile/store_test.go:13 TestEnsureBootstrapFileInitializesDefaults
+// Verifies fresh bootstrap file initialization, non-existent appearance state and defaults handling
 #[test]
 fn test_failed_bootstrap_and_migration_rollback_runtime_state() {
     // Parity: internal/store/settingsfile/rollback_test.go:94 TestFailedBootstrapAndMigrationRollbackRuntimeState
