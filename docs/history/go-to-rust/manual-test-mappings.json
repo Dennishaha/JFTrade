@@ -1210,5 +1210,149 @@
     "rust_entry": "`crates/jftrade-api/src/auth.rs`",
     "conclusion": "已覆盖：从 HTTP Request 标头提取 Origin/Referer 的完整逻辑",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestPredictionComboQuoteAcceptsContextFromQueryAndMapsFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：预测市场组合报价路由（/api/v1/market-data/prediction/combos/quotes），校验标的腿腿型，透传 brokerId/accountId 上下文，上游错误映射为 502 BAD_GATEWAY",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestPostQueryMapsUpstreamFailureAndRouteHelpersCoverAcceptedEnums": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：期权/衍生品分析 POST 路由上游异常映射 502，覆盖 MarketSegment 和 ProductClass 枚举规范化",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestEmbeddedProviderNewsAndCorporateActionRoutes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：嵌入式提供商（yfinance/akshare 等）新闻与公司行动路由，返回统一 selectionReason 信封与派息分红数据",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestEmbeddedProviderRouteErrorsKeepHTTPContract": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：嵌入式提供商能力不支持映射 409 CONFLICT，预热中映射 503 SERVICE_UNAVAILABLE 并注入 Retry-After 标头",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestEmbeddedProviderRankingsAndIndustryRoutes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：行业板块与榜单排行数据路由，支持多提供商查询参数绑定",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestEmbeddedProviderRankingsRouteMapsUnsupported": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：榜单功能不支持时返回 409 标准错误信封",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestEmbeddedProviderCompanyResearchRoutes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：公司档案、核心财务指标与机构持仓深度研究路由契约",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestEmbeddedProviderCompanyResearchRejectsUnsupported": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：非法研究类型或标的不支持时拒绝请求并返回规范错误码",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestEmbeddedProviderCalendarAndMacroRoutes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：财经日历、宏观经济事件与财报公布日程统一查询路由",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestEmbeddedProviderCalendarMacroRoutesRejectUnsupported": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：非法时间区间或宏观指标代码返回 400 校验拦截",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestResearchScreenCatalogRouteAndValidation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：选股器指标目录路由（/api/v1/research/screen/catalog），返回可用过滤条件与枚举",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestNormalizeResearchScreenQueryDefaultsAndRejectsNonV2Inputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：选股器分页参数默认值绑定，拦截废弃旧版非 v2 查询格式",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestWriteResearchScreenErrorReturnsStructured429": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：选股计算限频时返回结构化 429 TOO_MANY_REQUESTS 错误信封",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestResearchScreenPostUsesTypedDefinitionAndOffset": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：POST /api/v1/research/screen 强类型过滤规则解析与 offset/limit 游标分页",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestResearchScreenPostPreservesExecutableV2Definition": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：保持可执行 v2 选股表达式契约，正确传递给底层选股引擎",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestResearchScreenPostRejectsV1Payload": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：拒绝旧版 v1 选股负载，返回 400 BAD_REQUEST 并提示使用 v2 结构",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestTypedResearchScreenResultOmitsUnknownTotal": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：流式或无法精准计算总数时，响应 JSON 正确省略 total 字段，防止前端展示负数或假总数",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestResearchScreenCatalogServesEmbeddedProviders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：嵌入式行情数据源支持的选股指标动态聚合呈现",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestResearchScreenPostServesEmbeddedProvider": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：通过指定 embedded provider 执行选股并返回标的列表",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestResearchScreenPostEmbeddedProviderConflictMatrix": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：互斥或冲突选股条件在提供商能力矩阵中返回 409 CONFLICT 明确说明原因",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestProductFeatureRoutesCoverReadWritePredictionAndSnapshots": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：高级特性路由读写、期权链快照与事件合约订单意图提交",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestTypedResearchRoutesPreserveQueriesAndWire": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：投研路由所有查询参数、时段与返回格式保持严格 OpenAPI 契约",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestProductFeatureRoutesMapValidationCapabilityEligibilityAndBrokerFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：特性路由将入参错误映射 400、不支持能力映射 409、无权限映射 403、券商网关异常映射 502",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestProductFeatureRouteHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：查询参数枚举提取与默认值辅助函数测试",
+    "command": "pnpm run check:rust:architecture"
   }
 }
