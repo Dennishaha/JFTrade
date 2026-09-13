@@ -9,4 +9,6 @@
 - [`2026-09-09-project-parity-audit.md`](2026-09-09-project-parity-audit.md)：固定 Go/main 基线的全项目能力盘点、F01–F05 修复后证据，以及 G01–G07 的限定验证；G05 真实旧发布包/四平台安装升级和 G08 live 验收仍未验证，审计中的结论不等同于迁移已完成或发布资格声明。
 - [`2026-09-06-behavior-audit.md`](2026-09-06-behavior-audit.md)：本轮远端 Go / 本地 main 对比、已复现修复、实际验收范围与未闭环差异。
 - [`go_to_rust_comprehensive_verification_matrix.md`](go_to_rust_comprehensive_verification_matrix.md)：Go 到 Rust 迁移全景深度验证矩阵与发布准入总览（主导航索引）
+- [`high-value-test-mapping-checklist.md`](high-value-test-mapping-checklist.md)：高风险 Go 测试到 Rust 行为的人工核对清单
+- [`test-parity-inventory.md`](test-parity-inventory.md)：由审计脚本生成的全部 Go 测试逐项索引（自动映射候选，不能替代行为证据）
 - [`verification-matrix/`](verification-matrix/)：十大核心领域代码级对比、边界失效推演与测试用例分卷目录
