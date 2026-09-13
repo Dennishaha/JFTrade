@@ -546,6 +546,9 @@ pub(crate) fn execution_error_details(error: &ExecutionWritePortError) -> (Strin
     }
 }
 
+// Parity: internal/api/trading/execution_test.go:19 TestExecutionCommandErrorMapsRequestAndBrokerFailures
+// Maps broker errors to canonical HTTP statuses and structured codes:
+// timeout -> 504 BROKER_TIMEOUT, rate limited -> 429 BROKER_RATE_LIMITED, unavailable -> 502 BROKER_UNAVAILABLE
 pub(crate) fn map_trade_error(error: TradeSessionError) -> ExecutionWritePortError {
     let message = match error {
         TradeSessionError::Unsupported(message) => {
