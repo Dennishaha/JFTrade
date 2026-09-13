@@ -665,6 +665,15 @@ mod tests {
             .expect("logout successful");
         assert_eq!(logout_res.data["authenticated"], false);
         assert!(!manager.is_session_valid(&session_token));
+        // Parity: internal/app/apiserver/webaccess/security_integration_test.go:379 TestWebLogoutClearsSessionCookie
+        let clear_cookie = logout_res
+            .set_cookie
+            .expect("logout must provide expired clear cookie");
+        assert!(clear_cookie.starts_with("jftrade_web_session=;"));
+        assert!(clear_cookie.contains("Max-Age=0"));
+        assert!(clear_cookie.contains("HttpOnly"));
+        assert!(clear_cookie.contains("SameSite=Strict"));
+        assert!(clear_cookie.contains("Path=/"));
     }
 
     #[test]
