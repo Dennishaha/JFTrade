@@ -678,6 +678,25 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_board_kind_defaults_empty_to_industry() {
+        // Parity: internal/marketdata/rankings_facade_test.go:193 TestServiceIndustriesDefaultsEmptyKindToIndustry
+        let empty_query = QueryMap::parse("").expect("empty query");
+        assert_eq!(board_kind(&empty_query).expect("kind"), "industry");
+
+        let explicit_industry = QueryMap::parse("plateType=industry").expect("query");
+        assert_eq!(board_kind(&explicit_industry).expect("kind"), "industry");
+
+        let uppercase_industry = QueryMap::parse("plateType=INDUSTRY").expect("query");
+        assert_eq!(board_kind(&uppercase_industry).expect("kind"), "industry");
+
+        let concept = QueryMap::parse("plateType=concept").expect("query");
+        assert_eq!(board_kind(&concept).expect("kind"), "concept");
+
+        let invalid = QueryMap::parse("plateType=unsupported").expect("query");
+        assert!(board_kind(&invalid).is_err());
+    }
+
+    #[test]
     fn rankings_limit_prefers_positive_page_size() {
         let query = QueryMap::parse("pageSize=40&limit=5").expect("query");
         assert_eq!(request_limit(&query).expect("limit"), 40);
