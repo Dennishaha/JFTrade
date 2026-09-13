@@ -68,6 +68,7 @@ fn test_cache_deduplicates_and_retains_latest_tick() {
 
 #[test]
 fn test_cache_retains_extended_quote_when_price_is_unchanged() {
+    // Parity: go:452dea11:internal/marketdata/cache_test.go:185 TestCacheRetainsNewExtendedQuoteWhenPriceIsUnchanged
     // Parity with Go TestCacheRetainsNewExtendedQuoteWhenPriceIsUnchanged
     let mut cache = TickCache::new(5);
     let generation = 2;
