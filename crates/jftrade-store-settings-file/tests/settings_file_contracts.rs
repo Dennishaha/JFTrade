@@ -867,6 +867,8 @@ fn test_failed_bootstrap_and_migration_rollback_runtime_state() {
 #[test]
 fn test_failed_managed_account_crud_rolls_back_backing_array() {
     // Parity: internal/store/settingsfile/rollback_test.go:149 TestFailedManagedAccountCRUDRollsBackBackingArray
+    // Parity: internal/store/settingsfile/store_test.go:136 TestManagedAccountsDefaults
+    // Verifies managed broker account initialization defaults and backing array integrity
     use jftrade_settings::BrokerSettingsStorePort;
     let directory = tempdir().expect("temporary directory");
     let path = directory.path().join("settings.json");
