@@ -12363,7 +12363,7 @@
   },
   "internal/backtest/historical_source_test.go:181:TestHistoricalKLineSyncerRejectsEmptyProviderResult": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::TestHistoricalKLineSyncerRejectsEmptyProviderResult",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_k_line_syncer_rejects_empty_provider_result",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
     "evidence_type": "function_exact"
@@ -12384,14 +12384,14 @@
   },
   "internal/backtest/historical_source_test.go:268:TestHistoricalKLineSyncerRejectsBrokenPagination": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::TestHistoricalKLineSyncerRejectsBrokenPagination",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_k_line_syncer_rejects_broken_pagination",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
     "evidence_type": "function_exact"
   },
   "internal/backtest/historical_source_test.go:309:TestHistoricalCandleConversionRejectsInvalidFieldsAndDefaultsVolume": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::TestHistoricalCandleConversionRejectsInvalidFieldsAndDefaultsVolume",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
     "evidence_type": "function_exact"
@@ -12489,7 +12489,7 @@
   },
   "internal/backtest/recovery_test.go:45:TestStartScriptRejectsBlankResearchScript": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_research_backtest_execution.rs::TestStartScriptRejectsBlankResearchScript",
+    "rust_entry": "crates/jftrade-engine/src/product_research_backtest_execution.rs::test_start_script_rejects_blank_research_script",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
     "evidence_type": "function_exact"
@@ -14456,7 +14456,7 @@
   },
   "internal/integration/futu/candle_sessions_test.go:11:TestMarketSessionsForCandleSessions": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::TestMarketSessionsForCandleSessions",
+    "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::test_market_sessions_for_candle_sessions",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
     "evidence_type": "function_exact"
@@ -14526,7 +14526,7 @@
   },
   "internal/integration/futu/marketdata_runtime_test.go:267:TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_tick.rs::TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_tick.rs::test_tick_conversion_rejects_unusable_prices_and_uses_quote_fallbacks",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
     "evidence_type": "function_exact"
@@ -14540,7 +14540,7 @@
   },
   "internal/integration/futu/marketdata_runtime_test.go:364:TestTickFromTradeInheritsLatestQuoteFieldsThroughCache": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::TestTickFromTradeInheritsLatestQuoteFieldsThroughCache",
+    "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::test_tick_from_trade_inherits_latest_quote_fields_through_cache",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata",
     "evidence_type": "function_exact"
@@ -14589,14 +14589,14 @@
   },
   "internal/integration/futu/marketdata_runtime_test.go:824:TestFallbackTickerMapProjectsOnlyRequestedUsableSnapshots": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::TestFallbackTickerMapProjectsOnlyRequestedUsableSnapshots",
+    "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::test_fallback_ticker_map_projects_only_requested_usable_snapshots",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
     "evidence_type": "function_exact"
   },
   "internal/integration/futu/marketdata_runtime_test.go:869:TestFallbackSnapshotConversionRejectsInvalidValuesAndUsesClassification": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::TestFallbackSnapshotConversionRejectsInvalidValuesAndUsesClassification",
+    "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
     "evidence_type": "function_exact"
@@ -14610,14 +14610,14 @@
   },
   "internal/integration/futu/notifications_test.go:13:TestLiveNotificationFromResponseRoutesProtocolPayloadsToNeutralCategories": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::TestLiveNotificationFromResponseRoutesProtocolPayloadsToNeutralCategories",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
     "evidence_type": "function_exact"
   },
   "internal/integration/futu/notifications_test.go:98:TestNeutralNotificationBuildersHandleNilAndStatusTransitions": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::TestNeutralNotificationBuildersHandleNilAndStatusTransitions",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::test_neutral_notification_builders_handle_nil_and_status_transitions",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
     "evidence_type": "function_exact"
@@ -18124,56 +18124,56 @@
   },
   "internal/marketdata/broker_candles_test.go:12:TestBrokerKLineCandlesResponseProjectsStrictPage": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::TestBrokerKLineCandlesResponseProjectsStrictPage",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::test_broker_k_line_candles_response_projects_strict_page",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
     "evidence_type": "function_exact"
   },
   "internal/marketdata/broker_candles_test.go:51:TestBrokerKLineCandlesResponseHandlesTerminalAndBoundedPages": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::TestBrokerKLineCandlesResponseHandlesTerminalAndBoundedPages",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::test_broker_k_line_candles_response_handles_terminal_and_bounded_pages",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
     "evidence_type": "function_exact"
   },
   "internal/marketdata/broker_candles_test.go:77:TestBrokerKLineCandlesResponseRejectsInvalidProviderRows": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::TestBrokerKLineCandlesResponseRejectsInvalidProviderRows",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::test_broker_k_line_candles_response_rejects_invalid_provider_rows",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
     "evidence_type": "function_exact"
   },
   "internal/marketdata/broker_candles_test.go:109:TestBrokerKLineHelpersClassifySessionsAndNumbers": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::TestBrokerKLineHelpersClassifySessionsAndNumbers",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::test_broker_k_line_helpers_classify_sessions_and_numbers",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
     "evidence_type": "function_exact"
   },
   "internal/marketdata/broker_candles_test.go:137:TestBrokerKLinePaginationRejectsInvalidBoundedAndPagedMetadata": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::TestBrokerKLinePaginationRejectsInvalidBoundedAndPagedMetadata",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::test_broker_k_line_pagination_rejects_invalid_bounded_and_paged_metadata",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
     "evidence_type": "function_exact"
   },
   "internal/marketdata/cache_test.go:12:TestCacheDeduplicatesPromotesAndInherits": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::TestCacheDeduplicatesPromotesAndInherits",
+    "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::test_cache_deduplicates_promotes_and_inherits",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata",
     "evidence_type": "function_exact"
   },
   "internal/marketdata/cache_test.go:76:TestCacheFreshnessRetentionAndMaximum": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::TestCacheFreshnessRetentionAndMaximum",
+    "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::test_cache_freshness_retention_and_maximum",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata",
     "evidence_type": "function_exact"
   },
   "internal/marketdata/cache_test.go:103:TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-marketdata/tests/cache_extended_sessions_parity.rs::TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays",
+    "rust_entry": "crates/jftrade-marketdata/tests/cache_extended_sessions_parity.rs::test_cache_does_not_inherit_extended_sessions_across_trading_days",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata",
     "evidence_type": "function_exact"
@@ -24655,14 +24655,14 @@
   },
   "internal/watchlist/quote_preview_boundaries_test.go:37:TestQuoteCacheAndImportHelpersKeepAbsentDataExplicit": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-watchlist/src/lib.rs::TestQuoteCacheAndImportHelpersKeepAbsentDataExplicit",
+    "rust_entry": "crates/jftrade-watchlist/src/lib.rs::test_quote_cache_and_import_helpers_keep_absent_data_explicit",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist",
     "evidence_type": "function_exact"
   },
   "internal/watchlist/quote_preview_boundaries_test.go:74:TestPreviewImportRejectsInvalidDerivedGroupName": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-watchlist/src/lib.rs::TestPreviewImportRejectsInvalidDerivedGroupName",
+    "rust_entry": "crates/jftrade-watchlist/src/lib.rs::test_preview_import_rejects_invalid_derived_group_name",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist",
     "evidence_type": "function_exact"
@@ -24865,7 +24865,7 @@
   },
   "internal/store/backtest/store_failure_test.go:121:TestStoreCanceledMaintenanceDoesNotMutateRuns": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_run_store_contracts.rs::TestStoreCanceledMaintenanceDoesNotMutateRuns",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_run_store_contracts.rs::test_store_canceled_maintenance_does_not_mutate_runs",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite",
     "evidence_type": "function_exact"
@@ -24907,7 +24907,7 @@
   },
   "internal/store/backtest/store_test.go:168:TestInMemoryStoreImplementsRunLifecycleAndCancellation": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_run_store_contracts.rs::TestInMemoryStoreImplementsRunLifecycleAndCancellation",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_run_store_contracts.rs::test_in_memory_store_implements_run_lifecycle_and_cancellation",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite",
     "evidence_type": "function_exact"
@@ -24949,7 +24949,7 @@
   },
   "internal/store/exchangecalendar/store_boundaries_test.go:45:TestCalendarStoreEmptyLoadAndDeleteAreIdempotent": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::TestCalendarStoreEmptyLoadAndDeleteAreIdempotent",
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::test_calendar_store_empty_load_and_delete_are_idempotent",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
     "evidence_type": "function_exact"
@@ -24970,7 +24970,7 @@
   },
   "internal/store/exchangecalendar/store_snapshot_failures_test.go:95:TestSaveSnapshotValidatesInputsAndResolvesYearFallbacks": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::TestSaveSnapshotValidatesInputsAndResolvesYearFallbacks",
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::test_save_snapshot_validates_inputs_and_resolves_year_fallbacks",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
     "evidence_type": "function_exact"
@@ -25103,7 +25103,7 @@
   },
   "internal/store/settingsfile/normalization_and_persistence_test.go:13:TestSettingsNormalizationHandlesFallbacksAndBoundaries": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::TestSettingsNormalizationHandlesFallbacksAndBoundaries",
+    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::test_settings_normalization_handles_fallbacks_and_boundaries",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file",
     "evidence_type": "function_exact"
@@ -25152,14 +25152,14 @@
   },
   "internal/store/settingsfile/rollback_test.go:13:TestFailedSettingSavesRollbackAllRuntimeState": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::TestFailedSettingSavesRollbackAllRuntimeState",
+    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::test_failed_setting_saves_rollback_all_runtime_state",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file",
     "evidence_type": "function_exact"
   },
   "internal/store/settingsfile/rollback_test.go:185:TestFailedBootstrapAndMigrationRollbackRuntimeState": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::TestFailedBootstrapAndMigrationRollbackRuntimeState",
+    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::test_failed_bootstrap_and_migration_rollback_runtime_state",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file",
     "evidence_type": "function_exact"
@@ -26426,7 +26426,7 @@
   },
   "internal/strategy/catalog/activity_degraded_test.go:65:TestCatalogActivityReturnsEmptyPagesWhenActivityStoreIsUnavailable": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_activity.rs::TestCatalogActivityReturnsEmptyPagesWhenActivityStoreIsUnavailable",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_activity.rs::test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
     "evidence_type": "function_exact"
@@ -26580,7 +26580,7 @@
   },
   "internal/strategy/errors_test.go:8:TestClassifiedStrategyErrorsMatchSentinelKinds": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-strategy/src/model.rs::TestClassifiedStrategyErrorsMatchSentinelKinds",
+    "rust_entry": "crates/jftrade-strategy/src/model.rs::test_classified_strategy_errors_match_sentinel_kinds",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy",
     "evidence_type": "function_exact"
@@ -26622,7 +26622,7 @@
   },
   "internal/strategy/instancebinding/binding_test.go:137:TestNormalizeBrokerAccountDropsEmptyInput": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-strategy/src/model.rs::TestNormalizeBrokerAccountDropsEmptyInput",
+    "rust_entry": "crates/jftrade-strategy/src/model.rs::test_normalize_broker_account_drops_empty_input",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy",
     "evidence_type": "function_exact"
@@ -27987,7 +27987,7 @@
   },
   "pkg/strategy/indicatorwarmup/warmup_internal_test.go:142:TestResolveIntervalMinutesSupportsBrokerIntervalsAndSafeFallbacks": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs::TestResolveIntervalMinutesSupportsBrokerIntervalsAndSafeFallbacks",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs::test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy",
     "evidence_type": "function_exact"
@@ -30206,7 +30206,7 @@
   },
   "internal/trading/broker_boundaries_test.go:11:TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::test_service_broker_read_operations_return_fallback_when_market_data_unavailable",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
     "evidence_type": "function_exact"
@@ -30220,28 +30220,28 @@
   },
   "internal/trading/broker_boundaries_test.go:116:TestServiceBrokerWriteOperationsPropagateUpstreamFailures": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::TestServiceBrokerWriteOperationsPropagateUpstreamFailures",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::test_service_broker_write_operations_propagate_upstream_failures",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
     "evidence_type": "function_exact"
   },
   "internal/trading/broker_conformance_test.go:15:TestFakeBrokerConformanceAcceptedPartialFullAndOutOfOrderUpdates": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::TestFakeBrokerConformanceAcceptedPartialFullAndOutOfOrderUpdates",
+    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_fake_broker_conformance_accepted_partial_full_and_out_of_order_updates",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
     "evidence_type": "function_exact"
   },
   "internal/trading/broker_conformance_test.go:58:TestFakeBrokerConformanceCancelAcceptedAndCancelRejected": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::TestFakeBrokerConformanceCancelAcceptedAndCancelRejected",
+    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_fake_broker_conformance_cancel_accepted_and_cancel_rejected",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
     "evidence_type": "function_exact"
   },
   "internal/trading/broker_conformance_test.go:107:TestFakeBrokerConformancePlaceRejectedPushBeforeQueryAndUnsupportedCapability": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::TestFakeBrokerConformancePlaceRejectedPushBeforeQueryAndUnsupportedCapability",
+    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_fake_broker_conformance_place_rejected_push_before_query_and_unsupported_capability",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
     "evidence_type": "function_exact"
@@ -30269,7 +30269,7 @@
   },
   "internal/trading/broker_test.go:648:TestPlaceBrokerOrderRunsPreTradeRiskBeforeBrokerSubmission": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::TestPlaceBrokerOrderRunsPreTradeRiskBeforeBrokerSubmission",
+    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::test_place_broker_order_runs_pre_trade_risk_before_broker_submission",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
     "evidence_type": "function_exact"
@@ -30283,7 +30283,7 @@
   },
   "internal/trading/broker_test.go:711:TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable",
+    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::test_place_broker_order_fails_closed_when_real_risk_gateway_is_unavailable",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
     "evidence_type": "function_exact"
@@ -30297,21 +30297,21 @@
   },
   "internal/trading/control_plane_idempotency_test.go:12:TestRealTradeControlPlaneKillSwitchReleaseIsIdempotentAndAudited": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::TestRealTradeControlPlaneKillSwitchReleaseIsIdempotentAndAudited",
+    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_real_trade_control_plane_kill_switch_release_is_idempotent_and_audited",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
     "evidence_type": "function_exact"
   },
   "internal/trading/control_plane_idempotency_test.go:65:TestRealTradeControlPlaneHardStopReleaseIsSingleShot": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::TestRealTradeControlPlaneHardStopReleaseIsSingleShot",
+    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_real_trade_control_plane_hard_stop_release_is_single_shot",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
     "evidence_type": "function_exact"
   },
   "internal/trading/control_plane_idempotency_test.go:99:TestRealTradeControlPlaneHardStopsBlockUntilEveryEntryReleased": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::TestRealTradeControlPlaneHardStopsBlockUntilEveryEntryReleased",
+    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_real_trade_control_plane_hard_stops_block_until_every_entry_released",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
     "evidence_type": "function_exact"
@@ -30332,7 +30332,7 @@
   },
   "internal/trading/control_plane_state_audit_test.go:99:TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations",
+    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_control_plane_treats_empty_state_as_fresh_and_rejects_unavailable_mutations",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
     "evidence_type": "function_exact"
@@ -30346,14 +30346,14 @@
   },
   "internal/trading/control_plane_state_audit_test.go:250:TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure",
+    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_control_plane_surfaces_hard_stop_rejection_audit_persistence_failure",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
     "evidence_type": "function_exact"
   },
   "internal/trading/execution_combo_lifecycle_test.go:15:TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower",
+    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_combo_complete_preview_place_cancel_and_buying_power",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
     "evidence_type": "function_exact"
@@ -30430,7 +30430,7 @@
   },
   "internal/trading/execution_combo_lifecycle_test.go:635:TestExecutionDetailsResolverAndOrderUpdateCacheFailureBranches": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::TestExecutionDetailsResolverAndOrderUpdateCacheFailureBranches",
+    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
     "evidence_type": "function_exact"
@@ -30647,7 +30647,7 @@
   },
   "internal/trading/execution_test.go:988:TestExecutionNormalizationHelpersRejectUnsupportedInputs": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::TestExecutionNormalizationHelpersRejectUnsupportedInputs",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::test_execution_normalization_helpers_reject_unsupported_inputs",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
     "evidence_type": "function_exact"
@@ -30675,21 +30675,21 @@
   },
   "internal/trading/order_status_test.go:5:TestCanonicalBrokerOrderStatusCoversFutuLifecycle": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::TestCanonicalBrokerOrderStatusCoversFutuLifecycle",
+    "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::test_canonical_broker_order_status_covers_futu_lifecycle",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
     "evidence_type": "function_exact"
   },
   "internal/trading/order_status_test.go:33:TestReconcileCanonicalOrderStatusPreventsBrokerRegressions": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::TestReconcileCanonicalOrderStatusPreventsBrokerRegressions",
+    "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::test_reconcile_canonical_order_status_prevents_broker_regressions",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
     "evidence_type": "function_exact"
   },
   "internal/trading/order_status_test.go:59:TestCanonicalTerminalOrderStatus": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::TestCanonicalTerminalOrderStatus",
+    "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::test_canonical_terminal_order_status",
     "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
     "evidence_type": "function_exact"
