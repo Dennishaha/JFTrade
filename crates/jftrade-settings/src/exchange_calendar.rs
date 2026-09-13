@@ -261,4 +261,24 @@ mod tests {
         assert_eq!(settings.source_policies[0].stale_after_hours, 0);
         assert!(settings.manual_overrides[0].sessions.is_empty());
     }
+
+    #[test]
+    // Parity: internal/store/settingsfile/store_test.go:205 TestDefaultExchangeCalendarSettingsUseNYSEAsOnlyDefaultUSRemoteSource
+    // Verifies US exchange calendar defaults configure nyse_official as the only preferred remote source
+    fn default_exchange_calendar_settings_use_nyse_as_only_default_us_remote_source() {
+        let settings = ExchangeCalendarSettings::default();
+        let us_policy = settings
+            .source_policies
+            .iter()
+            .find(|p| p.market == "US")
+            .expect("US source policy");
+        assert_eq!(
+            us_policy.preferred_source_ids,
+            vec!["nyse_official".to_owned()]
+        );
+        assert_eq!(
+            us_policy.enabled_source_ids,
+            vec!["nyse_official".to_owned(), "builtin_rules".to_owned()]
+        );
+    }
 }
