@@ -1354,5 +1354,101 @@
     "rust_entry": "`crates/jftrade-api/src/router.rs`",
     "conclusion": "已覆盖：查询参数枚举提取与默认值辅助函数测试",
     "command": "pnpm run check:rust:architecture"
+  },
+  "TestEmbeddedProviderRankingsRouteMapsUnsupportedOperations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：榜单功能操作不支持时返回 409 标准错误信封",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestEmbeddedProviderCompanyResearchRejectsUnsupportedOperations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：公司研究未支持操作时拒绝请求并返回规范 400/409 错误码",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestEmbeddedProviderCalendarMacroRoutesRejectUnsupportedOperations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：宏观日历未支持操作返回规范 400/409 错误",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestNormalizeResearchScreenQueryDefaultsAndRejectsNonV2Input": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：选股器分页与周期参数规范化，拦截非 V2 请求体",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestProductFeatureRoutesMapValidationCapabilityEligibilityAndBrokerErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：特性路由校验错误映射 400、能力不支持映射 409、资格不合规映射 403、券商网关故障映射 502",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestScreenPresetRoutesCRUDAndConflict": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：选股器预设模板 CRUD 路由（/api/v1/research/screen/presets），重名冲突返回 409 CONFLICT",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestScreenPresetRoutesValidatePayloadAndUnavailableStore": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：选股预设入参空名称校验返回 400，底层数据库不可用时返回 503 SERVICE_UNAVAILABLE",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestSystemRoutesReturnEnvelopes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：系统核心状态路由（status、日历、futu-opend、运行时依赖、存储概览、实盘风控状态）返回标准信封",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestSystemManualRetryRouteCallsReset": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：Futu/OpenD 手动重试与重置路由（POST /api/v1/system/futu-opend/manual-retry）调用 reset 回调并返回 accepted: true",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestExchangeCalendarRefreshRouteCallsRefresh": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：交易所日历全局刷新及指定市场（如 US/HK/SH/SZ）局部刷新路由",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestSystemRouteBoundaryValidatorsRejectMissingHardStopAndNonPositiveLimits": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：实盘熔断/风控限额边界校验，拦截缺失 ID 及零/负数最大订单数量和名义价值",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestRealTradeReleaseRoutesRejectMalformedOptionalPayloadBeforeStateChange": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：实盘解除路由在发生状态转移前严格校验请求体，畸形负载直接 400 拦截阻止状态突变",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestExchangeCalendarProbeRouteCallsProbe": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：日历源网络探测路由（POST /api/v1/system/exchange-calendars/probe）返回 accepted 与 healthy 指标",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestRealTradeControlRoutesDelegateStateChanges": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：实盘审批、熔断停牌、紧急断路器（Kill-Switch）与风控阈值状态变更精确委托到 engine 领域服务",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestRealTradeControlRoutesMapValidationAndControlFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：实盘风控指令非法参数返回 400，状态冲突或前置条件不满足返回 409",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestSystemStatusTransportMapperPreservesDomainJSON": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：系统综合状态响应保留完整底层领域 JSON 结构（包括 apiPort、dbPath、uptime 等）",
+    "command": "pnpm run check:rust:architecture"
   }
 }
