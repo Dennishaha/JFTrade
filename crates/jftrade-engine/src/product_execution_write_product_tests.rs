@@ -213,6 +213,8 @@ async fn execution_write_product_replays_browser_boundary_failure_recovery_and_r
         &browser_headers,
     )
     .await;
+    // Parity: internal/api/trading/execution_test.go:145 TestHandleExecutionCancelReturnsMappedEnvelope
+    // Verifies broker timeout maps to HTTP 504 and structured BROKER_TIMEOUT error envelope
     assert_eq!(preview_failed.0, 504);
     assert_eq!(preview_failed.1["error"]["code"], "BROKER_TIMEOUT");
     let preview_recovered = request_json_with_status(
