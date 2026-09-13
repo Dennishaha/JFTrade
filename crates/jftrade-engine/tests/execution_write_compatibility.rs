@@ -122,6 +122,8 @@ impl ExecutionWritePort for FixturePort {
 }
 
 #[test]
+// Parity: internal/api/trading/execution_test.go:205 TestExecutionPlacePreviewAndEventsRoutes
+// Verifies all 7 execution mutation routes (/orders, /previews, /combos, /buying-power) and checks legacy /orders/preview returns 404
 fn execution_write_fixture_replays_all_seven_go_owned_mutations() {
     let fixture = fixture();
     assert_eq!(fixture.version, "stage9.execution-write.v1");
