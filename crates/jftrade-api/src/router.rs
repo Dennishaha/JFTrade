@@ -942,6 +942,8 @@ mod websocket_subscription_tests {
             )),
             Err(())
         );
+        // Parity: internal/api/marketdata/routes_test.go:94 TestSubscriptionRoutesUseBrokerNeutralPollingWithoutFutuLease
+        // Verifies providerBrokerId normalization, trims and non-empty validation on live subscription messages
         assert_eq!(
             live_subscription_update(&Message::Text(
                 r#"{"type":"subscribe","subscriptions":{"providerBrokerId":" futu ","activeInstruments":[" us.aapl ","US.AAPL"]}}"#
