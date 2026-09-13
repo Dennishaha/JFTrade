@@ -4,7 +4,7 @@
 
 本清单以 `go` 分支基线（当前提交由 `scripts/compatibility/audit_test_parity.py` 动态记录）4,451 个测试与 952 个高风险测试为参考，建立细粒度行为映射清单。报告生成时会同时记录 Rust 当前 HEAD，避免清单长期漂移。
 
-当前 100 项高价值样本中：94 项已建立 Rust 回归证据，6 项为已记录的架构边界差异（无待处理的空白项）；全量 4,451 项的逐项候选索引见 [`test-parity-inventory.md`](test-parity-inventory.md)。
+当前 101 项高价值样本中：94 项已建立 Rust 回归证据，7 项为已记录的架构边界差异（无待处理的空白项）；全量 4,451 项的逐项候选索引见 [`test-parity-inventory.md`](test-parity-inventory.md)。
 
 ### Watchlist/Futu 批次验收边界
 
@@ -52,6 +52,7 @@
 | [x] | `go:452dea11:internal/marketdata/cache_test.go:138`<br>`TestCachePromotesUSRegularCloseWhenAfterHoursTradeArrives` | 行情 | 缓存/盘后晋升 | `crates/jftrade-marketdata/tests/cache_us_regular_close_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata` |
 | [x] | `go:452dea11:internal/marketdata/cache_test.go:185`<br>`TestCacheRetainsNewExtendedQuoteWhenPriceIsUnchanged` | 行情 | 缓存/扩展行情保留 | `crates/jftrade-marketdata/tests/cache_promotes_after_hours_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata` |
 | [~] | `go:452dea11:internal/marketdata/cache_test.go:210`<br>`TestTickCandlesVolumeWindowAndLimit` | 行情 | 缓存/成交量窗口 | `crates/jftrade-marketdata/src/cache.rs` | 部分覆盖 | Rust 缺少同等 TickCandles 投影 API；Go 语义为默认 15 分钟窗口、显式 `VolumeDelta`、负值归零、limit 截断并保留 session | 记录为独立 marketdata projection parity 任务；不得用 snapshot/cache 测试冒充等价覆盖 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata` |
+| [~] | `go:452dea11:internal/marketdata/cache_test.go:239`<br>`TestTickCandlesUsesExplicitVolumeDeltaAcrossTradingDays` | 行情 | 缓存/跨日成交量 | `crates/jftrade-marketdata/src/cache.rs` | 部分覆盖 | Rust 缺少跨交易日 TickCandles 投影；Go 要求窗口跨日时使用每条 tick 的显式 `VolumeDelta`（12/7），不能用累计 volume 或跨日差分推导 | 与 TickCandles projection parity 任务合并，补跨日 fixture 与时区边界回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata` |
 | [x] | `go:452dea11:internal/trading/broker_boundaries_test.go:11`<br>`TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable` | 交易 | 交易/无行情降级 | `crates/jftrade-trading/tests/order_execution_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading` |
 | [x] | `go:452dea11:internal/trading/broker_conformance_test.go:58`<br>`TestFakeBrokerConformanceCancelAcceptedAndCancelRejected` | 交易 | 交易/撤单接受与拒绝 | `crates/jftrade-trading/tests/order_cancel_flow_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading` |
 | [x] | `go:452dea11:internal/trading/broker_test.go:453`<br>`TestServicePortfolioAndFallbackResponses` | 交易 | 交易/持仓与降级 | `crates/jftrade-trading/tests/order_reconciliation_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading` |
