@@ -171,4 +171,15 @@ mod tests {
             assert!(matches!(error, NativeError::RuntimeUnavailable { readiness, .. } if readiness == state));
         }
     }
+
+    #[test]
+    fn required_asset_does_not_fallback_for_missing_static_asset() {
+        let missing = std::path::PathBuf::from("/nonexistent/static/asset/path.png");
+        let result = required_asset("NONEXISTENT_ENV_KEY", Some(missing.clone()), "test asset");
+        assert!(matches!(
+            result,
+            Err(NativeError::MissingAsset { name: "test asset", path }) if path == missing.to_string_lossy()
+        ));
+    }
+
 }
