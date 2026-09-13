@@ -36,6 +36,8 @@ fn sync_task_persists_across_reopen_and_uses_run_store_lease() {
 
 #[test]
 fn sync_task_cancel_distinguishes_missing_active_and_terminal() {
+    // Parity: go:452dea11:internal/store/backtest/sync_tasks_test.go:12 TestSyncTaskStoreReturnsSnapshotsAndCancelsProgress
+    // Parity: go:452dea11:internal/store/backtest/sync_tasks_test.go:48 TestSyncTaskStoreFinishAndNilProgressBoundaries
     let directory = tempfile::tempdir().expect("temporary directory");
     let path = directory.path().join("backtest-runs.db");
     seed_schema(&path);
