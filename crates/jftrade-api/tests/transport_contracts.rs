@@ -390,3 +390,40 @@ async fn legacy_assistant_chat_route_is_strictly_not_found() {
     );
     assert_eq!(port.requests.lock().expect("requests").len(), 0);
 }
+
+#[tokio::test]
+async fn unconfigured_marketdata_route_returns_json_not_found() {
+    // Parity: internal/api/marketdata/routes_test.go:42 TestInstrumentHandlersRejectMissingURIParameters
+    // Verifies unconfigured marketdata routes return standard 404 application/json envelope
+    let port = Arc::new(RecordingPort::default());
+    let routes = RouteCatalog::new([RouteSpec {
+        method: "GET".into(),
+        path: "/api/v1/marketdata/candles".into(),
+    }])
+    .expect("routes");
+    let router = build_router(ApiState::new(
+        routes,
+        AccessPolicy {
+            desktop_mode: true,
+            enforce_access: false,
+            ..AccessPolicy::default()
+        },
+        port.clone(),
+    ));
+
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/marketdata/candles/unknown")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        response.headers().get("content-type").unwrap(),
+        "application/json; charset=utf-8"
+    );
+}
