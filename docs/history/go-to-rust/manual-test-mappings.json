@@ -1090,5 +1090,125 @@
     "rust_entry": "`crates/jftrade-api/src/router.rs`",
     "conclusion": "已覆盖：搜索关键词长度校验与底层搜索引擎故障分类映射",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts"
+  },
+  "TestADKAvailableGuardsUnavailableRuntime": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：当后台 Assistant 运行时未就绪或未启动时，中间件拦截路由并返回 503 SERVICE_UNAVAILABLE 标准信封",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestADKAvailablePassesThroughWhenRuntimeExists": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：当 Assistant 运行时正常存在时，请求正常放行透传至业务 port",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestAuthSkipsPublicPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`；`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：公开免鉴权白名单路由（/health, /api/v1/auth/login, /api/v1/auth/session）直接放行",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestTrustedAndValidatedRequestContextHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：Axum 请求扩展中记录已校验受信任 Host 与合法 Origin 标记，仅作用于当前请求上下文",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestAuthProtectsLogout": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`；`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：/api/v1/auth/logout 要求有效 Session 凭据、可信 Origin 及正确 CSRF-Token，未授权返回 401，非法来源返回 403",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestAuthProtectsSystemStatus": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：/api/v1/system/status 属于受保护 API，未登录匿名请求统一返回 401 UNAUTHORIZED",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestAuthTrustedHostWithoutBrowserOriginBypassesCSRFChecks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：本地桌面进程受信任 Host 调用（如 Tauri 内部 IPC/IPC 代理且无浏览器 Origin 标头）免除 CSRF 检查",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestAuthTrustedHostStillRequiresTrustedBrowserOrigin": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：即使属于受信任 Host，若携带了浏览器 Origin/Referer，仍必须属于白名单允许 Origin，恶意第三方 Origin 严格返回 403",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestAuthRejectsNilAuthenticator": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "边界保留：Rust AccessPolicy 类型安全保证鉴权策略非空，无 nil authenticator 空指针情况，默认拒绝访问",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestAuthRejectsUntrustedOrigin": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：非白名单 Origin 请求受保护资源时直接返回 403 FORBIDDEN 信封",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestAuthRequiresOriginAndCSRFForSessionWrites": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：基于 Web Session 的非幂等写操作（POST/PUT/DELETE/PATCH）强制校验 Origin 与 x-csrf-token 匹配",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestAuthTreatsPatchAsSessionWrite": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：PATCH 请求归类为写操作，同等应用 Origin 校验与 CSRF 防御策略",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：CORS 预检 OPTIONS 请求对允许 Origin 正确回显对应 Access-Control 头，未知源返回 403 并不予回显",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestAuthenticationBoundaryDecisions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：鉴权中间件边界决策矩阵（桌面 Token、Web 会话、白名单、动态端口提供商）准确匹配预期权限状态",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestWriteMethodDetectionSupportsOverridesAndNilRequests": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：严格依据 HTTP Method 判定读写属性，拦截非常规伪装覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestCORSAllowsTrustedPreflightAndSameOriginOptions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：同源与白名单跨域的 OPTIONS 预检请求直接通过，并返回正确 Max-Age 与 Header 配置",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestRequestOriginUsesRefererAndHandlesNil": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：在 Origin 缺失时安全解析 Referer 作为来源判定依据，支持无来源情况的安全回退",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestCanonicalOriginRejectsMalformedAndUnsupportedValues": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：canonical_origin 严格归一化 URL 协议、域名与端口，拒绝 null、相对路径及畸形 URL",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestCanonical": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：Origin 字符串规范化测试，支持 http、https、tauri 等协议并剔除末尾斜杠与路径部分",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+  },
+  "TestFromRequest": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：从 HTTP Request 标头提取 Origin/Referer 的完整逻辑",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
   }
 }
