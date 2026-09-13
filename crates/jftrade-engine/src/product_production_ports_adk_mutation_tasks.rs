@@ -24,7 +24,7 @@ pub(super) fn dispatch(
             let id = required_identifier(input, "runId")?;
             let objective = required_body_string(&input.body, "objective")?;
             let Some(existing) = port.store.get_run(&id).map_err(storage_mutation_failed)? else {
-                return Err(not_found_mutation("ADK_RUN_NOT_FOUND", "run not found"));
+                return Err(not_found_mutation("NOT_FOUND", "run not found"));
             };
             let mut value = decode_mutation_payload(&existing.payload_json, "run")?;
             let object = value
@@ -40,7 +40,8 @@ pub(super) fn dispatch(
                 .map(str::trim)
                 .unwrap_or_default();
             if !work_mode.eq_ignore_ascii_case("loop") {
-                return Err(invalid_mutation_input(
+                return Err(invalid_mutation_with_code(
+                    "ADK_RUN_OBJECTIVE_UPDATE_FAILED",
                     "objective can only be updated for goal runs",
                 ));
             }
@@ -49,7 +50,8 @@ pub(super) fn dispatch(
                 .and_then(Value::as_str)
                 .is_some_and(|parent| !parent.trim().is_empty())
             {
-                return Err(invalid_mutation_input(
+                return Err(invalid_mutation_with_code(
+                    "ADK_RUN_OBJECTIVE_UPDATE_FAILED",
                     "child run objective cannot be updated",
                 ));
             }
@@ -57,7 +59,8 @@ pub(super) fn dispatch(
                 existing.status.trim().to_ascii_uppercase().as_str(),
                 "RUNNING" | "PENDING_APPROVAL"
             ) {
-                return Err(invalid_mutation_input(
+                return Err(invalid_mutation_with_code(
+                    "ADK_RUN_OBJECTIVE_UPDATE_FAILED",
                     "objective cannot be updated for terminal run",
                 ));
             }
@@ -163,7 +166,7 @@ pub(super) fn dispatch(
             if let Some(title) = body.get("title").and_then(Value::as_str)
                 && title.trim().is_empty()
             {
-                return Err(invalid_mutation_input("task title is required"));
+                return Err(invalid_mutation_with_code("ADK_TASK_SAVE_FAILED", "task title is required"));
             }
             if body.contains_key("status") {
                 object.insert(

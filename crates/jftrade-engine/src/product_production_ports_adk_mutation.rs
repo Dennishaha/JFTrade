@@ -367,13 +367,14 @@ fn validate_goal_run(value: &Value, action: &str) -> Result<(), AdkMutationPortE
             code: "ADK_STORAGE_CORRUPT".to_owned(),
             message: "stored ADK run payload must be a JSON object".to_owned(),
         })?;
+    let err_code = match action { "paused" => "ADK_RUN_PAUSE_FAILED", "resumed" => "ADK_RUN_RESUME_FAILED", _ => "ADK_INVALID_REQUEST" };
     let work_mode = object
         .get("workMode")
         .and_then(Value::as_str)
         .map(str::trim)
         .unwrap_or_default();
     if !work_mode.eq_ignore_ascii_case("loop") {
-        return Err(invalid_mutation_input(&format!(
+        return Err(invalid_mutation_with_code(err_code, &format!(
             "only loop goal runs can be {action}"
         )));
     }
@@ -382,7 +383,7 @@ fn validate_goal_run(value: &Value, action: &str) -> Result<(), AdkMutationPortE
         .and_then(Value::as_str)
         .is_some_and(|parent| !parent.trim().is_empty())
     {
-        return Err(invalid_mutation_input(&format!(
+        return Err(invalid_mutation_with_code(err_code, &format!(
             "only root goal runs can be {action}"
         )));
     }
@@ -392,7 +393,7 @@ fn validate_goal_run(value: &Value, action: &str) -> Result<(), AdkMutationPortE
         .map(str::trim)
         .unwrap_or_default();
     if workflow_status.is_empty() {
-        return Err(invalid_mutation_input(&format!(
+        return Err(invalid_mutation_with_code(err_code, &format!(
             "only loop goal runs can be {action}"
         )));
     }

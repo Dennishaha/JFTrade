@@ -17,9 +17,13 @@ pub(super) fn decode_mutation_payload(
 }
 
 pub(super) fn invalid_mutation_input(message: &str) -> AdkMutationPortError {
+    invalid_mutation_with_code("ADK_INVALID_REQUEST", message)
+}
+
+pub(super) fn invalid_mutation_with_code(code: &str, message: &str) -> AdkMutationPortError {
     AdkMutationPortError::Failed {
         status: 400,
-        code: "ADK_INVALID_REQUEST".to_owned(),
+        code: code.to_owned(),
         message: message.to_owned(),
     }
 }

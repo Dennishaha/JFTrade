@@ -2588,6 +2588,24 @@ mod product_production_assembly_tests {
         let adk =
             AdkStore::open_existing(adk_path, ADK_PRODUCTION_PROFILE).expect("open ADK seed store");
         adk.create_run(CreateAdkRunParams {
+            id: "production-chat-run",
+            session_id: "pause-session",
+            agent_id: "jftrade-default",
+            status: "RUNNING",
+            client_request_id: "chat-run-request",
+            request_fingerprint: "chat-run-fingerprint",
+            payload_json: r#"{
+                "id":"production-chat-run",
+                "status":"RUNNING",
+                "workMode":"chat",
+                "workflowStatus":"RUNNING",
+                "message":"chat running",
+                "toolCalls":[],
+                "pendingApprovals":[]
+            }"#,
+        })
+        .expect("seed chat run");
+        adk.create_run(CreateAdkRunParams {
             id: "production-pause-run",
             session_id: "pause-session",
             agent_id: "jftrade-default",
@@ -2698,6 +2716,86 @@ mod product_production_assembly_tests {
             repeat_response["data"]["pauseRequestedAt"],
             pause_response["data"]["pauseRequestedAt"]
         );
+        // Parity: go:452dea11:internal/api/assistant/routes_payload_pagination_test.go:80 TestAssistantRunMutationRoutesEnforceGoalLifecycleRules
+        let (chat_pause_status, chat_pause_resp) = request_json_with_status(
+            address,
+            "POST",
+            "/api/v1/adk/runs/production-chat-run/pause",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(
+            chat_pause_status, 400,
+            "chat pause response: {chat_pause_resp}"
+        );
+        assert_eq!(chat_pause_resp["error"]["code"], "ADK_RUN_PAUSE_FAILED");
+
+        let (chat_resume_status, chat_resume_resp) = request_json_with_status(
+            address,
+            "POST",
+            "/api/v1/adk/runs/production-chat-run/resume",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(
+            chat_resume_status, 400,
+            "chat resume response: {chat_resume_resp}"
+        );
+        assert_eq!(chat_resume_resp["error"]["code"], "ADK_RUN_RESUME_FAILED");
+
+        let (chat_obj_status, chat_obj_resp) = request_json_with_status(
+            address,
+            "PATCH",
+            "/api/v1/adk/runs/production-chat-run/objective",
+            Some(r#"{"objective": "new objective"}"#),
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(
+            chat_obj_status, 400,
+            "chat objective response: {chat_obj_resp}"
+        );
+        assert_eq!(
+            chat_obj_resp["error"]["code"],
+            "ADK_RUN_OBJECTIVE_UPDATE_FAILED"
+        );
+
+        // Parity: go:452dea11:internal/api/assistant/routes_payload_pagination_test.go:134 TestAssistantRoutesClassifyMissingMutationTargets
+        let (missing_pause_status, missing_pause_resp) = request_json_with_status(
+            address,
+            "POST",
+            "/api/v1/adk/runs/run-missing/pause",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(missing_pause_status, 404);
+        assert_eq!(missing_pause_resp["error"]["code"], "NOT_FOUND");
+
+        let (missing_resume_status, missing_resume_resp) = request_json_with_status(
+            address,
+            "POST",
+            "/api/v1/adk/runs/run-missing/resume",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(missing_resume_status, 404);
+        assert_eq!(missing_resume_resp["error"]["code"], "NOT_FOUND");
+
+        let (missing_obj_status, missing_obj_resp) = request_json_with_status(
+            address,
+            "PATCH",
+            "/api/v1/adk/runs/run-missing/objective",
+            Some(r#"{"objective": "new objective"}"#),
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(missing_obj_status, 404);
+        assert_eq!(missing_obj_resp["error"]["code"], "NOT_FOUND");
+
         handle.shutdown().await.expect("shutdown cleanly");
 
         let handle = start_product(config).await.expect("restart product");
