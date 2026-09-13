@@ -249,11 +249,12 @@ def main():
         fp.write(f"- **Rust 基线（`{current_revision}`）**：当前工作树\n\n")
         fp.write(f"- **同名 Go 测试组**：{len(duplicate_names)}（映射必须使用文件路径与行号，不能仅按测试名）\n")
         fp.write("## 2. 分领域对齐矩阵\n\n")
-        fp.write("| 业务领域 | Go 测试数 | Go 高风险数 | Rust 测试数 | 迁移比例 |\n")
+        fp.write("| 业务领域 | Go 测试数 | Go 高风险数 | Rust 测试数 | 测试数量比（非覆盖率） |\n")
         fp.write("| :--- | :--- | :--- | :--- | :--- |\n")
         for d_key, s in domain_stats.items():
             ratio = f"{(s['rust_total'] / s['go_total'] * 100):.1f}%" if s['go_total'] > 0 else "N/A"
             fp.write(f"| {s['label']} | {s['go_total']} | {s['go_high_risk']} | {s['rust_total']} | {ratio} |\n")
+        fp.write("\n> 注意：测试数量比只表示数量关系，不证明行为等价；行为证据以逐项清单中的 `evidence_type` 为准。\n")
         
         fp.write("\n## 3. 高风险待对齐用例采样（各领域 Top 10）\n\n")
         for d_key, s in domain_stats.items():
