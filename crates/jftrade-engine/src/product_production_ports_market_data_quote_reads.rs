@@ -717,3 +717,24 @@ fn futu_kline_query_window(
             .unwrap_or(now_ts);
     (begin_str, end_str, query_current)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_futu_kline_query_window_resets_invalid_begin_to_default_lookback() {
+        // Parity: internal/app/apiserver/marketdataapp/query_test.go:64 TestKLineQueryWindowResetsInvalidBeginToDefaultLookback
+        // When from_time >= to_time, begin is reset to end - default lookback (36 hours for intraday)
+        let (begin, end, _) = futu_kline_query_window(
+            "US",
+            "1m",
+            2,
+            Some("2026-05-21 17:00:00"),
+            Some("2026-05-21 16:00:00"),
+            None,
+        );
+        assert_eq!(end, "2026-05-21 16:00:00");
+        assert_eq!(begin, "2026-05-20 04:00:00");
+    }
+}
