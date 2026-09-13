@@ -706,6 +706,8 @@ mod tests {
 
     #[tokio::test]
     async fn lagged_connection_receives_resync_control_before_future_events() {
+        // Parity: go:452dea11:internal/api/live/handler_test.go:113 TestHandlerHeartbeatSubscribeNormalizationAndPayloads
+        // Parity: go:452dea11:internal/api/live/handler_test.go:441 TestDispatcherDeduplicatesTickObservedAt
         let hub = Arc::new(LiveHub::new(1));
         let mut connection = hub.connect();
         connection.set_subscription("futu", &["US.AAPL".to_owned()]);
