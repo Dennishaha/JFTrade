@@ -77,6 +77,15 @@ DOMAIN_MAPPING = [
     ),
 ]
 
+OTHER_CANDIDATE_CRATES = [
+    "crates/jftrade-kernel",
+    "crates/jftrade-engine",
+    "crates/jftrade-calendar",
+    "crates/jftrade-settings",
+    "apps/desktop/src-tauri",
+    "scripts/quality",
+]
+
 ENGINE_ROUTING = {
     # If a test matches these terms in crates/jftrade-engine, route to the respective domain
     "futu_opend": ["futu", "opend"],
@@ -355,7 +364,10 @@ def main():
         fp.write("| 状态 | Go 测试 | 业务域 | 风险 | Rust crate 候选 | Rust 测试/入口 | 差异结论 | 验证命令 |\n|---|---|---|---|---|---|---|---|\n")
         for test in sorted(go_tests, key=lambda item: (item["domain"], item["file"], item["line"])):
             risk = "高风险" if test["high_risk"] else "普通边界"
-            crates = ", ".join(rust_by_domain.get(test["domain"], [])) or "待人工归类"
+            crates = ", ".join(rust_by_domain.get(test["domain"], []))
+            if not crates and test["domain"] == "other":
+                crates = ", ".join(OTHER_CANDIDATE_CRATES)
+            crates = crates or "候选待验证"
             source = f"`go:{go_revision}:{test['file']}:{test['line']}`<br>`{test['name']}`"
             prior = prior_rows.get(f"{test['file']}:{test['line']}") or prior_by_name.get(test["name"])
             c = manual_for(test)
