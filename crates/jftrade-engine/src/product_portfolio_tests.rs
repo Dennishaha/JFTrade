@@ -92,6 +92,13 @@ async fn portfolio_read_routes_match_group_fixture_in_cutover_only() {
         assert_eq!(status, case.expected_status, "case {}", case.name);
         assert_eq!(response["ok"], true, "case {}", case.name);
         assert_eq!(response["data"], case.data.clone().expect("fixture data"));
+        // Parity: internal/app/apiserver/servercoretest/portfolio_routes_test.go:12 TestPortfolioCashBalancesEndpointReturnsEmptyBalances
+        if case.request_path.contains("cash-balances") {
+            assert!(
+                response["data"].get("balances").is_some(),
+                "balances array must be present in cash-balances"
+            );
+        }
     }
     handle.shutdown().await.expect("shutdown product");
 }
