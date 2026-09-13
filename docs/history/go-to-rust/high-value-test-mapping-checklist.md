@@ -189,3 +189,4 @@
    - [x] 补齐 Pine/Strategy 周期分钟数解析与安全回退逻辑（`40e50c7f`）。
    - [x] 补齐 API Middleware PATCH 请求视为会话写入必须验证 CSRF 契约（`b81bbbd5`）。
    - [x] 补齐 ADK Run 终态重复执行取消操作幂等且保留原 cancelledAt 时间戳断言（`3e2aa85a`）。
+   - [x] 补齐板块行业榜单 plateType 默认空字符串为 industry 及大小写兼容断言（`8665e2c4`）。
