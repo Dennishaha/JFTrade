@@ -280,6 +280,20 @@ async fn futu_snapshot_route_projects_cached_extended_quote_contract() {
         "2026-07-18T16:00:00Z"
     );
     assert_eq!(response["meta"]["fromCache"], true);
+
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:371 TestMarketSnapshotResponseRejectsInvalidRefreshQuery
+    let invalid_refresh_err = port
+        .read("/api/v1/market-data/snapshots/US/AAPL", "refresh=sometimes")
+        .await
+        .expect_err("invalid refresh query must fail");
+    match invalid_refresh_err {
+        MarketDataQuoteReadSnapshotError::Failed { status, code, message, .. } => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "BAD_REQUEST");
+            assert_eq!(message, "invalid refresh query");
+        }
+        other => panic!("unexpected error for invalid refresh: {other:?}"),
+    }
 }
 
 #[derive(Debug)]
