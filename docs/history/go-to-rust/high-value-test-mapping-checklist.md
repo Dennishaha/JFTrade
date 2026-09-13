@@ -202,3 +202,5 @@
    - [x] 补齐美股交易时段分类边界（盘前04:00/盘中09:30/盘后16:00/周五20:00休市）契约断言（`e6cff4a7`）。
    - [x] 补齐运行时状态 optional_string 首尾空格去除与纯空白转 None 契约断言（`29bb7868`）。
    - [x] 补齐 K 线查询窗口 from_time >= to_time 异常时自动重置为 36h 默认回看断言（`84ff20a4`）。
+| `go` `pkg/backtest/internal/storage/store_session_aggregation_contracts_test.go:11` `TestSchemaHelpersExposeStableStorageContracts` | 存储与设置 | 表名与会话作用域 | `crates/jftrade-store-sqlite` | 已覆盖 | 语义一致：验证 `kline_table_name` 对 provider_id、rehab_type、interval 校验以及 `__r__` / `__x__` 命名前缀与哈希稳定性 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E "test(schema_kline_table_name_and_session_scope_validation_contracts)"` |
+| `go` `pkg/backtest/pine_costs_test.go:40` `TestBacktestSlippagePriceUsesMarketTickSize` | 回测与日历 | 撮合与滑点边界 | `crates/jftrade-backtest` | 已覆盖 | 语义一致：验证回测撮合中滑点步长按交易标的 market tick_size 调整，买单上滑、卖单下滑 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest -E "test(slippage_price_uses_market_tick_size)"` |
