@@ -938,6 +938,12 @@ async fn product_server_persists_ui_settings_and_reports_actual_port() {
         serde_json::Value::Null
     );
     assert_eq!(brokers["data"]["brokers"][0]["defaults"]["apiPort"], 11110);
+    // Parity: internal/app/apiserver/servercoretest/settings_broker_test.go:120 TestBrokerSettingsExposeNullIntegrationUntilFirstSave
+    assert_eq!(
+        brokers["data"]["brokers"][0]["defaults"]["websocketPort"],
+        11111
+    );
+    assert_eq!(brokers["data"]["brokers"].as_array().unwrap().len(), 1);
     assert_eq!(brokers["data"]["accounts"], json!([]));
 
     let integration = request_json(
