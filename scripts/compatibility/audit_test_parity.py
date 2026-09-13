@@ -283,6 +283,12 @@ def main():
         raise ValueError(
             f"manual mappings must use file:line:test composite keys; found {len(malformed_keys)} legacy keys"
         )
+    invalid_evidence = [
+        key for key, item in manual_details.items()
+        if item.get("status") == "[x]" and item.get("evidence_type") != "function_exact"
+    ]
+    if invalid_evidence:
+        raise ValueError(f"[x] mappings require evidence_type=function_exact; found {len(invalid_evidence)}")
     generic_proofs = sum(
         item.get("status") == "[x]"
         and "待逐项复核" not in item.get("conclusion", "")
