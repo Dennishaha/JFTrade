@@ -14,6 +14,51 @@ fn reference(channel: &str, interval: Option<&str>) -> InstrumentRef {
 }
 
 #[test]
+fn subscription_reconciler_sub_unsub_and_reconciliation_cycle_parity() {
+    // Parity: go:452dea11:internal/integration/futu/subscription_reconciler_test.go:12 TestSubscriptionReconcilerSubUnsub
+    // Parity: go:452dea11:internal/integration/futu/subscription_reconciler_test.go:88 TestSubscriptionReconcilerReconciliation
+    let desired = [reference("TICK", None), reference("ORDER_BOOK", None)];
+    let plan = desired_subscriptions(&desired);
+    assert_eq!(plan.logical_count, 2);
+    assert_eq!(plan.physical.len(), 2);
+
+    let mut reconciler = SubscriptionReconciler::new(60_000);
+    // Initial reconciliation: produces subscribe actions for all desired physical items
+    let actions = reconciler.actions(&desired, 100, 1);
+    assert_eq!(actions.len(), 2);
+    assert!(
+        actions
+            .iter()
+            .all(|a| matches!(a, super::ReconcileAction::Subscribe { .. }))
+    );
+
+    // Record success: subsequent actions at same or later time with same desired are empty
+    for action in &actions {
+        reconciler.record_success(action, 100, 1);
+    }
+    assert!(reconciler.actions(&desired, 100, 1).is_empty());
+    assert!(reconciler.actions(&desired, 200, 1).is_empty());
+
+    // When desired drops to empty, minimum age (60s) delays unsubscription
+    assert!(reconciler.actions(&[], 30_000, 1).is_empty());
+    assert!(reconciler.actions(&[], 60_099, 1).is_empty());
+
+    // Once min_age_ms (60_000) expires, unsubscription actions are emitted
+    let unsub_actions = reconciler.actions(&[], 60_100, 1);
+    assert_eq!(unsub_actions.len(), 2);
+    assert!(
+        unsub_actions
+            .iter()
+            .all(|a| matches!(a, super::ReconcileAction::Unsubscribe { .. }))
+    );
+
+    for action in &unsub_actions {
+        reconciler.record_success(action, 60_100, 1);
+    }
+    assert!(reconciler.actions(&[], 60_100, 1).is_empty());
+}
+
+#[test]
 fn kline_adds_basic_and_minimum_age_delays_unsubscribe() {
     let desired = [reference("KLINE", Some("1m"))];
     let plan = desired_subscriptions(&desired);
