@@ -221,6 +221,12 @@ mod tests {
             Some("reason")
         );
         assert_eq!(optional_string(Some("  ".to_owned())), None);
+        // Parity: internal/app/apiserver/status/status_test.go:90 TestTimeAndStringPointers
+        assert_eq!(
+            optional_string(Some("  futu  ".to_owned())).as_deref(),
+            Some("futu")
+        );
+        assert_eq!(optional_string(None), None);
 
         let registry = StrategyRuntimeRegistry::default();
         registry
