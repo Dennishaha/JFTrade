@@ -2458,5 +2458,347 @@
     "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
     "conclusion": "已覆盖：订单撮合成交回报全链路生命周期审计记录",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestAssistantPortsAndPathsAreNilSafe": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_adk_read_tests.rs`",
+    "conclusion": "已覆盖：Option 类型系统从根源杜绝空指针异常，路径与端口均具备安全默认值",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestAssistantCompositionOpensRuntimeAndProjectsServices": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_adk_read_tests.rs`",
+    "conclusion": "已覆盖：组合根装配时打开 Assistant 运行时并向外透传存储/服务契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestInstallersExpressTypedDependencyOrder": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：类型系统静态编码子系统装配依赖序，保证初始化不出现悬挂依赖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestInstallersRollbackPartialInitialization": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：部分模块初始化失败时触发安全回滚，已建立的资源全部析构",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestLifecycleClosesAdoptedResourcesInReverseOrderAndPreservesSetupError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：逆序释放生命周期接管的资源，保留最初的启动失败原始错误",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestLifecycleEnsuresOnlyMissingOwnershipGroupsOnce": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：所有权组幂等注册，防止同一资源组多次接管或泄漏",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestLifecycleRecordsLateRegistrationFailureAndClosesResource": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：在停机过程中注册的迟到资源立即关闭并记录告警",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestResourcesClosesApplicationDependenciesInReverseStartupOrder": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：应用程序级依赖资源严格按逆启动序调用析构",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestOpenRollsBackEarlierResourcesWhenLaterStartupFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：级联启动过程出现任何阶段错误，自动清理前期启动资源",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestResourcesCloseIsIdempotentAndConcurrentSafe": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：并发安全析构保障，多次调用 close 幂等无副作用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestResourcesCloseAggregatesEveryNamedFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：资源关闭多重错误聚合报告，避免单点失败掩盖其他资源泄漏",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRegisterAfterShutdownClosesLateResourceImmediately": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：系统停机后注入的新资源立即销毁并拒绝接管",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeDependenciesDelegatesAndReportsUnavailableService": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：运行时依赖精准委托，服务未就绪时返回标准化 Unavailable 信封",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestProviderHistoricalSourceMapsExtendedSessionsToProviderCapabilities": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_backtest_tests.rs`",
+    "conclusion": "已覆盖：历史数据源盘前盘后时段与提供商能力矩阵精确对齐映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestProviderHistoricalSourceRejectsExtendedSessionsOutsideUSIntraday": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_backtest_tests.rs`",
+    "conclusion": "已覆盖：非美股日内时段拒绝拓展交易时段请求并校验拦截",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestProviderHistoricalSourceValidatesAdjustmentAndLookback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_backtest_tests.rs`",
+    "conclusion": "已覆盖：复权方式（前复权/后复权/不复权）与回溯窗口合法性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestProviderHistoricalSourceAppliesMarketScopedLookback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_backtest_tests.rs`",
+    "conclusion": "已覆盖：按市场规则约束历史数据最大允许回溯深度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestProviderHistoricalSourceEnforcesProviderAdjustmentMatrix": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_backtest_tests.rs`",
+    "conclusion": "已覆盖：强制执行各行情提供商对复权支持的约束能力矩阵",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestKLineSyncPreflightRejectsStaticCapabilityMismatchAndUnknownProvider": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_backtest_tests.rs`",
+    "conclusion": "已覆盖：K线同步预检拦截能力不匹配或未知的提供商请求",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestProviderHistoricalSourceFetchesAndParsesProviderPage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_backtest_tests.rs`",
+    "conclusion": "已覆盖：历史数据分页拉取与标准化 K 线切片解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestHistoricalPageParsingRejectsMalformedProviderValues": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_backtest_tests.rs`",
+    "conclusion": "已覆盖：提供商返回畸形浮点数或时间戳时拦截并分类报错",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestDecimalStringAcceptsProviderNumericRepresentations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-core/src/models.rs`",
+    "conclusion": "已覆盖：Rust rust_decimal 安全解析科学计数法、整型与浮点数字符串",
+    "command": "pnpm run check:rust:workspace"
+  },
+  "TestBacktestProviderSyncerPinsFutuAndClosesOnFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_backtest_tests.rs`",
+    "conclusion": "已覆盖：回测同步器绑定 Futu 实例并在严重故障时安全断连释放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestInstrumentSpecUsesProviderRulesAndConservativeFallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_backtest_tests.rs`",
+    "conclusion": "已覆盖：标的规格优先应用提供商规则，缺失时采用保守回退默认值",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestInstrumentSpecRequiresReadyPythonProviders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_backtest_tests.rs`",
+    "conclusion": "已覆盖：Python 数据源 sidecar 必须处于健康可达状态方可解析规格",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestProviderOptionsRequireMarketDataRuntime": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_backtest_tests.rs`",
+    "conclusion": "已覆盖：配置提供商选项时强校验行情运行时存活状态",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestPositiveFloatRecognizesSupportedRuleTypes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-core/src/models.rs`",
+    "conclusion": "已覆盖：数值校验只允许正实数作为有效风控与交易规则参数",
+    "command": "pnpm run check:rust:workspace"
+  },
+  "TestCoordinatorResetPreservesApplicationOrderAndInvalidatesFutu": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/tests/futu_opend_transport_parity.rs`",
+    "conclusion": "已覆盖：Futu 协调器重置时保留应用级上下文并精准失效 Futu 会话",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestCoordinatorDisabledProjectionsAndRetryDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/tests/futu_opend_transport_parity.rs`",
+    "conclusion": "已覆盖：禁用状态下投射静默状态并在重试时输出排查诊断建议",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestMarketDataHealthRequiresHealthyOpenDQuoteSession": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/tests/futu_opend_transport_parity.rs`",
+    "conclusion": "已覆盖：行情健康度检查严格要求底层 OpenD 行情通道健康",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestCoordinatorOnboardingUsesRuntimeAndAccountReadiness": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/tests/futu_opend_transport_parity.rs`",
+    "conclusion": "已覆盖：向导流程综合判定 OpenD 进程连通性与交易账户就绪状态",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestCoordinatorProjectsConnectedRuntimeAndDiscoveredAccounts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/tests/futu_opend_transport_parity.rs`",
+    "conclusion": "已覆盖：连接成功后向控制台完整投射运行时元数据与自动发现的账户",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestCoordinatorConnectedProbeWithoutBrokerFailsClosed": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/tests/futu_opend_transport_parity.rs`",
+    "conclusion": "已覆盖：仅连接 OpenD 但无券商权限时，探针严格 Fail-Closed 防止误触实盘",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestCoordinatorEnabledClosedPortReportsManualRetryDiagnosis": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/tests/futu_opend_transport_parity.rs`",
+    "conclusion": "已覆盖：启用但端口关闭时生成指引用户手动检查 OpenD 进程的诊断详情",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestCoordinatorDisabledProbeAndSettingsBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/tests/futu_opend_transport_parity.rs`",
+    "conclusion": "已覆盖：禁用探针与配置边界判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestFutuRuntimeRemainingDisconnectedAndResetPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/tests/futu_opend_transport_parity.rs`",
+    "conclusion": "已覆盖：断开与重置执行路径状态机流转",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestFutuRuntimeRemainingDisabledProbeAndBoolValue": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/tests/futu_opend_transport_parity.rs`",
+    "conclusion": "已覆盖：禁用探针布尔值解析与短路保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestFutuRuntimeHealthyProbeAndGlobalStateBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/tests/futu_opend_transport_parity.rs`",
+    "conclusion": "已覆盖：全局状态边界下健康探针双重确认",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestStartForRunArgsReturnsNoopWhenDisabled": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：禁用参数启动直接返回 Noop 优雅退出",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestStartForRunArgsConfiguresRuntimeAndFrontend": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：标准启动配置完整运行时与前端资源集成",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestWebAccessBindDefaultsToLoopbackAndRequiresCompletePublicConfiguration": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：Web 访问默认绑定 127.0.0.1 环回地址，公开暴露必须完整显式配置",
+    "command": "pnpm run check:rust:workspace"
+  },
+  "TestWebAccessListenerBindUsesIndependentConfiguredPort": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：独立监听端口与默认桌面 sidecar 端口隔离隔离绑定",
+    "command": "pnpm run check:rust:workspace"
+  },
+  "TestSeparateWebListenerStartsAlongsideLoopbackDesktopSidecar": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：支持独立 Web 监听与本地桌面 Loopback 监听并行共存",
+    "command": "pnpm run check:rust:workspace"
+  },
+  "TestSeparateWebListenerRebindsImmediatelyAndKeepsOldPortOnConflict": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：热重载端口冲突时自动保持旧端口继续服务并拒绝崩溃",
+    "command": "pnpm run check:rust:workspace"
+  },
+  "TestWebAccessServerManagerCoversLiveReconfigurationLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：在线动态变更监听地址/端口热切换完整生命周期",
+    "command": "pnpm run check:rust:workspace"
+  },
+  "TestWebAccessServerManagerRestoresOldBindAfterHostSwitchFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：切换主机网卡绑定失败时自动恢复原有监听绑定",
+    "command": "pnpm run check:rust:workspace"
+  },
+  "TestStartForRunArgsStartsAPIOnlyAndShutsDown": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：--api-only 纯服务端模式启动与优雅停机验证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestStartForRunArgsClosesHandlerWhenDatabaseRebuildFinalizeFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：数据库重建收尾失败时安全关闭已启动的 HTTP Handler",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestStartForRunArgsReportsAPIPortConflictAndClosesHandler": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：API 端口冲突时立即报错退出并释放占用的其他端口",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestStartForRunArgsRollsBackWebListenerBeforeHandlerOnAPIPortConflict": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：端口冲突回滚时先释放外部 Web 监听器再关闭内部组件",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestStartForRunArgsWithEmbeddedFrontendDoesNotBindAPIPort": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：集成嵌入前端模式下统一端口不重复绑定 API 独立端口",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestStartForRunArgsReportsIntegratedHTTPPortConflictAndClosesHandler": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：集成端口冲突精准报错并回收 handler 依赖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestStartForRunArgsStopsAtFailingStartupStage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：任何子系统启动失败立即截断流水线并停止后续步骤",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRunAPIOnlyReturnsStartupErrorAndWaitsForCancellation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：API-Only 启动异常向上传递并在收到取消信号后排空退出",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestOnceShutdownReturnsStableHandlerError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：多次触发 shutdown 保持返回统一稳定的停机错误码",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestHandleClosesStoresInReverseOpenOrder": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/lib.rs`",
+    "conclusion": "已覆盖：SQLite 权威数据源句柄严格按逆序关闭连接池",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite"
+  },
+  "TestHandleRollsBackAndStopsAfterOpenFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/lib.rs`",
+    "conclusion": "已覆盖：数据源初始化故障触发连接回滚与排空停止",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite"
   }
 }
