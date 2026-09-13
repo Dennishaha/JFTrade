@@ -352,5 +352,131 @@
     "rust_entry": "`crates/jftrade-api/src/envelope.rs`；`crates/jftrade-api/src/router.rs`",
     "conclusion": "已覆盖：目录类 API 的各类边界 HTTP 状态码（400、404、500 等）严格映射",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/sse.rs",
+    "conclusion": "已覆盖：SSE 在连接重连或异常退出时，能安全基于上下文恢复终态",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestChatStreamReconnectAndReplayRespectClientDisconnect": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/sse.rs",
+    "conclusion": "已覆盖：重连重放机制在客户端连接主动中断时立即退出消费循环并释放资源",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestAssistantSessionRunBoundaryStatusCodes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs",
+    "conclusion": "已覆盖：会话与运行的边界状态码映射（400/404/409）严格符合 OpenAPI 规范",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestAssistantMutationRoutesRejectMalformedJSON": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：Axum json 反序列化在收到畸形 JSON payload 时统一拦截并返回 400 BAD_REQUEST",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestAssistantRoutesRejectInvalidQueriesPayloadsAndMissingResources": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/envelope.rs",
+    "conclusion": "已覆盖：各类非法查询参数、空载荷与不存在资源的错误信封格式和状态码校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestAssistantRoutesEnforceBusinessValidationOnUpdates": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs",
+    "conclusion": "已覆盖：更新路由在执行时保持 URL 参数权威性并校验业务主体完整性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestAssistantRoutesRejectBlankDecodedIdentifiers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：拒绝 URL 解码后为空白字符串（如 %20）的非法路径标识符",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestAssistantChatRoutesRejectMalformedOrUnresolvableRequests": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/sse.rs",
+    "conclusion": "已覆盖：聊天路由在接收到畸形载荷或不可解析请求时返回明确的错误响应信封或流事件",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestAssistantRoutesRejectMalformedMutationPayloads": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：所有写操作路由均在反序列化阶段对格式错误的 JSON 载荷统一返回 400",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestAssistantRoutesClampPaginationBeyondAvailableItems": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/envelope.rs",
+    "conclusion": "已覆盖：分页参数超出可用总数时返回 200 OK 且 items 为空数组、returned 为 0",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestAssistantRunMutationRoutesEnforceGoalLifecycleRules": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs",
+    "conclusion": "已覆盖：Run 生命周期变更路由（pause/resume/objective）按模式与状态机规则执行校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestAssistantRoutesClassifyMissingMutationTargets": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/envelope.rs",
+    "conclusion": "已覆盖：更新或操作不存在的资源时正确分类并返回 404 NOT_FOUND 错误信封",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestTaskAndMemoryCRUDContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs",
+    "conclusion": "已覆盖：Task 与 Memory 的 CRUD 契约、子模型字段持久化与按键列表过滤",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestCatalogSnapshotToolsTemplatesAndDeleteAgentContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs",
+    "conclusion": "已覆盖：快照、工具、模板目录以及保护内置 Agent 不被编辑/删除的契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestProviderAndAgentValidationContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs",
+    "conclusion": "已覆盖：Provider 依赖、状态验证以及防止被引用的 Provider 被意外删除",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestProviderDefaultContract": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs",
+    "conclusion": "已覆盖：设定默认 Provider 并在列表查询时优先置顶排序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestSessionRunAndOptimizationRouteContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs",
+    "conclusion": "已覆盖：会话创建要求启用 Agent、上下文压缩冲突、目标更新及优化任务取消",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestStreamReconnectAndSkillContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/sse.rs",
+    "conclusion": "已覆盖：流重连契约、X-ADK-Stream-ID 头传递以及非法 sequence 参数过滤",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestCatalogSessionRunAndObservabilityContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/observability.rs",
+    "conclusion": "已覆盖：全目录、会话、运行与观测指标的 GET 契约与统一 Envelope 校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestAgentSaveErrorClassification": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/envelope.rs",
+    "conclusion": "已覆盖：客户端业务校验错误与服务端内部存储异常的精确分类转换",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestRunInputResponseContract": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs",
+    "conclusion": "已覆盖：运行等待用户输入（InputRequest）状态下的交互响应校验与状态转移",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
   }
 }
