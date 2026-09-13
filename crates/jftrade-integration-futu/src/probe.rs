@@ -98,6 +98,45 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_probe_opend_disconnected_and_version_enforcement_parity() {
+        // Parity: go:452dea11:internal/integration/futu/probe_test.go:114 TestProbeOpenDReportsClosedPortAsDisconnected
+        // Parity: go:452dea11:internal/integration/futu/probe_test.go:137 TestProbeFromGlobalStateEnforcesMinimumVersionAndMapsNeutralState
+        let disconnected = OpenDProbe::disconnected("connection refused");
+        assert_eq!(disconnected.status, "offline");
+        assert_eq!(disconnected.connectivity, "disconnected");
+        assert!(disconnected.last_error.is_some());
+        assert_eq!(
+            disconnected.issue_code.as_deref(),
+            Some("OPEND_DISCONNECTED")
+        );
+        assert!(!disconnected.market_data_ready());
+
+        let nil_state = OpenDProbe::from_global_state(None, true);
+        assert_eq!(nil_state.status, "degraded");
+        assert_eq!(nil_state.connectivity, "degraded");
+        assert!(nil_state.last_error.is_some());
+
+        let unsupported = OpenDProbe::from_global_state(
+            Some(WireGlobalState {
+                qot_logged_in: Some(true),
+                trade_logged_in: Some(false),
+                server_version: Some("10.8.6708".to_owned()),
+                program_status: Some("Ready".to_owned()),
+                program_timestamp: None,
+                markets: Vec::new(),
+            }),
+            false,
+        );
+        assert_eq!(unsupported.status, "degraded");
+        assert_eq!(
+            unsupported.issue_code.as_deref(),
+            Some("OPEND_VERSION_UNSUPPORTED")
+        );
+        assert_eq!(unsupported.server_version.as_deref(), Some("10.8.6708"));
+        assert!(!unsupported.market_data_ready());
+    }
+
+    #[test]
     fn unknown_quote_login_fails_closed() {
         let probe = OpenDProbe::from_global_state(
             Some(WireGlobalState {
