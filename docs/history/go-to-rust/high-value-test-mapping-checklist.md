@@ -182,3 +182,4 @@
    - [x] 补齐内嵌 `worker.mjs` SHA256 校验和防篡改与空 bundle 拦截（`5f6320b7`）。
    - [x] 补齐回测同步任务取消 Active / Terminal / Missing 状态边界（`490f3c38`）。
    - [x] 补齐回测同步 SessionScope 默认空字符串为 regular 与非法输入拦截契约（`a957d393`）。
+   - [x] 补齐 Web 登录 Cookie HttpOnly、SameSite=Strict 与 Path=/ 属性约束断言（`cd407be7`）。
