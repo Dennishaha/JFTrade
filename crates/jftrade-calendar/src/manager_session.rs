@@ -228,6 +228,35 @@ mod tests {
             .expect("supported market");
         assert_eq!(sunday.session, "overnight");
         assert_eq!(sunday.trading_date, "2026-06-22");
+
+        // Parity: pkg/market/market_test.go:11 TestClassifySessionForUS
+        // Friday after 20:00 is closed, not overnight carry
+        let friday_closed = manager
+            .session_context("US", at("2026-06-12T20:00:00-04:00"))
+            .expect("friday context")
+            .expect("supported market");
+        assert_eq!(friday_closed.session, "closed");
+
+        // Pre-market starts exactly at 04:00
+        let pre_market = manager
+            .session_context("US", at("2026-06-12T04:00:00-04:00"))
+            .expect("premarket context")
+            .expect("supported market");
+        assert_eq!(pre_market.session, "pre");
+
+        // Regular trading starts at 09:30
+        let regular = manager
+            .session_context("US", at("2026-06-12T09:30:00-04:00"))
+            .expect("regular context")
+            .expect("supported market");
+        assert_eq!(regular.session, "regular");
+
+        // After-hours starts at 16:00
+        let after = manager
+            .session_context("US", at("2026-06-12T16:00:00-04:00"))
+            .expect("after context")
+            .expect("supported market");
+        assert_eq!(after.session, "after");
     }
 
     #[test]
