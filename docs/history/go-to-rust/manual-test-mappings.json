@@ -16252,5 +16252,3089 @@
     "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
     "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestMarketDataRuntimeQueryAndSubscriptionWrappers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestTranslateSubscriptionRequiredErrorPreservesBrokerNeutralLeaseDetails": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestMarketDataRuntimeCloseWaitsForEnsureAndDoesNotRevive": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestMarketDataRuntimeCloseReturnsActiveExchangeFailureIdempotently": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestMarketDataRuntimeCloseReturnsInflightExchangeFailure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestMarketDataRuntimeDoesNotPublishExchangeWhenConfigChangesDuringCreate": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestMarketDataRuntimeNilAndClosedLifecycleBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestTickFromTradeProducesBrokerNeutralPushTick": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestTickFromTickerPreservesHKPreviousCloseDuringLunchBreak": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestTickFromTickerReclassifiesUSRegularBoundary": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestMarketDataRuntimeReplacesAnExchangeWhenItsConfigKeyChanges": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestMarketDataRuntimeUnavailableQueryHelpers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestTickFromSnapshotMapsExtendedQuoteFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestMarketDataRuntimeQueriesDelayedSnapshotsAlongsideRealtimeQuotes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestNotificationLabelsCoverEverySupportedProgramAndGatewayState": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestNotificationAndQuoteRightLabelsRemainStable": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestOrderUpdatesAdapterConvertsPushesAndStopsOnce": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestOrderUpdatesAdapterRefreshRepeatsAccountPushWithoutReregisteringHandlers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestOrderUpdateSubscriptionNilAndNoAccountPaths": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestOrderUpdatesAdapterSubscribeReturnsNoOpOrErrorsCleanly": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestProbeOpenDReportsProtocolOutcomesWithoutARealOpenD": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestProbeOpenDMapsHealthyProtocolFixture": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestProbeOpenDReportsClosedPortAsDisconnected": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestProbeFromGlobalStateEnforcesMinimumVersionAndMapsNeutralState": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestProgramStatusStringHandlesMissingPlainAndDescribedStatus": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSecurityDetailsMapPreservesCompleteBrokerNeutralWireShape": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSecurityDetailsMapKeepsMissingOptionalAndProductBlocksNull": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSecurityRefMapUsesCanonicalIdentity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSubscriptionReconcilerSharesExactPhysicalSubscriptionsAndDefersFinalRelease": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSubscriptionReconcilerConcurrentReconcileIsIdempotent": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSubscriptionReconcilerReplaysAllDesiredSubscriptionsWhenConnectionGenerationChanges": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSubscriptionReconcilerFailsWhenConnectionKeepsChanging": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSubscriptionReconcilerRetriesFailuresAndCancelsRetryOnReacquire": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSubscriptionReconcilerUsesDelayedFallbackForBasicQuoteAvailabilityFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSubscriptionReconcilerProviderSwitchDefersPhysicalReleaseUntilOpenDEligible": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSubscriptionReconcilerMeasuresRetentionFromOpenDAcknowledgement": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSubscriptionReconcilerMeasuresRetryFromOpenDFailureAcknowledgement": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSubscriptionReconcilerMeasuresQuotaRefreshFromOpenDAcknowledgement": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSubscriptionReconcilerPendingProviderCleanupDropsClosedConnectionOwnership": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSubscriptionReconcilerHandlesQuotaExchangeReplacementResetAndNilBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSubscriptionReconcilerDropsFailedRecordsReleasedBeforeRetry": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestDesiredPhysicalSubscriptionsRejectsIncompleteRefsAndNormalizesSymbols": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestSubscriptionReconcilerKeepsThreeViewerCapabilitiesAndReleasesOnlyOldOrderBook": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
+    "conclusion": "已覆盖：Futu 顶层集成契约在 jftrade-integration-futu 统一对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
+  },
+  "TestQueryAccountReturnsBBGOAccountSnapshot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryBrokerOrderFillsFiltersAndSortsCurrentSessionFills": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryBrokerMaxTradeQuantityRejectsInvalidBusinessInputs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuAdvancedAdapterReaderSurfaceAndPredictionSubscriptions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerKLineAdjustmentMapping": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuAdvancedAdapterProtocolValidationDefaultsAndPayloadHelpers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuComboAdapterOptionAndEventLifecycle": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuComboAdapterProductRulesAndValidationFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuAdvancedProtocolTransportFailureIsReturned": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestAdvancedFeatureDefaultsBuildStrictOpenDRequests": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestIndustrialChainListPageSizeRespectsOpenDLimit": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestEveryAllowlistedAdvancedProtocolMapsToCatalogFeature": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestAdvancedProtocolReplaySafetyDefaultsToNoReplay": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestEveryDefaultFeatureOperationBuildsGeneratedRequest": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestHighDividendStateRejectsMisleadingMainlandScope": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerAdapterDiscoverAccountsAndTradingBridge": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerAdapterQueryMarketRulesUsesSecurityInfoLotSize": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerAdapterQueryMarketRulesFallsBackToSecuritySnapshotLotSize": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerAdapterMarketDataReaderTradingSnapshots": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerAdapterMarketDataReaderAccountAnalytics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerAdapterQuoteKLinesSubscriptionsAndValidation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerAdapterUnlockTradeBridge": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuCapabilitiesContextLoadsInitialQuoteRightsOnce": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuCapabilityNotificationsAndRuntimeAggregation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuCapabilityConnectionAccountAndEntitlementDecisions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuCapabilityQuoteRightProductsAndStates": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuCapabilityLoadsQuoteRightsOncePerConnection": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuCapabilityCachesQuoteRightFailuresAndRefreshesAfterReconnect": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQuoteRightsFromUserInfoDoesNotInferDetailedRights": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuCapabilityRejectsStaleNotificationsAndFailureWrites": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuOptionComboHelperBusinessBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuComboIntentValidOptionCalendarAndEventForms": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuOptionComboPreviewLegalityAndTransportFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuOptionComboNonSpreadOpenDLegalityBranches": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuOptionComboPreviewNormalizesAllAccountImpacts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuComboPlaceValidatedLegAccountAndTransportFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTranslateEarningsCalendarParamsMapsBusinessSemantics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTranslateEarningsCalendarParamsRejectsUnsupportedMarketConditions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestEarningsCalendarDateChunksLimitEveryOpenDCallToSevenDays": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestEarningsCalendarDateChunksSupportsThirtyFiveDayGridAndRejectsLongerThanFortyTwo": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestDeduplicateEarningsCalendarEntriesUsesDateAndSecurity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestCollectEarningsCalendarChunksFailsTheWholeRangeWhenOneChunkFails": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestCollectEarningsCalendarChunksUsesEveryExactSegmentInOrder": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestEarningsCalendarParameterValidationEdges": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestEarningsCalendarDateValidationEdges": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestDeduplicateEarningsCalendarEntriesFallsBackForAnonymousRows": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerAdapterForwardsUnavailableOpenDErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestAdapterSubscriptionParsingErrorsAreReturned": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestAdapterAndDecimalConversionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestKLineSessionAndPriceHelperBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestCanceledContextIsPreservedByUnavailableAdapter": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerKLinesReturnLatestPageAndUseExclusiveBeforeCursor": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuDeclaredCandlePeriodsMapToHistoricalAndRealtimeTypes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerKLineQueryFormatsOpenDWindowInMarketTimeAndReturnsUTC": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerKLineCursorPreservesExactSecondWindowAndExcludesBoundaryLocally": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestNormalizeBrokerKLinePageDeduplicatesSortsAndKeepsLatest": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestNormalizeBrokerKLineRangeKeepsInclusiveBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerKLineQueryRejectsCursorAndTimeBoundaryErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerKLinePaginationHelpersCoverSessionsBoundsAndListingDates": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuCandlePeriodCatalogSkipsMissingAndUnmappableIntervals": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuSearchMarketCodePreservesEveryStableDisplayMarket": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestCanonicalSearchQuoteSymbolHandlesOpenDPrefixedCodes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerAdapterSecuritySearchMapsCrossMarketOpenDResults": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerAdapterSecuritySearchRejectsInvalidQueriesBeforeConnecting": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestConvertFundsSnapshotFullMarginFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestConvertFundsSnapshotNilMarginFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestConvertFundsSnapshotNilInput": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestConvertFundsSnapshotCurrencyBalances": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritiesFromSymbols": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritiesFromSymbolsInvalid": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritiesFromSymbolsEmpty": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritySymbol": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritySymbolNil": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuKLTypeFromIntervalStringAll": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuKLTypeFromIntervalStringInvalid": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestInt64AsFloat64Ptr": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestInt64AsFloat64PtrNil": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerFundsSnapshotFromProtoFullMargin": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerFundsSnapshotFromProtoNilFunds": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerFundsSnapshotRoundTripNoMargin": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestOrderBookLevelFromPb": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestOrderBookLevelFromPbNil": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestOrderBookLevelFromPbEmptyDetails": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestOrderBookSnapshotFromOpendResult": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestOrderBookSnapshotFromOpendResultNil": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestOrderBookSnapshotFromOpendResultEmptyResult": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuRootAdapterForwardsBatchSnapshotsThroughProtocol3203": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuDeclaredCapabilitiesHaveExecutableAdapterInterfaces": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuOptionEventRequestsPassStrictOpenDValidation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuZeroDteContractRebuildsBrokerNeutralChainContext": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuOptionEventValidationRejectsUnsupportedInputs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuOptionRequestTranslationBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuZeroDteContractTranslationRejectsEachInvalidBoundary": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuOptionNumericParameterBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuZeroDteNormalizationHandlesAbsentAndNestedUnderlying": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuPredictionMilestonesResolveOwningEventBeforeQuery": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuAdvancedPredictionSnapshotSearchFallbackAndQueryValidation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuPredictionComboQuoteTranslationRejectsEveryInvalidLegShape": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestPredictionPayloadNormalizationDoesNotLeakOpenDMarkets": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestPredictionComboQuoteTranslationUsesBrokerNeutralLegs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestInternalFutureMarketNormalizesToPublicProductIdentity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuPredictionStreamListenersSequencesAndMalformedPushes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuPredictionPushHandlerInstallationReplayAndFailure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuPredictionNormalizationCatalogPaginationAndIdentity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuAdvancedSecurityNormalizationAllPublicMarkets": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestResearchCatalogOperationsBuildStrictOpenDRequests": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestResearchCatalogOperationsRejectMissingOrInvalidParameters": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestResearchProtocolPayloadAddsCanonicalFieldsWithoutDroppingOpenDFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestResearchCatalogLocalPaginationKeepsOpenDRequestUnchanged": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestEconomicCalendarPaginationHonorsExplicitHasMoreAndEmptyRows": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestAdvancedResearchDefaultsRejectIncompleteQueries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestAdvancedResearchDefaultsTranslatePublicInputs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestAdvancedResearchEnumTranslations": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestResearchNormalizationCoversAlternateWireShapes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestResearchNormalizationCoversProductAndCalendarVariants": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestResearchNumberAcceptsSupportedScalarTypes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQuoteRightsRefreshStateEdges": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQuoteRightsFailureAndExchangeGenerationEdges": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTranslateResearchScreenParamsBuildsStrictStockScreenRequest": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTranslateResearchScreenParamsValidatesStableKeysAndMarket": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStockScreenFeatureResultNormalizesIdentityCellsAndOffset": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestNormalizeStockScreenRowPreservesParameterizedInstanceIdentity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStockScreenFeatureResultUsesPerRowMainlandIdentityAndFiltersExactMarkets": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStockScreenMainlandIdentityMustBeAuthoritative": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestResearchScreenQuoteCurrencyUsesSecurityCounterIdentity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestResearchScreenLimiterAllowsTenPerThirtySeconds": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestResearchScreenRateLimitErrorRoundTrip": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestResearchScreenTranslationEdges": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStockScreenNormalizationEdges": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuAdapterCompileTimeChecks": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerRegistryWithFutu": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuAdvancedSpecializedReadersAndCustomizationSuccess": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuComboAdapterErrorPropagationBranches": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuEventContractStatusBranches": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuWarrantsStayHKOnlyAndFuturesRemainDiscoverable": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecurityDetailsProductIdentityFallbacks": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuSnapshotProductExtensionsAndSecurityTypeMapping": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuTradeProductRequestAndReadLifecycleBranches": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuComboProtocolTransportErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestClassifyBasicQotSubscriptionErrorOnlyMarksAvailabilityFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestWithClientReplayPolicyForRecoverableErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestExchangeReconnectsClosedReadyClientAndCoversHandlerBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestReconnectDoesNotDeadlockWithInFlightNotification": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTradeAccountPushNormalizationSubscriptionAndFactoryEnvironment": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestOldOpenDVersionFailsSessionInitialization": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestInitResponseAndSessionTransportFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestReconnectTradePushFailureAndTradeHandlerBinding": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFrameSizeGuardsCoverEncodeAndDecode": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/codec.rs",
+    "conclusion": "已覆盖：Protobuf 帧封包、解包、SHA1 校验码与包头字节序一致",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(codec)'"
+  },
+  "TestEncodeDecodeRoundTrip": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/codec.rs",
+    "conclusion": "已覆盖：Protobuf 帧封包、解包、SHA1 校验码与包头字节序一致",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(codec)'"
+  },
+  "TestDecodeRejectsCorruptedBody": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/codec.rs",
+    "conclusion": "已覆盖：Protobuf 帧封包、解包、SHA1 校验码与包头字节序一致",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(codec)'"
+  },
+  "TestDecodeRejectsBadMagic": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/codec.rs",
+    "conclusion": "已覆盖：Protobuf 帧封包、解包、SHA1 校验码与包头字节序一致",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(codec)'"
+  },
+  "TestDecodeRejectsShortFrame": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/codec.rs",
+    "conclusion": "已覆盖：Protobuf 帧封包、解包、SHA1 校验码与包头字节序一致",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(codec)'"
+  },
+  "TestDecodeRejectsLengthMismatch": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/codec.rs",
+    "conclusion": "已覆盖：Protobuf 帧封包、解包、SHA1 校验码与包头字节序一致",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(codec)'"
+  },
+  "TestBalanceMapFromBrokerFundsUsesCurrencyRowsBeforeAccountFallback": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBalanceMapFromBrokerFundsFallsBackToMarketCurrencyAndLockedCash": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBalanceMapFromFundsAndBrokerOrderSortBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerOrderMappingCoversOrderLifecycleEnums": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerOrderTypeAndTimeInForceMappingsCoverTradingVariants": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerOrderMarketAndCurrencyBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestExchangeLocalMarketAndOrderBookHandlerBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestExchangeInvalidateClientClearsReadyStateAndSubscriptions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTradeSecurityInfoAndRuntimeMarketAuthorityBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestKLineSessionRegistryResolvesExactRecordAndQuoteSamples": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestKLineSessionSamplePruningAndWindowFallback": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestMergeStaticInfoIntoSecurityDetailsFillsMissingFieldsWithoutClobberingSnapshot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryTickersBatchesBasicQotRequests": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryKLinesSplitsUSHistoricalRequestsBySessionAndMergesResults": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryKLinesForSessionsFiltersUSHistoricalRoutes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestHistoricalKLineSessionHelpersFilterAndPlanExplicitSelections": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryKLinesForSessionsFiltersCurrentUSBucket": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestResolveHistoricalRequestSessionUsesRouteForRTHAndOvernight": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryKLinesFallsBackToSessionAllWhenHistoricalRouteUnsupported": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestShouldFallbackHistoricalKLineSplitRecognizesChineseSupportedSessionsMessage": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryKLinesNormalizesIntradayHistoryLabelToBucketStart": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryKLinesKeepsDailyHistoryLabelAsBucketStart": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryKLinesFollowsHistoryPaginationAndKeepsLatestLimit": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryKLinesAllowsMoreThanEightHistoryPages": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryKLinesUsesLargerHistoryPageSizeThanRequestedLimit": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryKLinesIncludesCurrentRealtimeBucketFromGetKL": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStreamConnectEmitsBasicQotPushAsBBGOEvents": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStreamConnectRebuildsClosedCachedOpenDClient": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuKLineIntervalMappingsCoverSupportedAndUnsupportedValues": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuKLineQueryWindowAndPreflightValidation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuHistoricalKLineSessionFallbacksAndETHClassification": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuTradeEnumMappingsCoverBrokerAndBBGOBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuReadHelperMappingsAndPushSnapshots": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuMarketAndSecuritySymbolBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuOrderBookSubscriptionRequestExtraction": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSubscribeOrderBookRequestConstruction": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestIsHKMarket": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSubscriptionRegistryOrderBook": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSubscriptionRegistryOrderBookReset": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSubscriptionRegistryOrderBookEnsure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSubscriptionRegistryQuoteAndKLineFamiliesAreIndependent": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestGroupOrderBookRequestsForPushSplitsHKAndNonHK": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestGroupOrderBookRequestsForPushSingleHKBatchNeedsDetail": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestEnsureOrderBookPushSubscriptionsSplitsDetailsAndDeduplicates": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestOrderBookSubscriptionLifecycleRequiresLeaseAndUnsubscribes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestHandleOrderBookPushEmitsSingleCompleteBookTicker": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestExchangeAccountPushMarketWarningAndEmptySymbolBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestMaxTradeQuantityInvalidSecurityAfterAccountResolution": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBasicQuoteMissingInvalidAndSubscriptionCacheBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestCurrentKLineExtendedErrorBlankAndInvalidRequestBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritySnapshotInvalidRowsErrorsAndEmptyOptionMerge": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryAllKLinesReturnsCompleteSortedHistoricalSeries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestExchangeReadAPIsPropagateOpenDQuoteAndSnapshotFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTradeAccountSelectionAndWriteBoundaryFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSessionFromExtendedBlocksClockGuardsStaleExtendedData": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestRegistration": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestConstructorFallsBackToDefaultAddress": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryMarketsReturnsBootstrapMarket": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestEnsureMarketWithContextAppliesBrokerLotSize": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestEnsureMarketWithContextFallsBackToSecuritySnapshotLotSize": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestEnsureMarketWithContextReturnsInferredMarketWhenStaticInfoUnavailable": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestInferMarketUsesMarketProfiles": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuSecurityFromSymbolUsesMarketParser": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryTickerReusesSingleOpenDConnection": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestConnectRejectsOpenDBelowMinimumVersion": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestConnectRejectsOpenDBelowMinimumBuild": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestDiscoverAccountsReusesSingleOpenDConnection": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryAccountBalancesUsesOpenDFundsSnapshot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryOpenOrdersReturnsActiveOrders": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTradeProtocolConstantsMatchOfficialIDs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryBrokerHistoryOrdersReturnsHistoricalOrders": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryBrokerHistoryOrderFillsReturnsHistoricalFills": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryBrokerOrderFeesReturnsFeeBreakdown": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryBrokerMarginRatiosReturnsMarginData": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryBrokerMarginRatiosSkipsUnknownStock": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryBrokerMarginRatiosUsesCacheWithinTTL": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryBrokerCashFlowsReturnsFlowSummary": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryBrokerMaxTradeQuantityReturnsSnapshot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSubmitOrderPlacesViaOpenD": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestCancelOrdersUsesModifyOrderCancel": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestEnsureSystemNotificationsBindsSystemPushHandler": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSubscribeTradeAccountPushReplaysOnReconnectedClient": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuRequestLocationUsesMainlandMarketFallback": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestNormalizeSubmitOrderPriceForUSMarkets": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestPriceStepHelpersCoverEdgeCases": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestPlaceOrderRequestFromSubmitOrderNormalizesUSPriceAndFlags": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTradeUpdateHandlersCanUnsubscribe": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestKLineHistoryAndSubscriptionBoundaryPaths": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestKLineSessionRegistryHandlesInvalidStaleAndBoundedRecords": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestKLineSessionRegistryPruningAndSampleResolutionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestResolveKLineSessionByClockUsesProvidedSymbolAndKLineFallback": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestLiveOpenDProto108Contract": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestLiveOpenDHKDualCounterCurrencyResolution": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestLiveOpenDQuoteRightDiscoveryDoesNotSubscribe": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestLiveOpenDDelayedStockScreenSnapshotsDoNotSubscribe": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestLiveOpenDResearchCatalogReadsDoNotSubscribe": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestLiveOpenDEarningsCalendarDayWeekMonthSortAndFilter": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestLiveOpenDSZ000858DeclaredCandlePeriods": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestLiveOpenDOptionBABAReadClosure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuMarketMappingsCoverEverySupportedQuotePrefix": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerOrderQuantityValidationAndEmptyCancellationAreSafe": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestExchangeSecuritySnapshotMergesStaticInfo": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritySnapshotItemKeepsRawUSPreviousCloseWhenMarketIsClosed": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerAdapterSecurityInfoSnapshotAndOrderBookBridge": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestMarketDataReaderSurfacesTransportAndPayloadBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerKLineSessionHelpersNormalizeAndRejectSelections": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestMarketRuleFallbacksExplainTheirSourceAndFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestMarketDataRuleHelpersRejectIncompleteBrokerPayloads": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestAdvancedDispatcherKeysValidationSuccessAndFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestCallAdvancedSuccessEnvelopeAndAllErrorBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestAdvancedResponseValidationAndPayloadHelpers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestComboTradingClientResponseShapes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestAdvancedProtocolsAreUniqueAndRegistered": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestAdvancedProtocolPredictionIDs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestAdvancedC2SFieldInspectionAndStrictValidation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestCallFailureRecordsRequestCorrelation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestStartKeepAliveIgnoresNonPositiveIntervalsWithoutConsumingStart": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestCallRoundTrip": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestRequestTimeout": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestKeepAliveFailureClosesClient": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestSubscribeNotifyReceivesSystemPush": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestCallIgnoresMismatchedProtoOnSameSerial": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestConnectSurfacesInvalidAddressAndClosedClient": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestClientCloseWaitsForReadWorkerAfterClosingTransport": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestClientCloseDrainsPendingRequestsAfterBestEffortCloseFailure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestKeepAliveLoopHalvesLongIntervalsAndStopsForClosedClient": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestStartKeepAliveRejectsClosedClientWithoutOwningWorker": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestSubscribeNotifySkipsNilAndMalformedPush": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestCallFrameRejectsMarshalAndOversizedPayloads": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestCallFrameReturnsWriteAndCloseFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestReadLoopClosesConnectionOnOversizedFrame": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestReadLoopDiscardsInvalidFramesAndClosesOnTruncation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestDispatchDropsDuplicateResponseWhenPendingBufferIsFull": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestSubscribeQuotesReportsTransportFailure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestProgramStatusLabelIncludesServerDescription": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestSubscribeQuotesEncodesAdvancedMarketDataOptions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestRequestHistoryKLEncodesOptionalFieldsAndHandlesEmptyResult": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestMarketReadMethodsPropagateOpenDBusinessErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestSecurityInfoMethodsReturnEmptyCollectionsForEmptyOpenDResults": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetKLReturnsEmptyResultWhenOpenDOmitsS2C": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestMarketReadMethodsRejectDisconnectedSession": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestMarketPushSubscribersIgnoreMalformedAndUnsuccessfulUpdates": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetGlobalState": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestSubscribeQuotes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestUnsubscribeQuotes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetBasicQot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestSubscribeBasicQot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetKL": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestRequestHistoryKL": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetStaticInfo": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetSecuritySnapshot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestUnlockTrade": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestLockTrade": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetBasicQotError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetGlobalStateError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestSubscribeQuotesError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestUnlockTradeError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetBasicQotEmptyS2C": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetKLNullS2C": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetGlobalStateAdvancedFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestRequestHistoryKLPagination": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetBasicQotMultipleSecurities": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestUnlockTradeWithSecurityFirm": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetSecuritySnapshotIndex": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestSubscribeQuotesAllOptions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestSubscribeQuotesUnsubAll": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetOrderBookRejectsDisconnectedSession": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestParseOrderBookResponseRejectsMalformedTopLevelFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestParseOrderBookResponseRejectsMalformedS2CFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestParseOrderBookResponseSkipsValidUnknownFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestParseOrderBookLevelAcceptsValidRequiredFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestParseOrderBookResponseCurrentOpenDWireLayout": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestParseOrderBookResponseError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestPredictionPushSubscribersDispatchOnlySuccessfulTypedUpdates": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestPredictionPushSubscribersIgnoreNilHandlers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestProto108OrderBookFieldNumbers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestProto108NotifyFieldNumbers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestStaticInfoAndKLineUpdateProtocolIDsDoNotOverlap": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestReadHelpersPropagateClosedClientErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGlobalStateNormalizesMissingPayloadAndProgramStatusLabels": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetSearchQuoteSendsKeywordAndReturnsCandidates": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetSearchQuoteValidatesInputAndPreservesOpenDErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetSearchQuoteNormalizesMissingPayload": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetSubInfoUsesReadOnlySubscriptionProtocol": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetSubInfoSurfacesOpenDErrorsAndNormalizesMissingPayload": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetQuoteRightsRequestsOnlyEntitlementField": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetQuoteRightsNormalizesMissingPayloadAndErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestTradingReadMethodsPropagateOpenDBusinessErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestTradingReadMethodsRejectDisconnectedSession": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestHistoryTradingReadsReturnStableEmptyCollections": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestPlaceOrderRequiresRequestAndConnID": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestPlaceOrderAndModifyOrderEncodeTradeWrites": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestModifyOrderReturnsTradeRetTypeErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestHistoryOrderReadersPreserveFiltersAndEmptyResponses": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestSubscribeAccountPushAndTradePushDecoding": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestSubscribeAccountPushPropagatesTradeErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestPlaceOrderUsesPresetPacketIDWhenProvided": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestTradeWriteWrappersSurfaceCallErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestTradingReadWrappersDecodeBusinessPayloads": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestTradingReadWrappersReturnStableEmptyValues": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestSubscribeOrderBookDispatchesSuccessfulPushes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestTradeWriteMethodsEnforcePrerequisitesAndDisconnectedState": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestPlaceOrderPropagatesOpenDBusinessRejection": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestModifyOrderReturnsStableEmptyResult": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestTradePushSubscribersIgnoreMalformedAndUnsuccessfulUpdates": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetUserSecurityGroupsEncodesAllAndReturnsCustomAndSystemGroups": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestGetUserSecuritiesEncodesTrimmedGroupName": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestUserSecurityMethodsRejectInvalidInputBeforeEncoding": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestUserSecurityMethodsPropagateBusinessErrorsAndEmptyResults": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestUserSecurityMethodsNormalizeMissingGroupsAndReportSecurityErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestUserSecurityProtocolIDs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestFormatVersion": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestValidateMinimumVersion": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/opend.rs",
+    "conclusion": "已覆盖：OpenD 进程控制、本地 TCP 通信与鉴权生命周期在 Rust opend 模块实现",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'"
+  },
+  "TestQuoteSnapshotUsesCompleteActiveExtendedBlock": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestMarketDataAdapterSkipsNilRowsAndReturnsProtocolFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestExchangeQueryQuoteSnapshotUsesBasicQotPayload": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestExchangeQueryQuoteSnapshotsPreservesVolumeBeyondFixedpointRange": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQuoteSnapshotResolvesHighPrecisionVolumeWithoutLosingInt64Precision": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQuoteSnapshotPreviousClosePriceInClosedSession": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQuoteSnapshotHolidayRemainsClosedWithStaleExtendedBlocks": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQuoteSnapshotPreviousClosePriceInAfterHours": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQuoteSnapshotPreviousClosePriceZeroCurPrice": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQuoteSnapshotPreviousClosePriceForHKLunchBreak": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestPreviousClosePriceConditionBySessionType": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestPreviousClosePriceConditionDoesNotRewriteNonUSUnknownSession": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestRecoverableOpenDErrClassifiesConnectionFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestResolveTradeMarketHonorsRequestedAuthorityAndFallbacks": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestCandidateTradeAccountFromProtoFiltersAndBuildsHeader": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerReadQueryNormalizationAndAccountPriority": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTrdMarketFromNormalizedCoversSupportedMarkets": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritySnapshotQueriesValidateInputsBeforeOpenDCall": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestMergeStaticInfoFillsMissingSecurityMetadataWithoutOverwritingSnapshot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecurityReferenceHelpersPreservePartialCanonicalData": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecurityDetailsFromSnapshotMapsDerivativeAndMarketExtensionData": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecurityDetailsFromSnapshotPreservesOrdinaryVolumeWhenHighPrecisionIsInvalid": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecurityDetailsFromSnapshotHandlesMissingBasicAndUnknownEnums": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritySnapshotCoordinatorCachesClonesAndUsesMarketBatches": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritySnapshotCoordinatorCoalescesConcurrentRequests": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritySnapshotCoordinatorEnforcesSlidingBudgetAndDoesNotCacheFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritySnapshotCoordinatorClassifiesRemoteRateLimitAndHonorsCancellation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritySnapshotCoordinatorRejectsUnavailableAndInvalidInputs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritySnapshotCoordinatorHandlesEmptyAndUnexpectedResults": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestMarketDataReaderClassifiesSymbolScopedSecuritySnapshotProtocolErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritySnapshotTransportAndCanceledErrorsAreNotSymbolScoped": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritySnapshotItemNormalizesOptionMetrics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSecuritySnapshotReadersHandleDuplicateMissingAndTransportBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestMergeStaticInfoFillsAbsentSnapshotFieldsWithoutOverwritingExistingValues": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStockScreenFallbackWireValueHelpers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStockScreenFallbackParsesRowsAndMarketGroups": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStockScreenFallbackCoordinatesCopiesAndErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStockScreenSnapshotParamsUseStrictDelayedQuoteFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuStockScreenSnapshotFallbackUsesStaticIDsWithoutSubscription": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStockScreenSnapshotCoordinatorCachesRowsAndNegativeResults": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuStockScreenSnapshotFallbackReportsScreenErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStreamCloseCancelsAndJoinsOwnedWorkers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStreamConnectionAndSubscriptionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStreamPushHandlersRejectInactiveMalformedAndEmptyQuotes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStreamConvertsCumulativeQuoteVolumeToIncrementalTradeQuantity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStreamPreservesFractionalCumulativeVolumeDelta": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStreamMarketTradeCarriesDeltaAndCumulativeVolume": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStreamMarketTradePreservesVolumeBeyondLegacyFixedpointRange": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStreamRejectsNegativeSnapshotVolume": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBasicQuotePushSubscriptionErrorsAndIdempotency": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestOrderBookStreamConnectionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStreamReconnectAndClientWatcherExitPaths": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestStreamConnectReportsPhysicalSubscriptionFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestExchangeSubscriptionMethodsArePairedExactAndIdempotent": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestExchangeSubscriptionCacheUpdatesOnlyAfterOpenDConfirmation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryKLinesWithoutLeaseReturnsExplicitErrorBeforeRealtimeRead": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBasicQuoteReadRequiresExplicitLeaseAndNeverLeaksRawOpenDError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestConnectionGenerationInvalidatesClosedSessionAndItsSubscriptions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestExchangeCloseIsTerminalAndPreventsOrphanedReconnect": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSubscriptionRequiredErrorFormattingAndNilConnectionGeneration": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFailedConnectionDoesNotAdvanceEstablishedSessionGeneration": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestExchangeQuerySubscriptionQuotaSeparatesOwnAndOtherConnections": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestSubscriptionMethodsValidateSymbolsAndIntervals": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuQuoteTimeUsesMarketTimezoneForFallback": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFormatBrokerOrderTimeUsesMarketTimezoneForFallback": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerOrderSnapshotUsesResolvedMarketForBareCodeFallbackTime": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTradeAccountResolverUsesStableTieBreakersAndSurfacesClientClose": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestDiscoverAccountsDeduplicatesAndFallsBackToCardIdentifier": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestResolveTradeMarketCoversRequestedAndFallbackBranches": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryBrokerOrdersFiltersAndSortsWorkingOrders": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestPlaceOrderRequestFromSubmitOrderCoversValidationAndRemarkSemantics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerReadQueriesSurfaceAccountResolutionErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQueryBrokerMaxTradeQuantityOptionalRequestFieldsAndSessionValidation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTradeReadConversionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTradeReadHelperBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTradeProtoConversionSkipsNilFeeAndInvalidMarginSecurity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestAccountAndPushConversionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestNormalizeTradeFilterTimeInput": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerTradeFilterConditionsNormalizesTimes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuRequestTimesUseMarketWallClock": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestMarginRatioRecoveryAndErrorClassificationBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestMarginRatioCacheReturnsDefensiveFreshSnapshots": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerMarginRatioFallsBackToRecentCacheAndSurfacesInputFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBasicQuoteQueriesHandleEmptyDuplicateAndInvalidRequests": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestMarginRatioUncachedRecoveryAndConversionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerFundsSnapshotFromProtoPreservesCurrencyAndMarketBreakdowns": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBalanceMapUsesFuturesAvailableFundsOverWithdrawalCash": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerReadProtoSnapshotsNormalizePositionMarginAndQuantityDetails": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerReadProtoMapsEventAndOptionComboLifecycle": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerTradeProtoListsFilterAndSortEveryTieBreaker": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTradeReadMethodsPropagateTargetProtocolDisconnects": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestQuoteKLineAndOrderBookPropagateTargetDisconnects": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTradeWriteMethodsPropagateAccountAndWriteDisconnects": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestTradeWritesAreNotReplayedWhenResponseIsLost": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestDirectSubscriptionCallsPropagateClosedClientErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestWatchlistGroupReaderCoversSecondCacheAndFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestWatchlistMemberReaderCoversSecondCacheAndFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestWatchlistConversionAndGateRejectInvalidInputs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestBrokerAdapterWatchlistReaderLoadsCachesAndRefreshesOpenDData": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuWatchlistReadGateEnforcesTenCallsPerRollingThirtySeconds": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuWatchlistReaderCacheUsesTTLAndReturnsCopies": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestConvertFutuWatchlistGroupsMarksEveryNormalizedDuplicateAmbiguous": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestConvertFutuWatchlistSecuritiesPreservesCanonicalIDAndBrokerAlias": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuWatchlistFreshReadBypassesAndReplacesGroupAndMemberCaches": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
+  },
+  "TestFutuWatchlistFreshMemberReadRechecksRemoteAmbiguity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/client.rs",
+    "conclusion": "已覆盖：Futu 协议消息请求分发、长连接订阅通道与异步成交回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
   }
 }
