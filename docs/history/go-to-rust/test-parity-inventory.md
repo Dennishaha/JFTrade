@@ -4,6 +4,19 @@
 
 当前进度：`[x]` 101 / `4451`，待核对 `4350`。脚本只会把高价值清单中已有明确证据的同名测试标记为 `[x]`；其余项目必须按功能域人工补充。
 
+| 业务域 | 已确认 | 待核对 |
+|---|---:|---:|
+| api_transport | 10 | 941 |
+| assistant_workflow | 10 | 800 |
+| backtest_calendar | 10 | 294 |
+| futu_opend | 10 | 514 |
+| marketdata_quotes | 11 | 203 |
+| other | 10 | 664 |
+| settings_watchlist | 10 | 53 |
+| storage_sqlite | 10 | 218 |
+| strategy_pine | 10 | 535 |
+| trading_broker | 10 | 128 |
+
 | 状态 | Go 测试 | 业务域 | 风险 | Rust crate 候选 | Rust 测试/入口 | 差异结论 | 验证命令 |
 |---|---|---|---|---|---|---|---|
 | [ ] | `go:452dea11:cmd/jftrade-api/main_test.go:13`<br>`TestValidateArgsAllowsNoArgs` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
