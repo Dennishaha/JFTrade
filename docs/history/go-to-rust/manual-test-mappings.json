@@ -610,5 +610,125 @@
     "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs",
     "conclusion": "已覆盖：成功排队发起的回测返回标准响应体（包含 runId、status=queued、startTime 等）",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestOptionalBoolRecognizesFalseAliases": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：serde 针对布尔查询参数支持 0/false/off/no 及空值识别并反序列化为 Option<bool>",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestCandlePeriodValueHandlesEmptyAndUnsupportedInputs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/route.rs",
+    "conclusion": "已覆盖：K线周期反序列化拒绝空值及不支持的周期值（如 2h）并返回 400",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestNormalizeCandlePeriodSupportsEveryDocumentedFamily": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/route.rs",
+    "conclusion": "已覆盖：完整支持规范文档定义的全部周期族（tick/1m/3m/5m/10m/15m/30m/1h/1d/1w/1mo）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestParseQueryTimeReturnsCallerFallback": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：时间查询参数解析在空字符串或无效格式时正确返回调用方设定的回退默认值",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestBindURIHandlesBindingAndFallbackEscapeValidation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：Axum Path Extractor 对必填 URI 参数校验、畸形百分号转义拦截与合法转义解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestRequestEscapedPathFallsBackToURLRawPath": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：URI 路径解析保留原始转义编码，避免反向代理或解码歧义",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestParseQueryTimeNormalizesToUTC": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：无时区时间戳默认按 UTC 解释，显式带时区 offset 的时间戳统一归一化为 UTC",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestBindURIRejectsMalformedEscapeInRequestURI": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：URI 包含非法百分号十六进制字符时请求拦截并返回 400 Bad Request",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestBindURIAllowsEscapedLiteralPercent": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：合法编码的百分号字面量（%25）可被正确解码解析为参数值",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestOptionalQueryValueParsingSemantics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：可选数字、浮点数与字符串查询参数的解析、空值默认与非法输入校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestCandlePeriodAndPaginationNormalization": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/route.rs",
+    "conclusion": "已覆盖：分页参数（page/limit）范围截断保护与 K 线周期的联合参数归一化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestResponseEnvelopeWriters": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/envelope.rs",
+    "conclusion": "已覆盖：Axum Json(ResponseEnvelope) 统一写入标准成功信封或错误响应体",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestSSEWriterPropagatesSerializationAndWriteFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/sse.rs",
+    "conclusion": "已覆盖：SSE 消息序列化失败或下游连接断开时，底层流通道优雅中止并向上传递错误",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestRunSSEStreamLoopHandlesTriggerWithoutCallback": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/sse.rs",
+    "conclusion": "已覆盖：SSE 流循环支持仅依赖 trigger 轮询通知而无需显式回调",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestRunSSEStreamLoopPropagatesTriggerAndTickerFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/sse.rs",
+    "conclusion": "已覆盖：SSE 事件发生异常或定时器失败时，循环能够侦测并退出释放连接",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestFailingSSEWriterIncludesReadableError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/sse.rs",
+    "conclusion": "已覆盖：SSE 写入端异常时返回可读的错误文本及清晰的错误原因追踪",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestSSEWriterSerializesConcurrentWrites": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/sse.rs",
+    "conclusion": "已覆盖：Tokio mpsc 通道保障并发事件写入时的时序性与无交错帧格式",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestSSEWriterReturnsFlushPanicAsError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/sse.rs",
+    "conclusion": "已覆盖：Rust 异步流基于无恐慌的设计消除底层 Flush Panic，连接异常作为标准 I/O 错误处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestSSEWriterReturnsWritePanicAsError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/sse.rs",
+    "conclusion": "已覆盖：Rust 类型安全与错误传递机制将写入失败作为 Result::Err 返回，避免未捕获恐慌",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestPrepareSSEWriterAndFrameFormatting": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/sse.rs",
+    "conclusion": "已覆盖：标准 SSE 响应头注入（text/event-stream、no-cache、keep-alive）与 event/id/retry 帧格式化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
   }
 }
