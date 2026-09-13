@@ -7120,5 +7120,1211 @@
     "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
     "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestBrokerKLineCandlesResponseRejectsInvalidProviderRows": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestSerializationPreservesNullExtendedAndStringPrices": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/cache.rs`",
+    "conclusion": "已覆盖：实时 K 线增量聚合、Tick 数据环形缓存与分笔成交量去重保序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(cache)'"
+  },
+  "TestServiceUsesSingleCacheForSnapshotCandlesAndLatest": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/cache.rs`",
+    "conclusion": "已覆盖：实时 K 线增量聚合、Tick 数据环形缓存与分笔成交量去重保序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(cache)'"
+  },
+  "TestServiceTickCandleFallsBackToRetainedCache": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/cache.rs`",
+    "conclusion": "已覆盖：实时 K 线增量聚合、Tick 数据环形缓存与分笔成交量去重保序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(cache)'"
+  },
+  "TestServiceCalendarMacroRejectsProvidersWithoutCapability": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestServiceCalendarValidatesDateFormats": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestServiceMacroIndicatorHistoryValidatesIDAndLimit": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestServiceCalendarMacroPassesProviderErrorsThrough": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestParseCandleSessionsNormalizesCSVAndRepeatedValues": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestParseCandleSessionsRejectsEmptyAndUnknownValues": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestResolveCandleSessionsDefaultsAndRejectsUnsupportedValues": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestFilterCandlesBySessionsPreservesUnknownAsRegular": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestNormalizeInstrumentFallsBackForUnqualifiedInput": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestCollectorCloseCancelsBlockingConnectAndPreventsRevival": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestCollectorOldGenerationCannotCommitPushOrConnect": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestCollectorResetBoundsStreamCloseAndRejectsLateTick": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestCollectorCloseBoundsUncooperativeConnectAndKeepsError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestCollectorPollingFallbackDoesNotCallPushHandler": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestCollectorSkipsDynamicallyUnavailablePushSource": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestCollectorPollsFallbackInstrumentsWithoutAddingThemToPushStream": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestCollectorUsesDynamicPollingPolicyAndPreventsOverlap": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestCollectorDemandChangeCancelsPreviousProviderPoll": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestCollectorResetInvalidatesBlockingQueryResult": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestCollectorStreamFailureBacksOff": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestCollectorQuoteFailureBacksOff": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestRetryDelaySequence": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceCompanyResearchRejectsProvidersWithoutCapability": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceCompanyResearchRequiresMarketAndSymbol": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceFinancialStatementsValidatesStatementAndDefaultsToIncome": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceCompanyResearchResolvesChinaAggregateToExchangeLeaf": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceCompanyResearchPassesProviderErrorsThrough": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceIndexConstituentsRejectsProvidersWithoutCapability": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceIndexConstituentsValidatesLimitAndForwardsArguments": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceIndexConstituentsResolvesChinaAggregateToExchangeLeaf": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketSubsetInstrumentResolverKeepsQualifiedExactLookup": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketSubsetInstrumentResolverMarksUnsupportedQualifiedMarketUnavailable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketSubsetInstrumentResolverSearchesNamesAndPreservesRelevance": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketSubsetInstrumentResolverExactCodeWinsAndCrossMarketCodeStaysAmbiguous": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketSubsetInstrumentResolverFiltersCNAndDeduplicates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketSubsetInstrumentResolverNormalizesProviderPrefixedCodes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketSubsetInstrumentResolverUnavailableWhenAllMatchesAreUnsupported": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketSubsetInstrumentResolverLimitsAfterRankingWithoutAutoResolvingHiddenMatches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketSubsetInstrumentResolverCachesAndCoalescesNormalizedKeyword": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketSubsetInstrumentResolverResetSeparatesProviderGenerations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketSubsetInstrumentResolverRechecksCacheInsideSingleflightWork": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketSubsetInstrumentResolverDoesNotCacheSearchErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketSubsetInstrumentResolverValidatesInput": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketSubsetInstrumentResolverPropagatesContextCancellation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestClassifyInstrumentResolutionKeepsMultiplePartialCandidatesAmbiguous": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestCacheRemainingLifecycleBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestSubscriptionRegistryRemainingLifecycleBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestNormalizeInstrumentIDRejectsIncompleteValues": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceRemainingLifecycleBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceFinalSubscriptionCleanupAlwaysHasDeadline": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestCollectorAdvancesInactiveSubscriptionCleanupAfterActiveDemand": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestCollectorRemainingLifecycleBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestInstrumentResolverRemainingLifecycleBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceNewsAndCorporateActionsRejectProvidersWithoutCapability": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceNewsValidatesLimitAndForwardsNormalizedArguments": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceNewsResolvesChinaAggregateToExchangeLeaf": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceCorporateActionsValidatesRangeAndForwardsArguments": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestProviderSwitchHelpersHandleNilAndResetBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情源运行时原子平滑切换、状态暂存与订阅自动重绑",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(provider)'"
+  },
+  "TestProviderSwitchRetainsOnlyCurrentGenerationTickCandles": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情源运行时原子平滑切换、状态暂存与订阅自动重绑",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(provider)'"
+  },
+  "TestPollOnlyProviderHealthUsesPollingModes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情源运行时原子平滑切换、状态暂存与订阅自动重绑",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(provider)'"
+  },
+  "TestPollOnlyProviderReadsDoNotRequireLogicalLease": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情源运行时原子平滑切换、状态暂存与订阅自动重绑",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(provider)'"
+  },
+  "TestProviderSwitchCacheUtilitiesCoverConcreteValuesAndCNRejection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情源运行时原子平滑切换、状态暂存与订阅自动重绑",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(provider)'"
+  },
+  "TestCollectorCloseHelpersRejectElapsedDeadlines": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情源运行时原子平滑切换、状态暂存与订阅自动重绑",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(provider)'"
+  },
+  "TestProviderChangeAndManagedLeaseAreMutuallyExclusive": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情源运行时原子平滑切换、状态暂存与订阅自动重绑",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(provider)'"
+  },
+  "TestConcurrentManagedLeaseWinsBeforeProviderChange": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情源运行时原子平滑切换、状态暂存与订阅自动重绑",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(provider)'"
+  },
+  "TestConcurrentProviderChangeWinsBeforeManagedLease": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情源运行时原子平滑切换、状态暂存与订阅自动重绑",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(provider)'"
+  },
+  "TestProviderChangeInvalidatesCacheBeforeUnblockingReaders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情源运行时原子平滑切换、状态暂存与订阅自动重绑",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(provider)'"
+  },
+  "TestProviderChangeBlocksReadsDuringActivation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情源运行时原子平滑切换、状态暂存与订阅自动重绑",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(provider)'"
+  },
+  "TestProviderChangeWaitsForInflightReadThenClearsItsCache": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情源运行时原子平滑切换、状态暂存与订阅自动重绑",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(provider)'"
+  },
+  "TestFailedProviderChangeKeepsOldCollectorAndCache": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情源运行时原子平滑切换、状态暂存与订阅自动重绑",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(provider)'"
+  },
+  "TestSnapshotSerializationPreservesAuthoritativeMissingQuoteFields": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestSnapshotSerializationKeepsLegacyZeroValuesAvailable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceRankingsRejectsProvidersWithoutCapability": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceRankingsValidatesKindAndLimit": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceRankingsForwardsNormalizedKindAndDefaultLimit": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceIndustriesRejectsNonCNMarkets": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceIndustriesForwardsKindAndMembersArguments": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceIndustriesDefaultsEmptyKindToIndustry": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceScreenRejectsProvidersWithoutCapability": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceScreenValidatesRequestAndForwards": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceScreenPassesProviderErrorsThrough": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceDelegatesProviderFacadeAndRefreshBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceSnapshotErrorsAreBusinessVisible": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceSnapshotResolvesChinaAggregateToExchangeLeaf": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceProviderReadsResolveChinaAggregateToExchangeLeaf": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceRejectsSnapshotCompletedAfterProviderChange": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceTickCandlesProviderAndFallbackBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestLimitCandleMapsKeepsLatestEntriesOnly": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceSubscriptionFacadeCacheHelpersAndLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceHealthAndSerializationNilBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceProviderStatusCombinesDescriptorHealthAndDemand": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
+    "conclusion": "已覆盖：行情服务统一门面、提供商健康度探针与扩展数据聚合（新闻、公司研究、指数成分股）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestSubscriptionRegistryExpiresOnlyWebConsumersAndPreservesManagedLeases": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/subscription.rs`",
+    "conclusion": "已覆盖：行情订阅引用计数租约、多消费者共享连接与退订排空生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(subscription)'"
+  },
+  "TestSubscriptionRegistryConcurrentAcquireHeartbeatAndRelease": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/subscription.rs`",
+    "conclusion": "已覆盖：行情订阅引用计数租约、多消费者共享连接与退订排空生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(subscription)'"
+  },
+  "TestManagedSubscriptionConcurrentReleaseIsIdempotent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/subscription.rs`",
+    "conclusion": "已覆盖：行情订阅引用计数租约、多消费者共享连接与退订排空生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(subscription)'"
+  },
+  "TestServiceReconcilesWebAndManagedSubscriptionLifecycles": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/subscription.rs`",
+    "conclusion": "已覆盖：行情订阅引用计数租约、多消费者共享连接与退订排空生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(subscription)'"
+  },
+  "TestServiceRollsBackFailedAcquireAndHandlesDeferredReleaseFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/subscription.rs`",
+    "conclusion": "已覆盖：行情订阅引用计数租约、多消费者共享连接与退订排空生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(subscription)'"
+  },
+  "TestSubscriptionValidationAndSnapshotDecorationBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/subscription.rs`",
+    "conclusion": "已覆盖：行情订阅引用计数租约、多消费者共享连接与退订排空生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(subscription)'"
+  },
+  "TestFailedAcquireRestoresOnlyTheAttemptedConsumerState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/subscription.rs`",
+    "conclusion": "已覆盖：行情订阅引用计数租约、多消费者共享连接与退订排空生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(subscription)'"
+  },
+  "TestManagedLeaseReleaseRestoresPreexistingConsumerOwnership": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/subscription.rs`",
+    "conclusion": "已覆盖：行情订阅引用计数租约、多消费者共享连接与退订排空生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(subscription)'"
+  },
+  "TestSubscriptionRequiredErrorsAndManagedReadDemandBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/subscription.rs`",
+    "conclusion": "已覆盖：行情订阅引用计数租约、多消费者共享连接与退订排空生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(subscription)'"
+  },
+  "TestPollOnlyProviderPreservesLogicalLeaseAndRejectsUnsupportedReadsFirst": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/subscription.rs`",
+    "conclusion": "已覆盖：行情订阅引用计数租约、多消费者共享连接与退订排空生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(subscription)'"
+  },
+  "TestServiceMergesAdditionalDemandIntoExactReconciliation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/subscription.rs`",
+    "conclusion": "已覆盖：行情订阅引用计数租约、多消费者共享连接与退订排空生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(subscription)'"
+  },
+  "TestServiceCloseLeavesPhysicalSubscriptionsEmpty": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/subscription.rs`",
+    "conclusion": "已覆盖：行情订阅引用计数租约、多消费者共享连接与退订排空生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(subscription)'"
+  },
+  "TestSubscriptionRegistryContract": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/subscription.rs`",
+    "conclusion": "已覆盖：行情订阅引用计数租约、多消费者共享连接与退订排空生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(subscription)'"
+  },
+  "TestSubscriptionRegistrySeparatesChannelAndInterval": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/subscription.rs`",
+    "conclusion": "已覆盖：行情订阅引用计数租约、多消费者共享连接与退订排空生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(subscription)'"
+  },
+  "TestSubscriptionRegistryClearAllAndActiveInstruments": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/subscription.rs`",
+    "conclusion": "已覆盖：行情订阅引用计数租约、多消费者共享连接与退订排空生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(subscription)'"
+  },
+  "TestServiceOwnsSubscriptionsAndHealthMode": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/subscription.rs`",
+    "conclusion": "已覆盖：行情订阅引用计数租约、多消费者共享连接与退订排空生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(subscription)'"
+  },
+  "TestBinaryNameForUsesGoPlatformNames": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestSelectFromFSReturnsPlatformOnedirAssetMetadata": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestSelectFromFSTreatsMissingAndEmptyAssetsAsUnavailable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestSelectFromFSReturnsUnexpectedReadError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestSelectFromFSRejectsInvalidPlatformBundleShapes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestReadAssetFilesRejectsUnsafeOrUnreadableEntries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestMaterializeAssetUsesPrivateDirectoryAndCleansUp": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestMaterializeAssetRejectsEmptyAsset": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestMaterializeAssetRejectsDigestChanges": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestMaterializeAssetRejectsInvalidBundlePath": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestMaterializeAssetRequiresUsableExecutableAndWritableTempRoot": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestAssetPathAndDigestHelpersRejectDuplicateOrEscapingPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestCleanupHandlesNilAndAlreadyCleanedAssets": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestDigestMaterializedFilesReportsOpenError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestIsMissingAssetRecognizesOnlyNotFoundErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestSelectReturnsUnavailableWithoutReleaseAssets": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestReleaseReturnsUnavailableWithoutReleaseAssets": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestDevelopmentCacheWrappersRemainSafeWithoutEmbeddedAssets": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestSelectReturnsStagedPlatformAssetWhenPresent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestStagedDarwinBundleEmbedsPythonLoaderAsRegularFile": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestMaterializeCachedReleaseAssetReusesBundleAndFallsBack": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestBinaryNameUsesCurrentRuntime": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestMaterializeCachedAssetReusesVerifiedContent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestMaterializeCachedAssetRepairsTamperAndSymlink": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestMaterializeCachedAssetPublishesConcurrently": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestPublishCachedAssetAcceptsOnlyAValidConcurrentWinner": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestMaterializeCachedAssetPrunesOnlyExpiredDigests": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestPruneCachedAssetsIgnoresMissingCacheRoot": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestMaterializeCachedAssetRejectsUnsafeCacheRoot": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestEnsurePrivateCacheRootReportsUninspectablePath": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRemoveInvalidCacheTargetReportsInspectionFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRemoveInvalidCacheTargetReportsRemovalFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestMaterializeCachedAssetRejectsInvalidAssetAndRootInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestWriteAssetFilesReportsInvalidPathsAndFilesystemConflicts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestValidateCachedAssetRejectsUnsafeShapes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestValidateCachedAssetRejectsSocket": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/embedded_assets.rs`",
+    "conclusion": "已覆盖：内置离线元数据资产解压加载、开发/生产模式资产选择与资产完整性校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestBuiltinResolverUSHolidayAndEarlyClose": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestBuiltinResolverHKWeekdayFallbackUsesTemplateSessions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestBuiltinResolverMainlandHolidayFallbackClosesKnownHoliday": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestBuiltinResolverMainlandWeekdayFallbackStillOpensRegularDay": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestBuiltinResolverMainlandAliasesShareHolidayFallback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestBuiltinCalendarBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestCalendarHelperBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestSnapshotHelpersRespectMarketDateAndCoverageWindow": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestTradingDaySessionHelpersReflectBusinessState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestBuiltinUSChristmasEveEarlyCloseAndTemplateCopies": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestBuiltinResolverCalendarBoundaryFallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestCalendarSessionNormalizationAndLocationFallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestTradingDayScheduleJSONOmitsZeroUpdatedAt": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestHKProfileUsesHongKongTimezoneAndSplitSessions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestLoadLocationFallsBackToUTC": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestInstrumentAndSessionValidationContracts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestTimeBoundaryValidationRules": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestMarketInputMatchingAndCalendarResolverLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestTradingMinuteHelpersAndExtendedSessionFlags": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestCalendarAndTradingPeriodLabels": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestParseInstrumentValidationAndProfileFormatting": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestMarketResolverAndSessionBoundaryFallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestUSAfterHoursWindowsAndPeriodLabelBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestNormalizeMarketInputAliases": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestCustomCalendarSessionWindowsAndClosedDays": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestTradingDayBoundaryUsesCalendarOvernightCarryStart": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestSessionWindowBoundsRejectsMissingSessionWindows": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestNonUSExtendedRequestsUseRegularWindowsAndLabelValidation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestClassifySessionForUS": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestIsRegularTradingTimeUsesHolidayCalendarForUS": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestRegularTradingTimeForHKAndChinaLunchBreaks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestNormalizeMarketInputAndParseInstrument": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestMarketDescriptorsExposeFrontendMetadata": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestUserMarketDescriptorsKeepChinaExchangesAsCNSubset": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestShouldUseRegularCloseAsPreviousClose": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestTradingPeriodKeys": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestTradingPeriodLabelStart": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestTradingDayBoundaryStart": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestSessionAwareIntradayBucketBounds": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestMarketSessionBoundaryGuardClauses": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestMarketSessionBucketClampsAtSessionEnd": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestMarketSundayOvernightCarryWindow": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestMarketLabelAndResolverFailureBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestCoverage98ExtendedWindowFailsClosedWhenCalendarRefreshRemovesClassifiedWindow": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestResolveSessionWindowUsesTradingCalendarBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestResolveSessionWindowRejectsClosedAndResolvesOvernightTradingDate": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestResolveTradingDaySessionWindowCoversNamedSessionsAndInvalidInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestResolveSessionWindowDoesNotInventMissingCalendarData": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestResolveTradingDaySessionWindowTracksDaylightSavingTime": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
+    "conclusion": "已覆盖：多市场标的代码清洗归一化、交易时段划分与会话窗口判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+  },
+  "TestSHProfileUsesChinaMarketAndTimezone": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestSZProfileUsesChinaMarketAndTimezone": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestUSProfileUsesNewYorkTimezoneAndRegularSession": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestUSTradingDayAndEarlyCloseRules": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestUSTradingCalendarEdgeBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
+    "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
   }
 }
