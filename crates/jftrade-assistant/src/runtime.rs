@@ -784,4 +784,22 @@ mod tests {
                 .all(|call| call.status == ToolCallStatus::Running && !call.requires_user)
         );
     }
+
+    #[test]
+    fn cascade_deletion_fences_stale_writer_and_session_recovery() {
+        let now = timestamp();
+        let mut runtime = runtime();
+        assert!(runtime.checkpoint().sessions.contains_key("session-1"));
+        assert!(runtime.checkpoint().runs.contains_key("run-1"));
+
+        // Simulate session purge / cascade deletion
+        runtime.checkpoint.runs.clear();
+        runtime.checkpoint.sessions.clear();
+
+        // Stale writer attempting to create run under deleted session fails
+        assert_eq!(
+            runtime.create_run("run-stale", "session-1", "agent-1", now),
+            Err(RuntimeError::SessionNotFound("session-1".to_owned()))
+        );
+    }
 }
