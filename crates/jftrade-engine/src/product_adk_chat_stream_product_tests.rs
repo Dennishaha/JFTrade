@@ -250,6 +250,10 @@ async fn adk_chat_stream_routes_register_only_with_explicit_test_port() {
     assert!(stream_body.contains("data: "));
     assert!(stream_body.contains("\"type\":\"final\""));
     assert!(stream_body.contains("\"message\":\"fixture response\""));
+    // Parity: internal/api/assistant/adk_routes_test.go:245 TestADKChatStreamEmitsSessionRunAndFinalEvents
+    // Verifies stream frame headers, session/run/final payload structure and timeout contract
+    assert_eq!(stream.headers["x-adk-stream-idle-timeout-ms"], "300000");
+    assert_eq!(stream.headers["x-adk-stream-id"], "stream-fixture");
     handle.shutdown().await.expect("shutdown product");
 }
 
