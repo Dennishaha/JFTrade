@@ -183,3 +183,4 @@
    - [x] 补齐回测同步任务取消 Active / Terminal / Missing 状态边界（`490f3c38`）。
    - [x] 补齐回测同步 SessionScope 默认空字符串为 regular 与非法输入拦截契约（`a957d393`）。
    - [x] 补齐 Web 登录 Cookie HttpOnly、SameSite=Strict 与 Path=/ 属性约束断言（`cd407be7`）。
+   - [x] 补齐 Broker 运行时 Session 状态显式包含 null `lastError` 契约断言（`6073d098`）。
