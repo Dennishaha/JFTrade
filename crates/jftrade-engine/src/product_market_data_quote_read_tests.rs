@@ -512,6 +512,8 @@ async fn market_microstructure_quote_routes_reject_invalid_queries_before_reader
         ("/api/v1/market-data/depth/US/AAPL", "num=51"),
     ];
 
+    // Parity: internal/api/marketdata/routes_test.go:450 TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize
+    // Verifies invalid num/pageSize/date format queries are rejected with BAD_REQUEST before dispatching to provider
     for (path, query) in cases {
         let error = port.read(path, query).await.expect_err("invalid query");
         assert!(matches!(
