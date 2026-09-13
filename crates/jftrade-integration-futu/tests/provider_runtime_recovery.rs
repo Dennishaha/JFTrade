@@ -45,6 +45,8 @@ struct Security {
 }
 
 #[test]
+// Parity: internal/integration/futu/marketdata_runtime_test.go:45 TestMarketDataRuntimeCloseWaitsForEnsureAndDoesNotRevive
+// Verifies connection recovery, stale subscription replacement, and ensures clean lifecycle transitions
 fn latest_demand_replaces_stale_replay_while_reconnect_is_pending() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
     let address = listener.local_addr().expect("address");
