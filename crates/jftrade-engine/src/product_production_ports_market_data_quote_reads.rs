@@ -248,13 +248,13 @@ impl ProductionMarketDataQuotePort {
             parse_candle_sessions(query_map.get_all("sessions")).map_err(|err| match err {
                 CandleSessionError::Empty => MarketDataQuoteReadSnapshotError::Failed {
                     status: 400,
-                    code: "BAD_REQUEST".to_owned(),
+                    code: "MARKET_CANDLE_SESSIONS_INVALID".to_owned(),
                     message: "invalid candle sessions: at least one session is required".to_owned(),
                     retry_after_seconds: None,
                 },
                 CandleSessionError::Invalid(token) => MarketDataQuoteReadSnapshotError::Failed {
                     status: 400,
-                    code: "BAD_REQUEST".to_owned(),
+                    code: "MARKET_CANDLE_SESSIONS_INVALID".to_owned(),
                     message: format!("invalid candle sessions: {token:?}"),
                     retry_after_seconds: None,
                 },

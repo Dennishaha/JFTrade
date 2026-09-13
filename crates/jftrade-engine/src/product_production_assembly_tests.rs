@@ -3506,9 +3506,10 @@ mod product_production_assembly_tests {
             )
             .await
             .unwrap_err();
+        // Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:315 TestMarketDataReadErrorsRejectInvalidCandleSessions
         assert!(matches!(
             err_bad_session,
-            crate::product::MarketDataQuoteReadSnapshotError::Failed { status: 400, code, .. } if code == "BAD_REQUEST"
+            crate::product::MarketDataQuoteReadSnapshotError::Failed { status: 400, code, .. } if code == "MARKET_CANDLE_SESSIONS_INVALID"
         ));
 
         let err_empty_session = quote
@@ -3517,7 +3518,7 @@ mod product_production_assembly_tests {
             .unwrap_err();
         assert!(matches!(
             err_empty_session,
-            crate::product::MarketDataQuoteReadSnapshotError::Failed { status: 400, code, .. } if code == "BAD_REQUEST"
+            crate::product::MarketDataQuoteReadSnapshotError::Failed { status: 400, code, .. } if code == "MARKET_CANDLE_SESSIONS_INVALID"
         ));
 
         // Invalid RFC3339 from
