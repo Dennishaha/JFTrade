@@ -202,3 +202,193 @@ fn map_preview_error(error: CleanupPreviewError) -> MaintenanceOperationError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cleanup::CleanupPreviewService;
+    use crate::overview::{DatabaseDescriptor, DatabaseOverviewPort, DatabaseStatus};
+    use crate::{
+        CleanupCandidatePort, CleanupCandidateQuery, CleanupCandidateRecord, CleanupPreviewIdPort,
+    };
+    use crate::{DatabaseInspection, StorageStats};
+    use std::collections::BTreeSet;
+    use std::sync::Arc;
+
+    #[derive(Debug)]
+    struct StubMaintenancePort;
+    impl DatabaseMaintenancePort for StubMaintenancePort {
+        fn execute_cleanup(
+            &self,
+            _approved: &ApprovedCleanupPreview,
+        ) -> Result<CleanupResult, MaintenanceOperationError> {
+            Ok(CleanupResult {
+                database_id: "strategy".into(),
+                deleted_count: 0,
+                estimated_bytes: 0,
+                before_bytes: 100,
+                after_bytes: 100,
+                reclaimed_bytes: 0,
+                compacted: false,
+                warning: "".into(),
+            })
+        }
+        fn compact(
+            &self,
+            database_id: &str,
+            _executed_at: &str,
+        ) -> Result<CompactResult, MaintenanceOperationError> {
+            Ok(CompactResult {
+                database_id: database_id.into(),
+                before_bytes: 100,
+                after_bytes: 80,
+                reclaimed_bytes: 20,
+                compacted: true,
+            })
+        }
+        fn backup(
+            &self,
+            database_id: &str,
+            executed_at: &str,
+        ) -> Result<BackupResult, MaintenanceOperationError> {
+            Ok(BackupResult {
+                database_id: database_id.into(),
+                backup_path: "/tmp/backup.db".into(),
+                size_bytes: 100,
+                created_at: executed_at.into(),
+            })
+        }
+        fn rebuild(
+            &self,
+            _request: &RebuildRequest,
+            _executed_at: &str,
+        ) -> Result<RebuildResult, MaintenanceOperationError> {
+            Ok(RebuildResult {
+                database_ids: vec!["strategy".into()],
+                restart_required: false,
+                scheduled: false,
+            })
+        }
+    }
+
+    #[derive(Debug)]
+    struct FixedOverview {
+        status: DatabaseStatus,
+        scheduled: BTreeSet<String>,
+    }
+
+    impl DatabaseOverviewPort for FixedOverview {
+        fn scheduled_rebuilds(&self) -> Result<BTreeSet<String>, String> {
+            Ok(self.scheduled.clone())
+        }
+
+        fn inspect(
+            &self,
+            _descriptor: &DatabaseDescriptor,
+            _summary_only: bool,
+        ) -> DatabaseInspection {
+            DatabaseInspection {
+                status: self.status.clone(),
+                current_version: Some(1),
+                error: String::new(),
+                storage: StorageStats::default(),
+                cleanable: None,
+            }
+        }
+    }
+
+    #[derive(Debug)]
+    struct FixedCandidates(Vec<CleanupCandidateRecord>);
+
+    impl CleanupCandidatePort for FixedCandidates {
+        fn candidates(
+            &self,
+            _descriptor: &DatabaseDescriptor,
+            _query: &CleanupCandidateQuery,
+        ) -> Result<Vec<CleanupCandidateRecord>, String> {
+            Ok(self.0.clone())
+        }
+    }
+
+    #[derive(Debug)]
+    struct FixedPreviewId;
+    impl CleanupPreviewIdPort for FixedPreviewId {
+        fn new_preview_id(&self) -> Result<String, String> {
+            Ok("0123456789abcdef0123456789abcdef".into())
+        }
+    }
+
+    #[test]
+    fn maintenance_service_confirmation_validation_and_rejection_parity() {
+        // Parity: internal/datamanagement/service_test.go:44 TestServiceFallbacks
+        let previews = Arc::new(CleanupPreviewService::new(
+            vec![DatabaseDescriptor {
+                id: "strategy".into(),
+                name: "strategy".into(),
+                path: "/tmp/strategy.db".into(),
+                description: String::new(),
+                features: vec![],
+                expected_version: 1,
+            }],
+            Arc::new(FixedOverview {
+                status: DatabaseStatus::Ready,
+                scheduled: BTreeSet::new(),
+            }),
+            Arc::new(FixedCandidates(vec![])),
+            Arc::new(FixedPreviewId),
+        ));
+        let service = MaintenanceService::new(previews, Arc::new(StubMaintenancePort));
+
+        // Invalid compact confirmation rejected
+        let err = service
+            .compact(
+                "strategy",
+                CompactRequest {
+                    confirmation: "INVALID".into(),
+                },
+                "2026-09-01T00:00:00Z",
+            )
+            .unwrap_err();
+        assert!(matches!(err, MaintenanceOperationError::Rejected(_)));
+
+        // Valid compact confirmation accepted
+        assert!(
+            service
+                .compact(
+                    "strategy",
+                    CompactRequest {
+                        confirmation: "COMPACT strategy".into(),
+                    },
+                    "2026-09-01T00:00:00Z",
+                )
+                .is_ok()
+        );
+
+        // Invalid backup confirmation rejected
+        let err = service
+            .backup(
+                "strategy",
+                BackupRequest {
+                    database_id: "strategy".into(),
+                    confirmation: "INVALID".into(),
+                },
+                "2026-09-01T00:00:00Z",
+            )
+            .unwrap_err();
+        assert!(matches!(err, MaintenanceOperationError::Rejected(_)));
+
+        // Valid backup confirmation accepted
+        assert!(
+            service
+                .backup(
+                    "strategy",
+                    BackupRequest {
+                        database_id: "strategy".into(),
+                        confirmation: "BACKUP strategy".into(),
+                    },
+                    "2026-09-01T00:00:00Z",
+                )
+                .is_ok()
+        );
+    }
+}

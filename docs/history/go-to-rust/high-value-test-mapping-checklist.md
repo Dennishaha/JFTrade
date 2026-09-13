@@ -125,7 +125,7 @@
 | [x] | `go:452dea11:cmd/jftrade-desktop/main_test.go:464`<br>`TestDesktopLogPageTailOffsetReturnsLastPageInFileOrder` | 工具与核心 | 桌面/日志TailOffset逆序 | `apps/desktop/src-tauri/src/native_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days` |
 | [x] | `go:452dea11:cmd/jftrade-desktop/main_test.go:506`<br>`TestDesktopLogPageTailOffsetAppliesFiltersBeforePaging` | 工具与核心 | 桌面/日志过滤先于分页 | `apps/desktop/src-tauri/src/native_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days` |
 | [x] | `go:452dea11:cmd/jftrade-desktop/main_test.go:523`<br>`TestListDesktopLogDaysMissingDirReturnsEmpty` | 工具与核心 | 桌面/日志缺失目录空返回 | `apps/desktop/src-tauri/src/native_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days` |
-| [~] | `go:452dea11:internal/datamanagement/service_test.go:44`<br>`TestServiceFallbacks` | 工具与核心 | 核心/数据管理兜底 | `crates/jftrade-datamanagement/src/service.rs` | 部分覆盖 | 语义一致 | 补充数据管理降级测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement` |
+| [x] | `go:452dea11:internal/datamanagement/service_test.go:44`<br>`TestServiceFallbacks` | 工具与核心 | 核心/数据管理兜底与确认校验 | `crates/jftrade-datamanagement/src/maintenance.rs` | 已覆盖 | 语义一致 | 验证 compact/backup 严格确认码校验与拒绝语义 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement` |
 ---
 
 ## 统计与覆盖率摘要
