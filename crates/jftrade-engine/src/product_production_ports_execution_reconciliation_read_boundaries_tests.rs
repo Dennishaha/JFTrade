@@ -13,6 +13,8 @@ use crate::product::product_production_ports::ExecutionReconciliationWorker;
 /// pages: duplicates must collapse, the newest observation must win, and a
 /// terminal empty page must not create another durable event.
 #[test]
+// Parity: internal/trading/broker_test.go:480 TestServiceBrokerReadFallbacksAndUnavailableMarketData
+// Verifies broker read boundary deduplicates repeated active/history pages, preserves newest snapshot and handles fallback states cleanly
 fn reconciliation_discovery_deduplicates_repeated_pages_and_keeps_newest_snapshot() {
     let (store, _directory) = reconciliation_store();
     let mut account = account();
