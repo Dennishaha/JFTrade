@@ -9634,5 +9634,1769 @@
     "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
     "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestServiceQueryMethodsHandleNilStoresAndFullList": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestServiceCoverageAndNormalizationBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestHistoricalKLineSyncerPaginatesBackwardAndIsolatesProvider": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestValidateHistoricalKLineSyncAllowsMissingCapabilityValidator": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestHistoricalKLineSyncerValidatesLifecycleAndTerminalProviderFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestHistoricalCandleConversionRejectsInvalidFieldsAndDefaultsVolume": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestBacktestDateRangeRejectsIncompleteAndInvalidMarketInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestBacktestDataPreparationRejectsInvalidCandidatesBeforeStartingSync": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestBacktestProviderOverrideValidationAndResolution": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestBacktestStartRejectsUnsupportedProviderBeforeQueueing": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestBacktestStartRejectsMissingCoverageBeforePersistingRun": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestBacktestSyncHelpersHandleDefaultsAndAdapterSetupFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestBacktestDiagnosticHelpersRejectUnexpectedDynamicValues": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestResultViewValidationRejectsMalformedWindowsAndResolutions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestDataReadinessPropagatesCoverageFailuresAndExistingSyncTerminalStates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestDataReadinessPinsProviderAcrossCoverageAndSyncAcceptance": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestResultViewExposesWarningsAndFiltersChartSeries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestResultViewAggregationDropsDamagedCandlesWithoutInventingVolume": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestResultViewRunPayloadPreservesProviderAndExecutionMetadata": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestResultViewOrdersLogsAndErrorsUseWindowAndCursor": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestResultViewParsingAndResolutionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestResultViewCandlesFiltersInvalidTimesAndAggregatesVolumeBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestResultViewSummaryPayloadIncludesRunMetadataAndLatestDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestBacktestPreparationRejectsInvalidInstrumentAndWarmupPlan": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestBacktestKeepsTerminalStateWhenRunningTransitionCannotPersist": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestServiceDefaultBacktestRequiresPineWorkerRunner": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestServiceDefaultBacktestUsesConfiguredPineWorkerRunner": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestStartQueuesRunAndExecutesWithInjectedRunner": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestStartScriptQueuesResearchRunWithoutStrategyProvider": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestPrepareResolvedBacktestNormalizesChartType": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestEnsureScriptDataReturnsReadyAndIncludesDerivedWarmup": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestEnsureScriptDataStartsAndDeduplicatesKLineSync": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestEnsureScriptDataSurfacesFailedSyncWithoutRestarting": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestEnsureScriptDataStopsAfterCompletedSyncStillLacksCoverage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestEnsureScriptDataBecomesReadyAfterCompletedSyncFillsCoverage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestEnsureDefinitionsDataUsesMaximumCandidateWarmup": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestResultViewReturnsWindowedAggregatedChartData": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestStartValidationErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestStartMarksFailedWhenRunnerReturnsError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestCloseCancelsAndWaitsForActiveBacktest": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestRunStoreDelegation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestFinishRunFallsBackToMemoryOnlyWhenPersistentUpdateFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestSyncProgressAndCancelDelegateToSyncTaskStore": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestSyncConvertsParamsAndClosesAdapter": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestSyncFailureMarksProgressFailedAndClosesAdapter": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestCloseCancelsAndWaitsForActiveSync": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestSyncTaskIDsAreUnique": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestSyncClosesAdapterWhenTaskStoreMissing": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestSyncRejectsUnsupportedProviderCombinationBeforeAcceptingTask": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestSyncRetainsConstructedAdapterValidation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestSyncRequestErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestSyncUnknownRehabTypeFallsBackToForward": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestPlanSyncIntervals": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestParseSessionScope": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestResolveBacktestTimeRangeUsesMarketDateAndDST": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestResolveBacktestTimeRangeUsesHongKongCalendarDay": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestResolveBacktestTimeRangeNormalizesLegacyTimestamps": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
+    "conclusion": "已覆盖：回测引擎调度、交易日历交易日对齐、历史分段数据异步同步流水线与并发取消控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+  },
+  "TestNormalizeExecutionModelName": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorValidationErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorFillsMarketOrderOnNextOpenWithLiquidityCap": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorRunsParentBracketAtomicallyAndStopFirst": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorRejectsAtomicChildWithoutParent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorFillsAtomicBracketOnSignalClose": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorCancelParentCancelsProtectiveChildren": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorCancelsReduceOnlyOrderWithoutPosition": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorLimitsReduceOnlyFillToOpenPosition": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorCancelOrders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorProcessOrdersOnCloseUsesSignalClose": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorSellMarketAndSlippage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorLimitOrderGetsGapImprovement": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorLimitSellAndClosePointBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorStopOrders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorWarningsAndUnmatchedOrders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorLiquidityWarnings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorHelperBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestConservativeBarExecutorCancelSkipsUnmatchedPendingOrders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFeeSchedulePreservesExplicitPresetIntentAndSafeEmptyFallback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFeeEngineRejectsNonBillableTradesAndDoesNotDoubleChargeOrderFee": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestAccountReadFailureDoesNotCreateSpeculativeEquityPoint": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPrepareKLineErrorClassifierRequiresBothStableFragments": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestSessionFilteredStoreDelegatesVerifyAndSync": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestSessionFilteredStoreQueryHelpersFilterUSRegularHours": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestSessionFilteredStoreStreamKLinesFallsBackToChannels": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestSessionFilteredStoreUsesCustomExtendedHoursRangeQueries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestSessionFilteredStoreCustomBackwardQueriesTrimLatestWindow": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestSessionFilteredStoreQueryKLinesChIncludesCustomExtendedHoursRows": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestSessionFilteredStoreQueryKLinesChFiltersRegularHoursWithoutExtendedHours": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestSessionFilteredStoreQueryKLinesChPropagatesBaseAndCustomErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestSessionFilteredStoreCustomRangeFallbackAndCursorBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestSessionFilteredStoreStreamKLinesUsesStreamerAndCustomExtendedHoursRows": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestSessionFilteredStoreHelperFunctions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestRunResultSnapshotHandlesNilAndReturnsIndependentCopy": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestRunResultSnapshotOmitsEmptyRuntimeErrorCounts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestAddRuntimeErrorReusesExistingSamplesAndCapsUniqueList": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestRunResultWarningsTrackIgnoredOrdersAndCapSamples": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestRunResultGroupsRepeatedIgnoredOrderWarnings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestRunResultWarningAndRuntimeErrorBoundaryAccounting": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestDailyAggregationPropagatesDamagedStorageErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestSyncProgressLifecycleAndNilReceiverBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStoredFixedDecimalBoundaryMatrix": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStoredKLineScanningClassifiesMissingMalformedAndValidRows": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStorageSchemaFallbackBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestNewFutuKLineStoreRejectsBlankAndLegacyDatabase": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestNewFutuKLineStoreClosesConnectionWhenCurrentSchemaInitializationFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestParseStoredFixedRoundTripsFixedpointString": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestParseStoredFixedFallsBackToUpstreamParser": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestAggregateQueryAPIsPropagateCoverageAndSourceFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStoredReadersSkipEmptyScopedTables": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestIntervalStorageValueCoversSupportedAndCustomIntervals": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestIntervalFromStorageValueCoversAllPersistedIntervals": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestReadSessionScopeNormalizationAndStorageTags": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestTradingPeriodIntervalHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestAggregationBaseIntervalsAndExtendedDailyPriority": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestAggregationBaseRangesRespectUSExtendedHours": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestPureAggregationHelpersHandleEmptyUnknownAndOutOfRangeInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestSessionAwareIntradayAggregationMergesBarsInsideMarketBucket": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestInsertKLineReplacesExistingBarAndQueryDefaultsToLatest": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestFindMissingRangesUsesLowerIntervalCoverageAndVerifyAllowsOpenWindow": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestQueryKLinesForwardAndBackwardAggregateWeeklyTradingPeriods": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestQueryDailyKLinesInRangeAggregatesUSExtendedHoursFromHourlyBars": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestAggregationMissingCoverageMessagesAndDailyFallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestAggregationPureHelpersSkipUnsupportedOrUnlabelledRows": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestNewFutuKLineStoreAllowsConcurrentReadConnections": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestFutuKLineUnifiedControllerSerializesConcurrentWriters": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestFutuKLineReadersRunInParallelWithLaterWALWrite": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestFutuKLineReadWaitsForPreviouslyQueuedWrite": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStoreAPIsPropagateClosedDatabaseFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestClosedDatabaseFailuresPropagateThroughStorageHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestCompactSchemaRejectsLegacyKLineTableShapes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestReadTableNamesHonorExplicitSessionScopePriority": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStreamAndQueryShortCircuitEmptyInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStoreRoundTripsScopedSeriesQueries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStoreAggregatesFiveMinuteBarsFromOneMinuteCoverage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStoreAggregatesDailyAndWeeklyBarsFromLowerIntervals": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestCompactDatabasePreservesUsableStoreAndReportsUnavailableStore": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestTableExistenceCacheRejectsUnexpectedDynamicTypes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestSelectReadTableNameUsesFirstExistingTableForUnboundedReads": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestAggregateQueryHelpersHandleDailyTradingAndIntradayReadSources": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestAggregateForwardBackwardQueriesNormalizeLimitsAndUseSynthesizedBars": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestScopedReadUsesOnlyTheRequestedSeries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestBatchInsertFailureRollsBackPriorBars": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestCoverageSelectionDistinguishesMissingBoundariesAndSynthesis": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestAggregationBoundaryHelpersKeepIncompleteAndOutOfWindowBarsOut": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestCoverageResolversReportUnsupportedAggregationAndClosedStoreErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestAggregatedReadersDistinguishDirectSeriesCorruptBaseDataAndUnavailableStorage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStorageInvariantHelpersReportUnexpectedValues": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestCoverageQueriesHandleEmptyWindowsMissingTablesAndBrokenTables": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestSessionAwarePagingReportsCoverageGapAfterAPartialBatch": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestSchemaHelpersExposeStableStorageContracts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestSessionAwareIntradayAggregationAcrossHKTradingSessions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestQuerySessionAwareIntradayKLinesInRangeSupportsUSExtendedHours": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestQueryAPIsSortMultiSymbolAndMixedIntervalResults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStoredStreamFailuresRemainVisibleToAllQueryShapes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestMultiSymbolStreamUsesSymbolAsFinalStableSortKey": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务数据模型反序列化、SQLite 运行实例持久化、绩效收益指标与进度快照记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestPineCommissionRateConvertsPercentToRate": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResolvePineInitialBalancePrecedence": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestBacktestSlippagePriceUsesMarketTickSize": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestBacktestSlippageExecutorSubmitsAdjustedMarketOrdersAndPassesCancels": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPinetsShadowCorpusReport": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPinetsShadowEMAUsesSMAInitialization": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPinetsShadowMACDSkipsNaNValuesForSignalInitialization": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestRealPineTSBacktestSmoke": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestCommandsFromOrderIntents": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestCommandFromOrderIntentPreservesShortDirection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestCommandFromOrderIntentMapsShortExitToBuy": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestScopedExitQuantitySurvivesGoExecution": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestCommandFromOrderIntentMapsConditionalOrderTypes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestCommandFromOrderIntentRejectsUnsupportedExitBracket": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestCommandsFromOrderIntentsExpandsAtomicOCOExit": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestCommandFromOrderIntentCanonicalizesSellEntryAsShort": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestCommandFromOrderIntentDefaultsEntryQuantity": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestCommandFromOrderIntentRejectsUnsupportedIntent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerBacktestAdapterRun": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerBacktestAdapterMapsErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerAtomicGroupRejectsEveryUnsafeShape": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerAtomicExecutionFailureBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorSubmitsOrders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorRejectsQuantityPctWithoutSizing": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorRejectsMissingQuantity": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorSizesEntryQuantityPctFromEquity": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorSizesCloseQuantityPctFromPosition": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorDefaultsCloseToFullPosition": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorTagsShortReplayOrders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorIgnoresCloseWithoutPosition": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorIgnoresQuantityBelowMarketStep": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorIgnoresHKOddLotBelowBoardLot": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorIgnoresOrdersWhenMarketRulesUnavailable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorGroupsRepeatedIgnoredOrderWarnings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorAutoCloseCoversShortPosition": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorHonorsExplicitShortCloseAndOptionalWarnings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorCancelsTrackedOrders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorCancelAll": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorRejectsAtomicBracketBeforeAnySubmission": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorSubmitsParentOCOBracketAtomically": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorRejectsMalformedAtomicBracket": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorPropagatesExecutorErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorBusinessBoundaryErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorGeneratedOrderIDStopsAndTrackingFallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandExecutorCancelBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerReplayPumpConsumesThenExecutesCommands": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerReplayPumpValidatesReplayShape": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerReplayPumpFinishDetectsMissingBars": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerReplayPumpPropagatesCommandErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestCollectPineWorkerReplayKLines": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestCollectPineWorkerReplayKLinesMapsErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerReplayKLineBatchUsesFixedChunksAndExactResultCapacity": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestBuildPineWorkerBacktestRequestFromKLines": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestBuildPineWorkerBacktestRequestValidatesInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerReplayPlannerPlanGroupsCommands": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerReplayPlannerRejectsInvalidCommandBarIndex": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestNormalizeReplayCommandsPreservesSameBarEmissionOrder": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerReplayPlannerPropagatesWorkerError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestRunWithPineWorkerRejectsUnavailableRuntimeAndData": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestRunWithPineWorkerValidatesSourceAndCoverageBeforeReplay": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResolveBacktestQuoteCurrencyDefaultsByMarket": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestRemoveFutuMarketCacheToleratesMissingFile": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerRunnerRejectsInvalidConfigurationBeforeReplay": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerRunnerReplayStopsOnIntegrityFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerRunnerFailsClosedForInvalidWorkerCommandsDuringReplay": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestRunWithPineWorkerExecutesReplayThroughGoMatching": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestRunWithPineWorkerReportsWarmupFillsThatAffectEquity": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestRunWithPineWorkerExecutesQuantityPctReplay": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestRunWithPineWorkerWarnsAndIgnoresInitialCloseSignal": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestRunWithPineWorkerWarnsWhenHKLotSizeUnavailable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestEnsureBacktestSourceMarketReportsFallbackWarningWithoutRejectingOrders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestRunWithPineWorkerMapsWorkerErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerReplaySizerRejectsInvalidQuantityPctInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerReplaySizerMaintainsPositionFromIncrementalFills": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerReplaySizerEntryEquityBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerReplaySizerPriceAndQuantityPrecision": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResultCollectorPersistsHeikinAshiWarmupSeed": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResultCollectorBuildsTradesAndFinalStats": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResultCollectorTracksPartialFillIncrementally": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResultCollectorFeeBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResultCollectorTracksDrawdownMetrics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResultCollectorWarnsOnNonPositiveCloseOnce": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestOrderBookIdentityHelpersPreferExchangeThenClientThenPending": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResultCollectorFinalizeValuesOpenPositionAndMarksWarmupOrders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResultCollectorClosedTradeStatsUseWeightedPositionCost": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResultCollectorClosedTradeStatsHandleLongShortAndReversal": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResultCollectorClosedTradeStatsAggregatePartialClosingOrder": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResultCollectorClosedTradeStatsFinalizePartiallyFilledCancellation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResultCollectorClosedTradeStatsIncludeWarmupClosuresThatAffectEquity": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResultCollectorTradeStatsDefensiveBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestRunResultSnapshotReturnsIndependentCopy": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestRunResultAddRuntimeErrorAggregatesCountsAndCapsSamples": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestRunDirectGoPineRunnerIsDisabled": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestBacktestRunnerHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestSessionFilteredReplayStorePassThroughAndCursorBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestSessionFilteredReplayStoreStreamingContracts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestSessionFilteredReplayStoreCustomAggregationFailuresAndOrdering": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestSessionFilteredStoreCustomAggregationOnlyAppliesToUS": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerShortReplayExecutorDelegationBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerShortReplayExecutorSyntheticValidation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerShortReplayExecutorSyntheticPriceFallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerShortReplayExecutorFillsShortEntryAndCover": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerShortReplayExecutorCancelOrdersFiltersSyntheticOrders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestBacktestSourceExchangeExposesPinnedRulesWithoutLiveOperations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestInstrumentSpecConservativeDefaultsRespectMarketProfiles": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreSynthesizesTwoHourFromUSSessionAwareBuckets": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreSynthesizesTwoHourAcrossHKLunchBreak": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreSynthesizesTwoHourForwardFromUSSessionAwareBuckets": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreQueryBackwardSessionAwarePaginationMatchesRangeSeries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreSynthesizesDailyFromUSRegularTradingHours": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreSynthesizesDailyAcrossHKLunchBreak": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreSynthesizesWeeklyFromDailyTradingDays": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreSynthesizesMonthlyFromDailyTradingDays": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestNewFutuKLineStoreCreatesCompactSchema": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestNewFutuKLineStoreUsesSeparateTablesPerDimension": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreSeparatesScopedSyncVersions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreRegularScopeDoesNotReadExtendedRowsWhenCoverageIsIncomplete": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreQueryKLinesChPrefersRegularScopedRangeWhenCoverageIsComplete": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreQueryKLinesChDoesNotFallbackWhenRegularRangeIsIncomplete": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreRoundTripsCompactRows": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreFiltersByRehabType": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreVerifyAcceptsOverlappingCoverage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreVerifyReportsMissingCoverage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreSynthesizesFiveMinuteFromOneMinute": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStoreSynthesizesFifteenMinuteFromFiveMinute": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFutuKLineStorePrefersFiveMinuteSourceForFifteenMinuteQuery": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestIntervalStorageValueCoversSupportedIntervals": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestSyncProgressSnapshotReturnsIndependentCopy": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestTradingCostHelperBoundaryRules": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFeeAndReplayPrimitiveBoundaryHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerCommandAndReplayValidationEdges": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestPineWorkerAdapterAndPumpFailureContracts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResolveBacktestTradingCostsDefaultsByMarketAndInstrument": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResolveBacktestQuoteCurrencySupportsCNSymbols": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestResolveFeeScheduleClonesAndNormalizesCustomRules": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestFeeRuleEffectiveRangeUsesInclusiveTradeDates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestBacktestFeeEngineSeparatesBrokerMarketAndAppliesHKRounding": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestBacktestFeeEngineAppliesUSBrokerCapAndSellSideMarketFees": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestBacktestFeeEngineAppliesPerOrderMinimumIncrementally": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestScriptCommissionMapsToBrokerFeesOnly": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
+    "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
   }
 }
