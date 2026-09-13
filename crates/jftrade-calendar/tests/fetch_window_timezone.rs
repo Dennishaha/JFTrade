@@ -168,6 +168,7 @@ fn refresh_uses_market_local_boundaries_and_not_current_dst_offset() {
 
 #[test]
 fn probe_uses_market_local_year_when_us_crosses_utc_new_year() {
+    // Parity: go:452dea11:internal/exchangecalendar/manager_test.go:876 TestSnapshotCacheKeyUsesMarketLocalYear
     let (source, calls) = RecordingSource::new();
     let now = Arc::new(Mutex::new(timestamp("2026-01-01T04:30:00Z")));
     let manager = manager(source, Arc::clone(&now));
