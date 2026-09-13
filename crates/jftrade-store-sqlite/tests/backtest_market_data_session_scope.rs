@@ -176,3 +176,100 @@ fn unknown_session_scope_is_rejected_without_creating_a_table() {
     ));
     assert_eq!(store.kline_table_count().expect("count tables"), 1);
 }
+
+#[test]
+fn schema_kline_table_name_and_session_scope_validation_contracts() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("schema-contracts.db");
+    let store = store(&path);
+    let row = candle(0, 100);
+
+    // 1. Regular session table naming convention (contains __r__ and rehab type)
+    store
+        .insert_candles(
+            "futu",
+            "US.AAPL",
+            "1m",
+            "backward",
+            "regular",
+            std::slice::from_ref(&row),
+        )
+        .expect("insert backward regular");
+
+    // 2. Extended session table naming convention (contains __x__ and rehab type)
+    store
+        .insert_candles(
+            "yfinance",
+            "US.AAPL",
+            "1m",
+            "none",
+            "extended",
+            std::slice::from_ref(&row),
+        )
+        .expect("insert yfinance none extended");
+
+    let tables = store.kline_tables().expect("list tables");
+    let regular_table = tables
+        .iter()
+        .find(|t| {
+            t.contains("futu")
+                && t.contains("us_aapl")
+                && t.contains("__backward__")
+                && t.contains("__r__")
+        })
+        .expect("found regular table with backward rehab and __r__");
+    assert!(regular_table.starts_with("local_klines__futu__us_aapl__1m__backward__r__"));
+
+    let extended_table = tables
+        .iter()
+        .find(|t| {
+            t.contains("yfinance")
+                && t.contains("us_aapl")
+                && t.contains("__none__")
+                && t.contains("__x__")
+        })
+        .expect("found extended table with none rehab and __x__");
+    assert!(extended_table.starts_with("local_klines__yfinance__us_aapl__1m__none__x__"));
+
+    // 3. Unsupported provider is rejected
+    let invalid_provider = store.insert_candles(
+        "unsupported_feed",
+        "US.AAPL",
+        "1m",
+        "forward",
+        "regular",
+        std::slice::from_ref(&row),
+    );
+    assert!(matches!(
+        invalid_provider,
+        Err(BacktestMarketDataStoreError::Validation(msg)) if msg.contains("unsupported market-data provider")
+    ));
+
+    // 4. Unsupported rehab type is rejected
+    let invalid_rehab = store.insert_candles(
+        "futu",
+        "US.AAPL",
+        "1m",
+        "sideways",
+        "regular",
+        std::slice::from_ref(&row),
+    );
+    assert!(matches!(
+        invalid_rehab,
+        Err(BacktestMarketDataStoreError::Validation(msg)) if msg.contains("invalid rehab type")
+    ));
+
+    // 5. Unsupported session scope is rejected
+    let invalid_scope = store.insert_candles(
+        "futu",
+        "US.AAPL",
+        "1m",
+        "forward",
+        "pre_market_only",
+        std::slice::from_ref(&row),
+    );
+    assert!(matches!(
+        invalid_scope,
+        Err(BacktestMarketDataStoreError::Validation(msg)) if msg.contains("invalid session scope")
+    ));
+}
