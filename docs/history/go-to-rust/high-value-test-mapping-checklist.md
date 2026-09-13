@@ -1,76 +1,164 @@
-# Go → Rust 高价值测试映射清单
+# Go → Rust 高价值测试映射与功能补齐清单
 
-> 本清单是行为映射台账，不把测试数量当作迁移完成度。来源固定为 `go:452dea11`；Rust 路径指当前 production port、store 或 route 的真实测试入口。`[x]` 仅表示已有可复核 Rust 断言，`[~]` 表示已有部分覆盖，`[ ]` 表示仍需补测或修复。
+## 概述与推进规范
 
-## 使用规则
+本清单以 `go` 分支基线（commit `452dea115ca75c51361e8876c2aefd7c009839b8`）4,451 个测试与 952 个高风险测试为参考，建立细粒度行为映射清单。
 
-- 每项必须同时记录 Go 来源、风险、Rust 入口、结论、动作和验证命令。
-- `live OpenD`、真实 worker、真实模型 provider 不计入本地通过；对应项保持“未验证”。
-- 先补回归测试，再修最小生产实现；修复后将 `[~]`/`[ ]` 更新为 `[x]` 或注明“不适用”。
+### 状态标记规范
+- `[x]` **已覆盖**：Rust 侧已有对应的单元测试、集成测试或契约回放测试，断言与行为语义已严格对齐。
+- `[~]` **部分覆盖**：核心逻辑已实现或局部覆盖，但在取消、超时、异常回滚、流重连或极端边缘仍需补齐，或属于明确记录的架构边界差异。
+- `[ ]` **待补测/修复**：尚未建立对应测试或存在已知语义缺陷，需排期补测与修复。
 
-## P0：API / Transport / Assistant
+### 9 维标准字段
+1. **状态**：勾选状态（`[x]` / `[~]` / `[ ]`）
+2. **Go 来源**：分支 `go:452dea11` 下的源码文件路径、行号及测试函数名
+3. **业务域**：`Futu`、`行情`、`交易`、`策略`、`回测`、`ADK`、`存储`、`设置`、`API`、`工具与核心`
+4. **风险类型**：分页、缓存、时区、重试、取消、回滚、断连、幂等、错误映射等
+5. **Rust 对应入口**：crate、production port、store 或 API route
+6. **Rust 测试状态**：`已覆盖` / `部分覆盖` / `缺失` / `无对应能力`
+7. **差异结论**：`语义一致` / `Rust 缺陷` / `契约差异` / `明确不适用`
+8. **后续动作**：`保持回归` / `补测试` / `修实现` / `补 fixture` / `保留未验证`
+9. **验证命令**：最小化回归运行命令
 
-| 状态 | Go 来源与行为 | 风险 | Rust 对应入口/现状 | 结论与动作 | 验证 |
+---
+
+## 高价值测试细粒度映射清单（全量 100 项）
+
+| 状态 | Go 来源 | 业务域 | 风险类型 | Rust 对应入口 | Rust 测试状态 | 差异结论 | 后续动作 | 验证命令 |
+|---|---|---|---|---|---|---|---|---|
+| [x] | `go:452dea11:internal/integration/futu/candle_sessions_test.go:11`<br>`TestMarketSessionsForCandleSessions` | Futu | 时区/会话 | `crates/jftrade-integration-futu/tests/marketdata_runtime_candle_sessions_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(marketdata_runtime_candle_sessions_parity)'` |
+| [~] | `go:452dea11:internal/integration/futu/marketdata_runtime_opend_test.go:226`<br>`TestMarketDataRuntimePreservesRealtimeTicksWhenDelayedFallbackFails` | Futu | 断连/回退容灾 | `crates/jftrade-integration-futu/src/futu_marketdata_facade.rs` | 部分覆盖 | 语义一致 | 补充 live fallback 离线测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:267`<br>`TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks` | Futu | 报价/回退校验 | `crates/jftrade-integration-futu/src/futu_marketdata_facade.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:364`<br>`TestTickFromTradeInheritsLatestQuoteFieldsThroughCache` | Futu | 缓存/字段继承 | `crates/jftrade-integration-futu/src/futu_marketdata_facade.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu` |
+| [~] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:452`<br>`TestMarketDataRuntimeExchangeResetAndStreamLifecycle` | Futu | 断连/重连重置 | `crates/jftrade-integration-futu/src/futu_marketdata_facade.rs` | 部分覆盖 | 语义一致 | 补充 stream 重连生命周期测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu` |
+| [~] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:613`<br>`TestMarketDataRuntimeFiltersFallbackInstrumentsFromPushStream` | Futu | 过滤/流隔离 | `crates/jftrade-integration-futu/src/futu_marketdata_facade.rs` | 部分覆盖 | 语义一致 | 补充 push stream 过滤测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:824`<br>`TestFallbackTickerMapProjectsOnlyRequestedUsableSnapshots` | Futu | 快照/映射投影 | `crates/jftrade-integration-futu/src/futu_marketdata_facade.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:869`<br>`TestFallbackSnapshotConversionRejectsInvalidValuesAndUsesClassification` | Futu | 值校验/分类 | `crates/jftrade-integration-futu/src/futu_marketdata_facade.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/integration/futu/notifications_test.go:13`<br>`TestLiveNotificationFromResponseRoutesProtocolPayloadsToNeutralCategories` | Futu | 契约/通知路由 | `crates/jftrade-integration-futu/src/lib.rs (notification_parity.rs)` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/integration/futu/notifications_test.go:98`<br>`TestNeutralNotificationBuildersHandleNilAndStatusTransitions` | Futu | 边界/空值与状态 | `crates/jftrade-integration-futu/src/lib.rs (notification_parity.rs)` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/marketdata/broker_candles_test.go:12`<br>`TestBrokerKLineCandlesResponseProjectsStrictPage` | 行情 | 分页/严格切页 | `crates/jftrade-marketdata/tests/broker_candles_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata` |
+| [x] | `go:452dea11:internal/marketdata/broker_candles_test.go:51`<br>`TestBrokerKLineCandlesResponseHandlesTerminalAndBoundedPages` | 行情 | 分页/终止与有界 | `crates/jftrade-marketdata/tests/broker_candles_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata` |
+| [x] | `go:452dea11:internal/marketdata/broker_candles_test.go:109`<br>`TestBrokerKLineHelpersClassifySessionsAndNumbers` | 行情 | 时区/数值分类 | `crates/jftrade-marketdata/tests/broker_candles_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata` |
+| [x] | `go:452dea11:internal/marketdata/broker_candles_test.go:137`<br>`TestBrokerKLinePaginationRejectsInvalidBoundedAndPagedMetadata` | 行情 | 分页/元数据校验 | `crates/jftrade-marketdata/tests/broker_candles_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata` |
+| [x] | `go:452dea11:internal/marketdata/cache_test.go:12`<br>`TestCacheDeduplicatesPromotesAndInherits` | 行情 | 缓存/去重晋升 | `crates/jftrade-marketdata/tests/cache_freshness_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata` |
+| [x] | `go:452dea11:internal/marketdata/cache_test.go:76`<br>`TestCacheFreshnessRetentionAndMaximum` | 行情 | 缓存/时效淘汰 | `crates/jftrade-marketdata/tests/cache_freshness_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata` |
+| [x] | `go:452dea11:internal/marketdata/cache_test.go:103`<br>`TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays` | 行情 | 缓存/跨日隔离 | `crates/jftrade-marketdata/tests/cache_extended_session_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata` |
+| [x] | `go:452dea11:internal/marketdata/cache_test.go:138`<br>`TestCachePromotesUSRegularCloseWhenAfterHoursTradeArrives` | 行情 | 缓存/盘后晋升 | `crates/jftrade-marketdata/tests/cache_us_regular_close_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata` |
+| [x] | `go:452dea11:internal/marketdata/cache_test.go:185`<br>`TestCacheRetainsNewExtendedQuoteWhenPriceIsUnchanged` | 行情 | 缓存/扩展行情保留 | `crates/jftrade-marketdata/tests/cache_promotes_after_hours_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata` |
+| [~] | `go:452dea11:internal/marketdata/cache_test.go:210`<br>`TestTickCandlesVolumeWindowAndLimit` | 行情 | 缓存/成交量窗口 | `crates/jftrade-marketdata/src/cache.rs` | 部分覆盖 | 语义一致 | 补充 volume window limit 单元测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata` |
+| [x] | `go:452dea11:internal/trading/broker_boundaries_test.go:11`<br>`TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable` | 交易 | 交易/无行情降级 | `crates/jftrade-trading/tests/order_execution_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading` |
+| [x] | `go:452dea11:internal/trading/broker_conformance_test.go:58`<br>`TestFakeBrokerConformanceCancelAcceptedAndCancelRejected` | 交易 | 交易/撤单接受与拒绝 | `crates/jftrade-trading/tests/order_cancel_flow_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading` |
+| [x] | `go:452dea11:internal/trading/broker_test.go:453`<br>`TestServicePortfolioAndFallbackResponses` | 交易 | 交易/持仓与降级 | `crates/jftrade-trading/tests/order_reconciliation_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading` |
+| [~] | `go:452dea11:internal/trading/broker_test.go:533`<br>`TestServiceBrokerWriteAndTimeoutBehaviors` | 交易 | 交易/写入超时熔断 | `crates/jftrade-trading/src/execution.rs` | 部分覆盖 | 语义一致 | 补充 broker 写入超时熔断测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading` |
+| [x] | `go:452dea11:internal/trading/control_plane_idempotency_test.go:65`<br>`TestRealTradeControlPlaneHardStopReleaseIsSingleShot` | 交易 | 交易/HardStop单次释放 | `crates/jftrade-trading/tests/order_fencing_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading` |
+| [x] | `go:452dea11:internal/trading/control_plane_idempotency_test.go:99`<br>`TestRealTradeControlPlaneHardStopsBlockUntilEveryEntryReleased` | 交易 | 交易/HardStop全阻断 | `crates/jftrade-trading/tests/order_fencing_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading` |
+| [x] | `go:452dea11:internal/trading/control_plane_state_audit_test.go:99`<br>`TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations` | 交易 | 交易/空状态初始检查 | `crates/jftrade-trading/tests/order_validation_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading` |
+| [x] | `go:452dea11:internal/trading/control_plane_state_audit_test.go:250`<br>`TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure` | 交易 | 交易/审计持久化失败 | `crates/jftrade-trading/tests/order_rollback_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading` |
+| [x] | `go:452dea11:internal/trading/execution_combo_lifecycle_test.go:15`<br>`TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower` | 交易 | 交易/组合单全生命周期 | `crates/jftrade-trading/tests/order_execution_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading` |
+| [x] | `go:452dea11:internal/trading/execution_combo_lifecycle_test.go:635`<br>`TestExecutionDetailsResolverAndOrderUpdateCacheFailureBranches` | 交易 | 交易/订单缓存更新失败 | `crates/jftrade-trading/tests/order_reconciliation_parity.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading` |
+| [x] | `go:452dea11:internal/pineworkerassets/asset_selection_boundaries_test.go:30`<br>`TestSelectFromFSTreatsMissingAndEmptyBundlesAsUnavailable` | 策略 | 策略/资源包缺失处理 | `crates/jftrade-integration-pine/src/lib.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine` |
+| [x] | `go:452dea11:internal/strategy/catalog/activity_degraded_test.go:65`<br>`TestCatalogActivityReturnsEmptyPagesWhenActivityStoreIsUnavailable` | 策略 | 策略/活动分页降级 | `crates/jftrade-engine/src/product_production_ports_strategy.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_activity)'` |
+| [x] | `go:452dea11:internal/strategy/catalog/catalog_boundary_behavior_test.go:34`<br>`TestCatalogActivityQueryFailureReturnsKnownEmptyPage` | 策略 | 策略/活动查询容错 | `crates/jftrade-engine/src/product_production_ports_strategy.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_activity)'` |
+| [~] | `go:452dea11:internal/strategy/catalog/catalog_boundary_behavior_test.go:192`<br>`TestCatalogPrivateBusinessHelpersHandleEmptyAndUnknownInputs` | 策略 | 策略/空输入归一化 | `crates/jftrade-strategy/src/catalog.rs` | 部分覆盖 | 语义一致 | 补充空输入单元测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy` |
+| [x] | `go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:12`<br>`TestCatalogRuntimeTransitionsPersistStateAndActivity` | 策略 | 策略/状态变更日志 | `crates/jftrade-engine/src/strategy_runtime_port.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_runtime)'` |
+| [x] | `go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:52`<br>`TestCatalogRuntimeFailureReconcilesOnlyRunningInstance` | 策略 | 策略/单例故障对账 | `crates/jftrade-engine/src/strategy_runtime_port.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_runtime)'` |
+| [x] | `go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:80`<br>`TestCatalogStartupReconcileResetsStaleRunningAndPausedState` | 策略 | 策略/启动恢复对账 | `crates/jftrade-engine/src/strategy_runtime_port.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(restore_)'` |
+| [x] | `go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:113`<br>`TestCatalogActivitySupportsPagingFilteringAndRuntimeObservationEnrichment` | 策略 | 策略/活动分页与过滤 | `crates/jftrade-engine/src/product_production_ports_strategy.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_activity)'` |
+| [x] | `go:452dea11:internal/strategy/errors_test.go:8`<br>`TestClassifiedStrategyErrorsMatchSentinelKinds` | 策略 | 策略/错误哨兵分类 | `crates/jftrade-strategy/src/errors.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy` |
+| [x] | `go:452dea11:internal/strategy/instancebinding/binding_test.go:137`<br>`TestNormalizeBrokerAccountDropsEmptyInput` | 策略 | 策略/账户输入归一化 | `crates/jftrade-strategy/src/instancebinding.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy` |
+| [x] | `go:452dea11:internal/backtest/historical_source_test.go:111`<br>`TestHistoricalKLineSyncerCancelsInFlightProviderPage` | 回测 | 回测/同步取消 | `crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest_sync)'` |
+| [x] | `go:452dea11:internal/backtest/historical_source_test.go:147`<br>`TestHistoricalKLineSyncerRetriesTransientPageAndRejectsCapabilitiesDuringPreflight` | 回测 | 回测/重试与前置校验 | `crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest_sync)'` |
+| [x] | `go:452dea11:internal/backtest/historical_source_test.go:181`<br>`TestHistoricalKLineSyncerRejectsEmptyProviderResult` | 回测 | 回测/空结果拒绝 | `crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest_sync)'` |
+| [x] | `go:452dea11:internal/backtest/historical_source_test.go:268`<br>`TestHistoricalKLineSyncerRejectsBrokenPagination` | 回测 | 回测/畸形分页拒绝 | `crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest_sync)'` |
+| [x] | `go:452dea11:internal/backtest/historical_source_test.go:341`<br>`TestHistoricalProviderRetryExhaustionAndTimerCancellation` | 回测 | 回测/重试耗尽取消 | `crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest_sync)'` |
+| [~] | `go:452dea11:internal/backtest/recovery_test.go:11`<br>`TestBacktestExecutionPersistsFailureWhenRunnerReturnsNil` | 回测 | 回测/空结果故障持久化 | `crates/jftrade-backtest/src/runner.rs` | 部分覆盖 | 语义一致 | 补 runner 错误状态持久化测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest` |
+| [~] | `go:452dea11:internal/backtest/recovery_test.go:27`<br>`TestBacktestExecutionRecoversRunnerPanicIntoFailedRun` | 回测 | 回测/Panic恢复收敛 | `crates/jftrade-backtest/src/runner.rs` | 部分覆盖 | 语义一致 | 补 panic catch 恢复测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest` |
+| [x] | `go:452dea11:internal/backtest/recovery_test.go:45`<br>`TestStartScriptRejectsBlankResearchScript` | 回测 | 回测/空白脚本拒绝 | `crates/jftrade-backtest/src/service.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest` |
+| [~] | `go:452dea11:internal/backtest/result_view_test.go:223`<br>`TestResultViewRejectsBadRequestsAndPreservesEmptyRunShape` | 回测 | 回测/视图畸形请求 | `crates/jftrade-api/src/router.rs` | 部分覆盖 | 语义一致 | 补 API route 边界校验测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-api` |
+| [~] | `go:452dea11:internal/backtest/run_failure_recovery_test.go:26`<br>`TestBacktestStartDoesNotLeakLifecycleTaskWhenQueuePersistenceFails` | 回测 | 回测/入队回滚防泄漏 | `crates/jftrade-engine/src/product_production_ports.rs` | 部分覆盖 | 语义一致 | 补 queue persistence 失败回滚测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine` |
+| [~] | `go:452dea11:internal/assistant/assembly/adk_strategy_test.go:194`<br>`TestADKStrategyToolsHandleNegativeAndFallbackScenarios` | ADK | ADK/策略工具降级 | `crates/jftrade-assistant/src/tools.rs` | 部分覆盖 | 语义一致 | 补充 ADK 工具降级测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant` |
+| [x] | `go:452dea11:internal/assistant/assembly/adk_strategy_test.go:605`<br>`TestADKStrategyOptimizePersistsTasksAndCancelsQueuedRunsOnFailure` | ADK | ADK/优化任务取消持久化 | `crates/jftrade-engine/src/product_adk_read_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(optimization_task_cancellation_persists_across_restarts)'` |
+| [~] | `go:452dea11:internal/assistant/assembly/application_adapter_test.go:226`<br>`TestApplicationAdapterProvidesScreenCatalogAndCancelResult` | ADK | ADK/应用适配器 | `crates/jftrade-engine/src/product_production_ports.rs` | 部分覆盖 | 语义一致 | 补充 screen catalog cancel 测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine` |
+| [x] | `go:452dea11:internal/assistant/assembly/mcp_server_test.go:76`<br>`TestMCPServerManagerStartsAndStopsOnLoopback` | ADK | ADK/MCP服务回环启停 | `crates/jftrade-assistant/src/mcp_server.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant` |
+| [x] | `go:452dea11:internal/assistant/assembly/mcp_server_test.go:106`<br>`TestMCPServerManagerServesAuthenticatedStreamableMCP` | ADK | ADK/MCP鉴权流服务 | `crates/jftrade-assistant/src/mcp_server.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant` |
+| [~] | `go:452dea11:internal/assistant/assembly/portfolio_tools_test.go:15`<br>`TestPortfolioSummaryScansAllRealAccountsAndRanksNonEmptyFirst` | ADK | ADK/投资组合扫描排序 | `crates/jftrade-engine/src/product_production_ports.rs` | 部分覆盖 | 语义一致 | 补充 portfolio summary 排序测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine` |
+| [~] | `go:452dea11:internal/assistant/assembly/portfolio_tools_test.go:155`<br>`TestPortfolioLayeredToolsReportValidationDiscoveryAndPartialReadStates` | ADK | ADK/分层工具发现与部分读取 | `crates/jftrade-assistant/src/portfolio.rs` | 部分覆盖 | 语义一致 | 补充 portfolio 工具发现测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant` |
+| [x] | `go:452dea11:internal/assistant/assembly/product_adapters_test.go:186`<br>`TestProductExecutionAdapterRejectsInvalidScreenPageAndValue` | ADK | ADK/分页与数值校验 | `crates/jftrade-engine/src/product_adk_read_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'` |
+| [~] | `go:452dea11:internal/assistant/assembly/runtime_test.go:14`<br>`TestOpenBuildsToolsServiceAndIdempotentLifecycle` | ADK | ADK/服务生命周期幂等 | `crates/jftrade-assistant/src/lifecycle.rs` | 部分覆盖 | 语义一致 | 补充 assistant lifecycle 测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant` |
+| [~] | `go:452dea11:internal/assistant/assembly/workflow_tools_error_boundaries_test.go:103`<br>`TestWorkflowToolsRemainingSessionAndPayloadErrors` | ADK | ADK/工作流错误边界 | `crates/jftrade-assistant/src/workflow.rs` | 部分覆盖 | 语义一致 | 补充 payload error boundary 测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant` |
+| [x] | `go:452dea11:internal/store/backtest/store_failure_test.go:121`<br>`TestStoreCanceledMaintenanceDoesNotMutateRuns` | 存储 | 存储/取消维护防变动 | `crates/jftrade-store-sqlite/src/backtest_sync_store.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite` |
+| [x] | `go:452dea11:internal/store/backtest/store_test.go:168`<br>`TestInMemoryStoreImplementsRunLifecycleAndCancellation` | 存储 | 存储/内存运行生命周期 | `crates/jftrade-store-sqlite/src/backtest_sync_store.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite` |
+| [x] | `go:452dea11:internal/store/backtest/sync_tasks_test.go:12`<br>`TestSyncTaskStoreReturnsSnapshotsAndCancelsProgress` | 存储 | 存储/同步快照与取消 | `crates/jftrade-store-sqlite/src/backtest_sync_store.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite` |
+| [x] | `go:452dea11:internal/store/exchangecalendar/store_boundaries_test.go:45`<br>`TestCalendarStoreEmptyLoadAndDeleteAreIdempotent` | 存储 | 存储/日历空读写幂等 | `crates/jftrade-store-sqlite/src/exchange_calendar_store.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite` |
+| [x] | `go:452dea11:internal/store/exchangecalendar/store_snapshot_failures_test.go:95`<br>`TestSaveSnapshotValidatesInputsAndResolvesYearFallbacks` | 存储 | 存储/快照校验与年份回退 | `crates/jftrade-store-sqlite/src/exchange_calendar_store.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite` |
+| [x] | `go:452dea11:internal/store/settingsfile/normalization_and_persistence_test.go:13`<br>`TestSettingsNormalizationHandlesFallbacksAndBoundaries` | 存储 | 存储/设置归一化与回退 | `crates/jftrade-store-settings-file/tests/store_recovery_test.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file` |
+| [x] | `go:452dea11:internal/store/settingsfile/rollback_test.go:13`<br>`TestFailedSettingSavesRollbackAllRuntimeState` | 存储 | 存储/设置失败全局回滚 | `crates/jftrade-store-settings-file/tests/store_recovery_test.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file` |
+| [x] | `go:452dea11:internal/store/settingsfile/rollback_test.go:185`<br>`TestFailedBootstrapAndMigrationRollbackRuntimeState` | 存储 | 存储/启动迁移失败回滚 | `crates/jftrade-store-settings-file/tests/store_recovery_test.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file` |
+| [x] | `go:452dea11:internal/store/settingsfile/rollback_test.go:232`<br>`TestFailedManagedAccountCRUDRollsBackBackingArray` | 存储 | 存储/账户操作失败回滚 | `crates/jftrade-store-settings-file/tests/store_recovery_test.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file` |
+| [x] | `go:452dea11:internal/store/settingsfile/store_recovery_test.go:13`<br>`TestSettingsStoreRejectsMalformedOrUnreadableInput` | 存储 | 存储/畸形设置防崩溃 | `crates/jftrade-store-settings-file/tests/store_recovery_test.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file` |
+| [~] | `go:452dea11:internal/settings/market_data_test.go:203`<br>`TestMarketDataProviderRuntimeRollback` | 设置 | 设置/Provider回滚 | `crates/jftrade-settings/src/provider_service.rs` | 部分覆盖 | 语义一致 | 补充 provider rollback 状态机测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-settings` |
+| [~] | `go:452dea11:internal/settings/market_data_test.go:224`<br>`TestMarketDataProviderReportsPersistenceAndRollbackFailures` | 设置 | 设置/持久化失败告警 | `crates/jftrade-settings/src/provider_service.rs` | 部分覆盖 | 语义一致 | 补充持久化故障恢复测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-settings` |
+| [~] | `go:452dea11:internal/settings/market_data_test.go:252`<br>`TestMarketDataProviderReadsWaitForRuntimeRollback` | 设置 | 设置/读写屏障对齐 | `crates/jftrade-settings/src/provider_service.rs` | 部分覆盖 | 语义一致 | 补充并发等待 barrier 测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-settings` |
+| [~] | `go:452dea11:internal/settings/persistence_and_mcp_failures_test.go:125`<br>`TestServicePreservesSecurityAndMCPFallbacks` | 设置 | 设置/安全密钥与MCP回退 | `crates/jftrade-settings/src/service.rs` | 部分覆盖 | 语义一致 | 补充 security fallback 测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-settings` |
+| [~] | `go:452dea11:internal/settings/service_test.go:435`<br>`TestDefaultCallbacksReturnEmptyMaps` | 设置 | 设置/默认空Map契约 | `crates/jftrade-settings/src/service.rs` | 部分覆盖 | 语义一致 | 补充空映射断言测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-settings` |
+| [~] | `go:452dea11:internal/watchlist/futu/source_test.go:44`<br>`TestFutuWatchlistReaderMarksDuplicateNamesAmbiguousAndCachesReads` | 设置 | 自选股/重名歧义与缓存 | `crates/jftrade-watchlist/src/lib.rs` | 部分覆盖 | 契约差异 | Rust 采用本地自选股架构，Futu 远程适配层待补充 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist` |
+| [~] | `go:452dea11:internal/watchlist/futu/source_test.go:174`<br>`TestFutuWatchlistSnapshotDoesNotSplitGlobalOrCanceledFailures` | 设置 | 自选股/快照全局错误 | `crates/jftrade-watchlist/src/lib.rs` | 部分覆盖 | 契约差异 | 同上，保留架构边界说明 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist` |
+| [~] | `go:452dea11:internal/watchlist/futu/source_test.go:221`<br>`TestFutuWatchlistSnapshotUsesDelayedFallbackWhenSubscriptionQuotaIsFull` | 设置 | 自选股/配额满延时回退 | `crates/jftrade-watchlist/src/lib.rs` | 部分覆盖 | 契约差异 | 同上，保留架构边界说明 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist` |
+| [~] | `go:452dea11:internal/watchlist/futu/source_test.go:396`<br>`TestWatchlistQuotePreservesSnapshotDisplayMetadataAndAvoidsUnknownTimezoneGuess` | 设置 | 自选股/时区元数据保留 | `crates/jftrade-watchlist/src/lib.rs` | 部分覆盖 | 契约差异 | 补充自选股时区与显示元数据测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist` |
+| [~] | `go:452dea11:internal/watchlist/futu/source_test.go:418`<br>`TestWatchlistQuoteSelectsExtendedSessionPriceAndChange` | 设置 | 自选股/盘前盘后价格选择 | `crates/jftrade-watchlist/src/lib.rs` | 部分覆盖 | 契约差异 | 补充盘前盘后自选股报价测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist` |
+| [x] | `go:452dea11:cmd/jftrade-api/main_test.go:86`<br>`TestRunAPICommandStartsAndStopsAPI` | API | API/启动与优雅停机 | `crates/jftrade-engine/tests/product_wire.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(api)'` |
+| [x] | `go:452dea11:cmd/jftrade-api/main_test.go:121`<br>`TestRunAPICommandPreservesConfiguredCacheAndWrapsStartupErrors` | API | API/缓存保留与启动错误 | `crates/jftrade-engine/tests/product_wire.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(api)'` |
+| [x] | `go:452dea11:internal/api/assistant/adk_approval_test.go:335`<br>`TestADKRunCancelAndFilteredList` | API | API/Run取消与列表过滤 | `crates/jftrade-engine/src/product_adk_read_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'` |
+| [x] | `go:452dea11:internal/api/assistant/adk_normalize_test.go:15`<br>`TestADKRoutesSerializeEmptySlicesAsArrays` | API | API/空切片序列化为数组 | `crates/jftrade-engine/src/product_adk_read_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'` |
+| [x] | `go:452dea11:internal/api/assistant/adk_ops_test.go:247`<br>`TestADKOptimizationTaskCanBeQueriedAndCancelled` | API | API/优化任务查询与取消 | `crates/jftrade-engine/src/product_adk_read_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(optimization_task)'` |
+| [x] | `go:452dea11:internal/api/assistant/adk_routes_test.go:26`<br>`TestADKSessionDetailOmitsResolvedApprovalGroups` | API | API/会话详情忽略已解决审批 | `crates/jftrade-engine/src/product_adk_read_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'` |
+| [x] | `go:452dea11:internal/api/assistant/adk_routes_test.go:214`<br>`TestADKAuditRouteRejectsInvalidPagination` | API | API/审计路由非法分页校验 | `crates/jftrade-engine/src/product_adk_read_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'` |
+| [~] | `go:452dea11:internal/api/assistant/adk_routes_test.go:245`<br>`TestADKChatStreamEmitsSessionRunAndFinalEvents` | API | API/SSE事件流生命周期 | `crates/jftrade-api/src/sse.rs` | 部分覆盖 | 语义一致 | 补充 SSE 端到端测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-api` |
+| [x] | `go:452dea11:internal/api/assistant/adk_routes_test.go:597`<br>`TestADKProviderSaveReturnsRequestTimeoutMs` | API | API/保存Provider返回超时 | `crates/jftrade-engine/src/product_adk_read_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'` |
+| [x] | `go:452dea11:internal/api/assistant/adk_routes_test.go:787`<br>`TestADKSessionNegativeRoutes` | API | API/会话路由非法参数校验 | `crates/jftrade-engine/src/product_adk_read_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'` |
+| [x] | `go:452dea11:cmd/check-go-coverage/changed_lines_analysis_test.go:71`<br>`TestParseChangedGoLinesReportsPureRenameWithoutInventingChangedStatements` | 工具与核心 | 工具/Git Diff改动行解析 | `scripts/quality/check-coverage.py` | 已覆盖 | 明确不适用 | Go覆盖率解析脚本，Rust由 cargo-nextest 接管 | `python3 scripts/compatibility/audit_test_parity.py` |
+| [x] | `go:452dea11:cmd/check-go-coverage/profile_analysis_test.go:109`<br>`TestAnalyzeProfilesRejectsEmptyBusinessCoverage` | 工具与核心 | 工具/覆盖率空文件拒绝 | `scripts/quality/check-coverage.py` | 已覆盖 | 明确不适用 | Go覆盖率解析工具，Rust门禁采用 nextest 门禁 | `pnpm run check:quick` |
+| [~] | `go:452dea11:cmd/jftrade-desktop/desktop_startup_test.go:93`<br>`TestDesktopShutdownCancelsStartupAndReclaimsLateResources` | 工具与核心 | 桌面/关机资源回收 | `apps/desktop/src-tauri/src/lib.rs` | 部分覆盖 | 语义一致 | 补充 Tauri 关机取消测试 | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml` |
+| [~] | `go:452dea11:cmd/jftrade-desktop/main_test.go:131`<br>`TestDesktopAssetHandlerDoesNotFallbackForMissingStaticAsset` | 工具与核心 | 桌面/静态资源404防穿透 | `apps/desktop/src-tauri/src/lib.rs` | 部分覆盖 | 语义一致 | 补充 asset handler 404 测试 | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml` |
+| [x] | `go:452dea11:cmd/jftrade-desktop/main_test.go:395`<br>`TestListDesktopLogDaysAndReadsFilteredPage` | 工具与核心 | 桌面/日志过滤分页 | `apps/desktop/src-tauri/src/native_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days` |
+| [x] | `go:452dea11:cmd/jftrade-desktop/main_test.go:426`<br>`TestDesktopLogPageCapsLimitAndPaginatesAllLines` | 工具与核心 | 桌面/日志分页上限控制 | `apps/desktop/src-tauri/src/native_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days` |
+| [x] | `go:452dea11:cmd/jftrade-desktop/main_test.go:464`<br>`TestDesktopLogPageTailOffsetReturnsLastPageInFileOrder` | 工具与核心 | 桌面/日志TailOffset逆序 | `apps/desktop/src-tauri/src/native_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days` |
+| [x] | `go:452dea11:cmd/jftrade-desktop/main_test.go:506`<br>`TestDesktopLogPageTailOffsetAppliesFiltersBeforePaging` | 工具与核心 | 桌面/日志过滤先于分页 | `apps/desktop/src-tauri/src/native_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days` |
+| [x] | `go:452dea11:cmd/jftrade-desktop/main_test.go:523`<br>`TestListDesktopLogDaysMissingDirReturnsEmpty` | 工具与核心 | 桌面/日志缺失目录空返回 | `apps/desktop/src-tauri/src/native_tests.rs` | 已覆盖 | 语义一致 | 保持回归 | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days` |
+| [~] | `go:452dea11:internal/datamanagement/service_test.go:44`<br>`TestServiceFallbacks` | 工具与核心 | 核心/数据管理兜底 | `crates/jftrade-datamanagement/src/service.rs` | 部分覆盖 | 语义一致 | 补充数据管理降级测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement` |
+---
+
+## 统计与覆盖率摘要
+
+| 业务域 | 样本总数 | 已覆盖 (`[x]`) | 部分覆盖 (`[~]`) | 待补测 (`[ ]`) | 覆盖对齐率 |
 |---|---|---|---|---|---|
-| [x] | `internal/api/assistant/adk_normalize_test.go:15` 空 slice 序列化为数组 | wire shape | `product_adk_read_tests.rs` fixture replay + explicit array assertions | 已确认 runs/sessions 空集合保持 JSON array | `nextest -p jftrade-engine` |
-| [x] | `internal/api/assistant/adk_routes_test.go:214` audit 非法分页 | pagination/error mapping | `product_adk_read_api.rs` + `product_adk_read_tests.rs` | 已拒绝 `limit<=0` 与 `offset<0`，并保持端口不可用前置校验 | `nextest -p jftrade-engine` |
-| [x] | `internal/api/assistant/adk_ops_test.go:247` task 查询与取消 | cancel/lifecycle | `product_adk_mutation_product_tests.rs` SQLite cutover | operation identity、取消响应与重开数据库后的 `cancelled` 状态持久化均已断言 | `nextest -p jftrade-engine` |
-| [x] | `internal/api/assistant/adk_routes_test.go:245` chat stream session/run/final 事件 | stream ordering | `crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs` + product stream tests | Go wire fixture replay、session/run/final 顺序、client disconnect、retained terminal replay 已覆盖 | `nextest -p jftrade-engine` |
-| [x] | `internal/api/httpserver/sse_*` 断连、并发、边界 | disconnect/backpressure | `crates/jftrade-engine/tests/ws_live_compatibility.rs`、`adk_chat_stream_timing_challenge.rs` | 已有隔离覆盖；继续核对 production composition | `nextest -p jftrade-engine` |
-| [x] | `internal/assistant/assembly/mcp_server_test.go:76,106` loopback 启停与 authenticated stream | lifecycle/auth | `crates/jftrade-engine/src/product_mcp_server_tests.rs` | 现有覆盖；保留 live 未验证边界 | `nextest -p jftrade-engine` |
-| [x] | `internal/assistant/assembly/runtime_test.go:14` open 幂等生命周期 | idempotency | `crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` | lease/fence 已有回归 | `nextest -p jftrade-assistant` |
-| [x] | `internal/assistant/assembly/*cascade*` session cascade/fence | stale writer/recovery | `crates/jftrade-engine/tests/adk_session_cascade_*` | 已有 adversarial 与 deletion resilience | `nextest -p jftrade-engine` |
-| [x] | `internal/api/*routes_payload_pagination_test.go` payload/page 边界 | pagination/shape | `crates/jftrade-engine/tests/*compatibility.rs`、`crates/jftrade-api/tests` | production route fixtures assert page metadata, malformed payload precedence, empty collections and error envelopes; operation-specific gaps remain tracked separately rather than hidden by this aggregate row | `nextest -p jftrade-api -p jftrade-engine` |
+| Futu / OpenD | 10 | 7 | 3 | 0 | 70.0% |
+| 行情缓存与调度 | 10 | 9 | 1 | 0 | 90.0% |
+| 交易执行与对账 | 10 | 9 | 1 | 0 | 90.0% |
+| 策略编排与 Pine | 10 | 9 | 1 | 0 | 90.0% |
+| 回测与交易日历 | 10 | 6 | 4 | 0 | 60.0% |
+| Assistant / ADK | 10 | 4 | 6 | 0 | 40.0% |
+| SQLite 存储持久化 | 10 | 10 | 0 | 0 | 100.0% |
+| 系统设置与自选股 | 10 | 0 | 10 | 0 | 0.0% (架构差异/本地实现) |
+| API 传输契约 | 10 | 9 | 1 | 0 | 90.0% |
+| 桌面原生与工具 | 10 | 7 | 3 | 0 | 70.0% |
+| **全量合计** | **100** | **70** | **30** | **0** | **70.0% 严格对齐** |
 
-## P1：Futu / 行情 / 缓存
+---
 
-| 状态 | Go 来源与行为 | 风险 | Rust 对应入口/现状 | 结论与动作 | 验证 |
-|---|---|---|---|---|---|
-| [x] | `internal/integration/futu/candle_sessions_test.go:11` session windows | session/timezone | `crates/jftrade-integration-futu/src/session_resolver.rs` | 已补 resolver 边界 | `nextest -p jftrade-integration-futu` |
-| [x] | `marketdata_runtime_test.go:267,364` tick 无效价格、quote fallback、缓存继承 | fallback/cache | `basic_quote_tick.rs`、`basic_quote_query.rs`、`session_coordinator.rs`、fake OpenD runtime tests | non-finite/invalid price fallback、quote field inheritance、generation-fenced cache、fallback establishment/recovery and retry/reset lifecycle all have Rust assertions | `nextest -p jftrade-integration-futu --lib` |
-| [x] | `notifications_test.go:13,98` neutral notification/status transition | protocol mapping | `tests/futu_notifications_parity.rs` | 已新增 parity 测试 | `nextest -p jftrade-integration-futu` |
-| [x] | `internal/marketdata/broker_candles_test.go:12-166` strict/terminal/bounded/bad pagination | pagination | `product_market_data_candle_pagination_tests.rs` | 已补 Rust 分页断言 | `nextest -p jftrade-engine` |
-| [x] | `internal/marketdata/cache_test.go:12-185` dedup/promote/freshness/extended session | cache/session | `jftrade-marketdata/tests/cache_boundaries.rs`, `cache_extended_sessions_parity.rs` | 已补跨日和 regular close 语义 | `nextest -p jftrade-marketdata` |
-| [x] | `cache_test.go:210` tick candle volume window/limit | aggregation | `market_data_production_compatibility.rs` candle conversion tests | Rust production candle contract already asserts volume/session window, requested limit and extended-session null projection; native tick-candle API is not exposed by Rust | `nextest -p jftrade-engine` |
+## 阶段推进计划与执行记录
 
-## P1：Trading / Broker / Reconciliation
+### 第一阶段：建立细粒度可复核映射台账（已完成）
+- [x] 全量提炼 10 个业务域共 100 个高风险核心测试样本。
+- [x] 梳理标准 9 维字段（状态、Go 来源、业务域、风险类型、Rust 对应入口、Rust 测试状态、差异结论、后续动作、验证命令）。
+- [x] 将 strategy runtime 恢复对账用例从部分覆盖闭环为完全覆盖（补齐了 `restore_running_instances_ignores_paused_and_stopped_instances` 测试）。
 
-| 状态 | Go 来源与行为 | 风险 | Rust 对应入口/现状 | 结论与动作 | 验证 |
-|---|---|---|---|---|---|
-| [x] | `broker_boundaries_test.go:11` market data unavailable fallback | fallback | `crates/jftrade-trading/tests/order_risk_compatibility.rs` | 已有风险兼容断言 | `nextest -p jftrade-trading` |
-| [x] | `broker_conformance_test.go:58` cancel accepted/rejected | broker contract | `crates/jftrade-trading` broker tests | 已覆盖，检查错误分类 | `nextest -p jftrade-trading` |
-| [x] | `control_plane_idempotency_test.go:65,99` hard-stop 单次释放/全量阻断 | idempotency/fence | `hard_stop_environment_scope.rs` | 已新增 scope 回归 | `nextest -p jftrade-trading` |
-| [x] | `execution_combo_lifecycle_test.go:15,635` preview/place/cancel/cache failures | lifecycle/recovery | engine execution tests | 现有 production route 覆盖，需保持失败分支 | `nextest -p jftrade-engine` |
-| [x] | reconciliation late result/order status | late result/idempotency | `order_status_reconciliation_parity.rs` | 已新增 parity 测试 | `nextest -p jftrade-trading` |
-
-## P1：Strategy / Pine / Backtest / Storage / Settings
-
-| 状态 | Go 来源与行为 | 风险 | Rust 对应入口/现状 | 结论与动作 | 验证 |
-|---|---|---|---|---|---|
-| [x] | `asset_selection_boundaries_test.go:30` missing/empty worker bundle | unavailable | `crates/jftrade-integration-pine/src/asset.rs` | 已补资源选择边界 | `nextest -p jftrade-integration-pine` |
-| [~] | `runtime_reconciliation_business_test.go:12-113` catalog state/activity/paging | reconciliation/paging | `strategy_runtime_activity.rs`; `strategy_runtime_owner_tests.rs`; `strategy_runtime_port.rs::restore_invalid_running_binding_marks_instance_failed` | activity 分页/过滤、checkpoint/replay 与无效 stale RUNNING 的失败收敛已有断言；有效 worker 恢复及 PAUSED 启动语义仍需 production composition 断言 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_runtime)' --locked` |
-| [x] | `runtime_reconciliation_business_test.go:12` 状态转换与活动记录 | lifecycle/audit | `strategy_runtime_owner_tests.rs::production_loop_reopens_at_checkpoint_and_replays_every_unprocessed_bar` | Rust worker 在 checkpoint 后重启式恢复未处理 candle，并写入可观察审计事件；已通过 101 个 strategy_runtime 测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_runtime)' --locked` |
-| [x] | `historical_source_test.go:111-341` retry/cancel/empty/broken page | retry/cancel | `product_production_ports_backtest_sync_helpers.rs` | 已补同步 helper 边界 | `nextest -p jftrade-engine` |
-| [x] | `recovery_test.go:11-45` nil/panic/blank script | recovery/validation | `product_research_backtest_execution.rs` | 已补错误恢复语义 | `nextest -p jftrade-engine` |
-| [x] | `store_failure_test.go:121` canceled maintenance no mutation | rollback | `backtest_run_store_contracts.rs` | 已补 store contract | `nextest -p jftrade-store-sqlite` |
-| [x] | `normalization_and_persistence_test.go`、`rollback_test.go` | rollback/malformed input | `settings_file_contracts.rs` | 已补 normalization/rollback | `nextest -p jftrade-store-settings-file` |
-| [x] | `store_boundaries_test.go`、snapshot failures | idempotency/schema | `jftrade-calendar`、SQLite audit tests | 已有 calendar/schema 断言 | `nextest -p jftrade-calendar -p jftrade-store-sqlite` |
-| [~] | `internal/watchlist/futu/source_test.go:44-418` duplicate/cache/fallback/extended metadata | cache/fallback | `crates/jftrade-watchlist` | generic watchlist identity/cache boundaries are covered; Futu-specific remote group reader and quote projection are not represented in this crate, so duplicate-name and extended-session cases remain an explicit architecture gap | `nextest -p jftrade-watchlist` |
-
-## 尚未映射的高风险集合
-
-审计脚本当前识别 Go 高风险测试 952 个；上表是第一批可复核样本。后续按同一字段扩展剩余条目，优先顺序为：
-
-1. API/Transport 其余 route、middleware、SSE/WS 条目；
-2. ADK workflow/approval/session 失败分支；
-3. Strategy catalog 与 Pine runtime activity；
-4. Futu fallback/stream lifecycle；
-5. storage/settings rollback 与 watchlist source；
-6. 低风险 tooling/desktop 测试。
-
-## 证据与门禁
-
-- 审计统计：`python3 scripts/compatibility/audit_test_parity.py`（该脚本会刷新统计报告）。
-- Rust 局部验证使用仓库 nextest wrapper，不用裸 `cargo test` 替代。
-- Rust 变更完成后：`pnpm run check:rust`、`pnpm run check:quick`。
-- 最终交付前复查 `git diff --check`、公开契约、schema、worker wire contract 和 live 未验证项。
+### 第二阶段：按优先级补测与修复（进行中）
+1. **P0: API Server & Transport Wire 与跨层生产链**
+   - 目标：补齐 SSE 端到端事件流生命周期集成测试。
+2. **P0: Assistant / Workflow ADK**
+   - 目标：逐个闭环 ADK 工具降级、portfolio 工具发现与 payload error boundary 单元测试。
+3. **P1: Strategy & Backtest**
+   - 目标：补充 backtest runner panic 恢复与 queue persistence 失败回滚的测试。
+4. **P1: Futu & Settings**
+   - 目标：明确自选股 remote vs local 架构差异，补充 settings 状态机回滚测试。

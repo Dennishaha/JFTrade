@@ -429,7 +429,58 @@ mod tests {
             .expect("read")
             .expect("instance");
         assert_eq!(instance.status, "FAILED");
-        assert_eq!(instance.runtime_active, false);
+        assert!(!instance.runtime_active);
         assert!(!store.list_log_events("stale").expect("logs").is_empty());
+    }
+
+    #[test]
+    fn restore_running_instances_ignores_paused_and_stopped_instances() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("test.db");
+        let connection = rusqlite::Connection::open(&path).expect("open");
+        jftrade_store_sqlite::initialize_current(&connection, "strategy").expect("schema");
+        drop(connection);
+        let definitions = Arc::new(
+            StrategyDefinitionStore::open_existing(&path, STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE)
+                .expect("definitions"),
+        );
+        let store = Arc::new(StrategyRuntimeStore::from_definition_store(&definitions));
+        store
+            .seed_instance_with_binding(
+                "paused-1",
+                "PAUSED",
+                Value::String("invalid".into()),
+                "2026-09-01T00:00:00Z",
+            )
+            .expect("seed paused instance");
+        store
+            .seed_instance_with_binding(
+                "stopped-1",
+                "STOPPED",
+                Value::String("invalid".into()),
+                "2026-09-01T00:00:00Z",
+            )
+            .expect("seed stopped instance");
+        let manager = Arc::new(StrategyRuntimeManager::new(
+            None,
+            None,
+            None,
+            None,
+            Arc::new(ActiveProviderState::default()),
+        ));
+        let port = ProductionStrategyRuntimePort {
+            store: store.clone(),
+            definitions,
+            manager,
+        };
+        port.restore_running_instances().expect("reconcile");
+        assert_eq!(
+            store.get_instance("paused-1").unwrap().unwrap().status,
+            "PAUSED"
+        );
+        assert_eq!(
+            store.get_instance("stopped-1").unwrap().unwrap().status,
+            "STOPPED"
+        );
     }
 }
