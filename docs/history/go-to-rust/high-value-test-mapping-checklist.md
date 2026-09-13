@@ -6,6 +6,10 @@
 
 当前 100 项高价值样本中：94 项已建立 Rust 回归证据，6 项为已记录的架构边界差异（无待处理的空白项）；全量 4,451 项的逐项候选索引见 [`test-parity-inventory.md`](test-parity-inventory.md)。
 
+### Watchlist/Futu 批次验收边界
+
+该功能域的 5 项远程自选股差异必须由同一 Rust remote-reader/quote-projection owner 统一收敛：普通读取缓存、fresh 绕过缓存、歧义组 fencing、批量快照全局错误、订阅配额回退、session price/change 一致性和未知时区 null 语义需在同一 adapter 契约测试中验证。未建立该 adapter 前，相关项保持 `[~]`，不得拆散标记为已覆盖；本地 `jftrade-watchlist` 测试仅证明通用身份与分组规则。
+
 ### 状态标记规范
 - `[x]` **已覆盖**：Rust 侧已有对应的单元测试、集成测试或契约回放测试，断言与行为语义已严格对齐。
 - `[~]` **部分覆盖**：核心逻辑已实现或局部覆盖，但在取消、超时、异常回滚、流重连或极端边缘仍需补齐，或属于明确记录的架构边界差异。
