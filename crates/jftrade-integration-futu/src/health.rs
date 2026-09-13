@@ -682,4 +682,24 @@ mod tests {
             .expect("response frame");
         stream.write_all(&packet).expect("response");
     }
+
+    #[test]
+    fn program_status_handles_missing_plain_and_described_status() {
+        // Parity: go:452dea11:internal/integration/futu/probe_test.go:173 TestProgramStatusStringHandlesMissingPlainAndDescribedStatus
+        assert_eq!(program_status(None), "Unavailable");
+        assert_eq!(
+            program_status(Some(ProgramStatus {
+                r#type: 2,
+                str_ext_desc: None,
+            })),
+            "Loging"
+        );
+        assert_eq!(
+            program_status(Some(ProgramStatus {
+                r#type: 2,
+                str_ext_desc: Some("waiting for credentials".to_owned()),
+            })),
+            "Loging: waiting for credentials"
+        );
+    }
 }
