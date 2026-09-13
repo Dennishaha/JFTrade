@@ -6034,5 +6034,323 @@
     "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
     "conclusion": "已覆盖：自选股分组运行时边界、标的导入校验与跨多数据源聚合",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketDataProviderSettingsNormalizeAndApply": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：行情提供商配置归一化（Futu/Yahoo/AKShare）、降级重试策略与回测提供商原子准备",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestMarketDataProviderRetriesDegradedCurrentSelection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：行情提供商配置归一化（Futu/Yahoo/AKShare）、降级重试策略与回测提供商原子准备",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestMarketDataProviderSettingsAcceptAKShare": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：行情提供商配置归一化（Futu/Yahoo/AKShare）、降级重试策略与回测提供商原子准备",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestBacktestProviderIsPreparedBeforeAtomicPersistence": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：行情提供商配置归一化（Futu/Yahoo/AKShare）、降级重试策略与回测提供商原子准备",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestServiceReportsPersistenceAndMCPFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置写入副作用通知、端口冲突回滚、MCP 令牌生命周期与并发更新保序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestServiceRollsBackMCPOnSaveFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置写入副作用通知、端口冲突回滚、MCP 令牌生命周期与并发更新保序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestServiceCreateManagedAccountNormalizesClientFields": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：托管券商账户字段清洗、必填校验、MCP 令牌状态访问与默认交易环境推导",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestServiceNotificationAndMCPStatusAccessors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：托管券商账户字段清洗、必填校验、MCP 令牌状态访问与默认交易环境推导",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestServiceSystemNotificationTestUsesNarrowPublisherAndFailsClosed": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：托管券商账户字段清洗、必填校验、MCP 令牌状态访问与默认交易环境推导",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestServiceDefaultMCPStatusAndTokenGeneration": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：托管券商账户字段清洗、必填校验、MCP 令牌状态访问与默认交易环境推导",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestValidateWebAccessPasswordBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：托管券商账户字段清洗、必填校验、MCP 令牌状态访问与默认交易环境推导",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestServiceCreateManagedAccountRejectsBlankAccountID": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：托管券商账户字段清洗、必填校验、MCP 令牌状态访问与默认交易环境推导",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestServiceOptionsCaptureBrokerDescriptorAndDefaultTradingEnvironment": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：托管券商账户字段清洗、必填校验、MCP 令牌状态访问与默认交易环境推导",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSaveSettingsTriggersSideEffects": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置写入副作用通知、端口冲突回滚、MCP 令牌生命周期与并发更新保序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSaveSecuritySettingsRejectsInvalidWebPort": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置写入副作用通知、端口冲突回滚、MCP 令牌生命周期与并发更新保序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSaveSecuritySettingsRollsBackWhenRuntimeListenerUpdateFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置写入副作用通知、端口冲突回滚、MCP 令牌生命周期与并发更新保序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestMCPServerTokenResetDoesNotLeakAndInvalidatesPreviousToken": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置写入副作用通知、端口冲突回滚、MCP 令牌生命周期与并发更新保序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSaveMCPServerSettingsRollsBackWhenListenerUpdateFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置写入副作用通知、端口冲突回滚、MCP 令牌生命周期与并发更新保序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSaveMCPServerSettingsValidatesTokenAndPort": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置写入副作用通知、端口冲突回滚、MCP 令牌生命周期与并发更新保序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestConcurrentSecuritySavesPreserveNewestPasswordAndCallbackOrder": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置写入副作用通知、端口冲突回滚、MCP 令牌生命周期与并发更新保序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSaveIntegrationPassesStructuredConfigWithoutChangingRuntimeEnv": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置写入副作用通知、端口冲突回滚、MCP 令牌生命周期与并发更新保序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestServiceDelegatesGettersAndSimpleSavers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置写入副作用通知、端口冲突回滚、MCP 令牌生命周期与并发更新保序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestServiceDelegatesProvidersAndLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：系统配置写入副作用通知、端口冲突回滚、MCP 令牌生命周期与并发更新保序",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestFutuWatchlistReaderRemainingSourceAndReadErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/lib.rs`",
+    "conclusion": "已覆盖：Futu 自选股远程源分批快照、市场权限隔离、生僻代码容灾与 OpenD 连接就绪探针",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib"
+  },
+  "TestFutuWatchlistFreshAndRemoteIDRemainingBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/lib.rs`",
+    "conclusion": "已覆盖：Futu 自选股远程源分批快照、市场权限隔离、生僻代码容灾与 OpenD 连接就绪探针",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib"
+  },
+  "TestFutuSnapshotRemainingProviderRateLimitAndSplitPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/lib.rs`",
+    "conclusion": "已覆盖：Futu 自选股远程源分批快照、市场权限隔离、生僻代码容灾与 OpenD 连接就绪探针",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib"
+  },
+  "TestWatchlistQuoteRemainingFormattingAndTimeBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/lib.rs`",
+    "conclusion": "已覆盖：Futu 自选股远程源分批快照、市场权限隔离、生僻代码容灾与 OpenD 连接就绪探针",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib"
+  },
+  "TestRemoteMembersKeepBrokerCodeAndSecurityIDAsSeparateAliases": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/lib.rs`",
+    "conclusion": "已覆盖：Futu 自选股远程源分批快照、市场权限隔离、生僻代码容灾与 OpenD 连接就绪探针",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib"
+  },
+  "TestFutuWatchlistSnapshotUsesMarketSpecificChunksWithPerItemErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/lib.rs`",
+    "conclusion": "已覆盖：Futu 自选股远程源分批快照、市场权限隔离、生僻代码容灾与 OpenD 连接就绪探针",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib"
+  },
+  "TestFutuWatchlistSnapshotIsolatesMarketPermissionFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/lib.rs`",
+    "conclusion": "已覆盖：Futu 自选股远程源分批快照、市场权限隔离、生僻代码容灾与 OpenD 连接就绪探针",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib"
+  },
+  "TestFutuWatchlistSnapshotIsolatesUnknownAndOTCSymbolErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/lib.rs`",
+    "conclusion": "已覆盖：Futu 自选股远程源分批快照、市场权限隔离、生僻代码容灾与 OpenD 连接就绪探针",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib"
+  },
+  "TestFutuWatchlistSourceIdentityDoesNotUseTradingAccount": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/lib.rs`",
+    "conclusion": "已覆盖：Futu 自选股远程源分批快照、市场权限隔离、生僻代码容灾与 OpenD 连接就绪探针",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib"
+  },
+  "TestFutuWatchlistSourceReportsUnavailableRuntimeBeforeDiscovery": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/lib.rs`",
+    "conclusion": "已覆盖：Futu 自选股远程源分批快照、市场权限隔离、生僻代码容灾与 OpenD 连接就绪探针",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib"
+  },
+  "TestFutuWatchlistSourceReportsFailedOpenDProbe": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-integration-futu/src/lib.rs`",
+    "conclusion": "已覆盖：Futu 自选股远程源分批快照、市场权限隔离、生僻代码容灾与 OpenD 连接就绪探针",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib"
+  },
+  "TestBatchQuotesRejectsUnsafeInputAndHonorsCanceledFlights": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组 CRUD、导入预览构建、过期/脏数据提交拦截与仓储异常防护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestQuoteCacheAndImportHelpersKeepAbsentDataExplicit": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组 CRUD、导入预览构建、过期/脏数据提交拦截与仓储异常防护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestPreviewImportRejectsInvalidDerivedGroupName": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组 CRUD、导入预览构建、过期/脏数据提交拦截与仓储异常防护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestBatchQuotesCachesAndSingleflightsOverlappingRequests": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股批量报价单飞合并 (Singleflight)、分标的错误隔离、缓存策略与提供商热切换",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestBatchQuotesTurnsBatchFailureIntoPerItemErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股批量报价单飞合并 (Singleflight)、分标的错误隔离、缓存策略与提供商热切换",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestBatchQuotesHonorsProviderCachePolicy": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股批量报价单飞合并 (Singleflight)、分标的错误隔离、缓存策略与提供商热切换",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestBatchQuotesPreservesPartialResultsAndUpdatesKnownMetadata": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股批量报价单飞合并 (Singleflight)、分标的错误隔离、缓存策略与提供商热切换",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestChangeQuoteProviderRejectsPreviousProviderInflightResults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股批量报价单飞合并 (Singleflight)、分标的错误隔离、缓存策略与提供商热切换",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestChangeQuoteProviderFailurePreservesCurrentCache": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股批量报价单飞合并 (Singleflight)、分标的错误隔离、缓存策略与提供商热切换",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestResetQuoteCacheRejectsPreviousProviderInflightMetadata": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股批量报价单飞合并 (Singleflight)、分标的错误隔离、缓存策略与提供商热切换",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestQuoteResultHelpersReturnEmptySlicesForNilValues": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股批量报价单飞合并 (Singleflight)、分标的错误隔离、缓存策略与提供商热切换",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceCRUDNormalizesAndDelegates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组 CRUD、导入预览构建、过期/脏数据提交拦截与仓储异常防护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceRejectsInvalidDomainInputsBeforeRepositoryWrites": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组 CRUD、导入预览构建、过期/脏数据提交拦截与仓储异常防护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestUnavailableServiceGuardsEveryRepositoryOperation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组 CRUD、导入预览构建、过期/脏数据提交拦截与仓储异常防护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceSynchronizesSourceHealthAndRemoteGroups": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组 CRUD、导入预览构建、过期/脏数据提交拦截与仓储异常防护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceBuildsImportPreviewFromFreshConnectorState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组 CRUD、导入预览构建、过期/脏数据提交拦截与仓储异常防护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServicePreviewImportRejectsUnsafeOrUnusableSnapshots": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组 CRUD、导入预览构建、过期/脏数据提交拦截与仓储异常防护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceCommitImportRevalidatesAndConstrainsDeletes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组 CRUD、导入预览构建、过期/脏数据提交拦截与仓储异常防护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestServiceCommitImportRejectsExpiredStaleAndInvalidRequests": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组 CRUD、导入预览构建、过期/脏数据提交拦截与仓储异常防护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
   }
 }
