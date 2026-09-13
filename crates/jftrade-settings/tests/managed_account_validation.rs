@@ -10,6 +10,8 @@ use jftrade_settings::{
 struct RecordingStore {
     create_calls: AtomicUsize,
     last_create: Mutex<Option<ManagedBrokerAccount>>,
+    update_calls: AtomicUsize,
+    last_update: Mutex<Option<ManagedBrokerAccount>>,
 }
 
 impl BrokerSettingsStorePort for RecordingStore {
@@ -44,6 +46,8 @@ impl BrokerSettingsStorePort for RecordingStore {
         input: &ManagedBrokerAccount,
         _now: &str,
     ) -> Result<Option<ManagedBrokerAccount>, SettingsStoreError> {
+        self.update_calls.fetch_add(1, Ordering::Relaxed);
+        *self.last_update.lock().expect("update capture lock") = Some(input.clone());
         Ok(Some(input.clone()))
     }
 
@@ -106,4 +110,34 @@ fn create_account_clears_client_owned_identity_and_timestamps() {
         );
     }
     assert_eq!(persisted.account_id, "acc-1");
+}
+
+#[test]
+fn update_account_preserves_immutable_identity_and_clears_timestamps() {
+    let store = Arc::new(RecordingStore::default());
+    let service = BrokerSettingsService::new(store.clone());
+    let input = ManagedBrokerAccount {
+        id: "existing-id".to_owned(),
+        account_id: " acc-updated ".to_owned(),
+        created_at: "client-created".to_owned(),
+        updated_at: "client-updated".to_owned(),
+        trading_environment: "SIMULATE".to_owned(),
+        ..ManagedBrokerAccount::default()
+    };
+
+    let updated = service
+        .update_account("existing-id", &input, "2026-09-02T00:00:00Z")
+        .expect("managed account update");
+    let persisted = store
+        .last_update
+        .lock()
+        .expect("update capture lock")
+        .clone()
+        .expect("captured account");
+
+    assert_eq!(updated.id, "existing-id");
+    assert_eq!(persisted.id, "existing-id");
+    assert_eq!(persisted.created_at, "client-created");
+    assert_eq!(persisted.updated_at, "client-updated");
+    assert_eq!(persisted.account_id, "acc-updated");
 }
