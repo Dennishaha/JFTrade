@@ -186,3 +186,4 @@
    - [x] 补齐 Broker 运行时 Session 状态显式包含 null `lastError` 契约断言（`6073d098`）。
    - [x] 补齐 Futu OpenD ProgramStatus 缺失/纯状态/扩展描述格式化断言（`dc5fa7e1`）。
    - [x] 补齐交易日历快照空根目录与缺失文件删除幂等性断言（`82341881`）。
+   - [x] 补齐 Pine/Strategy 周期分钟数解析与安全回退逻辑（`40e50c7f`）。
