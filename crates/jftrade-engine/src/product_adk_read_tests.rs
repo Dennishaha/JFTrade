@@ -205,6 +205,7 @@ fn adk_read_fixture_preserves_empty_collections_as_json_arrays() {
             .unwrap_or_else(|| panic!("fixture case {case_name}"));
         let data = case.data.as_ref().expect("successful fixture case");
         if case_name == "runs" {
+            // Parity: go:452dea11:internal/api/assistant/adk_normalize_test.go:15 TestADKRoutesSerializeEmptySlicesAsArrays
             // Parity: internal/api/assistant/adk_approval_test.go:335 TestADKRunCancelAndFilteredList
             // Verifies runs list shape is valid array and retains status/filter metadata
             assert!(data["runs"].is_array());
