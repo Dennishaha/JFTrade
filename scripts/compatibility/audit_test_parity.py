@@ -249,7 +249,7 @@ def main():
     rust_by_domain = {key: [crate for crate in crates] for key, _, _, crates in DOMAIN_MAPPING}
     with open(inventory_path, "w", encoding="utf-8") as fp:
         fp.write("# Go → Rust 全量测试索引\n\n")
-        fp.write("本文件由 `scripts/compatibility/audit_test_parity.py` 生成；状态仅表示自动映射候选，行为等价性以高价值清单和回归证据为准。\n\n")
+        fp.write("本文件由 `scripts/compatibility/audit_test_parity.py` 生成，是 Go→Rust 全量逐测试人工核对入口。每行的 `[ ]` 表示尚未完成人工确认；自动推导的业务域和 crate 仅是候选，不能视为已覆盖。确认后将该行改为 `[x]` 并填写 Rust 测试名称、差异结论和验证命令；无法迁移的测试必须标记为边界/不适用并说明原因。\n\n")
         fp.write("| 状态 | Go 测试 | 业务域 | 风险 | Rust crate 候选 |\n|---|---|---|---|---|\n")
         for test in sorted(go_tests, key=lambda item: (item["domain"], item["file"], item["line"])):
             risk = "高风险" if test["high_risk"] else "普通边界"
