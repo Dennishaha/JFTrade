@@ -174,6 +174,8 @@ mod tests {
 
     #[test]
     fn exclusive_lock_conflicts_and_file_survives_release() {
+        // Parity: go:452dea11:internal/store/sqliteconn/coordinator_test.go:12 TestWriteCoordinatorOrdersWritersAndReadBarriers
+        // Parity: go:452dea11:internal/store/sqliteconn/coordinator_test.go:44 TestWriteCoordinatorAllowsAdmittedReadsToOverlapLaterWrites
         let directory = tempfile::tempdir().expect("temporary directory");
         let target = directory.path().join("settings.json");
         let diagnostic = OwnerDiagnostic::current("rust-test", "rehearsal");
