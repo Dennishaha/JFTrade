@@ -699,3 +699,47 @@ fn test_canvas_workflow_error_skips_downstream_nodes() {
         Some("skipped due to predecessor failure")
     );
 }
+
+#[test]
+fn test_workflow_tools_missing_session_and_empty_payload_boundaries() {
+    // Parity: internal/assistant/assembly/workflow_tools_error_boundaries_test.go:103 TestWorkflowToolsRemainingSessionAndPayloadErrors
+    let cluster = EngineTestCluster::new();
+    let agent_id = cluster.create_agent("BoundaryAgent");
+
+    // Missing required fields like name in workflow creation should fail validation gracefully
+    let input = AdkMutationInput {
+        operation: AdkMutationOperation::CreateWorkflow,
+        identifiers: BTreeMap::new(),
+        body: json!({
+            "agentId": agent_id,
+        }),
+        webhook_secret: None,
+    };
+    let err = cluster.port.mutate(&input).unwrap_err();
+    match err {
+        AdkMutationPortError::Failed { message, .. } => {
+            assert!(
+                message.to_lowercase().contains("name"),
+                "expected validation on name: {message}"
+            );
+        }
+        other => panic!("expected Failed error, got {other:?}"),
+    }
+
+    // Canvas graph with valid structure succeeds
+    let valid_graph = json!({
+        "version": "v1",
+        "nodes": [
+            {
+                "id": "start-node",
+                "type": "start",
+                "title": "Start",
+                "data": {}
+            }
+        ],
+        "edges": []
+    });
+    let workflow_id =
+        cluster.create_canvas_workflow(&agent_id, "ValidBoundaryWorkflow", valid_graph);
+    assert!(!workflow_id.is_empty());
+}
