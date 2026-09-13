@@ -392,6 +392,7 @@ mod tests {
     use jftrade_store_sqlite::{STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE, StrategyDefinitionStore};
 
     #[test]
+    // Parity: go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:52 TestCatalogRuntimeFailureReconcilesOnlyRunningInstance
     fn restore_invalid_running_binding_marks_instance_failed() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let path = directory.path().join("strategy.db");
@@ -434,6 +435,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:80 TestCatalogStartupReconcileResetsStaleRunningAndPausedState
     fn restore_running_instances_ignores_paused_and_stopped_instances() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("test.db");
