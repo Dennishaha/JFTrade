@@ -22474,5 +22474,3899 @@
     "rust_entry": "crates/jftrade-integration-pine/src/execution.rs",
     "conclusion": "已覆盖：Pine Worker 进程生命周期、gRPC 协议传输与双向数据映射",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(execution)'"
+  },
+  "TestParseChangedGoLinesCollectsAddedAndModifiedHunks": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestRepoRelativeProfilePathKeepsNestedInternalUnderPackageRoot": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestParseChangedGoLinesIgnoresDeletedFiles": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestParseChangedGoLinesRejectsMalformedHunk": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestParseGitDiffPathSupportsQuotedPathsAndRejectsTraversal": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestParseGitListedPathPreservesLeadingDiffPrefixDirectories": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestChangedGoLinesForRefBuildsWorkingTreeDiffCommand": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestChangedGoLinesForRefIncludesGitDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestAnalyzeDiffCoverageSeparatesOrdinaryAndCriticalPackages": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestAnalyzeDiffCoverageExcludesOnlyFutuTestSupportPackage": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestAnalyzeDiffCoverageExcludesFutuTestSupportWithoutProfile": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestAnalyzeDiffCoverageFailsExecutableSourceWithoutProfile": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestAnalyzeDiffCoverageAllowsTypeCommentImportAndTestOnlyChangesWithoutProfile": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestRun": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestAnalyzeDiffCoverageIncludesUntrackedExecutableGoSource": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestUntrackedGoFilesIncludesGitDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestEvaluateDiffCoverageGatesEachCriticalPackageSeparately": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestPrintDiffCoverageReportHandlesNoExecutableStatementsAndCriticalScopes": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestParseConfigDefaults": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestParseConfigExplicitValues": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestParseConfigRejectsInvalidValues": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestParseConfigHelp": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestRunCLIUsesDefaultDependenciesForHelp": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestRunCLIWithStopsBeforeExecutionForHelpAndInvalidConfiguration": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestRunCLIWithReportsWorkingDirectoryAndExecutionFailures": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestRunCLIWithReportsViolationsAndSuccess": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestMainDelegatesToCLIAndProcessExit": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestAnalyzeProfilesAppliesScopesAndExclusions": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestAnalyzeProfilesNormalizesWindowsSeparators": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestAnalyzeProfilesExcludesOnlyFutuTestSupportPackage": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestCoverageStatsPercentageAndPackageScopeBoundaries": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestAnalyzeProfilesRetainsRequiredCriticalScopesWithoutProfileData": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestExclusionRulesAreExplicitAndDoNotHideBackendEntrypoints": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestPackageScopeIncludesAPICommand": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestEvaluateCoverageAggregatesViolations": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestEvaluateCoverageAllowsExactThresholds": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestEvaluateCoverageUsesSingleOrdinaryThreshold": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestCriticalDomainForScopeUsesRiskPrefixesAndPackageBoundaries": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestEvaluateCoverageGatesEachCriticalPackageSeparately": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestPrintCoverageReportIncludesMissingAndSortedScopes": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestPrintCoverageReportReturnsWriterErrorsForEachSection": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestMergeCoverageProfileKeepsOneBlockWithAnyObservedExecution": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestMergeCoverageProfileRejectsMalformedInput": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestExecGoRunnerRunsGoCommandInRequestedDirectory": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestExecuteCoverageCheckBuildsCommandAndCleansProfile": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestExecuteCoverageCheckReturnsGoTestErrorAndCleansProfile": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestExecuteCoverageCheckReportsProfileAndOutputFailures": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestExecuteCoverageCheckReportsTemporaryProfileCreationFailure": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestExecuteCoverageCheckWithGitReportsAndEnforcesChangedCodeCoverage": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestExecuteCoverageCheckWithGitReturnsDiffFailures": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestFindRepoRootRejectsDirectoryWithoutGoMod": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestGenerateFutuProtoReplacesOutputsAfterSuccess": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestGenerateFutuProtoPreservesOutputsOnProtocFailure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestGenerateFutuProtoRejectsChecksumBeforeCommands": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestParseCLIConfig": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestParseCLIConfigRejectsInvalidArguments": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestParseCLIConfigHelp": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestRunCLIReturnsParameterExitCode": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestParseChecksumManifest": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestManifestFileNamesReturnsSortedInputs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestParseChecksumManifestRejectsInvalidEntries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestValidateManifestFilesReportsAllDifferences": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestVerifyFutuInputsRejectsMissingAndMismatchedFiles": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestRepositoryDigestDetectsGeneratedOutputDrift": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestRepositoryDigestRejectsUnexpectedFilesAndProtoNames": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestParseRepositoryDigestValidation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestRewriteGoPackageReplacesOrInsertsOption": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestRewriteGoPackageRejectsMissingPackage": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestOrganizeGeneratedFilesUsesPackageDirectories": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestGeneratePineworkerProtoReplacesOutputAfterSuccess": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestGeneratePineworkerProtoPropagatesExitAndPreservesOutput": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestGeneratePineworkerProtoPreservesOutputOnLineLimit": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestGeneratePineworkerProtoPreservesOutputOnCollision": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestGeneratePineworkerProtoChecksInputsBeforeCommands": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestFlattenGeneratedFiles": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestFlattenGeneratedFilesRejectsNameCollisions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestEnforceGeneratedLineLimitMatchesWcSemantics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestCopyFileCopiesContent": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestReplaceDirectoriesReplacesAllTargets": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestReplaceDirectoriesRollsBackAllTargets": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestExitCodeUsesWrappedExitCoder": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestFindRepoRoot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestFindRepoRootRejectsMissingModule": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestPrepareToolchainInstallsMissingPlugins": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestPrepareToolchainRejectsWrongProtoc": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestEnvironmentHelpersAreCaseInsensitive": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/build.rs",
+    "conclusion": "已覆盖：Protobuf 契约自动化编译与代码生成管线",
+    "command": "pnpm run check:generated"
+  },
+  "TestDevelopmentDesktopBuildProfile": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestReleaseDesktopBuildProfile": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopStartupWindowStatePrecedesAPIStartup": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopStartupPublishesReadyAndClosesResources": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopStartupFailureUsesSafeMessage": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopShutdownIsIdempotent": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopUpdateServiceSelectsLatestStableDesktopRelease": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopUpdateServiceDisabledForDevelopment": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopWindowStatePathIsReleaseOnly": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopWindowStateRoundTrip": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestApplyDesktopWindowState": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestEnsureDesktopWindowVisibleMovesOffscreenWindow": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestMainWindowOptionsUseWebZoom": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopSingleInstanceOptionsAreChannelScoped": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopBuildChannelsCanCoexist": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopRuntimeConfigDisablesAuth": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopAssetHandlerOverridesRuntimeConfig": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopAssetHandlerServesIndexForSPARoute": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopTrayMenuLabels": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopLogWindowOptionsUseVueRoute": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopAssetHandlerServesLogViewer": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopAssetHandlerFallsBackForUnknownClientRoute": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestShouldUseExplicitTrayMenuClick": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestNormalizeDesktopDocsURL": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestNormalizeDesktopDocsURLRejectsUnsafePaths": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestShouldQuitDesktopAppOnlyAllowsExplicitTrayQuit": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestSanitizeDesktopExternalURL": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopLogManagerWritesOriginalAndRotatesByDay": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopLogLevelParsing": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestDesktopOpenFolderCommand": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestSnapshotTrimsBuildMetadataAndDefaultsBuildTime": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：系统环境探测、版本元数据与构建时间凭证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestMaintenanceRegistryDispatchesOnlyDeclaredCapabilities": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-datamanagement/src/lib.rs",
+    "conclusion": "已覆盖：行情历史数据存储管理、清洗归档与数据同步",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement"
+  },
+  "TestMaintenanceRegistryFailsClosedForMissingCapabilities": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-datamanagement/src/lib.rs",
+    "conclusion": "已覆盖：行情历史数据存储管理、清洗归档与数据同步",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement"
+  },
+  "TestBusyCheckersReturnTheFirstOwnedActivityReason": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-datamanagement/src/lib.rs",
+    "conclusion": "已覆盖：行情历史数据存储管理、清洗归档与数据同步",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement"
+  },
+  "TestServiceDelegatesTypedRequests": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-datamanagement/src/lib.rs",
+    "conclusion": "已覆盖：行情历史数据存储管理、清洗归档与数据同步",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement"
+  },
+  "TestServicePreservesBackendErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-datamanagement/src/lib.rs",
+    "conclusion": "已覆盖：行情历史数据存储管理、清洗归档与数据同步",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement"
+  },
+  "TestShouldForwardSystemNotification": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestNotificationMetadata": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestProductDataDirReportsMissingHome": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestMatchesAnyCoverageForBlankAndNormalizedValues": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestProductDataDirByPlatform": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestProductDataDirUsesCurrentPlatform": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：桌面宿主应用生命周期管理、窗口事件与系统集成（Tauri 替代 Wails）",
+    "command": "pnpm run check:quick"
+  },
+  "TestHTTPCalendarSourceFetchPreservesDistinctTransportAndParsingFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestCalendarParserHelpersHandleMalformedAndPartialAuthorityDocuments": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestCalendarAuthorityValidatorHandlesMissingAnchorsAndSparseYears": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestCalendarParsersDiscardIncompleteOrOutOfRangeAuthorityRows": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestCalendarSourceAlertLifecycleRecordsFailuresDeduplicatesAndRecovers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestCalendarParsersHonorNarrowFetchWindowsAndDiscardImpossibleDates": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestNilCalendarManagerOperationsRemainSafeDuringStartupAndShutdown": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestDefaultRegistryRegistersExpectedSources": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestDefaultRegistryUsesCalendarFetchTimeout": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestHTTPCalendarSourceFetchBuildsSnapshotMetadata": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestHTTPCalendarSourceFetchReturnsStatusErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestHTTPCalendarSourceFetchRejectsSparseAnnualSchedules": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestAnchorYearSchedulesValidatorAllowsMissingFutureYearCoverage": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestDefaultHolidayOverrideParserUSParsesTableRows": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestNYSEHolidayScheduleParserParsesMultiYearTableAndFootnotes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestDefaultHolidayOverrideParserHKParsesEnglishList": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestHongKongHolidayICalParserParsesClosedDays": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestSSETradingScheduleParserExpandsRangesAndSkipsMakeupDays": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestSSETradingScheduleParserInfersCrossYearRange": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestDefaultHolidayOverrideParserCNParsesChineseDateLine": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestDefaultHolidayOverrideParserRejectsOutOfRangeDates": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerLifecycleAndTemplateBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManualOverrideStatusAndSessionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestHTTPCalendarSourceValidateSnapshotBoundary": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestCalendarSourceAvailabilityNotesAndRefreshTargets": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerValidateCachedSnapshotRejectsCorruptSnapshots": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerValidateCachedSnapshotUsesRegisteredSourceValidator": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerCachedSnapshotMainlandFallbackAndFreshnessBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestSourceRegistryNilDuplicateAndMarketNormalizationBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestExtractNYSEHeaderYearsSkipsMalformedRowsBeforeValidHeader": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerProbeMarketWarmupAndSnapshotOrdering": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerBackgroundRefreshFollowsSettingsReload": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerRefreshKeepsValidSnapshotWhenPersistenceFails": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerRestoreReportsMalformedCachedSnapshot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerStatusReportsManualAndRemoteOverrideModes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerFailureBackoffUsesHoursAndCapsAtTwentyFour": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestDefaultWarmupRefreshTimeoutCoversSequentialRemoteSources": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerFallsBackToBuiltinWhenOfficialRefreshFails": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerStatusIncludesSnapshotSummariesAndSampleSchedules": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerManualOverridesBeatRemoteAndBuiltin": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerSharedMainlandSourceAppliesToSHAndSZ": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerIgnoresStaleRemoteSnapshots": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerDiscardInvalidCachedSnapshotOnRestore": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerProbeMarksHealthySources": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerProbeMarksEmptyParsesUnhealthy": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerRefreshTreatsEmptyParsesAsFailureAndAlerts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerSourceAlertsDeduplicateAndRecover": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerSourceAlertsDeduplicateNetworkTimeoutVariants": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerProbeRecoveryClearsCurrentFetchError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestSourceRegistryHonorsPreferredSourceOrder": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerSourcesExposeAvailabilityNotes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerStatusExplainsBuiltinEffectiveReason": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerStatusUsesRemoteCoverageSourceForRegularDay": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestSnapshotCacheKeyUsesMarketLocalYear": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestSnapshotCacheIndexesEveryCoveredMarketYear": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestManagerCurrentTimeNormalizesInjectedClockToUTC": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestRefreshAndProbeKeepPerSourceHealthTruthful": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestStatusDistinguishesRemoteCoverageFromRemoteOverride": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestSourceStatusJSONOmitsZeroTimes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
+    "conclusion": "已覆盖：交易所交易日历、开闭市计算、节假日与交易时段推演",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
+  },
+  "TestFileSystemReportsExternalAssetsForDevelopmentBuild": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：前端静态资源嵌入与桌面壳分发管线",
+    "command": "pnpm run check:quick"
+  },
+  "TestFileSystemEmbedsUnderscorePrefixedAssets": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：前端静态资源嵌入与桌面壳分发管线",
+    "command": "pnpm run check:quick"
+  },
+  "TestFileSystemEmbedsDocumentationAndLegalNotices": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：前端静态资源嵌入与桌面壳分发管线",
+    "command": "pnpm run check:quick"
+  },
+  "TestFileSystemDoesNotEmbedRemovedGoPineRuntimeReferences": {
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/main.rs",
+    "conclusion": "已覆盖：前端静态资源嵌入与桌面壳分发管线",
+    "command": "pnpm run check:quick"
+  },
+  "TestClientResponseAndErrorBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientRetryAndTransportBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientDoesNotRetryExplicitPoolBackpressure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientHealthContractBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientCandlesEncodeAdjustmentOnlyWhenRequested": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestConversionRejectsInvalidMarketAndInstrumentContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestConversionRejectsInvalidSecurityAndSnapshotContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestConversionProjectsFundamentalsOnlyWhenSidecarReportsThem": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestConversionRejectsInvalidCandleContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestConversionRejectsInvalidCandlePaginationMetadata": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderInputAndUnavailableBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestHelperBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientRequestOnceReadFailure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestRemainingProviderAndConversionBranches": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientIndexConstituentsEncodesLimitAndDecodesNullableWeights": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientIndexConstituentsMapsUnsupportedInstrumentToCapabilityError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientNewsEncodesLimitAndDecodesNullableEntries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientCorporateActionsEncodesRangeAndDecodesEvents": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientCorporateActionsOmitsUnsetRange": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientNewsMapsUnsupportedMarketToCapabilityError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientCorporateActionsSurfacesPoolBusyWithoutRetryStorm": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientNewsSurfacesColdCacheWarming": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientCalendarMacroEndpointsEncodePathsAndQuery": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderCalendarConvertsEntriesAndKeepsNulls": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderCalendarRejectsMalformedEntries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderMacroConvertsCatalogAndHistory": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderMacroHistoryRejectsMismatchedEcho": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderCalendarMacroPassesSidecarErrorsThrough": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientCompanyResearchEndpointsEncodePathAndStatement": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderCompanyProfileConvertsCNInstrument": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderFinancialStatementsConvertsPeriodsAndValidatesEcho": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderOwnershipConvertsMajorHoldersAndHolderTypes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderCompanyResearchRejectsUnsupportedMarketsAndStatement": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderCompanyProfileSupportsHK": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderCompanyResearchMapsSidecarUnsupportedMarket": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderOwnershipRejectsUnknownGroupKind": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderAnalystConsensusConvertsEastmoneyAggregate": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderAnalystConsensusMapsSidecarUnsupportedMarket": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderAnalystConsensusPassesThroughNotFound": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderAnalystConsensusRejectsUnsupportedMarketsGoSide": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderIndexConstituentsConvertsEntriesAndAppliesDefaultLimit": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderIndexConstituentsRejectsMalformedPayloads": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderIndexConstituentsRejectsIdentityMismatch": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderIndexConstituentsSurfacesUnsupportedMarkets": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderIndexConstituentsMeetsOptionalCapabilityContract": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderNewsConvertsEntriesAndAppliesDefaultLimit": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderCorporateActionsSortsAndValidatesEvents": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderNewsAndCorporateActionsRejectMalformedPayloads": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderNewsRejectsIdentityMismatch": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderNewsAndCorporateActionsSurfaceUnsupportedUSAndHK": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderNewsAndCorporateActionsMeetOptionalCapabilityContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientRankingsEncodesMarketKindAndLimit": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientIndustriesEncodesKindAndDecodesBoards": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientIndustryMembersEscapesBoardNameAndOmitsEmptyKind": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderRankingsConvertsEntriesAndNormalizesIdentity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderRankingsRejectsUnsupportedMarketAndKind": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderRankingsRejectsKindMismatch": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderIndustriesConvertsBoardsAndMembers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderIndustriesMapsSidecarUnsupportedToCapabilityError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientScreenPostsConditionSortAndPagingBody": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderScreenConvertsCNEntriesAndDerivesSymbol": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderScreenAcceptsCNSHSZHKUSAndRejectsOthers": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderScreenClassifiesSidecarErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderScreenClassifiesMultipleSortKeysAsCapabilityError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderScreenRejectsEntriesWithoutInstrumentID": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderExposesPollingOnlyAKShareBoundary": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderAdvertisesDailyAdjustmentAndRejectsIntradayAdjustment": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderConvertsNamespacedSidecarContract": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderPreservesErrorsAndPartialBatchResults": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderNormalizesIndexAndExchangeIdentities": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderRejectsNonRegularCandleSessions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderChunksBatchSnapshotsAtContractLimit": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientRejectsInvalidEndpoint": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：AKShare 数据源适配、行情辅助进程代理与异常映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientNewsEncodesLimitAndDecodesEntries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientCorporateActionsEncodesInclusiveRange": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientNewsSurfacesWarmingAndStructuredFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestNewClientValidatesURLAndDefaultTransport": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientRetriesSafeServerFailuresThenReturnsDecodedResponse": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientHealthRequiresYFinanceVersion": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientHealthRequiresKnownRuntimeState": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientPreservesStructuredHTTPErrorWithoutRetryingCallerFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientClassifiesExhaustedServerAndNetworkFailuresAsUnavailable": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientRejectsMalformedEmptyTrailingAndOversizedResponses": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientRetryWaitHonorsContextCancellation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientClassifiesRuntimeWarmingAfterRetryBudget": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientTimeoutCoversAllRetryAttempts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestClientEndpointMethodsEncodePathAndOptionalCandleQuery": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestHTTPErrorFormattingAndClassification": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestSnapshotConversionPreservesRegularChangeWhenPreMarketQuoteIsUnavailable": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestSnapshotConversionUsesRegularCloseForValidPreMarketQuote": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestSnapshotConversionRejectsInvalidPreMarketQuotesWithoutChangingTheBaseline": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestSnapshotConversionUsesPriceFallbacksAndCanonicalTimes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestVolumeConversionPreservesLargeFractionalDecimalValues": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestSnapshotConversionKeepsOriginalCloseForNonUSClosedMarkets": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestSnapshotConversionUsesCalendarForLatestClosedSessionAfterMarket": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestSnapshotConversionRejectsContractViolations": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestCandleConversionBuildsNeutralResponseAndRejectsDrift": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestCandleConversionRejectsInvalidPaginationMetadata": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestHistoricalCandleResponseValidationPreservesStrictAndBoundedPages": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestCandleConversionUsesEarlyCloseCalendarAndDropsClosedBars": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestCandleConversionMarksYahooExtendedVolumeUnavailable": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestCandleConversionFiltersSessionsAndAppliesFinalLimit": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestConvertedCandleSessionGroupRejectsUnknownLabels": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestMarketAndCandidateConversionRejectsMalformedProviderData": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestSecurityConversionValidatesIdentityAndDefaultsSource": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestNormalizationAndNumericHelpersCoverAliasesAndBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderCompanyProfileConvertsGroupsAndSkipsEmptyFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderFinancialStatementsConvertsFieldsPeriodsAndNullableRatios": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderAnalystConsensusConvertsRatingTargetAndDistribution": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderOwnershipConvertsGroupsAndValidatesKind": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderCompanyResearchRejectsUnsupportedMarketsWithoutSidecarCall": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderCompanyResearchRejectsIdentityMismatch": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderNewsNormalizesEntriesAndDefaults": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderNewsRejectsMismatchedIdentityAndInvalidTimestamps": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderCorporateActionsSortsEventsByExDateAndKind": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderCorporateActionsRejectsUnknownKindsAndBadExDates": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderNewsAndCorporateActionsSupportEveryLeafMarket": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderRankingsConvertsEntriesAndAppliesDefaultLimit": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderRankingsRejectsNonUSMarketsWithoutSidecarCall": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderScreenConvertsEntriesAndDerivesSymbol": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderScreenRejectsNonUSMarketsWithoutSidecarCall": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderAdvertisesForwardAdjustmentAndRejectsBackward": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderDescriptorReflectsActualYahooPollingBoundary": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderReadsMarketsSearchLookupAndSecurityThroughSidecar": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderConvertsSnapshotsCandlesHealthAndUnsupportedDepth": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderMarksYahooExtendedMinuteVolumeUnavailable": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderRejectsUnsupportedYahooCandleSessions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderQueriesHongKongAndChinaLeafMarkets": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderNormalizesUSAliasesAndRejectsInvalidInputs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestGetHistoricalCandlesRejectsOneMinutePeriodBeyondSevenDayWindow": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderQueryTickersReturnsPartialSuccessAndPreservesAllFailureErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestProviderSearchClampsLimitAndLookupRejectsMismatchedIdentity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/lib.rs",
+    "conclusion": "已覆盖：Yahoo Finance 数据适配、时区转换与重试降级",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper"
+  },
+  "TestExchangeCalendarSettingsUnmarshalExplicitEnabledField": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：用户配置定义、偏好设置序列化与版本迁移",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestExchangeCalendarSettingsRejectsInvalidFieldValueInsideObject": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：用户配置定义、偏好设置序列化与版本迁移",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestExchangeCalendarSettingsDefaultsLegacyErrorNotifications": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：用户配置定义、偏好设置序列化与版本迁移",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestExchangeCalendarSettingsPreservesExplicitErrorNotifications": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：用户配置定义、偏好设置序列化与版本迁移",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestExchangeCalendarSettingsRejectsMalformedJSON": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：用户配置定义、偏好设置序列化与版本迁移",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestNormalizeSubscriptions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lib.rs",
+    "conclusion": "已覆盖：实盘运行宿主、组件装配与生命周期优雅启停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
+  },
+  "TestClientRegistryTracksActiveInstruments": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lib.rs",
+    "conclusion": "已覆盖：实盘运行宿主、组件装配与生命周期优雅启停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
+  },
+  "TestClientSnapshotIsIsolatedAndUpdateIsCoalesced": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lib.rs",
+    "conclusion": "已覆盖：实盘运行宿主、组件装配与生命周期优雅启停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
+  },
+  "TestNilClientAndPublisherBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lib.rs",
+    "conclusion": "已覆盖：实盘运行宿主、组件装配与生命周期优雅启停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
+  },
+  "TestReplayPublisherStartErrorAndNilSourceAreNoops": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lib.rs",
+    "conclusion": "已覆盖：实盘运行宿主、组件装配与生命周期优雅启停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
+  },
+  "TestReplayPublisherStartRacingCloseStopsLateSource": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lib.rs",
+    "conclusion": "已覆盖：实盘运行宿主、组件装配与生命周期优雅启停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
+  },
+  "TestNotificationDeliveryKeepsHostNotificationOutcomeExplicit": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lib.rs",
+    "conclusion": "已覆盖：实盘运行宿主、组件装配与生命周期优雅启停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
+  },
+  "TestReplayPublisherSequencesAndRetainsWindow": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lib.rs",
+    "conclusion": "已覆盖：实盘运行宿主、组件装配与生命周期优雅启停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
+  },
+  "TestReplayPublisherNormalizesEventTimeToUTC": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lib.rs",
+    "conclusion": "已覆盖：实盘运行宿主、组件装配与生命周期优雅启停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
+  },
+  "TestReplayPublisherExpiresOldEventsWithoutResettingSequence": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lib.rs",
+    "conclusion": "已覆盖：实盘运行宿主、组件装配与生命周期优雅启停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
+  },
+  "TestReplayPublisherCloseStopsSourcesOnce": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lib.rs",
+    "conclusion": "已覆盖：实盘运行宿主、组件装配与生命周期优雅启停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
+  },
+  "TestReplayPublisherConcurrentPublishAndAfter": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lib.rs",
+    "conclusion": "已覆盖：实盘运行宿主、组件装配与生命周期优雅启停",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
+  },
+  "TestNormalizeCandleOptionsAcceptsSessionsAndAdjustments": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestNormalizeCandleOptionsRejectsUnsupportedValues": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestCapabilitiesContextFiltersAndReportsRuntimeEvaluation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestCapabilitiesContextFiltersProductsAndSegments": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestCapabilitiesContextMarksDeclaredButMissingInterfaceUnavailable": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestStaticRuntimeEvaluationDistinguishesRequiredDimensions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestValidateResearchCalendarQueryAcceptsSupportedBusinessParameters": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestValidateResearchCalendarQueryRejectsInvalidParameters": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestValidateResearchCalendarQueryIgnoresOtherOperations": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestWorkspaceMarketDataReadsPreserveExplicitProviderAndResponseShape": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestWorkspaceMarketDataReadsRejectInvalidInstrument": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestWorkspaceCandlePaginationRejectsInvalidMetadata": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestNormalizeCoreCandleQueryAcceptsSessionParameterShapes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestWorkspaceMarketDataReadsResolveChinaAggregateToExchangeLeaf": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestWorkspaceMarketDataReadsSurfaceProviderFailuresAndNormalizeFallbacks": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestWorkspaceSnapshotRestoresRegularCloseComparisonSemantics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestWorkspaceSnapshotUsesActiveExtendedSessionFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestWorkspaceSnapshotExtendedSessionFallbacksRemainStable": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestQuotePredictionComboValidatesPersistsAndPublishesServerExpiry": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestQuotePredictionComboRejectsInvalidAndUnpersistableQuotes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestPredictionPushSourceCachesFreshUniqueUpdates": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestCoreCandleBridgeValidatesBoundariesAndProductSemantics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedResearchFeatureAllowListIsExplicit": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderServesCalendarOperations": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderServesMacroOperations": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderRejectsUnsupportedCalendarMacroOperations": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderPropagatesCalendarMacroErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderCalendarMacroStayOnBrokerPathForFutu": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderServesCompanyResearchDefaultOperations": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderCompanyResearchForwardsMarketSymbolAndStatement": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderCompanyResearchAcceptsOmittedOperation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderRejectsNonDefaultCompanyOperations": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderPropagatesCompanyResearchCapabilityErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderCompanyResearchStaysOnBrokerPathForFutu": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderServesNewsForExplicitBrokerID": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderServesCorporateActionsForActiveProvider": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderLeavesFutuQueriesOnBrokerPath": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderPropagatesCapabilityAndLifecycleErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderMapsRankingsOperationsToKinds": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderRejectsUnmappedRankingsOperations": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderMapsIndustryBoardOperations": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderServesPlateMembersFromInstrumentID": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderRejectsUnsupportedIndustryOperationsAndPlateTypes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderPropagatesRankingsCapabilityErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderRankingsStayOnBrokerPathForFutu": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderDefaultsEmptyMarketToProviderDefault": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderServesScreenAndProjectsRows": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderRejectsFutuCatalogScreenWith409": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderRejectsNonExecutableScreenShapes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderMapsScreenCapabilityErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedScreenDecodesMapDefinitionAndDefaultsPaging": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderServesUSScreenViaAkshare": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderEarningsCalendarProjectionMapsFrontendKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderDividendCalendarProjectionMapsFrontendKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderEconomicCalendarProjectionDerivesDateAndTime": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderIpoCalendarProjectionMapsFrontendKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderMacroIndicatorsProjectionNestsIndicatorList": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderMacroIndicatorHistoryProjectionMapsFrontendKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderNewsProjectionMapsNullableFieldsAndAsOf": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderNewsProjectionFallsBackToNowWithoutTimestamps": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderCorporateActionProjectionFormatsStatements": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedNewsLimitPrecedenceAndClamp": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedProviderServesMirrorsActiveProviderMatching": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedResearchInstrumentDerivesMarketAndSymbol": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestMapEmbeddedProviderErrorKeepsSentinels": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderRankingsProjectionMapsFrontendKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderIndustryBoardsProjectionMapsFrontendKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderIndustryMembersProjectionUsesRankingKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestEmbeddedRankingsLimitPrecedenceAndClamp": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderCompanyProfileProjectionMapsFrontendKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderFinancialStatementsProjectionMapsFrontendKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderAnalystConsensusProjectionMapsFrontendKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderAnalystConsensusProjectionOmitsAbsentSections": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProviderOwnershipProjectionMapsFrontendKeys": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProductFeatureServiceRemainingRoutingAndDegradationBranches": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestOptionFeatureValidationRejectsMalformedAdvancedFilters": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestResearchInstitutionDetailQueriesRequireInstitutionID": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestQueryUsesFreshPredictionPushBeforePolling": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestPredictionEligibilityRejectsFutuSecuritiesAndAcceptsFutuInc": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestQueryDoesNotFallbackWhenBrokerIsExplicit": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestBatchSnapshotsUsesOptionalSourceWithoutSubscriptions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestBatchSnapshotsRejectsUnsupportedRegionsAndOversizedRequests": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestPredictionSubscriptionLeasesReferenceCountVisibleContracts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProductFeatureServiceRoutesEveryOptionalInterfaceAndCaches": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProductFeatureServiceFailureBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProductFeatureServiceExhaustiveFailureAndNormalizationBranches": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProductFeaturePredictionAndCustomizationFailureBranches": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProductFeatureServiceNormalizesCoreMarketCandlesWithProvider": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestProductFeatureDirectAdapterCacheAndEligibilityBranches": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestDocumentResultPreservesFeatureWireShape": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestTypedCapabilityDescriptionsAreDefensive": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/lib.rs",
+    "conclusion": "已覆盖：系统产品功能特性开关、默认特性门禁与配置解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
+  },
+  "TestServiceCreateListGetAndDeletePreset": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestServiceUpdatePresetMergesFieldsAndEnforcesRevision": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestServiceRejectsUnavailableAndInvalidPresetOperations": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestServicePropagatesRepositoryFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestDoUsesDefaultsAndReturnsEventualSuccess": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：重试退避重试策略、降级容错机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestDoRetriesUntilSuccess": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：重试退避重试策略、降级容错机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestDoRetriesWithDeterministicBackoff": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：重试退避重试策略、降级容错机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestDoZeroBaseDelayDoesNotSleep": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：重试退避重试策略、降级容错机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestDoReturnsNonRetryableErrorImmediately": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：重试退避重试策略、降级容错机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestFutuRateLimitShouldRetry": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：重试退避重试策略、降级容错机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestHashAndVerify": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：安全密码哈希存储与校验算法",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestVerifyRejectsUnsafeParametersBeforeHashing": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：安全密码哈希存储与校验算法",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestValidRejectsMalformedHashes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：安全密码哈希存储与校验算法",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestStatusIncludesInjectedObservabilitySummaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：系统环境探测、版本元数据与构建时间凭证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestStatusProvidesDefaultRequestObservabilitySummary": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：系统环境探测、版本元数据与构建时间凭证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestExchangeCalendarDelegatesAndFallbacks": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：系统环境探测、版本元数据与构建时间凭证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestStorageAndRealTradeDefaultsExposeFrontendShape": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：系统环境探测、版本元数据与构建时间凭证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestFutuDefaultsExposeEmptyGuideAndSnapshot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：系统环境探测、版本元数据与构建时间凭证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestRuntimeDependenciesDelegates": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：系统环境探测、版本元数据与构建时间凭证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestStatusDefaultsAndInjectedSummaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：系统环境探测、版本元数据与构建时间凭证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestStatusUsesDynamicPortAndTradingEnvironmentProviders": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：系统环境探测、版本元数据与构建时间凭证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestRealTradeDefaultsMatchFrontendContract": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：系统环境探测、版本元数据与构建时间凭证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestRealTradeStateUsesInjectedRiskGatewaySnapshot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：系统环境探测、版本元数据与构建时间凭证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestRealTradeStateNormalizesTypedNilSlices": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：系统环境探测、版本元数据与构建时间凭证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestRealTradeControlDelegatesAndUnavailableBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：系统环境探测、版本元数据与构建时间凭证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestFutuHealthAndResetDelegates": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：系统环境探测、版本元数据与构建时间凭证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestFutuHealthDefaultsUnavailable": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：系统环境探测、版本元数据与构建时间凭证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestPercentile": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestLower": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestHigher": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestLSM": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestFindPivot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestNewRandomNormal": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestNewRandomPoisson": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestNewRandomUniform": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestSub": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestTruncate": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestAdd": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "Test_FormatString": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestDelta": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestFloor": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestInternal": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestNumFractionalDigitsLegacy": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestMulString": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestMulExp": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestNew": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestFormatString": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestRound": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestNewFromString": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestFromString": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestJson": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestYaml": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestNumFractionalDigits": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestExpirableValue_SetAndGet": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestExpirableValue_IsExpired": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestExpirableValue_GetExpired": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestExpirableValue_GetUnset": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestExpirableValue_String": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestReduce": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestSortInterface": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestAccountLockAndUnlock": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestAccountLockAndUse": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestUpdateFuturesPositions_MergeAndOverride": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestBalanceMap_Add": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestBalanceMap_Assets": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestConnectivity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestConnectivityGroupAuthC": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestConnectivityGroup": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "Test_sumStates": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestParseSimpleDuration": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestSerialization": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestRecoverOrderError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "Test_exchangeName": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestQueue": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestFloat": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestNextCross": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestFloat64Slice": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestCorr": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestCov": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestSkew": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestEntropy": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestCrossEntropy": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestSoftmax": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestSigmoid": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestHighLowest": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestDiv": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestMul": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestArray": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestSwitchInterface": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestLogisticRegression": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestDot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestClone": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestPlot": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestFilter": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestOLS": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestParseInterval": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestIntervalSort": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestKLineWindow_Tail": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestKLineWindow_Truncate": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestShrinkSlice": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestMarketDataStore_AddKLineAndTruncateWindow": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestMarket_GreaterThanMinimalOrderQuantity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestFormatQuantity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestFormatPrice": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestDurationParse": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "Test_FormatPrice": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "Test_formatQuantity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestMarket_TruncateQuantity": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestMarket_AdjustQuantityByMinNotional": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestMarket_AdjustQuantityToContractSize": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestOmega": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestOrderBook_IsValid": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestPosition_ROI": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestPosition_ExchangeFeeRate_Short": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestPosition_ExchangeFeeRate_Long": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestPosition": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestPosition_SetClosing": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestPosition_GetBaseAndAverageCost": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestPriceHeartBeat_Update": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestPriceVolumeSlice_UnmarshalJSON": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestPriceVolumeSlice_Remove": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestRBOrderBook_EmptyBook": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestRBOrderBook_Load": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestRBOrderBook_LoadAndDelete": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestRBTree_ConcurrentIndependence": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestRBTree_InsertAndDelete": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestRBTree_Rightmost": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestRBTree_RandomInsertSearchAndDelete": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestRBTree_CopyInorder": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestTree_Copy": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestRBTree_basic": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestRBTree_bulkInsert": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestRBTree_bulkInsertAndDelete": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestRBTree_StressInsertDeleteAndValidate": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestUpdate": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestSeriesBaseFuncWithPushData": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestSharpe": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestSliceOrderBook_CopyDepth": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestSortTradesAscending": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestSortOrdersByPrice": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestSortino": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestStandardStream_RawMessage_NoParser": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestStandardStream_ParserAndDispatcher": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestStandardStream_BeforeConnectCalled": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestStandardStream_HeartbeatAndPing": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestStandardStream_ResubscribeTriggersReconnect": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestStandardStream_Close": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "Test_waitGroup_Run": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestParseLooseFormatTime_alias_now": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestParseLooseFormatTime_alias_yesterday": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestLooseFormatTime_UnmarshalJSON": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestMillisecondTimestamp_UnmarshalJSON": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestTradeRingBuffer_Add": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestTradeRingBuffer_Filter": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestTradeRingBuffer_Filter_WrapAround": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestTradeRingBuffer_TradeFrequency": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestCAGR": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestKellyCriterion": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestAnnualHistoricVolatility": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestOptimalF": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestDrawdown": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestTradeStats_consecutiveCounterAndAmount": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "Test_trimTrailingZero": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "Test_ValueMap_Eq": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "Test_ValueMap_Add": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "Test_ValueMap_AddScalar": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "Test_ValueMap_DivScalar": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "Test_ValueMap_Sum": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "Test_ValueMap_Normalize": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "Test_ValueMap_Normalize_zero_sum": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-kernel/src/lib.rs",
+    "conclusion": "已覆盖：核心量化交易领域模型、FixedPoint 高精度计算与强类型序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel"
+  },
+  "TestLogError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：重试退避重试策略、降级容错机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestLogErrorNoError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：重试退避重试策略、降级容错机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestNormalizeChartType": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：图表渲染数据协议与指标点位序列化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestObservabilityBackgroundContextsAndImportanceRanks": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：结构化日志追踪、度量指标与诊断观测",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestObservabilityContextDetachWithBackgroundBase": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：结构化日志追踪、度量指标与诊断观测",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestStructuredLogIncludesCanonicalCorrelationFields": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：结构化日志追踪、度量指标与诊断观测",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestRecorderSnapshotSerializesEmptyCollectionsAsArrays": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：结构化日志追踪、度量指标与诊断观测",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestImportanceThresholdSuppressesLowerImportanceLogs": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：结构化日志追踪、度量指标与诊断观测",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestGlobalImportanceThresholdAppliesWithoutRecorder": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：结构化日志追踪、度量指标与诊断观测",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestRecorderBoundsErrorsSlowRequestsAndOpenDHealth": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：结构化日志追踪、度量指标与诊断观测",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestDetachPreservesCorrelationWithoutParentCancellation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：结构化日志追踪、度量指标与诊断观测",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestObservabilityBoundaryDefaultsAndGlobalOpenDLogging": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：结构化日志追踪、度量指标与诊断观测",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestObservabilityNilContextAndOpenDSuccessBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：结构化日志追踪、度量指标与诊断观测",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestCatalogHelperContractsCoverEditorVariants": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestCatalogParameterBoundsAndAvailability": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestValidateCatalogRejectsIncompleteSemanticRows": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestEmbeddedCatalogShapeAndSemantics": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestEmbeddedCatalogValidationUseFlags": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestNormalizeDefinitionV2AcceptsEmbeddedCatalog": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestNormalizeDefinitionV2EmbeddedRejectsOutOfCatalogFactors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestNormalizeDefinitionV2FutuContractUnchanged": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestCatalogIsCompleteStableAndDoesNotExposeProviderEnums": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestCatalogParametersExposeEditorContract": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestValidateFactorUseRejectsUnsupportedPurposes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestFactorDisplaySemanticsAreExplicitAndCorrected": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestDefinitionHelperContractsCoverSupportedValueShapes": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestParameterValidationRejectsTypeRangeStepAndEnumErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestUnionValidationCoversEveryProviderShape": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestConditionValueValidationCoversSetRangePositionAndPattern": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestDefinitionNormalizationCoversPoolsSortsAndSecondFactors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestDefinitionNormalizationRejectsPoolSortAndIdentityErrors": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestNormalizeDefinitionPreservesParameterizedInstances": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestNormalizeDefinitionRequiresExplicitV2Versions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestNormalizeDefinitionRejectsDuplicateConfigurationWithFieldPath": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestNormalizeDefinitionRejectsMarketIncompatibleFactor": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestNormalizeDefinitionValidatesParameterTypesEnumsAndUnions": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestNormalizeDefinitionRejectsWrongOperatorForFactorKind": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/lib.rs",
+    "conclusion": "已覆盖：选股筛选引擎、量化因子计算与筛选结果规整",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research"
+  },
+  "TestArchiveFrontendAssetsPreservesRelativePathsAndTimestamp": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-core/src/lib.rs",
+    "conclusion": "已覆盖：核心通用基础能力与工具函数",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core"
+  },
+  "TestAnalyzeSourcesRejectsCallsWithoutAssertions": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestPublishes": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestAnalyzeSourcesRecognizesStandardAndTestifyAssertions": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestStandard": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestTestify": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestAnalyzeSourcesFollowsAssertionHelpersAcrossFiles": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestWorkflow": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestAnalyzeSourcesRecognizesAssertionsInsideNestedSubtests": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestNested": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
+  },
+  "TestValidateExemptionsRejectsStaleEntries": {
+    "status": "[x]",
+    "rust_entry": "不适用：Go 专用测试质量分析工具",
+    "conclusion": "边界保留：旧 Go 独有覆盖率统计与测试门禁脚本，由 Rust scripts/quality 替代",
+    "command": "pnpm run check:quick"
   }
 }
