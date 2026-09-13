@@ -307,6 +307,10 @@ def main():
     ]
     if invalid_evidence:
         raise ValueError(f"[x] mappings require evidence_type=function_exact; found {len(invalid_evidence)}")
+    exact_entries = [item.get("rust_entry") for item in mapping_values if item.get("status") == "[x]"]
+    duplicate_entries = len(exact_entries) - len(set(exact_entries))
+    if duplicate_entries:
+        raise ValueError(f"[x] mappings must use unique Rust test entries; duplicate references={duplicate_entries}")
     generic_proofs = sum(
         item.get("status") == "[x]" and item.get("evidence_type") != "function_exact"
         for item in mapping_values
