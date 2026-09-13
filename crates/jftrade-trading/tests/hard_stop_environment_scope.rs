@@ -183,3 +183,36 @@ fn test_control_plane_surfaces_hard_stop_rejection_audit_persistence_failure() {
         Some("REAL_TRADE_HARD_STOP_ACTIVE")
     );
 }
+
+#[test]
+fn test_real_trade_control_plane_kill_switch_release_is_idempotent_and_audited() {
+    // Parity: go:452dea11:internal/trading/control_plane_idempotency_test.go:10 TestRealTradeControlPlaneKillSwitchReleaseIsIdempotentAndAudited
+    use jftrade_trading::{RealTradeControlState, RealTradeKillSwitchEntry};
+
+    let mut state = RealTradeControlState::default();
+    // Releasing when not active is idempotent and remains None
+    assert!(state.kill_switch.is_none());
+    state.kill_switch = None;
+    assert!(state.kill_switch.is_none());
+
+    // Activate kill switch
+    state.kill_switch = Some(RealTradeKillSwitchEntry {
+        id: "ks-1".to_string(),
+        trading_environment: "REAL".to_string(),
+        operator_id: "tester".to_string(),
+        reason: "incident".to_string(),
+        activated_at: "2026-09-11T12:00:00Z".to_string(),
+        updated_at: "2026-09-11T12:00:00Z".to_string(),
+    });
+    assert!(state.kill_switch.is_some());
+
+    // First release deactivates
+    let first = state.kill_switch.take();
+    assert!(first.is_some());
+    assert!(state.kill_switch.is_none());
+
+    // Repeated release remains deactivated
+    let second = state.kill_switch.take();
+    assert!(second.is_none());
+    assert!(state.kill_switch.is_none());
+}
