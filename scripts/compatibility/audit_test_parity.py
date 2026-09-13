@@ -162,6 +162,17 @@ def main():
     print("Extracting Go tests from branch 'go'...")
     go_tests = extract_go_tests()
     print(f"Total Go tests: {len(go_tests)}")
+    # Test names are not globally unique (different packages may reuse names).
+    # Keep this visible in the audit instead of silently collapsing rows by name.
+    duplicate_names = {}
+    by_name = {}
+    for test in go_tests:
+        by_name.setdefault(test["name"], []).append(test)
+    for name, entries in by_name.items():
+        if len(entries) > 1:
+            duplicate_names[name] = [f"{item['file']}:{item['line']}" for item in entries]
+    if duplicate_names:
+        print(f"WARNING: {len(duplicate_names)} duplicate Go test names require file:line-scoped mappings")
 
     print("Extracting Rust tests from current workspace...")
     rust_tests = extract_rust_tests()
@@ -227,6 +238,7 @@ def main():
         fp.write(f"- **Rust 当前测试总数**：{total_rust}\n")
         fp.write(f"- **总体测试覆盖比率**：{total_ratio}\n")
         fp.write(f"- **Rust 基线（`{current_revision}`）**：当前工作树\n\n")
+        fp.write(f"- **同名 Go 测试组**：{len(duplicate_names)}（映射必须使用文件路径与行号，不能仅按测试名）\n")
         fp.write("## 2. 分领域对齐矩阵\n\n")
         fp.write("| 业务领域 | Go 测试数 | Go 高风险数 | Rust 测试数 | 迁移比例 |\n")
         fp.write("| :--- | :--- | :--- | :--- | :--- |\n")
