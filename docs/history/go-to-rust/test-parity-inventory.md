@@ -19,10 +19,10 @@
 
 | 状态 | Go 测试 | 业务域 | 风险 | Rust crate 候选 | Rust 测试/入口 | 差异结论 | 验证命令 |
 |---|---|---|---|---|---|---|---|
-| [ ] | `go:452dea11:cmd/jftrade-api/main_test.go:13`<br>`TestValidateArgsAllowsNoArgs` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:cmd/jftrade-api/main_test.go:19`<br>`TestValidateArgsRejectsLegacySubcommands` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:cmd/jftrade-api/main_test.go:31`<br>`TestIsHelpArgs` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:cmd/jftrade-api/main_test.go:46`<br>`TestRunAPICommandPrintsUsageWithoutStartingTheServer` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
+| [x] | `go:452dea11:cmd/jftrade-api/main_test.go:13`<br>`TestValidateArgsAllowsNoArgs` | api_transport | 普通边界 | `crates/jftrade-api` | 不适用：无 Rust CLI 参数入口 | 边界保留：旧 Go CLI 行为不属于 Rust transport 契约 | `pnpm run check:rust:architecture` |
+| [x] | `go:452dea11:cmd/jftrade-api/main_test.go:19`<br>`TestValidateArgsRejectsLegacySubcommands` | api_transport | 普通边界 | `crates/jftrade-api` | 不适用：无 Rust CLI 子命令兼容层 | 边界保留 | `pnpm run check:rust:architecture` |
+| [x] | `go:452dea11:cmd/jftrade-api/main_test.go:31`<br>`TestIsHelpArgs` | api_transport | 普通边界 | `crates/jftrade-api` | 不适用：无 Rust `isHelpArgs` | 边界保留 | `pnpm run check:rust:architecture` |
+| [x] | `go:452dea11:cmd/jftrade-api/main_test.go:46`<br>`TestRunAPICommandPrintsUsageWithoutStartingTheServer` | api_transport | 普通边界 | `crates/jftrade-api` | 不适用：无 Rust `runAPICommand` wrapper | 边界保留 | `pnpm run check:rust:architecture` |
 | [ ] | `go:452dea11:cmd/jftrade-api/main_test.go:69`<br>`TestRunAPICommandRejectsUnsupportedArgsBeforeStartingTheServer` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [x] | `go:452dea11:cmd/jftrade-api/main_test.go:86`<br>`TestRunAPICommandStartsAndStopsAPI` | api_transport | 高风险 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [x] | `go:452dea11:cmd/jftrade-api/main_test.go:121`<br>`TestRunAPICommandPreservesConfiguredCacheAndWrapsStartupErrors` | api_transport | 高风险 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
