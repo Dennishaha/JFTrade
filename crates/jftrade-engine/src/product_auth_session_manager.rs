@@ -755,8 +755,19 @@ mod tests {
             })
             .expect("cookie-bound snapshot");
         assert_eq!(snapshot["csrfToken"], second_csrf);
+        // Parity: internal/app/apiserver/webaccess/security_integration_test.go:352 TestPasswordChangesInvalidateWebSessions
         restarted.invalidate_all().expect("invalidate sessions");
         assert!(!restarted.is_session_valid(&first_token));
+        let invalidated_snapshot = restarted
+            .session(AuthSessionSnapshotRequest {
+                desktop_trusted: false,
+                browser_authenticated: true,
+                session_cookie: Some(first_token.clone()),
+                origin_provided: true,
+                origin_allowed: true,
+            })
+            .expect("invalidated snapshot");
+        assert_eq!(invalidated_snapshot["authenticated"], false);
     }
 
     #[test]
