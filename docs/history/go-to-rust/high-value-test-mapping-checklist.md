@@ -192,4 +192,5 @@
    - [x] 补齐板块行业榜单 plateType 默认空字符串为 industry 及大小写兼容断言（`8665e2c4`）。
    - [x] 补齐 ADK 空白 session_id 删除触发 Validation 校验拦截契约（`8bbf7316`）。
    - [x] 补齐废弃投资组合现金对账路由严格返回 JSON 404 NOT_FOUND 契约断言（`1b8804bb`）。
+   - [x] 补齐投资组合现金余额响应显式包含 balances 字段断言（`359eb3d0`）。
    - [x] 补齐 K 线查询窗口 from_time >= to_time 异常时自动重置为 36h 默认回看断言（`84ff20a4`）。
