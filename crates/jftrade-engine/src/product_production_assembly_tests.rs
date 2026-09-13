@@ -2657,7 +2657,9 @@ mod product_production_assembly_tests {
                 "workflowStatus":"RUNNING",
                 "message":"running",
                 "toolCalls":[{"id":"call-1","status":"RUNNING","requiresUser":true}],
-                "pendingApprovals":[{"id":"approval-1","status":"PENDING"}]
+                "pendingApprovals":[{"id":"approval-1","status":"PENDING"}],
+                "inputRequest":{"id":"input-cancel-run","status":"PENDING","decisionKind":"material_tradeoff","blockingReason":"Need input","questions":[{"id":"q1","header":"Pick","question":"Pick one","options":[{"id":"q1-o1","label":"A"}]}]},
+                "inputRequests":[{"id":"input-cancel-run","status":"PENDING","decisionKind":"material_tradeoff","blockingReason":"Need input","questions":[{"id":"q1","header":"Pick","question":"Pick one","options":[{"id":"q1-o1","label":"A"}]}]}]
             }"#,
         })
         .expect("seed cancellable goal");
@@ -2699,6 +2701,31 @@ mod product_production_assembly_tests {
             "CANCELLED"
         );
         assert_eq!(cancel_response["data"]["pendingApprovals"], json!([]));
+        assert_eq!(
+            cancel_response["data"]["inputRequest"]["status"],
+            "CANCELLED"
+        );
+        assert_eq!(
+            cancel_response["data"]["inputRequests"][0]["status"],
+            "CANCELLED"
+        );
+
+        let (late_input_status, late_input_response) = request_json_with_status(
+            address,
+            "POST",
+            "/api/v1/adk/runs/production-cancel-run/input-response",
+            Some(r#"{"requestId":"input-cancel-run","answers":[{"questionId":"q1","optionId":"q1-o1"}]}"#),
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(
+            late_input_status, 409,
+            "late input response: {late_input_response}"
+        );
+        assert_eq!(
+            late_input_response["error"]["code"],
+            "ADK_INPUT_RESPONSE_CONFLICT"
+        );
 
         let (repeat_status, repeat_response) = request_json_with_status(
             address,
