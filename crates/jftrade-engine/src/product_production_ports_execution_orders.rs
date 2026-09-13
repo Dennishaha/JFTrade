@@ -338,6 +338,8 @@ impl ExecutionReadSnapshotPort for ProductionExecutionPort {
             let query = crate::product::product_query::QueryMap::parse(query).map_err(|_| {
                 ExecutionReadSnapshotError::Invalid("invalid execution orders query".to_owned())
             })?;
+            // Parity: internal/api/trading/execution_test.go:120 TestHandleExecutionOrdersPassesQueryFiltersAndNormalizesTrims
+            // Verifies scope=active, brokerId, accountId, tradingEnvironment and market query normalization, trimming and filtering
             let scope_active = query
                 .get_first("scope")
                 .is_some_and(|scope| scope.trim().eq_ignore_ascii_case("ACTIVE"));
