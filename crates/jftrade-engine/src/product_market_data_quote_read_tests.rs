@@ -287,7 +287,12 @@ async fn futu_snapshot_route_projects_cached_extended_quote_contract() {
         .await
         .expect_err("invalid refresh query must fail");
     match invalid_refresh_err {
-        MarketDataQuoteReadSnapshotError::Failed { status, code, message, .. } => {
+        MarketDataQuoteReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            ..
+        } => {
             assert_eq!(status, 400);
             assert_eq!(code, "BAD_REQUEST");
             assert_eq!(message, "invalid refresh query");
