@@ -11398,5 +11398,629 @@
     "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
     "conclusion": "已覆盖：回测撮合引擎模拟、滑点/手续费模型计算、夏普率/最大回撤/卡玛比率量化指标统计与资金曲线结算",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+  },
+  "TestADKStrategyValidationAndVisualModelBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKNewCapabilityToolsForwardInputsAndApprovalBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKNewCapabilityHandlersRejectUnavailableAndMalformedInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKToolDependencyClosuresForwardNormalizedOwnerPorts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKToolDependencyClosuresFailClosedWhenPortsAreMissing": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestDefaultBuiltinAgentToolsExistInAssembledRegistry": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestCapabilityCatalogSurfacesAreRegisteredAndMCPBounded": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestProductToolRegistryAndOperationSchemasAreCatalogBacked": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestProductReadSchemasRejectInvalidRoutingAndFreeTextFields": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKRuntimeStrategyToolsPreserveOwnerContracts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKRuntimeOptimizationPersistsQueuedRunReferences": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKRuntimeResearchToolStopsBeforeRunWhenDataSyncIsPending": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestStrategyADKInputsAndSummariesEnforceBusinessBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKCoreToolHandlersSurfaceSubscriptionErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKWorkflowAuditAndAdapterHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKSystemAndWorkflowToolHandlersReflectBusinessState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKStrategyToolsHandleNegativeAndFallbackScenarios": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKStrategyDefinitionVersionToolsExposeImmutableSnapshotsAndFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKBacktestRunsFiltersByDefinitionVersionStatusAndLimit": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKStrategyToolContractsCoverUnavailableAndSuccessfulViewScenarios": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKStrategyOptimizePersistsTasksAndCancelsQueuedRunsOnFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKBacktestProviderFreezesDefaultAcrossPreparationAndQueue": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKConcurrentResearchBacktestOverridesStayIsolated": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKStrategySummariesHideSourceDetailsAndCountLinkedInstances": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKBacktestSummariesRetainCountsWithoutEmbeddingRawSeries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKToolFailuresPreserveBusinessErrorContracts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationAdapterKeepsNilPortsCallable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationAdapterUsesConfiguredRuntimeAndSettings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationAdapterValidatesDomainInputsBeforeDelegation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationAdapterReportsUnavailableDomainServices": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationAdapterPropagatesExecutionProjectionFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationAdapterNormalizesCrossDomainInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationAdapterForwardsMarketCandles": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationAdapterForwardsAdvancedMarketCandles": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationAdapterRejectsAdvancedCandleInputsBeforeProviderCall": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationAdapterExposesProviderAndRuntimePorts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationAdapterProvidesScreenCatalogAndCancelResult": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationAdapterNormalizesStrategyVisualModels": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationAdapterProjectsBacktestState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationWorkflowSnapshotRejectsInvalidInstrument": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationAdapterStrategyInstanceLifecyclePorts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationAdapterStrategyInstanceLifecycleRejectsInvalidInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationAdapterStrategyInstanceLifecycleRejectsDefinitionAndActivityBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 策略与回测工具输入校验、草稿保存与执行调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestDatabaseMaintenanceOwnsADKBusyPurgeAndCompactPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestDatabaseMaintenanceFailsClosedWithoutOwnedRuntime": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKMarketIndexConstituentsToolForwardsNormalizedInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKMarketIndexConstituentsToolFailsClosedWithoutPort": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKMarketIndexConstituentsToolSurfacesProviderCapabilityAsClearMessage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKMarketNewsAndCorporateActionsToolsForwardNormalizedInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKMarketNewsAndCorporateActionsToolsFailClosedWithoutPorts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKMarketNewsToolSurfacesProviderCapabilityAsClearMessage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestMCPServerManagerRemainingLifecycleBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_mcp_server_tests.rs`",
+    "conclusion": "已覆盖：MCP Server 本地启动、鉴权流式 RPC 交互与端口停机",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(mcp_server)'"
+  },
+  "TestMCPServerManagerRemainingServeFailureStates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_mcp_server_tests.rs`",
+    "conclusion": "已覆盖：MCP Server 本地启动、鉴权流式 RPC 交互与端口停机",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(mcp_server)'"
+  },
+  "TestMCPAuthorizedHandlerRemainingRequestBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_mcp_server_tests.rs`",
+    "conclusion": "已覆盖：MCP Server 本地启动、鉴权流式 RPC 交互与端口停机",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(mcp_server)'"
+  },
+  "TestMCPServerManagerEnforcesBearerAndSupportsTokenRotation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_mcp_server_tests.rs`",
+    "conclusion": "已覆盖：MCP Server 本地启动、鉴权流式 RPC 交互与端口停机",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(mcp_server)'"
+  },
+  "TestMCPServerManagerStartsAndStopsOnLoopback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_mcp_server_tests.rs`",
+    "conclusion": "已覆盖：MCP Server 本地启动、鉴权流式 RPC 交互与端口停机",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(mcp_server)'"
+  },
+  "TestMCPServerManagerServesAuthenticatedStreamableMCP": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_mcp_server_tests.rs`",
+    "conclusion": "已覆盖：MCP Server 本地启动、鉴权流式 RPC 交互与端口停机",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(mcp_server)'"
+  },
+  "TestMCPServerManagerListenerFailurePreservesRunningState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_mcp_server_tests.rs`",
+    "conclusion": "已覆盖：MCP Server 本地启动、鉴权流式 RPC 交互与端口停机",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(mcp_server)'"
+  },
+  "TestMCPServerManagerReleasesHandlersOnReplacementDisableAndClose": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_mcp_server_tests.rs`",
+    "conclusion": "已覆盖：MCP Server 本地启动、鉴权流式 RPC 交互与端口停机",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(mcp_server)'"
+  },
+  "TestMCPServerManagerReleasesHandlerOnUnexpectedServeExit": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_mcp_server_tests.rs`",
+    "conclusion": "已覆盖：MCP Server 本地启动、鉴权流式 RPC 交互与端口停机",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(mcp_server)'"
+  },
+  "TestMCPServerManagerUsesLoopbackOnly": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_mcp_server_tests.rs`",
+    "conclusion": "已覆盖：MCP Server 本地启动、鉴权流式 RPC 交互与端口停机",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(mcp_server)'"
+  },
+  "TestPortfolioSummaryScansAllRealAccountsAndRanksNonEmptyFirst": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：投资组合摘要工具、持仓与账户多币种聚合",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestPortfolioLayeredToolsKeepDiscoveryOverviewAndPositionsSeparate": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：投资组合摘要工具、持仓与账户多币种聚合",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestPortfolioLayeredToolsReportValidationDiscoveryAndPartialReadStates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：投资组合摘要工具、持仓与账户多币种聚合",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestPortfolioAccountResolutionSupportsExactSuffixAndIsolation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：投资组合摘要工具、持仓与账户多币种聚合",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestPortfolioSummaryKeepsPartialAccountResultsAndDiscoveryFailuresVisible": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：投资组合摘要工具、持仓与账户多币种聚合",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestAccountOrdersFiltersAccountEnvironmentMarketAndActiveStatus": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：投资组合摘要工具、持仓与账户多币种聚合",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationPortfolioReadsRuntimeFundsAndPositionsFromOneBrokerAccount": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：投资组合摘要工具、持仓与账户多币种聚合",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplicationPortfolioMarksIncompleteBrokerResponsesPartial": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：投资组合摘要工具、持仓与账户多币种聚合",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestCustomizationToolsMapToOpenDOperations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestProductToolInputHelpersCompleteBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestProductAndExecutionDispatchFailureBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestProductExecutionAdapterNormalizesScreenAndCalendarV2Inputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestProductExecutionAdapterRejectsInvalidScreenPageAndValue": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestProductExecutionAdapterCoversSpecialDispatchFailuresAndSnapshots": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestProductExecutionAdapterPreservesProductAndExecutionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestOpenBuildsToolsServiceAndIdempotentLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestRuntimeDatabaseProbesUseProvidedLayout": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestOpenOwnsApplicationToolRegistration": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestHandleExposesNarrowAuditAndToolOperations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestNilHandleLifecycleIsSafe": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKRuntimeHelperInputNormalization": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKRuntimePollingAndPayloadHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKReadToolsNormalizeInputsAndExposeBusinessHandlers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKRuntimeMiscHelpersAndMetadata": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKCoreToolHandlersNormalizeMarketAndPortfolioFlows": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestWatchlistListToolDefaultsToReadOnlyMetadataAndNormalizesPaging": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestExecutionReadToolsPropagateProjectionFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestTypedProductCapabilitiesDriveFeatureAndAssistantSchemas": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestAssistantSchemasCoverProviderAndResearchExtensions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestADKWatchlistListReturnsRealDataWithoutImplicitQuoteCalls": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestWatchlistToolAdapterUnavailableAndMissingGroupBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestWorkflowManagerProjectsServiceCRUDAndRuns": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestWorkflowManagerRejectsUnavailableServicesAcrossOperations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestRuntimeUsesInjectedWorkflowExecutionForLoopChat": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_adk_tests.rs`",
+    "conclusion": "已覆盖：ADK 系统工具装配、权限模式校验与端口闭包调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestWorkflowToolsRemainingManagerErrorPropagation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、执行状态机转移与工具输入校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_workflow_canvas)'"
+  },
+  "TestWorkflowToolsRemainingSessionAndPayloadErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、执行状态机转移与工具输入校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_workflow_canvas)'"
+  },
+  "TestWorkflowManagementToolCatalogAndApprovalMatrix": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、执行状态机转移与工具输入校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_workflow_canvas)'"
+  },
+  "TestWorkflowRunWaitReturnsBoundedStatusEnvelope": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、执行状态机转移与工具输入校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_workflow_canvas)'"
+  },
+  "TestWorkflowRunWaitHonorsDeadlineAndCancellation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、执行状态机转移与工具输入校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_workflow_canvas)'"
+  },
+  "TestWorkflowManagementToolUpdatesUsePatchSemantics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、执行状态机转移与工具输入校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_workflow_canvas)'"
+  },
+  "TestWorkflowManagementToolListsCreatesAndDeletes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、执行状态机转移与工具输入校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_workflow_canvas)'"
+  },
+  "TestWorkflowRunToolsRequireInteractiveSession": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、执行状态机转移与工具输入校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_workflow_canvas)'"
+  },
+  "TestUnavailableWorkflowToolManagerFailsClosed": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、执行状态机转移与工具输入校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_workflow_canvas)'"
   }
 }
