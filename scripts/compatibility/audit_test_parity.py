@@ -246,6 +246,16 @@ def main():
     # curated high-value checklist. This makes the full Go baseline auditable
     # without pretending that filename-level matching proves behavior parity.
     inventory_path = "docs/history/go-to-rust/test-parity-inventory.md"
+    prior_rows = {}
+    if os.path.exists(inventory_path):
+        for line in open(inventory_path, encoding="utf-8"):
+            if not line.startswith("| ["):
+                continue
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            if len(cells) >= 8:
+                match = re.search(r"`go:[^:]+:(.+)`", cells[1])
+                if match:
+                    prior_rows[match.group(1)] = cells
     curated_path = "docs/history/go-to-rust/high-value-test-mapping-checklist.md"
     curated_names = set()
     if os.path.exists(curated_path):
@@ -263,7 +273,12 @@ def main():
             crates = ", ".join(rust_by_domain.get(test["domain"], [])) or "待人工归类"
             source = f"`go:{go_revision}:{test['file']}:{test['line']}`<br>`{test['name']}`"
             status = "[x]" if test["name"] in curated_names else "[ ]"
-            fp.write(f"| {status} | {source} | {test['domain']} | {risk} | `{crates}` | 待人工填写 | 待人工核对 | 待人工填写 |\n")
+            prior = prior_rows.get(f"{test['file']}:{test['line']}")
+            if prior and len(prior) >= 8:
+                status, _, _, _, _, rust_entry, conclusion, command = prior[:8]
+            else:
+                rust_entry, conclusion, command = "待人工填写", "待人工核对", "待人工填写"
+            fp.write(f"| {status} | {source} | {test['domain']} | {risk} | `{crates}` | {rust_entry} | {conclusion} | {command} |\n")
 
     print(f"\nReport written to {report_path}")
     print(f"Inventory written to {inventory_path}")
