@@ -530,6 +530,8 @@ async fn market_microstructure_quote_routes_reject_invalid_queries_before_reader
 
 #[tokio::test]
 async fn market_microstructure_quote_routes_preserve_provider_error_mapping() {
+    // Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:63 TestCandlesAndDepthRoutesMapProviderFailures
+    // Verifies provider failure classification and HTTP status mappings for ticks and depth routes
     let errors = [
         (
             MarketMicrostructureError::Session("OpenD is offline".to_owned()),
@@ -561,20 +563,68 @@ async fn market_microstructure_quote_routes_preserve_provider_error_mapping() {
 
     for (error, status, code, retry_after) in errors {
         let reader = Arc::new(MicrostructureReaderFixture::failure(error));
-        let port = microstructure_quote_port(reader);
+        let port = microstructure_quote_port(reader.clone());
         let error = port
             .read("/api/v1/market-data/ticks/US.AAPL", "")
             .await
-            .expect_err("provider failure");
+            .expect_err("ticks provider failure");
         assert!(matches!(
             error,
+            MarketDataQuoteReadSnapshotError::Failed {
+                status: actual_status,
+                code: ref actual_code,
+                retry_after_seconds: actual_retry,
+                ..
+            } if actual_status == status && actual_code == code && actual_retry == retry_after
+        ));
+
+        // Depth route preserves provider failure mapping parity (OPEND_DEPTH_FAILED for decode errors)
+        let depth_expected_code = if code == "OPEND_TICKS_FAILED" {
+            "OPEND_DEPTH_FAILED"
+        } else {
+            code
+        };
+        let mut router = ProviderRouter::new(8);
+        router
+            .acquire_demand(
+                "quote-test",
+                [InstrumentRef {
+                    channel: "ORDER_BOOK".to_owned(),
+                    market: "US".to_owned(),
+                    symbol: "AAPL".to_owned(),
+                    interval: None,
+                }],
+                false,
+                0,
+            )
+            .expect("order-book demand");
+        let state = Arc::new(ActiveProviderState::new(Some(
+            jftrade_settings::MarketDataProvider::Futu,
+        )));
+        let depth_port = ProductionMarketDataQuotePort::new(
+            state,
+            Some(Arc::new(Mutex::new(router))),
+            None,
+            None,
+        )
+        .with_microstructure(Some(reader));
+        let error = depth_port
+            .read("/api/v1/market-data/depth/US/AAPL", "")
+            .await
+            .expect_err("depth provider failure");
+        match &error {
             MarketDataQuoteReadSnapshotError::Failed {
                 status: actual_status,
                 code: actual_code,
                 retry_after_seconds: actual_retry,
                 ..
-            } if actual_status == status && actual_code == code && actual_retry == retry_after
-        ));
+            } => {
+                assert_eq!(*actual_status, status, "status mismatch");
+                assert_eq!(actual_code.as_str(), depth_expected_code, "code mismatch");
+                assert_eq!(*actual_retry, retry_after, "retry mismatch");
+            }
+            other => panic!("expected Failed, got {other:?}"),
+        }
     }
 }
 
