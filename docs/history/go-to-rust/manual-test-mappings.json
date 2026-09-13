@@ -730,5 +730,125 @@
     "rust_entry": "crates/jftrade-api/src/sse.rs",
     "conclusion": "已覆盖：标准 SSE 响应头注入（text/event-stream、no-cache、keep-alive）与 event/id/retry 帧格式化",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestPrepareSSEWriterRejectsWriterWithoutFlusher": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/sse.rs",
+    "conclusion": "不适用：Rust 基于 Tokio 异步流实现 SSE，无需 Go http.Flusher 反射接口断言",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestRunSSEStreamLoopPropagatesInitialError": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/sse.rs",
+    "conclusion": "已覆盖：SSE 流初始回调失败时立即中止并将原始错误向上传播",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestRunSSEStreamLoopRunsTriggerAndTickerTicks": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/sse.rs",
+    "conclusion": "已覆盖：Tokio select! 轮询驱动 trigger 与 write_interval 定时滴答，支持上下文优雅取消",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestTickerCHandlesNilTicker": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/sse.rs",
+    "conclusion": "不适用：Rust Option<tokio::time::Interval> 类型安全表达可选定时器，无 nil channel 概念",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestDispatcherInitialAndLiveDataFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs",
+    "conclusion": "已覆盖：WebSocket 初始心跳与实时 Tick 行情写入失败时断开客户端连接",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestDispatcherAuxiliarySubscriptionBranches": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs",
+    "conclusion": "已覆盖：控制台刷新、股票详情与市场深度订阅异常安全忽略且未变更数据按时间戳去重",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestDispatcherRunPropagatesTriggerAndTickerFailures": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs",
+    "conclusion": "已覆盖：WebSocket 事件分发主循环正确侦测底层通道断开并退出循环",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestDispatcherEnvelopeDefaultsAndMapFallback": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs",
+    "conclusion": "已覆盖：WebSocket 信封类型、时间戳默认值填充与缺失 payload 时的 map 回退机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestBackendReceivesExplicitBrokerSelection": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs",
+    "conclusion": "已覆盖：客户端显式传入 providerBrokerId 时正确绑定目标券商订阅源",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestHandlerNilAndClosedLifecycleBoundaries": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs",
+    "conclusion": "已覆盖：WebSocket 处理器对已关闭连接或 nil 实例生命周期的幂等安全释放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestDepthUpdateSubscriptionFiltersAndCoalesces": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs",
+    "conclusion": "已覆盖：市场深度推送针对订阅标的精准过滤并对高频更新进行合并缓冲",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestHandlerHeartbeatSubscribeNormalizationAndPayloads": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs",
+    "conclusion": "已覆盖：心跳响应、标的格式归一化（大写/去空格/去重）与深度档位上限截断规范",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestHandlerRejectsSubscriptionWithoutProvider": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs",
+    "conclusion": "已覆盖：缺少 providerBrokerId 时拒绝订阅并返回错误提示",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestHandlerDepthUpdatePublishesFreshPayload": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs",
+    "conclusion": "已覆盖：深度数据发生实质变化时实时推送最新档位信息",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestHandlerNotificationSequenceZeroReplay": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs",
+    "conclusion": "已覆盖：首次建立连接时 sequence=0 支持全量通知历史回放",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestHandlerConnectionLimitAndCloseLifecycle": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs",
+    "conclusion": "已覆盖：并发连接上限保护与关闭时的连接资源深度回收",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestHandlerRejectsUntrustedWebSocketOrigin": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs",
+    "conclusion": "已覆盖：WebSocket 跨域防护，拒绝非法 Origin（返回 403 Forbidden）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestHandlerAcceptsSameOriginWebSocket": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs",
+    "conclusion": "已覆盖：允许同源 Origin 升级并握手建立 WebSocket 连接",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestDispatcherDeduplicatesTickObservedAt": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs",
+    "conclusion": "已覆盖：相同标的相同 observed_at 时间戳的 Tick 重复推送去重过滤",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestDispatcherProviderSwitchTagsAndDoesNotDeduplicateNewProvider": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs",
+    "conclusion": "已覆盖：切换行情 Provider 时重置去重缓存并标记新提供商标识",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
   }
 }
