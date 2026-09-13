@@ -85,6 +85,10 @@ fn tool_catalog_marks_external_unavailable_tools_non_callable() {
         }
         assert!(tool["allowedModes"].is_array());
         assert!(tool["requiresApprovalIn"].is_array());
+        // Parity: internal/assistant/engine/tools_test.go:25 TestToolRegistrySerializesEmptyApprovalModesAsArray
+        if tool["id"] == "workflow.wait" || tool["id"] == "system.status" {
+            assert_eq!(tool["requiresApprovalIn"], json!([]));
+        }
     }
     let market_search = catalog
         .tools
