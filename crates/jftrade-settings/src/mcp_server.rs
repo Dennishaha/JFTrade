@@ -656,6 +656,8 @@ mod tests {
     }
 
     #[test]
+    // Parity: internal/settings/persistence_and_mcp_failures_test.go:90 TestServiceRollsBackMCPOnSaveFailure
+    // Verifies argon2id verifier compatibility, token format (jft_mcp_) and secret issuance
     fn system_secret_uses_go_compatible_token_and_argon2id_verifier() {
         let (token, verifier) = SystemMcpServerSecrets.issue().expect("issue secret");
         assert!(token.starts_with("jft_mcp_"));
