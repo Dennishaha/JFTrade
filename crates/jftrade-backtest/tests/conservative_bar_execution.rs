@@ -4272,3 +4272,75 @@ fn multiple_atomic_groups_preserve_input_order_over_lexicographical_sorting() {
         },
     );
 }
+
+#[test]
+fn slippage_price_uses_market_tick_size_and_adjusts_sides() {
+    // Port of Go TestBacktestSlippagePriceUsesMarketTickSize in pkg/backtest/pine_costs_test.go:40
+    // Market: AAPL with tickSize = 0.01, slippage = 3 ticks.
+    // Close = 100.0.
+    // Buy market order on next bar open (100.0) -> slipped buy price = 100.0 + 3 * 0.01 = 100.03
+    // Sell market order on next bar open (100.0) -> slipped sell price = 100.0 - 3 * 0.01 = 99.97
+    let buy_case = json!({
+        "id": "slippage-tick-size-buy",
+        "symbol": "US.AAPL",
+        "baseCurrency": "AAPL",
+        "quoteCurrency": "USD",
+        "initialBalance": "1000",
+        "processOrdersOnClose": false,
+        "slippageTicks": 3,
+        "market": {
+            "tickSize": "0.01",
+            "quantityStep": "1",
+            "minQuantity": "1"
+        },
+        "candles": [
+            test_bar(0, 100.0, 101.0, 99.0, 100.0, 1000.0),
+            test_bar(1, 100.0, 101.0, 99.0, 100.0, 1000.0)
+        ],
+        "intents": [
+            {
+                "barIndex": 0,
+                "action": "submit",
+                "id": "buy-3-ticks",
+                "side": "buy",
+                "orderType": "market",
+                "quantity": "1"
+            }
+        ]
+    });
+    let res_buy = run_single_case(buy_case).expect("run buy case");
+    assert_eq!(res_buy["orders"][0]["filledPrice"], "100.03");
+    assert_eq!(res_buy["fills"][0]["price"], "100.03");
+
+    let sell_case = json!({
+        "id": "slippage-tick-size-sell",
+        "symbol": "US.AAPL",
+        "baseCurrency": "AAPL",
+        "quoteCurrency": "USD",
+        "initialBalance": "1000",
+        "processOrdersOnClose": false,
+        "slippageTicks": 3,
+        "market": {
+            "tickSize": "0.01",
+            "quantityStep": "1",
+            "minQuantity": "1"
+        },
+        "candles": [
+            test_bar(0, 100.0, 101.0, 99.0, 100.0, 1000.0),
+            test_bar(1, 100.0, 101.0, 99.0, 100.0, 1000.0)
+        ],
+        "intents": [
+            {
+                "barIndex": 0,
+                "action": "submit",
+                "id": "sell-3-ticks",
+                "side": "sell",
+                "orderType": "market",
+                "quantity": "1"
+            }
+        ]
+    });
+    let res_sell = run_single_case(sell_case).expect("run sell case");
+    assert_eq!(res_sell["orders"][0]["filledPrice"], "99.97");
+    assert_eq!(res_sell["fills"][0]["price"], "99.97");
+}
