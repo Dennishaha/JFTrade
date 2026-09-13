@@ -796,4 +796,15 @@ fn test_app_name_agnostic_cleanup_across_databases() {
         SessionRecordCounts::default(),
         "All records across all app_names must be wiped"
     );
+
+    // Parity: go:452dea11:internal/assistant/engine/store_identity_test.go:88 TestStoreDeleteSessionCascadesRuntimeState
+    // Deleting blank/empty session ID returns Validation error, protecting against corrupt delete
+    let err_blank = cluster
+        .adk_store
+        .delete_session_cascade(&cluster.session_store, &cluster.artifact_store, "   ")
+        .unwrap_err();
+    assert!(matches!(
+        err_blank,
+        jftrade_store_sqlite::AdkStoreError::Validation(_)
+    ));
 }
