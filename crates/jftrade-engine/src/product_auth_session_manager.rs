@@ -625,6 +625,10 @@ mod tests {
             .to_owned();
         let cookie_header = res.set_cookie.expect("set cookie header");
         assert!(cookie_header.starts_with("jftrade_web_session="));
+        // Parity: internal/app/apiserver/webaccess/security_integration_test.go:400 TestWebLoginCookieIsHttpOnlyAndSameSiteStrict
+        assert!(cookie_header.contains("HttpOnly"));
+        assert!(cookie_header.contains("SameSite=Strict"));
+        assert!(cookie_header.contains("Path=/"));
         let session_token = cookie_header
             .split(';')
             .next()
