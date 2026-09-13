@@ -215,6 +215,8 @@ fn test_gcra_governor_concurrent_burst_thread_safety() {
     );
 }
 
+// Parity: internal/watchlist/futu/source_boundaries_test.go:137 TestFutuSnapshotRemainingProviderRateLimitAndSplitPaths
+// Verifies Futu client local GCRA rate limiter preempts bursting calls before socket write and enforces SNAPSHOT_RATE_LIMITED
 #[test]
 fn test_opend_trade_read_client_burst_and_10th_call_preemption() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind");
