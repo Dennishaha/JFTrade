@@ -15,6 +15,8 @@ fn single_order_payload() -> Value {
     })
 }
 
+// Parity: internal/api/trading/execution_test.go:78 TestHandleExecutionPlaceRejectsEquityAmountModeSpoof
+// Verifies equity orders reject event-contract fields (amount, predictionSide, quantityMode) with BAD_REQUEST before broker call
 #[test]
 fn single_equity_rejects_event_only_fields() {
     let cases = [
