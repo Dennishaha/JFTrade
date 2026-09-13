@@ -3718,5 +3718,821 @@
     "rust_entry": "`crates/jftrade-store-sqlite/src/migration.rs`",
     "conclusion": "已覆盖：投研专用数据库全生命周期参与系统备份、健康检测与重建流程",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestAssistantMarketProvidersReportsSelectionAndActiveHealth": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_adk_read_tests.rs`",
+    "conclusion": "已覆盖：Assistant 行情 Provider 动态选择、作用域持久化、活跃健康度探针与不可用服务隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestSelectAssistantMarketProviderPersistsScopeAndReturnsBeforeAfter": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_adk_read_tests.rs`",
+    "conclusion": "已覆盖：Assistant 行情 Provider 动态选择、作用域持久化、活跃健康度探针与不可用服务隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestAssistantProviderPortsAndUnavailableServices": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_adk_read_tests.rs`",
+    "conclusion": "已覆盖：Assistant 行情 Provider 动态选择、作用域持久化、活跃健康度探针与不可用服务隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestAssistantMarketProviderReportsAndPropagatesFailureBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/product_adk_read_tests.rs`",
+    "conclusion": "已覆盖：Assistant 行情 Provider 动态选择、作用域持久化、活跃健康度探针与不可用服务隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+  },
+  "TestApplyProviderSettingsUsesAtomicQuoteProviderSwitch": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/cache.rs`",
+    "conclusion": "已覆盖：行情数据面原子切换、切换失败缓存保留、自选股独立容灾与 Futu 订阅需求回滚机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestApplyProviderSettingsPreservesAtomicQuoteCacheOnFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/cache.rs`",
+    "conclusion": "已覆盖：行情数据面原子切换、切换失败缓存保留、自选股独立容灾与 Futu 订阅需求回滚机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestApplyProviderSettingsAllowsUnavailableWatchlist": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/cache.rs`",
+    "conclusion": "已覆盖：行情数据面原子切换、切换失败缓存保留、自选股独立容灾与 Futu 订阅需求回滚机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestApplyProviderSettingsRestoresExistingFutuDemandBeforeReturning": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/cache.rs`",
+    "conclusion": "已覆盖：行情数据面原子切换、切换失败缓存保留、自选股独立容灾与 Futu 订阅需求回滚机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestApplyProviderSettingsRollsBackFailedFutuDemandRestore": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/cache.rs`",
+    "conclusion": "已覆盖：行情数据面原子切换、切换失败缓存保留、自选股独立容灾与 Futu 订阅需求回滚机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestNewDataPlaneKeepsConfiguredPythonProviderWhenHelperIsUnavailable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/cache.rs`",
+    "conclusion": "已覆盖：行情数据面原子切换、切换失败缓存保留、自选股独立容灾与 Futu 订阅需求回滚机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestProviderNeedsActivationReflectsUnavailableRuntime": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/cache.rs`",
+    "conclusion": "已覆盖：行情数据面原子切换、切换失败缓存保留、自选股独立容灾与 Futu 订阅需求回滚机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestRestoreConfiguredProviderSkipsUnavailableRuntime": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/cache.rs`",
+    "conclusion": "已覆盖：行情数据面原子切换、切换失败缓存保留、自选股独立容灾与 Futu 订阅需求回滚机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestLiveHeartbeatProjectsSamplesRetriesAndClientState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/cache.rs`",
+    "conclusion": "已覆盖：实时行情心跳探针、重试计数投影、仅轮询模式新鲜度判定与静默通道保活",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestLiveHeartbeatUsesPollOnlyFreshnessAndIgnoresStreamStaleReasons": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/cache.rs`",
+    "conclusion": "已覆盖：实时行情心跳探针、重试计数投影、仅轮询模式新鲜度判定与静默通道保活",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestLiveHeartbeatPolicyBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/cache.rs`",
+    "conclusion": "已覆盖：实时行情心跳探针、重试计数投影、仅轮询模式新鲜度判定与静默通道保活",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketDepthResponseWithMockOpenD": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/depth.rs`",
+    "conclusion": "已覆盖：市场深度买卖盘模拟、档位数上限约束 (NumClamping)、标的大写归一化与港股/空订单簿支持",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketDepthNumClamping": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/depth.rs`",
+    "conclusion": "已覆盖：市场深度买卖盘模拟、档位数上限约束 (NumClamping)、标的大写归一化与港股/空订单簿支持",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketDepthSymbolCasing": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/depth.rs`",
+    "conclusion": "已覆盖：市场深度买卖盘模拟、档位数上限约束 (NumClamping)、标的大写归一化与港股/空订单簿支持",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketDepthHKMarket": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/depth.rs`",
+    "conclusion": "已覆盖：市场深度买卖盘模拟、档位数上限约束 (NumClamping)、标的大写归一化与港股/空订单簿支持",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketDepthEmptyOrderBook": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/depth.rs`",
+    "conclusion": "已覆盖：市场深度买卖盘模拟、档位数上限约束 (NumClamping)、标的大写归一化与港股/空订单簿支持",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketCandlesResponseUsesExchangeResolvedSessionsForUSIntraday": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketCandlesResponseOmitsSessionMetadataForDailyCandles": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketCandlesResponseRejectsInvalidSessionsBeforeFutuAccess": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketCandlesResponseClassifiesUnknownUSSessionAsDataError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketSnapshotResponseUsesFreshCache": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketSnapshotResponseQueriesQuoteSnapshotOnCacheMiss": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketSnapshotResponseForceRefreshBypassesCache": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketSnapshotResponseRejectsInvalidRefreshQuery": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketCandlesTickResponseUsesFreshCache": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketCandlesTickResponseQueriesTickerOnCacheMiss": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketCandlesTickResponseFallsBackToCachedCandlesOnTickerError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketSecurityDetailsResponseQueriesSecuritySnapshot": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketSecurityDetailsResponseIncludesWarrantBlock": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketSecurityDetailsResponseIncludesOptionBlock": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketSecurityDetailsResponseIncludesFutureBlock": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketSecurityDetailsResponseIncludesTrustBlock": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketSecurityDetailsResponseIncludesIndexBlock": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketSecurityDetailsResponseIncludesPlateBlock": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：美股交易时段日内K线映射、日K元数据省略、快照缓存命中/穿透/强制刷新、Tick实时缓存及正股衍生品多资产信息提取",
+    "command": "pnpm run check:quick"
+  },
+  "TestMarketDataProviderClosureAndOptionalCapabilityBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情 Provider 生命周期闭包、可选能力探测、未就绪提供商安全阻断与重试调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketDataProviderLookupFailureAndFilteringBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情 Provider 生命周期闭包、可选能力探测、未就绪提供商安全阻断与重试调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketDataProviderSearchFailureAndNormalizationBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情 Provider 生命周期闭包、可选能力探测、未就绪提供商安全阻断与重试调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestMarketDataProviderCandleParsingRemainingBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情 Provider 生命周期闭包、可选能力探测、未就绪提供商安全阻断与重试调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestBrokerSearchInstrumentPartsPreservesDottedCodes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情 Provider 生命周期闭包、可选能力探测、未就绪提供商安全阻断与重试调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestProviderDelegatesApplicationCallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情 Provider 生命周期闭包、可选能力探测、未就绪提供商安全阻断与重试调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestBrokerSearchInstrumentPartsNormalizesKnownPrefixes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情 Provider 生命周期闭包、可选能力探测、未就绪提供商安全阻断与重试调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestBrokerSearchInstrumentPartsRejectsUnknownPrefixInference": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情 Provider 生命周期闭包、可选能力探测、未就绪提供商安全阻断与重试调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestResolveSourcePythonRuntimeHonorsEnvironmentAndFallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：Python 外部依赖环境探测、uv 虚拟环境定位与子进程标准输出/错误管道隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestResolvePythonRuntimeReportsExternalAndEmbeddedHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：Python 外部依赖环境探测、uv 虚拟环境定位与子进程标准输出/错误管道隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestMarketDataEnvironmentOverridesTakePriorityOverYFinanceAliases": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：Python 外部依赖环境探测、uv 虚拟环境定位与子进程标准输出/错误管道隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestProbePythonRuntimeValidatesVersionAndModulesWithoutImportingThem": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：Python 外部依赖环境探测、uv 虚拟环境定位与子进程标准输出/错误管道隔离",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestNormalizeCandlePeriodMapsAliases": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/query.rs`",
+    "conclusion": "已覆盖：历史行情查询参数归一化、时间戳截断校验与提供商查询路由转发",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestParseQueryTimeFallsBackOnInvalidInput": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/query.rs`",
+    "conclusion": "已覆盖：历史行情查询参数归一化、时间戳截断校验与提供商查询路由转发",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestKLineQueryWindowUsesExplicitBounds": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/query.rs`",
+    "conclusion": "已覆盖：历史行情查询参数归一化、时间戳截断校验与提供商查询路由转发",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestDecodeMarketCandlesQueryParsesRepeatedSessions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/query.rs`",
+    "conclusion": "已覆盖：历史行情查询参数归一化、时间戳截断校验与提供商查询路由转发",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestKLineQueryWindowResetsInvalidBeginToDefaultLookback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/query.rs`",
+    "conclusion": "已覆盖：历史行情查询参数归一化、时间戳截断校验与提供商查询路由转发",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestRuntimeReusesSharedSidecarAcrossPythonProviders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeKeepsSharedSidecarOnCrossPythonActivationFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeStopsNewSidecarWhenInitialAKShareActivationFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeRetriesAProviderMarkedUnavailable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeUsesGenericCacheDirectoryWithLegacyFallback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeCalendarMacroForwarding": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeCalendarMacroPropagatesError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeCalendarMacroCapabilityUnsupported": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeCompanyResearchForwarding": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeCompanyResearchPropagatesError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeCompanyResearchCapabilityUnsupported": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeForwardsEveryDataPlaneOperationWithoutRewritingProviderResults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimePreservesErrorsFromEveryActiveCapability": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeSameProviderActivationDoesNotReleasePhysicalSubscriptions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeSidecarFailureAndCloseKeepSelectionStable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeExplicitYFinanceActivationRequiresHealthBeforePublishing": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeFailedHealthCheckRestoresSidecarWithoutChangingProvider": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeReportsBothHealthAndSidecarRestoreFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeDefersSubscriptionReleaseFailureAfterHealthyActivation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeChecksEmbeddedYFinanceOnStartupButNotFutu": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestWaitForProviderHealthRetriesUntilConnected": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestWaitForProviderHealthAllowsWarmingOnlyDuringStartupRestore": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestWaitForProviderHealthStopsOnFailedWarmup": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestProviderHealthRetryDelayBacksOffAndCaps": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestWaitForProviderHealthPreservesLastFailureOnCancellation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestWaitForProviderHealthAndRuntimeDefaultCheckerBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeForwardsIndexConstituentsToCapableActiveProvider": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeIndexConstituentsRejectsProvidersWithoutCapability": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeForwardsNewsAndCorporateActionsToCapableActiveProvider": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeNewsAndCorporateActionsRejectProvidersWithoutCapability": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeForwardsRankingsToCapableActiveProvider": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeForwardsIndustryReadsToCapableActiveProvider": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeRankingsAndIndustriesRejectProvidersWithoutCapability": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeScreenForwarding": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeScreenPropagatesError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeScreenCapabilityUnsupported": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_forwarding.rs`",
+    "conclusion": "已覆盖：扩展行情特性（A股AKShare、财经日历、公司研究、指数成分股、新闻、行业排行与选股）请求转发与超时治理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeSwitchesStableDataPlaneBetweenFutuAndYFinance": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeCommitsFutuWhenSidecarCleanupNeedsRetry": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeRejectsInvalidActivationAndDefersFutuCleanupFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeRollsBackYFinanceWhenNonFutuProviderRetirementFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeRetiresPreviousSubscriptionsThroughBrokerReconciliation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeReportsFutuActivationAndRollbackReleaseFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeContinuesInactiveFutuCleanupWhileYFinanceIsActive": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeSerializesInactiveCleanupWithFutuReactivation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeRestoresPreviousSubscriptionsAfterActivationFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeCommitsSwitchWhenFutuRetirementContextExpires": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeConstructorAndUnavailablePollingBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeCannotRestartManagedSidecarAfterClose": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeCloseWinsConcurrentActivationWithoutRestartingSidecar": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeDoesNotCommitActivationCanceledWhileQueued": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestProviderChangeCannotRestoreSubscriptionsAfterRuntimeClose": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeRetriesSidecarCleanupWithinClose": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestRuntimeReportsBothBoundedSidecarCleanupFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestProviderLeasesKeepSharedPythonSidecarUntilLastRelease": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestProviderSwitchKeepsAcceptedLeaseOnOldInstance": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestBacktestProviderHelpersListAndPrepareProviders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestBacktestProviderPreparerReturnsPreparationFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestProviderLeaseNilBoundariesAndRuntimeInitialization": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/market_data_runtime.rs`",
+    "conclusion": "已覆盖：行情运行时实例激活/退役原子切换、订阅跨券商对账还原、Sidecar 租约引用计数保活与关闭竞争互斥",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestOSSidecarProcessValidatesLaunchesAndStopsRealChild": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：托管 Sidecar OS 进程创建、退出状态侦测、优雅停机超时强杀 (SIGTERM->SIGKILL)、崩溃自动拉起与环境覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestOSSidecarProcessTreatsNaturalExitAsStoppedAndCloseable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：托管 Sidecar OS 进程创建、退出状态侦测、优雅停机超时强杀 (SIGTERM->SIGKILL)、崩溃自动拉起与环境覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestOSSidecarProcessBoundsGracefulStopBeforeKillingChild": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：托管 Sidecar OS 进程创建、退出状态侦测、优雅停机超时强杀 (SIGTERM->SIGKILL)、崩溃自动拉起与环境覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestWaitForSidecarDoneHasExplicitTimeout": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：托管 Sidecar OS 进程创建、退出状态侦测、优雅停机超时强杀 (SIGTERM->SIGKILL)、崩溃自动拉起与环境覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestProcessAlreadyFinishedIsASuccessfulStop": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：托管 Sidecar OS 进程创建、退出状态侦测、优雅停机超时强杀 (SIGTERM->SIGKILL)、崩溃自动拉起与环境覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestSidecarManagerStartsReusesAndStopsManagedExecutable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：托管 Sidecar OS 进程创建、退出状态侦测、优雅停机超时强杀 (SIGTERM->SIGKILL)、崩溃自动拉起与环境覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestSidecarManagerRestartsExitedProcessAndCleansPreviousMaterialization": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：托管 Sidecar OS 进程创建、退出状态侦测、优雅停机超时强杀 (SIGTERM->SIGKILL)、崩溃自动拉起与环境覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestSidecarManagerCleansMaterializationAfterPreparationFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：托管 Sidecar OS 进程创建、退出状态侦测、优雅停机超时强杀 (SIGTERM->SIGKILL)、崩溃自动拉起与环境覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestSidecarManagerRetainsProcessUntilStopSucceeds": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：托管 Sidecar OS 进程创建、退出状态侦测、优雅停机超时强杀 (SIGTERM->SIGKILL)、崩溃自动拉起与环境覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestSidecarExecutableDevelopmentOverrideAndManagerBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：托管 Sidecar OS 进程创建、退出状态侦测、优雅停机超时强杀 (SIGTERM->SIGKILL)、崩溃自动拉起与环境覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestDevelopmentOverrideRejectsMissingAndNonFilePaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：托管 Sidecar OS 进程创建、退出状态侦测、优雅停机超时强杀 (SIGTERM->SIGKILL)、崩溃自动拉起与环境覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestDevelopmentPythonSourceCommandAndExplicitHelperPrecedence": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：托管 Sidecar OS 进程创建、退出状态侦测、优雅停机超时强杀 (SIGTERM->SIGKILL)、崩溃自动拉起与环境覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestDevelopmentPythonSourceCommandRejectsInvalidSourcePath": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：托管 Sidecar OS 进程创建、退出状态侦测、优雅停机超时强杀 (SIGTERM->SIGKILL)、崩溃自动拉起与环境覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestDevelopmentPythonSourceCommandRejectsInvalidRuntimeBeforeStart": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：托管 Sidecar OS 进程创建、退出状态侦测、优雅停机超时强杀 (SIGTERM->SIGKILL)、崩溃自动拉起与环境覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestStopSidecarProcessAppliesSignalPlan": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：托管 Sidecar OS 进程创建、退出状态侦测、优雅停机超时强杀 (SIGTERM->SIGKILL)、崩溃自动拉起与环境覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestStopSidecarProcessAppliesImmediateKillPlan": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/sidecar.rs`",
+    "conclusion": "已覆盖：托管 Sidecar OS 进程创建、退出状态侦测、优雅停机超时强杀 (SIGTERM->SIGKILL)、崩溃自动拉起与环境覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestUnavailableProviderRejectsAllMarketDataOperations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情 Provider 生命周期闭包、可选能力探测、未就绪提供商安全阻断与重试调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestRuntimeUnavailableProviderGuardsAndRecordsRetry": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/provider.rs`",
+    "conclusion": "已覆盖：行情 Provider 生命周期闭包、可选能力探测、未就绪提供商安全阻断与重试调度",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestWatchlistSnapshotSourceRoutesFutuAndYFinance": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股快照跨多源路由 (Futu/Yahoo/AKShare)、权限错误穿透、不可用边界判定与盘后/前收盘价回退处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestWatchlistSnapshotSourceRoutesAKShareAndPreservesMissingValues": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股快照跨多源路由 (Futu/Yahoo/AKShare)、权限错误穿透、不可用边界判定与盘后/前收盘价回退处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestWatchlistSnapshotSourcePreservesFutuPermissionErrorsWithoutPythonQuery": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股快照跨多源路由 (Futu/Yahoo/AKShare)、权限错误穿透、不可用边界判定与盘后/前收盘价回退处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestWatchlistSnapshotSourceReportsUnavailableBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股快照跨多源路由 (Futu/Yahoo/AKShare)、权限错误穿透、不可用边界判定与盘后/前收盘价回退处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestWatchlistQuoteUsesPriorCloseForClosedRegularYahooQuote": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股快照跨多源路由 (Futu/Yahoo/AKShare)、权限错误穿透、不可用边界判定与盘后/前收盘价回退处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
   }
 }
