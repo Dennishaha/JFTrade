@@ -3106,5 +3106,323 @@
     "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
     "conclusion": "已覆盖：并发创建时通过 OnceCell 保证全局仅注册一个 PineManager 单例",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestWebAuthRemainingNilAndRequestHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：Web 鉴权辅助函数边界、空指针安全防御与请求上下文默认值",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestWebAuthRemainingAuthenticationStates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：未登录、已登录、Token过期与密码已修改等状态判定矩阵",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestWebAuthRemainingLoginResponses": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：登录成功返回 HttpOnly Cookie 及错误时输出规范信封",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestPasswordChangeDuringLoginCannotCreateOldPasswordSession": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：密码在登录过程中变更时原子使老密码会话失效",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestWebAuthRemainingSessionAndPruningErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：过期会话定期清理修剪及底层存储错误处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestForwardedClientUsesProxyAppendedAddress": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：X-Forwarded-For 代理链客户端真实 IP 地址安全解析",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestWebAuthStateMapsStayBounded": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：会话状态映射内存上限保护，防止内存泄露与拒绝服务",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestWebAuthRemainingCanceledPasswordSlotAndStatus": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：密码槽位取消与状态流转边界处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestFrontendServesAssetsAndSPAFallback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：前端静态资源托管与单页应用 (SPA) index.html 回退机制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestFrontendRuntimeConfigAndAccessSurface": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：前端运行时注入配置动态组装与访问面控制",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestFrontendDevelopmentProxyOnlyAllowsLoopback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：前端开发模式反向代理严格限制在环回地址 (127.0.0.1/localhost)",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestFrontendBoundaryHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：前端资源服务路径规范化与目录穿越安全防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestShouldServeFrontendIndexRequestBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：判断请求是否命中 SPA 入口 index.html 的严格边界判定",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestFrontendRequestSchemeTrustsTLSAndLoopbackProxyOnly": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：HTTPS 协议头仅信任直连 TLS 或环回代理转发",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestWebPasswordIsRequiredForProtectedAPI": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：受保护 API 强制校验 Web 登录会话 Cookie",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestBrowserNavigationGetsFriendlyDisabledWebPage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：禁用远程 Web 访问时浏览器直接访问返回友好提示页面",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib"
+  },
+  "TestSameHostHTTPSProxyUsesSecureSessionCookie": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：HTTPS 代理下下发带 Secure 属性的会话 Cookie",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestNetworkClientCannotSpoofHTTPSProxyScheme": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：非信任外部 IP 伪造 X-Forwarded-Proto 严格被忽略",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestSameHostProxyCannotBypassPublicAccessSetting": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：同机代理无法绕过未开启远程访问的安全拦截",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestAdminBearerMechanismNoLongerAuthenticates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：废弃旧版静态 Admin Bearer Token 机制，防止后门",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestWebPasswordSessionSupportsReadAndCSRFProtectedWrite": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：Web 会话支持普通读取且写操作强制 X-CSRF-Token",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestWebLoginRejectsWrongPasswordAndRateLimits": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：密码错误拒绝登录并触发基于 IP 的暴力破解限流",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestPasswordChangesInvalidateWebSessions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：密码修改后立刻踢掉所有历史活跃 Web 会话",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestProductionWebDoesNotTrustDevelopmentOrigin": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：生产环境绝不信任 Vite 等开发模式来源源地址",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestWebLogoutClearsSessionCookie": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：退出登录立即下发清空 Cookie (Max-Age=0)",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestWebLoginCookieIsHttpOnlyAndSameSiteStrict": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：会话 Cookie 强制标记 HttpOnly 与 SameSite=Strict",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestUntrustedOriginIsRejectedButSameOriginLANHostWorks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：拒绝外部跨域源，但允许通过配置的局域网同源访问",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestLoopbackPolicyBlocksRemoteBrowserUntilExplicitlyEnabled": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：环回策略默认阻断远程浏览器请求，除非显式开启",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestDesktopCapabilityStaysPasswordlessWhenWebAccessIsDisabled": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
+    "conclusion": "已覆盖：纯桌面环境且关闭 Web 访问时本地使用原生通信，免密码输入",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestWebSocketUsesCookieSessionWithoutDesktopToken": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/websocket.rs`",
+    "conclusion": "已覆盖：浏览器端 WebSocket 连接支持读取 Cookie 完成会话鉴权",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts"
+  },
+  "TestRemovedAuthTokenRouteReturnsNotFound": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：旧版废弃的 /api/v1/auth/token 接口严格返回 404 NOT_FOUND",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+  },
+  "TestComboOrderQuantityModeMapsEventParlaysToAmount": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：期权/事件组合订单数量模式正确映射到底层金额与手数组合",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestNormalizedBrokerComboIntentKeepsClientOrderIdentity": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：组合订单归一化保持客户端 clientOrderId 幂等标识不变",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestExecutionGatewayPlaceOrderBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：执行网关普通下单输入参数严格校验边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestExecutionGatewayCancelOrderBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：执行网关撤单参数与订单状态校验边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestExecutionGatewayPlaceComboBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：执行网关组合订单下单边界（腿数量、同标的冲突等）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestExecutionGatewayCancelComboBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：执行网关组合撤单边界条件",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestExecutionGatewayHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：执行网关状态码转换、浮点数与 Decimal 精度对齐工具",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestOrderPlacedNotificationMapsBrokerLabelAndMessage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：下单成功通知消息正确携带券商标签与提示文本",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestOrderLifecycleNotificationMapsSubmittedCancelledAndFilled": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：订单生命周期通知流准确涵盖已报、已撤、全部成交各态",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestExecutionOrderNotificationMessageOmitsBlankParts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：格式化订单通知排版清洗，省略空白无效字段",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestOrderLifecycleNotificationHandlesUnrelatedAndPartialFillEvents": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：部分成交事件平滑通知，忽略非系统托管订单的噪声回报",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestExecutionOrderNotificationMessageIncludesAvailableIdentifiers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：通知文本完整包含订单 ID、成交编号与标的代码",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestOrderUpdateSourceActivatesThenDiscoversAccounts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：订单回报监听源激活后自动枚举发现多券商资金账户",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestOrderUpdateSourceSubscribeFiltersFutuAccounts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：精准过滤 Futu 模拟盘与真实交易账户订阅流",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestProductLifecycleOrderUpdateSourceAggregatesBrokersAndFees": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：多券商订单更新事件聚合汇总与手续费精确记账",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestProductLifecycleOrderUpdateSourceSkipsFundOnlyAccounts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：自动跳过不支持股票交易的纯理财/基金账户订阅",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestNewOrderUpdatesWorkerConstructsWorker": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：订单回报处理后台 Worker 正确构造与参数装配",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestBrokerOrderMappingsPreserveLifecycleFields": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：券商原始订单回报字段完整透传映射至内部领域模型",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestBrokerOrderQueryTrimsRuntimeIdentifiers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：查询订单时自动剔除空字符与前后空白标识符",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestExecutionOrderUpdatesIgnoreMissingLedger": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：账本尚未建立时收到孤立成交回报进行幂等安全忽略",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestOrderUpdateSourceDegradesCleanlyWithoutActiveFutuRuntime": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：Futu 运行时未启动时订单更新服务优雅降级，不抛 panic",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
+  },
+  "TestExecutionOrderUpdatesPersistBrokerLifecycleFields": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-engine/src/lib.rs`",
+    "conclusion": "已覆盖：券商回报核心字段（状态、成交均价、累计成交量）持久化入库",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
   }
 }
