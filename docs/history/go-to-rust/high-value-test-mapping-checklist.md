@@ -187,3 +187,4 @@
    - [x] 补齐 Futu OpenD ProgramStatus 缺失/纯状态/扩展描述格式化断言（`dc5fa7e1`）。
    - [x] 补齐交易日历快照空根目录与缺失文件删除幂等性断言（`82341881`）。
    - [x] 补齐 Pine/Strategy 周期分钟数解析与安全回退逻辑（`40e50c7f`）。
+   - [x] 补齐 API Middleware PATCH 请求视为会话写入必须验证 CSRF 契约（`b81bbbd5`）。
