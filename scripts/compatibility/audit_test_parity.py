@@ -276,6 +276,11 @@ def main():
         import json
         manual_details = json.load(open(manual_path, encoding="utf-8"))
 
+    mapping_values = list(manual_details.values())
+    partial_count = sum(item.get("status") == "[~]" for item in mapping_values)
+    # The report header is written above; append this evidence summary after loading
+    # mappings so it cannot accidentally claim unverified rows are covered.
+
     def manual_for(test):
         """Resolve a mapping by immutable Go location, with legacy name fallback."""
         key = f"{test['file']}:{test['line']}:{test['name']}"
