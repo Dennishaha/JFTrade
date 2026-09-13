@@ -310,6 +310,9 @@ async fn adk_chat_stream_replays_retained_terminal_events_through_adk_read_after
             .any(|route| { route == "GET /api/v1/adk/streams/{streamId}" })
     );
 
+    // Parity: go:452dea11:internal/api/assistant/chat_transport_disconnect_test.go:55 TestChatStreamTransportHandlesDisconnectedClients
+    // Parity: go:452dea11:internal/api/assistant/chat_transport_disconnect_test.go:110 TestChatStreamReconnectAndReplayRespectClientDisconnect
+    // Verifies valid chat stream keeps terminal execution state after client disconnect and respects reconnection/replay filtering
     let disconnected_client = send_request_without_reading(
         handle.startup_record().address,
         "POST",
