@@ -155,10 +155,18 @@
 
 ### 第二阶段：按优先级补测与修复（进行中）
 1. **P0: API Server & Transport Wire 与跨层生产链**
-   - 目标：补齐 SSE 端到端事件流生命周期集成测试。
+   - [x] 补齐全部 21 条 ADK 变异路由畸形载荷拦截（400 BAD_REQUEST Fail-Closed 防护，`8b3db870`）。
+   - [x] 补齐超大 offset 分页越界 Clamp 契约（`returned:0` 与空数组保护，`472ca43b`）。
+   - [x] 补齐 SSE 慢客户端主动断连与恢复回放生命周期对齐（`255f3393`）。
 2. **P0: Assistant / Workflow ADK**
-   - 目标：逐个闭环 ADK 工具降级、portfolio 工具发现与 payload error boundary 单元测试。
-3. **P1: Strategy & Backtest**
-   - 目标：补充 backtest runner panic 恢复与 queue persistence 失败回滚的测试。
-4. **P1: Futu & Settings**
-   - 目标：明确自选股 remote vs local 架构差异，补充 settings 状态机回滚测试。
+   - [x] 补齐 Run 目标生命周期模式校验（非 loop 模式拒绝并返回 `ADK_RUN_PAUSE_FAILED`、`ADK_RUN_RESUME_FAILED`、`ADK_RUN_OBJECTIVE_UPDATE_FAILED`，`f09e7c43`）。
+   - [x] 补齐缺失目标 404 NOT_FOUND 与任务必填属性 400 `ADK_TASK_SAVE_FAILED` 分类对齐（`f09e7c43`）。
+3. **P1: 行情微观结构与 Futu 订阅对账**
+   - [x] 补齐深度盘口与逐笔成交券商故障分类映射（503 离线、502 损坏、429 限流透传，`48f65a4b`）。
+   - [x] 补齐 Futu 订阅对账器生命周期、60s 延迟退订防抖与成功缓存幂等断言（`202d3c23`）。
+4. **P1: 策略编排、回测撮合、日历与存储**
+   - [x] 补齐策略启动对账恢复、陈旧错误标记与暂停/停止状态防自动自启隔离（`8d363071`）。
+   - [x] 补齐跨 UTC 元旦午夜时区判定与市场本地年份（Market-Local Year）防漂移断言（`ad84db00`）。
+   - [x] 补齐 SQLite 独占写租约防并发冲突与释放后审计留存断言（`2636d7e7`）。
+   - [x] 补齐量化回测保守撮合模型 16 项高风险场景全量断言（流动性上限、Bracket止损优先、Reduce-only持仓钳位、跳空改善等，`09f9eda4`）。
+   - [x] 补齐系统设置运行时监听器故障状态机事务回滚对齐（`6cff805f`）。
