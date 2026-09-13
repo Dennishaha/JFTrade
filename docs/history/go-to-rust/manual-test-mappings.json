@@ -78,10 +78,10 @@
     "command": "`pnpm run check:rust:workspace`"
   },
   "internal/api/assistant/adk_approval_test.go:335:TestADKRunCancelAndFilteredList": {
-    "status": "[~]",
-    "rust_entry": "`transport_contracts.rs` + assistant runtime replay",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`pnpm run check:compatibility:assistant-runtime`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs::TestADKRunCancelAndFilteredList",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/assistant/adk_approval_test.go:382:TestADKRunPauseAndResumeRoutes": {
     "status": "[~]",
@@ -102,10 +102,10 @@
     "command": "`pnpm run check:compatibility:assistant-runtime`"
   },
   "internal/api/assistant/adk_normalize_test.go:15:TestADKRoutesSerializeEmptySlicesAsArrays": {
-    "status": "[~]",
-    "rust_entry": "`transport_contracts.rs` + generated OpenAPI checks",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`pnpm run check:compatibility:api-transport`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs::TestADKRoutesSerializeEmptySlicesAsArrays",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/assistant/adk_ops_test.go:18:TestADKMetricsExposeLifecycleAndApprovalLatency": {
     "status": "[~]",
@@ -120,10 +120,10 @@
     "command": "`pnpm run check:rust:workspace`"
   },
   "internal/api/assistant/adk_ops_test.go:247:TestADKOptimizationTaskCanBeQueriedAndCancelled": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/product_adk_read_tests.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(optimization_task)'`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::TestADKOptimizationTaskCanBeQueriedAndCancelled",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/assistant/adk_ops_test.go:286:TestADKTaskAndMemoryWorkflowRoutes": {
     "status": "[~]",
@@ -138,10 +138,10 @@
     "command": "pnpm run check:compatibility:assistant-runtime"
   },
   "internal/api/assistant/adk_ops_test.go:448:TestAssistantChatCompatibilityRouteIsGone": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/tests/transport_contracts.rs:442`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::TestAssistantChatCompatibilityRouteIsGone",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api"
   },
   "internal/api/assistant/adk_ops_test.go:468:TestADKSnapshotAndToolsRoutesReturnCatalogData": {
     "status": "[~]",
@@ -150,10 +150,10 @@
     "command": "pnpm run check:compatibility:assistant-runtime"
   },
   "internal/api/assistant/adk_routes_test.go:26:TestADKSessionDetailOmitsResolvedApprovalGroups": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/product_adk_read_tests.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs::TestADKSessionDetailOmitsResolvedApprovalGroups",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/assistant/adk_routes_test.go:165:TestADKAuditRouteFiltersByKindAndSubjectID": {
     "status": "[~]",
@@ -168,10 +168,10 @@
     "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'`"
   },
   "internal/api/assistant/adk_routes_test.go:245:TestADKChatStreamEmitsSessionRunAndFinalEvents": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E \"test(adk_chat_stream)\"`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::TestADKChatStreamEmitsSessionRunAndFinalEvents",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/assistant/adk_routes_test.go:359:TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure": {
     "status": "[~]",
@@ -204,10 +204,10 @@
     "command": "pnpm run check:compatibility:assistant-runtime"
   },
   "internal/api/assistant/adk_routes_test.go:597:TestADKProviderSaveReturnsRequestTimeoutMs": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/product_adk_read_tests.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/adk_mutations_compatibility.rs::TestADKProviderSaveReturnsRequestTimeoutMs",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/assistant/adk_routes_test.go:634:TestADKAgentSaveValidationFailures": {
     "status": "[~]",
@@ -228,10 +228,10 @@
     "command": "pnpm run check:compatibility:assistant-runtime"
   },
   "internal/api/assistant/adk_routes_test.go:787:TestADKSessionNegativeRoutes": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/product_adk_read_tests.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs::TestADKSessionNegativeRoutes",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/assistant/adk_routes_test.go:858:TestADKRunNegativeRoutes": {
     "status": "[~]",
@@ -342,16 +342,16 @@
     "command": "pnpm run check:compatibility:assistant-runtime"
   },
   "internal/api/assistant/chat_transport_disconnect_test.go:55:TestChatStreamTransportHandlesDisconnectedClients": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/sse.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::TestChatStreamTransportHandlesDisconnectedClients",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/src/sse.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::TestChatStreamReconnectAndReplayRespectClientDisconnect",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/assistant/input_response_test.go:12:TestRunInputResponseErrorAndRetryContracts": {
     "status": "[~]",
@@ -426,28 +426,28 @@
     "command": "pnpm run check:compatibility:assistant-runtime"
   },
   "internal/api/assistant/routes_payload_pagination_test.go:27:TestAssistantRoutesRejectMalformedMutationPayloads": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/src/router.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/adk_mutations_compatibility.rs::TestAssistantRoutesRejectMalformedMutationPayloads",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/assistant/routes_payload_pagination_test.go:65:TestAssistantRoutesClampPaginationBeyondAvailableItems": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/src/envelope.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs::TestAssistantRoutesClampPaginationBeyondAvailableItems",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/assistant/routes_payload_pagination_test.go:80:TestAssistantRunMutationRoutesEnforceGoalLifecycleRules": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::TestAssistantRunMutationRoutesEnforceGoalLifecycleRules",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/assistant/routes_payload_pagination_test.go:134:TestAssistantRoutesClassifyMissingMutationTargets": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/src/envelope.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::TestAssistantRoutesClassifyMissingMutationTargets",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/assistant/routes_resource_contracts_test.go:15:TestTaskAndMemoryCRUDContracts": {
     "status": "[~]",
@@ -822,10 +822,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
   },
   "internal/api/live/handler_test.go:113:TestHandlerHeartbeatSubscribeNormalizationAndPayloads": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/src/websocket.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs::TestHandlerHeartbeatSubscribeNormalizationAndPayloads",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api"
   },
   "internal/api/live/handler_test.go:207:TestHandlerRejectsSubscriptionWithoutProvider": {
     "status": "[~]",
@@ -864,10 +864,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
   },
   "internal/api/live/handler_test.go:441:TestDispatcherDeduplicatesTickObservedAt": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/src/websocket.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs::TestDispatcherDeduplicatesTickObservedAt",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api"
   },
   "internal/api/live/handler_test.go:480:TestDispatcherProviderSwitchTagsAndDoesNotDeduplicateNewProvider": {
     "status": "[~]",
@@ -876,16 +876,16 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
   },
   "internal/api/marketdata/routes_boundaries_test.go:35:TestInstrumentHandlersRejectMissingURIParameters": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/router.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::TestInstrumentHandlersRejectMissingURIParameters",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api"
   },
   "internal/api/marketdata/routes_boundaries_test.go:63:TestCandlesAndDepthRoutesMapProviderFailures": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::TestCandlesAndDepthRoutesMapProviderFailures",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/marketdata/routes_boundaries_test.go:97:TestMarketsRouteFailsWhenActiveProviderDescriptorIsUnavailable": {
     "status": "[~]",
@@ -942,10 +942,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts"
   },
   "internal/api/marketdata/routes_boundaries_test.go:314:TestMarketDataReadErrorsRejectInvalidCandleSessions": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/router.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::TestMarketDataReadErrorsRejectInvalidCandleSessions",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/marketdata/routes_boundaries_test.go:327:TestBrokerMarketDataReadErrorsPreserveClientActionability": {
     "status": "[~]",
@@ -1020,10 +1020,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts"
   },
   "internal/api/marketdata/routes_test.go:96:TestSubscriptionRoutesUseBrokerNeutralPollingWithoutFutuLease": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/ports.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs::TestSubscriptionRoutesUseBrokerNeutralPollingWithoutFutuLease",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api"
   },
   "internal/api/marketdata/routes_test.go:147:TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback": {
     "status": "[~]",
@@ -1092,10 +1092,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts"
   },
   "internal/api/marketdata/routes_test.go:459:TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/router.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/marketdata/routes_test.go:563:TestReadRoutesMapProviderAndRequestFailures": {
     "status": "[~]",
@@ -1182,10 +1182,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
   },
   "internal/api/middleware/auth_test.go:153:TestAuthTreatsPatchAsSessionWrite": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::TestAuthTreatsPatchAsSessionWrite",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api"
   },
   "internal/api/middleware/auth_test.go:173:TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight": {
     "status": "[~]",
@@ -1794,52 +1794,52 @@
     "command": "pnpm run check:rust:architecture"
   },
   "internal/api/trading/execution_test.go:19:TestExecutionCommandErrorMapsRequestAndBrokerFailures": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:rust:architecture"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_helpers.rs::TestExecutionCommandErrorMapsRequestAndBrokerFailures",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/trading/execution_test.go:47:TestHandleExecutionPlaceReturnsRiskRejectionEnvelope": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:rust:architecture"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator.rs::TestHandleExecutionPlaceReturnsRiskRejectionEnvelope",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/trading/execution_test.go:79:TestHandleExecutionPlaceRejectsEquityAmountModeSpoof": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/router.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:rust:architecture"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::TestHandleExecutionPlaceRejectsEquityAmountModeSpoof",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/trading/execution_test.go:110:TestHandleExecutionOrdersNormalizesScopeAndFilter": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/router.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:rust:architecture"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::TestHandleExecutionOrdersNormalizesScopeAndFilter",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/trading/execution_test.go:148:TestHandleExecutionCancelReturnsMappedEnvelope": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:rust:architecture"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_write_product_tests.rs::TestHandleExecutionCancelReturnsMappedEnvelope",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/trading/execution_test.go:175:TestTradingQueryHelpersNormalizeAndValidate": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/router.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:rust:architecture"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_requests.rs::TestTradingQueryHelpersNormalizeAndValidate",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/trading/execution_test.go:205:TestExecutionPlacePreviewAndEventsRoutes": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/router.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:rust:architecture"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/execution_write_compatibility.rs::TestExecutionPlacePreviewAndEventsRoutes",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/trading/execution_test.go:249:TestHandleExecutionOrderDetailsReturnsCanonicalReceiptAndNotFound": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/router.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:rust:architecture"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::TestHandleExecutionOrderDetailsReturnsCanonicalReceiptAndNotFound",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/api/trading/execution_validation_contracts_test.go:52:TestExecutionRoutesValidatePayloadsAndMapHandlerErrors": {
     "status": "[~]",
@@ -2874,10 +2874,10 @@
     "command": "pnpm run check:quick"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:368:TestMarketSnapshotResponseRejectsInvalidRefreshQuery": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/router.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::TestMarketSnapshotResponseRejectsInvalidRefreshQuery",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:382:TestMarketCandlesTickResponseUsesFreshCache": {
     "status": "[~]",
@@ -3036,10 +3036,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
   },
   "internal/app/apiserver/marketdataapp/query_test.go:60:TestKLineQueryWindowResetsInvalidBeginToDefaultLookback": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-marketdata/src/query.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs::TestKLineQueryWindowResetsInvalidBeginToDefaultLookback",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/app/apiserver/marketdataapp/runtime_akshare_test.go:11:TestRuntimeReusesSharedSidecarAcrossPythonProviders": {
     "status": "[~]",
@@ -4992,10 +4992,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib"
   },
   "internal/app/apiserver/servercoretest/frontend_test.go:198:TestRunAPIOnlyStopsAfterCallerCancellation": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/tests/auth_session_transport_contracts.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::TestRunAPIOnlyStopsAfterCallerCancellation",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/app/apiserver/servercoretest/frontend_test.go:246:TestStartForRunArgsUsesInterfaceSettingsForAPIBindWhileWebIsDisabled": {
     "status": "[~]",
@@ -5082,10 +5082,10 @@
     "command": "pnpm run check:quick"
   },
   "internal/app/apiserver/servercoretest/portfolio_routes_test.go:12:TestPortfolioCashBalancesEndpointReturnsEmptyBalances": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_portfolio_tests.rs::TestPortfolioCashBalancesEndpointReturnsEmptyBalances",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/app/apiserver/servercoretest/portfolio_routes_test.go:43:TestPortfolioReconciliationEndpointsAreRemoved": {
     "status": "[~]",
@@ -5178,10 +5178,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
   },
   "internal/app/apiserver/servercoretest/settings_broker_test.go:120:TestBrokerSettingsExposeNullIntegrationUntilFirstSave": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/trading_runtime.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_tests.rs::TestBrokerSettingsExposeNullIntegrationUntilFirstSave",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/app/apiserver/servercoretest/settings_broker_test.go:162:TestFutuRuntimeAndHealthStayNeutralWithoutSavedEnabledIntegration": {
     "status": "[~]",
@@ -5346,10 +5346,10 @@
     "command": "pnpm run check:rust:workspace"
   },
   "internal/app/apiserver/status/status_test.go:88:TestTimeAndStringPointers": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/envelope.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:rust:workspace"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/runtime_registry.rs::TestTimeAndStringPointers",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy"
   },
   "internal/app/apiserver/stores/handle_test.go:10:TestHandleClosesStoresInReverseOpenOrder": {
     "status": "[~]",
@@ -5652,10 +5652,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
   },
   "internal/app/apiserver/webaccess/security_integration_test.go:352:TestPasswordChangesInvalidateWebSessions": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_auth_session_manager.rs::TestPasswordChangesInvalidateWebSessions",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/app/apiserver/webaccess/security_integration_test.go:362:TestProductionWebDoesNotTrustDevelopmentOrigin": {
     "status": "[~]",
@@ -5664,16 +5664,16 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
   },
   "internal/app/apiserver/webaccess/security_integration_test.go:379:TestWebLogoutClearsSessionCookie": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_auth_session_manager.rs::TestWebLogoutClearsSessionCookie",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/app/apiserver/webaccess/security_integration_test.go:400:TestWebLoginCookieIsHttpOnlyAndSameSiteStrict": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/auth.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_auth_session_manager.rs::TestWebLoginCookieIsHttpOnlyAndSameSiteStrict",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/app/apiserver/webaccess/security_integration_test.go:422:TestUntrustedOriginIsRejectedButSameOriginLANHostWorks": {
     "status": "[~]",
@@ -5700,10 +5700,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts"
   },
   "internal/app/apiserver/webaccess/security_integration_test.go:510:TestRemovedAuthTokenRouteReturnsNotFound": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-api/src/router.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test auth_session_transport_contracts"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/auth_session_transport_contracts.rs::TestRemovedAuthTokenRouteReturnsNotFound",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api"
   },
   "internal/assistant/assembly/adk_backtest_adapter_test.go:8:TestADKStrategyValidationAndVisualModelBoundaries": {
     "status": "[~]",
@@ -6036,16 +6036,16 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(mcp_server)'"
   },
   "internal/assistant/assembly/mcp_server_test.go:76:TestMCPServerManagerStartsAndStopsOnLoopback": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/product_mcp_server_tests.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(mcp_server)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::TestMCPServerManagerStartsAndStopsOnLoopback",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/assistant/assembly/mcp_server_test.go:106:TestMCPServerManagerServesAuthenticatedStreamableMCP": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/product_mcp_server_tests.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(mcp_server)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::TestMCPServerManagerServesAuthenticatedStreamableMCP",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/assistant/assembly/mcp_server_test.go:181:TestMCPServerManagerListenerFailurePreservesRunningState": {
     "status": "[~]",
@@ -6282,10 +6282,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_workflow_canvas)'"
   },
   "internal/assistant/assembly/workflow_tools_error_boundaries_test.go:103:TestWorkflowToolsRemainingSessionAndPayloadErrors": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_workflow_canvas)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::TestWorkflowToolsRemainingSessionAndPayloadErrors",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/assistant/assembly/workflow_tools_test.go:15:TestWorkflowManagementToolCatalogAndApprovalMatrix": {
     "status": "[~]",
@@ -6576,10 +6576,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
   },
   "internal/assistant/engine/approval_retry_sibling_cancellation_test.go:14:TestSynchronousApprovalDenialCancelsSiblingActions": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::TestSynchronousApprovalDenialCancelsSiblingActions",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite"
   },
   "internal/assistant/engine/approval_retry_sibling_cancellation_test.go:68:TestApprovalBusyRetryStopsWhenRequestIsCancelled": {
     "status": "[~]",
@@ -7842,10 +7842,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
   },
   "internal/assistant/engine/runner_chat_test.go:1124:TestCancelRunOnTerminalStateIsNoop": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::TestCancelRunOnTerminalStateIsNoop",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:11:TestContinuationClaimGuardsAndClosingRuntime": {
     "status": "[~]",
@@ -8634,10 +8634,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
   },
   "internal/assistant/engine/store_identity_test.go:85:TestStoreDeleteSessionCascadesRuntimeState": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_cascade_session_cleanup.rs::TestStoreDeleteSessionCascadesRuntimeState",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite"
   },
   "internal/assistant/engine/store_lifecycle_test.go:17:TestDeleteProviderFailsWhenReferencedByAgent": {
     "status": "[~]",
@@ -9150,10 +9150,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
   },
   "internal/assistant/engine/tools_test.go:25:TestToolRegistrySerializesEmptyApprovalModesAsArray": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::TestToolRegistrySerializesEmptyApprovalModesAsArray",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/assistant/engine/tools_test.go:44:TestDefaultTaskToolSchemaIncludesPlannerProjectionFields": {
     "status": "[~]",
@@ -10596,10 +10596,10 @@
     "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest_sync)'`"
   },
   "internal/backtest/historical_source_test.go:181:TestHistoricalKLineSyncerRejectsEmptyProviderResult": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs`",
-    "conclusion": "待补证据：Rust 入口仅为文件级模块，未记录对应测试函数名或可复现命令；当前不宣称完全覆盖",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest_sync)'`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::TestHistoricalKLineSyncerRejectsEmptyProviderResult",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/backtest/historical_source_test.go:198:TestValidateHistoricalKLineSyncAllowsMissingCapabilityValidator": {
     "status": "[~]",
@@ -10614,16 +10614,16 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
   },
   "internal/backtest/historical_source_test.go:268:TestHistoricalKLineSyncerRejectsBrokenPagination": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs`",
-    "conclusion": "待补证据：Rust 入口仅为文件级模块，未记录对应测试函数名或可复现命令；当前不宣称完全覆盖",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest_sync)'`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::TestHistoricalKLineSyncerRejectsBrokenPagination",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/backtest/historical_source_test.go:309:TestHistoricalCandleConversionRejectsInvalidFieldsAndDefaultsVolume": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::TestHistoricalCandleConversionRejectsInvalidFieldsAndDefaultsVolume",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/backtest/historical_source_test.go:341:TestHistoricalProviderRetryExhaustionAndTimerCancellation": {
     "status": "[~]",
@@ -10704,10 +10704,10 @@
     "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E \"test(backtests_write)\"`"
   },
   "internal/backtest/recovery_test.go:45:TestStartScriptRejectsBlankResearchScript": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-backtest/src/service.rs`",
-    "conclusion": "待补证据：Rust 入口仅为文件级模块，未记录对应测试函数名或可复现命令；当前不宣称完全覆盖",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_research_backtest_execution.rs::TestStartScriptRejectsBlankResearchScript",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/backtest/result_view_aggregation_test.go:10:TestResultViewExposesWarningsAndFiltersChartSeries": {
     "status": "[~]",
@@ -10944,10 +10944,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
   },
   "internal/backtest/sync_test.go:412:TestParseSessionScope": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::TestParseSessionScope",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/backtest/time_test.go:8:TestResolveBacktestTimeRangeUsesMarketDateAndDST": {
     "status": "[~]",
@@ -10968,118 +10968,118 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
   },
   "pkg/backtest/conservative_bar_executor_test.go:21:TestNormalizeExecutionModelName": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestNormalizeExecutionModelName",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:53:TestConservativeBarExecutorValidationErrors": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorValidationErrors",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:89:TestConservativeBarExecutorFillsMarketOrderOnNextOpenWithLiquidityCap": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorFillsMarketOrderOnNextOpenWithLiquidityCap",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:147:TestConservativeBarExecutorRunsParentBracketAtomicallyAndStopFirst": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorRunsParentBracketAtomicallyAndStopFirst",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:196:TestConservativeBarExecutorRejectsAtomicChildWithoutParent": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorRejectsAtomicChildWithoutParent",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:214:TestConservativeBarExecutorFillsAtomicBracketOnSignalClose": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorFillsAtomicBracketOnSignalClose",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:245:TestConservativeBarExecutorCancelParentCancelsProtectiveChildren": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorCancelParentCancelsProtectiveChildren",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:276:TestConservativeBarExecutorCancelsReduceOnlyOrderWithoutPosition": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorCancelsReduceOnlyOrderWithoutPosition",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:302:TestConservativeBarExecutorLimitsReduceOnlyFillToOpenPosition": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorLimitsReduceOnlyFillToOpenPosition",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:336:TestConservativeBarExecutorCancelOrders": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorCancelOrders",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:383:TestConservativeBarExecutorProcessOrdersOnCloseUsesSignalClose": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorProcessOrdersOnCloseUsesSignalClose",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:412:TestConservativeBarExecutorSellMarketAndSlippage": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorSellMarketAndSlippage",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:447:TestConservativeBarExecutorLimitOrderGetsGapImprovement": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorLimitOrderGetsGapImprovement",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:477:TestConservativeBarExecutorLimitSellAndClosePointBranches": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorLimitSellAndClosePointBranches",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:515:TestConservativeBarExecutorStopOrders": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorStopOrders",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:575:TestConservativeBarExecutorWarningsAndUnmatchedOrders": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorWarningsAndUnmatchedOrders",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:602:TestConservativeBarExecutorLiquidityWarnings": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorLiquidityWarnings",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:652:TestConservativeBarExecutorHelperBranches": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorHelperBranches",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/conservative_bar_executor_test.go:771:TestConservativeBarExecutorCancelSkipsUnmatchedPendingOrders": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestConservativeBarExecutorCancelSkipsUnmatchedPendingOrders",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/cost_account_failure_boundaries_test.go:13:TestFeeSchedulePreservesExplicitPresetIntentAndSafeEmptyFallback": {
     "status": "[~]",
@@ -11562,10 +11562,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
   },
   "pkg/backtest/pine_costs_test.go:40:TestBacktestSlippagePriceUsesMarketTickSize": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::TestBacktestSlippagePriceUsesMarketTickSize",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest"
   },
   "pkg/backtest/pine_costs_test.go:64:TestBacktestSlippageExecutorSubmitsAdjustedMarketOrdersAndPassesCancels": {
     "status": "[~]",
@@ -12390,10 +12390,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
   },
   "internal/integration/futu/candle_sessions_test.go:11:TestMarketSessionsForCandleSessions": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-integration-futu/tests/marketdata_runtime_candle_sessions_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(marketdata_runtime_candle_sessions_parity)'`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::TestMarketSessionsForCandleSessions",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/marketdata_runtime_opend_test.go:154:TestMarketDataRuntimeQueryAndSubscriptionWrappers": {
     "status": "[~]",
@@ -12414,9 +12414,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/marketdata_runtime_test.go:27:TestMarketDataRuntimeCloseWaitsForEnsureAndDoesNotRevive": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/provider_runtime_recovery.rs::TestMarketDataRuntimeCloseWaitsForEnsureAndDoesNotRevive",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/marketdata_runtime_test.go:85:TestMarketDataRuntimeCloseReturnsActiveExchangeFailureIdempotently": {
@@ -12450,10 +12450,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/marketdata_runtime_test.go:267:TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-integration-futu/src/futu_marketdata_facade.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_tick.rs::TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/marketdata_runtime_test.go:318:TestTickFromTickerPreservesHKPreviousCloseDuringLunchBreak": {
     "status": "[~]",
@@ -12462,10 +12462,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/marketdata_runtime_test.go:364:TestTickFromTradeInheritsLatestQuoteFieldsThroughCache": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-integration-futu/src/futu_marketdata_facade.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::TestTickFromTradeInheritsLatestQuoteFieldsThroughCache",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata"
   },
   "internal/integration/futu/marketdata_runtime_test.go:432:TestTickFromTickerReclassifiesUSRegularBoundary": {
     "status": "[~]",
@@ -12504,16 +12504,16 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/marketdata_runtime_test.go:824:TestFallbackTickerMapProjectsOnlyRequestedUsableSnapshots": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-integration-futu/src/futu_marketdata_facade.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::TestFallbackTickerMapProjectsOnlyRequestedUsableSnapshots",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/marketdata_runtime_test.go:869:TestFallbackSnapshotConversionRejectsInvalidValuesAndUsesClassification": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-integration-futu/src/futu_marketdata_facade.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::TestFallbackSnapshotConversionRejectsInvalidValuesAndUsesClassification",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/marketdata_runtime_test.go:937:TestMarketDataRuntimeQueriesDelayedSnapshotsAlongsideRealtimeQuotes": {
     "status": "[~]",
@@ -12522,16 +12522,16 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/notifications_test.go:13:TestLiveNotificationFromResponseRoutesProtocolPayloadsToNeutralCategories": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-integration-futu/src/lib.rs (notification_parity.rs)`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::TestLiveNotificationFromResponseRoutesProtocolPayloadsToNeutralCategories",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/notifications_test.go:98:TestNeutralNotificationBuildersHandleNilAndStatusTransitions": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-integration-futu/src/lib.rs (notification_parity.rs)`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::TestNeutralNotificationBuildersHandleNilAndStatusTransitions",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/notifications_test.go:135:TestNotificationLabelsCoverEverySupportedProgramAndGatewayState": {
     "status": "[~]",
@@ -12582,21 +12582,21 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/probe_test.go:114:TestProbeOpenDReportsClosedPortAsDisconnected": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/probe.rs::TestProbeOpenDReportsClosedPortAsDisconnected",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/probe_test.go:137:TestProbeFromGlobalStateEnforcesMinimumVersionAndMapsNeutralState": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/probe.rs::TestProbeFromGlobalStateEnforcesMinimumVersionAndMapsNeutralState",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/probe_test.go:173:TestProgramStatusStringHandlesMissingPlainAndDescribedStatus": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-futu/tests/futu_runtime_contracts.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/health.rs::TestProgramStatusStringHandlesMissingPlainAndDescribedStatus",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/security_details_test.go:12:TestSecurityDetailsMapPreservesCompleteBrokerNeutralWireShape": {
@@ -15534,64 +15534,64 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
   },
   "internal/marketdata/broker_candles_test.go:12:TestBrokerKLineCandlesResponseProjectsStrictPage": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-marketdata/tests/broker_candles_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::TestBrokerKLineCandlesResponseProjectsStrictPage",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/marketdata/broker_candles_test.go:51:TestBrokerKLineCandlesResponseHandlesTerminalAndBoundedPages": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-marketdata/tests/broker_candles_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::TestBrokerKLineCandlesResponseHandlesTerminalAndBoundedPages",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/marketdata/broker_candles_test.go:77:TestBrokerKLineCandlesResponseRejectsInvalidProviderRows": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::TestBrokerKLineCandlesResponseRejectsInvalidProviderRows",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/marketdata/broker_candles_test.go:109:TestBrokerKLineHelpersClassifySessionsAndNumbers": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-marketdata/tests/broker_candles_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::TestBrokerKLineHelpersClassifySessionsAndNumbers",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/marketdata/broker_candles_test.go:137:TestBrokerKLinePaginationRejectsInvalidBoundedAndPagedMetadata": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-marketdata/tests/broker_candles_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::TestBrokerKLinePaginationRejectsInvalidBoundedAndPagedMetadata",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/marketdata/cache_test.go:12:TestCacheDeduplicatesPromotesAndInherits": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-marketdata/tests/cache_freshness_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::TestCacheDeduplicatesPromotesAndInherits",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata"
   },
   "internal/marketdata/cache_test.go:76:TestCacheFreshnessRetentionAndMaximum": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-marketdata/tests/cache_freshness_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::TestCacheFreshnessRetentionAndMaximum",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata"
   },
   "internal/marketdata/cache_test.go:103:TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-marketdata/tests/cache_extended_session_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-marketdata/tests/cache_extended_sessions_parity.rs::TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata"
   },
   "internal/marketdata/cache_test.go:138:TestCachePromotesUSRegularCloseWhenAfterHoursTradeArrives": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-marketdata/tests/cache_us_regular_close_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-marketdata/tests/cache_extended_sessions_parity.rs::TestCachePromotesUSRegularCloseWhenAfterHoursTradeArrives",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata"
   },
   "internal/marketdata/cache_test.go:185:TestCacheRetainsNewExtendedQuoteWhenPriceIsUnchanged": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-marketdata/tests/cache_promotes_after_hours_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-marketdata/tests/cache_extended_sessions_parity.rs::TestCacheRetainsNewExtendedQuoteWhenPriceIsUnchanged",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata"
   },
   "internal/marketdata/cache_test.go:210:TestTickCandlesVolumeWindowAndLimit": {
     "status": "[~]",
@@ -15906,10 +15906,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
   },
   "internal/marketdata/lifecycle_boundaries_test.go:95:TestNormalizeInstrumentIDRejectsIncompleteValues": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-watchlist/src/lib.rs::TestNormalizeInstrumentIDRejectsIncompleteValues",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist"
   },
   "internal/marketdata/lifecycle_boundaries_test.go:101:TestServiceRemainingLifecycleBoundaries": {
     "status": "[~]",
@@ -16086,10 +16086,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
   },
   "internal/marketdata/rankings_facade_test.go:184:TestServiceIndustriesDefaultsEmptyKindToIndustry": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-marketdata/src/service.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_market.rs::TestServiceIndustriesDefaultsEmptyKindToIndustry",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/marketdata/screen_facade_test.go:23:TestServiceScreenRejectsProvidersWithoutCapability": {
     "status": "[~]",
@@ -16650,10 +16650,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
   },
   "pkg/market/market_test.go:11:TestClassifySessionForUS": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-marketdata/src/instrument.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/manager_session.rs::TestClassifySessionForUS",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
   },
   "pkg/market/market_test.go:38:TestIsRegularTradingTimeUsesHolidayCalendarForUS": {
     "status": "[~]",
@@ -17616,10 +17616,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement"
   },
   "internal/datamanagement/service_test.go:44:TestServiceFallbacks": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-datamanagement/src/maintenance.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-datamanagement/src/maintenance.rs::TestServiceFallbacks",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement"
   },
   "internal/datamanagement/service_test.go:71:TestServiceDelegatesTypedRequests": {
     "status": "[~]",
@@ -17988,9 +17988,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
   },
   "internal/exchangecalendar/manager_test.go:876:TestSnapshotCacheKeyUsesMarketLocalYear": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-calendar/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/fetch_window_timezone.rs::TestSnapshotCacheKeyUsesMarketLocalYear",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
   },
   "internal/exchangecalendar/manager_test.go:890:TestSnapshotCacheIndexesEveryCoveredMarketYear": {
@@ -20910,10 +20910,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
   },
   "internal/settings/persistence_and_mcp_failures_test.go:90:TestServiceRollsBackMCPOnSaveFailure": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/mcp_server.rs::TestServiceRollsBackMCPOnSaveFailure",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
   },
   "internal/settings/persistence_and_mcp_failures_test.go:125:TestServicePreservesSecurityAndMCPFallbacks": {
     "status": "[~]",
@@ -20970,16 +20970,16 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
   },
   "internal/settings/service_test.go:232:TestSaveSecuritySettingsRejectsInvalidWebPort": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/security.rs::TestSaveSecuritySettingsRejectsInvalidWebPort",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
   },
   "internal/settings/service_test.go:242:TestSaveSecuritySettingsRollsBackWhenRuntimeListenerUpdateFails": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/security.rs::TestSaveSecuritySettingsRollsBackWhenRuntimeListenerUpdateFails",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
   },
   "internal/settings/service_test.go:268:TestMCPServerTokenResetDoesNotLeakAndInvalidatesPreviousToken": {
     "status": "[~]",
@@ -20988,16 +20988,16 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
   },
   "internal/settings/service_test.go:318:TestSaveMCPServerSettingsRollsBackWhenListenerUpdateFails": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/mcp_server.rs::TestSaveMCPServerSettingsRollsBackWhenListenerUpdateFails",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
   },
   "internal/settings/service_test.go:344:TestSaveMCPServerSettingsValidatesTokenAndPort": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/mcp_server.rs::TestSaveMCPServerSettingsValidatesTokenAndPort",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
   },
   "internal/settings/service_test.go:361:TestConcurrentSecuritySavesPreserveNewestPasswordAndCallbackOrder": {
     "status": "[~]",
@@ -21006,10 +21006,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
   },
   "internal/settings/service_test.go:435:TestDefaultCallbacksReturnEmptyMaps": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-settings/src/onboarding.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-settings -E 'test(default_onboarding_inputs)'`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/onboarding.rs::TestDefaultCallbacksReturnEmptyMaps",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
   },
   "internal/settings/service_test.go:446:TestSaveIntegrationPassesStructuredConfigWithoutChangingRuntimeEnv": {
     "status": "[~]",
@@ -21042,10 +21042,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib"
   },
   "internal/watchlist/futu/source_boundaries_test.go:137:TestFutuSnapshotRemainingProviderRateLimitAndSplitPaths": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-integration-futu/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/trade_session_gcra_rate_limit_challenge.rs::TestFutuSnapshotRemainingProviderRateLimitAndSplitPaths",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/watchlist/futu/source_boundaries_test.go:181:TestWatchlistQuoteRemainingFormattingAndTimeBoundaries": {
     "status": "[~]",
@@ -21132,16 +21132,16 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
   },
   "internal/watchlist/quote_preview_boundaries_test.go:37:TestQuoteCacheAndImportHelpersKeepAbsentDataExplicit": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-watchlist/src/lib.rs::TestQuoteCacheAndImportHelpersKeepAbsentDataExplicit",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist"
   },
   "internal/watchlist/quote_preview_boundaries_test.go:74:TestPreviewImportRejectsInvalidDerivedGroupName": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-watchlist/src/lib.rs::TestPreviewImportRejectsInvalidDerivedGroupName",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist"
   },
   "internal/watchlist/service_quotes_test.go:62:TestBatchQuotesCachesAndSingleflightsOverlappingRequests": {
     "status": "[~]",
@@ -21312,10 +21312,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
   },
   "internal/store/backtest/store_failure_test.go:121:TestStoreCanceledMaintenanceDoesNotMutateRuns": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest_sync_store.rs`",
-    "conclusion": "待补证据：Rust 入口仅为文件级模块，未记录对应测试函数名或可复现命令；当前不宣称完全覆盖",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_run_store_contracts.rs::TestStoreCanceledMaintenanceDoesNotMutateRuns",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite"
   },
   "internal/store/backtest/store_failure_test.go:140:TestPersistenceDecodersRejectInvalidPayloads": {
     "status": "[~]",
@@ -21348,22 +21348,22 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
   },
   "internal/store/backtest/store_test.go:168:TestInMemoryStoreImplementsRunLifecycleAndCancellation": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest_sync_store.rs`",
-    "conclusion": "待补证据：Rust 入口仅为文件级模块，未记录对应测试函数名或可复现命令；当前不宣称完全覆盖",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_run_store_contracts.rs::TestInMemoryStoreImplementsRunLifecycleAndCancellation",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite"
   },
   "internal/store/backtest/sync_tasks_test.go:12:TestSyncTaskStoreReturnsSnapshotsAndCancelsProgress": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest_sync_store.rs`",
-    "conclusion": "待补证据：Rust 入口仅为文件级模块，未记录对应测试函数名或可复现命令；当前不宣称完全覆盖",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_sync_task_store_contracts.rs::TestSyncTaskStoreReturnsSnapshotsAndCancelsProgress",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite"
   },
   "internal/store/backtest/sync_tasks_test.go:48:TestSyncTaskStoreFinishAndNilProgressBoundaries": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_sync_task_store_contracts.rs::TestSyncTaskStoreFinishAndNilProgressBoundaries",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite"
   },
   "internal/store/exchangecalendar/snapshot_load_failures_test.go:12:TestLoadSnapshotsReportsWalkAndReadFailures": {
     "status": "[~]",
@@ -21384,10 +21384,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'"
   },
   "internal/store/exchangecalendar/store_boundaries_test.go:45:TestCalendarStoreEmptyLoadAndDeleteAreIdempotent": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-sqlite/src/exchange_calendar_store.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::TestCalendarStoreEmptyLoadAndDeleteAreIdempotent",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
   },
   "internal/store/exchangecalendar/store_snapshot_failures_test.go:31:TestSaveSnapshotUsesAtomicReplacement": {
     "status": "[~]",
@@ -21402,10 +21402,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'"
   },
   "internal/store/exchangecalendar/store_snapshot_failures_test.go:95:TestSaveSnapshotValidatesInputsAndResolvesYearFallbacks": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-sqlite/src/exchange_calendar_store.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::TestSaveSnapshotValidatesInputsAndResolvesYearFallbacks",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
   },
   "internal/store/exchangecalendar/store_snapshot_failures_test.go:136:TestDeleteSnapshotIgnoresMissingFilesAndReturnsRealRemoveErrors": {
     "status": "[~]",
@@ -21516,10 +21516,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
   },
   "internal/store/settingsfile/normalization_and_persistence_test.go:13:TestSettingsNormalizationHandlesFallbacksAndBoundaries": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-settings-file/tests/store_recovery_test.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::TestSettingsNormalizationHandlesFallbacksAndBoundaries",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file"
   },
   "internal/store/settingsfile/normalization_and_persistence_test.go:53:TestSettingsInterfaceAndAccountNormalization": {
     "status": "[~]",
@@ -21558,22 +21558,22 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
   },
   "internal/store/settingsfile/rollback_test.go:13:TestFailedSettingSavesRollbackAllRuntimeState": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-settings-file/tests/store_recovery_test.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::TestFailedSettingSavesRollbackAllRuntimeState",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file"
   },
   "internal/store/settingsfile/rollback_test.go:185:TestFailedBootstrapAndMigrationRollbackRuntimeState": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-settings-file/tests/store_recovery_test.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::TestFailedBootstrapAndMigrationRollbackRuntimeState",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file"
   },
   "internal/store/settingsfile/rollback_test.go:232:TestFailedManagedAccountCRUDRollsBackBackingArray": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-settings-file/tests/store_recovery_test.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::TestFailedManagedAccountCRUDRollsBackBackingArray",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file"
   },
   "internal/store/settingsfile/store_persistence_contracts_test.go:15:TestStoreDefaultsExposePathAndNormalizedDefaults": {
     "status": "[~]",
@@ -21666,46 +21666,46 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
   },
   "internal/store/settingsfile/store_test.go:13:TestEnsureBootstrapFileInitializesDefaults": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::TestEnsureBootstrapFileInitializesDefaults",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file"
   },
   "internal/store/settingsfile/store_test.go:40:TestSettingsPersistenceAndNormalization": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::TestSettingsPersistenceAndNormalization",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file"
   },
   "internal/store/settingsfile/store_test.go:83:TestSaveIntegrationPersistsWithoutChangingRuntimeEnv": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::TestSaveIntegrationPersistsWithoutChangingRuntimeEnv",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file"
   },
   "internal/store/settingsfile/store_test.go:136:TestManagedAccountsDefaults": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::TestManagedAccountsDefaults",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file"
   },
   "internal/store/settingsfile/store_test.go:154:TestCreateManagedAccountRequiresAccountIDAndOwnsServerFields": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/tests/managed_account_validation.rs::TestCreateManagedAccountRequiresAccountIDAndOwnsServerFields",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
   },
   "internal/store/settingsfile/store_test.go:184:TestNormalizeExchangeCalendarSettingsRewritesLegacySourceIDs": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/exchange_calendar.rs::TestNormalizeExchangeCalendarSettingsRewritesLegacySourceIDs",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
   },
   "internal/store/settingsfile/store_test.go:205:TestDefaultExchangeCalendarSettingsUseNYSEAsOnlyDefaultUSRemoteSource": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/exchange_calendar.rs::TestDefaultExchangeCalendarSettingsUseNYSEAsOnlyDefaultUSRemoteSource",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings"
   },
   "internal/store/sqliteconn/conn_test.go:12:TestOpenXConfiguresBusyTimeoutAndConcurrentReadsByDefault": {
     "status": "[~]",
@@ -21768,16 +21768,16 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
   },
   "internal/store/sqliteconn/coordinator_test.go:11:TestWriteCoordinatorOrdersWritersAndReadBarriers": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-owner-lock/src/lib.rs::TestWriteCoordinatorOrdersWritersAndReadBarriers",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-owner-lock"
   },
   "internal/store/sqliteconn/coordinator_test.go:44:TestWriteCoordinatorAllowsAdmittedReadsToOverlapLaterWrites": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-owner-lock/src/lib.rs::TestWriteCoordinatorAllowsAdmittedReadsToOverlapLaterWrites",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-owner-lock"
   },
   "internal/store/sqliteconn/coordinator_test.go:58:TestWriteCoordinatorCancellationDoesNotBlockFollowingWork": {
     "status": "[~]",
@@ -22608,16 +22608,16 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
   },
   "internal/pineworkerassets/asset_selection_boundaries_test.go:13:TestSelectFromFSReturnsEmbeddedBundleMetadata": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/asset.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(asset)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/asset.rs::TestSelectFromFSReturnsEmbeddedBundleMetadata",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine"
   },
   "internal/pineworkerassets/asset_selection_boundaries_test.go:30:TestSelectFromFSTreatsMissingAndEmptyBundlesAsUnavailable": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-integration-pine/src/lib.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/asset.rs::TestSelectFromFSTreatsMissingAndEmptyBundlesAsUnavailable",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine"
   },
   "internal/pineworkerassets/asset_selection_boundaries_test.go:52:TestSelectFromFSReturnsUnexpectedReadError": {
     "status": "[~]",
@@ -22650,10 +22650,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(asset)'"
   },
   "internal/strategy/catalog/activity_degraded_test.go:65:TestCatalogActivityReturnsEmptyPagesWhenActivityStoreIsUnavailable": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_strategy.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_activity)'`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_activity.rs::TestCatalogActivityReturnsEmptyPagesWhenActivityStoreIsUnavailable",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/strategy/catalog/catalog_boundary_behavior_test.go:34:TestCatalogActivityQueryFailureReturnsKnownEmptyPage": {
     "status": "[~]",
@@ -22764,28 +22764,28 @@
     "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_runtime)'`"
   },
   "internal/strategy/catalog/runtime_reconciliation_business_test.go:52:TestCatalogRuntimeFailureReconcilesOnlyRunningInstance": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime_port.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_runtime)'`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_port.rs::TestCatalogRuntimeFailureReconcilesOnlyRunningInstance",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/strategy/catalog/runtime_reconciliation_business_test.go:80:TestCatalogStartupReconcileResetsStaleRunningAndPausedState": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/strategy_runtime_port.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(restore_)'`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_port.rs::TestCatalogStartupReconcileResetsStaleRunningAndPausedState",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/strategy/catalog/runtime_reconciliation_business_test.go:113:TestCatalogActivitySupportsPagingFilteringAndRuntimeObservationEnrichment": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-engine/src/product_production_ports_strategy.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_activity)'`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_activity.rs::TestCatalogActivitySupportsPagingFilteringAndRuntimeObservationEnrichment",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/strategy/errors_test.go:8:TestClassifiedStrategyErrorsMatchSentinelKinds": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-strategy/src/errors.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/model.rs::TestClassifiedStrategyErrorsMatchSentinelKinds",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy"
   },
   "internal/strategy/instancebinding/binding_test.go:11:TestNormalizeBindingPrefersExplicitInstruments": {
     "status": "[~]",
@@ -22818,10 +22818,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
   },
   "internal/strategy/instancebinding/binding_test.go:137:TestNormalizeBrokerAccountDropsEmptyInput": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-strategy/src/instancebinding.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/model.rs::TestNormalizeBrokerAccountDropsEmptyInput",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy"
   },
   "internal/strategy/instancebinding/binding_test.go:143:TestNormalizeBindingAcceptsLegacyArrayPayloadsAndDropsInvalidEntries": {
     "status": "[~]",
@@ -23988,10 +23988,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
   },
   "pkg/strategy/indicatorwarmup/warmup_internal_test.go:142:TestResolveIntervalMinutesSupportsBrokerIntervalsAndSafeFallbacks": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs::TestResolveIntervalMinutesSupportsBrokerIntervalsAndSafeFallbacks",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy"
   },
   "pkg/strategy/indicatorwarmup/warmup_plan_test.go:12:TestWarmupBarsFromPlanUsesLargestIndicatorRequirement": {
     "status": "[~]",
@@ -24036,10 +24036,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
   },
   "pkg/strategy/indicatorwarmup/warmup_script_test.go:67:TestRequestSecurityTimeframeRequirementsValidateAgainstStrategyInterval": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs::TestRequestSecurityTimeframeRequirementsValidateAgainstStrategyInterval",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy"
   },
   "pkg/strategy/indicatorwarmup/warmup_script_test.go:96:TestWarmupBarsFromScriptRejectsInvalidScript": {
     "status": "[~]",
@@ -24870,10 +24870,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
   },
   "pkg/strategy/pine/parse_test.go:488:TestAnalyzeScriptReportsV40BrokerBoundaryDiagnostics": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs::TestAnalyzeScriptReportsV40BrokerBoundaryDiagnostics",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy"
   },
   "pkg/strategy/pine/parse_test.go:560:TestCompileSupportsFrameworkLanguageFeatures": {
     "status": "[~]",
@@ -25440,10 +25440,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
   },
   "pkg/strategy/pinespec/spec_test.go:28:TestGoldenExamplesAnalyzeAndPlan": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs::TestGoldenExamplesAnalyzeAndPlan",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy"
   },
   "pkg/strategy/pinespec/spec_test.go:59:TestBuildToolPayloadSectionsAndExamples": {
     "status": "[~]",
@@ -25452,22 +25452,22 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
   },
   "pkg/strategy/pinespec/spec_test.go:108:TestBuildToolPayloadIncludesSupportMatrix": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs::TestBuildToolPayloadIncludesSupportMatrix",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy"
   },
   "pkg/strategy/pinespec/spec_test.go:248:TestBuildToolPayloadIncludesBrokerBoundary": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::TestBuildToolPayloadIncludesBrokerBoundary",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy"
   },
   "pkg/strategy/pinespec/spec_test.go:274:TestGeneratedPineSupportSnapshotIsCurrent": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pinespec)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/src/pinespec/mod.rs::TestGeneratedPineSupportSnapshotIsCurrent",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy"
   },
   "pkg/strategy/pinespec/spec_test.go:285:TestSkillResourcesContainSpecAndExamples": {
     "status": "[~]",
@@ -25890,10 +25890,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
   },
   "internal/trading/broker_boundaries_test.go:11:TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/tests/order_execution_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/trading/broker_boundaries_test.go:62:TestServiceBrokerReadOperationsClassifyUpstreamFailures": {
     "status": "[~]",
@@ -25902,28 +25902,28 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
   },
   "internal/trading/broker_boundaries_test.go:116:TestServiceBrokerWriteOperationsPropagateUpstreamFailures": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::TestServiceBrokerWriteOperationsPropagateUpstreamFailures",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/trading/broker_conformance_test.go:15:TestFakeBrokerConformanceAcceptedPartialFullAndOutOfOrderUpdates": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::TestFakeBrokerConformanceAcceptedPartialFullAndOutOfOrderUpdates",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/broker_conformance_test.go:58:TestFakeBrokerConformanceCancelAcceptedAndCancelRejected": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/tests/order_cancel_flow_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::TestFakeBrokerConformanceCancelAcceptedAndCancelRejected",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/broker_conformance_test.go:107:TestFakeBrokerConformancePlaceRejectedPushBeforeQueryAndUnsupportedCapability": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::TestFakeBrokerConformancePlaceRejectedPushBeforeQueryAndUnsupportedCapability",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/broker_test.go:186:TestServiceBrokerReadOperationsMapSnapshotsAndQueries": {
     "status": "[~]",
@@ -25932,10 +25932,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
   },
   "internal/trading/broker_test.go:453:TestServicePortfolioAndFallbackResponses": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/tests/order_reconciliation_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::TestServicePortfolioAndFallbackResponses",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/trading/broker_test.go:533:TestServiceBrokerWriteAndTimeoutBehaviors": {
     "status": "[~]",
@@ -25944,10 +25944,10 @@
     "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E \"test(execution_orders)\"`"
   },
   "internal/trading/broker_test.go:648:TestPlaceBrokerOrderRunsPreTradeRiskBeforeBrokerSubmission": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::TestPlaceBrokerOrderRunsPreTradeRiskBeforeBrokerSubmission",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/broker_test.go:680:TestPlaceBrokerOrderCannotBypassRiskWithImplicitRealEnvironment": {
     "status": "[~]",
@@ -25956,10 +25956,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
   },
   "internal/trading/broker_test.go:711:TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/broker_test.go:735:TestNormalizeSymbolsAndRuntimeDefaults": {
     "status": "[~]",
@@ -25968,22 +25968,22 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
   },
   "internal/trading/control_plane_idempotency_test.go:12:TestRealTradeControlPlaneKillSwitchReleaseIsIdempotentAndAudited": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/risk.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::TestRealTradeControlPlaneKillSwitchReleaseIsIdempotentAndAudited",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/control_plane_idempotency_test.go:65:TestRealTradeControlPlaneHardStopReleaseIsSingleShot": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/tests/order_fencing_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::TestRealTradeControlPlaneHardStopReleaseIsSingleShot",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/control_plane_idempotency_test.go:99:TestRealTradeControlPlaneHardStopsBlockUntilEveryEntryReleased": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/tests/order_fencing_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::TestRealTradeControlPlaneHardStopsBlockUntilEveryEntryReleased",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/control_plane_state_audit_test.go:13:TestControlPlaneRetainsActivationAndBoundsRepeatedAuditEvents": {
     "status": "[~]",
@@ -25998,10 +25998,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'"
   },
   "internal/trading/control_plane_state_audit_test.go:99:TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/tests/order_validation_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/control_plane_state_audit_test.go:190:TestControlPlaneKeepsStateWhenAtomicPersistenceCannotComplete": {
     "status": "[~]",
@@ -26010,16 +26010,16 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'"
   },
   "internal/trading/control_plane_state_audit_test.go:250:TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/tests/order_rollback_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/execution_combo_lifecycle_test.go:15:TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/tests/order_execution_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/execution_combo_lifecycle_test.go:83:TestExecutionOrderRechecksRiskImmediatelyBeforeBrokerSubmission": {
     "status": "[~]",
@@ -26082,10 +26082,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
   },
   "internal/trading/execution_combo_lifecycle_test.go:635:TestExecutionDetailsResolverAndOrderUpdateCacheFailureBranches": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/tests/order_reconciliation_parity.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-trading`"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::TestExecutionDetailsResolverAndOrderUpdateCacheFailureBranches",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/execution_products_test.go:12:TestDerivativeSingleLegRequiresBrokerPreviewAndStableClientID": {
     "status": "[~]",
@@ -26220,10 +26220,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
   },
   "internal/trading/execution_test.go:687:TestPreTradeRiskSnapshotUsesNonNilEmptySlices": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/src/real_trade.rs::TestPreTradeRiskSnapshotUsesNonNilEmptySlices",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/execution_test.go:703:TestPreTradeRiskDoesNotLetUnknownNotionalBypassRealTradeControls": {
     "status": "[~]",
@@ -26262,22 +26262,22 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
   },
   "internal/trading/execution_test.go:965:TestNormalizeExecutionOrderUsesEnvFallbackAndSupportsNonLimitUSSessions": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::TestNormalizeExecutionOrderUsesEnvFallbackAndSupportsNonLimitUSSessions",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/trading/execution_test.go:988:TestExecutionNormalizationHelpersRejectUnsupportedInputs": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::TestExecutionNormalizationHelpersRejectUnsupportedInputs",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/trading/execution_test.go:997:TestNormalizeExecutionOrderRejectsInvalidInstrumentAndUnsupportedOrderType": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::TestNormalizeExecutionOrderRejectsInvalidInstrumentAndUnsupportedOrderType",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/trading/execution_test.go:1014:TestExecutionOrderDetailsReturnsOrderAndBoundedRecentEvents": {
     "status": "[~]",
@@ -26292,22 +26292,22 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
   },
   "internal/trading/order_status_test.go:5:TestCanonicalBrokerOrderStatusCoversFutuLifecycle": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::TestCanonicalBrokerOrderStatusCoversFutuLifecycle",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/order_status_test.go:33:TestReconcileCanonicalOrderStatusPreventsBrokerRegressions": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::TestReconcileCanonicalOrderStatusPreventsBrokerRegressions",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/order_status_test.go:59:TestCanonicalTerminalOrderStatus": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::TestCanonicalTerminalOrderStatus",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/order_update_recovery_test.go:11:TestExecutionOrderHistoryFailsClosedForInvalidOrUnavailableBackfill": {
     "status": "[~]",
@@ -26460,10 +26460,10 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
   },
   "internal/trading/responses_test.go:141:TestBrokerReadStatusSerializesNullLastError": {
-    "status": "[~]",
-    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_provider_tests.rs::TestBrokerReadStatusSerializesNullLastError",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/trading/risk_shape_boundaries_test.go:11:TestCommandRiskShapeRejectsSpoofedAndIncompatibleFields": {
     "status": "[~]",
