@@ -87,3 +87,35 @@ async fn auth_session_sets_no_store_for_success_and_error_responses() {
         );
     }
 }
+
+#[tokio::test]
+async fn removed_auth_token_route_returns_not_found() {
+    // Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:509 TestRemovedAuthTokenRouteReturnsNotFound
+    let routes = RouteCatalog::new([RouteSpec {
+        method: "GET".into(),
+        path: "/api/v1/auth/session".into(),
+    }])
+    .expect("auth-session route");
+    let mut access = AccessPolicy::default();
+    access.desktop_token = Some("fixture-desktop-token".into());
+    let state = ApiState::new(
+        routes,
+        access,
+        Arc::new(AuthSessionPort {
+            output: AuthSessionOutput::Success,
+        }),
+    )
+    .with_clock(Arc::new(FixedClock("2026-08-22T00:00:00Z".into())));
+    let response = build_router(state)
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/auth/token")
+                .header("authorization", "Bearer fixture-desktop-token")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
