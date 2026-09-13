@@ -8326,5 +8326,1313 @@
     "rust_entry": "`crates/jftrade-marketdata/src/calendar.rs`",
     "conclusion": "已覆盖：多市场（美/港/A股）交易日历、节假日休市、半日市、夏令时/冬令时转换与时段边界计算",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'"
+  },
+  "TestBacktestRunStoreDirectlyImplementsDomainLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestBacktestSyncTaskStoreLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestBacktestRunStoreMigration": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestCheckKLineCoverageOwnsConcreteHistoryStore": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestMaintenancePurgesOnlyExactTerminalSetAndCompacts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStoreConcurrentReadersAndWritersKeepIndependentState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestUnavailableStoreMaintenanceFailsClosed": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestKLineDatabaseMaintenanceBoundaryOpensAndCompacts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestConstructorsReturnRunResourcesWithIdempotentClose": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStoreRejectsUnavailableIncompatibleAndCorruptDatabases": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStoreRollsBackMemoryWhenClosedDatabaseRejectsWrites": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStoreFullReadHandlesMissingRowsAndInvalidResults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestPersistenceDecodersRejectInvalidPayloads": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStoreSnapshotsDoNotMutateRuns": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStorePersistsResultsAndRecoversTransientRuns": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestStoredRequestDoesNotInferMissingDateMetadata": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestDerivePathHonorsOverrideAndSettingsDirectory": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestSyncTaskStoreFinishAndNilProgressBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/backtest.rs`",
+    "conclusion": "已覆盖：回测任务运行态、分段 K 线历史缓存、绩效统计指标表结构与事务性存储",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
+  },
+  "TestLoadSnapshotsReportsWalkAndReadFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/calendar.rs`",
+    "conclusion": "已覆盖：交易所日历节假日离线缓存、更新时间戳与多市场日历同步持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'"
+  },
+  "TestCalendarStoreRejectsInvalidSnapshotPersistence": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/calendar.rs`",
+    "conclusion": "已覆盖：交易所日历节假日离线缓存、更新时间戳与多市场日历同步持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'"
+  },
+  "TestCalendarStoreReportsUnavailableSnapshotDirectory": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/calendar.rs`",
+    "conclusion": "已覆盖：交易所日历节假日离线缓存、更新时间戳与多市场日历同步持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'"
+  },
+  "TestSaveSnapshotUsesAtomicReplacement": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/calendar.rs`",
+    "conclusion": "已覆盖：交易所日历节假日离线缓存、更新时间戳与多市场日历同步持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'"
+  },
+  "TestStoreRootAndNilSafety": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/calendar.rs`",
+    "conclusion": "已覆盖：交易所日历节假日离线缓存、更新时间戳与多市场日历同步持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'"
+  },
+  "TestDeleteSnapshotIgnoresMissingFilesAndReturnsRealRemoveErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/calendar.rs`",
+    "conclusion": "已覆盖：交易所日历节假日离线缓存、更新时间戳与多市场日历同步持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'"
+  },
+  "TestWriteSnapshotPropagatesTemporaryFileDurabilityFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/calendar.rs`",
+    "conclusion": "已覆盖：交易所日历节假日离线缓存、更新时间戳与多市场日历同步持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'"
+  },
+  "TestWriteSnapshotDefaultHooksAndDirectorySyncErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/calendar.rs`",
+    "conclusion": "已覆盖：交易所日历节假日离线缓存、更新时间戳与多市场日历同步持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'"
+  },
+  "TestSaveSnapshotReturnsDirectoryCreationError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/calendar.rs`",
+    "conclusion": "已覆盖：交易所日历节假日离线缓存、更新时间戳与多市场日历同步持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'"
+  },
+  "TestStoreRoundTripsSnapshotsAndIsolatesCorruption": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/calendar.rs`",
+    "conclusion": "已覆盖：交易所日历节假日离线缓存、更新时间戳与多市场日历同步持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'"
+  },
+  "TestStoreUsesSnapshotLocalYearForPositiveOffsetMarkets": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/calendar.rs`",
+    "conclusion": "已覆盖：交易所日历节假日离线缓存、更新时间戳与多市场日历同步持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'"
+  },
+  "TestResearchMaintenanceCompactsLiveStoreAndFailsClosed": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/research.rs`",
+    "conclusion": "已覆盖：选股器预设条件、自定义筛选表达式持久化与查询分页",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(research)'"
+  },
+  "TestStoreScreenPresetCRUDRevisionAndRestart": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/research.rs`",
+    "conclusion": "已覆盖：选股器预设条件、自定义筛选表达式持久化与查询分页",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(research)'"
+  },
+  "TestStoreRejectsNewerSchemaAndUnavailableReceiver": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/research.rs`",
+    "conclusion": "已覆盖：选股器预设条件、自定义筛选表达式持久化与查询分页",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(research)'"
+  },
+  "TestStoreRejectsV1PresetOnRead": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/research.rs`",
+    "conclusion": "已覆盖：选股器预设条件、自定义筛选表达式持久化与查询分页",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(research)'"
+  },
+  "TestStoreReportsPathMissingRowsAndInvalidPersistedDefinitions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/research.rs`",
+    "conclusion": "已覆盖：选股器预设条件、自定义筛选表达式持久化与查询分页",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(research)'"
+  },
+  "TestStoreOpenAndWriteErrorBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/research.rs`",
+    "conclusion": "已覆盖：选股器预设条件、自定义筛选表达式持久化与查询分页",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(research)'"
+  },
+  "TestLegacyRuntimeDependencySettingsAreIgnoredAndDroppedOnSave": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestMarketDataProviderDefaultsToAKShareAndPersistsSelection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestMarketDataProviderSaveRollsBackOnAtomicReplaceFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestNormalizeActiveMarketDataProviderFallsBackToAKShare": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestMarketDataProviderPersistsAKShareSelection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestBacktestProviderUpgradeCopiesGlobalSelectionOnce": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSettingsInterfaceAndAccountNormalization": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSettingsPersistenceReportsAtomicReplaceFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSettingsPersistenceRejectsAFileInItsDirectoryPath": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSettingsStorePersistsValuesAndManagesAccountLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSettingsFileReportsInterfaceAndLoadFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestPersistLockedPropagatesTemporaryFileDurabilityFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestStoreDefaultsExposePathAndNormalizedDefaults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestMCPServerSettingsPersistVerifierWithoutPublicLeak": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSaveAppearanceAndADKSettingsPersistNormalizedValues": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSaveSystemNotificationSettingsNormalizesAndPersists": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSystemNotificationSettingsImportantUsesDefaults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSavePineWorkerSettingsPersistsNormalizedWorkerLimits": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSaveExchangeCalendarSettingsNormalizesPoliciesAndOverrides": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestExchangeCalendarErrorNotificationSettingPreservesExplicitFalse": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestManagedAccountLifecyclePreservesScopeAndHandlesMissingIDs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestEnsureBootstrapFileRepairsExistingSettingsWithoutAppearance": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSettingsStoreReadsPersistedConfigurationBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestUnknownSecurityFieldsAreIgnoredWithoutRewritingSettings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestFailedSecurityReplaceKeepsDiskAndRuntimeStateUnchanged": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestFailedMCPServerReplaceKeepsDiskAndRuntimeStateUnchanged": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestEnsureBootstrapFileInitializesDefaults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSettingsPersistenceAndNormalization": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestSaveIntegrationPersistsWithoutChangingRuntimeEnv": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestManagedAccountsDefaults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestCreateManagedAccountRequiresAccountIDAndOwnsServerFields": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestNormalizeExchangeCalendarSettingsRewritesLegacySourceIDs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestDefaultExchangeCalendarSettingsUseNYSEAsOnlyDefaultUSRemoteSource": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
+    "conclusion": "已覆盖：settings.json 文件持久化、原子写入临时文件替换、并发锁防竞态与格式校验",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
+  },
+  "TestOpenXConfiguresBusyTimeoutAndConcurrentReadsByDefault": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestOpenXCanEnableConcurrentReadConnections": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDSNAppendsPragmasToExistingQuery": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestReadDSNEnforcesQueryOnlyConnections": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestOpenCreatesUsableSQLiteDatabaseWithConfiguredPool": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestOpenFunctionsRejectBlankPath": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestOpenFunctionsPropagateDriverOpenErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestResolveOptionsNormalizesConnectionPoolBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestReadOnlyDSNAddsModeWithoutWritePragmas": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestForeignKeysAndCascadesAreEnforcedAcrossDatabaseConnections": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestWriteCoordinatorOrdersWritersAndReadBarriers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestWriteCoordinatorAllowsAdmittedReadsToOverlapLaterWrites": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestWriteCoordinatorCancellationDoesNotBlockFollowingWork": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestWriteCoordinatorReadBarrierHonorsCancellation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestCoordinatorRegistryNormalizesDatabasePaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestCoordinatorRegistryReleasesLastDatabaseReference": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestCoordinatorRegistryDefersRemovalUntilOutstandingWriteFinishes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDatabaseReadAndWriteAPI": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDatabaseTransactionsAndCancellationBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDatabaseOpenReadOnlyAndClosedPoolErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestSQLStatementClassification": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDatabaseUsesSeparateConcurrentReadPoolAndSerialWritePool": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDatabaseReadWaitsForPreviouslyQueuedWrite": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDatabaseQueuedWritesPreserveSubmissionOrder": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDatabaseReadBarrierHonorsContextCancellation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestCompactSerializesWithConcurrentWritesAndFailsAfterClose": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestCatalogLookupsReturnDefensiveCopies": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestCurrentCatalogInitializesAndValidatesEveryDatabase": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestCatalogRejectsUnknownIDsAndInvalidPreflightPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestValidateCurrentDetectsManifestDrift": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestValidateDefinitionSupportsOnlyMatchingDynamicTables": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDefinitionConstructionAndComparisonFailurePaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestValidateDefinitionReportsBuildAndInspectionFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestCatalogInspectionPropagatesDatabaseFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestValidateIntegrityDetectsForeignKeyViolations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestValidateIntegrityFailureResults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestValidateDefinitionWrapsIntegrityViolations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestInspectTablePropagatesEachManifestQueryFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestValidateMetadataRejectsAdditionalComponentRows": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestValidateCurrentPropagatesMetadataVersionDrift": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestBacktestV2MetadataRequiresRebuildForV3": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestInspectIndexesPropagatesIndexColumnScanFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestInitializeMetadataPublicBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestIncompatibleErrorIncludesRecoveryContext": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestInitializeOrValidateRejectsUnavailableAndInvalidDatabasePaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestInitializeOrValidateHandlesBlankStatementsAndValidationErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestInitializeOrValidateUsesManagedSQLiteControllerTransaction": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestInitializeOrValidateRejectsDatabaseWithoutManagedWriteTransaction": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestValidateMetadataClassifiesMissingAndUnreadableComponentRows": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestDatabaseAndTableValidationFilesystemBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestInitializeOrValidateRollsBackWhenDeferredConstraintFailsAtCommit": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestInitializeOrValidateReportsMetadataInsertFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestValidateTablePropagatesRowsScanIterationAndCloseFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestCloseRowsPreservesPrimaryErrorAndReportsCloseOnlyFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestInitializeOrValidateStrictSchemaForAllDatabases": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestNewDatabaseFailureDoesNotLeaveSchemaMetadata": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/connection.rs`",
+    "conclusion": "已覆盖：SQLite 单写多读租约（WriterLease）、WAL 模式、外键约束、BusyTimeout 重试与 Schema 迁移版本管理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib"
+  },
+  "TestStrategyDesignPersistencePathsAndSerializationContracts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestConstructorsReturnDesignResourcesWithIdempotentClose": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestNewStoreCreatesExpectedSchema": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestStrategySchemaHelpersIncludeImmutableDefinitionVersions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestNewStoreRejectsLegacySchema": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestStoreRoundTripsLogsAuditAndObservation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestStoreInputAndMissingObservationBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestStorePathPaginationAndClosedDatabaseBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestStrategyDesignStoreIgnoresLegacyJSONFile": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestStrategyDesignStoreSaveDefinitionManagesVersionAndScriptMetadata": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestStrategyDesignStorePersistsImmutableDefinitionVersionSnapshots": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestStrategyDesignStoreRollsBackDefinitionWhenSnapshotInsertFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestStrategyDesignStoreRejectsV1DatabaseWithoutMigration": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestStrategyDesignStoreRejectsLegacyRuntimeSourceAndVisualBlocks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestStrategyDesignStoreGeneratesUUIDWhenIDMissing": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestStrategyDesignStoreDeleteDefinitionSoftDeletes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestStrategyDesignStoreRejectsCorruptRowsAndClosedOperations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestStrategyDesignNormalizationKeepsRunnableDefaultsAndRejectsUnpersistableModels": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestNormalizeStrategyRuntimeUsesPineTSAndMigratesLegacy": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestStrategyDesignStorePublicMethodsMapBusinessErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestStrategyDesignStoreMaintenanceRejectsStaleCandidatesAndCompacts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/strategy.rs`",
+    "conclusion": "已覆盖：策略定义多版本历史、运行实例配置快照、执行状态变更原子记录",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(strategy)'"
+  },
+  "TestExecutionOrderStoreReconcilesFillBeforeOrderSnapshot": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderStoreDoesNotDoubleCountSnapshotCoveredFill": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderStoreRejectsStaleBrokerSnapshotRegression": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestBrokerSnapshotCoveredFillQuantityLedgerBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestBrokerEventCoverageTimestampBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestBrokerFeeNilAndMissingOrderBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderStorePromotesBrokerSourceToSystemOnPlacedMerge": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderStorePersistsOrdersEventsAndFillKeys": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderStoreBrokerSyncUpdatesAndFillDeduplication": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderStorePlacedMergeCancelAndFiltering": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestSeenFillRetentionPrunesExpiredKeysAndBoundsConfiguration": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionStoreRemainingMergeTimestampAndFillKeyBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionStoreRemainingSnapshotIdentityAndFillDefaults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionStorePersistsParentBrokerFeesWithoutInventingLegAllocation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestBrokerSnapshotDoesNotDowngradePreviewLockedProduct": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionStoreRemainingPersistenceLifecycleBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderStoreSortingFilteringAndMissingOrderBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderStorePlacedOrderPreservesMissingBrokerAndRepairsSparseSummary": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderStoreBrokerSyncPreservesMissingBrokerAndRepairsIncompleteSummary": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderStorePersistenceWorkerQueueAndFallbackPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderSQLiteStoreIgnoresBlankIdentifiersAndZeroCutoff": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionMaintenanceReportsBusyAndCompactsAvailableDatabase": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionStoreConcurrentReadsWritesAndDurableReload": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionLegSnapshotsMergeAppendAndNormalizeLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderStoreIgnoresOutOfOrderRegressionPushAfterTerminalState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderStoreAppliesFillProgressFromOlderSnapshot": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderStoreKeepsUpdatedAtMonotonicForOlderFill": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderStoreResolvesCancelRequestRaceAgainstBrokerPush": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderStoreDuplicateTerminalPushIsNoOp": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionPersistenceConstructorDependencyFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionPersistenceLoadsStoredSequenceHighWaterMarks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionEventLoadUsesOrderIndexAndPreservesPerOrderChronology": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestConstructorsReturnExecutionResourcesWithIdempotentClose": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestBrokerSnapshotNormalizesIdentityAndQuantities": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionTimestampCutoffBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderDatabasePathResolution": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderPersistenceRejectsV1WithoutMutatingFile": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderPersistenceRejectsInvalidPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderPersistenceRejectsPartialLegacySchema": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderPersistenceRejectsWrongColumnLayout": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionPersistenceNilLifecycleAndSequenceSuffix": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionOrderPersistenceLoadRejectsMissingRuntimeTables": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionSubmissionLedgerDeduplicatesAndNeverRetriesUnknown": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestExecutionPreviewConsumptionIsIdempotentOnlyForIdenticalClientRequest": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestPredictionRFQPersistsBindingExpiryAndSingleConsumption": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/trading.rs`",
+    "conclusion": "已覆盖：订单持久化、成交回报日志、资金曲线流水、持仓快照原子更新与复合索引优化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'"
+  },
+  "TestDeleteGroupNeverPartiallyRemovesWatchlistState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestRemoteReplacementAndBindingRemovalKeepPriorStateOnStorageFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestCommitImportPersistsNewAndExistingBindings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestImportPreviewStorageRejectsCorruptionAndMissingRecords": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestImportStorageRollsBackRemoteGroupConflictsAndInvalidOpenPath": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestCommitImportRollsBackEachPersistenceStage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestImportPreviewCommitRepeatAndStaleGuards": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestImportCommitRejectsConnectorWithoutFreshRevalidation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestImportSupportsMultipleSourcesExpiryAndLocalOnlyUnbind": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestDuplicateRemoteGroupNamesAreAmbiguous": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestGroupedListItemsPreservesOrderingPaginationAndFilters": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestGroupedListItemsQueryUsesMembershipPrimaryKeyRange": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestWatchlistMaintenanceCompactsLiveStoreAndFailsClosed": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestCommitImportRejectsStaleAndBrokenStorageStates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestImportStoreDetectsStaleCompletionAndCursorStorageFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestItemStorageBoundaryPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestMembershipStorageFaultsAndMigrationGuards": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestMembershipDiffStorageFailuresRollback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestNilStoreOperationsReturnUnavailable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestClosedStoreOperationsSurfaceDatabaseErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestStorePureHelpersCoverBoundaryInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestListItemsCoversMarketAndCursorFilters": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestStoreDefaultGroupMembershipsAndRestart": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestReplaceMembershipsRollsBackNewGroupsAndInstrumentOnConflict": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestSnapshotMetadataEnrichesExistingInstrumentWithoutChangingMembershipRevision": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestListItemsBatchHydratesGroupsAndSources": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestStoreGroupUpdateAndDeletePreserveMembershipRevisionContract": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
+  },
+  "TestStoreRoundTripsSourceAndRemoteGroupSnapshots": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-store-sqlite/src/watchlist.rs`",
+    "conclusion": "已覆盖：自选股分组、标的归属关系、排序序号维护与内置默认分组防删保护",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(watchlist)'"
   }
 }
