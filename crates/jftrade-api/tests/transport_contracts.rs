@@ -338,6 +338,28 @@ async fn auth_treats_patch_as_session_write_requiring_csrf() {
 }
 
 #[tokio::test]
+async fn unknown_portfolio_reconciliation_route_returns_json_not_found() {
+    // Parity: internal/app/apiserver/servercoretest/portfolio_routes_test.go:42 TestPortfolioCashReconciliationRouteNotFoundReturnsJSON
+    let (router, _) = fixture();
+    let response = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/portfolio/futu/cash-reconciliation")
+                .header("authorization", "Bearer desktop-token")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        response.headers()["content-type"],
+        "application/json; charset=utf-8"
+    );
+}
+
+#[tokio::test]
 async fn unknown_api_is_json_but_frontend_uses_spa_fallback() {
     let (router, _) = fixture();
     let unknown = router
