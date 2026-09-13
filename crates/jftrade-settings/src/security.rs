@@ -469,6 +469,8 @@ mod tests {
 
     #[test]
     fn listener_failure_rolls_back_password_and_port_together() {
+        // Parity: go:452dea11:internal/settings/service_test.go:232 TestSaveSecuritySettingsRejectsInvalidWebPort
+        // Parity: go:452dea11:internal/settings/service_test.go:242 TestSaveSecuritySettingsRollsBackWhenRuntimeListenerUpdateFails
         let original = SecuritySettingsRecord::new(true, false, 6688, "stored-verifier");
         let store = Arc::new(Store(RwLock::new(Some(original.clone()))));
         let service = SecuritySettingsService::with_ports(

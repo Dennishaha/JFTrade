@@ -550,6 +550,8 @@ mod tests {
 
     #[test]
     fn listener_failure_rolls_back_the_persisted_settings() {
+        // Parity: go:452dea11:internal/settings/service_test.go:318 TestSaveMCPServerSettingsRollsBackWhenListenerUpdateFails
+        // Parity: go:452dea11:internal/settings/service_test.go:344 TestSaveMCPServerSettingsValidatesTokenAndPort
         let original = McpServerSettingsRecord::new(false, 6697, "none", "old-verifier");
         let store = Arc::new(Store(RwLock::new(Some(original.clone()))));
         let service = McpServerSettingsService::with_ports(
