@@ -228,4 +228,26 @@ mod tests {
         assert_eq!(dismissed.dismissed_at, "2026-08-20T00:00:00Z");
         assert_eq!(dismissed.last_broker_id, "other");
     }
+
+    // Parity: internal/settings/service_test.go:435 TestDefaultCallbacksReturnEmptyMaps
+    #[test]
+    fn default_onboarding_inputs_and_settings_return_empty_values() {
+        let default_inputs = OnboardingInputs::default();
+        assert!(!default_inputs.state.completed);
+        assert!(default_inputs.state.completed_at.is_empty());
+        assert!(default_inputs.state.dismissed_at.is_empty());
+        assert!(default_inputs.state.last_broker_id.is_empty());
+        assert!(!default_inputs.broker_enabled);
+        assert!(!default_inputs.broker_configured);
+        assert_eq!(default_inputs.enabled_accounts, 0);
+
+        let service = OnboardingSettingsService::new(Arc::new(Store(RwLock::new(default_inputs))));
+        let readiness = service.readiness(true).expect("default readiness");
+        assert!(!readiness.state.completed);
+        assert!(readiness.state.completed_at.is_empty());
+        assert!(readiness.state.dismissed_at.is_empty());
+        assert!(readiness.state.last_broker_id.is_empty());
+        assert_eq!(readiness.reasons.len(), 1);
+        assert_eq!(readiness.reasons[0].code, "NO_MANAGED_ACCOUNTS");
+    }
 }
