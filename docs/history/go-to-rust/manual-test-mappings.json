@@ -13270,5 +13270,2987 @@
     "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
     "conclusion": "已覆盖：工作流执行器生命周期、审批恢复、子任务推进、失败回滚与终态收敛",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKMemoryServiceBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestModelCatalogToolBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestContextCompactionNoticeBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestPauseGuardBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSchemaConversionReportsMarshalError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSQLiteGormPoolBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestStoreMaintenanceBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRuntimeFacadeBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRuntimeConstructionCompactionAndCloseBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRuntimeSessionContextBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRuntimeAgentProviderSessionAndMemoryBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRuntimeSnapshotAndProviderTestBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestWorkflowApprovalParentChildBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRunnerChatAndStoreAdditionalBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestResumeGoogleADKFakeExecutionBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRunnerApprovalStateMachineAdditionalBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKJSONSchemaFromMapPreservesObjectFields": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKJSONSchemaFromMapAllowsNil": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSkillRegistryArchiveAndFilesystemBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestStoreSessionContextAndNoticeBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestNewStoreAndDeleteSessionBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreProviderSecretAndDefaultErrorBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreRunApprovalAndMemoryErrorBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreBuiltinAndLowLevelJSONErrorBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestWorkflowStoreFullCRUDAndLogBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreSessionComposerBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreNormalizationEdgeBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestSmallADKBoundaryTailBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestProviderHTTPBoundaryTailBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestProjectionAndReasoningHelperBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestNormalizeAndApprovalResolutionBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestWorkflowTaskLocalHelperBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestWorkflowPlannerAdditionalBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestTimelineAdditionalBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestApprovalPersistenceFailuresRemainObservable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：人工审批中断、多分支重试、兄弟节点取消与恢复生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
+  },
+  "TestWorkflowApprovalReconcilerRestagesPersistedResolution": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：人工审批中断、多分支重试、兄弟节点取消与恢复生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
+  },
+  "TestWorkflowApprovalReconcilerProtectsParentAndChildLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：人工审批中断、多分支重试、兄弟节点取消与恢复生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
+  },
+  "TestApprovalContinuationEligibilityDistinguishesRecoverableState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：人工审批中断、多分支重试、兄弟节点取消与恢复生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
+  },
+  "TestSynchronousApprovalDenialCancelsSiblingActions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：人工审批中断、多分支重试、兄弟节点取消与恢复生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
+  },
+  "TestApprovalBusyRetryStopsWhenRequestIsCancelled": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：人工审批中断、多分支重试、兄弟节点取消与恢复生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
+  },
+  "TestResolveAndStageApprovalBoundaryStates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：人工审批中断、多分支重试、兄弟节点取消与恢复生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
+  },
+  "TestResolveAndStageApprovalRejectsCorruptDurablePayloads": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：人工审批中断、多分支重试、兄弟节点取消与恢复生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
+  },
+  "TestSaveRunProtectsClaimedApprovalContinuationFromStaleSnapshot": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：人工审批中断、多分支重试、兄弟节点取消与恢复生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
+  },
+  "TestApprovalContinuationGetsFreshTimeoutWindow": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：人工审批中断、多分支重试、兄弟节点取消与恢复生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
+  },
+  "TestCanvasWorkflowAppliesExplicitProviderAndModelOverrides": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestChatRequestIdentityValidationAndFingerprintConflict": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestConcurrentResponsesRequestReusesOneRunAndNativeAssistantEvent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCompletionReviewCompleteLeavesReplyUnchanged": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCompletionReviewHighConfidenceAppendUsesSameRunAndSyntheticFinalMessage": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestDefaultChatCompletionReviewAppendsAfterToolReplyInSSEOrder": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCompletionReviewFailsOpen": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCompletionReviewAnonymousPortfolioScenarioFinishesInOneRun": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCompletionReviewResponsesRequestIsBoundedStructuredAndToolFree": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCompletionReviewEligibilityAndMemoBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestProviderPayloadKeepsStablePrefixAcrossTurns": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestProviderPayloadUsesOnlyCurrentContextRevisionHandoff": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestProviderPayloadSortsToolsByNameIndependentOfAgentInputOrder": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSerializedADKErrorRestoresKnownSentinelIdentity": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKRunnerErrorClassificationPreservesCause": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestADKProductionCodeUsesSentinelIdentityChecks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestEventProjectionHandlesEmptyStorageOrderingAndFallbackEntries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionProjectionPropagatesADKSessionReadFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionProjectionTreatsMissingADKSessionAsEmpty": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestProjectedAssistantEntryAnchorsAtLatestTextEvent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKExecutionDescriptorRunMappingAndContentBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKExecutionToolCallReuseAndCompletionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKExecutionRunAndEventErrorBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestExecuteRegisteredToolCancellationJoinsHandler": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKExecutionPauseAndBufferedErrorBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKFinalReplySynthesisBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKExecutionApprovalResolutionAndPendingBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKExecutionRehydrateBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKExecutionRunScopedStateProjectionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKExecutionBufferedTextAndDeltaBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKExecutionRunSnapshotPersistenceBoundary": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestExecutionClaimValidationAndReleaseLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestToolInvocationAbandonAndCorruptionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestExecutionClaimUpdateResultFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestExecutionClaimsSurfaceClosedDatabaseFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestGoogleADKToolUsesDurableInvocationKeyAndReplay": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestFailedReadIsDurablyCompletedButProjectedAsFailedToolCall": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestGoogleADKToolRejectsStaleContextAfterLeaseTurnover": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestGoogleADKKeyedToolFailsClosedWhenHandlerIgnoresKey": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestRuntimeReconciliationDoesNotStealFreshForeignLease": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestRuntimeRunLeaseHeartbeatPreventsPrematureTakeover": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestRunSaveIsFencedWithExecutionLeaseContext": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestGoogleADKExecutionProjectsToolResponseLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKExecutionStateModelsVisibleAndPersistedRunStatus": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKRunnerHelpersPreserveRecoveryRules": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestDirectApprovalCompletionPersistsAssistantTimelineAndTerminalState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestWorkflowApprovalStateTransitionsPersistTheObservableOutcome": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKExecutionSerializesConcurrentToolCallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/rig_adapter.rs`",
+    "conclusion": "已覆盖：LLM Rig 适配器、流式事件投射、Header 安全性与模型参数透传",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(rig_adapter)'"
+  },
+  "TestGoogleExecutionEventReplayKeepsApprovalStateIdempotent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/rig_adapter.rs`",
+    "conclusion": "已覆盖：LLM Rig 适配器、流式事件投射、Header 安全性与模型参数透传",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(rig_adapter)'"
+  },
+  "TestGoogleExecutionEventGuardsPreserveProjectionState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/rig_adapter.rs`",
+    "conclusion": "已覆盖：LLM Rig 适配器、流式事件投射、Header 安全性与模型参数透传",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(rig_adapter)'"
+  },
+  "TestGoogleADKMemoryServiceSearchesJFTradeMemory": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/rig_adapter.rs`",
+    "conclusion": "已覆盖：LLM Rig 适配器、流式事件投射、Header 安全性与模型参数透传",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(rig_adapter)'"
+  },
+  "TestGoogleADKAgentIDFromAppName": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/rig_adapter.rs`",
+    "conclusion": "已覆盖：LLM Rig 适配器、流式事件投射、Header 安全性与模型参数透传",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(rig_adapter)'"
+  },
+  "TestGoogleRunnerPreservesResumedFailureDiagnostics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/rig_adapter.rs`",
+    "conclusion": "已覆盖：LLM Rig 适配器、流式事件投射、Header 安全性与模型参数透传",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(rig_adapter)'"
+  },
+  "TestGoogleRunnerSurfacesModelAndChildConstructionFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/rig_adapter.rs`",
+    "conclusion": "已覆盖：LLM Rig 适配器、流式事件投射、Header 安全性与模型参数透传",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(rig_adapter)'"
+  },
+  "TestHandoffSegmentsReplaceActiveChainAndFilterByRevision": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionNoticesPersistNormalizedEntriesAndHandleMissingState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestAnsweredInputFailuresRemainObservable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestInputResolutionExposesParentProjectionWriteFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestAnsweredInputCrashRecoveryHonorsDurableRunLease": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestResolveInputAsyncDoesNotRestartAnInFlightContinuation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestAnsweredInputIsRequeuedAfterInFlightContinuationReleasesClaim": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestBuildInputRequestAndValidateAnswers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestInputRequestToolRunReturnsCorrectableFeedbackForInvalidArgs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestInputRequestValidationAndErrorEdges": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestResolveRunInputStoreErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestPendingInputRequestConflictEdges": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestInputContinuationFailureIsPersisted": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestResolveRunInputIsValidatedAndIdempotent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestCancelPendingInputRunCancelsRequestAndRejectsLateAnswer": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestInputRequestTimelinePersistsAnsweredCard": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestRequestUserToolIsLongRunning": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestRequestUserToolPausesAndResumesChatRun": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestRequestUserToolSupportsSequentialQuestionsInOneRun": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestRequestUserToolCanTransitionToApproval": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestRequestUserToolResumesAfterRuntimeRestart": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestInputResponsePayloadAnchorsResumedRunToOriginalRequest": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestResumedInputRunInjectsOriginalRequestAnchor": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestInputRequestProjectsThroughWorkflowBlockingState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/input_request_validation_boundaries.rs`",
+    "conclusion": "已覆盖：InputRequest 交互式输入校验、恢复边界与幂等性保障",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(input_request)'"
+  },
+  "TestStaleRunReconciliationCoversTerminalPlanAndSelfReferenceRecovery": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestLifecycleStoreFailuresAreReturnedToTheCaller": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestLocalMCPHandlerExposesOnlyReviewedReadTools": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestLocalMCPHandlerRejectsWriteCapableReplacementOfReviewedName": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestLocalMCPHandlerRequiresAtLeastOneReviewedTool": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestLocalMCPHandlerCloseUnsubscribesRegistryListener": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestLocalMCPHandlerReturnsToolFailuresAsMCPToolErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestLocalMCPHandlerServesStatelessPostOnlyRequests": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestLocalMCPHandlerPreservesMCPHostProtection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestLocalMCPHandlerReadsSanitizedRuntimeStatusResource": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSanitizedMCPRuntimeStatusIncludesConfiguredDataAndErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSanitizedMCPRuntimeStatusSerializesDescriptors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestLocalMCPRuntimeStatusSubscriptionValidation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestLocalMCPHandlerSynchronizesReviewedToolsAndRuntimeSubscriptions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestLocalMCPHandlerRefreshesReplacedToolHandler": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestNormalizeRunAndResponsesReplaceNilSlices": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestNormalizeWorkflowAndSessionResponsesPreserveBusinessContracts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestADKRunContextCarriesCanonicalCorrelationFields": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCanvasWorkflowPersistenceFailuresDoNotReportSuccess": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestNativeTaskGraphPersistsCompletedAndPendingInputOutcomes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestStaleRunRecoveryAggregatesPersistenceFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestApprovalContinuationPersistenceFailuresRemainRetryable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestWorkflowChildContinuationPersistsRecoveryDecisions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestStaleRunRecoveryHandlesReadRepairAndParentTermination": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCanvasWorkflowSetupFailuresRemainPreRunErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestWorkflowTaskToolContractAndLifecycleReadFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestWorkflowResumePersistenceFailuresRemainObservable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestWorkflowBlockerAndRuntimeInitializationFailureSemantics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestWorkflowPlannerToolsetNameIsStableForADKRegistration": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowPlannerToolsetDraftLifecycleAndRequestInjection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowPlannerArgumentAndDependencyHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestSessionProjectionRetainsUserReplyReasoningAndToolLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestProjectionApprovalMemoryAndCanvasBoundarySemantics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestDirectApprovalResumeErrorRequiresTerminalToolStates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestValidateProviderBaseURLRejectsMetadataTargets": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/rig_adapter.rs`",
+    "conclusion": "已覆盖：LLM Rig 适配器、流式事件投射、Header 安全性与模型参数透传",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(rig_adapter)'"
+  },
+  "TestSaveProviderValidatesBaseURLAndDefaultHeaders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/rig_adapter.rs`",
+    "conclusion": "已覆盖：LLM Rig 适配器、流式事件投射、Header 安全性与模型参数透传",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(rig_adapter)'"
+  },
+  "TestReasoningEffortOverridePriority": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/rig_adapter.rs`",
+    "conclusion": "已覆盖：LLM Rig 适配器、流式事件投射、Header 安全性与模型参数透传",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(rig_adapter)'"
+  },
+  "TestReasoningEffortResumeUsesRunSnapshot": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/rig_adapter.rs`",
+    "conclusion": "已覆盖：LLM Rig 适配器、流式事件投射、Header 安全性与模型参数透传",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(rig_adapter)'"
+  },
+  "TestProviderAlwaysSelectsResponsesModel": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/rig_adapter.rs`",
+    "conclusion": "已覆盖：LLM Rig 适配器、流式事件投射、Header 安全性与模型参数透传",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(rig_adapter)'"
+  },
+  "TestResponsesExecutionSkipsDuplicateFinalTextAfterPartial": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/rig_adapter.rs`",
+    "conclusion": "已覆盖：LLM Rig 适配器、流式事件投射、Header 安全性与模型参数透传",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(rig_adapter)'"
+  },
+  "TestResumedExecutionFailurePersistenceIsObservable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestDirectResumeSurfacesRehydrationFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestChildApprovalResumeFallsBackToDirectRecovery": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionTimelineHandlesEmptyAndMissingSessions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestConcurrentResolveApprovalExecutesApprovedToolOnce": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：人工审批中断、多分支重试、兄弟节点取消与恢复生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
+  },
+  "TestConcurrentSiblingApprovalsAreMergedBeforeContinuation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：人工审批中断、多分支重试、兄弟节点取消与恢复生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
+  },
+  "TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：人工审批中断、多分支重试、兄弟节点取消与恢复生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
+  },
+  "TestAsyncApprovalWaitsForLocalInputContinuationLease": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：人工审批中断、多分支重试、兄弟节点取消与恢复生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
+  },
+  "TestApprovalLeaseWaitStopsWhenRuntimeContextIsCancelled": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：人工审批中断、多分支重试、兄弟节点取消与恢复生命周期",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'"
+  },
+  "TestRunnerChatCallbacksAndEventProjection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestContinuationOnlyMessageRecognition": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestChatAuditsContinuationOnlyMessageAgainstRecentCompletedRun": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRecentContinuationSignalRequiresFreshCompletedRunInSameSession": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKExecuteRuntimeBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKResumeRuntimeBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKRunnerConstructionAndSynthesisBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRunChatRuntimeBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestPrepareChatRequestValidationAndConcurrency": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRequestedInputEventFailsWithUnsupportedInputCode": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestHydrateRunExecutionResultPopulatesRunFields": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCompleteChatRunDoesNotPromoteTopLevelFollowUpToPendingInput": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestChatToolOnlyADKRunSynthesizesFinalReply": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestMarkFailedChatRunMapsContextToTerminalState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestPersistRunTerminalStateWritesRunAndAudit": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestAttachFinalAssistantMessagePersistsMessageAndRunLink": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestFinishPendingApprovalRunPersistsPendingStateAndAssistantPrompt": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCompleteChatRunFailurePersistsUserFacingErrorReply": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCompleteChatRunSuccessPersistsCompletedRunAndAssistantReply": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCompleteChatRunKeepsFailedToolCallsVisibleWithoutFailingRun": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestProjectedChatResponseAppliesProjectionToRunFields": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRunChatRejectsInvalidPermissionModeOverride": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRunStoresResolvedModelSnapshot": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestChatRequestProviderOverrideRunsWithoutEditingAgent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestAgentWithoutProviderDynamicallyUsesDefaultProvider": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRunnerChatProjectionPersistenceAndAssistantBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestProjectedChatResponseDoesNotExposeResolvedApprovals": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestResolveApprovalAsyncDetachesClosedStreamBeforeBackgroundResume": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestResolveAgentCoversDefaultAndProviderValidation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestResolveSessionReusesExistingRejectsMismatchAndCreatesTrimmedSession": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestStartRunPersistsRunAndFinishRemovesActiveHandle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCancelRunOnTerminalStateIsNoop": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestContinuationClaimGuardsAndClosingRuntime": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestContinuationQueuesInitializeWithoutRuntimeBackgroundContext": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestResolvedContinuationsHonorForeignLeasesAndEmptyState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestResolvedApprovalContinuationKeepsSiblingStateAtomic": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestStartRunPersistsExecutionLeaseClaimFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestResolvedApprovalDoesNotStealForeignExecutionLease": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestLifecycleReportsLeaseStorageFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoalResumeFailsClosedWhenExecutionLeaseCannotBeClaimed": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoBackgroundNilGuardsAndClosingState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRuntimeCloseWaitsForInFlightBackgroundWorkAndRejectsNewWork": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoBackgroundUsesBackgroundCtxOrFallback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoalResumeExecutionErrorPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestPauseGoalRunEnforcesRootActiveGoalBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestResumeGoalRunRejectsNonResumableStates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestReconcileExpiredRunsCancelsTimedOutRuns": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCancelRunTreeAndRunLifecycleHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestUpdateRunObjectiveAndRecentMessageBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRunnerLifecycleBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestReconcileStaleRunsPreservesRecoverableWorkflowStateAndFailsOrphans": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestReconcileTerminalWorkflowCancelsChildrenAndClearsStaleApprovals": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRepairWorkflowSelfReferenceResetsTheTaskAndPausesTheParent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestWorkflowParentReferenceAndReconcileHelpersBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestLifecycleFailsClosedWhenStorageStopsDuringReconciliation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKExecutionPluginRegistersV2ProjectionCallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKExecutionPluginRejectsNilExecution": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestRunExecutionLeaseContextAndReuseBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestRunExecutionLeaseHeartbeatFailureCancelsOwner": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestRefreshRunExecutionLeaseRejectsExpiredLeaseBeforeStoreWrite": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestRefreshRunExecutionLeaseUsesRemainingTTLForNearExpiryLease": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestRunExecutionLeaseUsesSafeDefaults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestRuntimeCloseCancelsAndWaitsForInFlightRunLease": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestRuntimeCloseRejectsRunLeaseWorkAfterClosingStarts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：多智能体执行租约、工作流 Claims 权威仲裁与抢占防御",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'"
+  },
+  "TestStoreDefaultAgentEnsureAgentAndSessionOrdering": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreStartupRefreshesBuiltinPolicyAndPreservesModelSelection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreBuiltinAgentsAreProtected": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestModelsListToolReturnsCallableModelsWithoutKeys": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestRuntimeSnapshotProviderProbeAndDeleteSession": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestRuntimeTestProviderMarksToolsUnsupportedWhenSelectionFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestRuntimeDeleteSessionIgnoresMissingRemoteSessionAndUnavailableRuntime": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestNewRuntimeInitializesRegistriesAndClosesCleanly": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestNewRuntimeDirectCtorAndNilSafeHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestApprovalResolutionSummaryAndUserFacingErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestCompactingSessionServiceBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextAndCompactionRejectMissingResourcesAndConflicts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextSnapshotJSONOmitsZeroRawBreakdown": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextProjectionBucketsAndTrimsProtectedToolOutput": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextSummaryAndBoundaryHelpersUseBusinessSemantics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextManagerAndWrappedEventsBoundaryHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextApprovalResolutionAndEventIndexBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextAdditionalPureHelperBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextManagerRecoveryEdgeBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextAppendRetryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextManagerBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestAppendADKEventWithStaleRetrySerializesConcurrentStaleSession": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestAppendADKEventWithStaleRetryReturnsNonStaleError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestAppendADKEventWithStaleRetryRefreshesUnexpectedSessionType": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestAppendADKEventWithStaleRetryRefreshesSyntheticSessionBeforeAppend": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSyncHandoffStateSkipsMissingRawADKSession": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextProjectionTrimsOversizedToolResponses": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextProjectionKeepsSmallToolResponsesUntouched": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextCompactionShrinksSessionView": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextUsesSessionProviderOverrideWindow": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextCompactionCreatesCurrentRevision": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCompactSessionContextWritesContextNotice": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestMaybeAutoCompactSessionEmitsContextNoticeDeltas": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestMaybeAutoCompactSessionSkipsWhenSessionCompactionAlreadyRunning": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionServiceAutoCompactionUsesSessionGate": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestMaybeAutoCompactSessionDuringWorkflowAllowsActiveParent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextViewDoesNotAutoCompact": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestModelContextReadAutoCompactsBeforeProviderPayload": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestProtectedTailStartsAtEarliestUnresolvedApprovalEvent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestProtectedTailIncludesOriginalFunctionCallForPendingApproval": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestProtectedTailIgnoresResolvedApprovalEvent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestProtectedTailKeepsOnlyUnresolvedApprovalWhenOlderApprovalResolved": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSessionContextIgnoresHandoffSegmentsWithoutRevision": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestAppendADKEventWithStaleRetryRefreshesSession": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCompactedSessionViewTracksEventsAppendedDuringInvocation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestHasActiveRunDoesNotTreatPendingApprovalAsExecuting": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCompactedSessionPreservesOriginalCallForPendingApproval": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestWrappedAndEmptySessionAccessorsPreserveProjectedState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestStoreListSkillsSortsBuiltinFirstAndDeleteProtectsBuiltins": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestCompactingSessionServiceListDelegatesToBaseService": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestSkillRegistrySourceAndFrontmatterFailureBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillRegistryBuiltinSyncBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillRegistryCopyAndReplaceDirectoryBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillRegistryListSortsBySourceAndDefaultsFilesystemMetadata": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillRegistryArchiveInstallsBundlesWithDirectoryEntries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillRegistryWarnsWhenExternalSkillReferencesUnknownTools": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillRegistryFilesystemFailureBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillRegistryAdditionalBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillRegistryMalformedBuiltinSyncFailsWithoutReplacingExternalState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillRegistryFilteredSourceExposesOnlyAllowedResources": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestBuiltinSkillMetadataRejectsInvalidBundles": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillRegistryArchiveRejectsUnsafeOrAmbiguousBundles": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillRegistryInstallURLAndDirectoryBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillRegistryInstallURLPlainDocumentAndRedirectSafety": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillRegistryInstallURLSupportsArchivesAndUninstallProtections": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillRegistryFileHelpersDetectArchiveAndBundleBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillRegistryFilesystemAndArchiveBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillRegistryHTTPAndSourceBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSkillInstallDeterministicErrorBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/artifact.rs`",
+    "conclusion": "已覆盖：Skills 文件系统注册、校验、热恢复与版本持久化",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestSQLiteDialectorBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestSQLiteDialectorMigratesAndPersistsWithGORM": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestSQLiteDialectorDataTypesDefaultsAndQuoting": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestSQLiteDialectorClauseBuildersAndVersionCompare": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestDefaultToolSchemasCoverBusinessCriticalToolPayloads": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestToolRegistryAliasesModesAndNumericInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestResolveApprovalAsyncIsIdempotentForMissingAndResolvedApprovals": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestSaveRunAndDenyPendingApprovalsDeniesOnlyPendingRecords": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreDeleteSessionContextRemovesLiveState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestResolveApprovalAsyncDenialRejectsSiblingApprovalsWithoutExecutingTools": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestResolveApprovalAsyncDoesNotResumeCompletedRunOnRetry": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreListAuditEventsPageFiltersCountsAndOrdersInSQL": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreProviderLifecycleMaintainsDefaultAndSecrets": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreAgentSessionCascadeAndTaskMemoryBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreRunApprovalSkillAndOptimizationBusinessQueries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreOperationalBoundaryErrorsAndDefaults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreDefaultSelectionSecretsAndListBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreEntityAndCoreLifecycleEdges": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreDataFailureAndNormalizationBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreEntityDefaultsAndStorageFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreGeneratedIdentityAndDefaultBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreTaskAndOptimizationUpdatesPreserveCreationTime": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreDeleteSessionCascadesRuntimeState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestDeleteProviderFailsWhenReferencedByAgent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestProvidersMaintainDefaultSelectionAndCreatedOrder": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestDeleteSessionRemovesApprovals": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestSaveRunDoesNotRegressTerminalLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestSaveRunReopensCompletedRunForFreshPendingApproval": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestSaveRunAllowsPausedWorkflowLifecycleUpdates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestSaveRunPreservesUserGoalPauseLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestListSessionsPageFiltersQueryAndPaginates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestSessionComposerStatePersistsAndDeletesWithSession": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestDeleteSessionMissingAndBlankAreNotFound": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestListApprovalsPageFiltersAndSortsNewestFirst": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestListOptimizationTasksSortsByUpdatedAtDesc": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestExecuteToolTagInvokesCanonicalToolWithParameters": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestRejectUnsafeHost": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestInternalSkillCannotBeUninstalled": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestExternalSkillUninstallRemovesInstallDir": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestPreparedAgentLoadsOnlyEnabledBoundSkillsAndTools": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestSkillRegistryReportsMetadataAndAllowedTools": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreMaintenanceBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreHandoffBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestPurgeDeletedConfigsCascadesConfigurationButKeepsHistory": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestCompactDatabaseReclaimsFreePages": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreBuiltinSkillsSplitStrategySkill": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestBuiltinSkillStoreMetadataComesFromBundleRegistry": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestBuiltinStrategySkillRefreshesOutdatedBundle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestBuiltinAgentTemplatesOnlyExposeDefaultAgent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestBuiltinRefreshDoesNotOverrideNonBuiltinSkill": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestInstallSkillArchivePreservesResources": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestInstallSkillURLInstallsNeodataFinancialSearch": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestResolveSessionRejectsDifferentAgent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestDeleteAgentSoftDeletesHistoricalRecord": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestListAgentsExcludesSoftDeletedWhileListAllIncludesThem": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestSaveAgentRestoresDeletedAgentRecord": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestCancelPendingRunDeniesApprovals": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestCancelRunMissingReturnsNotFound": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestResolveApprovalMissingReturnsIdempotentEmptyResult": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreResolvePendingApprovalMissingAndIdempotent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestListRunsPageFiltersAndSortsNewestFirst": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestDuplicateApprovalResolutionDoesNotExecuteTwice": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestPendingApprovalResumesThroughGoogleADKAfterRuntimeRestart": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestApprovalResumingRunIsRecoveredAfterRuntimeRestart": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestUnrecoverablePendingApprovalRunIsMarkedOrphanedOnRestart": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestMultipleApprovalsExecuteOnlyAfterAllApproved": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestADKTaskUpdateDeleteAndValidation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestADKMemoryFiltersDeleteAndAgentValidation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestPrepareAgentInjectsMemoryOnlyWhenEnabled": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestToolsSearchReturnsOnlyCurrentAgentTools": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestWorkflowWriteToolsRequireApprovalExceptLowRiskTaskWrites": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreListProvidersRepairsPersistedDefaultSelection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreDefaultAgentSkipsDisabledPrimaryAndRestoresTemplate": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreListAuditEventsReturnsCorruptPayloadError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStorePersistenceMethodsSurfaceClosedDatabaseErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestNewStoreUsesSeparatedConcurrentReadAndSingleWritePools": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreMigrationNormalizesHiddenAgentWorkflowDefaults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreMigrationRepairsOrphanTasksAndDuplicateConfirmations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStoreMigrationReopensCompletedWorkflowWithRecoverablePendingApproval": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestNewStoreRejectsLegacyDatabaseWithoutMutatingIt": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestSaveApprovalIfConfirmationAbsentIsConcurrentIdempotent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestNewStoreDropsLegacyMessageTables": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestProviderSecretIsNotEchoed": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestProviderRequestTimeoutDefaultsAndClamp": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestApprovalModeCreatesPendingApprovalForWriteTool": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestIdempotentApprovalRecoversPendingRunWithStaleEmbeddedApproval": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestReconcileResolvedApprovalsRecoversPendingRun": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestApprovalDenialCreatesAssistantSummary": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestApprovalDenialRecordsResumedAndDeniedAuditEvents": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestApprovedPendingRunMarksFailureWhenToolExecutionFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestGoogleADKExecutionRunHonorsContextDeadline": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestStartRunUsesConfiguredRuntimeTimeout": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestResumeGoalRunAllowsTimedOutGoalWithFreshTimeoutWindow": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestReconcileExpiredRunsMarksHungRunTimedOut": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestReconcileExpiredRunsUsesRunSpecificTimeout": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/artifact.rs` + `crates/jftrade-assistant/src/claims.rs`",
+    "conclusion": "已覆盖：Assistant 会话/运行态 SQLite 实体生命周期与维护交接契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'"
+  },
+  "TestGoogleADKTaskRunnerBoundsFanOutAndRunsEveryTask": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestGoogleADKTaskRunnerRunsCancelledTasksWithOriginalContext": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestWorkflowPlanningHelpersPreserveBusinessOrdering": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestTimelineProjectionHelperBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs` + `crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs`",
+    "conclusion": "已覆盖：智能体执行主循环、会话上下文压缩、事件投射与终态恢复保证",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestMaterializeToolOutputPersistsLargeResearchResultsAsArtifacts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestMaterializeToolOutputFallsBackWithoutAnArtifactOrOnSaveFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestArtifactToolSelectionAndSafeNames": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestToolRegistryOnChangeNotifiesAndUnsubscribesIdempotently": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestWorkflowManagementToolSchemasAreStrictAndConvertible": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestExecuteRegisteredToolPreservesInvocationSessionID": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestHTTPFetchToolNetworkBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestRejectUnsafeHostCoversDNSAndLocalhostBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestUnsafeAddrCoversIPv6MetadataAndDocumentationRanges": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestToolRegistrySerializesEmptyApprovalModesAsArray": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestDefaultTaskToolSchemaIncludesPlannerProjectionFields": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestModelsListToolRegisteredWithSafeSchema": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestTaskWriteToolsMarkedLowRiskCanSkipApproval": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestLowRiskWriteToolsCanSkipApproval": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestApprovalModeRequiresMediumAndHigherRiskApproval": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestResearchBacktestExplicitlySkipsApproval": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestWorkflowWaitToolWaitsAndDoesNotRequireApproval": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestWorkflowWaitToolRejectsTooLongDuration": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestWorkflowWaitToolReturnsContextCancellation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestWorkflowWaitDurationParsesMultipleInputForms": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestHTTPFetchToolRejectsInvalidAndUnsafeTargets": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestRejectUnsafeHostAndUnsafeAddrClassification": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestHTTPFetchToolHandlesResponsesWithoutRealNetwork": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestAccountOrdersCompletesWithoutHanging": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestAccountOrdersWithSlowPortfolioSummary": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestLiveTradingToolsAreAvailableInAllModesWithApproval": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestBacktestToolsIncludeRequiredKLineSyncStatusCompanion": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestToolDescriptorsRespectExplicitAccessModes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestChatContinuesAfterToolFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestAccountOrdersStreamCompletes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/ports.rs` + `crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：工具模式演进、参数 Schema 提取、安全沙箱与网络传输边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'"
+  },
+  "TestGoogleADKWorkflowNativeAgentNodeForwardsPartialAndFinalOutput": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKWorkflowNativeAgentNodeStopsWithConsumer": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKWorkflowNativeAgentNodePreservesBranchAndIsolation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKWorkflowNativeAgentNodeResumesConfirmationAfterRecreation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKWorkflowRootAdapterRuntimeBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKWorkflowResumeResponsesMatchToolConfirmationByInterruptID": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKWorkflowResumeResponsesMatchOpenLongRunningCall": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKWorkflowResumeResponsesIgnoreUnmatchedFunctionResponse": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKWorkflowResumeResponsesIgnoreAlreadyConsumedInterrupt": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKWorkflowResumeBoundaryHelpersFailClosed": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKWorkflowAgentDoesNotFreshRunUnmatchedFunctionResponse": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestNewGoogleADKWorkflowAgentUsesNativeWorkflowAgentWithoutConcurrencyCap": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKWorkflowChildNodeUsesNativeAgentNodeConfiguration": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKWorkflowNativeAgentNodeResumesToolConfirmation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowApprovalRecoveryPreservesUserPauseAndContextFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowApprovalAdditionalBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowCanvasCompilerSequentialFanOutAndJoin": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowCanvasCompilerRejectsInvalidGraphs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestRunCanvasWorkflowExecutesAReachableAgentGraph": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestRunCanvasWorkflowPausesForAChildInputRequest": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestRunCanvasWorkflowFailsClosedWhenTheChildProviderIsUnavailable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestUserPausedGoalParentPreservesPauseWhileChildStateChanges": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestCompletedChildReopensPendingParentWorkflowToRunning": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestNonWorkflowParentIgnoresChildWorkflowCallbacks": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowCompilerBuildsJoinForFanIn": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowCompilerKeepsDefaultSequentialDependencies": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowCompilerDeduplicatesAndIgnoresBlankDependencies": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowCompilerRejectsUnknownDependencies": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestSanitizeWorkflowPlanStepRewritesEchoedMessages": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestRegisterWorkflowExecutionTracksParentAndChildRuns": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestLoopWorkflowCanBeSelectedPerRun": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoalWorkflowMissingDecisionSafelyContinuesUntilPaused": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoalWorkflowContinueRespectsMaxIterations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoalWorkflowPauseAfterContinueAndResume": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoalWorkflowPauseRequestedBeforeCompleteDecisionPausesInsteadOfCompleting": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoalWorkflowPauseRequestBlocksChildCompletionContinuation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoalWorkflowActivitySnapshotDoesNotDowngradeUserPausedParent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoalWorkflowDecisionPromptUsesUpdatedObjective": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestUpdateRunObjectiveOnlyAllowsActiveGoalParent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowHelpersAndProviderFailureBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowObservationProjectsNodeLifecycleOntoParentAndChildRuns": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowObservationHelperBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestExpiredRunReconciliationReturnsTerminalPersistenceFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowPlanAgentResolutionFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowPlannerRuntimeBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestTaskWorkflowApprovalContinuesParentWorkflow": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestTaskWorkflowApprovalDeniedTerminatesParentWorkflow": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestPendingChildCanReopenCompletedRunningParentWorkflow": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowParentReconcilesResolvedChildApproval": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestResumeLoopWorkflowHonorsUserPauseAndCompletedChild": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestRunChildAndWorkflowResumeEdgeCases": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowStoreBoundaryBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowStoreCRUDSoftDeleteAndLogs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKToolsetRunsRegisteredToolsAndNormalizesResponses": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKProductToolsetFunctionToolBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKProductToolsetRejectsInvalidFunctionSchema": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKProductToolsetEmptySelectionReturnsNil": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKToolResponseErrorHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKToolErrorEnvelopeClassifiesRetryability": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKSkillFilteringAndToolsetsRespectAgentPermissions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKToolsetsBoundaryErrorsAndArtifactToolsets": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKLLMAgentDirectToolsIncludeMemoryWhenEnabled": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestGoogleADKToolsetsIncludeADKArtifactTools": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowStoreTriggerDeletionAndLogLookupBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs` + `crates/jftrade-assistant/src/workflow_canvas.rs`",
+    "conclusion": "已覆盖：工作流画布节点编排、DAG 计划生成、子智能体执行与状态机收敛",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
   }
 }
