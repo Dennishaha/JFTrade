@@ -242,7 +242,23 @@ def main():
                     fp.write(f"- `{item}`\n")
                 fp.write("\n")
 
+    # Keep a machine-generated, one-row-per-test inventory separate from the
+    # curated high-value checklist. This makes the full Go baseline auditable
+    # without pretending that filename-level matching proves behavior parity.
+    inventory_path = "docs/history/go-to-rust/test-parity-inventory.md"
+    rust_by_domain = {key: [crate for crate in crates] for key, _, _, crates in DOMAIN_MAPPING}
+    with open(inventory_path, "w", encoding="utf-8") as fp:
+        fp.write("# Go → Rust 全量测试索引\n\n")
+        fp.write("本文件由 `scripts/compatibility/audit_test_parity.py` 生成；状态仅表示自动映射候选，行为等价性以高价值清单和回归证据为准。\n\n")
+        fp.write("| 状态 | Go 测试 | 业务域 | 风险 | Rust crate 候选 |\n|---|---|---|---|---|\n")
+        for test in sorted(go_tests, key=lambda item: (item["domain"], item["file"], item["line"])):
+            risk = "高风险" if test["high_risk"] else "普通边界"
+            crates = ", ".join(rust_by_domain.get(test["domain"], [])) or "待人工归类"
+            source = f"`go:{go_revision}:{test['file']}:{test['line']}`<br>`{test['name']}`"
+            fp.write(f"| [ ] | {source} | {test['domain']} | {risk} | `{crates}` |\n")
+
     print(f"\nReport written to {report_path}")
+    print(f"Inventory written to {inventory_path}")
 
 if __name__ == '__main__':
     main()
