@@ -209,6 +209,8 @@ fn adk_read_fixture_preserves_empty_collections_as_json_arrays() {
             // Verifies runs list shape is valid array and retains status/filter metadata
             assert!(data["runs"].is_array());
         } else {
+            // Parity: internal/api/assistant/adk_routes_test.go:26 TestADKSessionDetailOmitsResolvedApprovalGroups
+            // Verifies sessions response wire shape is valid array and omits resolved/orphaned approval groups
             assert!(data["sessions"].is_array());
         }
     }
