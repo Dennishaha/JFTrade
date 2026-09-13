@@ -278,6 +278,11 @@ def main():
 
     mapping_values = list(manual_details.values())
     partial_count = sum(item.get("status") == "[~]" for item in mapping_values)
+    malformed_keys = [key for key in manual_details if key.count(":") < 2]
+    if malformed_keys:
+        raise ValueError(
+            f"manual mappings must use file:line:test composite keys; found {len(malformed_keys)} legacy keys"
+        )
     generic_proofs = sum(
         item.get("status") == "[x]"
         and "待逐项复核" not in item.get("conclusion", "")
