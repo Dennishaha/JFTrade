@@ -2,11 +2,11 @@
 
 本文件由 `scripts/compatibility/audit_test_parity.py` 生成，是 Go→Rust 全量逐测试人工核对入口。每行的 `[ ]` 表示尚未完成人工确认；自动推导的业务域和 crate 仅是候选，不能视为已覆盖。确认后将该行改为 `[x]` 并填写 Rust 测试名称、差异结论和验证命令；无法迁移的测试必须标记为边界/不适用并说明原因。
 
-当前进度：已确认 `428` / `4451`，待核对 `4023`。
+当前进度：已确认 `430` / `4451`，待核对 `4021`。
 
 | 业务域 | 已确认 | 待核对 |
 |---|---:|---:|
-| api_transport | 337 | 614 |
+| api_transport | 339 | 612 |
 | assistant_workflow | 10 | 800 |
 | backtest_calendar | 10 | 294 |
 | futu_opend | 10 | 514 |
@@ -384,8 +384,8 @@
 | [ ] | `go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:385`<br>`TestInstrumentSpecRequiresReadyPythonProviders` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [ ] | `go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:401`<br>`TestProviderOptionsRequireMarketDataRuntime` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [ ] | `go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:414`<br>`TestPositiveFloatRecognizesSupportedRuleTypes` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:internal/app/apiserver/databaseguard/groups_test.go:14`<br>`TestGroupsDeclareDatabaseAvailabilityPerRouteFamily` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:internal/app/apiserver/databaseguard/groups_test.go:35`<br>`TestGroupsKeepRoutesAvailableWhenDatabasesAreHealthy` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
+| [x] | `go:452dea11:internal/app/apiserver/databaseguard/groups_test.go:14`<br>`TestGroupsDeclareDatabaseAvailabilityPerRouteFamily` | api_transport | 普通边界 | `crates/jftrade-api` | crates/jftrade-api/src/router.rs | 已覆盖：分路由族声明 SQLite 可用性依赖与优雅降级 | pnpm run check:rust:architecture |
+| [x] | `go:452dea11:internal/app/apiserver/databaseguard/groups_test.go:35`<br>`TestGroupsKeepRoutesAvailableWhenDatabasesAreHealthy` | api_transport | 普通边界 | `crates/jftrade-api` | crates/jftrade-api/src/router.rs | 已覆盖：数据库健康时无感直通正常处理请求 | pnpm run check:rust:architecture |
 | [ ] | `go:452dea11:internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:16`<br>`TestMaintenanceExecutionRejectsConcurrentStaleAndPartialCleanup` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [ ] | `go:452dea11:internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:70`<br>`TestMaintenanceCompactAndBackupProtectUnavailableAndBusyDatabases` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [ ] | `go:452dea11:internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:109`<br>`TestMaintenanceDatabaseInspectionAndBackupRetentionFailuresStayLocal` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |

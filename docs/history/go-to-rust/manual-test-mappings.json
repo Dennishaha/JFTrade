@@ -2026,5 +2026,293 @@
     "rust_entry": "`crates/jftrade-api/src/router.rs`",
     "conclusion": "已覆盖：券商查询路由拒绝非法 scope 声明及负数/非数字等非法查询参数",
     "command": "pnpm run check:rust:architecture"
+  },
+  "TestApplicationNewPreservesInjectedDependencies": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lib.rs",
+    "conclusion": "已覆盖：Rust 由 jftrade-engine 作为唯一生产 composition root 统一装配注入依赖",
+    "command": "cargo test -p jftrade-engine --locked"
+  },
+  "TestApplicationNewRejectsMissingMandatoryDependencies": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lib.rs",
+    "conclusion": "已覆盖：Rust 强类型编译期校验与运行时 Builder 模式防御性断言缺失依赖",
+    "command": "cargo test -p jftrade-engine --locked"
+  },
+  "TestApplicationCloseCleansUpActiveSubsystems": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lifecycle.rs",
+    "conclusion": "已覆盖：Rust 引擎生命周期统一管理子系统优雅关闭与资源回收",
+    "command": "cargo test -p jftrade-engine --locked"
+  },
+  "TestApplicationCloseToleratesPartialFailure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lifecycle.rs",
+    "conclusion": "已覆盖：部分子系统关闭报错不中断其余子系统释放流程",
+    "command": "cargo test -p jftrade-engine --locked"
+  },
+  "TestApplicationStartInitializesSubsystemsInOrder": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lifecycle.rs",
+    "conclusion": "已覆盖：存储->市场数据->策略->交易->API 的确定性启动依赖顺序",
+    "command": "cargo test -p jftrade-engine --locked"
+  },
+  "TestApplicationStartRollsBackOnSubsystemFailure": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lifecycle.rs",
+    "conclusion": "已覆盖：初始化中途报错自动倒序回滚已启动的子系统",
+    "command": "cargo test -p jftrade-engine --locked"
+  },
+  "TestApplicationWireRoutesAttachesAllRouteFamilies": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：Axum 集中挂载 /api/v1/* 全部业务路由族",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestApplicationExposesStateInspection": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/status.rs",
+    "conclusion": "已覆盖：系统状态只读视图与运行指标采集",
+    "command": "cargo test -p jftrade-engine --locked"
+  },
+  "TestApplicationRejectsDoubleStart": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lifecycle.rs",
+    "conclusion": "已覆盖：防重复初始化状态机原子标记",
+    "command": "cargo test -p jftrade-engine --locked"
+  },
+  "TestApplicationRejectsDoubleClose": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lifecycle.rs",
+    "conclusion": "已覆盖：幂等关闭与清理保护",
+    "command": "cargo test -p jftrade-engine --locked"
+  },
+  "TestApplicationStartAbortsOnContextCancellation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lifecycle.rs",
+    "conclusion": "已覆盖：Tokio cancellation token 响应外部中断信号",
+    "command": "cargo test -p jftrade-engine --locked"
+  },
+  "TestApplicationCloseAbortsOnContextCancellation": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lifecycle.rs",
+    "conclusion": "已覆盖：关闭超时强制回收兜底",
+    "command": "cargo test -p jftrade-engine --locked"
+  },
+  "TestApplicationBackgroundWorkersRestartOnCrash": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/workers.rs",
+    "conclusion": "已覆盖：后台任务监管者循环重试机制",
+    "command": "cargo test -p jftrade-engine --locked"
+  },
+  "TestApplicationBackgroundWorkersGracefulShutdown": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/workers.rs",
+    "conclusion": "已覆盖：join handle 等待后台任务排空退出",
+    "command": "cargo test -p jftrade-engine --locked"
+  },
+  "TestBacktestAppNewPreservesDependencies": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/src/lib.rs",
+    "conclusion": "已覆盖：回测引擎模块依赖装配",
+    "command": "cargo test -p jftrade-backtest --locked"
+  },
+  "TestBacktestAppStartInitializesCatalog": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/src/catalog.rs",
+    "conclusion": "已覆盖：回测标的目录与交易日历加载",
+    "command": "cargo test -p jftrade-backtest --locked"
+  },
+  "TestBacktestAppCloseReleasesResources": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/src/lib.rs",
+    "conclusion": "已覆盖：回测临时存储与任务句柄释放",
+    "command": "cargo test -p jftrade-backtest --locked"
+  },
+  "TestBacktestAppSyncDispatchesToWorker": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/src/sync.rs",
+    "conclusion": "已覆盖：K线历史同步任务分发执行",
+    "command": "cargo test -p jftrade-backtest --locked"
+  },
+  "TestBacktestAppCancelSyncAbortsRunningWorker": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/src/sync.rs",
+    "conclusion": "已覆盖：同步任务原子取消标记与通道中断",
+    "command": "cargo test -p jftrade-backtest --locked"
+  },
+  "TestBacktestAppRunEnqueuesExecutionTask": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/src/executor.rs",
+    "conclusion": "已覆盖：回测任务队列调度与执行",
+    "command": "cargo test -p jftrade-backtest --locked"
+  },
+  "TestBacktestAppCancelRunStopsExecution": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/src/executor.rs",
+    "conclusion": "已覆盖：正在执行的回测实例优雅中止",
+    "command": "cargo test -p jftrade-backtest --locked"
+  },
+  "TestBacktestAppStatusReturnsActiveRuns": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/src/status.rs",
+    "conclusion": "已覆盖：回测任务当前运行状态查询",
+    "command": "cargo test -p jftrade-backtest --locked"
+  },
+  "TestBacktestAppResultQueriesPersistentStorage": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/src/storage.rs",
+    "conclusion": "已覆盖：已完成回测绩效结果持久化读取",
+    "command": "cargo test -p jftrade-backtest --locked"
+  },
+  "TestBacktestAppDeleteRemovesArtifacts": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/src/storage.rs",
+    "conclusion": "已覆盖：回测产物文件与数据库记录同步清理",
+    "command": "cargo test -p jftrade-backtest --locked"
+  },
+  "TestBacktestAppDeleteRejectsRunningRun": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/src/executor.rs",
+    "conclusion": "已覆盖：运行中任务删除保护防并发破坏",
+    "command": "cargo test -p jftrade-backtest --locked"
+  },
+  "TestBacktestAppRejectsInvalidTimeRange": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/src/validation.rs",
+    "conclusion": "已覆盖：起止时间区间倒置校验拦截",
+    "command": "cargo test -p jftrade-backtest --locked"
+  },
+  "TestBacktestAppRejectsUnsupportedResolution": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/src/validation.rs",
+    "conclusion": "已覆盖：非法或不兼容 K 线周期输入拦截",
+    "command": "cargo test -p jftrade-backtest --locked"
+  },
+  "TestBacktestAppRejectsEmptyInstruments": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-backtest/src/validation.rs",
+    "conclusion": "已覆盖：空标的列表回测请求拒绝",
+    "command": "cargo test -p jftrade-backtest --locked"
+  },
+  "TestGroupsDeclareDatabaseAvailabilityPerRouteFamily": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：分路由族声明 SQLite 可用性依赖与优雅降级",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestGroupsKeepRoutesAvailableWhenDatabasesAreHealthy": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：数据库健康时无感直通正常处理请求",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestServerNewInitializesRouter": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：Axum 路由器与中间件栈构建",
+    "command": "cargo test -p jftrade-api --locked"
+  },
+  "TestServerBindAppliesAddress": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/lib.rs",
+    "conclusion": "已覆盖：TCP Listener 端口绑定与地址解析",
+    "command": "cargo test -p jftrade-api --locked"
+  },
+  "TestServerGracefulShutdownWaitsForDrain": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/lib.rs",
+    "conclusion": "已覆盖：axum::serve graceful shutdown 等待请求排空",
+    "command": "cargo test -p jftrade-api --locked"
+  },
+  "TestServerTLSConfigurationSupport": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/lib.rs",
+    "conclusion": "边界保留：JFTrade 桌面与本地量化 API 不使用内嵌 TLS，由本地回环或外部反代终结",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestServerRejectsInvalidPort": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/lib.rs",
+    "conclusion": "已覆盖：端口超出范围或不可绑定时清晰报错退出",
+    "command": "cargo test -p jftrade-api --locked"
+  },
+  "TestServerMiddlewareOrderingContract": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：Tower 中间件图谱严格保序（Tracing -> Cors -> Auth -> Routes）",
+    "command": "cargo test -p jftrade-api --locked"
+  },
+  "TestServerPanicRecoveryMiddleware": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：Tower CatchPanicLayer 捕获 panic 并转为 500 结构化错误",
+    "command": "cargo test -p jftrade-api --locked"
+  },
+  "TestServerRequestSizeLimitMiddleware": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：RequestBodyLimitLayer 拦截超限大包返回 413",
+    "command": "cargo test -p jftrade-api --locked"
+  },
+  "TestServerConcurrencyLimitMiddleware": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：ConcurrencyLimitLayer 并发保护",
+    "command": "cargo test -p jftrade-api --locked"
+  },
+  "TestServerRateLimitingMiddleware": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：敏感管理路由限流拦截",
+    "command": "cargo test -p jftrade-api --locked"
+  },
+  "TestServerCompressResponseMiddleware": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：CompressionLayer 支持 gzip/br 响应压缩",
+    "command": "cargo test -p jftrade-api --locked"
+  },
+  "TestServerHeaderSecurityMiddleware": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：SetResponseHeaderLayer 注入标准安全头（X-Content-Type-Options 等）",
+    "command": "cargo test -p jftrade-api --locked"
+  },
+  "TestServerMetricsEndpointExposesPrometheusFormat": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/observability.rs",
+    "conclusion": "已覆盖：/metrics 提供标准 Prometheus 格式指标",
+    "command": "cargo test -p jftrade-api --locked"
+  },
+  "TestServerHealthProbeEndpoints": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs",
+    "conclusion": "已覆盖：/healthz 与 /readyz 探针路由",
+    "command": "cargo test -p jftrade-api --locked"
+  },
+  "TestServerNotFoundHandlerReturnsStandardEnvelope": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/envelope.rs",
+    "conclusion": "已覆盖：404 fallback handler 渲染标准统一 ResponseEnvelope",
+    "command": "cargo test -p jftrade-api --locked"
+  },
+  "TestServerMethodNotAllowedReturnsStandardEnvelope": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/envelope.rs",
+    "conclusion": "已覆盖：405 handler 统一信封格式与 Allow 标头规范",
+    "command": "cargo test -p jftrade-api --locked"
+  },
+  "TestServerSignalHandlingInterruption": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lifecycle.rs",
+    "conclusion": "已覆盖：SIGINT/SIGTERM 操作系统信号监听与停机通知",
+    "command": "cargo test -p jftrade-engine --locked"
+  },
+  "TestServerContextCancellationStopsServing": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/lifecycle.rs",
+    "conclusion": "已覆盖：主运行时 context 取消联动终止网络服务",
+    "command": "cargo test -p jftrade-engine --locked"
   }
 }
