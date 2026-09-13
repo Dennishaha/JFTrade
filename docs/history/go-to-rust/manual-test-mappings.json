@@ -232,5 +232,125 @@
     "rust_entry": "`crates/jftrade-api/src/envelope.rs`；`crates/jftrade-api/src/router.rs`",
     "conclusion": "已覆盖：工作流、触发器创建与运行中各类非法入参的标准 400/404 错误信封",
     "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestCatalogReadFaultsExposeStableAPIContracts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`；SQLite storage fault contracts",
+    "conclusion": "已覆盖：存储层或数据库故障时，API 目录端点不会伪造空列表，而是暴露结构化 API 错误",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestTimelineStreamStateTracksSessionRunAndToolTiming": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/sse.rs`；assistant runtime stream timeline",
+    "conclusion": "已覆盖：时间线状态机跟踪会话、运行、工具调用时序及增量文本组合",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestChatStreamRecordCurrentRunID": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/sse.rs`",
+    "conclusion": "已覆盖：流会话记录当前 RunID 并支持并发状态追踪",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestTimelineStreamStateEmptyAndCloneBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/sse.rs`",
+    "conclusion": "已覆盖：空增量忽略、时间线克隆防篡改及空/异常标识回退语义",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestChatStreamHubRetentionRunLookupAndCloneBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/sse.rs`",
+    "conclusion": "已覆盖：SSE 流生命周期维护、容量截断、过期自动清理与索引查找",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestStreamHelpersRunIDAndBestEffortLogging": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/sse.rs`；`crates/jftrade-api/src/observability.rs`",
+    "conclusion": "已覆盖：从不同流事件提取 RunID 并在异常时执行非阻塞降级日志记录",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestChatStreamExecutionPublishesDeltaAndFinalVariants": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/sse.rs`；assistant runtime compatibility replay",
+    "conclusion": "已覆盖：推理增量、回答增量、上下文快照及终态 Response（包括大工具输出修剪）的发布语义",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/sse.rs`",
+    "conclusion": "已覆盖：非法请求触发 SSE 终态错误事件输出并安全终止会话",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestAssistantRequestHelpersCoverInvalidAndBoundaryInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`；`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：入参解析辅助函数覆盖非法格式、空串与越界输入校验",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestHandlerCloseCancelsAndJoinsBackgroundExecutions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`；engine graceful shutdown",
+    "conclusion": "已覆盖：API / Engine 停机时取消进行中的异步流并等待退出，拒绝新请求",
+    "command": "pnpm run check:rust:architecture"
+  },
+  "TestChatStreamHubKeepsEventAndTimelineContracts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/sse.rs`",
+    "conclusion": "已覆盖：流 Hub 保障事件有序性、序列号单调递增及时间线契约一致性",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestChatStreamExecutionReusesKnownContextAndRecovers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/sse.rs`；assistant runtime context",
+    "conclusion": "已覆盖：流执行重用已有会话上下文，并在局部故障时执行恢复策略",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestChatStreamTransportHandlesDisconnectedClients": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/sse.rs`",
+    "conclusion": "已覆盖：SSE 客户端主动断开连接时，服务端能够侦测并回收通道资源",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestChatStreamReconnectAndReplayRespectClientDisconnection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/sse.rs`",
+    "conclusion": "已覆盖：重连客户端请求回放时遵循连接生命周期，断开时立即中止回放",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestRunInputResponseErrorAndRetryContracts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`；assistant runtime workflow",
+    "conclusion": "已覆盖：人机交互输入等待、错误响应及重试状态转移契约",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestAssistantQueryRoutesRejectMalformedEncoding": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`；axum Query extractor",
+    "conclusion": "已覆盖：畸形查询参数或非法 URL 编码被 Axum extractor 拦截并返回 400",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestAssistantRoutesReturnUnavailableWhenRuntimeMissing": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`；`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：当底层 assistant 运行时未就绪或缺失时，路由返回 503 SERVICE_UNAVAILABLE",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
+  },
+  "TestAssistantRoutesSurfaceStoreFailuresAfterRuntimeClose": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`；`crates/jftrade-api/src/envelope.rs`",
+    "conclusion": "已覆盖：运行时关闭后访问路由返回统一 500/503 存储失效错误",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestAssistantCatalogSessionAndObservabilitySuccessContracts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/router.rs`；`crates/jftrade-api/src/observability.rs`",
+    "conclusion": "已覆盖：目录列表、会话详情及观测指标的成功响应契约与字段定义",
+    "command": "pnpm run check:compatibility:assistant-runtime"
+  },
+  "TestAssistantCatalogBoundaryStatusCodes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-api/src/envelope.rs`；`crates/jftrade-api/src/router.rs`",
+    "conclusion": "已覆盖：目录类 API 的各类边界 HTTP 状态码（400、404、500 等）严格映射",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'"
   }
 }
