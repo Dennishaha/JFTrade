@@ -257,13 +257,13 @@ def main():
         fp.write("本文件由 `scripts/compatibility/audit_test_parity.py` 生成，是 Go→Rust 全量逐测试人工核对入口。每行的 `[ ]` 表示尚未完成人工确认；自动推导的业务域和 crate 仅是候选，不能视为已覆盖。确认后将该行改为 `[x]` 并填写 Rust 测试名称、差异结论和验证命令；无法迁移的测试必须标记为边界/不适用并说明原因。\n\n")
         confirmed = sum(test["name"] in curated_names for test in go_tests)
         fp.write(f"当前进度：`[x]` {confirmed} / `{len(go_tests)}`，待核对 `{len(go_tests) - confirmed}`。脚本只会把高价值清单中已有明确证据的同名测试标记为 `[x]`；其余项目必须按功能域人工补充。\n\n")
-        fp.write("| 状态 | Go 测试 | 业务域 | 风险 | Rust crate 候选 |\n|---|---|---|---|---|\n")
+        fp.write("| 状态 | Go 测试 | 业务域 | 风险 | Rust crate 候选 | Rust 测试/入口 | 差异结论 | 验证命令 |\n|---|---|---|---|---|---|---|---|\n")
         for test in sorted(go_tests, key=lambda item: (item["domain"], item["file"], item["line"])):
             risk = "高风险" if test["high_risk"] else "普通边界"
             crates = ", ".join(rust_by_domain.get(test["domain"], [])) or "待人工归类"
             source = f"`go:{go_revision}:{test['file']}:{test['line']}`<br>`{test['name']}`"
             status = "[x]" if test["name"] in curated_names else "[ ]"
-            fp.write(f"| {status} | {source} | {test['domain']} | {risk} | `{crates}` |\n")
+            fp.write(f"| {status} | {source} | {test['domain']} | {risk} | `{crates}` | 待人工填写 | 待人工核对 | 待人工填写 |\n")
 
     print(f"\nReport written to {report_path}")
     print(f"Inventory written to {inventory_path}")
