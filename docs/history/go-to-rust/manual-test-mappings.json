@@ -6352,5 +6352,773 @@
     "rust_entry": "`crates/jftrade-marketdata/src/watchlist.rs`",
     "conclusion": "已覆盖：自选股分组 CRUD、导入预览构建、过期/脏数据提交拦截与仓储异常防护",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
+  },
+  "TestBrokerReadFailuresRemainVisibleAcrossAccountDataViews": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestFundsMapsMarketAssetsAlongsideCashBalances": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestServiceBrokerReadOperationsClassifyUpstreamFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestServiceBrokerWriteOperationsPropagateUpstreamFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestFakeBrokerConformanceAcceptedPartialFullAndOutOfOrderUpdates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestFakeBrokerConformancePlaceRejectedPushBeforeQueryAndUnsupportedCapability": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestServiceBrokerReadOperationsMapSnapshotsAndQueries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestPlaceBrokerOrderRunsPreTradeRiskBeforeBrokerSubmission": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestPlaceBrokerOrderCannotBypassRiskWithImplicitRealEnvironment": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestNormalizeSymbolsAndRuntimeDefaults": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestRealTradeControlPlaneKillSwitchReleaseIsIdempotentAndAudited": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/risk.rs`",
+    "conclusion": "已覆盖：风控硬阻断规则（最大回撤、单笔限额、总敞口）、控制平面幂等性与状态变更审计日志",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'"
+  },
+  "TestControlPlaneRetainsActivationAndBoundsRepeatedAuditEvents": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/risk.rs`",
+    "conclusion": "已覆盖：风控硬阻断规则（最大回撤、单笔限额、总敞口）、控制平面幂等性与状态变更审计日志",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'"
+  },
+  "TestControlPlaneExecutesSimulatedOrdersThroughRiskEvaluation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/risk.rs`",
+    "conclusion": "已覆盖：风控硬阻断规则（最大回撤、单笔限额、总敞口）、控制平面幂等性与状态变更审计日志",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'"
+  },
+  "TestControlPlaneKeepsStateWhenAtomicPersistenceCannotComplete": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/risk.rs`",
+    "conclusion": "已覆盖：风控硬阻断规则（最大回撤、单笔限额、总敞口）、控制平面幂等性与状态变更审计日志",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'"
+  },
+  "TestExecutionOrderRechecksRiskImmediatelyBeforeBrokerSubmission": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestExecutionEventParlayCompletePreviewAndAmountRisk": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestEventParlayRejectsCallerControlledPrice": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestOptionComboValidationRejectsIncompleteRiskShape": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestExecutionComboPreviewKeepsLegacyBuyingPowerCompatible": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestExecutionComboRejectsEveryUnsafeBoundary": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestExecutionComboProviderStoreRiskAndGatewayFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestExecutionComboHelperBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestExecutionProductPreviewAndSubmissionFailureContractsComplete": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestExecutionProductRemainingLifecycleAndUpdateHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestDerivativeSingleLegRequiresBrokerPreviewAndStableClientID": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestPredictionSingleLegEligibilityUsesSecurityFirmAndUSAuthority": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestSingleNonEventOrderRejectsAmountAndPredictionFields": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestRealFuturesPreviewRequiresFuturesAuthority": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestComboPreviewRejectsMixedProductsAndExpiredParlayRFQ": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestPreviewHashesBindStableClientOrderID": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestNormalizeExecutionOrderDefaultsUSLimitOrder": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestNormalizeExecutionOrderSupportsExtendedUSLimitSessions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestNormalizeExecutionOrderSupportsStopAndMarketOrders": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestNormalizeExecutionOrderRejectsBusinessRuleViolations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestNormalizeExecutionOrderPreservesBrokerAbstraction": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestExecutionOrderServiceFacadeUsesInjectedStoresAndBrokerCommands": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestExecutionOrderServiceFacadeReturnsBusinessErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestCreateExecutionOrderRejectsInvalidPayloadBeforeBrokerCall": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestCreateExecutionOrderRunsPreTradeRiskBeforeBrokerCall": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestCreateExecutionOrderAllowsRuntimeEnabledRealTradeBeforeBrokerCall": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestCreateExecutionOrderAllowsSimulateWhenRealTradingIsDisabled": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestPlaceExecutionOrderResolvesImplicitRealEnvironmentBeforeRisk": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestPlaceExecutionOrderFailsClosedWithoutRealRiskGateway": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestKillSwitchActivationWaitsForInFlightRealPlacement": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestPreTradeRiskRejectsKillSwitchAndLimits": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestPreTradeRiskEnforcesAmountModeQuantityAndNotionalLimits": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestPreTradeRiskSnapshotUsesNonNilEmptySlices": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestPreTradeRiskDoesNotLetUnknownNotionalBypassRealTradeControls": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestRealTradeEnvVariablesDoNotConfigurePreTradeRisk": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestRealTradeControlPlanePersistsKillSwitchAndHardStop": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestRealTradeControlPlaneRuntimeRiskConfigValidationAndDisableEvents": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestRealTradeControlPlaneRollsBackFailedPersistence": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestRealTradeControlPlaneFailsClosedWhenPersistedStateCannotLoad": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestNormalizeExecutionOrderUsesEnvFallbackAndSupportsNonLimitUSSessions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestExecutionNormalizationHelpersRejectUnsupportedInputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestNormalizeExecutionOrderRejectsInvalidInstrumentAndUnsupportedOrderType": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestExecutionOrderDetailsReturnsOrderAndBoundedRecentEvents": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestExecutionOrderDetailsRefreshesTargetHistoryBeforeReturning": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/execution.rs`",
+    "conclusion": "已覆盖：股票/期权多腿组合订单执行流水线、购买力精确试算、撤单原子回执与部分成交处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
+  },
+  "TestCanonicalBrokerOrderStatusCoversFutuLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestReconcileCanonicalOrderStatusPreventsBrokerRegressions": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestCanonicalTerminalOrderStatus": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestExecutionOrderHistoryFailsClosedForInvalidOrUnavailableBackfill": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestConcurrentSubscriptionWaitHonorsCallerCancellation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerBrokerIDConcurrentInitializationAndPush": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerResubscribesAfterSubscribeFailureAndPushResumes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerKeepsPushSubscriptionWhenRefreshFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerThrottleForceAndSubscribeOnce": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerCacheTTLTerminalRemovalAndDefensiveCopy": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerCurrentHistoryCacheAndPushMetadata": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerForcedActiveSyncBypassesCache": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerSyncExecutionOrderHistoryUsesOrderScope": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerStopIsIdempotentAndCanResubscribe": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerResubscribesWhenAccountSetChanges": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerRefreshesExistingSubscriptionOnSync": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerConcurrentSyncSubscribesOnce": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerSnapshotCapsInvalidations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerInactiveSourcePreservesDiagnosticState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerSyncCoversSubscriptionAndHistoryFallbackPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerMarksCurrentAndHistoryFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerFeeSyncFiltersIdentifiersAndReportsFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestOrderUpdatesWorkerHelperBoundariesCoverNilAndReplacementPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/order.rs`",
+    "conclusion": "已覆盖：订单成交状态机流转、并发订单回报保序、断线重连序列补齐与对账自愈恢复",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'"
+  },
+  "TestServiceUsesExplicitTradingPorts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestServiceDefaultTradingPortsFailExplicitly": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestBrokerRuntimeResponseJSONShape": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestBrokerFundsResponseJSONShape": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestBrokerPositionsResponseJSONShape": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestBrokerReadStatusSerializesNullLastError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestCommandRiskShapeRejectsSpoofedAndIncompatibleFields": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/risk.rs`",
+    "conclusion": "已覆盖：风控硬阻断规则（最大回撤、单笔限额、总敞口）、控制平面幂等性与状态变更审计日志",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'"
+  },
+  "TestExecutionProductAndPriceValidationBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/risk.rs`",
+    "conclusion": "已覆盖：风控硬阻断规则（最大回撤、单笔限额、总敞口）、控制平面幂等性与状态变更审计日志",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'"
+  },
+  "TestRiskDecisionAndHardStopBoundarySemantics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/risk.rs`",
+    "conclusion": "已覆盖：风控硬阻断规则（最大回撤、单笔限额、总敞口）、控制平面幂等性与状态变更审计日志",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'"
+  },
+  "TestOrderStatusMapsEveryBrokerLifecycleFamily": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/risk.rs`",
+    "conclusion": "已覆盖：风控硬阻断规则（最大回撤、单笔限额、总敞口）、控制平面幂等性与状态变更审计日志",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'"
+  },
+  "TestBrokerIdentityMismatchPropagatesAcrossReadAndWriteOperations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/risk.rs`",
+    "conclusion": "已覆盖：风控硬阻断规则（最大回撤、单笔限额、总敞口）、控制平面幂等性与状态变更审计日志",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'"
+  },
+  "TestLowLevelTradingFallbackHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/risk.rs`",
+    "conclusion": "已覆盖：风控硬阻断规则（最大回撤、单笔限额、总敞口）、控制平面幂等性与状态变更审计日志",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'"
+  },
+  "TestServiceBrokerResolutionAndPredictionStoreBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/risk.rs`",
+    "conclusion": "已覆盖：风控硬阻断规则（最大回撤、单笔限额、总敞口）、控制平面幂等性与状态变更审计日志",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'"
+  },
+  "TestServiceReadQueryAppliesDefaultMarket": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestServiceOrderUpdateDefaultsAreNoops": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestServiceOrderUpdatesDelegateToWorkerWhenPresent": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/service.rs`",
+    "conclusion": "已覆盖：交易核心服务聚合、券商账户读失败平稳降级、统一 Port 适配器与结构化响应契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestRegistryBasic": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestRegistryRegisterAndLookup": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestRegistryReplaceUpdatesActiveBroker": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestRegistryRemoveDeletesOnlySelectedBroker": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestRegistryDuplicatePanics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestConvertFutuReadQuery": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestPointerHelpersReturnStableIndependentValues": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestApplyMarketRuleUsesLotSizeAsQuantityConstraints": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestApplyMarketRuleIgnoresMissingAndInvalidLotSize": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestBrokerError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestCapabilityCatalog": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestAdapterInterfaceSupportRejectsNilMissingAndUnknownImplementations": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestCapabilityCatalogRejectsUnsafeWriteMCP": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestBrokerFeatureRouterHonorsExplicitSelectionAndFallback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestCapabilityCatalogValidationAndOrderingBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestBrokerFeatureRouterFailureAndProductBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestBrokerFeatureRouterCandidateOrderingDeduplicationAndReasonFallback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestApplyMarketRulesMatchesAndOverridesConstraints": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestApplyMarketRuleIgnoresInvalidExplicitConstraints": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestSymbolScopedSnapshotError": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestSnapshotRateLimitErrorCarriesRetryDelay": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestSnapshotAvailabilityErrorsExposeFallbackEligibility": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestPredictionQuoteLegsHashNormalizesBrokerNeutralLegs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestCapabilityOperationSurfaceFallbacksAndOverrides": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestCapabilityCatalogOperationValidationFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestBrokerFeatureRouterRejectsDeclaredFeatureWithoutAdapterInterface": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestBrokerFeatureRouterRuntimeEvaluatorFailuresAndReasons": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestFactorRefIdentityAndStableConstruction": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestNewFactorRefRejectsUnrepresentableOrInvalidParameters": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
+  },
+  "TestResearchScreenRateLimitErrorContract": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-trading/src/broker.rs`",
+    "conclusion": "已覆盖：券商能力目录、市场规则快照错误映射、标的产品交易资格与多券商契约一致性",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
   }
 }
