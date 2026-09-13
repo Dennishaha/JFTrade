@@ -197,27 +197,34 @@ fn resolve_interval_minutes(interval: &str, minutes_per_day: usize) -> usize {
     if val.is_empty() {
         return 1;
     }
-    if let Some(num) = val.strip_suffix("mo").or_else(|| val.strip_suffix("month")) {
-        let n: usize = num.trim().parse().unwrap_or(1).max(1);
-        return n * minutes_per_day * 20;
+    let (num_str, unit) =
+        if let Some(num) = val.strip_suffix("mo").or_else(|| val.strip_suffix("month")) {
+            (num, "mo")
+        } else if let Some(num) = val.strip_suffix("min") {
+            (num, "min")
+        } else if let Some(num) = val.strip_suffix('w').or_else(|| val.strip_suffix("week")) {
+            (num, "w")
+        } else if let Some(num) = val.strip_suffix('d').or_else(|| val.strip_suffix("day")) {
+            (num, "d")
+        } else if let Some(num) = val.strip_suffix('h').or_else(|| val.strip_suffix("hour")) {
+            (num, "h")
+        } else if let Some(num) = val.strip_suffix('m') {
+            (num, "m")
+        } else {
+            return 1;
+        };
+    let amount: usize = match num_str.trim().parse() {
+        Ok(n) if n > 0 => n,
+        _ => return 1,
+    };
+    match unit {
+        "min" | "m" => amount,
+        "h" => amount * 60,
+        "d" => amount * minutes_per_day,
+        "w" => amount * minutes_per_day * 5,
+        "mo" => amount * minutes_per_day * 20,
+        _ => 1,
     }
-    if let Some(num) = val.strip_suffix('w').or_else(|| val.strip_suffix("week")) {
-        let n: usize = num.trim().parse().unwrap_or(1).max(1);
-        return n * minutes_per_day * 5;
-    }
-    if let Some(num) = val.strip_suffix('d').or_else(|| val.strip_suffix("day")) {
-        let n: usize = num.trim().parse().unwrap_or(1).max(1);
-        return n * minutes_per_day;
-    }
-    if let Some(num) = val.strip_suffix('h').or_else(|| val.strip_suffix("hour")) {
-        let n: usize = num.trim().parse().unwrap_or(1).max(1);
-        return n * 60;
-    }
-    if let Some(num) = val.strip_suffix("min").or_else(|| val.strip_suffix('m')) {
-        let n: usize = num.trim().parse().unwrap_or(1).max(1);
-        return n;
-    }
-    val.parse::<usize>().unwrap_or(1).max(1)
 }
 
 fn resolve_timeframe_minutes(timeframe: &str, minutes_per_day: usize) -> Option<usize> {
@@ -586,5 +593,32 @@ fn invalid(line: usize, message: impl Into<String>) -> PlannerError {
     PlannerError::Invalid {
         line,
         message: message.into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks() {
+        // Parity: go:452dea11:pkg/strategy/indicatorwarmup/warmup_internal_test.go:142 TestResolveIntervalMinutesSupportsBrokerIntervalsAndSafeFallbacks
+        let day_minutes = 390;
+        assert_eq!(resolve_interval_minutes("", day_minutes), 1);
+        assert_eq!(resolve_interval_minutes("1min", day_minutes), 1);
+        assert_eq!(resolve_interval_minutes("5m", day_minutes), 5);
+        assert_eq!(resolve_interval_minutes("2h", day_minutes), 120);
+        assert_eq!(resolve_interval_minutes("2d", day_minutes), 2 * day_minutes);
+        assert_eq!(
+            resolve_interval_minutes("2w", day_minutes),
+            2 * day_minutes * 5
+        );
+        assert_eq!(
+            resolve_interval_minutes("2mo", day_minutes),
+            2 * day_minutes * 20
+        );
+        assert_eq!(resolve_interval_minutes("bad", day_minutes), 1);
+        assert_eq!(resolve_interval_minutes("0m", day_minutes), 1);
+        assert_eq!(resolve_interval_minutes("xm", day_minutes), 1);
     }
 }
