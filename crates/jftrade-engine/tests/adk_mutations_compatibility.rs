@@ -248,6 +248,23 @@ fn adk_mutation_leaf_preserves_trailing_json_and_webhook_secret_precedence() {
     assert_eq!(response.body["data"]["webhookSecret"], "legacy-secret");
 }
 
+#[test]
+fn adk_provider_save_preserves_request_timeout_ms() {
+    // Parity: internal/api/assistant/adk_routes_test.go:597 TestADKProviderSaveReturnsRequestTimeoutMs
+    // Verifies provider save preserves requestTimeoutMs in normalized mutation payload
+    let save_req = request_with_body(
+        "POST",
+        "/api/v1/adk/providers",
+        br#"{"name":"deepseek","protocol":"open_ai","baseUrl":"https://api.deepseek.com","apiKey":"sk-secret","custom":{"requestTimeoutMs":45000}}"#,
+    );
+    let response = dispatch_adk_mutation(&save_req, Some(&RecordingPort), "fixture-time");
+    assert_eq!(response.status, 200);
+    assert_eq!(
+        response.body["data"]["body"]["custom"]["requestTimeoutMs"],
+        45000
+    );
+}
+
 fn fixture() -> Fixture {
     let fixture: Fixture = serde_json::from_str(include_str!(
         "../../../tests/fixtures/compatibility/api-transport/adk-mutations.json"
