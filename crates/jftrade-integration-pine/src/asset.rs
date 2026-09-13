@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn test_select_from_fs_returns_embedded_bundle_metadata() {
-        // Parity: asset_selection_boundaries_test.go:17 TestSelectFromFSReturnsEmbeddedBundleMetadata
+        // Parity: go:452dea11:internal/pineworkerassets/asset_selection_boundaries_test.go:13 TestSelectFromFSReturnsEmbeddedBundleMetadata
         let data = b"export default 'pineworker'";
         let expected_hash = encode_hex(&Sha256::digest(data));
         let bundle = PineBundle {
@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable() {
-        // Parity: asset_selection_boundaries_test.go:34 TestSelectFromFSTreatsMissingAndEmptyBundlesAsUnavailable
+        // Parity: go:452dea11:internal/pineworkerassets/asset_selection_boundaries_test.go:30 TestSelectFromFSTreatsMissingAndEmptyBundlesAsUnavailable
         let empty_bundle = PineBundle {
             file_name: "worker.mjs",
             bytes: b"",
