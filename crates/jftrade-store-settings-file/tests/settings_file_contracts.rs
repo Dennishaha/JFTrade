@@ -809,6 +809,8 @@ fn mcp_settings_writes_match_frozen_compatibility_expectations() {
 }
 
 #[test]
+// Parity: internal/store/settingsfile/store_test.go:40 TestSettingsPersistenceAndNormalization
+// Verifies execution environments, lookback clamps, retention boundaries and default fallbacks
 fn test_settings_normalization_handles_fallbacks_and_boundaries() {
     // Parity: internal/store/settingsfile/normalization_and_persistence_test.go:13 TestSettingsNormalizationHandlesFallbacksAndBoundaries
     let mut execution = ExecutionSettings {
