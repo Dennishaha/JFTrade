@@ -500,3 +500,64 @@ fn adk_store_workflow_scheduler_due_and_threshold_triggers() {
         .expect("thresh trigger exists");
     assert!(updated_thresh.payload_json.contains("185.5"));
 }
+
+#[test]
+fn adk_approval_resolution_stages_continuation_and_denial_cas() {
+    // Parity: go:452dea11:internal/assistant/engine/approval_retry_sibling_cancellation_test.go:8 TestSynchronousApprovalDenialCancelsSiblingActions
+    let dir = tempdir().expect("tempdir");
+    let path = dir.path().join("adk.db");
+    seed_valid_go_adk_database(&path);
+
+    let store = jftrade_store_sqlite::AdkStore::open_existing(&path, ADK_TEST_CUTOVER_PROFILE)
+        .expect("store");
+
+    // 1. Seed approval and associated run
+    let run_payload = r#"{"id":"run-appr-1","sessionId":"sess-1","agentId":"agent-1","status":"PENDING","workflowStatus":"PENDING_APPROVAL","pendingApprovals":[{"id":"appr-1","status":"PENDING"}],"toolCalls":[{"id":"call-1","status":"PENDING_APPROVAL"}]}"#;
+    store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: "run-appr-1",
+            session_id: "sess-1",
+            agent_id: "agent-1",
+            status: "PENDING",
+            client_request_id: "req-appr-1",
+            request_fingerprint: "fp-appr-1",
+            payload_json: run_payload,
+        })
+        .expect("create run");
+
+    let appr_payload =
+        r#"{"id":"appr-1","runId":"run-appr-1","agentId":"agent-1","status":"PENDING"}"#;
+    store
+        .create_approval("appr-1", "run-appr-1", "agent-1", "PENDING", appr_payload)
+        .expect("create approval");
+
+    // 2. Resolve approval as DENIED
+    let resolution = store
+        .resolve_and_stage_approval("appr-1", "DENIED")
+        .expect("resolve approval")
+        .expect("resolution returned");
+
+    assert!(resolution.changed);
+    assert_eq!(resolution.approval.status, "DENIED");
+    assert!(resolution.should_continue); // Background runner resumes to process termination
+    let run = resolution.run.as_ref().expect("run returned");
+    assert_eq!(run.status, "RUNNING");
+    assert_eq!(
+        resolution
+            .run
+            .as_ref()
+            .and_then(|r| serde_json::from_str::<serde_json::Value>(&r.payload_json).ok())
+            .and_then(|v| v.get("message").and_then(|m| m.as_str()).map(str::to_owned)),
+        Some("审批已拒绝，正在后台结束运行。".to_owned())
+    );
+
+    let _run = resolution.run.expect("run returned");
+
+    // 3. Repeated resolution is idempotent
+    let second = store
+        .resolve_and_stage_approval("appr-1", "DENIED")
+        .expect("idempotent resolve")
+        .expect("resolution returned");
+    assert!(!second.changed);
+    assert_eq!(second.approval.status, "DENIED");
+}
