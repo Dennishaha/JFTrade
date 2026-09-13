@@ -10596,9 +10596,9 @@
     "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest_sync)'`"
   },
   "internal/backtest/historical_source_test.go:181:TestHistoricalKLineSyncerRejectsEmptyProviderResult": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::TestHistoricalKLineSyncerRejectsEmptyProviderResult",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/backtest/historical_source_test.go:198:TestValidateHistoricalKLineSyncAllowsMissingCapabilityValidator": {
@@ -10614,15 +10614,15 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'"
   },
   "internal/backtest/historical_source_test.go:268:TestHistoricalKLineSyncerRejectsBrokenPagination": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::TestHistoricalKLineSyncerRejectsBrokenPagination",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/backtest/historical_source_test.go:309:TestHistoricalCandleConversionRejectsInvalidFieldsAndDefaultsVolume": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::TestHistoricalCandleConversionRejectsInvalidFieldsAndDefaultsVolume",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/backtest/historical_source_test.go:341:TestHistoricalProviderRetryExhaustionAndTimerCancellation": {
@@ -10704,9 +10704,9 @@
     "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E \"test(backtests_write)\"`"
   },
   "internal/backtest/recovery_test.go:45:TestStartScriptRejectsBlankResearchScript": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_research_backtest_execution.rs::TestStartScriptRejectsBlankResearchScript",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/backtest/result_view_aggregation_test.go:10:TestResultViewExposesWarningsAndFiltersChartSeries": {
@@ -12390,9 +12390,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(backtest)'"
   },
   "internal/integration/futu/candle_sessions_test.go:11:TestMarketSessionsForCandleSessions": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::TestMarketSessionsForCandleSessions",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/marketdata_runtime_opend_test.go:154:TestMarketDataRuntimeQueryAndSubscriptionWrappers": {
@@ -12450,9 +12450,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/marketdata_runtime_test.go:267:TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_tick.rs::TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/marketdata_runtime_test.go:318:TestTickFromTickerPreservesHKPreviousCloseDuringLunchBreak": {
@@ -12462,9 +12462,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/marketdata_runtime_test.go:364:TestTickFromTradeInheritsLatestQuoteFieldsThroughCache": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::TestTickFromTradeInheritsLatestQuoteFieldsThroughCache",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata"
   },
   "internal/integration/futu/marketdata_runtime_test.go:432:TestTickFromTickerReclassifiesUSRegularBoundary": {
@@ -12504,15 +12504,15 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/marketdata_runtime_test.go:824:TestFallbackTickerMapProjectsOnlyRequestedUsableSnapshots": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::TestFallbackTickerMapProjectsOnlyRequestedUsableSnapshots",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/marketdata_runtime_test.go:869:TestFallbackSnapshotConversionRejectsInvalidValuesAndUsesClassification": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::TestFallbackSnapshotConversionRejectsInvalidValuesAndUsesClassification",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/marketdata_runtime_test.go:937:TestMarketDataRuntimeQueriesDelayedSnapshotsAlongsideRealtimeQuotes": {
@@ -12522,15 +12522,15 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/notifications_test.go:13:TestLiveNotificationFromResponseRoutesProtocolPayloadsToNeutralCategories": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::TestLiveNotificationFromResponseRoutesProtocolPayloadsToNeutralCategories",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/notifications_test.go:98:TestNeutralNotificationBuildersHandleNilAndStatusTransitions": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::TestNeutralNotificationBuildersHandleNilAndStatusTransitions",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu"
   },
   "internal/integration/futu/notifications_test.go:135:TestNotificationLabelsCoverEverySupportedProgramAndGatewayState": {
@@ -15534,51 +15534,51 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'"
   },
   "internal/marketdata/broker_candles_test.go:12:TestBrokerKLineCandlesResponseProjectsStrictPage": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::TestBrokerKLineCandlesResponseProjectsStrictPage",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/marketdata/broker_candles_test.go:51:TestBrokerKLineCandlesResponseHandlesTerminalAndBoundedPages": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::TestBrokerKLineCandlesResponseHandlesTerminalAndBoundedPages",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/marketdata/broker_candles_test.go:77:TestBrokerKLineCandlesResponseRejectsInvalidProviderRows": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::TestBrokerKLineCandlesResponseRejectsInvalidProviderRows",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/marketdata/broker_candles_test.go:109:TestBrokerKLineHelpersClassifySessionsAndNumbers": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::TestBrokerKLineHelpersClassifySessionsAndNumbers",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/marketdata/broker_candles_test.go:137:TestBrokerKLinePaginationRejectsInvalidBoundedAndPagedMetadata": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::TestBrokerKLinePaginationRejectsInvalidBoundedAndPagedMetadata",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/marketdata/cache_test.go:12:TestCacheDeduplicatesPromotesAndInherits": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::TestCacheDeduplicatesPromotesAndInherits",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata"
   },
   "internal/marketdata/cache_test.go:76:TestCacheFreshnessRetentionAndMaximum": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::TestCacheFreshnessRetentionAndMaximum",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata"
   },
   "internal/marketdata/cache_test.go:103:TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-marketdata/tests/cache_extended_sessions_parity.rs::TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata"
   },
   "internal/marketdata/cache_test.go:138:TestCachePromotesUSRegularCloseWhenAfterHoursTradeArrives": {
@@ -21132,15 +21132,15 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib"
   },
   "internal/watchlist/quote_preview_boundaries_test.go:37:TestQuoteCacheAndImportHelpersKeepAbsentDataExplicit": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-watchlist/src/lib.rs::TestQuoteCacheAndImportHelpersKeepAbsentDataExplicit",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist"
   },
   "internal/watchlist/quote_preview_boundaries_test.go:74:TestPreviewImportRejectsInvalidDerivedGroupName": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-watchlist/src/lib.rs::TestPreviewImportRejectsInvalidDerivedGroupName",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist"
   },
   "internal/watchlist/service_quotes_test.go:62:TestBatchQuotesCachesAndSingleflightsOverlappingRequests": {
@@ -21312,9 +21312,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
   },
   "internal/store/backtest/store_failure_test.go:121:TestStoreCanceledMaintenanceDoesNotMutateRuns": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_run_store_contracts.rs::TestStoreCanceledMaintenanceDoesNotMutateRuns",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite"
   },
   "internal/store/backtest/store_failure_test.go:140:TestPersistenceDecodersRejectInvalidPayloads": {
@@ -21348,9 +21348,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'"
   },
   "internal/store/backtest/store_test.go:168:TestInMemoryStoreImplementsRunLifecycleAndCancellation": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_run_store_contracts.rs::TestInMemoryStoreImplementsRunLifecycleAndCancellation",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite"
   },
   "internal/store/backtest/sync_tasks_test.go:12:TestSyncTaskStoreReturnsSnapshotsAndCancelsProgress": {
@@ -21384,9 +21384,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'"
   },
   "internal/store/exchangecalendar/store_boundaries_test.go:45:TestCalendarStoreEmptyLoadAndDeleteAreIdempotent": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::TestCalendarStoreEmptyLoadAndDeleteAreIdempotent",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
   },
   "internal/store/exchangecalendar/store_snapshot_failures_test.go:31:TestSaveSnapshotUsesAtomicReplacement": {
@@ -21402,9 +21402,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'"
   },
   "internal/store/exchangecalendar/store_snapshot_failures_test.go:95:TestSaveSnapshotValidatesInputsAndResolvesYearFallbacks": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::TestSaveSnapshotValidatesInputsAndResolvesYearFallbacks",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar"
   },
   "internal/store/exchangecalendar/store_snapshot_failures_test.go:136:TestDeleteSnapshotIgnoresMissingFilesAndReturnsRealRemoveErrors": {
@@ -21516,9 +21516,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
   },
   "internal/store/settingsfile/normalization_and_persistence_test.go:13:TestSettingsNormalizationHandlesFallbacksAndBoundaries": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::TestSettingsNormalizationHandlesFallbacksAndBoundaries",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file"
   },
   "internal/store/settingsfile/normalization_and_persistence_test.go:53:TestSettingsInterfaceAndAccountNormalization": {
@@ -21558,15 +21558,15 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib"
   },
   "internal/store/settingsfile/rollback_test.go:13:TestFailedSettingSavesRollbackAllRuntimeState": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::TestFailedSettingSavesRollbackAllRuntimeState",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file"
   },
   "internal/store/settingsfile/rollback_test.go:185:TestFailedBootstrapAndMigrationRollbackRuntimeState": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::TestFailedBootstrapAndMigrationRollbackRuntimeState",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file"
   },
   "internal/store/settingsfile/rollback_test.go:232:TestFailedManagedAccountCRUDRollsBackBackingArray": {
@@ -22650,9 +22650,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine -E 'test(asset)'"
   },
   "internal/strategy/catalog/activity_degraded_test.go:65:TestCatalogActivityReturnsEmptyPagesWhenActivityStoreIsUnavailable": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_activity.rs::TestCatalogActivityReturnsEmptyPagesWhenActivityStoreIsUnavailable",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/strategy/catalog/catalog_boundary_behavior_test.go:34:TestCatalogActivityQueryFailureReturnsKnownEmptyPage": {
@@ -22782,9 +22782,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/strategy/errors_test.go:8:TestClassifiedStrategyErrorsMatchSentinelKinds": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-strategy/src/model.rs::TestClassifiedStrategyErrorsMatchSentinelKinds",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy"
   },
   "internal/strategy/instancebinding/binding_test.go:11:TestNormalizeBindingPrefersExplicitInstruments": {
@@ -22818,9 +22818,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(runtime_registry)'"
   },
   "internal/strategy/instancebinding/binding_test.go:137:TestNormalizeBrokerAccountDropsEmptyInput": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-strategy/src/model.rs::TestNormalizeBrokerAccountDropsEmptyInput",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy"
   },
   "internal/strategy/instancebinding/binding_test.go:143:TestNormalizeBindingAcceptsLegacyArrayPayloadsAndDropsInvalidEntries": {
@@ -23988,9 +23988,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(planner)'"
   },
   "pkg/strategy/indicatorwarmup/warmup_internal_test.go:142:TestResolveIntervalMinutesSupportsBrokerIntervalsAndSafeFallbacks": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs::TestResolveIntervalMinutesSupportsBrokerIntervalsAndSafeFallbacks",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy"
   },
   "pkg/strategy/indicatorwarmup/warmup_plan_test.go:12:TestWarmupBarsFromPlanUsesLargestIndicatorRequirement": {
@@ -25890,9 +25890,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
   },
   "internal/trading/broker_boundaries_test.go:11:TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/trading/broker_boundaries_test.go:62:TestServiceBrokerReadOperationsClassifyUpstreamFailures": {
@@ -25902,27 +25902,27 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
   },
   "internal/trading/broker_boundaries_test.go:116:TestServiceBrokerWriteOperationsPropagateUpstreamFailures": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::TestServiceBrokerWriteOperationsPropagateUpstreamFailures",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/trading/broker_conformance_test.go:15:TestFakeBrokerConformanceAcceptedPartialFullAndOutOfOrderUpdates": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::TestFakeBrokerConformanceAcceptedPartialFullAndOutOfOrderUpdates",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/broker_conformance_test.go:58:TestFakeBrokerConformanceCancelAcceptedAndCancelRejected": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::TestFakeBrokerConformanceCancelAcceptedAndCancelRejected",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/broker_conformance_test.go:107:TestFakeBrokerConformancePlaceRejectedPushBeforeQueryAndUnsupportedCapability": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::TestFakeBrokerConformancePlaceRejectedPushBeforeQueryAndUnsupportedCapability",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/broker_test.go:186:TestServiceBrokerReadOperationsMapSnapshotsAndQueries": {
@@ -25944,9 +25944,9 @@
     "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E \"test(execution_orders)\"`"
   },
   "internal/trading/broker_test.go:648:TestPlaceBrokerOrderRunsPreTradeRiskBeforeBrokerSubmission": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::TestPlaceBrokerOrderRunsPreTradeRiskBeforeBrokerSubmission",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/broker_test.go:680:TestPlaceBrokerOrderCannotBypassRiskWithImplicitRealEnvironment": {
@@ -25956,9 +25956,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
   },
   "internal/trading/broker_test.go:711:TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/broker_test.go:735:TestNormalizeSymbolsAndRuntimeDefaults": {
@@ -25968,21 +25968,21 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib"
   },
   "internal/trading/control_plane_idempotency_test.go:12:TestRealTradeControlPlaneKillSwitchReleaseIsIdempotentAndAudited": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::TestRealTradeControlPlaneKillSwitchReleaseIsIdempotentAndAudited",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/control_plane_idempotency_test.go:65:TestRealTradeControlPlaneHardStopReleaseIsSingleShot": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::TestRealTradeControlPlaneHardStopReleaseIsSingleShot",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/control_plane_idempotency_test.go:99:TestRealTradeControlPlaneHardStopsBlockUntilEveryEntryReleased": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::TestRealTradeControlPlaneHardStopsBlockUntilEveryEntryReleased",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/control_plane_state_audit_test.go:13:TestControlPlaneRetainsActivationAndBoundsRepeatedAuditEvents": {
@@ -25998,9 +25998,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'"
   },
   "internal/trading/control_plane_state_audit_test.go:99:TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/control_plane_state_audit_test.go:190:TestControlPlaneKeepsStateWhenAtomicPersistenceCannotComplete": {
@@ -26010,15 +26010,15 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'"
   },
   "internal/trading/control_plane_state_audit_test.go:250:TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/execution_combo_lifecycle_test.go:15:TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/execution_combo_lifecycle_test.go:83:TestExecutionOrderRechecksRiskImmediatelyBeforeBrokerSubmission": {
@@ -26082,9 +26082,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
   },
   "internal/trading/execution_combo_lifecycle_test.go:635:TestExecutionDetailsResolverAndOrderUpdateCacheFailureBranches": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::TestExecutionDetailsResolverAndOrderUpdateCacheFailureBranches",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/execution_products_test.go:12:TestDerivativeSingleLegRequiresBrokerPreviewAndStableClientID": {
@@ -26268,9 +26268,9 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/trading/execution_test.go:988:TestExecutionNormalizationHelpersRejectUnsupportedInputs": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::TestExecutionNormalizationHelpersRejectUnsupportedInputs",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine"
   },
   "internal/trading/execution_test.go:997:TestNormalizeExecutionOrderRejectsInvalidInstrumentAndUnsupportedOrderType": {
@@ -26292,21 +26292,21 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'"
   },
   "internal/trading/order_status_test.go:5:TestCanonicalBrokerOrderStatusCoversFutuLifecycle": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::TestCanonicalBrokerOrderStatusCoversFutuLifecycle",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/order_status_test.go:33:TestReconcileCanonicalOrderStatusPreventsBrokerRegressions": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::TestReconcileCanonicalOrderStatusPreventsBrokerRegressions",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/order_status_test.go:59:TestCanonicalTerminalOrderStatus": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::TestCanonicalTerminalOrderStatus",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading"
   },
   "internal/trading/order_update_recovery_test.go:11:TestExecutionOrderHistoryFailsClosedForInvalidOrUnavailableBackfill": {
