@@ -12022,5 +12022,479 @@
     "rust_entry": "`crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs`",
     "conclusion": "已覆盖：工作流画布节点编排、执行状态机转移与工具输入校验",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_workflow_canvas)'"
+  },
+  "TestProviderReasoningPresetsAndExplicitEmptyMappings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：大模型思考推理参数配置、时间线事件保序与工作流任务工具契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(model)'"
+  },
+  "TestProviderReasoningValidationAndCustomMapping": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：大模型思考推理参数配置、时间线事件保序与工作流任务工具契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(model)'"
+  },
+  "TestOptionalReasoningEffortRejectsDefault": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：大模型思考推理参数配置、时间线事件保序与工作流任务工具契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(model)'"
+  },
+  "TestTimelineHelperBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：大模型思考推理参数配置、时间线事件保序与工作流任务工具契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(model)'"
+  },
+  "TestBuildSessionTimelinePlacesFinalReplyAfterToolActivity": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/model.rs`",
+    "conclusion": "已覆盖：大模型思考推理参数配置、时间线事件保序与工作流任务工具契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(model)'"
+  },
+  "TestWorkflowGraphFingerprintNormalizesSetsAndDetectsExecutionDrift": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowPlanPresentationKeepsDeterministicHumanState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowPlanBoundaryFormattingAndGraphSemantics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestApprovalsForRunScoping": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowGoalDecisionAndUtilityContracts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestServiceGetAuditPagePreservesFilteredPagination": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestPrimaryBuiltinAgentAllowsOnlyProviderReasoningSettings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceProviderChatAndSkillWrappers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceSessionContextCompactionWrapper": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceRuntimeUnavailableErrorBranches": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceOptimizationTaskLifecycleAndMetrics": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceSaveAgentValidationScenarios": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServicePreviewSessionScenarios": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceRecoverTerminalChatResponseFromProjection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceCRUDQueriesAndSnapshots": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceRunLifecycleAndApprovalWrappers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceCatalogCRUDRecordsBusinessAudit": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceSessionAndRunReadBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceRuntimeUnavailableCatalogAndReadWriteBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceCloseClosesRuntimeOwnedResources": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceLifecycleAndTimeoutBoundaryHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestApprovalWaitDurationMsHandlesBoundaryTimestamps": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServicePreviewSessionFallsBackWhenRequestedSessionIsMissing": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceRecoverTerminalChatResponseHandlesBlankRunIDAndMissingProjection": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServicePropagatesCancelledPersistenceContextAcrossAssistantResources": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCanvasWorkflowNodeProjectionPreservesNodeSpecificBusinessState": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestWorkflowUtilityAndUnavailableInputResolutionBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestWorkflowEntryPointsRejectUnavailableRuntimeBeforePersistingAnything": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestAgentValidationAndSchedulerBoundariesProtectRuntimeResources": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceRecoverTerminalChatResponseFallsBackToLatestAssistant": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceSkillRecoveryContracts": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceAuditAndOptimizationStateRecovery": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestCancelOptimizationTaskPropagatesPersistenceFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestWrapSessionTimelineErrorPreservesErrorChain": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceUnavailableWithoutRuntime": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestServiceOptionsExposeRuntimeSettings": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestAgentTemplatesAvailableWithoutRuntime": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/runtime.rs`",
+    "conclusion": "已覆盖：Assistant 会话执行循环、工具调用闭环与异步工作流恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'"
+  },
+  "TestNextScheduleRunUsesFiveFieldCronAndTimezone": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestEvaluateMarketThresholdTriggerEdgesAndCooldown": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestEventRulesNormalizeAndValidate": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestRuleHelpersAndValidationEdges": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestRuleFallbacksMismatchesAndValidVariants": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestStartWorkflowQueuesAndCompletesInBackground": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestStartWorkflowTriggerSkipsWhenPreviousRunIsActive": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestStartWorkflowBackgroundFailureTerminatesLog": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowResourceCrudPaginationAndLogs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowTriggerRunWebhookAndValidationFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowDefinitionValidationAndMissingResourceErrors": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowInvocationFailureAndBackgroundPaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowInvocationPreflightAndStaleResourcePaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowInvocationPersistsOrReturnsEachLogWriteFailure": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowActiveRunGuardHandlesStoredRunStates": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowEventMatchingCooldownAndUtilityBoundaries": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowMarketThresholdAndConfigHelpersCoverEdges": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowCoreHelpersAndUnavailableService": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestServiceCloseCancelsAndJoinsAdmittedWorkflowBackground": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestServiceCloseKeepsStoreOpenUntilWorkflowCleanupFinishes": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowSchedulerStopCancelsAndJoinsInFlightTick": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowOperationsPropagateClosedStoreFailures": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowTriggerValidationAndBoundaryHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowBuiltinTemplatesWatchedInstrumentsAndScheduleHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowSchedulerTickAndMarketPollingStablePaths": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowEventAndSchedulerTriggerBackgroundRuns": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowActiveRunSkipAndReconciliation": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowResultAndRunStatusHelpers": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowResourcesRejectCrossWorkflowAndInvalidRequests": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowAsyncTriggerAndBackgroundRecovery": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowBackgroundPersistsFailureAfterRunningTransitionWriteFails": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestNextWorkflowScheduleRunUsesFiveFieldCronAndTimezone": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestWorkflowWebhookTriggerSecretLifecycle": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestSaveWorkflowRoundTripsCanvasGraph": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestRunWorkflowStoresResultAndNodeTrace": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestRunWorkflowWithoutCanvasGraphFailsInsteadOfChatFallback": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
+  },
+  "TestRunWorkflowCanvasCompilesAndStoresNodeOutputs": {
+    "status": "[x]",
+    "rust_entry": "`crates/jftrade-assistant/src/workflow.rs`",
+    "conclusion": "已覆盖：工作流图定义、节点状态转移、条件分支与失败重试恢复契约",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'"
   }
 }
