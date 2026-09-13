@@ -385,3 +385,51 @@ impl ProductionStrategyRuntimePort {
         Ok(json!({"instanceId": instance_id, "entries": entries, "page": page}))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use jftrade_store_sqlite::{STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE, StrategyDefinitionStore};
+
+    #[test]
+    fn restore_invalid_running_binding_marks_instance_failed() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("strategy.db");
+        let connection = rusqlite::Connection::open(&path).expect("database");
+        jftrade_store_sqlite::initialize_current(&connection, "strategy").expect("schema");
+        drop(connection);
+        let definitions = Arc::new(
+            StrategyDefinitionStore::open_existing(&path, STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE)
+                .expect("definitions"),
+        );
+        let store = Arc::new(StrategyRuntimeStore::from_definition_store(&definitions));
+        store
+            .seed_instance_with_binding(
+                "stale",
+                "RUNNING",
+                Value::String("invalid".into()),
+                "2026-09-01T00:00:00Z",
+            )
+            .expect("seed stale instance");
+        let manager = Arc::new(StrategyRuntimeManager::new(
+            None,
+            None,
+            None,
+            None,
+            Arc::new(ActiveProviderState::default()),
+        ));
+        let port = ProductionStrategyRuntimePort {
+            store: store.clone(),
+            definitions,
+            manager,
+        };
+        port.restore_running_instances().expect("reconcile");
+        let instance = store
+            .get_instance("stale")
+            .expect("read")
+            .expect("instance");
+        assert_eq!(instance.status, "FAILED");
+        assert_eq!(instance.runtime_active, false);
+        assert!(!store.list_log_events("stale").expect("logs").is_empty());
+    }
+}
