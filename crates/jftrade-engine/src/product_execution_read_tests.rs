@@ -99,6 +99,8 @@ async fn execution_read_routes_match_group_fixture_in_cutover_only() {
             )));
     let handle = start_product(config).await.expect("start product");
     assert_eq!(handle.startup_record().owned_routes, 51);
+    // Parity: internal/api/trading/execution_test.go:240 TestHandleExecutionOrderDetailsReturnsCanonicalReceiptAndNotFound
+    // Verifies canonical receipt shape on order details (200) and ORDER_NOT_FOUND error envelope on missing order (404)
     for case in &fixture.cases {
         assert_eq!(case.method, "GET", "case {}", case.name);
         let (status, response) = request_json_with_status(
