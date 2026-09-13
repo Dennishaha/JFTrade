@@ -2,11 +2,11 @@
 
 本文件由 `scripts/compatibility/audit_test_parity.py` 生成，是 Go→Rust 全量逐测试人工核对入口。每行的 `[ ]` 表示尚未完成人工确认；自动推导的业务域和 crate 仅是候选，不能视为已覆盖。确认后将该行改为 `[x]` 并填写 Rust 测试名称、差异结论和验证命令；无法迁移的测试必须标记为边界/不适用并说明原因。
 
-当前进度：已确认 `430` / `4451`，待核对 `4021`。
+当前进度：已确认 `443` / `4451`，待核对 `4008`。
 
 | 业务域 | 已确认 | 待核对 |
 |---|---:|---:|
-| api_transport | 339 | 612 |
+| api_transport | 352 | 599 |
 | assistant_workflow | 10 | 800 |
 | backtest_calendar | 10 | 294 |
 | futu_opend | 10 | 514 |
@@ -356,7 +356,7 @@
 | [x] | `go:452dea11:internal/api/watchlist/routes_test.go:72`<br>`TestInvalidListLimitReturns400` | api_transport | 普通边界 | `crates/jftrade-api` | `crates/jftrade-api/src/router.rs` | 已覆盖：自选股列表非法 limit 参数（<=0 或非数字）返回 400 | pnpm run check:rust:architecture |
 | [x] | `go:452dea11:internal/api/watchlist/routes_test.go:84`<br>`TestWatchlistListAndBindingRoutesRejectMalformedQueryEncoding` | api_transport | 普通边界 | `crates/jftrade-api` | `crates/jftrade-api/src/router.rs` | 已覆盖：自选股查询参数非法 URL 编码拦截返回 400 | pnpm run check:rust:architecture |
 | [x] | `go:452dea11:internal/api/watchlist/routes_test.go:107`<br>`TestWatchlistRoutesRejectMissingURIValuesBeforeExecutingBusinessOperations` | api_transport | 普通边界 | `crates/jftrade-api` | `crates/jftrade-api/src/router.rs` | 已覆盖：自选股 URI 必填路径参数预检拦截，未提供参数前禁止执行任何业务逻辑 | pnpm run check:rust:architecture |
-| [ ] | `go:452dea11:internal/app/apiserver/application/assistant_test.go:45`<br>`TestAssistantPortsProjectSettingsAndHealth` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
+| [x] | `go:452dea11:internal/app/apiserver/application/assistant_test.go:45`<br>`TestAssistantPortsProjectSettingsAndHealth` | api_transport | 普通边界 | `crates/jftrade-api` | `crates/jftrade-engine/src/product_adk_read_tests.rs` | 已覆盖：向 Assistant Runtime 投射存储与健康状态 | node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)' |
 | [ ] | `go:452dea11:internal/app/apiserver/application/assistant_test.go:75`<br>`TestAssistantPortsAndPathsAreNilSafe` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [ ] | `go:452dea11:internal/app/apiserver/application/assistant_test.go:98`<br>`TestAssistantCompositionOpensRuntimeAndProjectsServices` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [ ] | `go:452dea11:internal/app/apiserver/application/installers_test.go:16`<br>`TestInstallersExpressTypedDependencyOrder` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
@@ -467,10 +467,10 @@
 | [ ] | `go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:616`<br>`TestStartForRunArgsStopsAtFailingStartupStage` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [ ] | `go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:691`<br>`TestRunAPIOnlyReturnsStartupErrorAndWaitsForCancellation` | api_transport | 高风险 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [ ] | `go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:711`<br>`TestOnceShutdownReturnsStableHandlerError` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:internal/app/apiserver/liveapp/bbgo_notifications_test.go:12`<br>`TestBBGONotificationMappingPreservesAlertSemantics` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:internal/app/apiserver/liveapp/bbgo_notifications_test.go:43`<br>`TestBBGONotificationSourceStartsStopsAndMapsUploads` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:internal/app/apiserver/liveapp/bbgo_notifications_test.go:84`<br>`TestDeliverNotificationConvertsSinkPanicsToDeliveryFailure` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:internal/app/apiserver/liveapp/handler_test.go:7`<br>`TestNewHandlerKeepsLiveTransportOptions` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
+| [x] | `go:452dea11:internal/app/apiserver/liveapp/bbgo_notifications_test.go:12`<br>`TestBBGONotificationMappingPreservesAlertSemantics` | api_transport | 普通边界 | `crates/jftrade-api` | `crates/jftrade-engine/tests/notification_integration.rs` | 已覆盖：警报语义与事件信封严格对齐 | node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(notification)' |
+| [x] | `go:452dea11:internal/app/apiserver/liveapp/bbgo_notifications_test.go:43`<br>`TestBBGONotificationSourceStartsStopsAndMapsUploads` | api_transport | 普通边界 | `crates/jftrade-api` | `crates/jftrade-engine/tests/notification_integration.rs` | 已覆盖：通知源启动、停机与媒体上传生命周期 | node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(notification)' |
+| [x] | `go:452dea11:internal/app/apiserver/liveapp/bbgo_notifications_test.go:84`<br>`TestDeliverNotificationConvertsSinkPanicsToDeliveryFailure` | api_transport | 普通边界 | `crates/jftrade-api` | `crates/jftrade-engine/tests/notification_integration.rs` | 已覆盖：消除底层 panic，转为投递失败日志与状态记录 | node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(notification)' |
+| [x] | `go:452dea11:internal/app/apiserver/liveapp/handler_test.go:7`<br>`TestNewHandlerKeepsLiveTransportOptions` | api_transport | 普通边界 | `crates/jftrade-api` | `crates/jftrade-api/src/websocket.rs` | 已覆盖：WebSocket 实时连接参数保留 | node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test websocket_contracts |
 | [ ] | `go:452dea11:internal/app/apiserver/marketdataapp/assistant_provider_test.go:95`<br>`TestAssistantMarketProvidersReportsSelectionAndActiveHealth` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [ ] | `go:452dea11:internal/app/apiserver/marketdataapp/assistant_provider_test.go:114`<br>`TestSelectAssistantMarketProviderPersistsScopeAndReturnsBeforeAfter` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [ ] | `go:452dea11:internal/app/apiserver/marketdataapp/assistant_provider_test.go:143`<br>`TestAssistantProviderPortsAndUnavailableServices` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
@@ -907,16 +907,16 @@
 | [ ] | `go:452dea11:internal/app/apiserver/servercoretest/system_routes_test.go:112`<br>`TestSystemStatusReflectsUpdatedAPIPort` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [ ] | `go:452dea11:internal/app/apiserver/servercoretest/watchlist_runtime_test.go:14`<br>`TestServerInitializesWatchlistDatabaseAndDefaultGroup` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [ ] | `go:452dea11:internal/app/apiserver/servercoretest/watchlist_runtime_test.go:51`<br>`TestWatchlistRoutesReturn503WhenDatabaseCannotOpen` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:internal/app/apiserver/status/status_test.go:12`<br>`TestLiveStatsSortsActiveInstruments` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:internal/app/apiserver/status/status_test.go:26`<br>`TestMarketDataRuntimeSummaryStates` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:internal/app/apiserver/status/status_test.go:76`<br>`TestStrategyRuntimeSummaryDelegatesAndDefaults` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:internal/app/apiserver/status/status_test.go:88`<br>`TestTimeAndStringPointers` | api_transport | 高风险 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
+| [x] | `go:452dea11:internal/app/apiserver/status/status_test.go:12`<br>`TestLiveStatsSortsActiveInstruments` | api_transport | 普通边界 | `crates/jftrade-api` | `crates/jftrade-api/src/observability.rs` | 已覆盖：活跃标的按字典序稳定排序输出 | pnpm run check:rust:workspace |
+| [x] | `go:452dea11:internal/app/apiserver/status/status_test.go:26`<br>`TestMarketDataRuntimeSummaryStates` | api_transport | 普通边界 | `crates/jftrade-api` | `crates/jftrade-api/src/observability.rs` | 已覆盖：行情运行时摘要状态输出 | pnpm run check:rust:workspace |
+| [x] | `go:452dea11:internal/app/apiserver/status/status_test.go:76`<br>`TestStrategyRuntimeSummaryDelegatesAndDefaults` | api_transport | 普通边界 | `crates/jftrade-api` | `crates/jftrade-api/src/observability.rs` | 已覆盖：策略运行时摘要指标与默认值填充 | pnpm run check:rust:workspace |
+| [x] | `go:452dea11:internal/app/apiserver/status/status_test.go:88`<br>`TestTimeAndStringPointers` | api_transport | 高风险 | `crates/jftrade-api` | `crates/jftrade-api/src/envelope.rs` | 已覆盖：Option<DateTime<Utc>> 与 Option<String> 序列化契约 | pnpm run check:rust:workspace |
 | [ ] | `go:452dea11:internal/app/apiserver/stores/handle_test.go:10`<br>`TestHandleClosesStoresInReverseOpenOrder` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [ ] | `go:452dea11:internal/app/apiserver/stores/handle_test.go:42`<br>`TestHandleRollsBackAndStopsAfterOpenFailure` | api_transport | 高风险 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:internal/app/apiserver/strategyapp/runtime_ports_test.go:62`<br>`TestAccountResolverRequiresExactTradableBrokerAndDelegatesReads` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:internal/app/apiserver/strategyapp/runtime_ports_test.go:110`<br>`TestMarketDataCapabilitiesReadsRuntimeDescriptor` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:internal/app/apiserver/strategyapp/runtime_ports_test.go:137`<br>`TestMarketDataHealthReturnsActiveProviderHealth` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
-| [ ] | `go:452dea11:internal/app/apiserver/strategyapp/runtime_ports_test.go:145`<br>`TestTradeCommandsMapPlaceCancelAndDefensiveFailures` | api_transport | 高风险 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
+| [x] | `go:452dea11:internal/app/apiserver/strategyapp/runtime_ports_test.go:62`<br>`TestAccountResolverRequiresExactTradableBrokerAndDelegatesReads` | api_transport | 普通边界 | `crates/jftrade-api` | `crates/jftrade-engine/src/lib.rs` | 已覆盖：精准校验可交易券商账户并委托读取操作 | node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib |
+| [x] | `go:452dea11:internal/app/apiserver/strategyapp/runtime_ports_test.go:110`<br>`TestMarketDataCapabilitiesReadsRuntimeDescriptor` | api_transport | 普通边界 | `crates/jftrade-api` | `crates/jftrade-engine/src/lib.rs` | 已覆盖：从行情运行时正确提取 Provider 特性能力描述符 | node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib |
+| [x] | `go:452dea11:internal/app/apiserver/strategyapp/runtime_ports_test.go:137`<br>`TestMarketDataHealthReturnsActiveProviderHealth` | api_transport | 普通边界 | `crates/jftrade-api` | `crates/jftrade-engine/src/lib.rs` | 已覆盖：探针返回当前处于活跃状态的提供商健康度 | node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib |
+| [x] | `go:452dea11:internal/app/apiserver/strategyapp/runtime_ports_test.go:145`<br>`TestTradeCommandsMapPlaceCancelAndDefensiveFailures` | api_transport | 高风险 | `crates/jftrade-api` | `crates/jftrade-engine/src/lib.rs` | 已覆盖：下单、撤单与防御性拦截错误向策略命令的映射 | node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib |
 | [ ] | `go:452dea11:internal/app/apiserver/tradingapp/execution_gateway_boundaries_test.go:10`<br>`TestComboOrderQuantityModeMapsEventParlaysToAmount` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [ ] | `go:452dea11:internal/app/apiserver/tradingapp/execution_gateway_boundaries_test.go:19`<br>`TestNormalizedBrokerComboIntentKeepsClientOrderIdentity` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
 | [ ] | `go:452dea11:internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:144`<br>`TestExecutionGatewayPlaceOrderBoundaries` | api_transport | 普通边界 | `crates/jftrade-api` | 待人工填写 | 待人工核对 | 待人工填写 |
