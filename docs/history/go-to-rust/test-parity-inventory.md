@@ -9,40 +9,40 @@
 | [ ] | `go:452dea11:cmd/jftrade-api/main_test.go:31`<br>`TestIsHelpArgs` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:cmd/jftrade-api/main_test.go:46`<br>`TestRunAPICommandPrintsUsageWithoutStartingTheServer` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:cmd/jftrade-api/main_test.go:69`<br>`TestRunAPICommandRejectsUnsupportedArgsBeforeStartingTheServer` | api_transport | 普通边界 | `crates/jftrade-api` |
-| [ ] | `go:452dea11:cmd/jftrade-api/main_test.go:86`<br>`TestRunAPICommandStartsAndStopsAPI` | api_transport | 高风险 | `crates/jftrade-api` |
-| [ ] | `go:452dea11:cmd/jftrade-api/main_test.go:121`<br>`TestRunAPICommandPreservesConfiguredCacheAndWrapsStartupErrors` | api_transport | 高风险 | `crates/jftrade-api` |
+| [x] | `go:452dea11:cmd/jftrade-api/main_test.go:86`<br>`TestRunAPICommandStartsAndStopsAPI` | api_transport | 高风险 | `crates/jftrade-api` |
+| [x] | `go:452dea11:cmd/jftrade-api/main_test.go:121`<br>`TestRunAPICommandPreservesConfiguredCacheAndWrapsStartupErrors` | api_transport | 高风险 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:cmd/jftrade-api/main_test.go:142`<br>`TestRunAPICommandContinuesAfterBestEffortEnvironmentFailure` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:cmd/jftrade-api/main_test.go:160`<br>`TestMainDelegatesToCommandRunner` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:cmd/jftrade-api/main_test.go:191`<br>`TestReportFatalForwardsErrorsAndIgnoresNil` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_approval_test.go:16`<br>`TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_approval_test.go:183`<br>`TestADKApprovalRouteReturnsResolutionEnvelope` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_approval_test.go:282`<br>`TestADKProviderDeleteRejectsReferencedProvider` | api_transport | 普通边界 | `crates/jftrade-api` |
-| [ ] | `go:452dea11:internal/api/assistant/adk_approval_test.go:335`<br>`TestADKRunCancelAndFilteredList` | api_transport | 高风险 | `crates/jftrade-api` |
+| [x] | `go:452dea11:internal/api/assistant/adk_approval_test.go:335`<br>`TestADKRunCancelAndFilteredList` | api_transport | 高风险 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_approval_test.go:382`<br>`TestADKRunPauseAndResumeRoutes` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_approval_test.go:450`<br>`TestADKRunPauseResumeRoutesRejectInvalidRuns` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_integration_test.go:20`<br>`TestRealADKChatStreamWithSavedProvider` | api_transport | 普通边界 | `crates/jftrade-api` |
-| [ ] | `go:452dea11:internal/api/assistant/adk_normalize_test.go:15`<br>`TestADKRoutesSerializeEmptySlicesAsArrays` | api_transport | 高风险 | `crates/jftrade-api` |
+| [x] | `go:452dea11:internal/api/assistant/adk_normalize_test.go:15`<br>`TestADKRoutesSerializeEmptySlicesAsArrays` | api_transport | 高风险 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_ops_test.go:18`<br>`TestADKMetricsExposeLifecycleAndApprovalLatency` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_ops_test.go:216`<br>`TestADKMetricsIgnoresUnexpectedQueryParams` | api_transport | 普通边界 | `crates/jftrade-api` |
-| [ ] | `go:452dea11:internal/api/assistant/adk_ops_test.go:247`<br>`TestADKOptimizationTaskCanBeQueriedAndCancelled` | api_transport | 高风险 | `crates/jftrade-api` |
+| [x] | `go:452dea11:internal/api/assistant/adk_ops_test.go:247`<br>`TestADKOptimizationTaskCanBeQueriedAndCancelled` | api_transport | 高风险 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_ops_test.go:286`<br>`TestADKTaskAndMemoryWorkflowRoutes` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_ops_test.go:394`<br>`TestADKOptimizationTaskNegativeRoutes` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_ops_test.go:448`<br>`TestAssistantChatCompatibilityRouteIsGone` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_ops_test.go:468`<br>`TestADKSnapshotAndToolsRoutesReturnCatalogData` | api_transport | 普通边界 | `crates/jftrade-api` |
-| [ ] | `go:452dea11:internal/api/assistant/adk_routes_test.go:26`<br>`TestADKSessionDetailOmitsResolvedApprovalGroups` | api_transport | 高风险 | `crates/jftrade-api` |
+| [x] | `go:452dea11:internal/api/assistant/adk_routes_test.go:26`<br>`TestADKSessionDetailOmitsResolvedApprovalGroups` | api_transport | 高风险 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_routes_test.go:165`<br>`TestADKAuditRouteFiltersByKindAndSubjectID` | api_transport | 普通边界 | `crates/jftrade-api` |
-| [ ] | `go:452dea11:internal/api/assistant/adk_routes_test.go:214`<br>`TestADKAuditRouteRejectsInvalidPagination` | api_transport | 高风险 | `crates/jftrade-api` |
-| [ ] | `go:452dea11:internal/api/assistant/adk_routes_test.go:245`<br>`TestADKChatStreamEmitsSessionRunAndFinalEvents` | api_transport | 高风险 | `crates/jftrade-api` |
+| [x] | `go:452dea11:internal/api/assistant/adk_routes_test.go:214`<br>`TestADKAuditRouteRejectsInvalidPagination` | api_transport | 高风险 | `crates/jftrade-api` |
+| [x] | `go:452dea11:internal/api/assistant/adk_routes_test.go:245`<br>`TestADKChatStreamEmitsSessionRunAndFinalEvents` | api_transport | 高风险 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_routes_test.go:359`<br>`TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_routes_test.go:420`<br>`TestADKChatStreamReturnsFinalEventForCompletedRunWithToolFailure` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_routes_test.go:481`<br>`TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFails` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_routes_test.go:552`<br>`TestADKChatStreamReturnsErrorEventForInvalidPayload` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_routes_test.go:578`<br>`TestADKProviderSaveRejectsInvalidPayload` | api_transport | 普通边界 | `crates/jftrade-api` |
-| [ ] | `go:452dea11:internal/api/assistant/adk_routes_test.go:597`<br>`TestADKProviderSaveReturnsRequestTimeoutMs` | api_transport | 高风险 | `crates/jftrade-api` |
+| [x] | `go:452dea11:internal/api/assistant/adk_routes_test.go:597`<br>`TestADKProviderSaveReturnsRequestTimeoutMs` | api_transport | 高风险 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_routes_test.go:634`<br>`TestADKAgentSaveValidationFailures` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_routes_test.go:707`<br>`TestADKSkillInstallAndUninstallFailureRoutes` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_routes_test.go:741`<br>`TestADKBindAgentWithPreinstalledNeodataFinancialSearch` | api_transport | 普通边界 | `crates/jftrade-api` |
-| [ ] | `go:452dea11:internal/api/assistant/adk_routes_test.go:787`<br>`TestADKSessionNegativeRoutes` | api_transport | 高风险 | `crates/jftrade-api` |
+| [x] | `go:452dea11:internal/api/assistant/adk_routes_test.go:787`<br>`TestADKSessionNegativeRoutes` | api_transport | 高风险 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_routes_test.go:858`<br>`TestADKRunNegativeRoutes` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_routes_test.go:911`<br>`TestADKApprovalNegativeAndIdempotentRoutes` | api_transport | 普通边界 | `crates/jftrade-api` |
 | [ ] | `go:452dea11:internal/api/assistant/adk_sessions_test.go:15`<br>`TestADKSessionsCRUDAndFilteringRoutes` | api_transport | 高风险 | `crates/jftrade-api` |
@@ -971,11 +971,11 @@
 | [ ] | `go:452dea11:internal/assistant/assembly/adk_strategy_test.go:19`<br>`TestADKCoreToolHandlersSurfaceSubscriptionErrors` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/adk_strategy_test.go:32`<br>`TestADKWorkflowAuditAndAdapterHelpers` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/adk_strategy_test.go:77`<br>`TestADKSystemAndWorkflowToolHandlersReflectBusinessState` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
-| [ ] | `go:452dea11:internal/assistant/assembly/adk_strategy_test.go:194`<br>`TestADKStrategyToolsHandleNegativeAndFallbackScenarios` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
+| [x] | `go:452dea11:internal/assistant/assembly/adk_strategy_test.go:194`<br>`TestADKStrategyToolsHandleNegativeAndFallbackScenarios` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/adk_strategy_test.go:308`<br>`TestADKStrategyDefinitionVersionToolsExposeImmutableSnapshotsAndFailures` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/adk_strategy_test.go:397`<br>`TestADKBacktestRunsFiltersByDefinitionVersionStatusAndLimit` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/adk_strategy_test.go:449`<br>`TestADKStrategyToolContractsCoverUnavailableAndSuccessfulViewScenarios` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
-| [ ] | `go:452dea11:internal/assistant/assembly/adk_strategy_test.go:605`<br>`TestADKStrategyOptimizePersistsTasksAndCancelsQueuedRunsOnFailure` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
+| [x] | `go:452dea11:internal/assistant/assembly/adk_strategy_test.go:605`<br>`TestADKStrategyOptimizePersistsTasksAndCancelsQueuedRunsOnFailure` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/adk_strategy_test.go:699`<br>`TestADKBacktestProviderFreezesDefaultAcrossPreparationAndQueue` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/adk_strategy_test.go:774`<br>`TestADKConcurrentResearchBacktestOverridesStayIsolated` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/adk_summary_contracts_test.go:9`<br>`TestADKStrategySummariesHideSourceDetailsAndCountLinkedInstances` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
@@ -991,7 +991,7 @@
 | [ ] | `go:452dea11:internal/assistant/assembly/application_adapter_test.go:138`<br>`TestApplicationAdapterForwardsAdvancedMarketCandles` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/application_adapter_test.go:164`<br>`TestApplicationAdapterRejectsAdvancedCandleInputsBeforeProviderCall` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/application_adapter_test.go:185`<br>`TestApplicationAdapterExposesProviderAndRuntimePorts` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
-| [ ] | `go:452dea11:internal/assistant/assembly/application_adapter_test.go:226`<br>`TestApplicationAdapterProvidesScreenCatalogAndCancelResult` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
+| [x] | `go:452dea11:internal/assistant/assembly/application_adapter_test.go:226`<br>`TestApplicationAdapterProvidesScreenCatalogAndCancelResult` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/application_adapter_test.go:253`<br>`TestApplicationAdapterNormalizesStrategyVisualModels` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/application_adapter_test.go:278`<br>`TestApplicationAdapterProjectsBacktestState` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/application_adapter_test.go:308`<br>`TestApplicationWorkflowSnapshotRejectsInvalidInstrument` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
@@ -1010,15 +1010,15 @@
 | [ ] | `go:452dea11:internal/assistant/assembly/mcp_server_lifecycle_authorization_test.go:74`<br>`TestMCPServerManagerRemainingServeFailureStates` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/mcp_server_lifecycle_authorization_test.go:95`<br>`TestMCPAuthorizedHandlerRemainingRequestBoundaries` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/mcp_server_test.go:22`<br>`TestMCPServerManagerEnforcesBearerAndSupportsTokenRotation` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
-| [ ] | `go:452dea11:internal/assistant/assembly/mcp_server_test.go:76`<br>`TestMCPServerManagerStartsAndStopsOnLoopback` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
-| [ ] | `go:452dea11:internal/assistant/assembly/mcp_server_test.go:106`<br>`TestMCPServerManagerServesAuthenticatedStreamableMCP` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
+| [x] | `go:452dea11:internal/assistant/assembly/mcp_server_test.go:76`<br>`TestMCPServerManagerStartsAndStopsOnLoopback` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
+| [x] | `go:452dea11:internal/assistant/assembly/mcp_server_test.go:106`<br>`TestMCPServerManagerServesAuthenticatedStreamableMCP` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/mcp_server_test.go:181`<br>`TestMCPServerManagerListenerFailurePreservesRunningState` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/mcp_server_test.go:203`<br>`TestMCPServerManagerReleasesHandlersOnReplacementDisableAndClose` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/mcp_server_test.go:257`<br>`TestMCPServerManagerReleasesHandlerOnUnexpectedServeExit` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/mcp_server_test.go:280`<br>`TestMCPServerManagerUsesLoopbackOnly` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
-| [ ] | `go:452dea11:internal/assistant/assembly/portfolio_tools_test.go:15`<br>`TestPortfolioSummaryScansAllRealAccountsAndRanksNonEmptyFirst` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
+| [x] | `go:452dea11:internal/assistant/assembly/portfolio_tools_test.go:15`<br>`TestPortfolioSummaryScansAllRealAccountsAndRanksNonEmptyFirst` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/portfolio_tools_test.go:85`<br>`TestPortfolioLayeredToolsKeepDiscoveryOverviewAndPositionsSeparate` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
-| [ ] | `go:452dea11:internal/assistant/assembly/portfolio_tools_test.go:155`<br>`TestPortfolioLayeredToolsReportValidationDiscoveryAndPartialReadStates` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
+| [x] | `go:452dea11:internal/assistant/assembly/portfolio_tools_test.go:155`<br>`TestPortfolioLayeredToolsReportValidationDiscoveryAndPartialReadStates` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/portfolio_tools_test.go:255`<br>`TestPortfolioAccountResolutionSupportsExactSuffixAndIsolation` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/portfolio_tools_test.go:288`<br>`TestPortfolioSummaryKeepsPartialAccountResultsAndDiscoveryFailuresVisible` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/portfolio_tools_test.go:338`<br>`TestAccountOrdersFiltersAccountEnvironmentMarketAndActiveStatus` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
@@ -1028,10 +1028,10 @@
 | [ ] | `go:452dea11:internal/assistant/assembly/product_adapters_test.go:26`<br>`TestProductToolInputHelpersCompleteBranches` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/product_adapters_test.go:83`<br>`TestProductAndExecutionDispatchFailureBoundaries` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/product_adapters_test.go:155`<br>`TestProductExecutionAdapterNormalizesScreenAndCalendarV2Inputs` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
-| [ ] | `go:452dea11:internal/assistant/assembly/product_adapters_test.go:186`<br>`TestProductExecutionAdapterRejectsInvalidScreenPageAndValue` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
+| [x] | `go:452dea11:internal/assistant/assembly/product_adapters_test.go:186`<br>`TestProductExecutionAdapterRejectsInvalidScreenPageAndValue` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/product_adapters_test.go:217`<br>`TestProductExecutionAdapterCoversSpecialDispatchFailuresAndSnapshots` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/product_execution_contracts_test.go:84`<br>`TestProductExecutionAdapterPreservesProductAndExecutionBoundaries` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
-| [ ] | `go:452dea11:internal/assistant/assembly/runtime_test.go:14`<br>`TestOpenBuildsToolsServiceAndIdempotentLifecycle` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
+| [x] | `go:452dea11:internal/assistant/assembly/runtime_test.go:14`<br>`TestOpenBuildsToolsServiceAndIdempotentLifecycle` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/runtime_test.go:45`<br>`TestRuntimeDatabaseProbesUseProvidedLayout` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/runtime_test.go:55`<br>`TestOpenOwnsApplicationToolRegistration` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/runtime_test.go:74`<br>`TestHandleExposesNarrowAuditAndToolOperations` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
@@ -1051,7 +1051,7 @@
 | [ ] | `go:452dea11:internal/assistant/assembly/workflow_bridge_contracts_test.go:103`<br>`TestWorkflowManagerRejectsUnavailableServicesAcrossOperations` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/workflow_execution_injection_test.go:60`<br>`TestRuntimeUsesInjectedWorkflowExecutionForLoopChat` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/workflow_tools_error_boundaries_test.go:52`<br>`TestWorkflowToolsRemainingManagerErrorPropagation` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
-| [ ] | `go:452dea11:internal/assistant/assembly/workflow_tools_error_boundaries_test.go:103`<br>`TestWorkflowToolsRemainingSessionAndPayloadErrors` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
+| [x] | `go:452dea11:internal/assistant/assembly/workflow_tools_error_boundaries_test.go:103`<br>`TestWorkflowToolsRemainingSessionAndPayloadErrors` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/workflow_tools_test.go:15`<br>`TestWorkflowManagementToolCatalogAndApprovalMatrix` | assistant_workflow | 普通边界 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/workflow_tools_test.go:68`<br>`TestWorkflowRunWaitReturnsBoundedStatusEnvelope` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
 | [ ] | `go:452dea11:internal/assistant/assembly/workflow_tools_test.go:86`<br>`TestWorkflowRunWaitHonorsDeadlineAndCancellation` | assistant_workflow | 高风险 | `crates/jftrade-assistant` |
@@ -1768,14 +1768,14 @@
 | [ ] | `go:452dea11:internal/backtest/business_test.go:12`<br>`TestServiceQueryMethodsHandleNilStoresAndFullList` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/business_test.go:59`<br>`TestServiceCoverageAndNormalizationBoundaries` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/historical_source_test.go:59`<br>`TestHistoricalKLineSyncerPaginatesBackwardAndIsolatesProvider` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
-| [ ] | `go:452dea11:internal/backtest/historical_source_test.go:111`<br>`TestHistoricalKLineSyncerCancelsInFlightProviderPage` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
-| [ ] | `go:452dea11:internal/backtest/historical_source_test.go:147`<br>`TestHistoricalKLineSyncerRetriesTransientPageAndRejectsCapabilitiesDuringPreflight` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
-| [ ] | `go:452dea11:internal/backtest/historical_source_test.go:181`<br>`TestHistoricalKLineSyncerRejectsEmptyProviderResult` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
+| [x] | `go:452dea11:internal/backtest/historical_source_test.go:111`<br>`TestHistoricalKLineSyncerCancelsInFlightProviderPage` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
+| [x] | `go:452dea11:internal/backtest/historical_source_test.go:147`<br>`TestHistoricalKLineSyncerRetriesTransientPageAndRejectsCapabilitiesDuringPreflight` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
+| [x] | `go:452dea11:internal/backtest/historical_source_test.go:181`<br>`TestHistoricalKLineSyncerRejectsEmptyProviderResult` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/historical_source_test.go:198`<br>`TestValidateHistoricalKLineSyncAllowsMissingCapabilityValidator` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/historical_source_test.go:204`<br>`TestHistoricalKLineSyncerValidatesLifecycleAndTerminalProviderFailures` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
-| [ ] | `go:452dea11:internal/backtest/historical_source_test.go:268`<br>`TestHistoricalKLineSyncerRejectsBrokenPagination` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
+| [x] | `go:452dea11:internal/backtest/historical_source_test.go:268`<br>`TestHistoricalKLineSyncerRejectsBrokenPagination` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/historical_source_test.go:309`<br>`TestHistoricalCandleConversionRejectsInvalidFieldsAndDefaultsVolume` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
-| [ ] | `go:452dea11:internal/backtest/historical_source_test.go:341`<br>`TestHistoricalProviderRetryExhaustionAndTimerCancellation` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
+| [x] | `go:452dea11:internal/backtest/historical_source_test.go:341`<br>`TestHistoricalProviderRetryExhaustionAndTimerCancellation` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/input_and_readiness_validation_test.go:14`<br>`TestBacktestDateRangeRejectsIncompleteAndInvalidMarketInputs` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/input_and_readiness_validation_test.go:53`<br>`TestBacktestDataPreparationRejectsInvalidCandidatesBeforeStartingSync` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/input_and_readiness_validation_test.go:87`<br>`TestBacktestProviderOverrideValidationAndResolution` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
@@ -1786,18 +1786,18 @@
 | [ ] | `go:452dea11:internal/backtest/input_and_readiness_validation_test.go:191`<br>`TestResultViewValidationRejectsMalformedWindowsAndResolutions` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/input_and_readiness_validation_test.go:218`<br>`TestDataReadinessPropagatesCoverageFailuresAndExistingSyncTerminalStates` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/input_and_readiness_validation_test.go:307`<br>`TestDataReadinessPinsProviderAcrossCoverageAndSyncAcceptance` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
-| [ ] | `go:452dea11:internal/backtest/recovery_test.go:11`<br>`TestBacktestExecutionPersistsFailureWhenRunnerReturnsNil` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
-| [ ] | `go:452dea11:internal/backtest/recovery_test.go:27`<br>`TestBacktestExecutionRecoversRunnerPanicIntoFailedRun` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
-| [ ] | `go:452dea11:internal/backtest/recovery_test.go:45`<br>`TestStartScriptRejectsBlankResearchScript` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
+| [x] | `go:452dea11:internal/backtest/recovery_test.go:11`<br>`TestBacktestExecutionPersistsFailureWhenRunnerReturnsNil` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
+| [x] | `go:452dea11:internal/backtest/recovery_test.go:27`<br>`TestBacktestExecutionRecoversRunnerPanicIntoFailedRun` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
+| [x] | `go:452dea11:internal/backtest/recovery_test.go:45`<br>`TestStartScriptRejectsBlankResearchScript` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/result_view_aggregation_test.go:10`<br>`TestResultViewExposesWarningsAndFiltersChartSeries` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/result_view_aggregation_test.go:84`<br>`TestResultViewAggregationDropsDamagedCandlesWithoutInventingVolume` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/result_view_test.go:12`<br>`TestResultViewRunPayloadPreservesProviderAndExecutionMetadata` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/result_view_test.go:34`<br>`TestResultViewOrdersLogsAndErrorsUseWindowAndCursor` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/result_view_test.go:122`<br>`TestResultViewParsingAndResolutionBoundaries` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/result_view_test.go:199`<br>`TestResultViewCandlesFiltersInvalidTimesAndAggregatesVolumeBoundaries` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
-| [ ] | `go:452dea11:internal/backtest/result_view_test.go:223`<br>`TestResultViewRejectsBadRequestsAndPreservesEmptyRunShape` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
+| [x] | `go:452dea11:internal/backtest/result_view_test.go:223`<br>`TestResultViewRejectsBadRequestsAndPreservesEmptyRunShape` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/result_view_test.go:310`<br>`TestResultViewSummaryPayloadIncludesRunMetadataAndLatestDiagnostics` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
-| [ ] | `go:452dea11:internal/backtest/run_failure_recovery_test.go:26`<br>`TestBacktestStartDoesNotLeakLifecycleTaskWhenQueuePersistenceFails` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
+| [x] | `go:452dea11:internal/backtest/run_failure_recovery_test.go:26`<br>`TestBacktestStartDoesNotLeakLifecycleTaskWhenQueuePersistenceFails` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/run_failure_recovery_test.go:53`<br>`TestBacktestPreparationRejectsInvalidInstrumentAndWarmupPlan` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/run_failure_recovery_test.go:81`<br>`TestBacktestKeepsTerminalStateWhenRunningTransitionCannotPersist` | backtest_calendar | 高风险 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:internal/backtest/service_pineworker_test.go:12`<br>`TestServiceDefaultBacktestRequiresPineWorkerRunner` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
@@ -2069,9 +2069,9 @@
 | [ ] | `go:452dea11:pkg/backtest/trading_costs_test.go:248`<br>`TestBacktestFeeEngineAppliesUSBrokerCapAndSellSideMarketFees` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:pkg/backtest/trading_costs_test.go:275`<br>`TestBacktestFeeEngineAppliesPerOrderMinimumIncrementally` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
 | [ ] | `go:452dea11:pkg/backtest/trading_costs_test.go:301`<br>`TestScriptCommissionMapsToBrokerFeesOnly` | backtest_calendar | 普通边界 | `crates/jftrade-backtest, crates/jftrade-calendar` |
-| [ ] | `go:452dea11:internal/integration/futu/candle_sessions_test.go:11`<br>`TestMarketSessionsForCandleSessions` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/integration/futu/candle_sessions_test.go:11`<br>`TestMarketSessionsForCandleSessions` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_opend_test.go:154`<br>`TestMarketDataRuntimeQueryAndSubscriptionWrappers` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
-| [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_opend_test.go:226`<br>`TestMarketDataRuntimePreservesRealtimeTicksWhenDelayedFallbackFails` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/integration/futu/marketdata_runtime_opend_test.go:226`<br>`TestMarketDataRuntimePreservesRealtimeTicksWhenDelayedFallbackFails` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_opend_test.go:275`<br>`TestTranslateSubscriptionRequiredErrorPreservesBrokerNeutralLeaseDetails` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:27`<br>`TestMarketDataRuntimeCloseWaitsForEnsureAndDoesNotRevive` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:85`<br>`TestMarketDataRuntimeCloseReturnsActiveExchangeFailureIdempotently` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
@@ -2079,20 +2079,20 @@
 | [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:163`<br>`TestMarketDataRuntimeDoesNotPublishExchangeWhenConfigChangesDuringCreate` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:196`<br>`TestMarketDataRuntimeNilAndClosedLifecycleBoundaries` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:220`<br>`TestTickFromTradeProducesBrokerNeutralPushTick` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
-| [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:267`<br>`TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:267`<br>`TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:318`<br>`TestTickFromTickerPreservesHKPreviousCloseDuringLunchBreak` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
-| [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:364`<br>`TestTickFromTradeInheritsLatestQuoteFieldsThroughCache` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:364`<br>`TestTickFromTradeInheritsLatestQuoteFieldsThroughCache` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:432`<br>`TestTickFromTickerReclassifiesUSRegularBoundary` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
-| [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:452`<br>`TestMarketDataRuntimeExchangeResetAndStreamLifecycle` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:452`<br>`TestMarketDataRuntimeExchangeResetAndStreamLifecycle` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:591`<br>`TestMarketDataRuntimeReplacesAnExchangeWhenItsConfigKeyChanges` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
-| [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:613`<br>`TestMarketDataRuntimeFiltersFallbackInstrumentsFromPushStream` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:613`<br>`TestMarketDataRuntimeFiltersFallbackInstrumentsFromPushStream` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:655`<br>`TestMarketDataRuntimeUnavailableQueryHelpers` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:712`<br>`TestTickFromSnapshotMapsExtendedQuoteFields` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
-| [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:824`<br>`TestFallbackTickerMapProjectsOnlyRequestedUsableSnapshots` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
-| [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:869`<br>`TestFallbackSnapshotConversionRejectsInvalidValuesAndUsesClassification` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:824`<br>`TestFallbackTickerMapProjectsOnlyRequestedUsableSnapshots` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:869`<br>`TestFallbackSnapshotConversionRejectsInvalidValuesAndUsesClassification` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:internal/integration/futu/marketdata_runtime_test.go:937`<br>`TestMarketDataRuntimeQueriesDelayedSnapshotsAlongsideRealtimeQuotes` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
-| [ ] | `go:452dea11:internal/integration/futu/notifications_test.go:13`<br>`TestLiveNotificationFromResponseRoutesProtocolPayloadsToNeutralCategories` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
-| [ ] | `go:452dea11:internal/integration/futu/notifications_test.go:98`<br>`TestNeutralNotificationBuildersHandleNilAndStatusTransitions` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/integration/futu/notifications_test.go:13`<br>`TestLiveNotificationFromResponseRoutesProtocolPayloadsToNeutralCategories` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
+| [x] | `go:452dea11:internal/integration/futu/notifications_test.go:98`<br>`TestNeutralNotificationBuildersHandleNilAndStatusTransitions` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:internal/integration/futu/notifications_test.go:135`<br>`TestNotificationLabelsCoverEverySupportedProgramAndGatewayState` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:internal/integration/futu/notifications_test.go:207`<br>`TestNotificationAndQuoteRightLabelsRemainStable` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:internal/integration/futu/order_updates_test.go:59`<br>`TestOrderUpdatesAdapterConvertsPushesAndStopsOnce` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
@@ -2593,18 +2593,18 @@
 | [ ] | `go:452dea11:pkg/futu/watchlist_reader_test.go:89`<br>`TestConvertFutuWatchlistSecuritiesPreservesCanonicalIDAndBrokerAlias` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:pkg/futu/watchlist_reader_test.go:113`<br>`TestFutuWatchlistFreshReadBypassesAndReplacesGroupAndMemberCaches` | futu_opend | 高风险 | `crates/jftrade-integration-futu` |
 | [ ] | `go:452dea11:pkg/futu/watchlist_reader_test.go:164`<br>`TestFutuWatchlistFreshMemberReadRechecksRemoteAmbiguity` | futu_opend | 普通边界 | `crates/jftrade-integration-futu` |
-| [ ] | `go:452dea11:internal/marketdata/broker_candles_test.go:12`<br>`TestBrokerKLineCandlesResponseProjectsStrictPage` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
-| [ ] | `go:452dea11:internal/marketdata/broker_candles_test.go:51`<br>`TestBrokerKLineCandlesResponseHandlesTerminalAndBoundedPages` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
+| [x] | `go:452dea11:internal/marketdata/broker_candles_test.go:12`<br>`TestBrokerKLineCandlesResponseProjectsStrictPage` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
+| [x] | `go:452dea11:internal/marketdata/broker_candles_test.go:51`<br>`TestBrokerKLineCandlesResponseHandlesTerminalAndBoundedPages` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
 | [ ] | `go:452dea11:internal/marketdata/broker_candles_test.go:77`<br>`TestBrokerKLineCandlesResponseRejectsInvalidProviderRows` | marketdata_quotes | 普通边界 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
-| [ ] | `go:452dea11:internal/marketdata/broker_candles_test.go:109`<br>`TestBrokerKLineHelpersClassifySessionsAndNumbers` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
-| [ ] | `go:452dea11:internal/marketdata/broker_candles_test.go:137`<br>`TestBrokerKLinePaginationRejectsInvalidBoundedAndPagedMetadata` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
-| [ ] | `go:452dea11:internal/marketdata/cache_test.go:12`<br>`TestCacheDeduplicatesPromotesAndInherits` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
-| [ ] | `go:452dea11:internal/marketdata/cache_test.go:76`<br>`TestCacheFreshnessRetentionAndMaximum` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
-| [ ] | `go:452dea11:internal/marketdata/cache_test.go:103`<br>`TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
-| [ ] | `go:452dea11:internal/marketdata/cache_test.go:138`<br>`TestCachePromotesUSRegularCloseWhenAfterHoursTradeArrives` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
-| [ ] | `go:452dea11:internal/marketdata/cache_test.go:185`<br>`TestCacheRetainsNewExtendedQuoteWhenPriceIsUnchanged` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
-| [ ] | `go:452dea11:internal/marketdata/cache_test.go:210`<br>`TestTickCandlesVolumeWindowAndLimit` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
-| [ ] | `go:452dea11:internal/marketdata/cache_test.go:241`<br>`TestTickCandlesUsesExplicitVolumeDeltaAcrossTradingDays` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
+| [x] | `go:452dea11:internal/marketdata/broker_candles_test.go:109`<br>`TestBrokerKLineHelpersClassifySessionsAndNumbers` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
+| [x] | `go:452dea11:internal/marketdata/broker_candles_test.go:137`<br>`TestBrokerKLinePaginationRejectsInvalidBoundedAndPagedMetadata` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
+| [x] | `go:452dea11:internal/marketdata/cache_test.go:12`<br>`TestCacheDeduplicatesPromotesAndInherits` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
+| [x] | `go:452dea11:internal/marketdata/cache_test.go:76`<br>`TestCacheFreshnessRetentionAndMaximum` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
+| [x] | `go:452dea11:internal/marketdata/cache_test.go:103`<br>`TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
+| [x] | `go:452dea11:internal/marketdata/cache_test.go:138`<br>`TestCachePromotesUSRegularCloseWhenAfterHoursTradeArrives` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
+| [x] | `go:452dea11:internal/marketdata/cache_test.go:185`<br>`TestCacheRetainsNewExtendedQuoteWhenPriceIsUnchanged` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
+| [x] | `go:452dea11:internal/marketdata/cache_test.go:210`<br>`TestTickCandlesVolumeWindowAndLimit` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
+| [x] | `go:452dea11:internal/marketdata/cache_test.go:241`<br>`TestTickCandlesUsesExplicitVolumeDeltaAcrossTradingDays` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
 | [ ] | `go:452dea11:internal/marketdata/cache_test.go:261`<br>`TestSerializationPreservesNullExtendedAndStringPrices` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
 | [ ] | `go:452dea11:internal/marketdata/cache_test.go:301`<br>`TestServiceUsesSingleCacheForSnapshotCandlesAndLatest` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
 | [ ] | `go:452dea11:internal/marketdata/cache_test.go:337`<br>`TestServiceTickCandleFallsBackToRetainedCache` | marketdata_quotes | 高风险 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
@@ -2809,7 +2809,7 @@
 | [ ] | `go:452dea11:pkg/market/us/us_test.go:56`<br>`TestUSTradingCalendarEdgeBoundaries` | marketdata_quotes | 普通边界 | `crates/jftrade-marketdata, crates/jftrade-integration-marketdata-helper` |
 | [ ] | `go:452dea11:cmd/check-go-coverage/changed_lines_analysis_test.go:42`<br>`TestParseChangedGoLinesCollectsAddedAndModifiedHunks` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/check-go-coverage/changed_lines_analysis_test.go:64`<br>`TestRepoRelativeProfilePathKeepsNestedInternalUnderPackageRoot` | other | 普通边界 | `待人工归类` |
-| [ ] | `go:452dea11:cmd/check-go-coverage/changed_lines_analysis_test.go:71`<br>`TestParseChangedGoLinesReportsPureRenameWithoutInventingChangedStatements` | other | 高风险 | `待人工归类` |
+| [x] | `go:452dea11:cmd/check-go-coverage/changed_lines_analysis_test.go:71`<br>`TestParseChangedGoLinesReportsPureRenameWithoutInventingChangedStatements` | other | 高风险 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/check-go-coverage/changed_lines_analysis_test.go:82`<br>`TestParseChangedGoLinesIgnoresDeletedFiles` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/check-go-coverage/changed_lines_analysis_test.go:96`<br>`TestParseChangedGoLinesRejectsMalformedHunk` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/check-go-coverage/changed_lines_analysis_test.go:102`<br>`TestParseGitDiffPathSupportsQuotedPathsAndRejectsTraversal` | other | 普通边界 | `待人工归类` |
@@ -2839,7 +2839,7 @@
 | [ ] | `go:452dea11:cmd/check-go-coverage/profile_analysis_test.go:46`<br>`TestAnalyzeProfilesNormalizesWindowsSeparators` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/check-go-coverage/profile_analysis_test.go:59`<br>`TestAnalyzeProfilesExcludesOnlyFutuTestSupportPackage` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/check-go-coverage/profile_analysis_test.go:85`<br>`TestCoverageStatsPercentageAndPackageScopeBoundaries` | other | 普通边界 | `待人工归类` |
-| [ ] | `go:452dea11:cmd/check-go-coverage/profile_analysis_test.go:109`<br>`TestAnalyzeProfilesRejectsEmptyBusinessCoverage` | other | 高风险 | `待人工归类` |
+| [x] | `go:452dea11:cmd/check-go-coverage/profile_analysis_test.go:109`<br>`TestAnalyzeProfilesRejectsEmptyBusinessCoverage` | other | 高风险 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/check-go-coverage/profile_analysis_test.go:120`<br>`TestAnalyzeProfilesRetainsRequiredCriticalScopesWithoutProfileData` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/check-go-coverage/profile_analysis_test.go:137`<br>`TestExclusionRulesAreExplicitAndDoNotHideBackendEntrypoints` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/check-go-coverage/profile_analysis_test.go:173`<br>`TestPackageScopeIncludesAPICommand` | other | 普通边界 | `待人工归类` |
@@ -2904,7 +2904,7 @@
 | [ ] | `go:452dea11:cmd/jftrade-desktop/desktop_startup_test.go:15`<br>`TestDesktopStartupWindowStatePrecedesAPIStartup` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/jftrade-desktop/desktop_startup_test.go:29`<br>`TestDesktopStartupPublishesReadyAndClosesResources` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/jftrade-desktop/desktop_startup_test.go:67`<br>`TestDesktopStartupFailureUsesSafeMessage` | other | 普通边界 | `待人工归类` |
-| [ ] | `go:452dea11:cmd/jftrade-desktop/desktop_startup_test.go:93`<br>`TestDesktopShutdownCancelsStartupAndReclaimsLateResources` | other | 高风险 | `待人工归类` |
+| [x] | `go:452dea11:cmd/jftrade-desktop/desktop_startup_test.go:93`<br>`TestDesktopShutdownCancelsStartupAndReclaimsLateResources` | other | 高风险 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/jftrade-desktop/desktop_startup_test.go:124`<br>`TestDesktopShutdownIsIdempotent` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/jftrade-desktop/desktop_updates_test.go:9`<br>`TestDesktopUpdateServiceSelectsLatestStableDesktopRelease` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/jftrade-desktop/desktop_updates_test.go:33`<br>`TestDesktopUpdateServiceDisabledForDevelopment` | other | 普通边界 | `待人工归类` |
@@ -2918,7 +2918,7 @@
 | [ ] | `go:452dea11:cmd/jftrade-desktop/main_test.go:66`<br>`TestDesktopRuntimeConfigDisablesAuth` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/jftrade-desktop/main_test.go:93`<br>`TestDesktopAssetHandlerOverridesRuntimeConfig` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/jftrade-desktop/main_test.go:110`<br>`TestDesktopAssetHandlerServesIndexForSPARoute` | other | 普通边界 | `待人工归类` |
-| [ ] | `go:452dea11:cmd/jftrade-desktop/main_test.go:131`<br>`TestDesktopAssetHandlerDoesNotFallbackForMissingStaticAsset` | other | 高风险 | `待人工归类` |
+| [x] | `go:452dea11:cmd/jftrade-desktop/main_test.go:131`<br>`TestDesktopAssetHandlerDoesNotFallbackForMissingStaticAsset` | other | 高风险 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/jftrade-desktop/main_test.go:149`<br>`TestDesktopTrayMenuLabels` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/jftrade-desktop/main_test.go:166`<br>`TestDesktopLogWindowOptionsUseVueRoute` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/jftrade-desktop/main_test.go:179`<br>`TestDesktopAssetHandlerServesLogViewer` | other | 普通边界 | `待人工归类` |
@@ -2930,17 +2930,17 @@
 | [ ] | `go:452dea11:cmd/jftrade-desktop/main_test.go:317`<br>`TestSanitizeDesktopExternalURL` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/jftrade-desktop/main_test.go:335`<br>`TestDesktopLogManagerWritesOriginalAndRotatesByDay` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/jftrade-desktop/main_test.go:375`<br>`TestDesktopLogLevelParsing` | other | 普通边界 | `待人工归类` |
-| [ ] | `go:452dea11:cmd/jftrade-desktop/main_test.go:395`<br>`TestListDesktopLogDaysAndReadsFilteredPage` | other | 高风险 | `待人工归类` |
-| [ ] | `go:452dea11:cmd/jftrade-desktop/main_test.go:426`<br>`TestDesktopLogPageCapsLimitAndPaginatesAllLines` | other | 高风险 | `待人工归类` |
-| [ ] | `go:452dea11:cmd/jftrade-desktop/main_test.go:464`<br>`TestDesktopLogPageTailOffsetReturnsLastPageInFileOrder` | other | 高风险 | `待人工归类` |
-| [ ] | `go:452dea11:cmd/jftrade-desktop/main_test.go:506`<br>`TestDesktopLogPageTailOffsetAppliesFiltersBeforePaging` | other | 高风险 | `待人工归类` |
-| [ ] | `go:452dea11:cmd/jftrade-desktop/main_test.go:523`<br>`TestListDesktopLogDaysMissingDirReturnsEmpty` | other | 高风险 | `待人工归类` |
+| [x] | `go:452dea11:cmd/jftrade-desktop/main_test.go:395`<br>`TestListDesktopLogDaysAndReadsFilteredPage` | other | 高风险 | `待人工归类` |
+| [x] | `go:452dea11:cmd/jftrade-desktop/main_test.go:426`<br>`TestDesktopLogPageCapsLimitAndPaginatesAllLines` | other | 高风险 | `待人工归类` |
+| [x] | `go:452dea11:cmd/jftrade-desktop/main_test.go:464`<br>`TestDesktopLogPageTailOffsetReturnsLastPageInFileOrder` | other | 高风险 | `待人工归类` |
+| [x] | `go:452dea11:cmd/jftrade-desktop/main_test.go:506`<br>`TestDesktopLogPageTailOffsetAppliesFiltersBeforePaging` | other | 高风险 | `待人工归类` |
+| [x] | `go:452dea11:cmd/jftrade-desktop/main_test.go:523`<br>`TestListDesktopLogDaysMissingDirReturnsEmpty` | other | 高风险 | `待人工归类` |
 | [ ] | `go:452dea11:cmd/jftrade-desktop/main_test.go:533`<br>`TestDesktopOpenFolderCommand` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:internal/buildinfo/buildinfo_test.go:8`<br>`TestSnapshotTrimsBuildMetadataAndDefaultsBuildTime` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:internal/datamanagement/maintenance_test.go:9`<br>`TestMaintenanceRegistryDispatchesOnlyDeclaredCapabilities` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:internal/datamanagement/maintenance_test.go:33`<br>`TestMaintenanceRegistryFailsClosedForMissingCapabilities` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:internal/datamanagement/maintenance_test.go:46`<br>`TestBusyCheckersReturnTheFirstOwnedActivityReason` | other | 普通边界 | `待人工归类` |
-| [ ] | `go:452dea11:internal/datamanagement/service_test.go:44`<br>`TestServiceFallbacks` | other | 高风险 | `待人工归类` |
+| [x] | `go:452dea11:internal/datamanagement/service_test.go:44`<br>`TestServiceFallbacks` | other | 高风险 | `待人工归类` |
 | [ ] | `go:452dea11:internal/datamanagement/service_test.go:71`<br>`TestServiceDelegatesTypedRequests` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:internal/datamanagement/service_test.go:101`<br>`TestServicePreservesBackendErrors` | other | 普通边界 | `待人工归类` |
 | [ ] | `go:452dea11:internal/desktop/notification_policy_test.go:10`<br>`TestShouldForwardSystemNotification` | other | 普通边界 | `待人工归类` |
@@ -3485,12 +3485,12 @@
 | [ ] | `go:452dea11:internal/settings/market_data_test.go:99`<br>`TestMarketDataProviderRetriesDegradedCurrentSelection` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/settings/market_data_test.go:143`<br>`TestMarketDataProviderSettingsAcceptAKShare` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/settings/market_data_test.go:161`<br>`TestBacktestProviderIsPreparedBeforeAtomicPersistence` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
-| [ ] | `go:452dea11:internal/settings/market_data_test.go:203`<br>`TestMarketDataProviderRuntimeRollback` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
-| [ ] | `go:452dea11:internal/settings/market_data_test.go:224`<br>`TestMarketDataProviderReportsPersistenceAndRollbackFailures` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
-| [ ] | `go:452dea11:internal/settings/market_data_test.go:252`<br>`TestMarketDataProviderReadsWaitForRuntimeRollback` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
+| [x] | `go:452dea11:internal/settings/market_data_test.go:203`<br>`TestMarketDataProviderRuntimeRollback` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
+| [x] | `go:452dea11:internal/settings/market_data_test.go:224`<br>`TestMarketDataProviderReportsPersistenceAndRollbackFailures` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
+| [x] | `go:452dea11:internal/settings/market_data_test.go:252`<br>`TestMarketDataProviderReadsWaitForRuntimeRollback` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/settings/persistence_and_mcp_failures_test.go:55`<br>`TestServiceReportsPersistenceAndMCPFailures` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/settings/persistence_and_mcp_failures_test.go:90`<br>`TestServiceRollsBackMCPOnSaveFailure` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
-| [ ] | `go:452dea11:internal/settings/persistence_and_mcp_failures_test.go:125`<br>`TestServicePreservesSecurityAndMCPFallbacks` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
+| [x] | `go:452dea11:internal/settings/persistence_and_mcp_failures_test.go:125`<br>`TestServicePreservesSecurityAndMCPFallbacks` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/settings/service_managed_accounts_test.go:13`<br>`TestServiceCreateManagedAccountNormalizesClientFields` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/settings/service_managed_accounts_test.go:35`<br>`TestServiceNotificationAndMCPStatusAccessors` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/settings/service_managed_accounts_test.go:58`<br>`TestServiceSystemNotificationTestUsesNarrowPublisherAndFailsClosed` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
@@ -3505,7 +3505,7 @@
 | [ ] | `go:452dea11:internal/settings/service_test.go:318`<br>`TestSaveMCPServerSettingsRollsBackWhenListenerUpdateFails` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/settings/service_test.go:344`<br>`TestSaveMCPServerSettingsValidatesTokenAndPort` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/settings/service_test.go:361`<br>`TestConcurrentSecuritySavesPreserveNewestPasswordAndCallbackOrder` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
-| [ ] | `go:452dea11:internal/settings/service_test.go:435`<br>`TestDefaultCallbacksReturnEmptyMaps` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
+| [x] | `go:452dea11:internal/settings/service_test.go:435`<br>`TestDefaultCallbacksReturnEmptyMaps` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/settings/service_test.go:446`<br>`TestSaveIntegrationPassesStructuredConfigWithoutChangingRuntimeEnv` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/settings/service_test.go:480`<br>`TestServiceDelegatesGettersAndSimpleSavers` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/settings/service_test.go:565`<br>`TestServiceDelegatesProvidersAndLifecycle` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
@@ -3513,15 +3513,15 @@
 | [ ] | `go:452dea11:internal/watchlist/futu/source_boundaries_test.go:99`<br>`TestFutuWatchlistFreshAndRemoteIDRemainingBoundaries` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/watchlist/futu/source_boundaries_test.go:137`<br>`TestFutuSnapshotRemainingProviderRateLimitAndSplitPaths` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/watchlist/futu/source_boundaries_test.go:181`<br>`TestWatchlistQuoteRemainingFormattingAndTimeBoundaries` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
-| [ ] | `go:452dea11:internal/watchlist/futu/source_test.go:44`<br>`TestFutuWatchlistReaderMarksDuplicateNamesAmbiguousAndCachesReads` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
+| [x] | `go:452dea11:internal/watchlist/futu/source_test.go:44`<br>`TestFutuWatchlistReaderMarksDuplicateNamesAmbiguousAndCachesReads` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/watchlist/futu/source_test.go:83`<br>`TestRemoteMembersKeepBrokerCodeAndSecurityIDAsSeparateAliases` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
-| [ ] | `go:452dea11:internal/watchlist/futu/source_test.go:174`<br>`TestFutuWatchlistSnapshotDoesNotSplitGlobalOrCanceledFailures` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
-| [ ] | `go:452dea11:internal/watchlist/futu/source_test.go:221`<br>`TestFutuWatchlistSnapshotUsesDelayedFallbackWhenSubscriptionQuotaIsFull` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
+| [x] | `go:452dea11:internal/watchlist/futu/source_test.go:174`<br>`TestFutuWatchlistSnapshotDoesNotSplitGlobalOrCanceledFailures` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
+| [x] | `go:452dea11:internal/watchlist/futu/source_test.go:221`<br>`TestFutuWatchlistSnapshotUsesDelayedFallbackWhenSubscriptionQuotaIsFull` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/watchlist/futu/source_test.go:267`<br>`TestFutuWatchlistSnapshotUsesMarketSpecificChunksWithPerItemErrors` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/watchlist/futu/source_test.go:316`<br>`TestFutuWatchlistSnapshotIsolatesMarketPermissionFailures` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/watchlist/futu/source_test.go:357`<br>`TestFutuWatchlistSnapshotIsolatesUnknownAndOTCSymbolErrors` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
-| [ ] | `go:452dea11:internal/watchlist/futu/source_test.go:396`<br>`TestWatchlistQuotePreservesSnapshotDisplayMetadataAndAvoidsUnknownTimezoneGuess` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
-| [ ] | `go:452dea11:internal/watchlist/futu/source_test.go:418`<br>`TestWatchlistQuoteSelectsExtendedSessionPriceAndChange` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
+| [x] | `go:452dea11:internal/watchlist/futu/source_test.go:396`<br>`TestWatchlistQuotePreservesSnapshotDisplayMetadataAndAvoidsUnknownTimezoneGuess` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
+| [x] | `go:452dea11:internal/watchlist/futu/source_test.go:418`<br>`TestWatchlistQuoteSelectsExtendedSessionPriceAndChange` | settings_watchlist | 高风险 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/watchlist/futu/source_test.go:445`<br>`TestFutuWatchlistSourceIdentityDoesNotUseTradingAccount` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/watchlist/futu/source_test.go:459`<br>`TestFutuWatchlistSourceReportsUnavailableRuntimeBeforeDiscovery` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
 | [ ] | `go:452dea11:internal/watchlist/futu/source_test.go:470`<br>`TestFutuWatchlistSourceReportsFailedOpenDProbe` | settings_watchlist | 普通边界 | `crates/jftrade-settings, crates/jftrade-watchlist` |
@@ -3556,22 +3556,22 @@
 | [ ] | `go:452dea11:internal/store/backtest/store_failure_test.go:15`<br>`TestStoreRejectsUnavailableIncompatibleAndCorruptDatabases` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/backtest/store_failure_test.go:62`<br>`TestStoreRollsBackMemoryWhenClosedDatabaseRejectsWrites` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/backtest/store_failure_test.go:97`<br>`TestStoreFullReadHandlesMissingRowsAndInvalidResults` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
-| [ ] | `go:452dea11:internal/store/backtest/store_failure_test.go:121`<br>`TestStoreCanceledMaintenanceDoesNotMutateRuns` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
+| [x] | `go:452dea11:internal/store/backtest/store_failure_test.go:121`<br>`TestStoreCanceledMaintenanceDoesNotMutateRuns` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/backtest/store_failure_test.go:140`<br>`TestPersistenceDecodersRejectInvalidPayloads` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/backtest/store_test.go:12`<br>`TestStoreSnapshotsDoNotMutateRuns` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/backtest/store_test.go:52`<br>`TestStorePersistsResultsAndRecoversTransientRuns` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/backtest/store_test.go:138`<br>`TestStoredRequestDoesNotInferMissingDateMetadata` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/backtest/store_test.go:154`<br>`TestDerivePathHonorsOverrideAndSettingsDirectory` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
-| [ ] | `go:452dea11:internal/store/backtest/store_test.go:168`<br>`TestInMemoryStoreImplementsRunLifecycleAndCancellation` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
-| [ ] | `go:452dea11:internal/store/backtest/sync_tasks_test.go:12`<br>`TestSyncTaskStoreReturnsSnapshotsAndCancelsProgress` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
+| [x] | `go:452dea11:internal/store/backtest/store_test.go:168`<br>`TestInMemoryStoreImplementsRunLifecycleAndCancellation` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
+| [x] | `go:452dea11:internal/store/backtest/sync_tasks_test.go:12`<br>`TestSyncTaskStoreReturnsSnapshotsAndCancelsProgress` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/backtest/sync_tasks_test.go:48`<br>`TestSyncTaskStoreFinishAndNilProgressBoundaries` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/exchangecalendar/snapshot_load_failures_test.go:12`<br>`TestLoadSnapshotsReportsWalkAndReadFailures` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/exchangecalendar/store_boundaries_test.go:13`<br>`TestCalendarStoreRejectsInvalidSnapshotPersistence` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/exchangecalendar/store_boundaries_test.go:31`<br>`TestCalendarStoreReportsUnavailableSnapshotDirectory` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
-| [ ] | `go:452dea11:internal/store/exchangecalendar/store_boundaries_test.go:45`<br>`TestCalendarStoreEmptyLoadAndDeleteAreIdempotent` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
+| [x] | `go:452dea11:internal/store/exchangecalendar/store_boundaries_test.go:45`<br>`TestCalendarStoreEmptyLoadAndDeleteAreIdempotent` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/exchangecalendar/store_snapshot_failures_test.go:31`<br>`TestSaveSnapshotUsesAtomicReplacement` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/exchangecalendar/store_snapshot_failures_test.go:73`<br>`TestStoreRootAndNilSafety` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
-| [ ] | `go:452dea11:internal/store/exchangecalendar/store_snapshot_failures_test.go:95`<br>`TestSaveSnapshotValidatesInputsAndResolvesYearFallbacks` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
+| [x] | `go:452dea11:internal/store/exchangecalendar/store_snapshot_failures_test.go:95`<br>`TestSaveSnapshotValidatesInputsAndResolvesYearFallbacks` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/exchangecalendar/store_snapshot_failures_test.go:136`<br>`TestDeleteSnapshotIgnoresMissingFilesAndReturnsRealRemoveErrors` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/exchangecalendar/store_snapshot_failures_test.go:169`<br>`TestWriteSnapshotPropagatesTemporaryFileDurabilityFailures` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/exchangecalendar/store_snapshot_failures_test.go:199`<br>`TestWriteSnapshotDefaultHooksAndDirectorySyncErrors` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
@@ -3590,16 +3590,16 @@
 | [ ] | `go:452dea11:internal/store/settingsfile/market_data_test.go:113`<br>`TestNormalizeActiveMarketDataProviderFallsBackToAKShare` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/settingsfile/market_data_test.go:130`<br>`TestMarketDataProviderPersistsAKShareSelection` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/settingsfile/market_data_test.go:145`<br>`TestBacktestProviderUpgradeCopiesGlobalSelectionOnce` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
-| [ ] | `go:452dea11:internal/store/settingsfile/normalization_and_persistence_test.go:13`<br>`TestSettingsNormalizationHandlesFallbacksAndBoundaries` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
+| [x] | `go:452dea11:internal/store/settingsfile/normalization_and_persistence_test.go:13`<br>`TestSettingsNormalizationHandlesFallbacksAndBoundaries` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/settingsfile/normalization_and_persistence_test.go:53`<br>`TestSettingsInterfaceAndAccountNormalization` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/settingsfile/normalization_and_persistence_test.go:74`<br>`TestSettingsPersistenceReportsAtomicReplaceFailure` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/settingsfile/normalization_and_persistence_test.go:92`<br>`TestSettingsPersistenceRejectsAFileInItsDirectoryPath` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/settingsfile/normalization_and_persistence_test.go:114`<br>`TestSettingsStorePersistsValuesAndManagesAccountLifecycle` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/settingsfile/normalization_and_persistence_test.go:178`<br>`TestSettingsFileReportsInterfaceAndLoadFailures` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/settingsfile/persist_failures_test.go:26`<br>`TestPersistLockedPropagatesTemporaryFileDurabilityFailures` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
-| [ ] | `go:452dea11:internal/store/settingsfile/rollback_test.go:13`<br>`TestFailedSettingSavesRollbackAllRuntimeState` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
-| [ ] | `go:452dea11:internal/store/settingsfile/rollback_test.go:185`<br>`TestFailedBootstrapAndMigrationRollbackRuntimeState` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
-| [ ] | `go:452dea11:internal/store/settingsfile/rollback_test.go:232`<br>`TestFailedManagedAccountCRUDRollsBackBackingArray` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
+| [x] | `go:452dea11:internal/store/settingsfile/rollback_test.go:13`<br>`TestFailedSettingSavesRollbackAllRuntimeState` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
+| [x] | `go:452dea11:internal/store/settingsfile/rollback_test.go:185`<br>`TestFailedBootstrapAndMigrationRollbackRuntimeState` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
+| [x] | `go:452dea11:internal/store/settingsfile/rollback_test.go:232`<br>`TestFailedManagedAccountCRUDRollsBackBackingArray` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/settingsfile/store_persistence_contracts_test.go:15`<br>`TestStoreDefaultsExposePathAndNormalizedDefaults` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/settingsfile/store_persistence_contracts_test.go:63`<br>`TestMCPServerSettingsPersistVerifierWithoutPublicLeak` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/settingsfile/store_persistence_contracts_test.go:105`<br>`TestSaveAppearanceAndADKSettingsPersistNormalizedValues` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
@@ -3609,7 +3609,7 @@
 | [ ] | `go:452dea11:internal/store/settingsfile/store_persistence_contracts_test.go:261`<br>`TestSaveExchangeCalendarSettingsNormalizesPoliciesAndOverrides` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/settingsfile/store_persistence_contracts_test.go:357`<br>`TestExchangeCalendarErrorNotificationSettingPreservesExplicitFalse` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/settingsfile/store_persistence_contracts_test.go:397`<br>`TestManagedAccountLifecyclePreservesScopeAndHandlesMissingIDs` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
-| [ ] | `go:452dea11:internal/store/settingsfile/store_recovery_test.go:13`<br>`TestSettingsStoreRejectsMalformedOrUnreadableInput` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
+| [x] | `go:452dea11:internal/store/settingsfile/store_recovery_test.go:13`<br>`TestSettingsStoreRejectsMalformedOrUnreadableInput` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/settingsfile/store_recovery_test.go:27`<br>`TestEnsureBootstrapFileRepairsExistingSettingsWithoutAppearance` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/settingsfile/store_recovery_test.go:55`<br>`TestSettingsStoreReadsPersistedConfigurationBranches` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/settingsfile/store_recovery_test.go:87`<br>`TestUnknownSecurityFieldsAreIgnoredWithoutRewritingSettings` | storage_sqlite | 高风险 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
@@ -3773,18 +3773,18 @@
 | [ ] | `go:452dea11:internal/store/watchlist/store_test.go:196`<br>`TestStoreGroupUpdateAndDeletePreserveMembershipRevisionContract` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/store/watchlist/store_test.go:253`<br>`TestStoreRoundTripsSourceAndRemoteGroupSnapshots` | storage_sqlite | 普通边界 | `crates/jftrade-store-sqlite, crates/jftrade-store-settings-file, crates/jftrade-owner-lock` |
 | [ ] | `go:452dea11:internal/pineworkerassets/asset_selection_boundaries_test.go:13`<br>`TestSelectFromFSReturnsEmbeddedBundleMetadata` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
-| [ ] | `go:452dea11:internal/pineworkerassets/asset_selection_boundaries_test.go:30`<br>`TestSelectFromFSTreatsMissingAndEmptyBundlesAsUnavailable` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
+| [x] | `go:452dea11:internal/pineworkerassets/asset_selection_boundaries_test.go:30`<br>`TestSelectFromFSTreatsMissingAndEmptyBundlesAsUnavailable` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/pineworkerassets/asset_selection_boundaries_test.go:52`<br>`TestSelectFromFSReturnsUnexpectedReadError` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/pineworkerassets/asset_selection_boundaries_test.go:63`<br>`TestIsMissingAssetRecognizesOnlyNotFoundErrors` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/pineworkerassets/assets_dev_test.go:7`<br>`TestSelectReturnsUnavailableWhenAssetMissing` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/pineworkerassets/assets_release_test.go:13`<br>`TestSelectReturnsEmbeddedBundleWhenStaged` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/pineworkerassets/assets_test.go:5`<br>`TestBundleNameIsPlatformIndependent` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
-| [ ] | `go:452dea11:internal/strategy/catalog/activity_degraded_test.go:65`<br>`TestCatalogActivityReturnsEmptyPagesWhenActivityStoreIsUnavailable` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
-| [ ] | `go:452dea11:internal/strategy/catalog/catalog_boundary_behavior_test.go:34`<br>`TestCatalogActivityQueryFailureReturnsKnownEmptyPage` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
+| [x] | `go:452dea11:internal/strategy/catalog/activity_degraded_test.go:65`<br>`TestCatalogActivityReturnsEmptyPagesWhenActivityStoreIsUnavailable` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
+| [x] | `go:452dea11:internal/strategy/catalog/catalog_boundary_behavior_test.go:34`<br>`TestCatalogActivityQueryFailureReturnsKnownEmptyPage` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/strategy/catalog/catalog_boundary_behavior_test.go:58`<br>`TestCatalogActivityWriteFailureDoesNotBlockControlState` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/strategy/catalog/catalog_boundary_behavior_test.go:84`<br>`TestCatalogDefinitionSyncExplainsLatestRefreshableAndBusyStates` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/strategy/catalog/catalog_boundary_behavior_test.go:123`<br>`TestCatalogNormalizationAndClonePreserveCallerIsolation` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
-| [ ] | `go:452dea11:internal/strategy/catalog/catalog_boundary_behavior_test.go:192`<br>`TestCatalogPrivateBusinessHelpersHandleEmptyAndUnknownInputs` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
+| [x] | `go:452dea11:internal/strategy/catalog/catalog_boundary_behavior_test.go:192`<br>`TestCatalogPrivateBusinessHelpersHandleEmptyAndUnknownInputs` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/strategy/catalog/instance_lifecycle_business_test.go:11`<br>`TestCatalogInstanceCreateUpdateAndDeleteRespectStoppedBoundary` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/strategy/catalog/instance_lifecycle_business_test.go:89`<br>`TestCatalogInstanceOperationsClassifyInvalidAndMissingResources` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/strategy/catalog/instance_lifecycle_business_test.go:143`<br>`TestCatalogDefinitionRefreshPreservesPlacementAndClassifiesLinkedInstances` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
@@ -3797,17 +3797,17 @@
 | [ ] | `go:452dea11:internal/strategy/catalog/repository_failure_business_test.go:11`<br>`TestCatalogConstructionPropagatesRepositoryLoadFailure` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/strategy/catalog/repository_failure_business_test.go:19`<br>`TestCatalogFailedSavesLeaveDurableRepositorySnapshotUnchanged` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/strategy/catalog/repository_failure_business_test.go:126`<br>`TestCatalogReturnsIndependentCopiesAcrossRepositoryAndCallers` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
-| [ ] | `go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:12`<br>`TestCatalogRuntimeTransitionsPersistStateAndActivity` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
-| [ ] | `go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:52`<br>`TestCatalogRuntimeFailureReconcilesOnlyRunningInstance` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
-| [ ] | `go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:80`<br>`TestCatalogStartupReconcileResetsStaleRunningAndPausedState` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
-| [ ] | `go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:113`<br>`TestCatalogActivitySupportsPagingFilteringAndRuntimeObservationEnrichment` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
-| [ ] | `go:452dea11:internal/strategy/errors_test.go:8`<br>`TestClassifiedStrategyErrorsMatchSentinelKinds` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
+| [x] | `go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:12`<br>`TestCatalogRuntimeTransitionsPersistStateAndActivity` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
+| [x] | `go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:52`<br>`TestCatalogRuntimeFailureReconcilesOnlyRunningInstance` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
+| [x] | `go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:80`<br>`TestCatalogStartupReconcileResetsStaleRunningAndPausedState` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
+| [x] | `go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:113`<br>`TestCatalogActivitySupportsPagingFilteringAndRuntimeObservationEnrichment` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
+| [x] | `go:452dea11:internal/strategy/errors_test.go:8`<br>`TestClassifiedStrategyErrorsMatchSentinelKinds` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/strategy/instancebinding/binding_test.go:11`<br>`TestNormalizeBindingPrefersExplicitInstruments` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/strategy/instancebinding/binding_test.go:28`<br>`TestNormalizeBindingBackfillsLegacyParams` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/strategy/instancebinding/binding_test.go:65`<br>`TestApplyParamsWritesCanonicalBindingFields` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/strategy/instancebinding/binding_test.go:96`<br>`TestNormalizeBindingPreservesSupportedChartType` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/strategy/instancebinding/binding_test.go:106`<br>`TestRiskAndBindingAuditDetails` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
-| [ ] | `go:452dea11:internal/strategy/instancebinding/binding_test.go:137`<br>`TestNormalizeBrokerAccountDropsEmptyInput` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
+| [x] | `go:452dea11:internal/strategy/instancebinding/binding_test.go:137`<br>`TestNormalizeBrokerAccountDropsEmptyInput` | strategy_pine | 高风险 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/strategy/instancebinding/binding_test.go:143`<br>`TestNormalizeBindingAcceptsLegacyArrayPayloadsAndDropsInvalidEntries` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/strategy/instancebinding/binding_test.go:161`<br>`TestBindingConversionBoundaryTypes` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/strategy/instancebinding/binding_test.go:202`<br>`TestApplyParamsHandlesNilAndClearsStaleOptionalFields` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
@@ -4319,28 +4319,28 @@
 | [ ] | `go:452dea11:pkg/strategy/pineworker/types_test.go:171`<br>`TestCheckPerformanceGate` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |
 | [ ] | `go:452dea11:internal/trading/broker_account_read_failures_test.go:11`<br>`TestBrokerReadFailuresRemainVisibleAcrossAccountDataViews` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/broker_account_read_failures_test.go:87`<br>`TestFundsMapsMarketAssetsAlongsideCashBalances` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
-| [ ] | `go:452dea11:internal/trading/broker_boundaries_test.go:11`<br>`TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
+| [x] | `go:452dea11:internal/trading/broker_boundaries_test.go:11`<br>`TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/broker_boundaries_test.go:62`<br>`TestServiceBrokerReadOperationsClassifyUpstreamFailures` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/broker_boundaries_test.go:116`<br>`TestServiceBrokerWriteOperationsPropagateUpstreamFailures` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/broker_conformance_test.go:15`<br>`TestFakeBrokerConformanceAcceptedPartialFullAndOutOfOrderUpdates` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
-| [ ] | `go:452dea11:internal/trading/broker_conformance_test.go:58`<br>`TestFakeBrokerConformanceCancelAcceptedAndCancelRejected` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
+| [x] | `go:452dea11:internal/trading/broker_conformance_test.go:58`<br>`TestFakeBrokerConformanceCancelAcceptedAndCancelRejected` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/broker_conformance_test.go:107`<br>`TestFakeBrokerConformancePlaceRejectedPushBeforeQueryAndUnsupportedCapability` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/broker_test.go:186`<br>`TestServiceBrokerReadOperationsMapSnapshotsAndQueries` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
-| [ ] | `go:452dea11:internal/trading/broker_test.go:453`<br>`TestServicePortfolioAndFallbackResponses` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
-| [ ] | `go:452dea11:internal/trading/broker_test.go:533`<br>`TestServiceBrokerWriteAndTimeoutBehaviors` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
+| [x] | `go:452dea11:internal/trading/broker_test.go:453`<br>`TestServicePortfolioAndFallbackResponses` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
+| [x] | `go:452dea11:internal/trading/broker_test.go:533`<br>`TestServiceBrokerWriteAndTimeoutBehaviors` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/broker_test.go:648`<br>`TestPlaceBrokerOrderRunsPreTradeRiskBeforeBrokerSubmission` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/broker_test.go:680`<br>`TestPlaceBrokerOrderCannotBypassRiskWithImplicitRealEnvironment` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/broker_test.go:711`<br>`TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/broker_test.go:735`<br>`TestNormalizeSymbolsAndRuntimeDefaults` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/control_plane_idempotency_test.go:12`<br>`TestRealTradeControlPlaneKillSwitchReleaseIsIdempotentAndAudited` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
-| [ ] | `go:452dea11:internal/trading/control_plane_idempotency_test.go:65`<br>`TestRealTradeControlPlaneHardStopReleaseIsSingleShot` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
-| [ ] | `go:452dea11:internal/trading/control_plane_idempotency_test.go:99`<br>`TestRealTradeControlPlaneHardStopsBlockUntilEveryEntryReleased` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
+| [x] | `go:452dea11:internal/trading/control_plane_idempotency_test.go:65`<br>`TestRealTradeControlPlaneHardStopReleaseIsSingleShot` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
+| [x] | `go:452dea11:internal/trading/control_plane_idempotency_test.go:99`<br>`TestRealTradeControlPlaneHardStopsBlockUntilEveryEntryReleased` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/control_plane_state_audit_test.go:13`<br>`TestControlPlaneRetainsActivationAndBoundsRepeatedAuditEvents` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/control_plane_state_audit_test.go:75`<br>`TestControlPlaneExecutesSimulatedOrdersThroughRiskEvaluation` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
-| [ ] | `go:452dea11:internal/trading/control_plane_state_audit_test.go:99`<br>`TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
+| [x] | `go:452dea11:internal/trading/control_plane_state_audit_test.go:99`<br>`TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/control_plane_state_audit_test.go:190`<br>`TestControlPlaneKeepsStateWhenAtomicPersistenceCannotComplete` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
-| [ ] | `go:452dea11:internal/trading/control_plane_state_audit_test.go:250`<br>`TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
-| [ ] | `go:452dea11:internal/trading/execution_combo_lifecycle_test.go:15`<br>`TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
+| [x] | `go:452dea11:internal/trading/control_plane_state_audit_test.go:250`<br>`TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
+| [x] | `go:452dea11:internal/trading/execution_combo_lifecycle_test.go:15`<br>`TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/execution_combo_lifecycle_test.go:83`<br>`TestExecutionOrderRechecksRiskImmediatelyBeforeBrokerSubmission` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/execution_combo_lifecycle_test.go:110`<br>`TestExecutionEventParlayCompletePreviewAndAmountRisk` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/execution_combo_lifecycle_test.go:150`<br>`TestEventParlayRejectsCallerControlledPrice` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
@@ -4351,7 +4351,7 @@
 | [ ] | `go:452dea11:internal/trading/execution_combo_lifecycle_test.go:412`<br>`TestExecutionComboHelperBranches` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/execution_combo_lifecycle_test.go:441`<br>`TestExecutionProductPreviewAndSubmissionFailureContractsComplete` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/execution_combo_lifecycle_test.go:571`<br>`TestExecutionProductRemainingLifecycleAndUpdateHelpers` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
-| [ ] | `go:452dea11:internal/trading/execution_combo_lifecycle_test.go:635`<br>`TestExecutionDetailsResolverAndOrderUpdateCacheFailureBranches` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
+| [x] | `go:452dea11:internal/trading/execution_combo_lifecycle_test.go:635`<br>`TestExecutionDetailsResolverAndOrderUpdateCacheFailureBranches` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/execution_products_test.go:12`<br>`TestDerivativeSingleLegRequiresBrokerPreviewAndStableClientID` | trading_broker | 高风险 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/execution_products_test.go:48`<br>`TestPredictionSingleLegEligibilityUsesSecurityFirmAndUSAuthority` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |
 | [ ] | `go:452dea11:internal/trading/execution_products_test.go:85`<br>`TestSingleNonEventOrderRejectsAmountAndPredictionFields` | trading_broker | 普通边界 | `crates/jftrade-trading, crates/jftrade-broker` |

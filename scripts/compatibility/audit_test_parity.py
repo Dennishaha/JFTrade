@@ -246,6 +246,11 @@ def main():
     # curated high-value checklist. This makes the full Go baseline auditable
     # without pretending that filename-level matching proves behavior parity.
     inventory_path = "docs/history/go-to-rust/test-parity-inventory.md"
+    curated_path = "docs/history/go-to-rust/high-value-test-mapping-checklist.md"
+    curated_names = set()
+    if os.path.exists(curated_path):
+        curated = open(curated_path, encoding="utf-8").read()
+        curated_names = set(re.findall(r"<br>`(Test[A-Za-z0-9_]+)`", curated))
     rust_by_domain = {key: [crate for crate in crates] for key, _, _, crates in DOMAIN_MAPPING}
     with open(inventory_path, "w", encoding="utf-8") as fp:
         fp.write("# Go → Rust 全量测试索引\n\n")
@@ -255,7 +260,8 @@ def main():
             risk = "高风险" if test["high_risk"] else "普通边界"
             crates = ", ".join(rust_by_domain.get(test["domain"], [])) or "待人工归类"
             source = f"`go:{go_revision}:{test['file']}:{test['line']}`<br>`{test['name']}`"
-            fp.write(f"| [ ] | {source} | {test['domain']} | {risk} | `{crates}` |\n")
+            status = "[x]" if test["name"] in curated_names else "[ ]"
+            fp.write(f"| {status} | {source} | {test['domain']} | {risk} | `{crates}` |\n")
 
     print(f"\nReport written to {report_path}")
     print(f"Inventory written to {inventory_path}")
