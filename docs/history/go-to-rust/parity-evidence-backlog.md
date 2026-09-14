@@ -82,3 +82,5 @@
 - `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked`：36 项执行，36 通过，1 项跳过（nextest run `5817aea5-d89d-40ee-bf4b-1eb706127be6`）。
 
 - `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked`：1,066/1,066 通过，0 跳过（日志 `/tmp/jftrade-engine-nextest.log`，汇总耗时 120.745s）。
+
+- `pnpm run check:rust`：workspace nextest 1,862 项中 1,862 通过、2 跳过（摘要耗时 125.259s）；SQLite/backtest/provider/trading-strategy/assistant/API/desktop compatibility replay 全部通过。完整日志：`/tmp/check-rust.log`。
