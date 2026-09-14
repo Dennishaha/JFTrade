@@ -316,6 +316,12 @@ def main():
     ]
     if malformed_records:
         raise ValueError(f"invalid parity mapping records: {len(malformed_records)}")
+    invalid_commands = [
+        key for key, item in manual_details.items()
+        if re.search(r"-p\s+(jftrade-[A-Za-z0-9_-]+)", item.get("command", ""))
+        and not os.path.isdir("crates/" + re.search(r"-p\s+(jftrade-[A-Za-z0-9_-]+)", item["command"]).group(1))
+    ]
+    print(f"WARNING: {len(invalid_commands)} mappings reference nonexistent -p crates")
     exact_entries = [item.get("rust_entry") for item in mapping_values if item.get("status") == "[x]"]
     duplicate_entries = len(exact_entries) - len(set(exact_entries))
     if duplicate_entries:
