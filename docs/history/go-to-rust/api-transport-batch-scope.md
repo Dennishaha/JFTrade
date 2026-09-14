@@ -1,18 +1,22 @@
-# API / SSE / WebSocket / Transport 第一批范围
+# API、SSE、WebSocket、Transport 领域对齐批次
 
-本批次只处理 Go 分支 `internal/api/**`、`cmd/jftrade-api/**` 中属于 HTTP、SSE、WebSocket、认证和传输生命周期的测试；Assistant/Trading/Watchlist 业务语义留给各自批次。
+本批按复合键（Go 文件路径、行号、测试名）核对 5 条 P0/P1 API/Transport
+测试，并将已有 Rust 函数作为逐项证据入口。所有条目均保留为 `[~]`/`partial`：
+Rust 测试覆盖了对应协议或错误边界，但没有把不同的路由装配、认证上下文或
+业务范围误判为完整等价。
 
-## 逐项规则
+| Go 测试 | Rust 证据 | 风险与差异结论 |
+| --- | --- | --- |
+| `internal/api/marketdata/routes_boundaries_test.go:63:TestCandlesAndDepthRoutesMapProviderFailures` | `product_market_data_quote_read_tests::market_microstructure_quote_routes_preserve_provider_error_mapping` | P1 provider 错误映射。Rust 覆盖 session/decode/rate-limit 状态、错误码和 retry-after；Go 还覆盖 candles route 与 depth 参数转发，入口不同。 |
+| `internal/api/marketdata/routes_test.go:459:TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize` | `product_market_data_quote_read_tests::market_microstructure_quote_routes_reject_invalid_queries_before_reader_call` | P1 非法 query。Rust 断言 reader 不被调用；Go 还覆盖 provider/markets/security/snapshot/search/heartbeat 成功契约。 |
+| `internal/app/apiserver/servercoretest/portfolio_routes_test.go:43:TestPortfolioReconciliationEndpointsAreRemoved` | `jftrade-api::transport_contracts::unknown_portfolio_reconciliation_route_returns_json_not_found` | P0 旧写入口移除。Rust 只覆盖 cash-reconciliation 的 JSON 404；Go 同时覆盖 positions reconciliation，且认证/服务装配不同。 |
+| `internal/app/apiserver/servercoretest/system_routes_test.go:89:TestRequestObservabilityMiddlewarePropagatesRequestID` | `jftrade-api::transport_contracts::desktop_token_reaches_port_with_stable_envelope_and_request_id` | P1 request-id wire。Rust 断言合法 ID 回写、port dispatch 与 envelope；Go 验证真实 `/system/status` route，业务路径不同。 |
+| `internal/app/apiserver/webaccess/security_integration_test.go:510:TestRemovedAuthTokenRouteReturnsNotFound` | `jftrade-api::auth_session_transport_contracts::removed_auth_token_route_returns_not_found` | P0 已移除认证入口。Rust 与 Go 均断言 404；Go 先登录 cookie session，Rust 使用最小 ApiState，保留上下文差异。 |
 
-- 每项使用 `Go 文件路径:行号:测试名` 作为唯一键。
-- 只有 Rust 可执行测试函数与 Go 断言逐条一致时才标记 `function_exact`/`[x]`。
-- Rust 仅覆盖部分断言时使用 `partial`/`[~]`，记录真实入口和缺失断言；没有入口则保持 `missing`。
-- `cargo-nextest` 命令必须指向实际 crate 与测试过滤器；边界保留项不得伪造 Rust 入口。
+## 验证与后续
 
-## 当前批次基线
-
-由 `scripts/compatibility/audit_test_parity.py` 生成：API Server & Transport Wire 共 951 条 Go 测试；本批已建立 9 条 `partial` 入口证据，仍有明确缺口，未提升为 `function_exact`。现有 50 条全局 `function_exact` 证据继续接受唯一入口校验。
-
-## 完成门槛
-
-逐条阅读 Go 断言并核对 Rust 测试源码；每个新增映射附带入口、差异结论和验证命令。批次结束运行审计脚本、`pnpm run check:ai-context`、相关 crate nextest 与 `git diff --check`。
+上述每项的精确 nextest 表达式已写入
+`manual-test-mappings.json`，并由 parity audit 校验 Rust 文件和函数入口存在。
+本批不升级任何 `[x]`，也不把数量比当作覆盖率。下一批应补齐 SSE writer 的
+panic/flush/并发失败行为、CORS preflight 与 WS close 生命周期，并为 candles
+和完整 market-data read 成功路径建立独立 Rust route 测试。

@@ -1030,10 +1030,10 @@
   },
   "internal/api/marketdata/routes_boundaries_test.go:63:TestCandlesAndDepthRoutesMapProviderFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_microstructure_quote_routes_preserve_provider_error_mapping",
+    "conclusion": "部分覆盖：Rust 逐项断言 session/decode/rate-limit 错误的 HTTP 状态、错误码和 retry-after，并覆盖 depth reader；Go 同时验证 candles 与 depth 两条 Gin route 及 depth 参数转发，Rust 使用 microstructure port 且未复现 candles route，不能标记为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_microstructure_quote_routes_preserve_provider_error_mapping)'",
+    "evidence_type": "partial"
   },
   "internal/api/marketdata/routes_boundaries_test.go:97:TestMarketsRouteFailsWhenActiveProviderDescriptorIsUnavailable": {
     "status": "[~]",
@@ -1275,10 +1275,10 @@
   },
   "internal/api/marketdata/routes_test.go:459:TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_microstructure_quote_routes_reject_invalid_queries_before_reader_call",
+    "conclusion": "部分覆盖：Rust 验证 num/pageSize/date 等非法查询在 reader 调用前返回 BAD_REQUEST，并断言调用计数为零；Go 测试还覆盖 provider、markets、security、snapshot、search、heartbeat 的成功响应，范围明显更广，不能标记为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_microstructure_quote_routes_reject_invalid_queries_before_reader_call)'",
+    "evidence_type": "partial"
   },
   "internal/api/marketdata/routes_test.go:563:TestReadRoutesMapProviderAndRequestFailures": {
     "status": "[~]",
@@ -5937,10 +5937,10 @@
   },
   "internal/app/apiserver/servercoretest/portfolio_routes_test.go:43:TestPortfolioReconciliationEndpointsAreRemoved": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::unknown_portfolio_reconciliation_route_returns_json_not_found",
+    "conclusion": "部分覆盖：Rust 对 cash-reconciliation 路径断言 404 与 application/json；Go 同一测试还覆盖 positions reconciliation 路径，并通过完整 webaccess server 登录后请求，Rust fixture 为未认证 desktop router，不能标记为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(unknown_portfolio_reconciliation_route_returns_json_not_found)'",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercoretest/portfolio_routes_test.go:71:TestPortfolioRoutesReturnDegradedEmptyStateWithoutConfiguredBroker": {
     "status": "[~]",
@@ -6189,10 +6189,10 @@
   },
   "internal/app/apiserver/servercoretest/system_routes_test.go:89:TestRequestObservabilityMiddlewarePropagatesRequestID": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::desktop_token_reaches_port_with_stable_envelope_and_request_id",
+    "conclusion": "部分覆盖：Rust 断言合法 X-Request-ID 原样回写、写入 ApiPort 并进入稳定 envelope；Go 仅验证真实 /system/status route 的 header 传播，Rust 使用 settings/ui fixture，业务响应路径不同，不能标记为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(desktop_token_reaches_port_with_stable_envelope_and_request_id)'",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercoretest/system_routes_test.go:112:TestSystemStatusReflectsUpdatedAPIPort": {
     "status": "[~]",
@@ -6651,10 +6651,10 @@
   },
   "internal/app/apiserver/webaccess/security_integration_test.go:510:TestRemovedAuthTokenRouteReturnsNotFound": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-api/tests/auth_session_transport_contracts.rs::removed_auth_token_route_returns_not_found",
+    "conclusion": "部分覆盖：Rust 对 /api/v1/auth/token 断言 404；Go 在登录后的 cookie session 与完整 security server 上请求，Rust 使用最小 ApiState 且未复现登录上下文，保留为部分 wire 证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(removed_auth_token_route_returns_not_found)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/adk_backtest_adapter_test.go:8:TestADKStrategyValidationAndVisualModelBoundaries": {
     "status": "[~]",
