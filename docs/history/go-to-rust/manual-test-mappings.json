@@ -12362,11 +12362,11 @@
     "evidence_type": "missing"
   },
   "internal/backtest/historical_source_test.go:181:TestHistoricalKLineSyncerRejectsEmptyProviderResult": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_k_line_syncer_rejects_empty_provider_result",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 仅在 helper 层拒绝 total_returned=0 的空 candle page；Go 在真实 HistoricalKLineSyncer.Sync 中验证 returned no candles、临时目录 store 与 provider 参数",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_historical_k_line_syncer_rejects_empty_provider_result)'",
+    "evidence_type": "partial"
   },
   "internal/backtest/historical_source_test.go:198:TestValidateHistoricalKLineSyncAllowsMissingCapabilityValidator": {
     "status": "[~]",
@@ -12383,18 +12383,18 @@
     "evidence_type": "missing"
   },
   "internal/backtest/historical_source_test.go:268:TestHistoricalKLineSyncerRejectsBrokenPagination": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_k_line_syncer_rejects_broken_pagination",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 仅验证 has_more=false 且 period 不匹配时 helper 返回错误；Go 还覆盖 missing cursor、forward cursor、cursor reaches boundary 三个分页场景及边界 cursor",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_historical_k_line_syncer_rejects_broken_pagination)'",
+    "evidence_type": "partial"
   },
   "internal/backtest/historical_source_test.go:309:TestHistoricalCandleConversionRejectsInvalidFieldsAndDefaultsVolume": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 只验证一条合法 candle 可通过 helper；Go 还验证窗口外行过滤、缺省 volume=0、open/high/low/close/volume 五类非法字段和 extended session 展开",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume)'",
+    "evidence_type": "partial"
   },
   "internal/backtest/historical_source_test.go:341:TestHistoricalProviderRetryExhaustionAndTimerCancellation": {
     "status": "[~]",
@@ -20986,11 +20986,11 @@
     "evidence_type": "missing"
   },
   "internal/exchangecalendar/manager_test.go:876:TestSnapshotCacheKeyUsesMarketLocalYear": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/fetch_window_timezone.rs::probe_uses_market_local_year_when_us_crosses_utc_new_year",
+    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据：UTC 新年跨越时按 US 市场本地年份切换快照窗口，并固定 EST 边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(probe_uses_market_local_year_when_us_crosses_utc_new_year)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:890:TestSnapshotCacheIndexesEveryCoveredMarketYear": {
     "status": "[~]",
@@ -24864,11 +24864,11 @@
     "evidence_type": "missing"
   },
   "internal/store/backtest/store_failure_test.go:121:TestStoreCanceledMaintenanceDoesNotMutateRuns": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_run_store_contracts.rs::test_store_canceled_maintenance_does_not_mutate_runs",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 验证删除不存在 run 不改变已完成 run；Go 测试还通过取消中的 maintenance context 验证取消不会修改 runs，并检查完整持久化快照",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(test_store_canceled_maintenance_does_not_mutate_runs)'",
+    "evidence_type": "partial"
   },
   "internal/store/backtest/store_failure_test.go:140:TestPersistenceDecodersRejectInvalidPayloads": {
     "status": "[~]",
@@ -24906,18 +24906,18 @@
     "evidence_type": "missing"
   },
   "internal/store/backtest/store_test.go:168:TestInMemoryStoreImplementsRunLifecycleAndCancellation": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_run_store_contracts.rs::test_in_memory_store_implements_run_lifecycle_and_cancellation",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 仅验证取消回调可被调用；Go 还覆盖 in-memory store 的创建、查询、更新、finish、cancel 状态和缺失任务边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(test_in_memory_store_implements_run_lifecycle_and_cancellation)'",
+    "evidence_type": "partial"
   },
   "internal/store/backtest/sync_tasks_test.go:12:TestSyncTaskStoreReturnsSnapshotsAndCancelsProgress": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_sync_task_store_contracts.rs::sync_task_cancel_distinguishes_missing_active_and_terminal",
+    "conclusion": "部分覆盖：Rust 验证 active/terminal/missing 三种 cancel 状态和持久化 cancelled；Go 还验证 Get 返回快照副本、MaintenanceBusyReason、取消回调和 UpdatedAt",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(sync_task_cancel_distinguishes_missing_active_and_terminal)'",
+    "evidence_type": "partial"
   },
   "internal/store/backtest/sync_tasks_test.go:48:TestSyncTaskStoreFinishAndNilProgressBoundaries": {
     "status": "[~]",
