@@ -120,10 +120,10 @@
   },
   "internal/api/assistant/adk_normalize_test.go:15:TestADKRoutesSerializeEmptySlicesAsArrays": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_fixture_preserves_empty_collections_as_json_arrays",
+    "conclusion": "部分覆盖：Rust fixture 只断言 runs/sessions 集合为 JSON array；Go 还断言 run detail 中 toolCalls/artifacts 等空切片序列化，且通过真实 HTTP route；不得视为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_read_fixture_preserves_empty_collections_as_json_arrays)'",
+    "evidence_type": "partial"
   },
   "internal/api/assistant/adk_ops_test.go:18:TestADKMetricsExposeLifecycleAndApprovalLatency": {
     "status": "[~]",
@@ -162,10 +162,10 @@
   },
   "internal/api/assistant/adk_ops_test.go:448:TestAssistantChatCompatibilityRouteIsGone": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::legacy_assistant_chat_route_is_strictly_not_found",
+    "conclusion": "部分覆盖：Rust 对同一路径断言 404、JSON content-type 且无 port dispatch；Go 只断言 404，测试 server 组装不同，保留为部分证据",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(legacy_assistant_chat_route_is_strictly_not_found)'",
+    "evidence_type": "partial"
   },
   "internal/api/assistant/adk_ops_test.go:468:TestADKSnapshotAndToolsRoutesReturnCatalogData": {
     "status": "[~]",
@@ -197,10 +197,10 @@
   },
   "internal/api/assistant/adk_routes_test.go:245:TestADKChatStreamEmitsSessionRunAndFinalEvents": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_routes_register_only_with_explicit_test_port",
+    "conclusion": "部分覆盖：Rust 验证 SSE headers、retry/id/data/final frame 与 stream id；Go 配置 idle timeout=420000 且断言 session/run/final 事件集合，Rust fixture 为 300000，存在明确差异；不得视为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_chat_stream_routes_register_only_with_explicit_test_port)'",
+    "evidence_type": "partial"
   },
   "internal/api/assistant/adk_routes_test.go:359:TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure": {
     "status": "[~]",
@@ -876,10 +876,10 @@
   },
   "internal/api/httpserver/sse_test.go:87:TestPrepareSSEWriterAndFrameFormatting": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-api/src/sse.rs::tests::frames_preserve_go_retry_id_data_and_comment_shape",
+    "conclusion": "部分覆盖：Rust 覆盖 retry、id/data JSON frame 与 comment 编码，但未覆盖 Go 的响应头、retry=0 不追加和完整 wire body 断言；不得视为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(frames_preserve_go_retry_id_data_and_comment_shape)'",
+    "evidence_type": "partial"
   },
   "internal/api/httpserver/sse_test.go:129:TestPrepareSSEWriterRejectsWriterWithoutFlusher": {
     "status": "[~]",
@@ -960,10 +960,10 @@
   },
   "internal/api/live/handler_test.go:113:TestHandlerHeartbeatSubscribeNormalizationAndPayloads": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_subscription_registry_drives_status_and_releases_on_disconnect",
+    "conclusion": "部分覆盖：Rust 验证 subscribe 的 broker/instrument 规范化、连接状态与断开释放；未覆盖 Go 的 heartbeat、security/depth payload、depth num=50 限制及后端回调；不得视为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(ws_live_subscription_registry_drives_status_and_releases_on_disconnect)'",
+    "evidence_type": "partial"
   },
   "internal/api/live/handler_test.go:207:TestHandlerRejectsSubscriptionWithoutProvider": {
     "status": "[~]",
@@ -989,9 +989,10 @@
   "internal/api/live/handler_test.go:342:TestHandlerConnectionLimitAndCloseLifecycle": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_rejects_origin_and_limit_without_leaking_permits",
+    "conclusion": "部分覆盖：Rust 验证连接上限 503、Origin 拒绝和 permit 释放；未覆盖 Go 的 Close 主动终止连接、stats 清零与 depth unsubscribe；不得视为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(ws_live_transport_rejects_origin_and_limit_without_leaking_permits)'",
+    "evidence_type": "partial"
   },
   "internal/api/live/handler_test.go:397:TestHandlerRejectsUntrustedWebSocketOrigin": {
     "status": "[~]",
@@ -1191,10 +1192,10 @@
   },
   "internal/api/marketdata/routes_test.go:96:TestSubscriptionRoutesUseBrokerNeutralPollingWithoutFutuLease": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-api/src/router.rs::websocket_subscription_tests::subscription_message_matches_go_ignore_update_and_close_rules",
+    "conclusion": "部分覆盖：Rust 只覆盖 WS subscribe 消息过滤与 broker/instrument 输入；Go 测试覆盖 HTTP subscription acquire/heartbeat/release、snapshot/quota/transport 状态，入口和协议不同；不得视为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(subscription_message_matches_go_ignore_update_and_close_rules)'",
+    "evidence_type": "partial"
   },
   "internal/api/marketdata/routes_test.go:147:TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback": {
     "status": "[~]",
@@ -1383,7 +1384,7 @@
     "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::auth_treats_patch_as_session_write_requiring_csrf",
     "conclusion": "部分覆盖：Rust 验证 PATCH 会话写入的 CSRF 缺失拒绝与成功状态；Go 使用 ADK session 路径和 stub authenticator，Rust 使用 settings 路径与完整 router fixture，需保留差异",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth_treats_patch_as_session_write_requiring_csrf)'",
-    "evidence_type": "missing"
+    "evidence_type": "partial"
   },
   "internal/api/middleware/auth_test.go:173:TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight": {
     "status": "[~]",
@@ -1425,14 +1426,14 @@
     "rust_entry": "crates/jftrade-api/src/auth.rs::origin_normalization_accepts_web_and_tauri_schemes",
     "conclusion": "部分覆盖：Rust 覆盖 HTTP/Tauri 正常化及 file/非法值，但未覆盖 Go 的空白、缺失 host、http 变体和多个 wails 端口边界；不得视为行为等价",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(origin_normalization_accepts_web_and_tauri_schemes)'",
-    "evidence_type": "missing"
+    "evidence_type": "partial"
   },
   "internal/api/origin/origin_test.go:8:TestCanonical": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-api/src/auth.rs::origin_normalization_accepts_web_and_tauri_schemes",
     "conclusion": "部分覆盖：Rust 断言 HTTP/Tauri 与非法 scheme，但未覆盖 Go 的空白、端口、缺失 host、无效 URL 表格；不得视为行为等价",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(origin_normalization_accepts_web_and_tauri_schemes)'",
-    "evidence_type": "missing"
+    "evidence_type": "partial"
   },
   "internal/api/origin/origin_test.go:31:TestFromRequest": {
     "status": "[~]",

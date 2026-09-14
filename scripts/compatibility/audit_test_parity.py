@@ -268,18 +268,6 @@ def main():
     # curated high-value checklist. This makes the full Go baseline auditable
     # without pretending that filename-level matching proves behavior parity.
     inventory_path = "docs/history/go-to-rust/test-parity-inventory.md"
-    prior_rows = {}
-    prior_by_name = {}
-    if os.path.exists(inventory_path):
-        for line in open(inventory_path, encoding="utf-8"):
-            if not line.startswith("| ["):
-                continue
-            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-            if len(cells) >= 8:
-                match = re.search(r"`go:[^:]+:([^`]+)`<br>`([^`]+)`", cells[1])
-                if match:
-                    prior_rows[match.group(1)] = cells
-                    prior_by_name[match.group(2)] = cells
     manual_path = "docs/history/go-to-rust/manual-test-mappings.json"
     manual_details = {}
     if os.path.exists(manual_path):
@@ -312,7 +300,7 @@ def main():
         key for key, item in manual_details.items()
         if not required_fields.issubset(item)
         or item.get("status") not in {"[x]", "[~]"}
-        or item.get("evidence_type") not in {"function_exact", "boundary", "missing", "module_only"}
+        or item.get("evidence_type") not in {"function_exact", "partial", "boundary", "missing", "module_only"}
     ]
     if malformed_records:
         raise ValueError(f"invalid parity mapping records: {len(malformed_records)}")
@@ -335,44 +323,20 @@ def main():
     # mappings so it cannot accidentally claim unverified rows are covered.
 
     def manual_for(test):
-        """Resolve a mapping by immutable Go location, with legacy name fallback."""
+        """Resolve a mapping by immutable Go file, line, and test name."""
         key = f"{test['file']}:{test['line']}:{test['name']}"
-        return manual_details.get(key) or manual_details.get(test["name"])
-    curated_path = "docs/history/go-to-rust/high-value-test-mapping-checklist.md"
-    curated_names = set()
-    curated_details = {}
-    if os.path.exists(curated_path):
-        curated = open(curated_path, encoding="utf-8").read()
-        curated_names = set(re.findall(r"<br>`(Test[A-Za-z0-9_]+)`", curated))
-        for line in curated.splitlines():
-            if not (line.startswith("| [x] |") or line.startswith("| [~] |")):
-                continue
-            parts = [p.strip() for p in line.split("|")[1:-1]]
-            if len(parts) >= 9:
-                m = re.search(r"`(Test[A-Za-z0-9_]+)`", parts[1])
-                if m:
-                    curated_details[m.group(1)] = {
-                        "status": parts[0],
-                        "rust_entry": parts[4],
-                        "conclusion": f"{parts[5]}：{parts[6]}",
-                        "command": parts[8],
-                    }
+        return manual_details.get(key)
     rust_by_domain = {key: [crate for crate in crates] for key, _, _, crates in DOMAIN_MAPPING}
     with open(inventory_path, "w", encoding="utf-8") as fp:
         fp.write("# Go → Rust 全量测试索引\n\n")
-        fp.write("本文件由 `scripts/compatibility/audit_test_parity.py` 生成，是 Go→Rust 全量逐测试人工核对入口。每行的 `[ ]` 表示尚未完成人工确认；自动推导的业务域和 crate 仅是候选，不能视为已覆盖。确认后将该行改为 `[x]` 并填写 Rust 测试名称、差异结论和验证命令；无法迁移的测试必须标记为边界/不适用并说明原因。\n\n")
+        fp.write("本文件由 `scripts/compatibility/audit_test_parity.py` 生成，是 Go→Rust 全量逐测试核对索引。映射源为 `manual-test-mappings.json`；自动推导的业务域和 crate 仅是候选，不能视为已覆盖。只有映射源中的真实入口、差异结论和验证命令才计入证据；无法迁移的测试必须记录边界/不适用原因。\n\n")
         # Precalculate status per test to display accurate progress in summary
         test_statuses = {}
         for test in go_tests:
             key = f"{test['file']}:{test['line']}"
-            prior = prior_rows.get(key) or prior_by_name.get(test["name"])
             detail = manual_for(test)
             if detail:
                 test_statuses[key] = detail["status"]
-            elif test["name"] in curated_details:
-                test_statuses[key] = curated_details[test["name"]]["status"]
-            elif prior and len(prior) >= 8 and prior[0] in ("[x]", "[~]"):
-                test_statuses[key] = prior[0]
             else:
                 test_statuses[key] = "[ ]"
 
@@ -397,26 +361,12 @@ def main():
                 crates = ", ".join(OTHER_CANDIDATE_CRATES)
             crates = crates or "候选待验证"
             source = f"`go:{go_revision}:{test['file']}:{test['line']}`<br>`{test['name']}`"
-            prior = prior_rows.get(f"{test['file']}:{test['line']}") or prior_by_name.get(test["name"])
             c = manual_for(test)
             if c:
                 status = c["status"]
                 rust_entry = c["rust_entry"]
                 conclusion = c["conclusion"]
                 command = c["command"]
-            elif test["name"] in curated_details:
-                c = curated_details[test["name"]]
-                status = c["status"]
-                rust_entry = c["rust_entry"]
-                conclusion = c["conclusion"]
-                command = c["command"]
-            elif prior and len(prior) >= 8 and prior[0] in ("[x]", "[~]"):
-                status, _, _, _, _, rust_entry, conclusion, command = prior[:8]
-                detail = curated_details[test["name"]]
-                status = detail["status"]
-                rust_entry = detail["rust_entry"]
-                conclusion = detail["conclusion"]
-                command = detail["command"]
             else:
                 status = "[ ]"
                 rust_entry, conclusion, command = "", "未建立 Rust 函数级证据", ""
@@ -426,7 +376,7 @@ def main():
             evidence = item.get("evidence_type", "unspecified")
             evidence_counts[evidence] = evidence_counts.get(evidence, 0) + 1
         fp.write("\n## 4. 证据类型汇总\n\n")
-        fp.write("清单勾选表示已处理，不表示功能等价；只有 `function_exact` 才代表发现了函数级 Rust 测试证据。\n\n")
+        fp.write("清单勾选表示已处理，不表示功能等价；`function_exact` 表示断言等价，`partial` 表示仅部分断言由真实 Rust 测试验证。\n\n")
         fp.write("| evidence_type | 数量 |\n|---|---:|\n")
         for evidence, count in sorted(evidence_counts.items()):
             fp.write(f"| `{evidence}` | {count} |\n")
@@ -434,8 +384,12 @@ def main():
             1 for item in manual_details.values()
             if item.get("evidence_type") == "missing" and item.get("rust_entry")
         )
+        partial_with_entry = sum(
+            1 for item in manual_details.values()
+            if item.get("evidence_type") == "partial" and item.get("rust_entry")
+        )
         fp.write(
-            f"\n> `missing` 中仍带候选入口的条目：{missing_with_entry}；仅作后续核验线索，不构成覆盖证据。\n"
+            f"\n> `partial` 真实入口条目：{partial_with_entry}；`missing` 中仍带候选入口的条目：{missing_with_entry}；均不构成完整行为等价。\n"
         )
 
     print(f"\nReport written to {report_path}")
