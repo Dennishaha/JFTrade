@@ -568,6 +568,70 @@ mod tests {
     }
 
     #[test]
+    fn snapshot_projection_reclassifies_us_regular_boundary_and_clears_extended_hours() {
+        // Parity: internal/integration/futu/marketdata_runtime_test.go:432 TestTickFromTickerReclassifiesUSRegularBoundary
+        // 2026-01-07T16:00:00Z is 11:00 America/New_York, inside the US regular window.
+        let ticks = basic_quote_ticks(
+            vec![quote(11, "AAPL", 189.5, 0)],
+            1_767_801_600_000,
+            1,
+        )
+        .expect("regular boundary tick");
+        let snapshot = ticks[0].snapshot.as_ref().expect("snapshot");
+        assert_eq!(snapshot.session.as_deref(), Some("regular"));
+        assert_eq!(snapshot.trading_date.as_deref(), Some("2026-01-07"));
+        assert!(snapshot.pre_market.is_none());
+        assert!(snapshot.after_market.is_none());
+        assert!(snapshot.overnight.is_none());
+    }
+
+    #[test]
+    fn hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours() {
+        // Parity: internal/integration/futu/marketdata_runtime_test.go:318 TestTickFromTickerPreservesHKPreviousCloseDuringLunchBreak
+        let resolver = StaticSessionResolver(QuoteSessionContext {
+            session: "closed".to_owned(),
+            trading_date: "2026-06-12".to_owned(),
+            timezone: "Asia/Hong_Kong".to_owned(),
+            sessions: vec![
+                QuoteSessionWindow {
+                    kind: "regular".to_owned(),
+                    start_minute: 570,
+                    end_minute: 720,
+                },
+                QuoteSessionWindow {
+                    kind: "regular".to_owned(),
+                    start_minute: 780,
+                    end_minute: 960,
+                },
+            ],
+        });
+        let mut lunch = quote(1, "00700", 701.1, 22222);
+        lunch.last_close_price = Some(698.9);
+        lunch.open_price = Some(700.1);
+        lunch.high_price = Some(702.0);
+        lunch.low_price = Some(699.0);
+        let ticks = basic_quote_ticks_with_resolver(
+            vec![lunch],
+            1_781_301_000_000,
+            1,
+            Some(&resolver),
+        )
+        .expect("lunch tick");
+        let tick = &ticks[0];
+        let snapshot = tick.snapshot.as_ref().expect("snapshot");
+        assert_eq!(snapshot.session.as_deref(), Some("closed"));
+        assert_eq!(
+            snapshot.previous_close.expect("previous close").to_string(),
+            "698.9"
+        );
+        assert!(
+            snapshot.previous_close.expect("previous close") != tick.price,
+            "previous close must not be overwritten by the current lunch price"
+        );
+        assert!(snapshot.pre_market.is_none() && snapshot.after_market.is_none());
+    }
+
+    #[test]
     fn resolver_keeps_hk_lunch_closed_in_snapshot_projection() {
         let resolver = StaticSessionResolver(QuoteSessionContext {
             session: "closed".to_owned(),

@@ -14532,11 +14532,11 @@
     "evidence_type": "function_exact"
   },
   "internal/integration/futu/marketdata_runtime_test.go:318:TestTickFromTickerPreservesHKPreviousCloseDuringLunchBreak": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_tick.rs::hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours",
+    "conclusion": "完整覆盖：HK.00700 午休（resolver 判定 closed）投影保留上一收盘价 698.9，且不等于当前价 701.1，pre/after 扩展字段为 None，等价于 Go 午休 tickFromTicker 断言",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours)'",
+    "evidence_type": "function_exact"
   },
   "internal/integration/futu/marketdata_runtime_test.go:364:TestTickFromTradeInheritsLatestQuoteFieldsThroughCache": {
     "status": "[x]",
@@ -14546,11 +14546,11 @@
     "evidence_type": "function_exact"
   },
   "internal/integration/futu/marketdata_runtime_test.go:432:TestTickFromTickerReclassifiesUSRegularBoundary": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_tick.rs::snapshot_projection_reclassifies_us_regular_boundary_and_clears_extended_hours",
+    "conclusion": "完整覆盖：2026-01-07T16:00:00Z（America/New_York 11:00）BasicQot 投影为 session=regular、tradingDate=2026-01-07，且 pre/after/overnight 扩展行情字段保持 None，等价于 Go tickFromTicker 的 US regular 边界重分类",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(snapshot_projection_reclassifies_us_regular_boundary_and_clears_extended_hours)'",
+    "evidence_type": "function_exact"
   },
   "internal/integration/futu/marketdata_runtime_test.go:452:TestMarketDataRuntimeExchangeResetAndStreamLifecycle": {
     "status": "[~]",
@@ -14750,17 +14750,17 @@
   },
   "internal/integration/futu/subscription_reconciler_test.go:287:TestSubscriptionReconcilerRetriesFailuresAndCancelsRetryOnReacquire": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::plain_basic_failure_keeps_retry_semantics_without_fallback_count",
+    "conclusion": "部分覆盖：Rust 已有 plain_basic_failure_keeps_retry_semantics_without_fallback_count 验证普通 BasicQot 失败仍走 5s 退避且不计入 fallbackCount；Go 的完整退避阶梯、unsubscribe 失败与 reacquire 取消重试断言仍待补",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(plain_basic_failure_keeps_retry_semantics_without_fallback_count)'",
+    "evidence_type": "partial"
   },
   "internal/integration/futu/subscription_reconciler_test.go:346:TestSubscriptionReconcilerUsesDelayedFallbackForBasicQuoteAvailabilityFailures": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/fake_framed_opend_runtime_tests.rs::test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds",
+    "conclusion": "完整覆盖：真实帧协议会话下 BasicQot 配额拒绝进入 delayed fallback（fallbackCount=1、ownActiveCount=0、brokerState=fallback、lastError 保留），15s 窗口内延迟重试，窗口到点后恢复 active 且 fallbackCount=0；reconciler 级快照与恢复断言另见 subscriptions::tests::basic_quote_availability_failure_enters_delayed_fallback_and_recovers",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds)'",
+    "evidence_type": "function_exact"
   },
   "internal/integration/futu/subscription_reconciler_test.go:394:TestSubscriptionReconcilerProviderSwitchDefersPhysicalReleaseUntilOpenDEligible": {
     "status": "[~]",
@@ -14805,11 +14805,11 @@
     "evidence_type": "missing"
   },
   "internal/integration/futu/subscription_reconciler_test.go:676:TestSubscriptionReconcilerDropsFailedRecordsReleasedBeforeRetry": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::released_never_established_records_are_dropped_without_fallback_leakage",
+    "conclusion": "完整覆盖：订阅被拒后释放需求会立即删除从未建立的记录（无物理订阅可释放、无 retry 状态残留），fallback 记录同样被删除并同步回退 fallback_count；与 Go subscribeDesiredLocked/unsubscribeUndesiredLocked 语义一致",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(released_never_established_records_are_dropped_without_fallback_leakage)'",
+    "evidence_type": "function_exact"
   },
   "internal/integration/futu/subscription_reconciler_test.go:697:TestDesiredPhysicalSubscriptionsRejectsIncompleteRefsAndNormalizesSymbols": {
     "status": "[~]",
@@ -15800,10 +15800,10 @@
   },
   "pkg/futu/basicqot_subscription_errors_test.go:12:TestClassifyBasicQotSubscriptionErrorOnlyMarksAvailabilityFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/subscription_executor.rs::qot_sub_availability_classifier_matches_go_keyword_matrix",
+    "conclusion": "部分覆盖：Rust 在 Qot_Sub 执行器边界对 entitlement/quota/unsupported 关键字分类为 fallback 合格，transport/decode/本地校验与 frequency/rate-limit 文本保持不合格；但 Go 的契约是 classifyBasicQotSubscriptionError(err) 返回可 errors.Is 的 *broker.SnapshotAvailabilityError 类型链，Rust 目前返回 Option<SnapshotAvailabilityKind>，nil/cancel/deadline/rate-limit 通过结构性 None 表达而非包装错误。不得标记 function_exact",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(qot_sub_availability_classifier_matches_go_keyword_matrix)'",
+    "evidence_type": "partial"
   },
   "pkg/futu/client_exchange_recovery_boundaries_test.go:19:TestWithClientReplayPolicyForRecoverableErrors": {
     "status": "[~]",
