@@ -430,6 +430,13 @@ def main():
         fp.write("| evidence_type | 数量 |\n|---|---:|\n")
         for evidence, count in sorted(evidence_counts.items()):
             fp.write(f"| `{evidence}` | {count} |\n")
+        missing_with_entry = sum(
+            1 for item in manual_details.values()
+            if item.get("evidence_type") == "missing" and item.get("rust_entry")
+        )
+        fp.write(
+            f"\n> `missing` 中仍带候选入口的条目：{missing_with_entry}；仅作待人工核验线索，不构成覆盖证据。\n"
+        )
 
     print(f"\nReport written to {report_path}")
     print(f"Inventory written to {inventory_path}")

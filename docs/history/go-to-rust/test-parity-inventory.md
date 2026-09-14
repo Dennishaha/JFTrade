@@ -4480,3 +4480,5 @@
 | `boundary` | 69 |
 | `function_exact` | 50 |
 | `missing` | 4332 |
+
+> `missing` 中仍带候选入口的条目：115；仅作待人工核验线索，不构成覆盖证据。
