@@ -18123,74 +18123,74 @@
     "evidence_type": "missing"
   },
   "internal/marketdata/broker_candles_test.go:12:TestBrokerKLineCandlesResponseProjectsStrictPage": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::test_broker_k_line_candles_response_projects_strict_page",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 断言页大小、分页标记和字段类型，但未像 Go 一样固定 candle 时间/收盘值、source、extendedHours 与 session 的具体 wire 值；不得标记为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_broker_k_line_candles_response_projects_strict_page)'",
+    "evidence_type": "partial"
   },
   "internal/marketdata/broker_candles_test.go:51:TestBrokerKLineCandlesResponseHandlesTerminalAndBoundedPages": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::test_broker_k_line_candles_response_handles_terminal_and_bounded_pages",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 仅验证 terminal 请求的 hasMore=false，未执行 Go 测试中的 bounded 分支，也未断言 pagination 对象仅含预期字段；需补 bounded fixture 回归",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_broker_k_line_candles_response_handles_terminal_and_bounded_pages)'",
+    "evidence_type": "partial"
   },
   "internal/marketdata/broker_candles_test.go:77:TestBrokerKLineCandlesResponseRejectsInvalidProviderRows": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::test_broker_k_line_candles_response_rejects_invalid_provider_rows",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 只覆盖 close 非正/非法与合法值，Go 还覆盖 nil snapshot、before cursor、乱序、非法时间、缺字段、非有限值及 session 过滤等 8 类 provider 行错误",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_broker_k_line_candles_response_rejects_invalid_provider_rows)'",
+    "evidence_type": "partial"
   },
   "internal/marketdata/broker_candles_test.go:109:TestBrokerKLineHelpersClassifySessionsAndNumbers": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::test_broker_k_line_helpers_classify_sessions_and_numbers",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 验证空/有效时间和数字解析，但未验证 Go 测试中的默认 regular、显式 after session 分类及其 CandleSession 分组",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_broker_k_line_helpers_classify_sessions_and_numbers)'",
+    "evidence_type": "partial"
   },
   "internal/marketdata/broker_candles_test.go:137:TestBrokerKLinePaginationRejectsInvalidBoundedAndPagedMetadata": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::test_broker_k_line_pagination_rejects_invalid_bounded_and_paged_metadata",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 仅覆盖 bounded hasMore 和 page exceeds limit 两个场景，Go 还要求 bounded cursor、空/非法 nextBefore 等分页元数据边界；需补齐错误矩阵",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_broker_k_line_pagination_rejects_invalid_bounded_and_paged_metadata)'",
+    "evidence_type": "partial"
   },
   "internal/marketdata/cache_test.go:12:TestCacheDeduplicatesPromotesAndInherits": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::test_cache_deduplicates_promotes_and_inherits",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 验证同价 snapshot promotion 与计数，但 Go 还断言重复 observedAt 保留、trade 的 bid/ask/volumeDelta、previous/pre-market/turnover/session 继承；当前无等价断言",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(test_cache_deduplicates_promotes_and_inherits)'",
+    "evidence_type": "partial"
   },
   "internal/marketdata/cache_test.go:76:TestCacheFreshnessRetentionAndMaximum": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::test_cache_freshness_retention_and_maximum",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 验证 max_age 下 fresh/stale，但 Go 还验证 retention 清除旧样本、max=3 截断顺序以及 AllFresh 对 stale 样本返回 false",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(test_cache_freshness_retention_and_maximum)'",
+    "evidence_type": "partial"
   },
   "internal/marketdata/cache_test.go:103:TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-marketdata/tests/cache_extended_sessions_parity.rs::test_cache_does_not_inherit_extended_sessions_across_trading_days",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 用 trading_date 变化验证 session/pre/after 不跨日继承，但 Go 还断言 ExtendedHours、overnight、bid/ask 与 volume 不泄漏；字段模型未完全对齐",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(test_cache_does_not_inherit_extended_sessions_across_trading_days)'",
+    "evidence_type": "partial"
   },
   "internal/marketdata/cache_test.go:138:TestCachePromotesUSRegularCloseWhenAfterHoursTradeArrives": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/tests/cache_extended_sessions_parity.rs::test_cache_promotes_us_regular_close_when_after_hours_trade_arrives",
+    "conclusion": "部分覆盖：Rust 验证 after-hours previous/last close promotion 与价格，但 Go 还断言 SnapshotJSON wire 字段及后续 after-hours tick 保留 regular close 上下文",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(test_cache_promotes_us_regular_close_when_after_hours_trade_arrives)'",
+    "evidence_type": "partial"
   },
   "internal/marketdata/cache_test.go:185:TestCacheRetainsNewExtendedQuoteWhenPriceIsUnchanged": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/tests/cache_extended_sessions_parity.rs::test_cache_retains_extended_quote_when_price_is_unchanged",
+    "conclusion": "部分覆盖：Rust 验证同价 tick 携带新的 after-market quote，但 Go 还要求样本计数从 1 增至 2、quote 时间和 previous/last close 字段完整保留",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(test_cache_retains_extended_quote_when_price_is_unchanged)'",
+    "evidence_type": "partial"
   },
   "internal/marketdata/cache_test.go:210:TestTickCandlesVolumeWindowAndLimit": {
     "status": "[~]",
