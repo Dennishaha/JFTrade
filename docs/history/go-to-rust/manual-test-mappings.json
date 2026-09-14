@@ -5301,14 +5301,14 @@
   "internal/app/apiserver/servercore/settings_market_data_test.go:11:TestServerSettingsStoreDefaultsAndPersistsMarketDataSelection": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/app/apiserver/servercore/settings_market_data_test.go:32:TestStartupKeepsConfiguredYFinanceWhenHelperCannotActivate": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
@@ -6071,56 +6071,56 @@
   "internal/app/apiserver/servercoretest/settings_interfaces_test.go:14:TestEnsureBootstrapFilePersistsInterfaceDefaults": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/app/apiserver/servercoretest/settings_interfaces_test.go:58:TestInterfaceSettingsUsesStoredOverride": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/app/apiserver/servercoretest/settings_normalization_test.go:10:TestNormalizeManagedBrokerAccountAppliesDefaults": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/app/apiserver/servercoretest/settings_normalization_test.go:40:TestNormalizeFutuConfigAppliesDefaults": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/app/apiserver/servercoretest/settings_normalization_test.go:69:TestNormalizeExecutionSettingsAppliesDefaultsAndBounds": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/app/apiserver/servercoretest/settings_onboarding_test.go:18:TestOnboardingDefaultsAndSave": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/app/apiserver/servercoretest/settings_onboarding_test.go:61:TestOnboardingRoutesSuggestOobeUntilCompleted": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/app/apiserver/servercoretest/settings_onboarding_test.go:149:TestOnboardingReopensWhenRuntimeDependencyFailsAfterCompletion": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
@@ -20526,7 +20526,7 @@
   "internal/buildinfo/buildinfo_test.go:8:TestSnapshotTrimsBuildMetadataAndDefaultsBuildTime": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
@@ -22829,161 +22829,161 @@
   "internal/retry/do_attempts_test.go:8:TestDoUsesDefaultsAndReturnsEventualSuccess": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/retry/do_attempts_test.go:26:TestDoRetriesUntilSuccess": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/retry/retry_test.go:10:TestDoRetriesWithDeterministicBackoff": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/retry/retry_test.go:40:TestDoZeroBaseDelayDoesNotSleep": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/retry/retry_test.go:57:TestDoReturnsNonRetryableErrorImmediately": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/retry/retry_test.go:76:TestFutuRateLimitShouldRetry": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/security/passwordhash/passwordhash_test.go:9:TestHashAndVerify": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/security/passwordhash/passwordhash_test.go:25:TestVerifyRejectsUnsafeParametersBeforeHashing": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/security/passwordhash/passwordhash_test.go:32:TestValidRejectsMalformedHashes": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/system/service_status_defaults_test.go:10:TestStatusIncludesInjectedObservabilitySummaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/system/service_status_defaults_test.go:41:TestStatusProvidesDefaultRequestObservabilitySummary": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/system/service_status_defaults_test.go:61:TestExchangeCalendarDelegatesAndFallbacks": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/system/service_status_defaults_test.go:109:TestStorageAndRealTradeDefaultsExposeFrontendShape": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/system/service_status_defaults_test.go:137:TestFutuDefaultsExposeEmptyGuideAndSnapshot": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/system/service_status_defaults_test.go:151:TestRuntimeDependenciesDelegates": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/system/service_test.go:13:TestStatusDefaultsAndInjectedSummaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/system/service_test.go:59:TestStatusUsesDynamicPortAndTradingEnvironmentProviders": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/system/service_test.go:83:TestRealTradeDefaultsMatchFrontendContract": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/system/service_test.go:142:TestRealTradeStateUsesInjectedRiskGatewaySnapshot": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/system/service_test.go:201:TestRealTradeStateNormalizesTypedNilSlices": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/system/service_test.go:212:TestRealTradeControlDelegatesAndUnavailableBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/system/service_test.go:309:TestFutuHealthAndResetDelegates": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "internal/system/service_test.go:345:TestFutuHealthDefaultsUnavailable": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
@@ -24005,14 +24005,14 @@
   "pkg/besteffort/besteffort_test.go:11:TestLogError": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "pkg/besteffort/besteffort_test.go:33:TestLogErrorNoError": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
@@ -24026,70 +24026,70 @@
   "pkg/observability/context_detach_and_importance_test.go:10:TestObservabilityBackgroundContextsAndImportanceRanks": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "pkg/observability/context_detach_and_importance_test.go:37:TestObservabilityContextDetachWithBackgroundBase": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "pkg/observability/observability_test.go:14:TestStructuredLogIncludesCanonicalCorrelationFields": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "pkg/observability/observability_test.go:45:TestRecorderSnapshotSerializesEmptyCollectionsAsArrays": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "pkg/observability/observability_test.go:62:TestImportanceThresholdSuppressesLowerImportanceLogs": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "pkg/observability/observability_test.go:94:TestGlobalImportanceThresholdAppliesWithoutRecorder": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "pkg/observability/observability_test.go:113:TestRecorderBoundsErrorsSlowRequestsAndOpenDHealth": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "pkg/observability/observability_test.go:148:TestDetachPreservesCorrelationWithoutParentCancellation": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "pkg/observability/observability_test.go:163:TestObservabilityBoundaryDefaultsAndGlobalOpenDLogging": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
   "pkg/observability/observability_test.go:215:TestObservabilityNilContextAndOpenDSuccessBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
@@ -24264,7 +24264,7 @@
   "scripts/archive_frontend_assets_test.go:11:TestArchiveFrontendAssetsPreservesRelativePathsAndTimestamp": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-core/src/lib.rs",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-core",
     "evidence_type": "missing"
   },
@@ -24341,28 +24341,28 @@
   "internal/settings/market_data_test.go:56:TestMarketDataProviderSettingsNormalizeAndApply": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/settings/market_data_test.go:99:TestMarketDataProviderRetriesDegradedCurrentSelection": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/settings/market_data_test.go:143:TestMarketDataProviderSettingsAcceptAKShare": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/settings/market_data_test.go:161:TestBacktestProviderIsPreparedBeforeAtomicPersistence": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
@@ -24390,7 +24390,7 @@
   "internal/settings/persistence_and_mcp_failures_test.go:55:TestServiceReportsPersistenceAndMCPFailures": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
@@ -24411,56 +24411,56 @@
   "internal/settings/service_managed_accounts_test.go:13:TestServiceCreateManagedAccountNormalizesClientFields": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/settings/service_managed_accounts_test.go:35:TestServiceNotificationAndMCPStatusAccessors": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/settings/service_managed_accounts_test.go:58:TestServiceSystemNotificationTestUsesNarrowPublisherAndFailsClosed": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/settings/service_managed_accounts_test.go:84:TestServiceDefaultMCPStatusAndTokenGeneration": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/settings/service_managed_accounts_test.go:99:TestValidateWebAccessPasswordBoundaries": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/settings/service_managed_accounts_test.go:111:TestServiceCreateManagedAccountRejectsBlankAccountID": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/settings/service_managed_accounts_test.go:120:TestServiceOptionsCaptureBrokerDescriptorAndDefaultTradingEnvironment": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/settings/service_test.go:153:TestSaveSettingsTriggersSideEffects": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
@@ -24481,7 +24481,7 @@
   "internal/settings/service_test.go:268:TestMCPServerTokenResetDoesNotLeakAndInvalidatesPreviousToken": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
@@ -24502,7 +24502,7 @@
   "internal/settings/service_test.go:361:TestConcurrentSecuritySavesPreserveNewestPasswordAndCallbackOrder": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
@@ -24516,21 +24516,21 @@
   "internal/settings/service_test.go:446:TestSaveIntegrationPassesStructuredConfigWithoutChangingRuntimeEnv": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/settings/service_test.go:480:TestServiceDelegatesGettersAndSimpleSavers": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/settings/service_test.go:565:TestServiceDelegatesProvidersAndLifecycle": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
@@ -25062,42 +25062,42 @@
   "internal/store/settingsfile/legacy_runtime_dependencies_test.go:10:TestLegacyRuntimeDependencySettingsAreIgnoredAndDroppedOnSave": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/market_data_test.go:14:TestMarketDataProviderDefaultsToAKShareAndPersistsSelection": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/market_data_test.go:82:TestMarketDataProviderSaveRollsBackOnAtomicReplaceFailure": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/market_data_test.go:113:TestNormalizeActiveMarketDataProviderFallsBackToAKShare": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/market_data_test.go:130:TestMarketDataProviderPersistsAKShareSelection": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/market_data_test.go:145:TestBacktestProviderUpgradeCopiesGlobalSelectionOnce": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
@@ -25111,42 +25111,42 @@
   "internal/store/settingsfile/normalization_and_persistence_test.go:53:TestSettingsInterfaceAndAccountNormalization": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/normalization_and_persistence_test.go:74:TestSettingsPersistenceReportsAtomicReplaceFailure": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/normalization_and_persistence_test.go:92:TestSettingsPersistenceRejectsAFileInItsDirectoryPath": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/normalization_and_persistence_test.go:114:TestSettingsStorePersistsValuesAndManagesAccountLifecycle": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/normalization_and_persistence_test.go:178:TestSettingsFileReportsInterfaceAndLoadFailures": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/persist_failures_test.go:26:TestPersistLockedPropagatesTemporaryFileDurabilityFailures": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
@@ -25174,63 +25174,63 @@
   "internal/store/settingsfile/store_persistence_contracts_test.go:15:TestStoreDefaultsExposePathAndNormalizedDefaults": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/store_persistence_contracts_test.go:63:TestMCPServerSettingsPersistVerifierWithoutPublicLeak": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/store_persistence_contracts_test.go:105:TestSaveAppearanceAndADKSettingsPersistNormalizedValues": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/store_persistence_contracts_test.go:166:TestSaveSystemNotificationSettingsNormalizesAndPersists": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/store_persistence_contracts_test.go:203:TestSystemNotificationSettingsImportantUsesDefaults": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/store_persistence_contracts_test.go:217:TestSavePineWorkerSettingsPersistsNormalizedWorkerLimits": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/store_persistence_contracts_test.go:261:TestSaveExchangeCalendarSettingsNormalizesPoliciesAndOverrides": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/store_persistence_contracts_test.go:357:TestExchangeCalendarErrorNotificationSettingPreservesExplicitFalse": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/store_persistence_contracts_test.go:397:TestManagedAccountLifecyclePreservesScopeAndHandlesMissingIDs": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
@@ -25244,35 +25244,35 @@
   "internal/store/settingsfile/store_recovery_test.go:27:TestEnsureBootstrapFileRepairsExistingSettingsWithoutAppearance": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/store_recovery_test.go:55:TestSettingsStoreReadsPersistedConfigurationBranches": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/store_recovery_test.go:87:TestUnknownSecurityFieldsAreIgnoredWithoutRewritingSettings": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/store_recovery_test.go:111:TestFailedSecurityReplaceKeepsDiskAndRuntimeStateUnchanged": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/store_recovery_test.go:158:TestFailedMCPServerReplaceKeepsDiskAndRuntimeStateUnchanged": {
     "status": "[~]",
     "rust_entry": "`crates/jftrade-store-settings/src/lib.rs`",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "conclusion": "待补证据：验证命令引用的 Rust crate 不存在，需修正命令并重新执行",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings --lib",
     "evidence_type": "missing"
   },
