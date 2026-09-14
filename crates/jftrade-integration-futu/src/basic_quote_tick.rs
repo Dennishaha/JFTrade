@@ -571,12 +571,8 @@ mod tests {
     fn snapshot_projection_reclassifies_us_regular_boundary_and_clears_extended_hours() {
         // Parity: internal/integration/futu/marketdata_runtime_test.go:432 TestTickFromTickerReclassifiesUSRegularBoundary
         // 2026-01-07T16:00:00Z is 11:00 America/New_York, inside the US regular window.
-        let ticks = basic_quote_ticks(
-            vec![quote(11, "AAPL", 189.5, 0)],
-            1_767_801_600_000,
-            1,
-        )
-        .expect("regular boundary tick");
+        let ticks = basic_quote_ticks(vec![quote(11, "AAPL", 189.5, 0)], 1_767_801_600_000, 1)
+            .expect("regular boundary tick");
         let snapshot = ticks[0].snapshot.as_ref().expect("snapshot");
         assert_eq!(snapshot.session.as_deref(), Some("regular"));
         assert_eq!(snapshot.trading_date.as_deref(), Some("2026-01-07"));
@@ -610,13 +606,9 @@ mod tests {
         lunch.open_price = Some(700.1);
         lunch.high_price = Some(702.0);
         lunch.low_price = Some(699.0);
-        let ticks = basic_quote_ticks_with_resolver(
-            vec![lunch],
-            1_781_301_000_000,
-            1,
-            Some(&resolver),
-        )
-        .expect("lunch tick");
+        let ticks =
+            basic_quote_ticks_with_resolver(vec![lunch], 1_781_301_000_000, 1, Some(&resolver))
+                .expect("lunch tick");
         let tick = &ticks[0];
         let snapshot = tick.snapshot.as_ref().expect("snapshot");
         assert_eq!(snapshot.session.as_deref(), Some("closed"));

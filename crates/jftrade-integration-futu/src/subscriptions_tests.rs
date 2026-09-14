@@ -169,6 +169,68 @@ fn failed_unsubscribe_is_deferred_until_its_retry_window() {
 }
 
 #[test]
+fn unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state() {
+    // Parity: go:452dea11:internal/integration/futu/subscription_reconciler_test.go:287 TestSubscriptionReconcilerRetriesFailuresAndCancelsRetryOnReacquire
+    let desired = [reference("SNAPSHOT", None)];
+    let mut reconciler = SubscriptionReconciler::new(0);
+    let subscribe = reconciler.actions(&desired, 0, 1).pop().expect("subscribe");
+    reconciler.record_success(&subscribe, 0, 1);
+
+    let mut now_ms = 0;
+    // Go asserts the bounded ladder 5s/10s/20s/30s/30s: each failed unsubscribe
+    // advances the window by exactly that delay and the next reconcile inside
+    // the window is deferred.
+    for (attempt, delay) in [5_000, 10_000, 20_000, 30_000, 30_000]
+        .into_iter()
+        .enumerate()
+    {
+        let action = reconciler.actions(&[], now_ms, 1);
+        let subscription = match action.as_slice() {
+            [ReconcileAction::Unsubscribe { subscription }] => subscription.clone(),
+            other => panic!("attempt {attempt}: expected one unsubscribe, got {other:?}"),
+        };
+        assert_eq!(
+            reconciler.record_unsubscribe_failure(
+                &subscription,
+                now_ms,
+                1,
+                Some("busy".to_owned())
+            ),
+            delay,
+            "attempt {attempt} delay"
+        );
+        assert!(
+            reconciler.actions(&[], now_ms, 1).is_empty(),
+            "attempt {attempt} must be deferred inside its window"
+        );
+        now_ms += delay;
+    }
+    // Go asserts subscriptionRetryDelay bounds: negative clamps to the first
+    // rung and a huge failure count saturates on the last rung.
+    assert_eq!(retry_delay_ms(0), 5_000);
+    assert_eq!(retry_delay_ms(99), 30_000);
+
+    // Reacquiring while the record is still established cancels the pending
+    // unsubscribe retry: Go clears failures/retryAt/lastError without an RPC.
+    assert!(reconciler.actions(&desired, now_ms, 1).is_empty());
+    let snapshot = reconciler.physical_snapshot(&desired, 1, None);
+    assert_eq!(snapshot.entries.len(), 1);
+    assert_eq!(snapshot.entries[0].broker_state, "active");
+    assert_eq!(snapshot.entries[0].last_error, None);
+    assert_eq!(snapshot.fallback_count, 0);
+    // Ladder reset: the next unsubscribe failure must restart at 5s.
+    let unsubscribe = reconciler.actions(&[], now_ms, 1);
+    let subscription = match unsubscribe.as_slice() {
+        [ReconcileAction::Unsubscribe { subscription }] => subscription.clone(),
+        other => panic!("expected one unsubscribe, got {other:?}"),
+    };
+    assert_eq!(
+        reconciler.record_unsubscribe_failure(&subscription, now_ms, 1, Some("busy".to_owned())),
+        5_000
+    );
+}
+
+#[test]
 fn managed_session_close_updates_only_the_active_generation() {
     let recorder = Arc::new(MarketDataRuntimeRecorder::default());
     let mut lifecycle = OpenDSubscriptionLifecycle::new(Arc::clone(&recorder), 60_000);

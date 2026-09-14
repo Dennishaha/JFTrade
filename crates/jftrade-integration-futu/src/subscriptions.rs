@@ -195,6 +195,22 @@ impl SubscriptionReconciler {
                 }),
             }
         }
+        // Go `subscribeDesiredLocked` cancels a pending unsubscribe retry as soon
+        // as the record is wanted again: an already established subscription has
+        // nothing to re-subscribe, so the bounded retry ladder, the deferred
+        // deadline and the last error are cleared without an OpenD round trip.
+        for (key, record) in &mut self.records {
+            if record.generation != generation
+                || !record.active
+                || !desired_by_key.contains_key(key)
+            {
+                continue;
+            }
+            record.retry_at_ms = 0;
+            record.failures = 0;
+            record.last_error = None;
+            record.fallback = false;
+        }
         // Go drops records that were never established (subscribe rejected or
         // served by the delayed fallback) as soon as they leave demand: there is
         // no physical subscription to release and no state to retain.

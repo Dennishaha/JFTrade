@@ -14749,11 +14749,11 @@
     "evidence_type": "missing"
   },
   "internal/integration/futu/subscription_reconciler_test.go:287:TestSubscriptionReconcilerRetriesFailuresAndCancelsRetryOnReacquire": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::plain_basic_failure_keeps_retry_semantics_without_fallback_count",
-    "conclusion": "部分覆盖：Rust 已有 plain_basic_failure_keeps_retry_semantics_without_fallback_count 验证普通 BasicQot 失败仍走 5s 退避且不计入 fallbackCount；Go 的完整退避阶梯、unsubscribe 失败与 reacquire 取消重试断言仍待补",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(plain_basic_failure_keeps_retry_semantics_without_fallback_count)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state",
+    "conclusion": "完整覆盖：Rust 断言 unsubscribe 失败的完整退避阶梯 5s/10s/20s/30s/30s（每级窗口内 reconcile 被推迟）、retry_delay_ms 边界（0 钳到 5s、99 饱和到 30s），以及 reacquire 在不发起 RPC 的情况下取消待定 unsubscribe 重试（failures/retryAt/lastError 归零、状态回到 active、下一次失败从 5s 重新起梯）。修复点：actions() 过去不会在记录重新被 desired 且仍 active 时清理 retry 状态，导致 reacquire 后阶梯与 lastError 残留",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state)'",
+    "evidence_type": "function_exact"
   },
   "internal/integration/futu/subscription_reconciler_test.go:346:TestSubscriptionReconcilerUsesDelayedFallbackForBasicQuoteAvailabilityFailures": {
     "status": "[x]",
