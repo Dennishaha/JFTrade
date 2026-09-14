@@ -245,7 +245,7 @@ def main():
         fp.write(f"- **Go 分支（`go:{go_revision}`）测试总数**：{total_go}\n")
         fp.write(f"- **Go 高风险测试用例数**（涉及分页、缓存、时区、对账、断连重连等）：{total_go_hr}\n")
         fp.write(f"- **Rust 当前测试总数**：{total_rust}\n")
-        fp.write(f"- **总体测试覆盖比率**：{total_ratio}\n")
+        fp.write(f"- **总体测试数量比（非覆盖率）**：{total_ratio}\n")
         fp.write(f"- **Rust 基线（`{current_revision}`）**：当前工作树\n\n")
         fp.write(f"- **同名 Go 测试组**：{len(duplicate_names)}（映射必须使用文件路径与行号，不能仅按测试名）\n")
         fp.write("## 2. 分领域对齐矩阵\n\n")
