@@ -30226,25 +30226,25 @@
     "evidence_type": "function_exact"
   },
   "internal/trading/broker_conformance_test.go:15:TestFakeBrokerConformanceAcceptedPartialFullAndOutOfOrderUpdates": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_fake_broker_conformance_accepted_partial_full_and_out_of_order_updates",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 仅验证 partial→accepted 不回退及 partial→filled 前进；Go 还覆盖真实订单创建、成交数量/均价、out-of-order 更新与 terminal cancelled 不回退",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(test_fake_broker_conformance_accepted_partial_full_and_out_of_order_updates)'",
+    "evidence_type": "partial"
   },
   "internal/trading/broker_conformance_test.go:58:TestFakeBrokerConformanceCancelAcceptedAndCancelRejected": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_fake_broker_conformance_cancel_accepted_and_cancel_rejected",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 仅验证 CANCELLED_ALL 的状态映射；Go 还验证 cancel requested、broker 接受/拒绝、terminal 再取消错误、lastError 与 BROKER_CANCEL_REJECTED 事件",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(test_fake_broker_conformance_cancel_accepted_and_cancel_rejected)'",
+    "evidence_type": "partial"
   },
   "internal/trading/broker_conformance_test.go:107:TestFakeBrokerConformancePlaceRejectedPushBeforeQueryAndUnsupportedCapability": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_fake_broker_conformance_place_rejected_push_before_query_and_unsupported_capability",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 仅验证 SUBMIT_FAILED/ACCEPTED 状态分类和 terminal 属性；Go 还验证 place rejected 详情、push-before-query 订单发现及 unsupported capability 错误",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(test_fake_broker_conformance_place_rejected_push_before_query_and_unsupported_capability)'",
+    "evidence_type": "partial"
   },
   "internal/trading/broker_test.go:186:TestServiceBrokerReadOperationsMapSnapshotsAndQueries": {
     "status": "[~]",
@@ -30296,25 +30296,25 @@
     "evidence_type": "missing"
   },
   "internal/trading/control_plane_idempotency_test.go:12:TestRealTradeControlPlaneKillSwitchReleaseIsIdempotentAndAudited": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_real_trade_control_plane_kill_switch_release_is_idempotent_and_audited",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 仅验证 kill-switch Option 的激活/释放幂等；Go 还断言 release/activate 审计事件数量、顺序与 ActivatedAt 关联，且通过真实控制面方法执行",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(test_real_trade_control_plane_kill_switch_release_is_idempotent_and_audited)'",
+    "evidence_type": "partial"
   },
   "internal/trading/control_plane_idempotency_test.go:65:TestRealTradeControlPlaneHardStopReleaseIsSingleShot": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_real_trade_control_plane_hard_stop_release_is_single_shot",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 仅验证移除 hard-stop 条目后重复查找为空；Go 还验证控制面 release 返回 not found、状态快照和 HARD_STOP_RELEASE/HARD_STOP_ACTIVATE 审计事件不被重复追加",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(test_real_trade_control_plane_hard_stop_release_is_single_shot)'",
+    "evidence_type": "partial"
   },
   "internal/trading/control_plane_idempotency_test.go:99:TestRealTradeControlPlaneHardStopsBlockUntilEveryEntryReleased": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_real_trade_control_plane_hard_stops_block_until_every_entry_released",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 仅验证两条 hard-stop 条目逐条移除后的集合大小；Go 还验证 risk config、真实下单被阻断、每次拒绝审计以及全部释放后恢复放行",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(test_real_trade_control_plane_hard_stops_block_until_every_entry_released)'",
+    "evidence_type": "partial"
   },
   "internal/trading/control_plane_state_audit_test.go:13:TestControlPlaneRetainsActivationAndBoundsRepeatedAuditEvents": {
     "status": "[~]",
@@ -30352,11 +30352,11 @@
     "evidence_type": "function_exact"
   },
   "internal/trading/execution_combo_lifecycle_test.go:15:TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_combo_complete_preview_place_cancel_and_buying_power",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 仅比较 BrokerAccepted/Filled 是否 terminal；Go 还覆盖 preview、place、cancel、事件 parlay 与 buying-power 响应的完整 envelope 和错误路径",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(test_execution_combo_complete_preview_place_cancel_and_buying_power)'",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_combo_lifecycle_test.go:83:TestExecutionOrderRechecksRiskImmediatelyBeforeBrokerSubmission": {
     "status": "[~]",
@@ -30429,11 +30429,11 @@
     "evidence_type": "missing"
   },
   "internal/trading/execution_combo_lifecycle_test.go:635:TestExecutionDetailsResolverAndOrderUpdateCacheFailureBranches": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 仅验证空订单 ID 会被 trim 判空；Go 还覆盖 details resolver、order-update cache 写入失败及对应错误传播",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(test_execution_details_resolver_and_order_update_cache_failure_branches)'",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_products_test.go:12:TestDerivativeSingleLegRequiresBrokerPreviewAndStableClientID": {
     "status": "[~]",
