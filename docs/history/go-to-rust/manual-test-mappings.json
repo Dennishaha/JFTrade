@@ -24340,10 +24340,10 @@
   },
   "internal/settings/market_data_test.go:56:TestMarketDataProviderSettingsNormalizeAndApply": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-settings/src/market_data_provider.rs::tests::provider_normalization_matches_current_go_defaults",
+    "conclusion": "部分覆盖：Rust 验证 futu/yfinance/akshare 规范化、默认 provider、保存和非法输入；Go 还验证 OnProviderChanged 回调、同 provider 幂等不重启及回调序列，Rust 未覆盖 side-effect callback，不能标记为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings -E 'test(provider_normalization_matches_current_go_defaults)'",
+    "evidence_type": "partial"
   },
   "internal/settings/market_data_test.go:99:TestMarketDataProviderRetriesDegradedCurrentSelection": {
     "status": "[~]",
@@ -24368,10 +24368,10 @@
   },
   "internal/settings/market_data_test.go:203:TestMarketDataProviderRuntimeRollback": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-settings -E \"test(active_failure_rolls_back)\"`",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-settings/src/market_data_provider.rs::tests::active_failure_rolls_back_but_backtest_failure_never_persists",
+    "conclusion": "部分覆盖：Rust 注入 runtime activation failure 并断言 active provider 恢复旧值，同时验证 backtest failure 不持久化；Go 只覆盖 active provider 且还检查错误类型与返回值，测试组合不同，不能标记为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings -E 'test(active_failure_rolls_back_but_backtest_failure_never_persists)'",
+    "evidence_type": "partial"
   },
   "internal/settings/market_data_test.go:224:TestMarketDataProviderReportsPersistenceAndRollbackFailures": {
     "status": "[~]",
@@ -24410,10 +24410,10 @@
   },
   "internal/settings/service_managed_accounts_test.go:13:TestServiceCreateManagedAccountNormalizesClientFields": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-settings/tests/managed_account_validation.rs::create_account_clears_client_owned_identity_and_timestamps",
+    "conclusion": "部分覆盖：Rust 断言 create 后 id/createdAt/updatedAt 由 store 所有且 accountId trim；Go 还检查 service fakeStore backing array 长度和原始 accountId 形状，Rust store port 装配不同，不能标记为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings -E 'test(create_account_clears_client_owned_identity_and_timestamps)'",
+    "evidence_type": "partial"
   },
   "internal/settings/service_managed_accounts_test.go:35:TestServiceNotificationAndMCPStatusAccessors": {
     "status": "[~]",
@@ -24444,11 +24444,11 @@
     "evidence_type": "missing"
   },
   "internal/settings/service_managed_accounts_test.go:111:TestServiceCreateManagedAccountRejectsBlankAccountID": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/tests/managed_account_validation.rs::blank_account_id_is_rejected_before_persistence",
+    "conclusion": "函数级等价：Rust 与 Go 均在空 accountId 时返回 accountId is required，且断言持久化入口未被调用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings -E 'test(blank_account_id_is_rejected_before_persistence)'",
+    "evidence_type": "function_exact"
   },
   "internal/settings/service_managed_accounts_test.go:120:TestServiceOptionsCaptureBrokerDescriptorAndDefaultTradingEnvironment": {
     "status": "[~]",
@@ -24550,10 +24550,10 @@
   },
   "internal/watchlist/futu/source_boundaries_test.go:137:TestFutuSnapshotRemainingProviderRateLimitAndSplitPaths": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/tests/trade_session_gcra_rate_limit_challenge.rs::test_opend_trade_read_client_burst_and_10th_call_preemption",
+    "conclusion": "部分覆盖：Rust 真实 framed OpenD server 验证 burst 后第 10 次调用在 socket write 前被 rate limiter 拒绝；Go 测试还覆盖 nil/provider error、全局 rate-limit split 和 invalid snapshot item，不能标记为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --test trade_session_gcra_rate_limit_challenge -E 'test(test_opend_trade_read_client_burst_and_10th_call_preemption)'",
+    "evidence_type": "partial"
   },
   "internal/watchlist/futu/source_boundaries_test.go:181:TestWatchlistQuoteRemainingFormattingAndTimeBoundaries": {
     "status": "[~]",
