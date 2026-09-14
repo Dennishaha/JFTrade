@@ -26559,17 +26559,17 @@
   },
   "internal/strategy/catalog/runtime_reconciliation_business_test.go:52:TestCatalogRuntimeFailureReconcilesOnlyRunningInstance": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_port.rs::restore_invalid_running_binding_marks_instance_failed",
+    "conclusion": "部分覆盖：Rust 验证 RUNNING 且 binding 无法恢复时标记 FAILED、关闭 runtime 并写日志；Go 还验证 stopped 实例完全不变、running 实例状态/审计详情及错误日志内容",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(restore_invalid_running_binding_marks_instance_failed)'",
+    "evidence_type": "partial"
   },
   "internal/strategy/catalog/runtime_reconciliation_business_test.go:80:TestCatalogStartupReconcileResetsStaleRunningAndPausedState": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_port.rs::restore_running_instances_ignores_paused_and_stopped_instances",
+    "conclusion": "部分覆盖：Rust 验证 PAUSED/STOPPED 实例在 restore_running_instances 后保持原状态；Go 还验证 RUNNING/PAUSED stale 实例启动时被重置、changed/save 次数、reconciled 审计以及第二次调用幂等",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(restore_running_instances_ignores_paused_and_stopped_instances)'",
+    "evidence_type": "partial"
   },
   "internal/strategy/catalog/runtime_reconciliation_business_test.go:113:TestCatalogActivitySupportsPagingFilteringAndRuntimeObservationEnrichment": {
     "status": "[~]",
