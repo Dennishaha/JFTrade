@@ -1380,9 +1380,9 @@
   },
   "internal/api/middleware/auth_test.go:153:TestAuthTreatsPatchAsSessionWrite": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api",
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::auth_treats_patch_as_session_write_requiring_csrf",
+    "conclusion": "部分覆盖：Rust 验证 PATCH 会话写入的 CSRF 缺失拒绝与成功状态；Go 使用 ADK session 路径和 stub authenticator，Rust 使用 settings 路径与完整 router fixture，需保留差异",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth_treats_patch_as_session_write_requiring_csrf)'",
     "evidence_type": "missing"
   },
   "internal/api/middleware/auth_test.go:173:TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight": {

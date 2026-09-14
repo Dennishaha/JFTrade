@@ -216,7 +216,7 @@
 | [~] | `go:452dea11:internal/api/middleware/auth_test.go:112`<br>`TestAuthRejectsNilAuthenticator` | api_transport | 普通边界 | `crates/jftrade-api` |  | 待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价 | node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)' |
 | [~] | `go:452dea11:internal/api/middleware/auth_test.go:119`<br>`TestAuthRejectsUntrustedOrigin` | api_transport | 普通边界 | `crates/jftrade-api` |  | 待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价 | node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)' |
 | [~] | `go:452dea11:internal/api/middleware/auth_test.go:128`<br>`TestAuthRequiresOriginAndCSRFForSessionWrites` | api_transport | 高风险 | `crates/jftrade-api` |  | 待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价 | node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)' |
-| [~] | `go:452dea11:internal/api/middleware/auth_test.go:153`<br>`TestAuthTreatsPatchAsSessionWrite` | api_transport | 高风险 | `crates/jftrade-api` |  | 待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验 | node scripts/quality/cargo-nextest.mjs run -p jftrade-api |
+| [~] | `go:452dea11:internal/api/middleware/auth_test.go:153`<br>`TestAuthTreatsPatchAsSessionWrite` | api_transport | 高风险 | `crates/jftrade-api` | crates/jftrade-api/tests/transport_contracts.rs::auth_treats_patch_as_session_write_requiring_csrf | 部分覆盖：Rust 验证 PATCH 会话写入的 CSRF 缺失拒绝与成功状态；Go 使用 ADK session 路径和 stub authenticator，Rust 使用 settings 路径与完整 router fixture，需保留差异 | node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth_treats_patch_as_session_write_requiring_csrf)' |
 | [~] | `go:452dea11:internal/api/middleware/auth_test.go:173`<br>`TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight` | api_transport | 普通边界 | `crates/jftrade-api` |  | 待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价 | node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)' |
 | [~] | `go:452dea11:internal/api/middleware/security_boundaries_test.go:17`<br>`TestAuthenticationBoundaryDecisions` | api_transport | 普通边界 | `crates/jftrade-api` |  | 待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价 | node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)' |
 | [~] | `go:452dea11:internal/api/middleware/security_boundaries_test.go:46`<br>`TestWriteMethodDetectionSupportsOverridesAndNilRequests` | api_transport | 普通边界 | `crates/jftrade-api` |  | 待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价 | node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)' |
@@ -4481,4 +4481,4 @@
 | `function_exact` | 50 |
 | `missing` | 4332 |
 
-> `missing` 中仍带候选入口的条目：2；仅作后续核验线索，不构成覆盖证据。
+> `missing` 中仍带候选入口的条目：3；仅作后续核验线索，不构成覆盖证据。
