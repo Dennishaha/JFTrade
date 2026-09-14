@@ -451,7 +451,11 @@ fn static_response(assets: &AssetBundle, method: &Method, uri: &Uri) -> Response
     } else {
         uri.path().trim_start_matches('/')
     };
-    let asset = assets.get(requested).or_else(|| assets.spa_index());
+    let asset = assets.get(requested).or_else(|| {
+        should_use_spa_fallback(uri.path())
+            .then(|| assets.spa_index())
+            .flatten()
+    });
     match asset {
         Some(asset) if *method == Method::HEAD => {
             body_response(StatusCode::OK, &asset.content_type, Body::empty())
@@ -459,6 +463,24 @@ fn static_response(assets: &AssetBundle, method: &Method, uri: &Uri) -> Response
         Some(asset) => body_response(StatusCode::OK, &asset.content_type, asset.bytes.clone()),
         None => empty_response(StatusCode::NOT_FOUND),
     }
+}
+
+fn should_use_spa_fallback(path: &str) -> bool {
+    if path == "/" {
+        return true;
+    }
+    if path == "/assets"
+        || path.starts_with("/assets/")
+        || path.starts_with("/api/")
+        || path.starts_with("/swagger")
+        || path.starts_with("/docs")
+    {
+        return false;
+    }
+    !path
+        .rsplit('/')
+        .next()
+        .is_some_and(|segment| segment.contains('.'))
 }
 
 fn sse_response(events: Vec<SseEvent>) -> Response<Body> {

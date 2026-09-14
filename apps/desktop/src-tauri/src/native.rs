@@ -38,8 +38,8 @@ use crate::resource_integrity::verify_release_resources;
 use crate::tauri_adapter::with_desktop_facade;
 use crate::window_state::WindowStateStore;
 
-const DEFAULT_LOG_LIMIT: usize = 500;
-const MAX_LOG_LIMIT: usize = 2_000;
+const DEFAULT_LOG_LIMIT: usize = 200;
+const MAX_LOG_LIMIT: usize = 500;
 const LATEST_LOG_OFFSET: i64 = -1;
 const UPDATER_ENDPOINT_ENV: &str = "JFTRADE_TAURI_UPDATER_ENDPOINT";
 const UPDATER_PUBLIC_KEY_ENV: &str = "JFTRADE_TAURI_UPDATER_PUBKEY";

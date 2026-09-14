@@ -20266,311 +20266,311 @@
   },
   "cmd/jftrade-desktop/desktop_profile_dev_test.go:10:TestDevelopmentDesktopBuildProfile": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::desktop_contracts::build_profiles_preserve_tauri_identity_and_data_isolation`",
+    "conclusion": "部分覆盖：Rust 同时核对 dev/release 身份、端口、数据目录隔离和 release window state；Go 是 build-tag 分离的 profile/launchDefaults 测试，Tauri 装配不同。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop --all-targets --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/desktop_profile_release_test.go:11:TestReleaseDesktopBuildProfile": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::desktop_contracts::build_profiles_preserve_tauri_identity_and_data_isolation`",
+    "conclusion": "部分覆盖：Rust 同时核对 dev/release 身份、端口、数据目录隔离和 release window state；Go 是 build-tag 分离的 profile/launchDefaults 测试，Tauri 装配不同。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop --all-targets --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/desktop_startup_test.go:15:TestDesktopStartupWindowStatePrecedesAPIStartup": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::desktop_contracts::lifecycle_starts_in_dependency_order_and_shuts_down_in_reverse`",
+    "conclusion": "部分覆盖：Rust 验证受管进程按依赖顺序启动；未覆盖 Tauri setup 回调中窗口状态应用先于 API starter 的时序，保留为装配边界。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(lifecycle_starts_in_dependency_order_and_shuts_down_in_reverse)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/desktop_startup_test.go:29:TestDesktopStartupPublishesReadyAndClosesResources": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::desktop_contracts::lifecycle_starts_in_dependency_order_and_shuts_down_in_reverse`",
+    "conclusion": "部分覆盖：Rust 断言成功启动 ready 和 reverse shutdown；未覆盖 NativeDesktopPort startup snapshot/资源 closure 的 Tauri 异步回调装配。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(lifecycle_starts_in_dependency_order_and_shuts_down_in_reverse)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/desktop_startup_test.go:67:TestDesktopStartupFailureUsesSafeMessage": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::desktop_contracts::readiness_failure_reclaims_every_started_process_without_starting_dependents`",
+    "conclusion": "部分覆盖：Rust 验证 readiness failure 回收已启动进程且不启动依赖者；Go 的 startup snapshot 安全错误消息脱敏没有对应 headless Tauri 入口。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(readiness_failure_reclaims_every_started_process_without_starting_dependents)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/desktop_startup_test.go:93:TestDesktopShutdownCancelsStartupAndReclaimsLateResources": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- stop_product_is_idempotent`",
-    "evidence_type": "missing"
+    "rust_entry": "边界保留：Tauri async setup cancellation 与 late ProductRuntimeHandle 回收",
+    "conclusion": "不适用/待补：Go 测试依赖 Wails startup goroutine 可注入取消；当前 Rust 仅有同步 stop_product 入口，尚无可注入的异步 starter 测试，不能宣称等价。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop --all-targets --locked`",
+    "evidence_type": "boundary"
   },
   "cmd/jftrade-desktop/desktop_startup_test.go:124:TestDesktopShutdownIsIdempotent": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::native::tests::stop_product_is_idempotent_across_concurrent_invocations`",
+    "conclusion": "部分覆盖：Rust 并发调用 stop_product 后保持空 owner；Go 还注入 shutdown closure 并断言实际调用次数为 1，当前 owner 测试未覆盖 closure 计数。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(stop_product_is_idempotent_across_concurrent_invocations)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/desktop_updates_test.go:9:TestDesktopUpdateServiceSelectsLatestStableDesktopRelease": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
+    "rust_entry": "待补 Rust updater HTTP fixture：当前无稳定 release 选择的 headless 测试",
+    "conclusion": "待补 Rust 测试：现有 updater 仅验证 HTTPS endpoint/public key 配置，未验证 GitHub release 列表的 stable/prerelease/draft 过滤和版本选择。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop --all-targets --locked`",
     "evidence_type": "missing"
   },
   "cmd/jftrade-desktop/desktop_updates_test.go:33:TestDesktopUpdateServiceDisabledForDevelopment": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::native::tests::updater_requires_complete_https_release_configuration`",
+    "conclusion": "部分覆盖：Rust 验证 disabled development config 不构造 updater；Go 还调用 Check 并断言返回 current=dev、Available=false，缺少同形状结果断言。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(updater_requires_complete_https_release_configuration)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/desktop_window_state_test.go:12:TestDesktopWindowStatePathIsReleaseOnly": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::desktop_contracts::build_profiles_preserve_tauri_identity_and_data_isolation`",
+    "conclusion": "部分覆盖：Rust profile 断言 dev 不保存 window state、release 使用独立 desktop-state.json；路径生成 API 与 Go helper 不同。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(build_profiles_preserve_tauri_identity_and_data_isolation)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/desktop_window_state_test.go:22:TestDesktopWindowStateRoundTrip": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::window_state::tests::state_round_trip_is_atomic_and_rejects_invalid_bounds`",
+    "conclusion": "部分覆盖：Rust 验证原子临时文件写入、JSON round-trip、权限和非法尺寸拒绝；未使用 Go fake window 的 capture/flush facade。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(state_round_trip_is_atomic_and_rejects_invalid_bounds)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/desktop_window_state_test.go:46:TestApplyDesktopWindowState": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "边界保留：`WindowStateStore::apply` 依赖真实 Tauri `WebviewWindow`",
+    "conclusion": "待补 Rust 测试：Go 可用 fake window 断言位置、尺寸和最大化；当前 Tauri API 没有 headless fake，几何逻辑只由可见性交集测试间接覆盖。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop --all-targets --locked`",
+    "evidence_type": "boundary"
   },
   "cmd/jftrade-desktop/desktop_window_state_test.go:60:TestEnsureDesktopWindowVisibleMovesOffscreenWindow": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::window_state::tests::visibility_requires_a_real_intersection`",
+    "conclusion": "部分覆盖：Rust 验证窗口必须与 monitor work area 有真实交集；未独立断言 offscreen 窗口居中修正位置。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(visibility_requires_a_real_intersection)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:19:TestMainWindowOptionsUseWebZoom": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "边界保留：Wails mainWindowOptions 已由 Tauri tauri.conf.json 窗口配置替代",
+    "conclusion": "不适用/需保留边界：Go 测试检查 Wails zoom/CSS/native menu/backdrop 选项，Rust 桌面壳使用 Tauri 配置和 WindowStateStore，不能复用同一函数级入口。",
+    "command": "`pnpm run test:tauri-release-runtime`",
+    "evidence_type": "boundary"
   },
   "cmd/jftrade-desktop/main_test.go:39:TestDesktopSingleInstanceOptionsAreChannelScoped": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "边界保留：Tauri single-instance plugin callback",
+    "conclusion": "不适用/待补：Rust 入口在 Tauri plugin 初始化闭包中，当前 headless contract 没有可注入的 plugin callback；profile identity isolation 由 Rust contract test 覆盖。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop --all-targets --locked`",
+    "evidence_type": "boundary"
   },
   "cmd/jftrade-desktop/main_test.go:52:TestDesktopBuildChannelsCanCoexist": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::desktop_contracts::build_profiles_preserve_tauri_identity_and_data_isolation`",
+    "conclusion": "部分覆盖：Rust 断言 dev/release product id、bind、settings/data 路径和 update policy 不重叠；未覆盖 Wails application object 的全部字段。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(build_profiles_preserve_tauri_identity_and_data_isolation)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:66:TestDesktopRuntimeConfigDisablesAuth": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-api::transport_contracts::desktop_token_reaches_port_with_stable_envelope_and_request_id`",
+    "conclusion": "部分覆盖：Rust 证明 desktop bearer 被识别并传入 port；未覆盖 Tauri runtime-config.js 响应中 authRequired=false、desktopMode 和 token 字段的原生静态响应。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(desktop_token_reaches_port_with_stable_envelope_and_request_id)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:93:TestDesktopAssetHandlerOverridesRuntimeConfig": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "边界保留：Tauri asset protocol 与 runtime-config command",
+    "conclusion": "不适用/待补：Go 由 Wails http.Handler 拦截 `/runtime-config.js`；Rust 当前通过 Tauri facade/asset configuration 暴露运行时配置，暂无同形状 HTTP handler。",
+    "command": "`pnpm run test:tauri-release-runtime`",
+    "evidence_type": "boundary"
   },
   "cmd/jftrade-desktop/main_test.go:110:TestDesktopAssetHandlerServesIndexForSPARoute": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-api::transport_contracts::desktop_unknown_client_routes_use_spa_fallback_without_file_paths`",
+    "conclusion": "部分覆盖：Rust HTTP asset fallback 返回 index.html 和 text/html；Go 测试使用 Wails embedded FS 及完整 handler，装配 owner 不同。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(desktop_unknown_client_routes_use_spa_fallback_without_file_paths)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:131:TestDesktopAssetHandlerDoesNotFallbackForMissingStaticAsset": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- required_asset_does_not_fallback`",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-api::transport_contracts::desktop_missing_static_assets_do_not_use_spa_fallback`",
+    "conclusion": "部分覆盖并修复差异：Rust 现在对 `/assets/`、`/docs` 和带扩展名缺失路径返回 404，不再回退 index；HTTP asset owner 与 Go Wails handler 不同。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(desktop_missing_static_assets_do_not_use_spa_fallback)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:149:TestDesktopTrayMenuLabels": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::desktop_contracts::frontend_facade_contract_names_are_versioned_in_one_place`",
+    "conclusion": "部分覆盖：Rust 锁定 facade command/event 名称和数量；未构造 Tauri tray menu 并断言中文标签与 update item 可见性。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(frontend_facade_contract_names_are_versioned_in_one_place)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:166:TestDesktopLogWindowOptionsUseVueRoute": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "边界保留：Tauri `/desktop-logs` window route 在 tauri_adapter/native_window_tray 中装配",
+    "conclusion": "不适用/待补：Go 检查 Wails LogWindow options；Rust 由 Tauri window label 与 Vue route 组合提供，暂无 headless WebviewWindow options 断言。",
+    "command": "`pnpm run test:tauri-release-runtime`",
+    "evidence_type": "boundary"
   },
   "cmd/jftrade-desktop/main_test.go:179:TestDesktopAssetHandlerServesLogViewer": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-api::transport_contracts::desktop_unknown_client_routes_use_spa_fallback_without_file_paths`",
+    "conclusion": "部分覆盖：Rust asset fallback 能为前端 route 提供 index；未验证 Tauri 打开 `/desktop-logs` 窗口时的 label/URL 装配。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(desktop_unknown_client_routes_use_spa_fallback_without_file_paths)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:195:TestDesktopAssetHandlerFallsBackForUnknownClientRoute": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-api::transport_contracts::desktop_unknown_client_routes_use_spa_fallback_without_file_paths`",
+    "conclusion": "部分覆盖并修复差异：Rust 对无扩展名未知 client route 返回 index，同时保持 API/static 路径不回退；路由 owner 从 Wails handler 迁移到 API router。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(desktop_unknown_client_routes_use_spa_fallback_without_file_paths)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:217:TestShouldUseExplicitTrayMenuClick": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "边界保留：Tauri tray click/right-click event policy",
+    "conclusion": "不适用/待补：Go helper 按 GOOS 返回 bool；Rust 交由 Tauri tray plugin 事件模型处理，当前没有等价的纯函数入口。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop --all-targets --locked`",
+    "evidence_type": "boundary"
   },
   "cmd/jftrade-desktop/main_test.go:236:TestNormalizeDesktopDocsURL": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::desktop_contracts::desktop_links_accept_only_docs_and_http_targets`",
+    "conclusion": "部分覆盖：Rust 断言 docs/index.html、fragment 和相对 docs link 归一化；Go 表格还覆盖 `/docs` 根与 query 细节。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(desktop_links_accept_only_docs_and_http_targets)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:261:TestNormalizeDesktopDocsURLRejectsUnsafePaths": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::desktop_contracts::desktop_links_accept_only_docs_and_http_targets`",
+    "conclusion": "部分覆盖：Rust 拒绝 javascript/file、站外路径和 percent-encoded traversal；Go 还显式覆盖空值、NUL 和更多 malformed URL。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(desktop_links_accept_only_docs_and_http_targets)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:271:TestShouldQuitDesktopAppOnlyAllowsExplicitTrayQuit": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "边界保留：Tauri RunEvent::Exit 与 tray quit flag 的 native lifecycle 装配",
+    "conclusion": "不适用/待补：Go 测试依赖 Wails Dock/window hide callback；Rust 通过 Tauri RunEvent 和 AtomicBool 处理，当前没有可注入的纯函数测试。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop --all-targets --locked`",
+    "evidence_type": "boundary"
   },
   "cmd/jftrade-desktop/main_test.go:317:TestSanitizeDesktopExternalURL": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::desktop_contracts::desktop_links_accept_only_docs_and_http_targets`",
+    "conclusion": "部分覆盖：Rust 只接受 http/https 外链并拒绝 javascript/file；Go 还单独拒绝 ftp 并返回 scheme 错误结构。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(desktop_links_accept_only_docs_and_http_targets)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:335:TestDesktopLogManagerWritesOriginalAndRotatesByDay": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::native::tests::native_runtime_events_append_to_the_existing_daily_log_contract`",
+    "conclusion": "部分覆盖：Rust 断言 native runtime 日志创建、追加和目录位置；未注入可控 clock 验证跨日 rotation，也未验证 original writer mirror。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(native_runtime_events_append_to_the_existing_daily_log_contract)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:375:TestDesktopLogLevelParsing": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::native::tests::log_reader_matches_go_filter_paging_and_day_order`",
+    "conclusion": "部分覆盖：Rust 通过日志读取筛选间接验证 INFO/WARN 分类；未逐项断言 JSON、text log、DEBUG 和默认 INFO 的全部 token。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(log_reader_matches_go_filter_paging_and_day_order)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:395:TestListDesktopLogDaysAndReadsFilteredPage": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days`",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::native::tests::log_reader_matches_go_filter_paging_and_day_order`",
+    "conclusion": "部分覆盖：Rust 验证有效日期文件排序、忽略非法文件和 level/query 筛选；fixture 数量与 Go 不同，且 Tauri DesktopPort 装配不同。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(log_reader_matches_go_filter_paging_and_day_order)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:426:TestDesktopLogPageCapsLimitAndPaginatesAllLines": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days`",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::native::tests::log_reader_caps_page_limit_and_paginates_all_lines`",
+    "conclusion": "部分覆盖并修复差异：Rust 现在采用 Go 的 default=200/max=500，并验证 2,005 行首尾页；DesktopLogPage 尚未暴露 Go 的 nextOffset 字段。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(log_reader_caps_page_limit_and_paginates_all_lines)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:464:TestDesktopLogPageTailOffsetReturnsLastPageInFileOrder": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days`",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::native::tests::log_reader_matches_go_filter_paging_and_day_order`",
+    "conclusion": "部分覆盖：Rust 验证 filtered latest offset 与文件顺序；未覆盖 Go 对 partial/full last page 两种独立 fixture 及 nextOffset nil 断言。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(log_reader_matches_go_filter_paging_and_day_order)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:506:TestDesktopLogPageTailOffsetAppliesFiltersBeforePaging": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days`",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::native::tests::log_reader_matches_go_filter_paging_and_day_order`",
+    "conclusion": "部分覆盖：Rust 在计算 latest offset 前先应用 WARN/query 过滤；fixture 与 Go 不同且缺少 NextOffset 断言。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(log_reader_matches_go_filter_paging_and_day_order)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:523:TestListDesktopLogDaysMissingDirReturnsEmpty": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml test_list_desktop_log_days`",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-desktop::native::tests::test_list_desktop_log_days_missing_dir_returns_empty`",
+    "conclusion": "部分覆盖：Rust DesktopPort 对不存在日志目录返回空列表；Go 使用独立 listDesktopLogDays 函数，入口层级不同。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(test_list_desktop_log_days_missing_dir_returns_empty)' --locked`",
+    "evidence_type": "partial"
   },
   "cmd/jftrade-desktop/main_test.go:533:TestDesktopOpenFolderCommand": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "边界保留：`tauri_plugin_opener::open_path` 平台命令由插件实现",
+    "conclusion": "不适用/需保留边界：Go 直接断言 darwin/windows/linux 的 executable 名称和参数；Rust 不再维护同一平台命令 helper，不能伪造函数级映射。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop --all-targets --locked`",
+    "evidence_type": "boundary"
   },
   "internal/buildinfo/buildinfo_test.go:8:TestSnapshotTrimsBuildMetadataAndDefaultsBuildTime": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "边界保留：Rust workspace 不提供 Go buildinfo snapshot API",
+    "conclusion": "不适用/需保留边界：Go 测试只验证 Go build metadata trim/default 行为；Rust 使用 Cargo/Tauri package metadata，未迁移同名 runtime API。",
+    "command": "`pnpm run check:ai-context`",
+    "evidence_type": "boundary"
   },
   "internal/datamanagement/maintenance_test.go:9:TestMaintenanceRegistryDispatchesOnlyDeclaredCapabilities": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-datamanagement::maintenance::maintenance_service_confirmation_validation_and_rejection_parity`",
+    "conclusion": "部分覆盖：Rust maintenance service 验证声明数据库 descriptor、confirmation 校验和 backend dispatch；Go registry 直接测试 Busy/Purge/Compact capability owner，接口装配不同。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement --all-targets --locked`",
+    "evidence_type": "partial"
   },
   "internal/datamanagement/maintenance_test.go:33:TestMaintenanceRegistryFailsClosedForMissingCapabilities": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-datamanagement::tests::busy_owner_blocks_preview_and_execute_without_mutation`",
+    "conclusion": "部分覆盖：Rust 对 busy owner 缺失能力 fail-closed 并禁止 mutation；未覆盖 Go registry 对每个 nil capability 的独立错误断言。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement -E 'test(busy_owner_blocks_preview_and_execute_without_mutation)' --locked`",
+    "evidence_type": "partial"
   },
   "internal/datamanagement/maintenance_test.go:46:TestBusyCheckersReturnTheFirstOwnedActivityReason": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-datamanagement::tests::busy_owner_blocks_preview_and_execute_without_mutation`",
+    "conclusion": "部分覆盖：Rust 以单一 busy reason 阻断 preview/execute；尚无与 Go BusyCheckers 相同的多 owner 首个非空 reason 组合测试。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement -E 'test(busy_owner_blocks_preview_and_execute_without_mutation)' --locked`",
+    "evidence_type": "partial"
   },
   "internal/datamanagement/service_test.go:44:TestServiceFallbacks": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-datamanagement::maintenance::maintenance_service_confirmation_validation_and_rejection_parity`",
+    "conclusion": "部分覆盖：Rust 对 compact/backup invalid confirmation fail-closed；Go 还覆盖 nil backend 的 overview 空结果和所有操作 fallback 错误，缺少同形状服务 facade。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement --all-targets --locked`",
+    "evidence_type": "partial"
   },
   "internal/datamanagement/service_test.go:71:TestServiceDelegatesTypedRequests": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-datamanagement::maintenance::maintenance_service_confirmation_validation_and_rejection_parity`",
+    "conclusion": "部分覆盖：Rust 调用 DatabaseMaintenancePort 并校验 confirmation；未覆盖 Go Service 对 overview/preview/execute/compact/backup/rebuild 六类 typed request 的逐一转发。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement --all-targets --locked`",
+    "evidence_type": "partial"
   },
   "internal/datamanagement/service_test.go:101:TestServicePreservesBackendErrors": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement",
-    "evidence_type": "missing"
+    "rust_entry": "`jftrade-datamanagement::maintenance::maintenance_service_confirmation_validation_and_rejection_parity`",
+    "conclusion": "部分覆盖：Rust maintenance errors 保留 operation failure 分类；未注入统一 backend error 并断言所有 Service 方法 errors.Is 语义。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement --all-targets --locked`",
+    "evidence_type": "partial"
   },
   "internal/desktop/notification_policy_test.go:10:TestShouldForwardSystemNotification": {
     "status": "[~]",

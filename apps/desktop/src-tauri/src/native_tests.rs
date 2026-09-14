@@ -97,7 +97,39 @@ mod tests {
         let default_page = port
             .log_read_page("2026-08-18", "ALL", "", 0, 0)
             .expect("default page");
-        assert_eq!(default_page.limit, DEFAULT_LOG_LIMIT);
+        assert_eq!(default_page.limit, 200);
+    }
+
+    #[test]
+    fn log_reader_caps_page_limit_and_paginates_all_lines() {
+        // Parity: cmd/jftrade-desktop/main_test.go:426 TestDesktopLogPageCapsLimitAndPaginatesAllLines
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let port = test_port(directory.path());
+        fs::create_dir_all(&port.log_dir).expect("create logs");
+        let mut contents = String::new();
+        for index in 1..=2_005 {
+            contents.push_str(&format!("INFO line-{index:04}\n"));
+        }
+        fs::write(port.log_dir.join("desktop-2026-08-19.log"), contents)
+            .expect("write log");
+
+        let first = port
+            .log_read_page("2026-08-19", "ALL", "", 0, 1_000)
+            .expect("read first page");
+        assert_eq!(first.total, 2_005);
+        assert_eq!(first.offset, 0);
+        assert_eq!(first.limit, 500);
+        assert_eq!(first.items.len(), 500);
+        assert_eq!(first.items[0].text, "INFO line-0001");
+        assert_eq!(first.items[499].text, "INFO line-0500");
+
+        let last = port
+            .log_read_page("2026-08-19", "ALL", "", 2_000, 500)
+            .expect("read last page");
+        assert_eq!(last.total, 2_005);
+        assert_eq!(last.offset, 2_000);
+        assert_eq!(last.items.len(), 5);
+        assert_eq!(last.items[4].text, "INFO line-2005");
     }
 
     #[test]

@@ -470,6 +470,63 @@ async fn unknown_api_is_json_but_frontend_uses_spa_fallback() {
 }
 
 #[tokio::test]
+async fn desktop_missing_static_assets_do_not_use_spa_fallback() {
+    // Parity: go:452dea11:cmd/jftrade-desktop/main_test.go:131 TestDesktopAssetHandlerDoesNotFallbackForMissingStaticAsset
+    let (router, _) = fixture();
+    for uri in ["/assets/missing.js", "/docs/missing.html", "/client.js"] {
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(uri)
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{uri}");
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("body")
+            .to_bytes();
+        assert!(body.is_empty(), "{uri} unexpectedly returned SPA content");
+    }
+}
+
+#[tokio::test]
+async fn desktop_unknown_client_routes_use_spa_fallback_without_file_paths() {
+    // Parity: go:452dea11:cmd/jftrade-desktop/main_test.go:195 TestDesktopAssetHandlerFallsBackForUnknownClientRoute
+    let (router, _) = fixture();
+    for uri in ["/brand-new-page", "/workspace/future-panel/deep-link"] {
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(uri)
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK, "{uri}");
+        assert_eq!(
+            response.headers()["content-type"],
+            "text/html; charset=utf-8",
+            "{uri}"
+        );
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("body")
+            .to_bytes();
+        assert_eq!(body, b"<html>JFTrade</html>".as_slice(), "{uri}");
+    }
+}
+
+#[tokio::test]
 async fn legacy_assistant_chat_route_is_strictly_not_found() {
     // Parity: go:452dea11:internal/api/assistant/adk_ops_test.go:448 TestAssistantChatCompatibilityRouteIsGone
     let port = Arc::new(RecordingPort::default());
