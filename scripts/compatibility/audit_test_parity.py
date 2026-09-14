@@ -19,6 +19,29 @@ def branch_revision(branch: str) -> str:
     )
     return result.stdout.strip() if result.returncode == 0 else "unknown"
 
+
+def _is_known_cargo_package(name: str) -> bool:
+    """Return True when ``name`` is a cargo package in this workspace.
+
+    Workspace members live under ``crates/``, but the desktop shell is a
+    non-member package at ``apps/desktop/src-tauri``. Both are valid targets
+    for ``cargo nextest run -p``, so resolve through cargo metadata instead of
+    assuming a ``crates/<name>`` directory exists.
+    """
+    result = subprocess.run(
+        ["cargo", "metadata", "--no-deps", "--format-version", "1"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        # Fall back to the historical path probe when cargo is unavailable.
+        return os.path.isdir(os.path.join("crates", name))
+    try:
+        packages = json.loads(result.stdout).get("packages", [])
+    except json.JSONDecodeError:
+        return os.path.isdir(os.path.join("crates", name))
+    return any(package.get("name") == name for package in packages)
+
 DOMAIN_MAPPING = [
     # (domain_key, domain_label, go_path_prefixes, rust_crates_or_paths)
     (
@@ -307,7 +330,9 @@ def main():
     invalid_commands = [
         key for key, item in manual_details.items()
         if re.search(r"-p\s+(jftrade-[A-Za-z0-9_-]+)", item.get("command", ""))
-        and not os.path.isdir("crates/" + re.search(r"-p\s+(jftrade-[A-Za-z0-9_-]+)", item["command"]).group(1))
+        and not _is_known_cargo_package(
+            re.search(r"-p\s+(jftrade-[A-Za-z0-9_-]+)", item["command"]).group(1)
+        )
     ]
     print(f"WARNING: {len(invalid_commands)} mappings reference nonexistent -p crates")
     exact_entries = [item.get("rust_entry") for item in mapping_values if item.get("status") == "[x]"]
