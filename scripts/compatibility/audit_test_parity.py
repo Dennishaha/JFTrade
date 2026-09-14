@@ -371,7 +371,7 @@ def main():
                 test_statuses[key] = detail["status"]
             elif test["name"] in curated_details:
                 test_statuses[key] = curated_details[test["name"]]["status"]
-            elif prior and len(prior) >= 8 and (prior[0] in ("[x]", "[~]") or prior[5] != "待人工填写"):
+            elif prior and len(prior) >= 8 and prior[0] in ("[x]", "[~]"):
                 test_statuses[key] = prior[0]
             else:
                 test_statuses[key] = "[ ]"
@@ -410,7 +410,7 @@ def main():
                 rust_entry = c["rust_entry"]
                 conclusion = c["conclusion"]
                 command = c["command"]
-            elif prior and len(prior) >= 8 and (prior[0] in ("[x]", "[~]") or prior[5] != "待人工填写"):
+            elif prior and len(prior) >= 8 and prior[0] in ("[x]", "[~]"):
                 status, _, _, _, _, rust_entry, conclusion, command = prior[:8]
                 detail = curated_details[test["name"]]
                 status = detail["status"]
@@ -419,7 +419,7 @@ def main():
                 command = detail["command"]
             else:
                 status = "[ ]"
-                rust_entry, conclusion, command = "待人工填写", "待人工核对", "待人工填写"
+                rust_entry, conclusion, command = "", "未建立 Rust 函数级证据", ""
             fp.write(f"| {status} | {source} | {test['domain']} | {risk} | `{crates}` | {rust_entry} | {conclusion} | {command} |\n")
         evidence_counts = {}
         for item in manual_details.values():
