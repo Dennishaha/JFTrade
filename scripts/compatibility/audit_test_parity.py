@@ -181,7 +181,7 @@ def main():
         if len(entries) > 1:
             duplicate_names[name] = [f"{item['file']}:{item['line']}" for item in entries]
     if duplicate_names:
-        print(f"WARNING: {len(duplicate_names)} duplicate Go test names require file:line-scoped mappings")
+        print(f"WARNING: {len(duplicate_names)} duplicate baseline test names require file:line-scoped mappings")
 
     print("Extracting Rust tests from current workspace...")
     rust_tests = extract_rust_tests()
