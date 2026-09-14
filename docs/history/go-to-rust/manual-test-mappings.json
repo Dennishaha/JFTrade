@@ -1422,9 +1422,9 @@
   },
   "internal/api/middleware/security_boundaries_test.go:108:TestCanonicalOriginRejectsMalformedAndUnsupportedValues": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'",
+    "rust_entry": "crates/jftrade-api/src/auth.rs::origin_normalization_accepts_web_and_tauri_schemes",
+    "conclusion": "部分覆盖：Rust 覆盖 HTTP/Tauri 正常化及 file/非法值，但未覆盖 Go 的空白、缺失 host、http 变体和多个 wails 端口边界；不得视为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(origin_normalization_accepts_web_and_tauri_schemes)'",
     "evidence_type": "missing"
   },
   "internal/api/origin/origin_test.go:8:TestCanonical": {

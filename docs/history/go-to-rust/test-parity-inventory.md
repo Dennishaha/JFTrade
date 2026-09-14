@@ -222,7 +222,7 @@
 | [~] | `go:452dea11:internal/api/middleware/security_boundaries_test.go:46`<br>`TestWriteMethodDetectionSupportsOverridesAndNilRequests` | api_transport | 普通边界 | `crates/jftrade-api` |  | 待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价 | node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)' |
 | [~] | `go:452dea11:internal/api/middleware/security_boundaries_test.go:62`<br>`TestCORSAllowsTrustedPreflightAndSameOriginOptions` | api_transport | 普通边界 | `crates/jftrade-api` |  | 待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价 | node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)' |
 | [~] | `go:452dea11:internal/api/middleware/security_boundaries_test.go:90`<br>`TestRequestOriginUsesRefererAndHandlesNil` | api_transport | 普通边界 | `crates/jftrade-api` |  | 待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价 | node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)' |
-| [~] | `go:452dea11:internal/api/middleware/security_boundaries_test.go:108`<br>`TestCanonicalOriginRejectsMalformedAndUnsupportedValues` | api_transport | 普通边界 | `crates/jftrade-api` |  | 待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价 | node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)' |
+| [~] | `go:452dea11:internal/api/middleware/security_boundaries_test.go:108`<br>`TestCanonicalOriginRejectsMalformedAndUnsupportedValues` | api_transport | 普通边界 | `crates/jftrade-api` | crates/jftrade-api/src/auth.rs::origin_normalization_accepts_web_and_tauri_schemes | 部分覆盖：Rust 覆盖 HTTP/Tauri 正常化及 file/非法值，但未覆盖 Go 的空白、缺失 host、http 变体和多个 wails 端口边界；不得视为行为等价 | node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(origin_normalization_accepts_web_and_tauri_schemes)' |
 | [~] | `go:452dea11:internal/api/origin/origin_test.go:8`<br>`TestCanonical` | api_transport | 普通边界 | `crates/jftrade-api` | crates/jftrade-api/src/auth.rs::origin_normalization_accepts_web_and_tauri_schemes | 部分覆盖：Rust 断言 HTTP/Tauri 与非法 scheme，但未覆盖 Go 的空白、端口、缺失 host、无效 URL 表格；不得视为行为等价 | node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(origin_normalization_accepts_web_and_tauri_schemes)' |
 | [~] | `go:452dea11:internal/api/origin/origin_test.go:31`<br>`TestFromRequest` | api_transport | 普通边界 | `crates/jftrade-api` |  | 待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价 | node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)' |
 | [~] | `go:452dea11:internal/api/productfeatures/prediction_combo_routes_test.go:15`<br>`TestPredictionComboQuoteAcceptsContextFromQueryAndMapsFailures` | api_transport | 普通边界 | `crates/jftrade-api` |  | 待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价 | pnpm run check:rust:architecture |
@@ -4481,4 +4481,4 @@
 | `function_exact` | 50 |
 | `missing` | 4332 |
 
-> `missing` 中仍带候选入口的条目：1；仅作后续核验线索，不构成覆盖证据。
+> `missing` 中仍带候选入口的条目：2；仅作后续核验线索，不构成覆盖证据。
