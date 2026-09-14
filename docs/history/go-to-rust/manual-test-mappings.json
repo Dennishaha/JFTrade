@@ -1429,9 +1429,9 @@
   },
   "internal/api/origin/origin_test.go:8:TestCanonical": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'",
+    "rust_entry": "crates/jftrade-api/src/auth.rs::origin_normalization_accepts_web_and_tauri_schemes",
+    "conclusion": "部分覆盖：Rust 断言 HTTP/Tauri 与非法 scheme，但未覆盖 Go 的空白、端口、缺失 host、无效 URL 表格；不得视为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(origin_normalization_accepts_web_and_tauri_schemes)'",
     "evidence_type": "missing"
   },
   "internal/api/origin/origin_test.go:31:TestFromRequest": {
