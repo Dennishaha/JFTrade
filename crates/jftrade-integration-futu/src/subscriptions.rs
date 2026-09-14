@@ -120,7 +120,6 @@ struct ActiveRecord {
 pub struct SubscriptionReconciler {
     records: BTreeMap<String, ActiveRecord>,
     minimum_age_ms: i64,
-    fallback_count: usize,
     total_used_quota: Option<u64>,
     remain_quota: Option<u64>,
     own_used_quota: Option<u64>,
@@ -134,7 +133,6 @@ impl SubscriptionReconciler {
         Self {
             records: BTreeMap::new(),
             minimum_age_ms: minimum_age_ms.max(0),
-            fallback_count: 0,
             total_used_quota: None,
             remain_quota: None,
             own_used_quota: None,
@@ -223,14 +221,7 @@ impl SubscriptionReconciler {
             .map(|(key, _)| key.clone())
             .collect::<Vec<_>>();
         for key in never_established {
-            if self
-                .records
-                .remove(&key)
-                .is_some_and(|record| record.fallback)
-                && self.fallback_count > 0
-            {
-                self.fallback_count -= 1;
-            }
+            self.records.remove(&key);
         }
         for (key, record) in &self.records {
             if record.active
@@ -248,12 +239,6 @@ impl SubscriptionReconciler {
     }
 
     pub fn record_success(&mut self, action: &ReconcileAction, now_ms: i64, generation: u64) {
-        if let Some(previous) = self.records.get(action.key()).cloned()
-            && previous.fallback
-            && self.fallback_count > 0
-        {
-            self.fallback_count -= 1;
-        }
         match action {
             ReconcileAction::Subscribe { subscription } => {
                 self.records.insert(
@@ -299,7 +284,6 @@ impl SubscriptionReconciler {
         record.generation = generation;
         if record.fallback {
             record.fallback = false;
-            self.fallback_count = self.fallback_count.saturating_sub(1);
         }
         record.active = false;
         record.last_error = error;
@@ -333,9 +317,6 @@ impl SubscriptionReconciler {
                 retry_at_ms: 0,
                 fallback: false,
             });
-        if !record.fallback {
-            self.fallback_count = self.fallback_count.saturating_add(1);
-        }
         record.generation = generation;
         record.subscribed_at_ms = None;
         record.active = false;
@@ -424,7 +405,6 @@ impl SubscriptionReconciler {
             .collect::<BTreeMap<_, _>>();
         self.records
             .retain(|key, _| desired_by_key.contains_key(key));
-        self.fallback_count = 0;
         for record in self.records.values_mut() {
             record.generation = generation;
             record.active = false;
@@ -463,9 +443,22 @@ impl SubscriptionReconciler {
         let mut entries = Vec::with_capacity(self.records.len());
         let mut active_count = 0;
         let mut pending_release_count = 0;
+        // Go derives `fallbackCount` from the records it can still see, so a
+        // stale connection (or one whose records were dropped) reports zero
+        // instead of a counter that outlived its subscription.
+        let mut fallback_count = 0;
+        // Go `connectionChangedLocked`: when OpenD reports a different
+        // connection generation than the one this reconciler established, none
+        // of the recorded subscriptions are live any more. Reporting them as
+        // `pending_reconnect` keeps a stale generation from being mistaken for
+        // current ownership before the replay pass runs.
+        let connection_changed = observed_generation.is_some_and(|observed| observed != generation);
         for (key, record) in &self.records {
             let desired = desired_by_key.contains_key(key);
-            let state = if record.fallback {
+            let state = if connection_changed {
+                "pending_reconnect"
+            } else if record.fallback {
+                fallback_count += 1;
                 "fallback"
             } else if record.active && record.generation == generation {
                 if desired {
@@ -505,7 +498,7 @@ impl SubscriptionReconciler {
             desired_count: desired_by_key.len(),
             own_active_count: active_count,
             pending_release_count,
-            fallback_count: self.fallback_count,
+            fallback_count,
             connection_generation: Some(generation),
             observed_connection_generation: observed_generation.or(Some(generation)),
             total_used_quota: self.total_used_quota,

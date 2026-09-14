@@ -14721,32 +14721,32 @@
     "evidence_type": "missing"
   },
   "internal/integration/futu/subscription_reconciler_test.go:88:TestSubscriptionReconcilerSharesExactPhysicalSubscriptionsAndDefersFinalRelease": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::subscription_reconciler_sub_unsub_and_reconciliation_cycle_parity",
-    "conclusion": "部分覆盖：Rust 测试覆盖了订阅/退订对账动作生成与 60s 延迟退订防抖；Go 测试中的跨大小写 symbol 归一化去重和配额（Quota）字段统计在 Rust 中由独立类型处理",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(subscription_reconciler_sub_unsub_and_reconciliation_cycle_parity)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::exact_physical_subscriptions_are_shared_and_final_release_is_deferred",
+    "conclusion": "完整覆盖：desired_subscriptions 把 KLINE/hk/HK.00700/1m 与 KLINE/HK/HK.00700/1M 归并为一个逻辑能力（logical_count=3），物理键为 BASIC:HK.00700、KLINE:HK.00700:1m、KLINE:HK.00700:5m；最小保留期内释放只标记 pending（pending_release_count=3）且不产生 RPC；重新 desired 单个能力时不重新订阅（pending_release_count=1）；超过最小年龄只释放不再 desired 的 KLINE:HK.00700:5m；最终释放剩余两条并回到 own_active_count=0、pending_release_count=0、entries 为空。与 Go ReconcileSubscriptions 的时机差异说明：Rust 把 unsubscribe 计划与提交分开（actions 产出计划、record_success 提交），物理结果等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(exact_physical_subscriptions_are_shared_and_final_release_is_deferred)'",
+    "evidence_type": "function_exact"
   },
   "internal/integration/futu/subscription_reconciler_test.go:160:TestSubscriptionReconcilerConcurrentReconcileIsIdempotent": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release",
+    "conclusion": "完整覆盖（并发幂等）：以真实共享 owner（Arc<Mutex<SubscriptionReconciler>>）跑 64 个并发 reconcile pass。首个 pass 规划并提交 2 条物理订阅，其余 63 个 pass 观察到已提交状态、规划数恒为 0；释放阶段同样 64 并发只规划 2 条 unsubscribe，结束后 desiredCount/ownActiveCount/pendingReleaseCount 全为 0 且 entries 为空。唯一写入所有权由 &mut self + Mutex 保证（Go 用 reconcileMu）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release)'",
+    "evidence_type": "function_exact"
   },
   "internal/integration/futu/subscription_reconciler_test.go:191:TestSubscriptionReconcilerReplaysAllDesiredSubscriptionsWhenConnectionGenerationChanges": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::stale_observed_generation_reports_pending_reconnect_instead_of_active",
+    "conclusion": "完整覆盖：观察到的连接代际与本地不一致时（observed=3、local=2），Rust 现在报告 connectionGeneration=2、observedConnectionGeneration=3、ownActiveCount=0、pendingReleaseCount=0，且每条 entry 的 brokerState 为 pending_reconnect——与 Go connectionChangedLocked 一致；一致时仍报告 active 并计数。修复点：physical_snapshot 过去忽略 observed_generation，把过期代际的订阅继续算作 active（唯一写入所有权/并发 fencing 风险）。代际变化后的重放编排另见 provider_runtime_recovery::latest_demand_replaces_stale_replay_while_reconnect_is_pending",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(stale_observed_generation_reports_pending_reconnect_instead_of_active)'",
+    "evidence_type": "function_exact"
   },
   "internal/integration/futu/subscription_reconciler_test.go:236:TestSubscriptionReconcilerFailsWhenConnectionKeepsChanging": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::generation_churn_fences_actions_without_stranding_subscriptions",
+    "conclusion": "边界保留（机制不同、保证等价）：Go 在单次 reconcile 内联重试到 maxGenerationReconcileRuns=3 并以 \"connection changed during 3 consecutive ... attempts\" 报错；Rust 不做内联重试，而是让执行层把旧代际的代际不匹配动作 fence 掉（execute_action 返回 Ok(false) 且不触达 OpenD），下一次 reconcile pass 重新规划同一物理订阅。新增测试断言该收敛性：代际 1 计划未提交 → 代际 2 重规划同一 key 并提交为 active、代际 1 永不 active；代际 3 replay 恰好 1 条且提交前不计 active。因此「连接反复变化不丢需求」这一 Go 断言成立，但 Rust 不上抛 Go 那条例外错误消息，故不算 function_exact",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(generation_churn_fences_actions_without_stranding_subscriptions)'",
+    "evidence_type": "boundary"
   },
   "internal/integration/futu/subscription_reconciler_test.go:287:TestSubscriptionReconcilerRetriesFailuresAndCancelsRetryOnReacquire": {
     "status": "[x]",
@@ -14770,18 +14770,18 @@
     "evidence_type": "missing"
   },
   "internal/integration/futu/subscription_reconciler_test.go:459:TestSubscriptionReconcilerMeasuresRetentionFromOpenDAcknowledgement": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::retention_is_measured_from_the_opend_acknowledgement",
+    "conclusion": "完整覆盖：record_success 的 now_ms 即 OpenD 确认时刻，subscribedAt 与 unsubscribeEligibleAt 由该时刻派生（ack=10s → subscribedAt=00:00:10Z、eligibleAt=00:01:10Z）；在 pass 起点+minimum_age（60s）释放不被允许，只有 ack+minimum_age（70s）才产出 unsubscribe。与 Go 以 post-RPC 时间戳打标一致，避免慢 reconcile pass 提前释放订阅",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(retention_is_measured_from_the_opend_acknowledgement)'",
+    "evidence_type": "function_exact"
   },
   "internal/integration/futu/subscription_reconciler_test.go:499:TestSubscriptionReconcilerMeasuresRetryFromOpenDFailureAcknowledgement": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::retry_is_measured_from_the_opend_failure_acknowledgement",
+    "conclusion": "完整覆盖：record_unsubscribe_failure 的 now_ms 即失败确认时刻，5s 重试窗口从 70s 起算（74_999 推迟、75_000 刚好重试），而不是从 reconcile pass 起点 60s 起算。与 Go recordSubscriptionFailure 以失败确认时间计算 retryAt 一致",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(retry_is_measured_from_the_opend_failure_acknowledgement)'",
+    "evidence_type": "function_exact"
   },
   "internal/integration/futu/subscription_reconciler_test.go:548:TestSubscriptionReconcilerMeasuresQuotaRefreshFromOpenDAcknowledgement": {
     "status": "[~]",
@@ -14812,18 +14812,18 @@
     "evidence_type": "function_exact"
   },
   "internal/integration/futu/subscription_reconciler_test.go:697:TestDesiredPhysicalSubscriptionsRejectsIncompleteRefsAndNormalizesSymbols": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::desired_physical_subscriptions_reject_incomplete_refs_and_normalize_symbols",
+    "conclusion": "完整覆盖：空引用、KLINE 缺 interval、NEWS 等未支持 channel 全部被丢弃；限定符号 us.nvda 补齐 market 并规范化为 US.NVDA；logicalCount=2、物理键为 BASIC:US.NVDA 与 ORDER_BOOK:US.NVDA（ORDER_BOOK 不带 interval）；无法限定（market 为空且 symbol 非限定）时 normalize 失败且不产出物理订阅——与 Go normalizedInstrument/switch channel 的拒绝语义一致",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(desired_physical_subscriptions_reject_incomplete_refs_and_normalize_symbols)'",
+    "evidence_type": "function_exact"
   },
   "internal/integration/futu/subscription_reconciler_test.go:713:TestSubscriptionReconcilerKeepsThreeViewerCapabilitiesAndReleasesOnlyOldOrderBook": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::viewers_share_capabilities_and_only_the_stale_order_book_is_released",
+    "conclusion": "完整覆盖：viewer A（AAPL 1m K-line + AAPL order book）先订阅三条物理能力；切换到 strategy-A+viewer-B 时只订阅 MSFT 的三条能力，旧 AAPL order book 保持 pending（pending_release_count=1）因策略仍在看 AAPL 1m；切换回 A 之前复用 pending 不产生 RPC（A 视图 pending=3），再切到 B 同样复用；超过最小年龄仅释放 ORDER_BOOK:US.AAPL，策略的 KLINE:US.AAPL:1m 保留",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(viewers_share_capabilities_and_only_the_stale_order_book_is_released)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/account_fill_test.go:14:TestQueryAccountReturnsBBGOAccountSnapshot": {
     "status": "[~]",
