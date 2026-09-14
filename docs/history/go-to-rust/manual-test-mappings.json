@@ -267,10 +267,10 @@
   },
   "internal/api/assistant/adk_routes_test.go:787:TestADKSessionNegativeRoutes": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_dynamic_routes_validate_suffixes_and_identifiers",
+    "conclusion": "部分覆盖：Rust 验证 runs/sessions/workflows/tasks 的空白与非法 percent-encoding 标识符返回 400 及稳定错误消息；Go 还覆盖无效 session 创建、缺失 session 404 和 malformed rename HTTP route",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_read_dynamic_routes_validate_suffixes_and_identifiers)'",
+    "evidence_type": "partial"
   },
   "internal/api/assistant/adk_routes_test.go:858:TestADKRunNegativeRoutes": {
     "status": "[~]",
@@ -400,10 +400,10 @@
   },
   "internal/api/assistant/chat_transport_disconnect_test.go:55:TestChatStreamTransportHandlesDisconnectedClients": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
+    "conclusion": "部分覆盖：Rust 断开客户端后保留终态并可按 after cursor 重放 SSE 事件；Go 还单独断言 transport 写失败/客户端关闭的 goroutine 清理细节",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart)'",
+    "evidence_type": "partial"
   },
   "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect": {
     "status": "[~]",
@@ -505,10 +505,10 @@
   },
   "internal/api/assistant/routes_payload_pagination_test.go:65:TestAssistantRoutesClampPaginationBeyondAvailableItems": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_clamp_pagination_beyond_available_items",
+    "conclusion": "部分覆盖：Rust 对 audit/agents/optimization-tasks 三个路径直接 dispatch 并断言 returned=0、hasMore=false、空数组；Go 通过真实 HTTP router 仅断言 200 与 returned=0，测试装配不同",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_read_routes_clamp_pagination_beyond_available_items)'",
+    "evidence_type": "partial"
   },
   "internal/api/assistant/routes_payload_pagination_test.go:80:TestAssistantRunMutationRoutesEnforceGoalLifecycleRules": {
     "status": "[~]",
