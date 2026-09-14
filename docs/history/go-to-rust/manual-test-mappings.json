@@ -988,7 +988,6 @@
   },
   "internal/api/live/handler_test.go:342:TestHandlerConnectionLimitAndCloseLifecycle": {
     "status": "[~]",
-    "rust_entry": "",
     "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_rejects_origin_and_limit_without_leaking_permits",
     "conclusion": "部分覆盖：Rust 验证连接上限 503、Origin 拒绝和 permit 释放；未覆盖 Go 的 Close 主动终止连接、stats 清零与 depth unsubscribe；不得视为行为等价",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(ws_live_transport_rejects_origin_and_limit_without_leaking_permits)'",
@@ -14485,10 +14484,10 @@
   },
   "internal/integration/futu/marketdata_runtime_test.go:27:TestMarketDataRuntimeCloseWaitsForEnsureAndDoesNotRevive": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/tests/provider_runtime_recovery.rs::latest_demand_replaces_stale_replay_while_reconnect_is_pending",
+    "conclusion": "部分覆盖：Rust 验证了连接断开重连生命周期与重连期间过期请求不复活；Go 测试特有的运行时并发 Close 阻塞直到 Ensure 结束的等待屏障未单独作为断言",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(latest_demand_replaces_stale_replay_while_reconnect_is_pending)'",
+    "evidence_type": "partial"
   },
   "internal/integration/futu/marketdata_runtime_test.go:85:TestMarketDataRuntimeCloseReturnsActiveExchangeFailureIdempotently": {
     "status": "[~]",
@@ -14528,8 +14527,8 @@
   "internal/integration/futu/marketdata_runtime_test.go:267:TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks": {
     "status": "[x]",
     "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_tick.rs::test_tick_conversion_rejects_unusable_prices_and_uses_quote_fallbacks",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
+    "conclusion": "完整覆盖：Rust 测试覆盖了无效价格剔除以及使用前收盘价/报价后备填补的完整转换分支，与 Go 等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(test_tick_conversion_rejects_unusable_prices_and_uses_quote_fallbacks)'",
     "evidence_type": "function_exact"
   },
   "internal/integration/futu/marketdata_runtime_test.go:318:TestTickFromTickerPreservesHKPreviousCloseDuringLunchBreak": {
@@ -14591,15 +14590,15 @@
   "internal/integration/futu/marketdata_runtime_test.go:824:TestFallbackTickerMapProjectsOnlyRequestedUsableSnapshots": {
     "status": "[x]",
     "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::test_fallback_ticker_map_projects_only_requested_usable_snapshots",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
+    "conclusion": "完整覆盖：Rust 测试对降级快照只映射请求中可用数据的行为进行了完整断言，逻辑等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(test_fallback_ticker_map_projects_only_requested_usable_snapshots)'",
     "evidence_type": "function_exact"
   },
   "internal/integration/futu/marketdata_runtime_test.go:869:TestFallbackSnapshotConversionRejectsInvalidValuesAndUsesClassification": {
     "status": "[x]",
     "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
+    "conclusion": "完整覆盖：Rust 测试覆盖了非法字段值拒绝和按品种分类生成行情快照的校验逻辑，与 Go 测试等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification)'",
     "evidence_type": "function_exact"
   },
   "internal/integration/futu/marketdata_runtime_test.go:937:TestMarketDataRuntimeQueriesDelayedSnapshotsAlongsideRealtimeQuotes": {
@@ -14612,15 +14611,15 @@
   "internal/integration/futu/notifications_test.go:13:TestLiveNotificationFromResponseRoutesProtocolPayloadsToNeutralCategories": {
     "status": "[x]",
     "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
+    "conclusion": "完整覆盖：Rust 测试严格按 Go 测试用例结构对各协议载荷（委托更新、持仓更新、系统通知）路由到中立分类进行断言，完全等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories)'",
     "evidence_type": "function_exact"
   },
   "internal/integration/futu/notifications_test.go:98:TestNeutralNotificationBuildersHandleNilAndStatusTransitions": {
     "status": "[x]",
     "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::test_neutral_notification_builders_handle_nil_and_status_transitions",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
+    "conclusion": "完整覆盖：Rust 测试严格对空载荷与各状态流转组合进行断言测试，与 Go 测试逻辑完全一致",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(test_neutral_notification_builders_handle_nil_and_status_transitions)'",
     "evidence_type": "function_exact"
   },
   "internal/integration/futu/notifications_test.go:135:TestNotificationLabelsCoverEverySupportedProgramAndGatewayState": {
@@ -14681,24 +14680,24 @@
   },
   "internal/integration/futu/probe_test.go:114:TestProbeOpenDReportsClosedPortAsDisconnected": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/probe.rs::test_probe_opend_disconnected_and_version_enforcement_parity",
+    "conclusion": "部分覆盖：Rust 验证了端口未开启/连接失败时返回 Disconnected 状态以及错误上下文映射；Go 测试中的多次重试与自定义超时分支未在 Rust 中展开",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(test_probe_opend_disconnected_and_version_enforcement_parity)'",
+    "evidence_type": "partial"
   },
   "internal/integration/futu/probe_test.go:137:TestProbeFromGlobalStateEnforcesMinimumVersionAndMapsNeutralState": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/probe.rs::test_probe_opend_disconnected_and_version_enforcement_parity",
+    "conclusion": "部分覆盖：Rust 验证了 OpenD 服务端协议最低版本号校验与中立连接状态映射，但版本号边界缺少部分 Go 版本比较边缘用例",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(test_probe_opend_disconnected_and_version_enforcement_parity)'",
+    "evidence_type": "partial"
   },
   "internal/integration/futu/probe_test.go:173:TestProgramStatusStringHandlesMissingPlainAndDescribedStatus": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/health.rs::program_status_handles_missing_plain_and_described_status",
+    "conclusion": "完整覆盖：Rust 测试逐项验证了 OpenD ProgramStatus 枚举包含/缺失、带描述与纯文本格式化转换，断言与 Go 完全等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(program_status_handles_missing_plain_and_described_status)'",
+    "evidence_type": "function_exact"
   },
   "internal/integration/futu/security_details_test.go:12:TestSecurityDetailsMapPreservesCompleteBrokerNeutralWireShape": {
     "status": "[~]",
@@ -14723,10 +14722,10 @@
   },
   "internal/integration/futu/subscription_reconciler_test.go:88:TestSubscriptionReconcilerSharesExactPhysicalSubscriptionsAndDefersFinalRelease": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::subscription_reconciler_sub_unsub_and_reconciliation_cycle_parity",
+    "conclusion": "部分覆盖：Rust 测试覆盖了订阅/退订对账动作生成与 60s 延迟退订防抖；Go 测试中的跨大小写 symbol 归一化去重和配额（Quota）字段统计在 Rust 中由独立类型处理",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(subscription_reconciler_sub_unsub_and_reconciliation_cycle_parity)'",
+    "evidence_type": "partial"
   },
   "internal/integration/futu/subscription_reconciler_test.go:160:TestSubscriptionReconcilerConcurrentReconcileIsIdempotent": {
     "status": "[~]",
