@@ -14471,9 +14471,9 @@
   "internal/integration/futu/marketdata_runtime_opend_test.go:226:TestMarketDataRuntimePreservesRealtimeTicksWhenDelayedFallbackFails": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E \"test(test_fallback_establishment_recovery_and_count_semantics)\"`",
-    "evidence_type": "missing"
+    "conclusion": "Rust 功能缺失：Go 断言混合查询时延迟 fallback 失败不得丢弃已成功的实时报价（只有 fallback 标的单独失败时才把原始错误上抛）。Rust 尚无 mixed realtime/delayed 查询编排与 SnapshotFallbackSource port，缺少可观测的失败恢复语义，故保留为功能缺失而非测试缺口。分区契约已由 fallback_instruments_are_filtered_from_the_push_stream 覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(fallback_instruments_are_filtered_from_the_push_stream)'",
+    "evidence_type": "boundary"
   },
   "internal/integration/futu/marketdata_runtime_opend_test.go:275:TestTranslateSubscriptionRequiredErrorPreservesBrokerNeutralLeaseDetails": {
     "status": "[~]",
@@ -14567,11 +14567,11 @@
     "evidence_type": "missing"
   },
   "internal/integration/futu/marketdata_runtime_test.go:613:TestMarketDataRuntimeFiltersFallbackInstrumentsFromPushStream": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E \"test(test_reconnect_and_demand_replay_with_framed_opend)\"`",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::fallback_instruments_are_filtered_from_the_push_stream",
+    "conclusion": "完整覆盖：Rust 在唯一 owner（SubscriptionReconciler，对应 Go reconciler 的 IsFallbackInstrument/HasFallbackSubscriptions）实现并断言 push 流过滤——fallback 标的下 FilterPushInstruments 只保留健康标的、恢复后重新放行、输入 trim+大写化、空串/空白丢弃、无法解析的标的留在流上、无 fallback 记录时不过滤。新增生产方法 SubscriptionReconciler::filter_push_instruments（此前 Rust 完全没有该能力）。配额拒绝经由 ReconcileSubscriptions 真实进入 fallback 的端到端路径另由 fake_framed_opend_runtime_tests::test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds 覆盖",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(fallback_instruments_are_filtered_from_the_push_stream)'",
+    "evidence_type": "function_exact"
   },
   "internal/integration/futu/marketdata_runtime_test.go:655:TestMarketDataRuntimeUnavailableQueryHelpers": {
     "status": "[~]",
@@ -14604,9 +14604,9 @@
   "internal/integration/futu/marketdata_runtime_test.go:937:TestMarketDataRuntimeQueriesDelayedSnapshotsAlongsideRealtimeQuotes": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "conclusion": "Rust 功能缺失：Go 的 queryTickers 会把标的按 IsFallbackInstrument 分区，实时标的走 BasicQot 快照、fallback 标的走 SnapshotFallbackSource 聚合，并在延迟快照失败时保留已成功的实时样本（Source 分别为 bbgo:futu / futu:stock-screen）。Rust 当前没有 runtime 级 QueryTickers 编排，也没有 SnapshotFallbackSource port 或 fallback 快照到 Tick 的转换与 source 标注，故该 Go 测试无法映射为 Rust 行为测试。已覆盖的子契约见 fallback_instruments_are_filtered_from_the_push_stream（按 fallback 分区/过滤）与 session_resolver::tests::test_fallback_ticker_map_projects_only_requested_usable_snapshots（请求集合与可用价格投影）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(fallback_instruments_are_filtered_from_the_push_stream)'",
+    "evidence_type": "boundary"
   },
   "internal/integration/futu/notifications_test.go:13:TestLiveNotificationFromResponseRoutesProtocolPayloadsToNeutralCategories": {
     "status": "[x]",

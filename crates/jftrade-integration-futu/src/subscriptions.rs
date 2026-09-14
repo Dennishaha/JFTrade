@@ -371,6 +371,26 @@ impl SubscriptionReconciler {
             .any(|record| record.subscription.kind == SubscriptionKind::Basic && record.fallback)
     }
 
+    /// Removes only the symbols whose BasicQot subscription is currently served
+    /// by the delayed snapshot fallback. Every other symbol keeps sharing the
+    /// same OpenD push stream.
+    ///
+    /// Matches Go `MarketDataRuntime.FilterPushInstruments`: inputs are trimmed
+    /// and upper-cased, blank entries are dropped, and unparseable symbols stay
+    /// on the stream because they cannot be served by the fallback either.
+    pub fn filter_push_instruments(&self, instrument_ids: &[String]) -> Vec<String> {
+        instrument_ids
+            .iter()
+            .filter_map(|raw| {
+                let instrument_id = raw.trim().to_ascii_uppercase();
+                if instrument_id.is_empty() || self.is_fallback_instrument(&instrument_id) {
+                    return None;
+                }
+                Some(instrument_id)
+            })
+            .collect()
+    }
+
     pub fn record_unsubscribe_failure(
         &mut self,
         subscription: &PhysicalSubscription,

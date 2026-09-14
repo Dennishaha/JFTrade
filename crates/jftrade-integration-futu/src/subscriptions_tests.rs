@@ -231,6 +231,75 @@ fn unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state() {
 }
 
 #[test]
+fn fallback_instruments_are_filtered_from_the_push_stream() {
+    // Parity: go:452dea11:internal/integration/futu/marketdata_runtime_test.go:613 TestMarketDataRuntimeFiltersFallbackInstrumentsFromPushStream
+    // Parity: go:452dea11:internal/integration/futu/marketdata_runtime_test.go:937 FilterPushInstruments boundaries
+    let desired = [
+        reference("SNAPSHOT", None),
+        InstrumentRef {
+            channel: "SNAPSHOT".to_owned(),
+            market: "SH".to_owned(),
+            symbol: "600519".to_owned(),
+            interval: None,
+        },
+    ];
+    let mut reconciler = SubscriptionReconciler::new(0);
+    for action in reconciler.actions(&desired, 0, 1) {
+        match action {
+            ReconcileAction::Subscribe { subscription }
+                if subscription.instrument_id == "SH.600519" =>
+            {
+                reconciler.record_fallback_failure(&subscription, 0, 1, Some("quota".to_owned()));
+            }
+            other => reconciler.record_success(&other, 0, 1),
+        }
+    }
+    assert!(reconciler.has_fallback_subscriptions());
+
+    // Only the fallback symbol leaves the push stream; the healthy symbol keeps
+    // flowing. Inputs are normalized (trim + upper case) exactly like Go.
+    let ids = vec!["SH.600519".to_owned(), "US.AAPL".to_owned()];
+    assert_eq!(
+        reconciler.filter_push_instruments(&ids),
+        vec!["US.AAPL".to_owned()]
+    );
+    let messy = vec![
+        " sh.600519 ".to_owned(),
+        String::new(),
+        "  ".to_owned(),
+        " us.aapl ".to_owned(),
+    ];
+    assert_eq!(
+        reconciler.filter_push_instruments(&messy),
+        vec!["US.AAPL".to_owned()]
+    );
+    // Unparseable ids stay on the stream: Go only drops symbols whose BasicQot
+    // subscription is currently served by the delayed fallback.
+    assert_eq!(
+        reconciler.filter_push_instruments(&["invalid".to_owned()]),
+        vec!["INVALID".to_owned()]
+    );
+
+    // Recovering the fallback subscription re-admits the symbol to pushes.
+    for action in reconciler.actions(&desired, FALLBACK_SUBSCRIPTION_RETRY_MS, 1) {
+        reconciler.record_success(&action, FALLBACK_SUBSCRIPTION_RETRY_MS, 1);
+    }
+    assert!(!reconciler.has_fallback_subscriptions());
+    assert_eq!(
+        reconciler.filter_push_instruments(&ids),
+        vec!["SH.600519".to_owned(), "US.AAPL".to_owned()]
+    );
+
+    // A reconciler with no fallback record filters nothing: every parseable
+    // symbol stays on the stream (only blanks are dropped).
+    let empty = SubscriptionReconciler::new(0);
+    assert_eq!(
+        empty.filter_push_instruments(&messy),
+        vec!["SH.600519".to_owned(), "US.AAPL".to_owned()]
+    );
+}
+
+#[test]
 fn managed_session_close_updates_only_the_active_generation() {
     let recorder = Arc::new(MarketDataRuntimeRecorder::default());
     let mut lifecycle = OpenDSubscriptionLifecycle::new(Arc::clone(&recorder), 60_000);
