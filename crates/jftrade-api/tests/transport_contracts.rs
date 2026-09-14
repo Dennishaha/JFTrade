@@ -300,6 +300,59 @@ async fn browser_write_requires_allowed_origin_and_csrf() {
 }
 
 #[tokio::test]
+async fn cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin() {
+    let (router, _) = fixture();
+    let allowed = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::OPTIONS)
+                .uri("/api/v1/settings/ui")
+                .header("origin", "https://jftrade.local")
+                .body(Body::empty())
+                .expect("allowed preflight"),
+        )
+        .await
+        .expect("allowed response");
+    assert_eq!(allowed.status(), StatusCode::NO_CONTENT);
+    assert_eq!(
+        allowed.headers()["access-control-allow-origin"],
+        "https://jftrade.local"
+    );
+    assert!(
+        allowed.headers()["access-control-allow-methods"]
+            .to_str()
+            .expect("allow methods")
+            .contains("PATCH")
+    );
+    assert!(
+        allowed.headers()["access-control-allow-headers"]
+            .to_str()
+            .expect("allow headers")
+            .contains("X-Request-ID")
+    );
+
+    let denied = router
+        .oneshot(
+            Request::builder()
+                .method(Method::OPTIONS)
+                .uri("/api/v1/settings/ui")
+                .header("origin", "http://evil.example")
+                .body(Body::empty())
+                .expect("denied preflight"),
+        )
+        .await
+        .expect("denied response");
+    assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+    assert!(
+        denied
+            .headers()
+            .get("access-control-allow-origin")
+            .is_none()
+    );
+}
+
+#[tokio::test]
 async fn auth_treats_patch_as_session_write_requiring_csrf() {
     // Parity: internal/api/middleware/auth_test.go:153 TestAuthTreatsPatchAsSessionWrite
     let (router, port) = fixture();

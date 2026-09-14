@@ -112,6 +112,26 @@ async fn ws_live_transport_rejects_origin_and_limit_without_leaking_permits() {
 }
 
 #[tokio::test]
+async fn ws_live_transport_rejects_untrusted_origin_before_upgrade() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_ws_live_snapshot_port(Arc::new(EnabledWsLiveSnapshotPort));
+    let handle = start_product(config).await.expect("start product");
+    let response = websocket_handshake(
+        handle.startup_record().address,
+        &[("Origin", "http://evil.example")],
+    )
+    .await;
+    assert_eq!(response.status, 403);
+    assert_eq!(response.content_type(), Some("text/plain; charset=utf-8"));
+    assert_eq!(response.body, "Forbidden\n");
+    handle.shutdown().await.expect("shutdown product");
+}
+
+#[tokio::test]
 async fn ws_live_route_unavailable_is_plain_text_and_does_not_register_without_port() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");

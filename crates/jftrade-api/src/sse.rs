@@ -42,6 +42,7 @@ mod tests {
     #[test]
     fn frames_preserve_go_retry_id_data_and_comment_shape() {
         assert_eq!(encode_retry(3000), "retry: 3000\n\n");
+        assert_eq!(encode_retry(0), "");
         assert_eq!(
             encode_event(&SseEvent {
                 id: Some("7".into()),

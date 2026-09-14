@@ -312,4 +312,20 @@ mod tests {
         );
         assert_eq!(canonical_origin("not-an-origin"), None);
     }
+
+    #[test]
+    fn request_origin_preserves_origin_precedence_and_referer_fallback_boundary() {
+        let mut headers = HeaderMap::new();
+        assert_eq!(request_origin(&headers), None);
+
+        headers.insert("referer", " HTTPS://Example.COM/app/page ".parse().unwrap());
+        assert_eq!(request_origin(&headers), Some("https://example.com".into()));
+
+        headers.insert("origin", "https://EXAMPLE.net/path".parse().unwrap());
+        assert_eq!(request_origin(&headers), Some("https://example.net".into()));
+
+        headers.insert("origin", "null".parse().unwrap());
+        assert_eq!(request_origin(&headers), None);
+        assert!(origin_provided(&headers));
+    }
 }

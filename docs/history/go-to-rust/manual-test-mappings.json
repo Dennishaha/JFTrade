@@ -877,7 +877,7 @@
   "internal/api/httpserver/sse_test.go:87:TestPrepareSSEWriterAndFrameFormatting": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-api/src/sse.rs::tests::frames_preserve_go_retry_id_data_and_comment_shape",
-    "conclusion": "部分覆盖：Rust 覆盖 retry、id/data JSON frame 与 comment 编码，但未覆盖 Go 的响应头、retry=0 不追加和完整 wire body 断言；不得视为行为等价",
+    "conclusion": "部分覆盖：Rust 覆盖 retry、retry=0 不追加、id/data JSON frame 与 comment 编码，但未覆盖 Go 的响应头和完整 writer wire body 断言；不得视为行为等价",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(frames_preserve_go_retry_id_data_and_comment_shape)'",
     "evidence_type": "partial"
   },
@@ -995,10 +995,10 @@
   },
   "internal/api/live/handler_test.go:397:TestHandlerRejectsUntrustedWebSocketOrigin": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_rejects_untrusted_origin_before_upgrade",
+    "conclusion": "部分覆盖：Rust 在 websocket upgrade 前断言不可信 Origin 返回 403、text/plain 和 Forbidden body；Go 对两个 origin 值逐项验证并使用真实 handler.Close 清理连接，Rust 仅覆盖单值且未验证 handler stats，不能标记为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(ws_live_transport_rejects_untrusted_origin_before_upgrade)'",
+    "evidence_type": "partial"
   },
   "internal/api/live/handler_test.go:421:TestHandlerAcceptsSameOriginWebSocket": {
     "status": "[~]",
@@ -1261,17 +1261,17 @@
   },
   "internal/api/marketdata/routes_test.go:407:TestCandlesRouteTickAndStrictBeforePagination": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_data_quote_read_routes_match_group_fixture_in_cutover_only",
+    "conclusion": "部分覆盖：Rust frozen fixture 逐项回放 candles-ready、limit clamp、paged before 和错误状态；Go 额外断言 provider 收到 tick/strict-before 参数及响应 envelope，Rust fixture 通过 snapshot port，调用 owner 不同，不能标记为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_data_quote_read_routes_match_group_fixture_in_cutover_only)'",
+    "evidence_type": "partial"
   },
   "internal/api/marketdata/routes_test.go:439:TestDepthRouteRejectsInvalidNum": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_microstructure_depth_route_rejects_invalid_num_before_reader_call",
+    "conclusion": "部分覆盖：Rust 对 HK/00700 的 num=abc 在 reader 调用前返回 BAD_REQUEST，并断言调用计数为零；Go 使用 Gin depth route 和 routeTestProvider，Rust 使用 microstructure port，未复现完整 HTTP router wire，不能标记为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_microstructure_depth_route_rejects_invalid_num_before_reader_call)'",
+    "evidence_type": "partial"
   },
   "internal/api/marketdata/routes_test.go:459:TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize": {
     "status": "[~]",
@@ -1387,10 +1387,10 @@
   },
   "internal/api/middleware/auth_test.go:173:TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin",
+    "conclusion": "部分覆盖：Rust 断言允许 Origin 的 204、allow-origin、PATCH/ X-Request-ID headers，以及恶意 Origin 的 403；Go 还检查 expose headers、null+Referer malformed 边界和更多 CORS header 集合，不能标记为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin)'",
+    "evidence_type": "partial"
   },
   "internal/api/middleware/security_boundaries_test.go:17:TestAuthenticationBoundaryDecisions": {
     "status": "[~]",
@@ -1415,10 +1415,10 @@
   },
   "internal/api/middleware/security_boundaries_test.go:90:TestRequestOriginUsesRefererAndHandlesNil": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-api/src/auth.rs::tests::request_origin_preserves_origin_precedence_and_referer_fallback_boundary",
+    "conclusion": "部分覆盖：Rust 断言空 headers、Referer fallback、Origin 优先级及 malformed Origin 不回退，并记录 origin_provided；Go 使用 nil request 与 Gin request 对象，Rust 直接使用 HeaderMap，边界装配不同，不能标记为行为等价",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(request_origin_preserves_origin_precedence_and_referer_fallback_boundary)'",
+    "evidence_type": "partial"
   },
   "internal/api/middleware/security_boundaries_test.go:108:TestCanonicalOriginRejectsMalformedAndUnsupportedValues": {
     "status": "[~]",

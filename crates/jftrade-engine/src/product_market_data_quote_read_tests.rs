@@ -548,6 +548,25 @@ async fn market_microstructure_quote_routes_reject_invalid_queries_before_reader
 }
 
 #[tokio::test]
+async fn market_microstructure_depth_route_rejects_invalid_num_before_reader_call() {
+    let reader = Arc::new(MicrostructureReaderFixture::success());
+    let port = microstructure_quote_port(reader.clone());
+    let error = port
+        .read("/api/v1/market-data/depth/HK/00700", "num=abc")
+        .await
+        .expect_err("invalid depth num");
+    assert!(matches!(
+        error,
+        MarketDataQuoteReadSnapshotError::Failed {
+            status: 400,
+            code,
+            ..
+        } if code == "BAD_REQUEST"
+    ));
+    assert_eq!(reader.calls.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
 async fn market_microstructure_quote_routes_preserve_provider_error_mapping() {
     // Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:63 TestCandlesAndDepthRoutesMapProviderFailures
     // Verifies provider failure classification and HTTP status mappings for ticks and depth routes
