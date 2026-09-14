@@ -435,7 +435,7 @@ def main():
             if item.get("evidence_type") == "missing" and item.get("rust_entry")
         )
         fp.write(
-            f"\n> `missing` 中仍带候选入口的条目：{missing_with_entry}；仅作待人工核验线索，不构成覆盖证据。\n"
+            f"\n> `missing` 中仍带候选入口的条目：{missing_with_entry}；仅作后续核验线索，不构成覆盖证据。\n"
         )
 
     print(f"\nReport written to {report_path}")
