@@ -25102,11 +25102,11 @@
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/normalization_and_persistence_test.go:13:TestSettingsNormalizationHandlesFallbacksAndBoundaries": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::test_settings_normalization_handles_fallbacks_and_boundaries",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 只验证 execution 三项 fallback/clamp；Go 还覆盖 system notification 去重、Pine worker 限制、颜色规范化与未知 mode 边界",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file -E 'test(test_settings_normalization_handles_fallbacks_and_boundaries)'",
+    "evidence_type": "partial"
   },
   "internal/store/settingsfile/normalization_and_persistence_test.go:53:TestSettingsInterfaceAndAccountNormalization": {
     "status": "[~]",
@@ -25151,25 +25151,25 @@
     "evidence_type": "missing"
   },
   "internal/store/settingsfile/rollback_test.go:13:TestFailedSettingSavesRollbackAllRuntimeState": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::test_failed_setting_saves_rollback_all_runtime_state",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 只验证 appearance 成功保存后可读；Go 通过强制 atomic replace 失败覆盖 integration/appearance/onboarding/execution/security/notifications/ADK/Pine/MCP/calendar 并断言内存与磁盘全部回滚",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file -E 'test(test_failed_setting_saves_rollback_all_runtime_state)'",
+    "evidence_type": "partial"
   },
   "internal/store/settingsfile/rollback_test.go:185:TestFailedBootstrapAndMigrationRollbackRuntimeState": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::test_failed_bootstrap_and_migration_rollback_runtime_state",
-    "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file",
-    "evidence_type": "function_exact"
+    "conclusion": "部分覆盖：Rust 仅验证新 settings store 的 appearance 为空；Go 还验证 initial integration save 与 bootstrap/migration replace 失败时 runtime state 不变且文件不存在",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file -E 'test(test_failed_bootstrap_and_migration_rollback_runtime_state)'",
+    "evidence_type": "partial"
   },
   "internal/store/settingsfile/rollback_test.go:232:TestFailedManagedAccountCRUDRollsBackBackingArray": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::test_failed_managed_account_crud_rolls_back_backing_array",
+    "conclusion": "部分覆盖：Rust 仅验证打开 settings 后 managed accounts 初始数组为空；Go 还注入 create/update/delete 的 replace 失败并断言 backing array 与磁盘保持不变",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file -E 'test(test_failed_managed_account_crud_rolls_back_backing_array)'",
+    "evidence_type": "partial"
   },
   "internal/store/settingsfile/store_persistence_contracts_test.go:15:TestStoreDefaultsExposePathAndNormalizedDefaults": {
     "status": "[~]",
@@ -25292,10 +25292,10 @@
   },
   "internal/store/settingsfile/store_test.go:83:TestSaveIntegrationPersistsWithoutChangingRuntimeEnv": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields",
+    "conclusion": "部分覆盖：Rust frozen corpus 覆盖 Futu install settings 的持久化/未知字段保持，但未执行 Go SaveIntegration 的 runtime env 不变断言与真实 replace 流程",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file -E 'test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields)'",
+    "evidence_type": "partial"
   },
   "internal/store/settingsfile/store_test.go:136:TestManagedAccountsDefaults": {
     "status": "[~]",
