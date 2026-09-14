@@ -307,6 +307,15 @@ def main():
     ]
     if invalid_evidence:
         raise ValueError(f"[x] mappings require evidence_type=function_exact; found {len(invalid_evidence)}")
+    required_fields = {"status", "rust_entry", "conclusion", "command", "evidence_type"}
+    malformed_records = [
+        key for key, item in manual_details.items()
+        if not required_fields.issubset(item)
+        or item.get("status") not in {"[x]", "[~]"}
+        or item.get("evidence_type") not in {"function_exact", "boundary", "missing", "module_only"}
+    ]
+    if malformed_records:
+        raise ValueError(f"invalid parity mapping records: {len(malformed_records)}")
     exact_entries = [item.get("rust_entry") for item in mapping_values if item.get("status") == "[x]"]
     duplicate_entries = len(exact_entries) - len(set(exact_entries))
     if duplicate_entries:
