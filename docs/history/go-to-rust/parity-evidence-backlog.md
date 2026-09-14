@@ -80,3 +80,5 @@
 - 该结果仅证明 `jftrade-strategy` 当前测试集合可执行，不会自动提升未建立函数级映射的 `[~]` 条目。
 
 - `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked`：36 项执行，36 通过，1 项跳过（nextest run `5817aea5-d89d-40ee-bf4b-1eb706127be6`）。
+
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked`：1,066/1,066 通过，0 跳过（日志 `/tmp/jftrade-engine-nextest.log`，汇总耗时 120.745s）。
