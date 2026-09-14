@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use jftrade_broker::SnapshotAvailabilityKind;
 use prost::Message;
 use thiserror::Error;
 
@@ -84,6 +85,66 @@ pub enum SubscriptionExecutorError {
     InvalidInstrument(String),
     #[error("unsupported OpenD subscription interval {0:?}")]
     UnsupportedInterval(String),
+}
+
+impl SubscriptionExecutorError {
+    /// Classifies an OpenD Qot_Sub rejection as a quote-access availability
+    /// failure that the delayed snapshot fallback may serve.
+    ///
+    /// Matches the Go OpenD BasicQot classifier in
+    /// `pkg/futu/exchange_basicqot.go`: entitlement, quota and
+    /// unsupported-symbol rejections are fallback eligible, while transport,
+    /// decode and local validation failures keep their normal retry semantics.
+    pub fn snapshot_availability_kind(&self) -> Option<SnapshotAvailabilityKind> {
+        let SubscriptionExecutorError::Rejected { message, .. } = self else {
+            return None;
+        };
+        classify_snapshot_availability(message)
+    }
+}
+
+/// Returns the broker-neutral quote-access kind for an OpenD rejection message.
+fn classify_snapshot_availability(message: &str) -> Option<SnapshotAvailabilityKind> {
+    let normalized = message.to_ascii_lowercase();
+    let contains_any =
+        |candidates: &[&str]| candidates.iter().any(|value| normalized.contains(value));
+    if contains_any(&[
+        "entitlement",
+        "permission",
+        "quote right",
+        "qot right",
+        "\u{6743}\u{9650}",
+    ]) {
+        return Some(SnapshotAvailabilityKind::new(
+            SnapshotAvailabilityKind::ENTITLEMENT,
+        ));
+    }
+    if contains_any(&[
+        "quota",
+        "subscription limit",
+        "subscribe limit",
+        "maximum subscription",
+        "subscription is full",
+        "\u{8ba2}\u{9605}\u{6570}\u{91cf}",
+        "\u{8ba2}\u{9605}\u{5df2}\u{6ee1}",
+    ]) {
+        return Some(SnapshotAvailabilityKind::new(
+            SnapshotAvailabilityKind::QUOTA,
+        ));
+    }
+    if contains_any(&[
+        "unknown stock",
+        "unknown security",
+        "\u{672a}\u{77e5}\u{80a1}\u{7968}",
+        "\u{672a}\u{77e5}\u{8bc1}\u{5238}",
+        "not support",
+        "unsupported",
+    ]) {
+        return Some(SnapshotAvailabilityKind::new(
+            SnapshotAvailabilityKind::UNSUPPORTED,
+        ));
+    }
+    None
 }
 
 fn qot_sub_request(action: &ReconcileAction) -> Result<QotSubC2s, SubscriptionExecutorError> {
@@ -415,6 +476,108 @@ mod tests {
             } if message == "subscription denied"
         ));
         server.join().expect("server");
+    }
+
+    #[test]
+    fn qot_sub_availability_classifier_matches_go_keyword_matrix() {
+        // Parity: pkg/futu/exchange_basicqot.go snapshot availability classification
+        let eligible = [
+            ("entitlement", SnapshotAvailabilityKind::ENTITLEMENT),
+            (
+                "no permission for this market",
+                SnapshotAvailabilityKind::ENTITLEMENT,
+            ),
+            (
+                "quote right is missing",
+                SnapshotAvailabilityKind::ENTITLEMENT,
+            ),
+            ("qot right expired", SnapshotAvailabilityKind::ENTITLEMENT),
+            (
+                "\u{6743}\u{9650}\u{4e0d}\u{8db3}",
+                SnapshotAvailabilityKind::ENTITLEMENT,
+            ),
+            ("quota exceeded", SnapshotAvailabilityKind::QUOTA),
+            (
+                "subscription limit reached",
+                SnapshotAvailabilityKind::QUOTA,
+            ),
+            ("subscribe limit reached", SnapshotAvailabilityKind::QUOTA),
+            (
+                "maximum subscription reached",
+                SnapshotAvailabilityKind::QUOTA,
+            ),
+            (
+                "OpenD subscription is full",
+                SnapshotAvailabilityKind::QUOTA,
+            ),
+            (
+                "\u{8ba2}\u{9605}\u{6570}\u{91cf}\u{8d85}\u{9650}",
+                SnapshotAvailabilityKind::QUOTA,
+            ),
+            (
+                "\u{8ba2}\u{9605}\u{5df2}\u{6ee1}",
+                SnapshotAvailabilityKind::QUOTA,
+            ),
+            ("unknown stock", SnapshotAvailabilityKind::UNSUPPORTED),
+            ("unknown security", SnapshotAvailabilityKind::UNSUPPORTED),
+            (
+                "\u{672a}\u{77e5}\u{80a1}\u{7968}",
+                SnapshotAvailabilityKind::UNSUPPORTED,
+            ),
+            (
+                "\u{672a}\u{77e5}\u{8bc1}\u{5238}",
+                SnapshotAvailabilityKind::UNSUPPORTED,
+            ),
+            ("market not support", SnapshotAvailabilityKind::UNSUPPORTED),
+            ("unsupported symbol", SnapshotAvailabilityKind::UNSUPPORTED),
+        ];
+        for (message, kind) in eligible {
+            let error = SubscriptionExecutorError::Rejected {
+                ret_type: -3,
+                error_code: 1001,
+                message: message.to_owned(),
+            };
+            assert_eq!(
+                error.snapshot_availability_kind(),
+                Some(SnapshotAvailabilityKind::new(kind)),
+                "message {message:?} should be fallback eligible"
+            );
+        }
+
+        // Go `TestClassifyBasicQotSubscriptionErrorOnlyMarksAvailabilityFailures`
+        // additionally keeps frequency/rate-limit and transport failures
+        // ineligible; those must never be routed to the delayed fallback.
+        for message in [
+            "subscription denied",
+            "network unreachable",
+            "qot sub internal error",
+            "request frequency too high",
+            "snapshot rate limited; retry after 1s",
+            "",
+        ] {
+            let error = SubscriptionExecutorError::Rejected {
+                ret_type: -3,
+                error_code: 1001,
+                message: message.to_owned(),
+            };
+            assert_eq!(
+                error.snapshot_availability_kind(),
+                None,
+                "message {message:?}"
+            );
+        }
+
+        // Non-rejection errors never classify as availability failures.
+        assert_eq!(
+            SubscriptionExecutorError::InvalidInstrument("bad".to_owned())
+                .snapshot_availability_kind(),
+            None
+        );
+        assert_eq!(
+            SubscriptionExecutorError::UnsupportedInterval("7m".to_owned())
+                .snapshot_availability_kind(),
+            None
+        );
     }
 
     #[test]

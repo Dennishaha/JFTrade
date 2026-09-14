@@ -161,6 +161,13 @@ string_taxonomy!(
 );
 
 impl SnapshotAvailabilityKind {
+    /// Quote-access failure caused by missing entitlement or quote rights.
+    pub const ENTITLEMENT: &'static str = "entitlement";
+    /// Quote-access failure reported by OpenD as a subscription quota limit.
+    pub const QUOTA: &'static str = "subscription_quota";
+    /// Quote-access failure for symbols the provider cannot serve.
+    pub const UNSUPPORTED: &'static str = "unsupported";
+
     pub fn is_fallback_eligible(&self) -> bool {
         self.is_known()
     }

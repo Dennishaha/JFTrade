@@ -112,9 +112,19 @@ fn failed_or_replayed_subscriptions_are_not_active_until_success() {
             .active_instruments(SubscriptionKind::Basic, 1)
             .is_empty()
     );
-    assert!(reconciler.actions(&[], 60_000, 1).is_empty());
+    // While the instrument stays desired the bounded retry window defers a
+    // second attempt, matching Go `subscribeDesiredLocked`.
     assert!(reconciler.actions(&desired, 4_999, 1).is_empty());
     assert_eq!(reconciler.actions(&desired, 5_000, 1).len(), 1);
+    // Releasing a never-established record drops it immediately; Go has no
+    // physical subscription to release and keeps no retry state.
+    assert!(reconciler.actions(&[], 5_000, 1).is_empty());
+    assert!(
+        reconciler
+            .physical_snapshot(&desired, 1, None)
+            .entries
+            .is_empty()
+    );
 
     reconciler.record_success(&actions[0], 5_000, 1);
     assert_eq!(
@@ -250,4 +260,144 @@ fn lifecycle_rejects_stale_callbacks_and_closes_recorder_once() {
     assert!(!lifecycle.close());
     assert!(lifecycle.reconcile_demand(&desired, 10).is_empty());
     assert!(recorder.snapshot().closed);
+}
+
+#[test]
+fn basic_quote_availability_failure_enters_delayed_fallback_and_recovers() {
+    // Parity: internal/integration/futu/subscription_reconciler_test.go:346 TestSubscriptionReconcilerUsesDelayedFallbackForBasicQuoteAvailabilityFailures
+    let desired = [reference("SNAPSHOT", None)];
+    let mut reconciler = SubscriptionReconciler::new(0);
+    let subscribe = reconciler.actions(&desired, 0, 1).pop().expect("subscribe");
+    let subscription = match &subscribe {
+        ReconcileAction::Subscribe { subscription } => subscription.clone(),
+        _ => panic!("expected subscribe action"),
+    };
+
+    assert_eq!(
+        reconciler.record_fallback_failure(&subscription, 0, 1, None),
+        15_000
+    );
+    assert!(reconciler.has_fallback_subscriptions());
+    assert!(reconciler.is_fallback_instrument("US.AAPL"));
+    assert!(!reconciler.is_fallback_instrument("US.MSFT"));
+    let snapshot = reconciler.physical_snapshot(&desired, 1, None);
+    assert_eq!(snapshot.fallback_count, 1);
+    assert_eq!(snapshot.own_active_count, 0);
+    assert_eq!(snapshot.entries.len(), 1);
+    assert_eq!(snapshot.entries[0].broker_state, "fallback");
+
+    // Retry is deferred until the fallback window elapses, then succeeds.
+    assert!(reconciler.actions(&desired, 14_999, 1).is_empty());
+    assert_eq!(reconciler.actions(&desired, 15_000, 1).len(), 1);
+    reconciler.record_success(&subscribe, 15_000, 1);
+    assert!(!reconciler.has_fallback_subscriptions());
+    assert!(!reconciler.is_fallback_instrument("US.AAPL"));
+    let snapshot = reconciler.physical_snapshot(&desired, 1, None);
+    assert_eq!(snapshot.fallback_count, 0);
+    assert_eq!(snapshot.own_active_count, 1);
+    assert_eq!(snapshot.entries[0].broker_state, "active");
+}
+
+#[test]
+fn non_basic_or_non_availability_failures_do_not_enter_fallback() {
+    // Parity: internal/integration/futu/subscription_reconciler.go:185 eligibility gate
+    let desired = [reference("KLINE", Some("1m"))];
+    let mut reconciler = SubscriptionReconciler::new(0);
+    let actions = reconciler.actions(&desired, 0, 1);
+    let kline = actions
+        .iter()
+        .find_map(|action| match action {
+            ReconcileAction::Subscribe { subscription }
+                if subscription.kind == SubscriptionKind::Kline =>
+            {
+                Some(subscription.clone())
+            }
+            _ => None,
+        })
+        .expect("kline subscribe");
+
+    assert_eq!(reconciler.record_failure(&kline, 0, 1, None), 5_000);
+    assert!(!reconciler.has_fallback_subscriptions());
+    assert!(!reconciler.is_fallback_instrument("US.AAPL"));
+    assert_eq!(
+        reconciler
+            .physical_snapshot(&desired, 1, None)
+            .fallback_count,
+        0
+    );
+}
+
+#[test]
+fn plain_basic_failure_keeps_retry_semantics_without_fallback_count() {
+    // Parity: internal/integration/futu/subscription_reconciler_test.go:287 TestSubscriptionReconcilerRetriesFailuresAndCancelsRetryOnReacquire
+    let desired = [reference("SNAPSHOT", None)];
+    let mut reconciler = SubscriptionReconciler::new(0);
+    let subscribe = reconciler.actions(&desired, 0, 1).pop().expect("subscribe");
+    let subscription = match &subscribe {
+        ReconcileAction::Subscribe { subscription } => subscription.clone(),
+        _ => panic!("expected subscribe action"),
+    };
+
+    assert_eq!(
+        reconciler.record_failure(&subscription, 0, 1, Some("subscribe denied".to_owned())),
+        5_000
+    );
+    assert_eq!(
+        reconciler
+            .physical_snapshot(&desired, 1, None)
+            .fallback_count,
+        0
+    );
+    assert!(!reconciler.has_fallback_subscriptions());
+    assert!(reconciler.actions(&desired, 4_999, 1).is_empty());
+    assert_eq!(reconciler.actions(&desired, 5_000, 1).len(), 1);
+}
+
+#[test]
+fn released_never_established_records_are_dropped_without_fallback_leakage() {
+    // Parity: internal/integration/futu/subscription_reconciler_test.go:676 TestSubscriptionReconcilerDropsFailedRecordsReleasedBeforeRetry
+    let desired = [reference("SNAPSHOT", None)];
+    let mut reconciler = SubscriptionReconciler::new(0);
+    let subscribe = reconciler.actions(&desired, 0, 1).pop().expect("subscribe");
+    let subscription = match &subscribe {
+        ReconcileAction::Subscribe { subscription } => subscription.clone(),
+        _ => panic!("expected subscribe action"),
+    };
+    reconciler.record_failure(&subscription, 0, 1, Some("denied".to_owned()));
+    assert_eq!(
+        reconciler
+            .physical_snapshot(&desired, 1, None)
+            .entries
+            .len(),
+        1
+    );
+
+    // Leaving demand before any successful subscribe drops the record entirely.
+    assert!(reconciler.actions(&[], 1, 1).is_empty());
+    assert!(
+        reconciler
+            .physical_snapshot(&desired, 1, None)
+            .entries
+            .is_empty()
+    );
+
+    // A fallback record is dropped the same way, and the fallback count follows.
+    let mut reconciler = SubscriptionReconciler::new(0);
+    let subscribe = reconciler.actions(&desired, 0, 1).pop().expect("subscribe");
+    let subscription = match &subscribe {
+        ReconcileAction::Subscribe { subscription } => subscription.clone(),
+        _ => panic!("expected subscribe action"),
+    };
+    reconciler.record_fallback_failure(&subscription, 0, 1, Some("quota".to_owned()));
+    assert_eq!(
+        reconciler
+            .physical_snapshot(&desired, 1, None)
+            .fallback_count,
+        1
+    );
+    assert!(reconciler.actions(&[], 1, 1).is_empty());
+    let snapshot = reconciler.physical_snapshot(&desired, 1, None);
+    assert!(snapshot.entries.is_empty());
+    assert_eq!(snapshot.fallback_count, 0);
+    assert!(!reconciler.has_fallback_subscriptions());
 }

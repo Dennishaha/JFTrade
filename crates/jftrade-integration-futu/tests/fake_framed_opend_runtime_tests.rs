@@ -355,6 +355,106 @@ fn test_reconnect_and_demand_replay_with_framed_opend() {
 }
 
 #[test]
+fn test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds() {
+    // Parity: internal/integration/futu/subscription_reconciler_test.go:346 TestSubscriptionReconcilerUsesDelayedFallbackForBasicQuoteAvailabilityFailures
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind");
+    let address = listener.local_addr().expect("local_addr");
+
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let init = read_framed_frame(&mut stream).expect("init frame");
+        assert_eq!(init.header.proto_id, PROTO_INIT_CONNECT);
+        write_framed_response(
+            &mut stream,
+            PROTO_INIT_CONNECT,
+            init.header.serial_no,
+            &InitResponse {
+                ret_type: Some(0),
+                ret_msg: Some("ok".to_owned()),
+                s2c: Some(InitState {
+                    server_ver: 1009,
+                    conn_id: 77,
+                }),
+            }
+            .encode_to_vec(),
+        );
+
+        // First Qot_Sub: quota pressure -> fallback eligible.
+        let sub = read_framed_frame(&mut stream).expect("sub frame");
+        assert_eq!(sub.header.proto_id, PROTO_QOT_SUB);
+        write_framed_response(
+            &mut stream,
+            PROTO_QOT_SUB,
+            sub.header.serial_no,
+            &SubResponse {
+                ret_type: Some(-1),
+                ret_msg: Some("OpenD subscription is full".to_owned()),
+            }
+            .encode_to_vec(),
+        );
+
+        // Retry after the 15s fallback window is acknowledged successfully.
+        let retry = read_framed_frame(&mut stream).expect("retry frame");
+        assert_eq!(retry.header.proto_id, PROTO_QOT_SUB);
+        write_framed_response(
+            &mut stream,
+            PROTO_QOT_SUB,
+            retry.header.serial_no,
+            &SubResponse {
+                ret_type: Some(0),
+                ret_msg: Some("ok".to_owned()),
+            }
+            .encode_to_vec(),
+        );
+    });
+
+    let demand = vec![InstrumentRef {
+        channel: "SNAPSHOT".to_owned(),
+        market: "SH".to_owned(),
+        symbol: "600519".to_owned(),
+        interval: None,
+    }];
+    let recorder = Arc::new(MarketDataRuntimeRecorder::default());
+    let mut coordinator = OpenDSessionCoordinator::connect(
+        OpenDTcpProbeConfig::new(address, Duration::from_secs(2)),
+        recorder,
+        demand.clone(),
+        1_700_000_000_000,
+    )
+    .expect("quota rejection must not fail the reconcile pass");
+
+    let snapshot = coordinator.physical_snapshot().expect("snapshot");
+    assert_eq!(snapshot.fallback_count, 1);
+    assert_eq!(snapshot.own_active_count, 0);
+    assert_eq!(snapshot.desired_count, 1);
+    assert_eq!(snapshot.entries.len(), 1);
+    assert_eq!(snapshot.entries[0].broker_state, "fallback");
+    assert_eq!(
+        snapshot.entries[0].last_error.as_deref(),
+        Some("OpenD Qot_Sub returned retType=-1 errCode=0: OpenD subscription is full")
+    );
+
+    // Retry before the fallback window stays deferred.
+    coordinator
+        .reconcile(&demand, 1_700_000_000_000 + 14_999)
+        .expect("deferred reconcile");
+    let snapshot = coordinator.physical_snapshot().expect("snapshot");
+    assert_eq!(snapshot.fallback_count, 1);
+
+    // At the fallback deadline the retry succeeds and clears fallback state.
+    coordinator
+        .reconcile(&demand, 1_700_000_000_000 + 15_000)
+        .expect("fallback recovery reconcile");
+    let snapshot = coordinator.physical_snapshot().expect("snapshot");
+    assert_eq!(snapshot.fallback_count, 0);
+    assert_eq!(snapshot.own_active_count, 1);
+    assert_eq!(snapshot.entries[0].broker_state, "active");
+
+    coordinator.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
 fn test_fallback_establishment_recovery_and_count_semantics() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind");
     let address = listener.local_addr().expect("local_addr");

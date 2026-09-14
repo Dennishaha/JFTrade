@@ -36,6 +36,20 @@ pub struct SubscriptionPlan {
     pub physical: Vec<PhysicalSubscription>,
 }
 
+/// Delayed snapshot retry window used when a BasicQot subscription cannot be
+/// established because of entitlement, unsupported symbol or quota pressure.
+/// Matches Go `fallbackSubscriptionRetry`.
+pub const FALLBACK_SUBSCRIPTION_RETRY_MS: i64 = 15_000;
+
+impl ReconcileAction {
+    pub fn key(&self) -> &str {
+        match self {
+            ReconcileAction::Subscribe { subscription }
+            | ReconcileAction::Unsubscribe { subscription } => &subscription.key,
+        }
+    }
+}
+
 pub fn desired_subscriptions(desired: &[InstrumentRef]) -> SubscriptionPlan {
     let mut logical = BTreeSet::new();
     let mut physical = BTreeSet::new();
@@ -91,7 +105,9 @@ pub enum ReconcileAction {
 #[derive(Clone, Debug)]
 struct ActiveRecord {
     subscription: PhysicalSubscription,
-    subscribed_at_ms: i64,
+    /// `None` until OpenD acknowledges the subscribe, matching Go's zero
+    /// `time.Time` sentinel for records that were never established.
+    subscribed_at_ms: Option<i64>,
     generation: u64,
     active: bool,
     failures: usize,
@@ -158,7 +174,7 @@ impl SubscriptionReconciler {
     }
 
     pub fn actions(
-        &self,
+        &mut self,
         desired: &[InstrumentRef],
         now_ms: i64,
         generation: u64,
@@ -173,19 +189,38 @@ impl SubscriptionReconciler {
         for (key, subscription) in &desired_by_key {
             match self.records.get(key) {
                 Some(record) if record.generation == generation && record.active => {}
-                Some(record)
-                    if record.generation == generation
-                        && record.failures > 0
-                        && now_ms < record.retry_at_ms => {}
+                Some(record) if record.generation == generation && now_ms < record.retry_at_ms => {}
                 _ => actions.push(ReconcileAction::Subscribe {
                     subscription: subscription.clone(),
                 }),
             }
         }
+        // Go drops records that were never established (subscribe rejected or
+        // served by the delayed fallback) as soon as they leave demand: there is
+        // no physical subscription to release and no state to retain.
+        let never_established = self
+            .records
+            .iter()
+            .filter(|(key, record)| {
+                record.subscribed_at_ms.is_none() && !desired_by_key.contains_key(*key)
+            })
+            .map(|(key, _)| key.clone())
+            .collect::<Vec<_>>();
+        for key in never_established {
+            if self
+                .records
+                .remove(&key)
+                .is_some_and(|record| record.fallback)
+                && self.fallback_count > 0
+            {
+                self.fallback_count -= 1;
+            }
+        }
         for (key, record) in &self.records {
             if record.active
                 && !desired_by_key.contains_key(key)
-                && now_ms.saturating_sub(record.subscribed_at_ms) >= self.minimum_age_ms
+                && now_ms.saturating_sub(record.subscribed_at_ms.unwrap_or_default())
+                    >= self.minimum_age_ms
                 && (record.failures == 0 || now_ms >= record.retry_at_ms)
             {
                 actions.push(ReconcileAction::Unsubscribe {
@@ -197,7 +232,10 @@ impl SubscriptionReconciler {
     }
 
     pub fn record_success(&mut self, action: &ReconcileAction, now_ms: i64, generation: u64) {
-        if self.fallback_count > 0 {
+        if let Some(previous) = self.records.get(action.key()).cloned()
+            && previous.fallback
+            && self.fallback_count > 0
+        {
             self.fallback_count -= 1;
         }
         match action {
@@ -206,7 +244,7 @@ impl SubscriptionReconciler {
                     subscription.key.clone(),
                     ActiveRecord {
                         subscription: subscription.clone(),
-                        subscribed_at_ms: now_ms,
+                        subscribed_at_ms: Some(now_ms),
                         generation,
                         active: true,
                         failures: 0,
@@ -229,13 +267,12 @@ impl SubscriptionReconciler {
         generation: u64,
         error: Option<String>,
     ) -> i64 {
-        self.fallback_count = self.fallback_count.saturating_add(1);
         let record = self
             .records
             .entry(subscription.key.clone())
             .or_insert_with(|| ActiveRecord {
                 subscription: subscription.clone(),
-                subscribed_at_ms: 0,
+                subscribed_at_ms: None,
                 generation,
                 active: false,
                 failures: 0,
@@ -244,12 +281,78 @@ impl SubscriptionReconciler {
                 fallback: false,
             });
         record.generation = generation;
+        if record.fallback {
+            record.fallback = false;
+            self.fallback_count = self.fallback_count.saturating_sub(1);
+        }
         record.active = false;
         record.last_error = error;
         let delay = retry_delay_ms(record.failures);
         record.failures = record.failures.saturating_add(1);
         record.retry_at_ms = now_ms.saturating_add(delay);
         delay
+    }
+
+    /// Records a BasicQot subscribe failure that is served by the delayed
+    /// fallback source. Matches Go `recordSubscriptionFallback`: the record is
+    /// neither active nor counted toward the retry ladder, is retried after
+    /// [`FALLBACK_SUBSCRIPTION_RETRY_MS`], and is billed to the fallback count.
+    pub fn record_fallback_failure(
+        &mut self,
+        subscription: &PhysicalSubscription,
+        now_ms: i64,
+        generation: u64,
+        error: Option<String>,
+    ) -> i64 {
+        let record = self
+            .records
+            .entry(subscription.key.clone())
+            .or_insert_with(|| ActiveRecord {
+                subscription: subscription.clone(),
+                subscribed_at_ms: None,
+                generation,
+                active: false,
+                failures: 0,
+                last_error: None,
+                retry_at_ms: 0,
+                fallback: false,
+            });
+        if !record.fallback {
+            self.fallback_count = self.fallback_count.saturating_add(1);
+        }
+        record.generation = generation;
+        record.subscribed_at_ms = None;
+        record.active = false;
+        record.failures = 0;
+        record.last_error = error;
+        record.retry_at_ms = now_ms.saturating_add(FALLBACK_SUBSCRIPTION_RETRY_MS);
+        record.fallback = true;
+        FALLBACK_SUBSCRIPTION_RETRY_MS
+    }
+
+    /// Reports whether the active connection serves this instrument from the
+    /// delayed snapshot fallback instead of an OpenD BasicQot subscription.
+    pub fn is_fallback_instrument(&self, instrument_id: &str) -> bool {
+        let Ok(reference) = (InstrumentRef {
+            channel: "SNAPSHOT".to_owned(),
+            market: String::new(),
+            symbol: instrument_id.to_owned(),
+            interval: None,
+        })
+        .normalize() else {
+            return false;
+        };
+        self.records
+            .get(&format!("BASIC:{}", reference.instrument_id()))
+            .is_some_and(|record| record.fallback)
+    }
+
+    /// Reports whether any desired BasicQot subscription is currently served by
+    /// the delayed snapshot fallback.
+    pub fn has_fallback_subscriptions(&self) -> bool {
+        self.records
+            .values()
+            .any(|record| record.subscription.kind == SubscriptionKind::Basic && record.fallback)
     }
 
     pub fn record_unsubscribe_failure(
@@ -285,11 +388,13 @@ impl SubscriptionReconciler {
             .collect::<BTreeMap<_, _>>();
         self.records
             .retain(|key, _| desired_by_key.contains_key(key));
+        self.fallback_count = 0;
         for record in self.records.values_mut() {
             record.generation = generation;
             record.active = false;
             record.failures = 0;
             record.retry_at_ms = 0;
+            record.fallback = false;
         }
         desired_by_key
             .values()
@@ -339,12 +444,11 @@ impl SubscriptionReconciler {
             } else {
                 "pending_subscribe"
             };
-            let subscribed_at = format_millis_rfc3339(record.subscribed_at_ms);
-            let unsubscribe_eligible_at = format_millis_rfc3339(if record.subscribed_at_ms > 0 {
-                record.subscribed_at_ms + self.minimum_age_ms
-            } else {
-                0
-            });
+            let subscribed_at = record.subscribed_at_ms.and_then(format_millis_rfc3339);
+            let unsubscribe_eligible_at = record
+                .subscribed_at_ms
+                .and_then(|subscribed_at_ms| subscribed_at_ms.checked_add(self.minimum_age_ms))
+                .and_then(format_millis_rfc3339);
             let kind_str = match record.subscription.kind {
                 SubscriptionKind::Basic => "BASIC",
                 SubscriptionKind::Kline => "KLINE",
@@ -548,6 +652,22 @@ impl OpenDSubscriptionLifecycle {
             Err(error) => {
                 let err_str = error.to_string();
                 match action {
+                    ReconcileAction::Subscribe { subscription }
+                        if subscription.kind == SubscriptionKind::Basic
+                            && error.snapshot_availability_kind().is_some() =>
+                    {
+                        // Go records the quote-access failure as a delayed
+                        // fallback instead of surfacing a reconcile error, so a
+                        // single unavailable BasicQot does not fail the whole
+                        // reconcile pass.
+                        self.reconciler.record_fallback_failure(
+                            subscription,
+                            now_ms,
+                            generation,
+                            Some(err_str),
+                        );
+                        return Ok(true);
+                    }
                     ReconcileAction::Subscribe { subscription } => {
                         self.reconciler.record_failure(
                             subscription,
