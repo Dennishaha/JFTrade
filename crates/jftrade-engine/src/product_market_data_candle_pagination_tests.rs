@@ -15,7 +15,7 @@ fn current_unix_millis() -> i64 {
         .as_millis() as i64
 }
 
-fn format_unix_millis_rfc3339(ms: i64) -> String {
+pub(super) fn format_unix_millis_rfc3339(ms: i64) -> String {
     time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(ms) * 1_000_000)
         .expect("valid timestamp")
         .format(&time::format_description::well_known::Rfc3339)

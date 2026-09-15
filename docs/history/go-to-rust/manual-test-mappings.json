@@ -3332,11 +3332,11 @@
     "evidence_type": "missing"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:245:TestMarketSnapshotResponseUsesFreshCache": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_route_serves_a_fresh_cache_hit_without_provider_access",
+    "conclusion": "Go 以 Service.Seed 注入 HK.00700 tick 后读快照，断言 meta.fromCache=true、source 为缓存样本来源、snapshot.at 等于样本 ObservedAt，并保留 turnover/volume 字符串。Rust 用同一 router 缓存 + SNAPSHOT lease 复现：断言 fromCache=true、price/bid/ask/previousClosePrice/turnover/volume 与 at 全部来自缓存样本。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:306:TestMarketSnapshotResponseQueriesQuoteSnapshotOnCacheMiss": {
     "status": "[~]",
@@ -3346,11 +3346,11 @@
     "evidence_type": "missing"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:330:TestMarketSnapshotResponseForceRefreshBypassesCache": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_route_force_refresh_bypasses_the_cache",
+    "conclusion": "Go 在缓存中 Seed 999.9 后请求 refresh=true，断言仍调用一次 GetBasicQot 并返回 provider 价 321.4（fromCache=false）。Rust 修复了真实差异：read_snapshots 之前忽略 refresh 直接命中缓存，现在 refresh=true 跳过 cache.Lookup；测试断言强制刷新不会泄漏缓存价 999.9，refresh=false 仍返回缓存样本。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:368:TestMarketSnapshotResponseRejectsInvalidRefreshQuery": {
     "status": "[~]",

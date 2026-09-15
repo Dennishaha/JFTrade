@@ -131,15 +131,22 @@ impl ProductionMarketDataQuotePort {
         if provider == MarketDataProvider::Futu {
             let instrument_id = format!("{market}.{symbol}");
             let now_ms = current_unix_millis();
-            let cached_tick = self.router.as_ref().and_then(|router| {
-                let router_guard = router.lock().unwrap_or_else(|e| e.into_inner());
-                let cache_handle = router_guard.cache_handle();
-                let cache_guard = cache_handle.lock().unwrap_or_else(|e| e.into_inner());
-                match cache_guard.lookup(&instrument_id, now_ms, 30_000) {
-                    CacheLookup::Fresh(t) | CacheLookup::Stale(t) => Some(t),
-                    CacheLookup::Missing => None,
-                }
-            });
+            // Go's `GetSnapshot` skips `cache.Latest` entirely when the caller
+            // forces a refresh, so `refresh=true` must never answer from a
+            // retained sample even when it is still fresh.
+            let cached_tick = if refresh {
+                None
+            } else {
+                self.router.as_ref().and_then(|router| {
+                    let router_guard = router.lock().unwrap_or_else(|e| e.into_inner());
+                    let cache_handle = router_guard.cache_handle();
+                    let cache_guard = cache_handle.lock().unwrap_or_else(|e| e.into_inner());
+                    match cache_guard.lookup(&instrument_id, now_ms, 30_000) {
+                        CacheLookup::Fresh(t) | CacheLookup::Stale(t) => Some(t),
+                        CacheLookup::Missing => None,
+                    }
+                })
+            };
 
             if let Some(tick) = cached_tick {
                 let observed_at = format_unix_millis_rfc3339(tick.observed_at_ms);

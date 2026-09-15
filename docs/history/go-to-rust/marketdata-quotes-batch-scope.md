@@ -133,3 +133,32 @@ historical 分页读”当成基线，属于对 Go 行为的误读，已改名�
 （1120 passed）、`-p jftrade-marketdata --all-targets --locked`（54 passed）、
 `-p jftrade-integration-futu --all-targets --locked`（245 passed）、
 `python3 scripts/compatibility/audit_test_parity.py`。
+
+## 批次 D：snapshot cache-first 与 refresh 绕过（go:452dea11）
+
+`market_http_test.go` 的 snapshot 三条测试（`...UsesFreshCache`、
+`...QueriesQuoteSnapshotOnCacheMiss`、`...ForceRefreshBypassesCache`）逐条对照后，《Go
+行为：`GetSnapshot(ctx, market, symbol, refresh)` 在 `!refresh` 时读
+`cache.Latest(instrumentID, TickFreshness)`，命中即以 `fromCache=true` 返回；否则
+`provider.QuerySnapshot` + `generation` fence + `Ingest`；`refresh=true` 时**完全
+跳过缓存读**。
+
+### 修复的功能差异（P1，cache/refresh 边界）
+
+| 差异 | 复现条件 | Go 预期 | Rust 修复位置 | 回归测试 |
+| --- | --- | --- | --- | --- |
+| `refresh=true` 仍命中缓存 | Futu + 缓存有 fresh 样本 + `?refresh=true` | 跳过缓存并调用 provider，`fromCache=false` | `product_production_ports_market_data_quote_reads.rs::read_snapshots` | `snapshot_route_force_refresh_bypasses_the_cache` |
+| 缓存命中路径缺少断言证据 | Futu + 缓存有 fresh 样本 | `fromCache=true`，字段全部来自缓存样本 | 同上（已有实现，补证据） | `snapshot_route_serves_a_fresh_cache_hit_without_provider_access` |
+
+映射（`manual-test-mappings.json`）：
+
+- `market_http_test.go:245` → `...::snapshot_route_serves_a_fresh_cache_hit_without_provider_access` `[x]/function_exact`
+- `market_http_test.go:330` → `...::snapshot_route_force_refresh_bypasses_the_cache` `[x]/function_exact`
+
+`market_http_test.go:306`（`...QueriesQuoteSnapshotOnCacheMiss`）仍为 `[~]`：若
+要断言“强制刷新恰好一次 GetBasicQot 调用计数”，需要把 provider 调用计数暴露给
+Rust 读端口；当前 `ProductionMarketDataQuotePort` 通过 `trade_runtime` 间接持有
+OpenD 读客户端，无计数 seam，属 `boundary`（计数断言只能在集成/fixture 层完成）。
+
+验证：`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked`、
+`python3 scripts/compatibility/audit_test_parity.py`。

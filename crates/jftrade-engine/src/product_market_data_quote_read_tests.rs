@@ -1089,6 +1089,144 @@ async fn poll_only_read_routes_prioritize_capabilities_and_preserve_leases() {
     }
 }
 
+/// Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:245 TestMarketSnapshotResponseUsesFreshCache
+///
+/// A fresh cached tick answers the snapshot read with `meta.fromCache = true`
+/// and the cached source, and the response echoes the sample's own observation
+/// time instead of the request clock.
+#[tokio::test]
+async fn snapshot_route_serves_a_fresh_cache_hit_without_provider_access() {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    let mut router = ProviderRouter::new(4);
+    let observed_at_ms = 1_750_000_000_000;
+    router
+        .cache_mut()
+        .insert(
+            jftrade_marketdata::Tick {
+                instrument_id: "HK.00700".to_owned(),
+                price: "321.4".parse().expect("tick price"),
+                volume: "1282100".parse().expect("tick volume"),
+                volume_delta: None,
+                snapshot: Some(jftrade_marketdata::TradeQuoteSnapshot {
+                    symbol: Some("HK.00700".to_owned()),
+                    bid_price: Some("321.3".parse().expect("bid")),
+                    ask_price: Some("321.5".parse().expect("ask")),
+                    previous_close: Some("318.9".parse().expect("previous close")),
+                    turnover: Some("411020000".parse().expect("turnover")),
+                    session: Some("regular".to_owned()),
+                    ..Default::default()
+                }),
+                observed_at_ms,
+                provider_generation: 1,
+            },
+            1,
+        )
+        .expect("cache tick");
+    router
+        .acquire_demand(
+            "snapshot-test",
+            [InstrumentRef {
+                channel: "SNAPSHOT".to_owned(),
+                market: "HK".to_owned(),
+                symbol: "00700".to_owned(),
+                interval: None,
+            }],
+            false,
+            0,
+        )
+        .expect("snapshot demand");
+    let port =
+        ProductionMarketDataQuotePort::new(state, Some(Arc::new(Mutex::new(router))), None, None);
+
+    let response = port
+        .read("/api/v1/market-data/snapshots/HK/00700", "")
+        .await
+        .expect("cache-hit snapshot");
+    assert_eq!(response["request"]["instrumentId"], "HK.00700");
+    assert_eq!(response["meta"]["fromCache"], true);
+    let snapshot = &response["snapshot"];
+    assert_eq!(snapshot["price"], "321.4");
+    assert_eq!(snapshot["bid"], "321.3");
+    assert_eq!(snapshot["ask"], "321.5");
+    assert_eq!(snapshot["previousClosePrice"], "318.9");
+    assert_eq!(snapshot["turnover"], "411020000");
+    assert_eq!(snapshot["volume"], "1282100");
+    assert_eq!(
+        snapshot["at"],
+        candle_pagination_tests::format_unix_millis_rfc3339(observed_at_ms)
+    );
+}
+
+/// Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:330 TestMarketSnapshotResponseForceRefreshBypassesCache
+///
+/// `refresh=true` must ignore a retained sample even when it is fresh, and a
+/// provider read is then required. Without a provider the read fails closed
+/// instead of returning the stale cached price.
+#[tokio::test]
+async fn snapshot_route_force_refresh_bypasses_the_cache() {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    let mut router = ProviderRouter::new(4);
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock")
+        .as_millis() as i64;
+    router
+        .cache_mut()
+        .insert(
+            jftrade_marketdata::Tick {
+                instrument_id: "HK.00700".to_owned(),
+                price: "999.9".parse().expect("tick price"),
+                volume: "1".parse().expect("tick volume"),
+                volume_delta: None,
+                snapshot: Some(jftrade_marketdata::TradeQuoteSnapshot {
+                    session: Some("regular".to_owned()),
+                    ..Default::default()
+                }),
+                observed_at_ms: now_ms,
+                provider_generation: 1,
+            },
+            1,
+        )
+        .expect("cache tick");
+    router
+        .acquire_demand(
+            "snapshot-test",
+            [InstrumentRef {
+                channel: "SNAPSHOT".to_owned(),
+                market: "HK".to_owned(),
+                symbol: "00700".to_owned(),
+                interval: None,
+            }],
+            false,
+            0,
+        )
+        .expect("snapshot demand");
+    let port =
+        ProductionMarketDataQuotePort::new(state, Some(Arc::new(Mutex::new(router))), None, None);
+
+    // The cached price never leaks through a forced refresh.
+    let error = port
+        .read("/api/v1/market-data/snapshots/HK/00700", "refresh=true")
+        .await
+        .expect_err("forced refresh without a provider must fail closed");
+    assert!(matches!(
+        error,
+        MarketDataQuoteReadSnapshotError::Unavailable(_)
+    ));
+
+    // `refresh=false` still serves the retained sample.
+    let cached = port
+        .read("/api/v1/market-data/snapshots/HK/00700", "refresh=false")
+        .await
+        .expect("cached snapshot");
+    assert_eq!(cached["meta"]["fromCache"], true);
+    assert_eq!(cached["snapshot"]["price"], "999.9");
+}
+
 /// The Futu descriptor used by live-read tests: streaming demand plus order
 /// book capability, matching `jftrade-integration-futu::provider_descriptor`.
 fn futu_streaming_router() -> ProviderRouter {
