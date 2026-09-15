@@ -828,6 +828,103 @@ fn provider_switch_defers_physical_release_until_opend_eligible() {
 }
 
 #[test]
+fn pending_provider_cleanup_drops_closed_connection_ownership() {
+    // Parity: go:452dea11:internal/integration/futu/subscription_reconciler_test.go:587 TestSubscriptionReconcilerPendingProviderCleanupDropsClosedConnectionOwnership
+    let desired = [
+        reference("KLINE", Some("1m")),
+        InstrumentRef {
+            channel: "ORDER_BOOK".to_owned(),
+            market: "US".to_owned(),
+            symbol: "MSFT".to_owned(),
+            interval: None,
+        },
+    ];
+    let mut reconciler = SubscriptionReconciler::new(60_000);
+    for action in reconciler.actions(&desired, 0, 1) {
+        reconciler.record_success(&action, 0, 1);
+    }
+
+    // Provider cleanup is pending: demand is gone but the physical
+    // subscriptions are still inside the retention window.
+    assert!(reconciler.actions(&[], 0, 1).is_empty());
+    assert_eq!(
+        reconciler
+            .physical_snapshot(&[], 1, None)
+            .pending_release_count,
+        3
+    );
+
+    // The OpenD connection is replaced (generation 2) while cleanup is still
+    // pending. Ownership of the old subscriptions belonged to generation 1, so
+    // releasing them through the replacement connection would unsubscribe a
+    // subscription this connection never established. Go drops the records
+    // instead; the snapshot must report a clean slate for the new generation.
+    let replayed = reconciler.replay_actions(&[], 2);
+    assert!(
+        replayed.is_empty(),
+        "no demand remains, so the replacement connection replays nothing"
+    );
+    let snapshot = reconciler.physical_snapshot(&[], 2, Some(2));
+    assert_eq!(snapshot.connection_generation, Some(2));
+    assert_eq!(snapshot.own_active_count, 0);
+    assert_eq!(snapshot.pending_release_count, 0);
+    assert!(snapshot.entries.is_empty());
+    assert!(reconciler.actions(&[], 61_000, 2).is_empty());
+}
+
+#[test]
+fn connection_replacement_clears_quota_ownership_and_reset_is_idempotent() {
+    // Parity: go:452dea11:internal/integration/futu/subscription_reconciler_test.go:623 TestSubscriptionReconcilerHandlesQuotaExchangeReplacementResetAndNilBoundaries
+    let desired = [reference("SNAPSHOT", None)];
+    let recorder = Arc::new(MarketDataRuntimeRecorder::default());
+    let mut lifecycle = OpenDSubscriptionLifecycle::new(Arc::clone(&recorder), 60_000);
+    for action in lifecycle.reconcile_demand(&desired, 0) {
+        assert!(lifecycle.record_subscription_success(&action, 0, lifecycle.generation()));
+    }
+    lifecycle.set_quota(Some(1), Some(99), Some(1), 5_000, None);
+    let snapshot = lifecycle.physical_snapshot();
+    assert_eq!(snapshot.total_used_quota, Some(1));
+    assert_eq!(snapshot.checked_at.as_deref(), Some("1970-01-01T00:00:05Z"));
+    assert_eq!(snapshot.last_error, None);
+
+    // Go `resetConnectionStateLocked`: quota diagnostics belong to the
+    // connection that answered Qot_GetSubInfo, so replacing the connection
+    // drops the cached totals and the recorded check time instead of
+    // advertising a dead connection's quota to the UI.
+    let replayed = lifecycle.reconfigure_for_reconnect(&desired);
+    assert!(
+        !replayed.is_empty(),
+        "the replacement connection must replay demand"
+    );
+    let snapshot = lifecycle.physical_snapshot();
+    assert_eq!(snapshot.total_used_quota, None);
+    assert_eq!(snapshot.remain_quota, None);
+    assert_eq!(snapshot.own_used_quota, None);
+    assert_eq!(snapshot.checked_at, None);
+    assert_eq!(snapshot.last_error, None);
+    assert_eq!(snapshot.own_active_count, 0);
+
+    // A quota failure is diagnostic only: it is recorded for the UI and never
+    // turns into a reconcile error.
+    lifecycle.set_quota(
+        None,
+        None,
+        None,
+        6_000,
+        Some("quota unavailable".to_owned()),
+    );
+    let snapshot = lifecycle.physical_snapshot();
+    assert_eq!(snapshot.last_error.as_deref(), Some("quota unavailable"));
+    assert_eq!(snapshot.checked_at.as_deref(), Some("1970-01-01T00:00:06Z"));
+
+    // Closing is idempotent and a closed lifecycle ignores further work.
+    assert!(lifecycle.close());
+    assert!(!lifecycle.close());
+    assert!(lifecycle.reconcile_demand(&desired, 7_000).is_empty());
+    assert_eq!(lifecycle.physical_snapshot().own_active_count, 0);
+}
+
+#[test]
 fn managed_session_close_updates_only_the_active_generation() {
     let recorder = Arc::new(MarketDataRuntimeRecorder::default());
     let mut lifecycle = OpenDSubscriptionLifecycle::new(Arc::clone(&recorder), 60_000);

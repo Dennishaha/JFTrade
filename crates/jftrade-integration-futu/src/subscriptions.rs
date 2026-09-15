@@ -412,6 +412,15 @@ impl SubscriptionReconciler {
             record.retry_at_ms = 0;
             record.fallback = false;
         }
+        // Go `resetConnectionStateLocked` drops the quota diagnostic together
+        // with the records: the totals came from the connection that just went
+        // away, so keeping them would advertise a dead connection's quota (and
+        // its check time) to the UI until the next successful refresh.
+        self.total_used_quota = None;
+        self.remain_quota = None;
+        self.own_used_quota = None;
+        self.quota_checked_at_ms = None;
+        self.quota_last_error = None;
         desired_by_key
             .values()
             .cloned()

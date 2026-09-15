@@ -14786,23 +14786,23 @@
   "internal/integration/futu/subscription_reconciler_test.go:548:TestSubscriptionReconcilerMeasuresQuotaRefreshFromOpenDAcknowledgement": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "conclusion": "边界保留：Go 的 refreshQuota 以 OpenD 配额响应时刻（而非 pass 起点）作为 quotaCheckedAt，并按 subscriptionQuotaRefresh=1 分钟节流（ack+59.999s 不刷新、ack+60s 刷新）。Rust 的配额路径由 runtime poll loop 的 quota_refresh_pending 标志驱动——每次拓扑变更/重连后刷新一次并立即清除标志，检查时刻取本次循环的 now（post-RPC），但没有 1 分钟时间节流，因此「同一分钟内重复 reconcile 不重复查询」这一 Go 断言在 Rust 中不成立。当前 Rust 也不会以固定间隔自动刷新配额。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(refresh_quota_uses_the_authenticated_opend_protocol_and_preserves_last_success)'",
+    "evidence_type": "boundary"
   },
   "internal/integration/futu/subscription_reconciler_test.go:587:TestSubscriptionReconcilerPendingProviderCleanupDropsClosedConnectionOwnership": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::pending_provider_cleanup_drops_closed_connection_ownership",
+    "conclusion": "完整覆盖：provider 清理待定时（demand 归零但仍在最小保留期内）pendingReleaseCount=3；连接被替换为代际 2 时，代际 1 建立的订阅所有权随连接一起丢弃——replay 为空、ownActiveCount=0、pendingReleaseCount=0、entries 为空，且在保留期到点后也不会通过新连接发出 unsubscribe（不会误退订本连接从未建立的订阅）。与 Go resetConnectionStateLocked 语义一致",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(pending_provider_cleanup_drops_closed_connection_ownership)'",
+    "evidence_type": "function_exact"
   },
   "internal/integration/futu/subscription_reconciler_test.go:623:TestSubscriptionReconcilerHandlesQuotaExchangeReplacementResetAndNilBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::connection_replacement_clears_quota_ownership_and_reset_is_idempotent",
+    "conclusion": "完整覆盖：连接替换时清空上一连接的配额诊断（totalUsed/remain/ownUsed/checkedAt/lastError 全部归 None），demand 重放非空且 ownActiveCount 归 0；配额失败仅作为诊断记录（lastError 与 checkedAt 生效、不上抛 reconcile 错误）；close 幂等且关闭后 reconcile 为空、快照计数归 0。修复点：replay_actions 过去保留旧连接的配额总数与检查时间，会把已断开的连接配额继续投射到 UI（对应 Go resetConnectionStateLocked 清空 quota/quotaCheckedAt/quotaLastError）。Go 针对 nil exchange/裸指针边界的断言在 Rust 由所有权与 Option 表达，不适用",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(connection_replacement_clears_quota_ownership_and_reset_is_idempotent)'",
+    "evidence_type": "function_exact"
   },
   "internal/integration/futu/subscription_reconciler_test.go:676:TestSubscriptionReconcilerDropsFailedRecordsReleasedBeforeRetry": {
     "status": "[x]",
