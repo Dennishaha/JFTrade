@@ -3311,11 +3311,11 @@
     "evidence_type": "missing"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:91:TestMarketCandlesResponseOmitsSessionMetadataForDailyCandles": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_skips_session_classification_for_unannotated_requests",
+    "conclusion": "Go 对 1d 请求断言 candle 与 meta 都不含 session 字段、extendedHours=false。Rust 的 annotate_session 只在 US + intraday 时为真，daily 请求跳过分类且不写 session；测试对同一 out-of-session bar 用 period=1d 断言成功且 candle 无 session 键。原 candle_route_only_annotates_sessions_for_us_intraday_history 覆盖 US intraday/HK 两侧。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:137:TestMarketCandlesResponseRejectsInvalidSessionsBeforeFutuAccess": {
     "status": "[~]",
@@ -3325,11 +3325,11 @@
     "evidence_type": "missing"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:150:TestMarketCandlesResponseClassifiesUnknownUSSessionAsDataError": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_classifies_unknown_us_session_as_a_data_error",
+    "conclusion": "Go 对 US intraday 的每根 candle 调 market.ClassifySession，落在所有 session 之外时返回数据错误（`unable to classify K-line session at <ts>`）而不是静默省略 session 字段。Rust 修复了真实差异：新增 futu_candle_session_checked，annotate_session 为真且日历判定无 session 时返回 Unavailable；测试用 2026-05-24（周日）的 bar 断言该错误，并用 daily 请求断言不触发分类（candle_route_skips_session_classification_for_unannotated_requests）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:245:TestMarketSnapshotResponseUsesFreshCache": {
     "status": "[x]",

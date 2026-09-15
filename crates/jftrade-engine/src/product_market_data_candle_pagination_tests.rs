@@ -380,6 +380,66 @@ async fn candle_route_forwards_strict_before_window() {
     );
 }
 
+/// Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:150 TestMarketCandlesResponseClassifiesUnknownUSSessionAsDataError
+///
+/// Go classifies every annotated candle against the exchange schedule and
+/// fails the read when a bar lands outside all sessions instead of returning a
+/// page whose `session` field is silently missing.
+#[tokio::test]
+async fn candle_route_classifies_unknown_us_session_as_a_data_error() {
+    let calendar = Arc::new(
+        jftrade_calendar::CalendarManager::new(
+            jftrade_calendar::CalendarSourceRegistry::default(),
+            None,
+            jftrade_calendar::CalendarManagerSettings::default(),
+        )
+        .expect("calendar manager"),
+    );
+    // 2026-05-24 is a Sunday, so the bar cannot belong to any session.
+    let reader = Arc::new(PagedHistory {
+        times: vec!["2026-05-24 12:00:00".to_owned()],
+        ..PagedHistory::default()
+    });
+    let error = port_with_calendar(reader, calendar)
+        .read("/api/v1/market-data/candles/US/AAPL", "period=1m&limit=1")
+        .await
+        .expect_err("a bar outside every session must be a data error");
+    match error {
+        MarketDataQuoteReadSnapshotError::Unavailable(message) => assert!(
+            message.contains("unable to classify K-line session"),
+            "unexpected classification error: {message}"
+        ),
+        other => panic!("unexpected error for unknown session: {other:?}"),
+    }
+}
+
+/// A daily candle and a non-US market carry no session annotation, so the same
+/// out-of-session bar must still be served without the classification check.
+#[tokio::test]
+async fn candle_route_skips_session_classification_for_unannotated_requests() {
+    let calendar = Arc::new(
+        jftrade_calendar::CalendarManager::new(
+            jftrade_calendar::CalendarSourceRegistry::default(),
+            None,
+            jftrade_calendar::CalendarManagerSettings::default(),
+        )
+        .expect("calendar manager"),
+    );
+    let reader = Arc::new(PagedHistory {
+        times: vec!["2026-05-24 12:00:00".to_owned()],
+        ..PagedHistory::default()
+    });
+    let result = port_with_calendar(reader, calendar)
+        .read("/api/v1/market-data/candles/US/AAPL", "period=1d&limit=1")
+        .await
+        .expect("daily candles do not require session classification");
+    let candle = result["candles"][0].as_object().expect("candle object");
+    assert!(
+        candle.get("session").is_none(),
+        "daily candles stay unannotated: {result}"
+    );
+}
+
 /// Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:382 TestMarketCandlesTickResponseUsesFreshCache
 ///
 /// A fresh cached sample answers a `period=tick` request without any provider

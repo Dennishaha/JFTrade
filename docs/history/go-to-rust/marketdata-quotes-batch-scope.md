@@ -162,3 +162,33 @@ OpenD 读客户端，无计数 seam，属 `boundary`（计数断言只能在集�
 
 验证：`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked`、
 `python3 scripts/compatibility/audit_test_parity.py`。
+
+## 批次 E：candle session 数据错误分类（go:452dea11）
+
+`market_http_test.go:150 TestMarketCandlesResponseClassifiesUnknownUSSessionAsDataError`
+与 `:91 TestMarketCandlesResponseOmitsSessionMetadataForDailyCandles` 逐条对照后：
+
+- Go `brokerKLineSession`（`internal/marketdata/broker_candles.go:120`）先调
+  `market.ClassifySession`。当分类结果是 `SessionClosed`（周末/节假日/未知日程）时
+  返回 `unable to classify K-line session at <RFC3339>`，路由把它当成数据错误；
+  daily 与非 US 请求根本不进入该分支。
+- Rust 之前只在 `futu_candle_session` 返回 `None` 时**静默省略** `session`，因此一个
+  US intraday 页面可能看起来完整却缺 session 标签，且不会像 Go 那样失败。
+
+### 修复的功能差异（P1，时区/session 边界）
+
+| 差异 | 复现条件 | Go 预期 | Rust 修复位置 | 回归测试 |
+| --- | --- | --- | --- | --- |
+| 无法分类的 US intraday bar 被静默省略 session | US + intraday + 日历判定落在所有 session 之外（例：2026-05-24 周日 12:00Z） | 数据错误 `unable to classify K-line session at <ts>` | `product_production_ports_market_data_quote_reads.rs::futu_candle_session_checked` | `candle_route_classifies_unknown_us_session_as_a_data_error` |
+| daily 请求不应触发分类 | `period=1d` | candle 与 meta 都不含 session，extendedHours=false | 同上（`annotate_session` 谓词） | `candle_route_skips_session_classification_for_unannotated_requests` |
+
+未配置日历时仍保持既有 fail-closed 边界：不臆造 session，而是留空（该分支由
+`annotate_session` 谓词与 `futu_securities...` 等既有测试固定）。
+
+映射（`manual-test-mappings.json`）：
+
+- `market_http_test.go:91` → `...::candle_route_skips_session_classification_for_unannotated_requests` `[x]/function_exact`
+- `market_http_test.go:150` → `...::candle_route_classifies_unknown_us_session_as_a_data_error` `[x]/function_exact`
+
+验证：`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked`
+（1125 passed）、`python3 scripts/compatibility/audit_test_parity.py`。

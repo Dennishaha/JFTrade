@@ -258,6 +258,30 @@ impl ProductionMarketDataQuotePort {
         }
     }
 
+    /// Classifies one annotated candle and reports a schedule gap.
+    ///
+    /// Go's `brokerKLineSession` returns
+    /// `unable to classify K-line session at <ts>` when the exchange calendar
+    /// puts the bar outside every session (holiday, weekend or an unknown
+    /// schedule), and the route surfaces that as a data error. Rust must not
+    /// silently drop the `session` field in that case, because a US intraday
+    /// page would then look complete while missing its session labels.
+    fn futu_candle_session_checked(
+        &self,
+        market: &str,
+        at: &str,
+    ) -> Result<Option<&'static str>, String> {
+        if self.calendar.is_none() {
+            // No authoritative schedule is composed: keep the documented
+            // fail-closed boundary of leaving the candle unannotated instead
+            // of inventing a session the schedule cannot prove.
+            return Ok(None);
+        }
+        self.futu_candle_session(market, at)
+            .map(Some)
+            .ok_or_else(|| format!("unable to classify K-line session at {at}"))
+    }
+
     pub(super) async fn read_candles(
         &self,
         suffix: &str,
@@ -678,10 +702,14 @@ impl ProductionMarketDataQuotePort {
                     "volume": kline.volume.map(|v| v.to_string()).unwrap_or_else(|| "0".to_owned()),
                     "closed": is_closed,
                 });
-                if annotate_session
-                    && let Some(label) = self.futu_candle_session(&market, &at)
-                {
-                    candle["session"] = json!(label);
+                if annotate_session {
+                    match self.futu_candle_session_checked(&market, &at) {
+                        Ok(Some(label)) => candle["session"] = json!(label),
+                        Ok(None) => {}
+                        Err(message) => {
+                            return Err(MarketDataQuoteReadSnapshotError::Unavailable(message));
+                        }
+                    }
                 }
                 candles.push(candle);
             }
