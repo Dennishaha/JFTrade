@@ -14,6 +14,8 @@ use serde_json::{Value, json};
 
 #[path = "product_production_ports_market_data_quote_reads.rs"]
 mod quote_reads;
+#[path = "product_production_ports_market_data_quote_reads_futu.rs"]
+mod quote_reads_futu;
 #[path = "product_production_ports_market_data_quote_snapshot.rs"]
 mod quote_snapshot;
 #[path = "product_production_ports_market_data_quote_lease.rs"]

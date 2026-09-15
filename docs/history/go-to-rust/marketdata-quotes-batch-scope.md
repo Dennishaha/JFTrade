@@ -22,3 +22,44 @@ Parity 函数”当作覆盖完成。
 验证命令按单函数记录在 `manual-test-mappings.json`；本批使用
 `jftrade-marketdata` 与 `jftrade-engine` 的 nextest wrapper。后续补测应先补齐
 缺失断言，再将对应条目从 `partial` 升级为 `function_exact`/`[x]`。
+
+## 第二批：runtime / sidecar / health + Futu candle session 标注
+
+批次范围：`internal/app/apiserver/marketdataapp/` 的 `runtime_test.go`（22）、
+`runtime_health_test.go`（11）、`sidecar_process_test.go`（9）、`market_http_test.go`（18）、
+`provider_boundaries_test.go`（5）、`provider_test.go`（3）、`query_test.go` 等边界文件。
+逐条对照后：18 条找到全断言等价的 Rust 测试（`[x]`/`function_exact`），14 条为
+`[~]`/`partial`（有部分证据但断言集合不同），10 条为 `[~]`/`boundary`
+（provider lease 引用计数旧实例、sidecar 进程清理重试、nil-receiver、deferred cleanup
+等只在 Go/Wails 进程模型内成立的边界）。
+
+### 真实功能差异与修复（P0：会话标注正确性）
+
+- **复现条件**：Futu provider、US 市场、`period=1d`（或任意非 US 市场）请求
+  `GET /api/v1/market-data/candles/US/AAPL?period=1d`；此前 Rust 会对每根 K 线
+  固定写入 `"session": "regular"`。
+- **Go 预期行为**：`ShouldAnnotateHistoricalKLineSession` 只在 US 且 intraday
+  period 时标注 session；daily 与非 US 市场完全不输出 `session` 字段，且
+  `meta.session` 仅在发生逐根标注时出现。
+- **修复位置**：`crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs`
+  （`read_candles` Futu 分支）新增 `annotate_session` 判定与
+  `futu_candle_session` 辅助函数：用 `jiff` 解析 `at`，再经
+  `CalendarManager::classify_session` 映射 `pre`/`regular`/`after`/`overnight`；
+  未配置日历时返回 `None`（fail-closed，不臆造 session）。
+- **回归测试**：
+  `crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_only_annotates_sessions_for_us_intraday_history`
+  与 `...::us_intraday_futu_candles_carry_calendar_resolved_session_labels`
+  （断言 pre@13:00Z / regular@15:00Z / after@22:00Z 标签，daily 不输出 session）。
+
+### 结构整理
+
+`product_production_ports_market_data_quote_reads.rs` 因新增逻辑超过 800 行生产文件
+上限，按既有 `#[path = ...] mod` 模式把 Futu `KLineQueryWindow` / `effectivePeriodSeconds`
+/ `parseFutuTimeToTS` 辅助函数与其两个 `query_test.go` 回归测试拆分到
+`crates/jftrade-engine/src/product_production_ports_market_data_quote_reads_futu.rs`
+（155 行），主文件回到 710 行；映射条目 `rust_entry` 同步更新到新路径。
+
+验证：`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked`
+（1110 passed）、`jftrade-marketdata`（51 passed）、
+`jftrade-integration-marketdata-helper --all-targets`（19 passed）、
+`pnpm run check:rust:architecture`、`python3 scripts/compatibility/audit_test_parity.py`。

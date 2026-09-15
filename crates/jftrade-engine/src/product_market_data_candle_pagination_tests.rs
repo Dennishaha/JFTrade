@@ -11,6 +11,9 @@ struct PagedHistory {
     requests: Mutex<Vec<HistoricalKlineQuery>>,
     fail_second_page: bool,
     current_calls: AtomicUsize,
+    /// Explicit candle open times used by session-classification tests.  When
+    /// empty the default `2026-01-05 10:0x` fixture times are used.
+    times: Vec<String>,
 }
 
 fn candle(minute: usize) -> HistoricalKline {
@@ -44,7 +47,17 @@ impl HistoricalKlineReadPort for PagedHistory {
             },
             name: Some("腾讯控股".into()),
             klines: if first {
-                vec![candle(0), candle(1)]
+                if self.times.is_empty() {
+                    vec![candle(0), candle(1)]
+                } else {
+                    self.times
+                        .iter()
+                        .map(|time| HistoricalKline {
+                            time: time.clone(),
+                            ..candle(0)
+                        })
+                        .collect()
+                }
             } else {
                 vec![candle(2), candle(3), candle(4)]
             },
@@ -120,6 +133,124 @@ async fn candle_route_excludes_before_boundary_and_can_continue_loading_older_pa
     assert_eq!(result["candles"][1]["at"], "2026-01-05T02:01:00Z");
     assert_eq!(result["pagination"]["hasMore"], false);
     assert_eq!(reader.current_calls.load(Ordering::SeqCst), 0);
+}
+
+fn port_with_calendar(
+    reader: Arc<PagedHistory>,
+    calendar: Arc<jftrade_calendar::CalendarManager>,
+) -> ProductionMarketDataQuotePort {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_historical_klines(Some(reader));
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    ProductionMarketDataQuotePort::new(state, None, None, None)
+        .with_trade_runtime(Some(runtime))
+        .with_calendar(calendar)
+}
+
+#[tokio::test]
+async fn us_intraday_futu_candles_carry_calendar_resolved_session_labels() {
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:18
+    // TestMarketCandlesResponseUsesExchangeResolvedSessionsForUSIntraday
+    //
+    // Go classifies each US intraday candle against the exchange schedule, so
+    // an RTH bar is `regular` while an ETH bar is `pre`/`after`.  Rust must
+    // resolve the label from the authoritative calendar instead of assuming
+    // every candle is a regular-session bar.
+    let calendar = Arc::new(
+        jftrade_calendar::CalendarManager::new(
+            jftrade_calendar::CalendarSourceRegistry::default(),
+            None,
+            jftrade_calendar::CalendarManagerSettings::default(),
+        )
+        .expect("calendar manager"),
+    );
+    let reader = Arc::new(PagedHistory {
+        times: vec![
+            // Regular session (10:00 ET on 2026-01-05).
+            "2026-01-05 10:00:00".to_owned(),
+            // Pre-market (07:00 ET).
+            "2026-01-05 07:00:00".to_owned(),
+            // After-hours (17:00 ET).
+            "2026-01-05 17:00:00".to_owned(),
+        ],
+        ..PagedHistory::default()
+    });
+    let result = port_with_calendar(reader, calendar)
+        .read(
+            "/api/v1/market-data/candles/US/AAPL",
+            "period=1m&limit=10&sessions=regular,extended,overnight",
+        )
+        .await
+        .expect("US intraday candles");
+    let candles = result["candles"].as_array().expect("candles array");
+    let labels: std::collections::BTreeMap<&str, &str> = candles
+        .iter()
+        .filter_map(|candle| {
+            Some((
+                candle.get("at")?.as_str()?,
+                candle.get("session")?.as_str()?,
+            ))
+        })
+        .collect();
+    assert_eq!(
+        labels.get("2026-01-05T12:00:00Z"),
+        Some(&"pre"),
+        "07:00 ET is a pre-market bar: {result}"
+    );
+    assert_eq!(
+        labels.get("2026-01-05T15:00:00Z"),
+        Some(&"regular"),
+        "10:00 ET is a regular-session bar: {result}"
+    );
+    assert_eq!(
+        labels.get("2026-01-05T22:00:00Z"),
+        Some(&"after"),
+        "17:00 ET is an after-hours bar: {result}"
+    );
+    assert!(
+        candles.iter().all(|candle| candle["session"].is_string()),
+        "every annotated US intraday candle needs a session label: {result}"
+    );
+    assert_eq!(
+        result["meta"]["session"], "all",
+        "meta.session must be `all` once extended sessions are present"
+    );
+    assert_eq!(result["meta"]["extendedHours"], true);
+}
+
+#[tokio::test]
+async fn candle_route_only_annotates_sessions_for_us_intraday_history() {
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:91
+    // TestMarketCandlesResponseOmitsSessionMetadataForDailyCandles and
+    // market_http_test.go:18 TestMarketCandlesResponseUsesExchangeResolvedSessionsForUSIntraday
+    //
+    // Go only annotates a per-candle `session` when the request is a US
+    // intraday history window; daily candles and non-US markets must omit the
+    // field entirely instead of claiming every candle is `regular`.
+    for (path, query) in [
+        ("/api/v1/market-data/candles/US/AAPL", "period=1d&limit=2"),
+        ("/api/v1/market-data/candles/HK/00700", "period=1m&limit=2"),
+    ] {
+        let reader = Arc::new(PagedHistory::default());
+        let result = port(reader)
+            .read(path, query)
+            .await
+            .unwrap_or_else(|error| panic!("{path}?{query} failed: {error:?}"));
+        let candles = result["candles"].as_array().expect("candles array");
+        assert!(!candles.is_empty(), "{path}?{query} returned no candles");
+        for candle in candles {
+            assert!(
+                candle.get("session").is_none(),
+                "unannotated candle must omit `session`: {path}?{query} => {candle}"
+            );
+        }
+        assert!(
+            result["meta"].get("session").is_none(),
+            "meta.session must stay absent when sessions are not annotated: {path}?{query}"
+        );
+    }
 }
 
 #[tokio::test]

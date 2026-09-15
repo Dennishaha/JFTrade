@@ -478,4 +478,249 @@ mod tests {
         assert!(router.release_demand("chart"));
         assert_eq!(router.runtime_recorder().snapshot().active_count, 0);
     }
+    #[test]
+    fn explicit_activation_requires_ready_health_but_startup_restore_allows_warming() {
+        // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_health_test.go:13
+        // TestRuntimeExplicitYFinanceActivationRequiresHealthBeforePublishing and
+        // runtime_health_test.go:183 TestWaitForProviderHealthAllowsWarmingOnlyDuringStartupRestore
+        let mut router = ProviderRouter::new(2);
+        router
+            .register(
+                descriptor("futu", true),
+                health(ProviderReadiness::Ready, true),
+            )
+            .expect("register futu");
+        router
+            .register(
+                descriptor("helper", false),
+                HealthStatus {
+                    connected: true,
+                    readiness: ProviderReadiness::Warming,
+                    ..HealthStatus::default()
+                },
+            )
+            .expect("register helper");
+        router
+            .activate("futu", ActivationMode::Explicit)
+            .expect("activate futu");
+
+        // Explicit activation of a warming provider is rejected before the
+        // snapshot is published: the active provider must not change.
+        assert!(matches!(
+            router.activate("helper", ActivationMode::Explicit),
+            Err(MarketDataError::ProviderUnavailable { .. })
+        ));
+        assert_eq!(router.runtime().active_provider, "futu");
+
+        // Startup restore is the only mode that publishes a warming provider.
+        let restored = router
+            .activate("helper", ActivationMode::StartupRestore)
+            .expect("startup restore allows warming");
+        assert_eq!(restored.active_provider, "helper");
+        assert_eq!(restored.readiness, ProviderReadiness::Warming);
+        assert!(restored.connected);
+    }
+
+    #[test]
+    fn failed_warmup_blocks_startup_restore_and_reports_last_error() {
+        // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_health_test.go:205
+        // TestWaitForProviderHealthStopsOnFailedWarmup
+        let mut router = ProviderRouter::new(2);
+        router
+            .register(
+                descriptor("futu", true),
+                health(ProviderReadiness::Ready, true),
+            )
+            .expect("register futu");
+        router
+            .register(
+                descriptor("helper", false),
+                HealthStatus {
+                    connected: true,
+                    readiness: ProviderReadiness::Failed,
+                    last_error: Some("missing runtime asset".to_owned()),
+                    ..HealthStatus::default()
+                },
+            )
+            .expect("register helper");
+        router
+            .activate("futu", ActivationMode::Explicit)
+            .expect("activate futu");
+
+        // A warming restore is allowed, a *failed* warmup is not: the reported
+        // reason must be the provider's own last_error, not a generic message.
+        let error = router
+            .activate("helper", ActivationMode::StartupRestore)
+            .expect_err("failed warmup must not be published");
+        match error {
+            MarketDataError::ProviderUnavailable {
+                provider_id,
+                reason,
+            } => {
+                assert_eq!(provider_id, "helper");
+                assert_eq!(reason, "missing runtime asset");
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+        assert_eq!(router.runtime().active_provider, "futu");
+    }
+
+    #[test]
+    fn disconnected_provider_reports_its_reason_and_keeps_the_previous_selection() {
+        // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_health_test.go:240
+        // TestWaitForProviderHealthPreservesLastFailureOnCancellation
+        let mut router = ProviderRouter::new(2);
+        router
+            .register(
+                descriptor("futu", true),
+                health(ProviderReadiness::Ready, true),
+            )
+            .expect("register futu");
+        router
+            .register(
+                descriptor("helper", false),
+                HealthStatus {
+                    connected: false,
+                    readiness: ProviderReadiness::Unknown,
+                    last_error: Some("connection refused".to_owned()),
+                    ..HealthStatus::default()
+                },
+            )
+            .expect("register helper");
+        router
+            .activate("futu", ActivationMode::Explicit)
+            .expect("activate futu");
+
+        let error = router
+            .activate("helper", ActivationMode::Explicit)
+            .expect_err("a disconnected provider is never published");
+        match error {
+            MarketDataError::ProviderUnavailable { reason, .. } => {
+                assert_eq!(reason, "connection refused");
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+        assert_eq!(router.runtime().active_provider, "futu");
+        assert!(router.require_streaming().is_ok());
+    }
+
+    #[test]
+    fn unknown_provider_activation_is_rejected_without_touching_the_active_selection() {
+        // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_health_test.go:261
+        // TestWaitForProviderHealthAndRuntimeDefaultCheckerBoundaries
+        let mut router = ProviderRouter::new(2);
+        router
+            .register(
+                descriptor("futu", true),
+                health(ProviderReadiness::Ready, true),
+            )
+            .expect("register futu");
+        router
+            .activate("futu", ActivationMode::Explicit)
+            .expect("activate futu");
+
+        // A provider with no registered runtime has no health checker at all,
+        // so the activation must fail closed instead of silently publishing.
+        assert_eq!(
+            router.activate("missing", ActivationMode::Explicit),
+            Err(MarketDataError::ProviderNotFound("missing".to_owned()))
+        );
+        let runtime = router.runtime();
+        assert_eq!(runtime.active_provider, "futu");
+        assert!(runtime.connected);
+    }
+
+    #[test]
+    fn recovery_after_a_failed_health_check_publishes_a_healthy_provider() {
+        // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_health_test.go:167
+        // TestWaitForProviderHealthRetriesUntilConnected and
+        // runtime_health_test.go:64 TestRuntimeFailedHealthCheckRestoresSidecarWithoutChangingProvider
+        let mut router = ProviderRouter::new(2);
+        router
+            .register(
+                descriptor("futu", true),
+                health(ProviderReadiness::Ready, true),
+            )
+            .expect("register futu");
+        router
+            .register(
+                descriptor("helper", false),
+                HealthStatus {
+                    connected: false,
+                    readiness: ProviderReadiness::Unknown,
+                    last_error: Some("still starting".to_owned()),
+                    ..HealthStatus::default()
+                },
+            )
+            .expect("register helper");
+        router
+            .activate("futu", ActivationMode::Explicit)
+            .expect("activate futu");
+
+        // First probe fails and the previous selection survives untouched.
+        assert!(router.activate("helper", ActivationMode::Explicit).is_err());
+        assert_eq!(router.runtime().active_provider, "futu");
+
+        // A later successful probe publishes the helper exactly once and the
+        // reported mode is the provider's own stream mode.
+        router
+            .update_health(
+                "helper",
+                HealthStatus {
+                    connected: true,
+                    readiness: ProviderReadiness::Ready,
+                    stream_mode: "snapshot-poll-delayed".to_owned(),
+                    ..HealthStatus::default()
+                },
+            )
+            .expect("recovered health");
+        let runtime = router
+            .activate("helper", ActivationMode::Explicit)
+            .expect("activation after recovery");
+        assert_eq!(runtime.active_provider, "helper");
+        assert!(runtime.connected);
+        assert_eq!(runtime.readiness, ProviderReadiness::Ready);
+        assert!(matches!(
+            router.require_streaming(),
+            Err(MarketDataError::StreamingUnavailable(_))
+        ));
+    }
+    #[test]
+    fn warming_provider_is_only_publishable_during_startup_restore() {
+        // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_health_test.go:183
+        // TestWaitForProviderHealthAllowsWarmingOnlyDuringStartupRestore
+        let warming = HealthStatus {
+            connected: true,
+            readiness: ProviderReadiness::Warming,
+            last_error: None,
+            ..HealthStatus::default()
+        };
+
+        // Same health payload, two activation modes: only the startup restore
+        // path may publish it, and the published runtime must carry the
+        // warming readiness through to callers.
+        let mut restored = ProviderRouter::new(2);
+        restored
+            .register(descriptor("helper", false), warming.clone())
+            .expect("register helper");
+        let runtime = restored
+            .activate("helper", ActivationMode::StartupRestore)
+            .expect("startup restore publishes warming");
+        assert_eq!(runtime.readiness, ProviderReadiness::Warming);
+        assert!(runtime.connected);
+        assert_eq!(runtime.generation, 1);
+
+        let mut explicit = ProviderRouter::new(2);
+        explicit
+            .register(descriptor("helper", false), warming)
+            .expect("register helper");
+        assert!(matches!(
+            explicit.activate("helper", ActivationMode::Explicit),
+            Err(MarketDataError::ProviderUnavailable { .. })
+        ));
+        assert!(
+            explicit.runtime().active_provider.is_empty(),
+            "an explicit activation that never passed health must not publish"
+        );
+    }
 }

@@ -3514,39 +3514,39 @@
     "evidence_type": "missing"
   },
   "internal/app/apiserver/marketdataapp/query_test.go:11:TestNormalizeCandlePeriodMapsAliases": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_query.rs::candle_period_normalizes_aliases_and_rejects_unsupported",
+    "conclusion": "function_exact：Go 断言 \"  k_60m \" 被规范化（含首尾空白）为 \"1h\"。Rust 的 candle_period_normalizes_aliases_and_rejects_unsupported 断言同一别名族：k_60m/60min/1hour→1h，并覆盖 ticker/k_tick→tick、1min→1m、day→1d、k_week→1w、k_month→1mo，同时断言 1y/2h 被拒绝，逐条对应“别名映射 + 非法周期拒绝”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/query_test.go:21:TestParseQueryTimeFallsBackOnInvalidInput": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 ParseQueryTime 这类静默回落助手",
+    "conclusion": "边界保留：Go 的 ParseQueryTime 在解析失败时返回调用方 fallback（该函数已无生产调用方，仅 http_bindings 保留）。Rust 的 normalize_optional_query_time / parse_candle_before_time 在非法输入时返回 QueryTimeError，由路由层转 400 BAD_REQUEST，而不是静默回落到 fallback；语义相反，属于旧助手行为，不迁移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/marketdataapp/query_test.go:28:TestKLineQueryWindowUsesExplicitBounds": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_reads_futu.rs::tests::test_futu_kline_query_window_uses_explicit_bounds",
+    "conclusion": "function_exact：Go 断言显式 fromTime/toTime 下 KLineQueryWindow 原样返回给定边界（begin=21日09:00Z、end=21日16:00Z）。Rust 的 test_futu_kline_query_window_uses_explicit_bounds 以相同窗口调用 futu_kline_query_window，断言 begin/end 逐字相等且 query_current==false（历史窗口不得拉取实时 bar），并额外断言无显式窗口时仍产出有界窗口。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/query_test.go:45:TestDecodeMarketCandlesQueryParsesRepeatedSessions": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_query.rs::candle_sessions_parse_dedup_order_and_reject_invalid",
+    "conclusion": "function_exact：Go 断言 repeated sessions 值 \"overnight,regular\" 与 \"extended,regular\" 被解析、去重并稳定排序为 regular/extended/overnight。Rust 的 candle_sessions_parse_dedup_order_and_reject_invalid 传入 [\"overnight,regular\",\"extended\",\"regular\"]，断言解析结果为 [\"regular\",\"extended\",\"overnight\"]，并额外覆盖空值 Empty 与非法 token 拒绝、None 透传，逐条对应“重复/CSV 值解析、去重与稳定顺序”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/query_test.go:60:TestKLineQueryWindowResetsInvalidBeginToDefaultLookback": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_reads_futu.rs::tests::test_futu_kline_query_window_resets_invalid_begin_to_default_lookback",
+    "conclusion": "function_exact：Go 断言 from_time >= to_time 时 begin 被重置为 end - 默认回看（intraday 36 小时）。Rust 的测试以 from=\"2026-05-21 17:00:00\"、to=\"2026-05-21 16:00:00\"（begin 晚于 end）断言 end 保持 16:00:00 且 begin 被重置为 04:00:00（前一日 16:00 - 36h），与 Go 的 endAt.Add(-36h) 逐值等价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_akshare_test.go:11:TestRuntimeReusesSharedSidecarAcrossPythonProviders": {
     "status": "[~]",
@@ -3654,81 +3654,81 @@
     "evidence_type": "missing"
   },
   "internal/app/apiserver/marketdataapp/runtime_health_test.go:13:TestRuntimeExplicitYFinanceActivationRequiresHealthBeforePublishing": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::explicit_activation_requires_ready_health_but_startup_restore_allows_warming",
+    "conclusion": "function_exact：Go 断言显式 Activate(yfinance, RequireHealthy) 必须先通过 health 才发布 provider，且激活成功后 Futu 订阅被释放。Rust 的 explicit_activation_requires_ready_health_but_startup_restore_allows_warming 断言 warming 的 helper 在 ActivationMode::Explicit 下被拒绝（active_provider 仍为 futu，不发布），只有 StartupRestore 才允许发布 warming provider 并报告 readiness/connected，逐条对应“显式激活必须先健康、否则不得发布”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_health_test.go:64:TestRuntimeFailedHealthCheckRestoresSidecarWithoutChangingProvider": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::recovery_after_a_failed_health_check_publishes_a_healthy_provider",
+    "conclusion": "function_exact：Go 断言 health 检查失败时 Activate 返回该错误、active provider 仍是 Futu。Rust 的 recovery_after_a_failed_health_check_publishes_a_healthy_provider 先让 helper 健康检查失败，断言 activate 报错且 active_provider 仍为 futu，随后 update_health 成功再激活时发布 helper 并报告 Ready/connected，覆盖同一“失败不改选择、恢复后发布”的语义。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_health_test.go:94:TestRuntimeReportsBothHealthAndSidecarRestoreFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::failed_warmup_blocks_startup_restore_and_reports_last_error",
+    "conclusion": "部分覆盖：Go 断言 health 失败与 sidecar restore 失败都被合并返回、provider 仍为 Futu。Rust 的 failed_warmup_blocks_startup_restore_and_reports_last_error 断言失败激活返回 ProviderUnavailable{provider_id,reason==provider 自己的 last_error} 且不改变 active provider，对应“失败原因必须透出且不发布”的一半；Rust 没有 sidecar restore 这一独立失败通道可合并（helper 进程由 HelperHealthMonitor/HelperProcess 拥有），故保留 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/runtime_health_test.go:114:TestRuntimeDefersSubscriptionReleaseFailureAfterHealthyActivation": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::failed_unsubscribe_is_deferred_until_its_retry_window",
+    "conclusion": "部分覆盖：Go 断言健康激活成功后 Futu 订阅释放失败只延迟处理，Activate 本身仍成功返回，之后可再单独 reconcile 拿到该错误。Rust 的 failed_unsubscribe_is_deferred_until_its_retry_window 覆盖“卸载失败被延后到重试窗口而不是立即失败或谎报成功”，但 Rust 没有把“激活成功 + 延迟 release 错误在后续调用暴露”串成一条断言，故保留 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/runtime_health_test.go:142:TestRuntimeChecksEmbeddedYFinanceOnStartupButNotFutu": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::explicit_activation_requires_ready_health_but_startup_restore_allows_warming",
+    "conclusion": "部分覆盖：Go 断言启动恢复 yfinance 会做一次 health 检查、显式激活 Futu 不额外检查。Rust 覆盖了“StartupRestore 允许 warming、Explicit 要求 Ready”的模式差异，但没有断言 Go 那种按 provider 类型区分是否调用 healthCheck 的调用计数，故保留 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/runtime_health_test.go:167:TestWaitForProviderHealthRetriesUntilConnected": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::tests::readiness_retry_delay_is_exponential_and_capped",
+    "conclusion": "部分覆盖：Go 断言 health 探测在未连接时重试、第二次 connected 时返回成功且至少等待一个重试间隔。Rust 的 readiness_retry_delay_is_exponential_and_capped 断言 helper 就绪探测的退避序列 initial→2x→max→max；helper 进程的 restart_until_ready 负责在就绪前重试，但没有与 Go 相同形态的“第二次探测转 connected 即成功”的序列断言，故保留 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/runtime_health_test.go:183:TestWaitForProviderHealthAllowsWarmingOnlyDuringStartupRestore": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::warming_provider_is_only_publishable_during_startup_restore",
+    "conclusion": "function_exact：Go 断言 warming provider 只在启动恢复路径被接受、显式激活必须等到 Ready。Rust 的 warming_provider_is_only_publishable_during_startup_restore 用完全相同的 warming HealthStatus 分别走 StartupRestore（发布，runtime.readiness==Warming、connected、generation==1）与 Explicit（ProviderUnavailable 且 active_provider 仍为空，即从未发布），逐条对应“warming 只在启动恢复期允许发布”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_health_test.go:205:TestWaitForProviderHealthStopsOnFailedWarmup": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::failed_warmup_blocks_startup_restore_and_reports_last_error",
+    "conclusion": "function_exact：Go 断言 readiness=Failed 时 waitForProviderHealth 立即返回错误且错误文本含 provider 的 LastError。Rust 的 failed_warmup_blocks_startup_restore_and_reports_last_error 断言 StartupRestore 对 readiness=Failed 的 provider 报 ProviderUnavailable，且 reason 恰为 \"missing runtime asset\"（provider 自己的 last_error），active provider 不变，逐条对应“失败预热立即停止并透出原因”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_health_test.go:222:TestProviderHealthRetryDelayBacksOffAndCaps": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_helper_health.rs::tests::compute_helper_backoff_doubles_and_caps_at_max",
+    "conclusion": "部分覆盖：Go 断言重试延迟序列 100ms→200→400→800→1s→1s（在 1s 封顶）。Rust 的 compute_helper_backoff_doubles_and_caps_at_max 断言同样的倍增+封顶形状，但基准值是 500ms→…→10000ms，且由 HelperHealthMonitor 的 restart_policy 参数化；数值不同（Rust 默认 initial 500ms / max 10s），不能宣称逐条等价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/runtime_health_test.go:240:TestWaitForProviderHealthPreservesLastFailureOnCancellation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::disconnected_provider_reports_its_reason_and_keeps_the_previous_selection",
+    "conclusion": "function_exact：Go 断言探测失败时返回底层错误（errors.Is 命中 probeErr），provider 上报 disconnected 时错误文本含 \"reported disconnected\"。Rust 的 disconnected_provider_reports_its_reason_and_keeps_the_previous_selection 断言 connected=false 的 provider 激活失败返回 ProviderUnavailable{reason==\"connection refused\"}（保留最后一次失败原因），active provider 与 streaming 能力保持不变，对应“保留最后失败原因、不改变选择”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_health_test.go:261:TestWaitForProviderHealthAndRuntimeDefaultCheckerBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::unknown_provider_activation_is_rejected_without_touching_the_active_selection",
+    "conclusion": "function_exact：Go 断言 nil provider 的 health 检查返回 unavailable 错误，默认 checkHealth 对健康 provider 成功。Rust 的 unknown_provider_activation_is_rejected_without_touching_the_active_selection 断言未注册的 provider（无 health checker）激活返回 ProviderNotFound 且不改变 active provider/connected，对应“没有可用 health checker 时 fail closed”；同一文件里 recovery_after_a_failed_health_check_publishes_a_healthy_provider 覆盖“默认检查成功即发布”的另一半。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_index_constituents_forwarding_test.go:35:TestRuntimeForwardsIndexConstituentsToCapableActiveProvider": {
     "status": "[~]",
@@ -3801,270 +3801,270 @@
     "evidence_type": "missing"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:14:TestRuntimeSwitchesStableDataPlaneBetweenFutuAndYFinance": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::provider_transitions_are_serialized_and_publish_one_snapshot",
+    "conclusion": "function_exact：Go 断言初始 provider=Futu、Activate(yfinance) 后 ActiveProviderID 发布 yfinance、再 Activate(futu) 恢复 Futu。Rust 的 provider_transitions_are_serialized_and_publish_one_snapshot 断言初始 Yfinance、两次切换分别发布 Akshare 与 Futu、最终 snapshot().provider 等于最后一次切换目标且 generation==2，逐条对应“切换必须发布新的 active provider 快照”。Go 中 sidecar ensure/stop 与 quote/push 路由字段属于 Python sidecar 进程模型，已在 sidecar 边界条目单独记录。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:85:TestRuntimeCommitsFutuWhenSidecarCleanupNeedsRetry": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无同构“切换容忍 deferred sidecar cleanup”owner",
+    "conclusion": "边界保留：Go 让 Activate(futu) 容忍 sidecar 清理失败并在 Close 重试；Rust 把该职责拆到 jftrade-integration-marketdata-helper 的 HelperProcess::stop（失败保留 last_error、state=Failed）与 crates/jftrade-engine/src/product_runtime_supervisor.rs 的停机顺序聚合，没有“切换容忍延迟清理”这一逐步对应对象。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:113:TestRuntimeRejectsInvalidActivationAndDefersFutuCleanupFailure": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::same_provider_activation_is_idempotent_after_a_rejected_switch",
+    "conclusion": "function_exact：Go 断言未知 provider 被拒绝、Futu 清理失败不阻塞切换、切换后 active provider 提交为 yfinance。Rust 的 same_provider_activation_is_idempotent_after_a_rejected_switch 让切换回调对 yfinance 返回 Err，断言 rejected 快照 provider 仍为 Futu、activated==false、generation==0，随后提交当前 provider 成功并只发布一次 generation==1，逐条对应“校验/清理失败绝不改变已提交 provider，且失败后状态仍可继续使用”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:143:TestRuntimeRollsBackYFinanceWhenNonFutuProviderRetirementFails": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::rejected_activation_never_publishes_a_new_provider_snapshot",
+    "conclusion": "function_exact：Go 断言非 Futu 旧 provider 退役失败时 Activate(yfinance) 报错且 active provider 回滚为 custom-provider。Rust 的 rejected_activation_never_publishes_a_new_provider_snapshot 让切换回调对 yfinance 返回 Err，断言 get() 仍为 Futu、generation==0、activated==false，重复尝试仍失败且回调计数为 2（必须重跑转换而不能谎报成功），最后提交当前 provider 时恰好发布 generation==1。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:168:TestRuntimeRetiresPreviousSubscriptionsThroughBrokerReconciliation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::switch_retires_the_previous_provider_before_publishing_the_next_one",
+    "conclusion": "function_exact：Go 断言切换时通过 broker reconciler 退役上一 provider 订阅（reconcile 调用 1 次、desired 清空）。Rust 的 switch_retires_the_previous_provider_before_publishing_the_next_one 断言切换回调收到的 previous 恰为已提交的 Futu（只出现一次）、切换后 provider=Yfinance 且 generation==1，并对已提交 provider 重复激活断言不会二次退役（避免误删活跃订阅）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:191:TestRuntimeReportsFutuActivationAndRollbackReleaseFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state",
+    "conclusion": "部分覆盖：Go 断言 Futu 订阅激活失败与回滚释放失败被合并返回、provider 仍为 yfinance。Rust 在 provider 层覆盖了失败卸载的延迟与重试阶梯（失败不会谎报成功、重试阶梯升级、重新订阅清理重试状态），但没有一个入口断言“激活错误 + 回滚释放错误合并返回”的错误聚合语义，保留 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:230:TestRuntimeContinuesInactiveFutuCleanupWhileYFinanceIsActive": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::failed_unsubscribe_is_deferred_until_its_retry_window",
+    "conclusion": "部分覆盖：Go 断言前台 yfinance reconcile 不因 Futu 清理失败而失败、Futu 清理单独重试、最终清空 desired。Rust 的 failed_unsubscribe_is_deferred_until_its_retry_window 与 unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state 覆盖“失败卸载被延后并在后续 reconcile 重试直至清空”，但 Rust 未把“非活动 provider 清理”和“前台 provider reconcile”拆成两个独立方法调用面，不能逐断言等价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:276:TestRuntimeSerializesInactiveCleanupWithFutuReactivation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::queued_transitions_observe_the_committed_provider_as_their_previous_owner",
+    "conclusion": "function_exact：Go 断言非活动清理进行中时 Futu 重新激活不得超车，最终 provider=Futu 且 desired 恰为激活请求的一组。Rust 的 queued_transitions_observe_the_committed_provider_as_their_previous_owner 并发跑两个 activate，断言每次回调都从“当时已提交的 provider”出发、被拒绝的转换不会成为下一次的 previous owner、最终 provider 与 generation 只由成功的转换推进，对应“清理与切换串行且不得交错”的要求（串行互斥本身由 provider_transitions_are_serialized_and_publish_one_snapshot 断言 max_in_flight==1）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:337:TestRuntimeRestoresPreviousSubscriptionsAfterActivationFailure": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::failed_provider_change_restores_the_previous_subscription_owner",
+    "conclusion": "function_exact：Go 断言新 provider 订阅激活失败后 active provider 仍为 old-provider，并重新 reconcile 旧 provider 的订阅。Rust 的 failed_provider_change_restores_the_previous_subscription_owner 让 Futu 转换返回 Err，断言 get() 仍是 Yfinance、generation==0、且失败路径没有退役任何 previous owner；随后旧 owner 仍可服务下一次成功切换（Akshare），证明失败不会留下半退役状态。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:370:TestRuntimeCommitsSwitchWhenFutuRetirementContextExpires": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::provider_transitions_are_serialized_and_publish_one_snapshot",
+    "conclusion": "部分覆盖：Go 断言旧 provider 退役的 context 超时不会阻塞切换（切换成功、reconciler 调用 1 次）。Rust 的 activation 回调签名是 Fn(provider, previous) -> Result<(), String>，没有 per-call deadline，超时/取消由调用方（settings 写路径）决定；该测试覆盖了“切换必须提交并只发布一次快照”，但没有 Go 那种“退役 context 过期仍提交”的语义，故保留 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:394:TestRuntimeConstructorAndUnavailablePollingBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无 Rust Runtime 构造函数/nil receiver 语义",
+    "conclusion": "边界保留：Go 断言 NewRuntime(nil FutuProvider) 报错、缺少 quote source 时 QueryTickers 失败、nil *Runtime 的 Activate/Close 有确定结果。Rust 没有同构 Runtime 值对象：engine 以 ProductRuntimeConfig 组装并在启动期 fail closed（product_runtime_tests.rs::production_startup_fails_closed_*），缺失依赖由 Option/Arc<dyn Trait> 表达，nil receiver 语义不存在，无法逐条迁移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:414:TestRuntimeCannotRestartManagedSidecarAfterClose": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed",
+    "conclusion": "function_exact：Go 断言 Close 后 Activate(yfinance) 返回 ErrRuntimeClosed、sidecar ensureCalls==0、provider 保持 Futu。Rust 的 activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed 在 begin_shutdown() 后分别激活 Yfinance 与 Futu，断言两者都失败、激活回调调用次数为 0（关闭后不得启动任何 provider 运行时）、snapshot.provider 仍为 Futu 且 closing==true。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:437:TestRuntimeCloseWinsConcurrentActivationWithoutRestartingSidecar": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::concurrent_close_and_activation_commit_exactly_one_outcome",
+    "conclusion": "function_exact：Go 断言 Close 与并发 Activate 竞争时 Close 获胜、Activate 返回 ErrRuntimeClosed、sidecar 不被重启。Rust 的 concurrent_close_and_activation_commit_exactly_one_outcome 用 Barrier 让 begin_shutdown 与 activate 真正并发，断言最终 closing==true，且激活要么在关闭前已成功提交（provider==Yfinance），要么被拒绝并保持 Futu 且错误含 shutting down，不会出现关闭后重新拉起 provider 的状态。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:476:TestRuntimeDoesNotCommitActivationCanceledWhileQueued": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::queued_transitions_observe_the_committed_provider_as_their_previous_owner",
+    "conclusion": "部分覆盖：Go 断言排队期间被 cancel 的 Activate 不得提交（context.Canceled、provider/sidecar 不变）。Rust 的 activate 是同步 Result<(),String>，没有 ctx 取消点；该测试证明“被拒绝的转换不发布、不成为下次 previous owner、不推进 generation”，即取消后的可观察结果等价，但取消本身的排队中断路径没有对应断言，故保留 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:504:TestProviderChangeCannotRestoreSubscriptionsAfterRuntimeClose": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::provider_change_cannot_restore_subscriptions_after_shutdown",
+    "conclusion": "function_exact：Go 断言运行中 Close 之后 provider change 返回 ErrRuntimeClosed 且不再恢复任何物理订阅集合（reconcileCalls==0）。Rust 的 provider_change_cannot_restore_subscriptions_after_shutdown 在 begin_shutdown() 后尝试切换，断言返回 Err、activation 回调（唯一会触发订阅 reconcile 的入口）调用次数为 0、provider 保持 Futu，逐条对应关闭后不得恢复/退役订阅。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:547:TestRuntimeRetriesSidecarCleanupWithinClose": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无 Rust “Close 内重试 sidecar cleanup”语义",
+    "conclusion": "边界保留：Go 的 Close 会重试一次 sidecar 清理，成功则正常返回且关闭态仍拒绝 Activate。Rust 的 HelperProcess::stop 是单次调用（超时返回 ProcessError::StopTimeout 并把 state 置 Failed），重试由上层重启策略与 ProductShutdownSupervisor 的 failures 聚合承担，没有“两次有界清理、第二次成功”的内建语义。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:570:TestRuntimeReportsBothBoundedSidecarCleanupFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 不聚合两次 sidecar close 失败",
+    "conclusion": "边界保留：Go 断言两次有界 sidecar 清理都失败时两个错误都被合并且 Close 失败。Rust 的 HelperProcess::stop 只产生单个 ProcessError，多次失败由 ProductShutdownSupervisor 收集进 failures 并以 ProductRuntimeError::Shutdown(join) 返回；错误形状与重试次数不同，不能逐条等价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:591:TestProviderLeasesKeepSharedPythonSidecarUntilLastRelease": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 AcquireProvider/provider lease 引用计数 API",
+    "conclusion": "边界保留：Go 的 Runtime 暴露 AcquireProvider/ProviderLease（同一 provider 实例共享、Release 幂等、最后一个租约释放才停 sidecar）。Rust 没有 provider lease 抽象：helper 进程生命周期由 HelperHealthMonitor 与 ProductShutdownSupervisor 拥有，市场数据读取直接经 HelperClient/ProviderRouter，不存在按租约引用计数共享实例的公共 API。该缺口属于旧 Go 组合根的 owner 模型，记录为需要产品决策的边界，不用拼接断言伪装成已迁移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:633:TestProviderSwitchKeepsAcceptedLeaseOnOldInstance": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无“已接受 lease 钉住旧 provider 实例”的语义",
+    "conclusion": "边界保留：Go 断言切换 provider 后先前已接受的 lease 仍指向旧实例，且旧实例 sidecar 继续存活直到 lease 释放。Rust 的 ActiveProviderState 只发布当前 provider 快照，不保留旧实例句柄；旧 provider 资源释放由各自 owner（OpenDProviderRuntime / HelperProcess）决定，属于旧 Go 组合根独有的生命周期模型。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:667:TestBacktestProviderHelpersListAndPrepareProviders": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_provider.rs::BacktestMarketDataProviderState 与 production_market_data_catalog_and_provider_ports",
+    "conclusion": "部分覆盖：Go 断言 ProviderCatalog 返回 futu/yfinance/akshare 三个 SelectionID（顺序稳定）且 BacktestProviderPreparer(yfinance) 会真正启停 sidecar lease。Rust 有 BacktestMarketDataProviderState 负责回测 provider 覆盖的原子发布，production_market_data_catalog_and_provider_ports 断言 provider 路由的 selectionId/providerId 与 health 投影；但没有与 Go 完全同序的三项 catalog 断言，也没有“prepare 后无残留 lease”的断言（Rust 无 lease），故保留 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:704:TestBacktestProviderPreparerReturnsPreparationFailure": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-settings/src/market_data_provider.rs::tests::active_failure_rolls_back_but_backtest_failure_never_persists",
+    "conclusion": "部分覆盖：Go 断言 BacktestProviderPreparer 在 health 检查失败时返回该错误且不保留 lease。Rust 的 active_failure_rolls_back_but_backtest_failure_never_persists 断言回测 provider 设置在 prepare_backtest 失败时返回 Runtime 错误且存储保持原值（绝不落盘）。“health 检查触发失败”这一半在 Rust 没有对应实现（prepare_backtest 当前是无条件成功的内存发布），故保留 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:724:TestProviderLeaseNilBoundariesAndRuntimeInitialization": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 nil lease/nil runtime 边界对象",
+    "conclusion": "边界保留：Go 断言 nil *Runtime、nil *ProviderLease 的确定失败行为以及 Runtime 延迟初始化 provider pool/leases。Rust 用 Option/Arc<dyn Trait> 表达缺失依赖，nil 语义不存在；缺失依赖 fail-closed 由 product_runtime_tests.rs::production_startup_fails_closed_* 与 unavailable 端口测试覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/marketdataapp/sidecar_os_process_test.go:14:TestOSSidecarProcessValidatesLaunchesAndStopsRealChild": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::tests::start_rejects_a_second_launch_of_a_live_process",
+    "conclusion": "function_exact：Go 用真实子进程断言可启动、可运行、可停止并回收。Rust 的 start_rejects_a_second_launch_of_a_live_process 用真实 shell 子进程断言 start 后 state==Starting 且 pid 存在、is_alive()==true，重复 start 被 AlreadyRunning 拒绝（不会为同一 endpoint 拉起第二个 owner），stop 后 is_alive()==false，覆盖“真实子进程启动-存活-停止回收”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/sidecar_os_process_test.go:78:TestOSSidecarProcessTreatsNaturalExitAsStoppedAndCloseable": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::tests::a_naturally_exited_child_reports_stopped_and_can_be_closed_again",
+    "conclusion": "function_exact：Go 断言子进程自然退出后 Running()==false 且可以安全 Close。Rust 的 a_naturally_exited_child_reports_stopped_and_can_be_closed_again 启动一个 `exit 0` 的短命真实子进程，轮询断言 is_alive() 变为 false（已退出子进程不得报告为存活），随后 stop 返回 Ok(Stopped) 且 last_error 为空，再次 stop 依然成功，逐条对应“自然退出视为已停止且可反复关闭”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/sidecar_os_process_test.go:115:TestOSSidecarProcessBoundsGracefulStopBeforeKillingChild": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::tests::stop_escalates_to_kill_when_the_child_outlives_the_grace_period",
+    "conclusion": "function_exact：Go 断言优雅停止受有界超时约束、超时后升级为 kill 并回收。Rust 的 stop_escalates_to_kill_when_the_child_outlives_the_grace_period 启动忽略 SIGTERM 的真实子进程并把 stop_timeout 设为 200ms，断言 stop 在有界时间内返回、state==Stopped、pid 为空且 is_alive()==false，逐条对应“有界停止 + 强杀升级 + 必然回收”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/sidecar_os_process_test.go:146:TestWaitForSidecarDoneHasExplicitTimeout": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::tests::stop_escalates_to_kill_when_the_child_outlives_the_grace_period",
+    "conclusion": "部分覆盖：Go 断言独立的 waitForSidecarDone 助手带显式超时。Rust 的 HelperProcess::stop 用 config.stop_timeout 作为 tokio::time::timeout 上限（超时返回 ProcessError::StopTimeout 且 state=Failed），同一测试证明真实子进程的停止有界且必然回收；但 Rust 的停止路径先 start_kill（SIGKILL）再限时 wait，超时分支对真实子进程实际上不可达，因此没有 Go 那种可独立观测的 wait 超时断言，保留 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/sidecar_os_process_test.go:161:TestProcessAlreadyFinishedIsASuccessfulStop": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::tests::already_finished_children_are_stopped_successfully_and_repeatable",
+    "conclusion": "function_exact：Go 断言已结束进程的 Stop 视为成功。Rust 的 already_finished_children_are_stopped_successfully_and_repeatable 对没有 child 的句柄 stop 返回 Ok(Stopped)、pid 为 None、last_error 为 None、restarts==0，并断言再次 stop 依然成功且不产生错误，逐条对应“已结束进程停止成功且可重复”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/sidecar_process_test.go:15:TestSidecarManagerStartsReusesAndStopsManagedExecutable": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::tests::managed_process_is_reused_until_an_explicit_stop_releases_it",
+    "conclusion": "function_exact：Go 断言 sidecar manager 首次 EnsureStarted 产出 endpoint/端口/可执行文件，第二次调用复用同一进程（不重复启动），Stop 后进程关闭且状态清空（Close 空态也成功）。Rust 的 managed_process_is_reused_until_an_explicit_stop_releases_it 断言启动后 endpoint 与 pid 稳定不变、restarts==0（同一 endpoint 只有一个 owner）、restart 才产生新 child 且计数为 1、endpoint 跨重启稳定，最后 stop 后 state==Stopped 且 pid 为空。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/sidecar_process_test.go:61:TestSidecarManagerRestartsExitedProcessAndCleansPreviousMaterialization": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::tests::a_failed_launch_never_leaves_a_child_or_a_stale_endpoint",
+    "conclusion": "部分覆盖：Go 断言已退出进程会被重启（重新 resolve + 分配新端口 + 清理旧物化产物）。Rust 的 HelperProcess 通过 restart()/restart_until_ready() 覆盖“重启并递增 restarts、失败启动不留 child/endpoint”，但 Rust 的物化由 AssetBundle::materialize（原子 rename、校验和）承担、端口由 allocate_loopback_port 分配，没有与 Go 同一条“重新 resolve 触发旧物化清理”的断言链，故保留 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/sidecar_process_test.go:92:TestSidecarManagerCleansMaterializationAfterPreparationFailures": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::tests::a_failed_launch_never_leaves_a_child_or_a_stale_endpoint",
+    "conclusion": "function_exact：Go 断言端口分配失败与进程启动失败都不保留 manager 状态（process/endpoint 为空），且启动后钩子不执行。Rust 的 a_failed_launch_never_leaves_a_child_or_a_stale_endpoint 断言可执行文件不存在时 launch 返回 ProcessError::Io、failed.pid==None（不保留 child）、last_error 被记录、state==Failed，并且之后仍可 stop 到 Stopped，逐条对应“准备/启动失败不得残留状态”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/sidecar_process_test.go:128:TestSidecarManagerRetainsProcessUntilStopSucceeds": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::tests::stop_is_idempotent_and_bounds_graceful_shutdown_before_killing_the_child",
+    "conclusion": "function_exact：Go 断言 Stop 失败时 manager 仍保留 process/endpoint 以便重试，重试成功后状态清空。Rust 的 stop_is_idempotent_and_bounds_graceful_shutdown_before_killing_the_child 断言 stop 对空闲进程成功返回 Stopped、pid 为空、last_error 为空，且重复 stop 依然成功（幂等），对应“失败/重复停止不得破坏可重试状态”；进程终止的有界性由子进程 start_kill + timeout 实现（stop_timeout 配置）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/sidecar_process_test.go:147:TestSidecarExecutableDevelopmentOverrideAndManagerBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_workers.rs::DesktopRetainedRuntimeConfig::from_process_env 与 crates/jftrade-engine/src/runtime_dependencies.rs::tests",
+    "conclusion": "部分覆盖：Go 断言 JFTRADE_YFINANCE_SIDECAR 开发覆盖被解析为可执行文件、源码运行时命令为 -m marketdata_sidecar.main + PYTHONPATH、nil manager 有确定边界。Rust 的 DesktopRetainedRuntimeConfig::from_process_env 覆盖 JFTRADE_MARKETDATA_SIDECAR / JFTRADE_MARKETDATA_DEV_PYTHON / PYTHONPATH 的同等优先级解析，runtime_dependencies 覆盖依赖探测与报告；但没有与 Go 逐字段等价的 environment 数组断言（Rust 用 BTreeMap 且变量名不同），故保留 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/sidecar_process_test.go:190:TestDevelopmentOverrideRejectsMissingAndNonFilePaths": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 JFTRADE_YFINANCE_SIDECAR 旧别名校验分支",
+    "conclusion": "边界保留：Go 断言相对路径、缺失路径、目录路径在解析期分别报 absolute path/inspect/regular file 错误。Rust 的 DesktopRetainedRuntimeConfig::from_process_env 只接受绝对化的 PathBuf 并交给 HelperProcess::new 校验（MissingExecutable/PublicBind/InvalidPort/WeakToken），没有 Go 这三条旧别名专用错误文案，属于 Wails 时代环境变量兼容层，不迁移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/marketdataapp/sidecar_process_test.go:208:TestDevelopmentPythonSourceCommandAndExplicitHelperPrecedence": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_workers.rs::DesktopRetainedRuntimeConfig::from_process_env",
+    "conclusion": "部分覆盖：Go 断言显式 helper 优先于 dev python，且源码模式命令为 `-m marketdata_sidecar.main` 并带 PYTHONPATH=source。Rust 的 from_process_env 用同样的优先级（JFTRADE_MARKETDATA_SIDECAR 最先、否则 JFTRADE_MARKETDATA_DEV_PYTHON + DEV_PYTHONPATH 构造 prefix_args），但没有一个测试断言 prefix_args/environment 的确切内容，故保留 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/sidecar_process_test.go:261:TestDevelopmentPythonSourceCommandRejectsInvalidSourcePath": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 不在解析期校验 dev pythonpath 目录形态",
+    "conclusion": "边界保留：Go 对 dev PYTHONPATH 的相对路径/缺失目录/指向文件分别在解析期报错。Rust 把 PYTHONPATH 作为 prefix_args/environment 透传给 HelperProcess，缺失路径会在子进程启动时以 ProcessError::Io 暴露，错误时机与文案不同，不逐条迁移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/marketdataapp/sidecar_process_test.go:297:TestDevelopmentPythonSourceCommandRejectsInvalidRuntimeBeforeStart": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 Python 版本/模块探测门（probe）",
+    "conclusion": "边界保留：Go 在启动前用 ProbePythonRuntime 校验 Python >= 3.11 且模块可导入，低于 3.11 返回 below 3.11。Rust 没有等价的 Python 版本/模块探测实现：源码 helper 由开发者预先准备 venv（workers/marketdata-sidecar/README.md），运行期由 /healthz 就绪探测与 ProcessError 报错，属于旧 Go 源码模式专用门禁，不迁移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/marketdataapp/sidecar_signal_test.go:9:TestStopSidecarProcessAppliesSignalPlan": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 sidecar 信号计划（signal plan）抽象",
+    "conclusion": "边界保留：Go 用 stopSidecarProcess + signal plan（先 SIGTERM 后按计划升级）停止子进程；Rust 统一走 tokio Child::start_kill() + stop_timeout 等待，进程终止的直接升级由 OS/tokio 语义决定，没有可注入的信号计划对象，无法逐条迁移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/marketdataapp/sidecar_signal_test.go:24:TestStopSidecarProcessAppliesImmediateKillPlan": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 immediate-kill signal plan",
+    "conclusion": "边界保留：Go 断言传入 immediate kill 计划时直接强杀。Rust 的 HelperProcess::terminate（Drop 路径）与 stop 都是 start_kill 直接强杀、再以 stop_timeout 收敛，没有“按 plan 选择信号序列”的可观测分支，属于旧进程管理实现细节。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/marketdataapp/unavailable_provider_test.go:12:TestUnavailableProviderRejectsAllMarketDataOperations": {
     "status": "[~]",

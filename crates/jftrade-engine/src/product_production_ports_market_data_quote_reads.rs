@@ -224,6 +224,33 @@ impl ProductionMarketDataQuotePort {
         )))
     }
 
+    /// Resolve the per-candle session label for a Futu history window.
+    ///
+    /// Go classifies the candle open against `market.ClassifySession`, which
+    /// owns DST, holidays, early closes and the US overnight carry.  Rust keeps
+    /// that schedule in the exchange calendar, so the label must come from the
+    /// calendar rather than a hardcoded `regular`.  When no calendar is
+    /// configured the candle is left unannotated instead of fabricating a
+    /// session the schedule cannot prove.
+    fn futu_candle_session(&self, market: &str, at: &str) -> Option<&'static str> {
+        let calendar = self.calendar.as_deref()?;
+        let parsed = time::OffsetDateTime::parse(
+            at,
+            &time::format_description::well_known::Rfc3339,
+        )
+        .ok()?;
+        let session = calendar
+            .classify_session(market, jftrade_kernel::WireTimestamp::from_offset_datetime(parsed))
+            .ok()??;
+        match session.as_str() {
+            "pre" => Some("pre"),
+            "regular" => Some("regular"),
+            "after" => Some("after"),
+            "overnight" => Some("overnight"),
+            _ => None,
+        }
+    }
+
     pub(super) async fn read_candles(
         &self,
         suffix: &str,
@@ -446,7 +473,8 @@ impl ProductionMarketDataQuotePort {
                     "Futu historical klines runtime is unavailable".to_owned(),
                 ));
             };
-            let (begin_time, end_time, query_current) = futu_kline_query_window(
+            let (begin_time, end_time, query_current) =
+                quote_reads_futu::futu_kline_query_window(
                 &market,
                 period,
                 limit,
@@ -457,6 +485,12 @@ impl ProductionMarketDataQuotePort {
             let extended_hours = sessions
                 .iter()
                 .any(|s| *s == "extended" || *s == "overnight");
+            // Go's `ShouldAnnotateHistoricalKLineSession` only labels a
+            // per-candle session for US intraday history windows.  Daily and
+            // non-US markets carry no `session` field at all, so the Futu
+            // projection must not claim every candle is `regular`.
+            let annotate_session = market.eq_ignore_ascii_case("US")
+                && is_intraday_candle_period(period);
             let futu_result =
                 runtime.historical_klines_window(&jftrade_integration_futu::HistoricalKlineQuery {
                     market: market_code,
@@ -604,17 +638,22 @@ impl ProductionMarketDataQuotePort {
                         &sessions,
                     )
                     .map_err(|e| MarketDataQuoteReadSnapshotError::Unavailable(e.to_string()))?;
-                candles.push(json!({
+                let mut candle = json!({
                     "at": at,
                     "close": kline.close_price.map(|v| v.to_string()).unwrap_or_default(),
                     "high": kline.high_price.map(|v| v.to_string()).unwrap_or_default(),
                     "low": kline.low_price.map(|v| v.to_string()).unwrap_or_default(),
                     "open": kline.open_price.map(|v| v.to_string()).unwrap_or_default(),
                     "period": period,
-                    "session": "regular",
                     "volume": kline.volume.map(|v| v.to_string()).unwrap_or_else(|| "0".to_owned()),
                     "closed": is_closed,
-                }));
+                });
+                if annotate_session
+                    && let Some(label) = self.futu_candle_session(&market, &at)
+                {
+                    candle["session"] = json!(label);
+                }
+                candles.push(candle);
             }
             let has_older = candles.len() > limit;
             if candles.len() > limit {
@@ -632,17 +671,23 @@ impl ProductionMarketDataQuotePort {
                 json!({ "hasMore": false })
             };
             let instrument_id = format!("{market}.{symbol}");
+            // `meta.session` is only emitted when a per-candle session was
+            // resolved, mirroring `CandlesResponseDTO.JSON()` in Go.
+            let mut meta = json!({
+                "brokerId": "futu",
+                "extendedHours": extended_hours,
+                "fromCache": false,
+                "instrumentId": instrument_id,
+                "resolvedAt": format_unix_millis_rfc3339(current_unix_millis()),
+                "sessions": sessions,
+                "source": "futu",
+            });
+            if annotate_session {
+                meta["session"] = json!(if extended_hours { "all" } else { "regular" });
+            }
             return Ok(json!({
                 "candles": candles,
-                "meta": {
-                    "brokerId": "futu",
-                    "extendedHours": extended_hours,
-                    "fromCache": false,
-                    "instrumentId": instrument_id,
-                    "resolvedAt": format_unix_millis_rfc3339(current_unix_millis()),
-                    "sessions": sessions,
-                    "source": "futu",
-                },
+                "meta": meta,
                 "pagination": pagination,
                 "request": {
                     "instrument": {
@@ -661,129 +706,5 @@ impl ProductionMarketDataQuotePort {
         Err(MarketDataQuoteReadSnapshotError::Unavailable(
             "candle provider is not configured".to_owned(),
         ))
-    }
-}
-
-fn effective_period_seconds(period: &str) -> i64 {
-    let secs = jftrade_integration_futu::kline_query::period_duration_seconds(period);
-    if secs > 0 {
-        return secs;
-    }
-    match period.trim().to_ascii_lowercase().as_str() {
-        "1d" | "day" => 86_400,
-        "1w" | "week" => 604_800,
-        "1mo" | "month" => 2_592_000,
-        "1y" | "year" => 31_536_000,
-        _ => 86_400,
-    }
-}
-
-fn parse_futu_time_to_ts(raw: &str, tz: &jiff::tz::TimeZone) -> Option<jiff::Timestamp> {
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    if (trimmed.contains('T') || trimmed.ends_with('Z'))
-        && let Ok(ts) = trimmed.parse::<jiff::Timestamp>()
-    {
-        return Some(ts);
-    }
-    if let Ok(dt) = jiff::civil::DateTime::strptime("%Y-%m-%d %H:%M:%S", trimmed) {
-        return dt.to_zoned(tz.clone()).ok().map(|z| z.timestamp());
-    }
-    if let Ok(d) = jiff::civil::Date::strptime("%Y-%m-%d", trimmed) {
-        return d
-            .to_datetime(jiff::civil::Time::midnight())
-            .to_zoned(tz.clone())
-            .ok()
-            .map(|z| z.timestamp());
-    }
-    None
-}
-
-fn futu_kline_query_window(
-    market: &str,
-    period: &str,
-    limit: usize,
-    from_time: Option<&str>,
-    to_time: Option<&str>,
-    before: Option<&str>,
-) -> (String, String, bool) {
-    let tz_str = match market {
-        "US" => "America/New_York",
-        "HK" => "Asia/Hong_Kong",
-        "SH" | "SZ" | "CN" => "Asia/Shanghai",
-        "JP" => "Asia/Tokyo",
-        _ => "UTC",
-    };
-    let tz = jiff::tz::TimeZone::get(tz_str).unwrap_or(jiff::tz::TimeZone::UTC);
-    let now_ts = jiff::Timestamp::now();
-    let bar_duration = effective_period_seconds(period);
-    let eff_limit = limit.clamp(1, 1000) as i64;
-    let mut lookback_secs = bar_duration.saturating_mul(eff_limit).saturating_mul(4);
-    let min_lookback_secs = if bar_duration >= 86_400 {
-        45 * 86_400
-    } else {
-        36 * 3_600
-    };
-    if lookback_secs < min_lookback_secs {
-        lookback_secs = min_lookback_secs;
-    }
-
-    let end_ts = if let Some(raw_end) = to_time.or(before) {
-        parse_futu_time_to_ts(raw_end, &tz).unwrap_or(now_ts)
-    } else {
-        now_ts
-    };
-
-    let begin_ts = if let Some(raw_begin) = from_time {
-        let parsed = parse_futu_time_to_ts(raw_begin, &tz).unwrap_or_else(|| {
-            end_ts
-                .checked_sub(jiff::SignedDuration::from_secs(lookback_secs))
-                .unwrap_or(now_ts)
-        });
-        if parsed >= end_ts {
-            end_ts
-                .checked_sub(jiff::SignedDuration::from_secs(lookback_secs))
-                .unwrap_or(now_ts)
-        } else {
-            parsed
-        }
-    } else {
-        end_ts
-            .checked_sub(jiff::SignedDuration::from_secs(lookback_secs))
-            .unwrap_or(now_ts)
-    };
-
-    let begin_zoned = begin_ts.to_zoned(tz.clone());
-    let end_zoned = end_ts.to_zoned(tz);
-    let begin_str = begin_zoned.strftime("%Y-%m-%d %H:%M:%S").to_string();
-    let end_str = end_zoned.strftime("%Y-%m-%d %H:%M:%S").to_string();
-
-    let query_current = end_ts
-        >= now_ts
-            .checked_sub(jiff::SignedDuration::from_secs(bar_duration))
-            .unwrap_or(now_ts);
-    (begin_str, end_str, query_current)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_futu_kline_query_window_resets_invalid_begin_to_default_lookback() {
-        // Parity: internal/app/apiserver/marketdataapp/query_test.go:64 TestKLineQueryWindowResetsInvalidBeginToDefaultLookback
-        // When from_time >= to_time, begin is reset to end - default lookback (36 hours for intraday)
-        let (begin, end, _) = futu_kline_query_window(
-            "US",
-            "1m",
-            2,
-            Some("2026-05-21 17:00:00"),
-            Some("2026-05-21 16:00:00"),
-            None,
-        );
-        assert_eq!(end, "2026-05-21 16:00:00");
-        assert_eq!(begin, "2026-05-20 04:00:00");
     }
 }
