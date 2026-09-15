@@ -165,3 +165,29 @@ impl PhysicalSubscriptionSnapshotPort for OpenDPhysicalSubscriptionAdapter {
         Ok(coordinator.physical_snapshot())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use jftrade_marketdata::PhysicalSubscriptionSnapshotPort;
+
+    #[test]
+    fn dynamic_opend_adapter_reports_no_snapshot_without_a_live_runtime() {
+        // Parity: internal/integration/futu/marketdata_runtime_test.go:196
+        // TestMarketDataRuntimeNilAndClosedLifecycleBoundaries and
+        // internal/integration/futu/marketdata_runtime_opend_test.go:154
+        // TestMarketDataRuntimeQueryAndSubscriptionWrappers.
+        // The empty slot is the Rust analogue of Go's "runtime without an
+        // exchange": the port must answer `None` instead of erroring or
+        // fabricating an empty physical snapshot that would let a caller
+        // believe OpenD had released every subscription.
+        let adapter = DynamicOpenDPhysicalSubscriptionAdapter {
+            runtime: Arc::new(Mutex::new(None)),
+        };
+        assert_eq!(
+            adapter.physical_subscription_snapshot(),
+            Ok(None),
+            "an uncomposed OpenD runtime must not report a physical snapshot"
+        );
+    }
+}

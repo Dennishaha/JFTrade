@@ -262,12 +262,12 @@ fn extended_session_metadata(
         .iter()
         .find(|window| window.kind == session)
     else {
-        return (
-            Some(context.trading_date.clone()),
-            Some(context.timezone.clone()),
-            None,
-            None,
-        );
+        // Go's ResolveTradingDaySessionWindow fails when the exchange calendar
+        // has no window of this kind (for example HK has no pre-market), and
+        // attachFutuSessionWindow then leaves the whole block unannotated.  A
+        // partial annotation would advertise a trading date/timezone for a
+        // session the exchange never opens, so drop all four fields together.
+        return (None, None, None, None);
     };
     let (start_date, start_minute, end_date, end_minute) = if session == "overnight" {
         (
@@ -714,5 +714,174 @@ mod tests {
             after.session_end_at.as_deref(),
             Some("2026-07-02T22:00:00Z")
         );
+    }
+
+    #[test]
+    fn extended_quote_blocks_project_go_field_and_window_contract() {
+        // Parity: internal/integration/futu/marketdata_runtime_test.go:712 TestTickFromSnapshotMapsExtendedQuoteFields
+        let resolver = StaticSessionResolver(QuoteSessionContext {
+            session: "after".to_owned(),
+            trading_date: "2026-06-23".to_owned(),
+            timezone: "America/New_York".to_owned(),
+            sessions: vec![
+                QuoteSessionWindow {
+                    kind: "overnight".to_owned(),
+                    start_minute: 0,
+                    end_minute: 240,
+                },
+                QuoteSessionWindow {
+                    kind: "pre".to_owned(),
+                    start_minute: 240,
+                    end_minute: 570,
+                },
+                QuoteSessionWindow {
+                    kind: "regular".to_owned(),
+                    start_minute: 570,
+                    end_minute: 960,
+                },
+                QuoteSessionWindow {
+                    kind: "after".to_owned(),
+                    start_minute: 960,
+                    end_minute: 1200,
+                },
+            ],
+        });
+        let mut value = quote(11, "AAPL", 321.2, 9_007_199_254_740_993);
+        value.last_close_price = Some(316.2);
+        value.open_price = Some(318.0);
+        value.high_price = Some(322.0);
+        value.low_price = Some(317.8);
+        value.turnover = Some(999_999.9);
+        value.pre_market = Some(PreAfterMarketData {
+            price: Some(320.1),
+            high_price: Some(321.8),
+            low_price: Some(319.5),
+            volume: Some(4567),
+            turnover: Some(12_345.6),
+            change_value: Some(2.3),
+            change_rate: Some(0.72),
+            amplitude: Some(1.1),
+        });
+        value.after_market = Some(PreAfterMarketData {
+            price: Some(322.4),
+            high_price: None,
+            low_price: None,
+            volume: None,
+            turnover: None,
+            change_value: None,
+            change_rate: None,
+            amplitude: None,
+        });
+        value.overnight = Some(PreAfterMarketData {
+            price: Some(323.7),
+            high_price: None,
+            low_price: None,
+            volume: None,
+            turnover: None,
+            change_value: None,
+            change_rate: None,
+            amplitude: None,
+        });
+        let ticks =
+            basic_quote_ticks_with_resolver(vec![value], 1_782_615_301_000, 5, Some(&resolver))
+                .expect("mapped extended tick");
+        let snapshot = ticks[0].snapshot.as_ref().expect("snapshot");
+        assert_eq!(snapshot.session.as_deref(), Some("after"));
+        let pre = snapshot.pre_market.as_ref().expect("pre block");
+        assert_eq!(pre.price.expect("pre price").to_string(), "320.1");
+        assert_eq!(pre.high_price.expect("pre high").to_string(), "321.8");
+        assert_eq!(pre.low_price.expect("pre low").to_string(), "319.5");
+        assert_eq!(pre.volume.as_ref().expect("pre volume").to_string(), "4567");
+        assert_eq!(
+            pre.turnover.as_ref().expect("pre turnover").to_string(),
+            "12345.6"
+        );
+        assert_eq!(pre.change.as_ref().expect("pre change").to_string(), "2.3");
+        assert_eq!(
+            pre.change_rate
+                .as_ref()
+                .expect("pre change rate")
+                .to_string(),
+            "0.72"
+        );
+        assert_eq!(
+            pre.amplitude.as_ref().expect("pre amplitude").to_string(),
+            "1.1"
+        );
+        assert_eq!(pre.trading_date.as_deref(), Some("2026-06-23"));
+        assert_eq!(pre.exchange_timezone.as_deref(), Some("America/New_York"));
+        assert_eq!(
+            pre.session_start_at.as_deref(),
+            Some("2026-06-23T08:00:00Z")
+        );
+        assert_eq!(pre.session_end_at.as_deref(), Some("2026-06-23T13:30:00Z"));
+        let after = snapshot.after_market.as_ref().expect("after block");
+        assert_eq!(after.price.expect("after price").to_string(), "322.4");
+        assert_eq!(
+            after.session_end_at.as_deref(),
+            Some("2026-06-24T00:00:00Z")
+        );
+        let overnight = snapshot.overnight.as_ref().expect("overnight block");
+        assert_eq!(
+            overnight.price.expect("overnight price").to_string(),
+            "323.7"
+        );
+        assert_eq!(
+            overnight.session_start_at.as_deref(),
+            Some("2026-06-23T00:00:00Z")
+        );
+        assert_eq!(
+            overnight.session_end_at.as_deref(),
+            Some("2026-06-23T08:00:00Z")
+        );
+    }
+
+    #[test]
+    fn extended_block_without_a_calendar_window_stays_unannotated() {
+        // Parity: internal/integration/futu/marketdata_runtime_test.go:712 TestTickFromSnapshotMapsExtendedQuoteFields
+        // The HK template has no pre-market window, so Go's
+        // ResolveTradingDaySessionWindow fails and attachFutuSessionWindow
+        // leaves the block completely unannotated.  Publishing a trading date
+        // for a session the exchange never opens would be a false contract.
+        let resolver = StaticSessionResolver(QuoteSessionContext {
+            session: "regular".to_owned(),
+            trading_date: "2026-06-23".to_owned(),
+            timezone: "Asia/Hong_Kong".to_owned(),
+            sessions: vec![
+                QuoteSessionWindow {
+                    kind: "regular".to_owned(),
+                    start_minute: 570,
+                    end_minute: 720,
+                },
+                QuoteSessionWindow {
+                    kind: "regular".to_owned(),
+                    start_minute: 780,
+                    end_minute: 960,
+                },
+            ],
+        });
+        let mut value = quote(1, "00700", 300.0, 1);
+        value.pre_market = Some(PreAfterMarketData {
+            price: Some(299.0),
+            high_price: None,
+            low_price: None,
+            volume: Some(10),
+            turnover: None,
+            change_value: None,
+            change_rate: None,
+            amplitude: None,
+        });
+        let ticks =
+            basic_quote_ticks_with_resolver(vec![value], 1_782_600_000_000, 6, Some(&resolver))
+                .expect("mapped hk tick");
+        let snapshot = ticks[0].snapshot.as_ref().expect("snapshot");
+        let pre = snapshot.pre_market.as_ref().expect("pre block");
+        assert_eq!(
+            pre.trading_date, None,
+            "missing window must stay unannotated"
+        );
+        assert_eq!(pre.exchange_timezone, None);
+        assert_eq!(pre.session_start_at, None);
+        assert_eq!(pre.session_end_at, None);
     }
 }

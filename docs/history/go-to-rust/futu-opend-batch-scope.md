@@ -28,6 +28,42 @@
 | `internal/integration/futu/subscription_reconciler_test.go:587:TestSubscriptionReconcilerPendingProviderCleanupDropsClosedConnectionOwnership` | provider 切换/所有权 | `subscriptions_tests::pending_provider_cleanup_drops_closed_connection_ownership` | `[x]` function_exact：连接替换后旧代际记录被丢弃，不会通过新连接误退订；replay 为空、计数全 0 |
 | `internal/integration/futu/subscription_reconciler_test.go:623:TestSubscriptionReconcilerHandlesQuotaExchangeReplacementResetAndNilBoundaries` | 配额/连接替换 | `subscriptions_tests::connection_replacement_clears_quota_ownership_and_reset_is_idempotent` | `[x]` function_exact：连接替换清空旧连接配额诊断与检查时间、配额失败仅作诊断、close 幂等；修复 `replay_actions` 保留死连接配额总数/检查时间并投射到 UI 的缺陷 |
 | `internal/integration/futu/subscription_reconciler_test.go:548:TestSubscriptionReconcilerMeasuresQuotaRefreshFromOpenDAcknowledgement` | 配额/计时 | `session_coordinator::tests::refresh_quota_uses_the_authenticated_opend_protocol_and_preserves_last_success` | `[~]` boundary：Rust 的检查时刻取 post-RPC now 并保留上次成功值，但由 poll loop 的 `quota_refresh_pending` 标志驱动，无 Go `subscriptionQuotaRefresh=1min` 时间节流，故「同一分钟内不重复查询」不成立 |
+| `internal/integration/futu/marketdata_runtime_test.go:712:TestTickFromSnapshotMapsExtendedQuoteFields` | 时区/session 边界/空值 | `basic_quote_tick::tests::extended_quote_blocks_project_go_field_and_window_contract`；`basic_quote_tick::tests::extended_block_without_a_calendar_window_stays_unannotated` | `[~]` partial：extended 块字段与 session window 标注逐项对齐，并修复 calendar 缺少该 session 窗口时仍标注 tradingDate/timezone 的缺陷；Go 还断言 `Kind`/`Source`/`ExtendedHours`/`QuoteAt`/`Market`/`Symbol`（bbgo Tick DTO 字段），Rust 用 broker-neutral 模型 + LiveHub envelope，属模型差异 |
+| `internal/integration/futu/marketdata_runtime_test.go:196:TestMarketDataRuntimeNilAndClosedLifecycleBoundaries` | 空值/生命周期 | `product_runtime_composition::tests::dynamic_opend_adapter_reports_no_snapshot_without_a_live_runtime` | `[~]` boundary：Rust 无 Ensure/Reset/OwnsBroker 门面（nil runtime 指针在类型层不可表达）；可迁移断言为未组合 OpenD runtime 时物理订阅端口返回 `None` |
+| `internal/integration/futu/marketdata_runtime_test.go:655:TestMarketDataRuntimeUnavailableQueryHelpers` | 空值/不可用端口 | `product_runtime_composition::tests::dynamic_opend_adapter_reports_no_snapshot_without_a_live_runtime`；`product_production_ports_unavailable` | `[~]` boundary：Rust 以「未安装端口 → fail-closed 错误」表达配置禁用，类型层不允许返回 nil 指针；已迁移可断言部分为 None 快照语义 |
+| `internal/integration/futu/marketdata_runtime_test.go:591:TestMarketDataRuntimeReplacesAnExchangeWhenItsConfigKeyChanges` | 配置热替换 | `product_runtime_composition::opend_provider_config`；`product_active_provider_state` | `[~]` boundary：Rust 不在运行时按配置键热替换 OpenD 物理连接；连接在 composition root 一次性组合，之后切换只在 router/demand 层激活，OpenD 会话存活到 shutdown supervisor 关闭 |
+| `internal/integration/futu/marketdata_runtime_test.go:452:TestMarketDataRuntimeExchangeResetAndStreamLifecycle` | Reset/流生命周期 | `product_runtime_supervisor`；`runtime_task::OpenDSessionRuntime` | `[~]` boundary：以 ordered shutdown supervisor（reverse-of-construction + JoinHandle await）取代进程内 `Reset()`；Go 的「Reset 后新 exchange/broker adapter 与 generation 前进」在 Rust 中属进程级重启，broker ownership 断言不可迁移 |
+| `internal/integration/futu/marketdata_runtime_test.go:27:TestMarketDataRuntimeCloseWaitsForEnsureAndDoesNotRevive` | 关闭/并发 | `tests/provider_runtime_recovery.rs::latest_demand_replaces_stale_replay_while_reconnect_is_pending`；`provider_runtime::shutdown` | `[~]` boundary：`start()` 内同步连接，不存在「Close 等待进行中 Ensure」窗口；等价保证由 shutdown 消费 self + Drop 兜底与重连期过期 replay 不复活覆盖 |
+| `internal/integration/futu/marketdata_runtime_test.go:85:TestMarketDataRuntimeCloseReturnsActiveExchangeFailureIdempotently` | 关闭/幂等 | `provider_runtime::shutdown`；`provider_runtime::tests::release_and_deactivate_clears_bridge_owned_router_state` | `[~]` boundary：以 take/consume（`shutdown(self)`）取代 Go 的幂等 Close 计数，重复关闭在类型层不可表达，释放后 router/demand 收敛为空 |
+| `internal/integration/futu/marketdata_runtime_test.go:116:TestMarketDataRuntimeCloseReturnsInflightExchangeFailure` | 关闭/回滚 | `provider_runtime::start`；`product_runtime_supervisor` | `[~]` boundary：`start()` 同步连接，失败即回滚（release_demand + deactivate），不存在可被 Close 竞争的 in-flight 句柄 |
+| `internal/integration/futu/marketdata_runtime_test.go:163:TestMarketDataRuntimeDoesNotPublishExchangeWhenConfigChangesDuringCreate` | 并发/发布栅栏 | `product_active_provider_state`；`product_runtime_provider_activation` | `[~]` boundary：OpenD 配置仅在 composition root 一次性读取；provider 激活走串行 transition，激活成功后才发布 snapshot，shutdown 后拒绝激活，故不会发布过期 exchange |
+| `internal/integration/futu/marketdata_runtime_test.go:220:TestTickFromTradeProducesBrokerNeutralPushTick` | 推送/中立模型 | `product_runtime_opend_listener` | `[~]` boundary：Rust 没有 bbgo Trade 中间类型，OpenD BasicQot 直接投影为中立 Tick 并经 LiveHub 发布 `market-data.tick`，Go 的 Trade→Tick 转义无对应生产路径 |
+| `internal/integration/futu/marketdata_runtime_opend_test.go:154:TestMarketDataRuntimeQueryAndSubscriptionWrappers` | 查询/订阅包装 | `tests/fake_framed_opend_runtime_tests.rs`；`basic_quote_query` | `[~]` boundary：查询/订阅包装分散到各领域 adapter 与 fake framed OpenD 测试，错误为结构化枚举而非 `errors.As` 链，不迁移为单一等价测试 |
+| `internal/integration/futu/marketdata_runtime_opend_test.go:275:TestTranslateSubscriptionRequiredErrorPreservesBrokerNeutralLeaseDetails` | 错误映射/lease | `basic_quote_query::BasicQuoteQueryError::SubscriptionRequired` | `[~]` boundary：Rust 已把 SubscriptionRequired 作为有界 query error 枚举成员并在各 adapter 内规范化，但无 Go 的 sentinel 包装与 interval 回退优先级链，属错误模型差异 |
+
+## 本轮（市场数据运行时生命周期批量）修复的功能差异
+
+1. **扩展时段缺少 calendar 窗口时被部分标注（P1）**
+   - 复现：标的的 `PreAfterMarketData` 块存在，但交易所日历没有对应
+     session 窗口（例如 HK 没有 pre-market 窗口）。
+   - 修复前：`extended_session_metadata` 在找不到窗口时仍返回
+     `trading_date`/`exchange_timezone`，给一个交易所根本不开的时段标注了
+     交易日期。
+   - 修复后：四个字段整体返回 `None`，与 Go 的
+     `ResolveTradingDaySessionWindow` 失败后
+     `attachFutuSessionWindow` 整体跳过一致。
+   - 回归：`extended_block_without_a_calendar_window_stays_unannotated`、
+     `extended_quote_blocks_project_go_field_and_window_contract`。
+
+## 本轮结论边界
+
+Go `marketdata_runtime.go` 的 `Ensure`/`Reset`/`OwnsBroker`/`Close` 门面是
+Wails 时代的进程内热替换层。Rust 把它替换为：composition root 一次性组合
+OpenD 连接、`ActiveProviderState` 串行 provider 切换、以及
+`ProductShutdownSupervisor` 的 reverse-of-construction 关闭。因此这批 Go
+测试中与「进程内 runtime 指针」「幂等 Close 计数」「in-flight 创建竞争」
+相关的断言属于**边界保留**，不是待补测试；可迁移的行为断言（未组合 runtime
+返回 `None`、扩展时段字段与 session window 投影）已补 Rust 回归。
 
 ## 本批修复的功能差异
 
