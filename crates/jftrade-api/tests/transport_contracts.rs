@@ -6,7 +6,7 @@ use http_body_util::BodyExt;
 use jftrade_api::{
     ACCESS_SURFACE_HEADER, AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, ApiState,
     Asset, AssetBundle, FixedClock, INTERNAL_PROXY_PROTOCOL_HEADER, PortFuture, RouteCatalog,
-    RouteSpec, TransportMetrics, build_router,
+    RouteSpec, SseEvent, TransportMetrics, build_router,
 };
 use serde_json::{Value, json};
 use tower::ServiceExt;
@@ -157,6 +157,68 @@ async fn error_envelope_preserves_optional_retry_after_header() {
         .expect("unknown response");
     assert_eq!(unknown.status(), StatusCode::NOT_FOUND);
     assert!(unknown.headers().get("retry-after").is_none());
+}
+
+struct SsePort;
+
+impl ApiPort for SsePort {
+    fn dispatch(&self, _request: ApiRequest) -> PortFuture<'_> {
+        Box::pin(async {
+            Ok(ApiOutput::Sse(vec![
+                SseEvent {
+                    id: None,
+                    data: json!({"type": "progress"}),
+                },
+                SseEvent {
+                    id: Some("42".into()),
+                    data: json!({"type": "done"}),
+                },
+            ]))
+        })
+    }
+}
+
+#[tokio::test]
+async fn buffered_sse_output_writes_retry_and_frames_through_the_router() {
+    // Parity: go:452dea11:internal/api/httpserver/sse_test.go:87 TestPrepareSSEWriterAndFrameFormatting
+    let routes = RouteCatalog::new([RouteSpec {
+        method: "GET".into(),
+        path: "/api/v1/events".into(),
+    }])
+    .expect("routes");
+    let router = build_router(ApiState::new(
+        routes,
+        AccessPolicy {
+            desktop_token: Some("desktop-token".into()),
+            ..AccessPolicy::default()
+        },
+        Arc::new(SsePort),
+    ));
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/events")
+                .header("authorization", "Bearer desktop-token")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers()["content-type"], "text/event-stream");
+    assert_eq!(response.headers()["cache-control"], "no-cache");
+    assert_eq!(response.headers()["connection"], "keep-alive");
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body")
+        .to_bytes();
+    assert_eq!(
+        body.as_ref(),
+        b"retry: 3000\n\ndata: {\"type\":\"progress\"}\n\nid: 42\ndata: {\"type\":\"done\"}\n\n"
+    );
 }
 
 fn fixture() -> (axum::Router, Arc<RecordingPort>) {
@@ -331,8 +393,17 @@ async fn cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin() {
             .expect("allow headers")
             .contains("X-Request-ID")
     );
+    // Parity: internal/api/middleware/auth_test.go:173 TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight
+    // Go also requires the reflected expose-headers set on allowed responses.
+    assert!(
+        allowed.headers()["access-control-expose-headers"]
+            .to_str()
+            .expect("expose headers")
+            .contains("X-Request-ID")
+    );
 
     let denied = router
+        .clone()
         .oneshot(
             Request::builder()
                 .method(Method::OPTIONS)
@@ -350,6 +421,23 @@ async fn cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin() {
             .get("access-control-allow-origin")
             .is_none()
     );
+
+    // Go asserts a malformed "null" Origin is forbidden even when a valid
+    // Referer is present: Origin wins over Referer fallback.
+    let malformed = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::OPTIONS)
+                .uri("/api/v1/settings/ui")
+                .header("origin", "null")
+                .header("referer", "https://jftrade.local/app")
+                .body(Body::empty())
+                .expect("malformed preflight"),
+        )
+        .await
+        .expect("malformed response");
+    assert_eq!(malformed.status(), StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]

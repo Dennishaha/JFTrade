@@ -123,6 +123,38 @@ async fn candle_route_excludes_before_boundary_and_can_continue_loading_older_pa
 }
 
 #[tokio::test]
+async fn candle_route_serves_tick_period_and_forwards_strict_before_window() {
+    // Parity: internal/api/marketdata/routes_test.go:407 TestCandlesRouteTickAndStrictBeforePagination
+    // Go asserts a `period=tick` request is a successful non-paged response and
+    // that `before` is forwarded as the provider window end with `to` empty.
+    let reader = Arc::new(PagedHistory::default());
+    let port = port(reader.clone());
+    let tick = port
+        .read("/api/v1/market-data/candles/US/AAPL", "period=tick")
+        .await
+        .expect("tick candles");
+    assert_eq!(tick["pagination"]["hasMore"], false);
+
+    let paged = port
+        .read(
+            "/api/v1/market-data/candles/US/AAPL",
+            "period=5m&limit=2&before=2026-07-18T13:40:00Z",
+        )
+        .await
+        .expect("strict before pagination");
+    assert!(paged["candles"].is_array());
+    let requests = reader.requests.lock().unwrap();
+    let last = requests.last().expect("provider query");
+    assert_eq!(last.begin_time.len(), 19, "window start is provider-local");
+    // The RFC3339 cursor is converted into the US session timezone, matching
+    // how the Futu reader expects provider-local window bounds.
+    assert_eq!(
+        last.end_time, "2026-07-18 09:40:00",
+        "before is forwarded as the provider window end (America/New_York)"
+    );
+}
+
+#[tokio::test]
 async fn candle_route_rejects_partial_history_before_querying_current_bars() {
     let reader = Arc::new(PagedHistory {
         fail_second_page: true,

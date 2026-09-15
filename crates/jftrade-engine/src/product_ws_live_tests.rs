@@ -120,14 +120,19 @@ async fn ws_live_transport_rejects_untrusted_origin_before_upgrade() {
             .expect("config")
             .with_ws_live_snapshot_port(Arc::new(EnabledWsLiveSnapshotPort));
     let handle = start_product(config).await.expect("start product");
-    let response = websocket_handshake(
-        handle.startup_record().address,
-        &[("Origin", "http://evil.example")],
-    )
-    .await;
-    assert_eq!(response.status, 403);
-    assert_eq!(response.content_type(), Some("text/plain; charset=utf-8"));
-    assert_eq!(response.body, "Forbidden\n");
+    // Parity: internal/api/live/handler_test.go:397 TestHandlerRejectsUntrustedWebSocketOrigin
+    // Go iterates both a foreign origin and the malformed "null" origin; neither may upgrade.
+    for origin in ["http://evil.example", "null"] {
+        let response =
+            websocket_handshake(handle.startup_record().address, &[("Origin", origin)]).await;
+        assert_eq!(response.status, 403, "origin {origin}");
+        assert_eq!(
+            response.content_type(),
+            Some("text/plain; charset=utf-8"),
+            "origin {origin}"
+        );
+        assert_eq!(response.body, "Forbidden\n", "origin {origin}");
+    }
     handle.shutdown().await.expect("shutdown product");
 }
 

@@ -217,8 +217,18 @@ fn test_live_notification_from_response_routes_protocol_payloads_to_neutral_cate
 fn test_notification_labels_cover_every_supported_program_and_gateway_state() {
     // Parity: internal/integration/futu/notifications_test.go:135 TestNotificationLabelsCoverEverySupportedProgramAndGatewayState
     const PROGRAM_STATES: &[(i32, &str, &str, &str)] = &[
-        (ProgramStatusType::Loaded as i32, "info", "OpenD 程序状态更新", "已加载"),
-        (ProgramStatusType::Loging as i32, "info", "OpenD 程序状态更新", "登录中"),
+        (
+            ProgramStatusType::Loaded as i32,
+            "info",
+            "OpenD 程序状态更新",
+            "已加载",
+        ),
+        (
+            ProgramStatusType::Loging as i32,
+            "info",
+            "OpenD 程序状态更新",
+            "登录中",
+        ),
         (
             ProgramStatusType::NeedPicVerifyCode as i32,
             "warn",
@@ -288,7 +298,12 @@ fn test_notification_labels_cover_every_supported_program_and_gateway_state() {
     }
 
     const GATEWAY_EVENTS: &[(i32, &str, &str, &str)] = &[
-        (GtwEventType::None as i32, "info", "OpenD 运行事件", "无异常"),
+        (
+            GtwEventType::None as i32,
+            "info",
+            "OpenD 运行事件",
+            "无异常",
+        ),
         (
             GtwEventType::LocalCfgLoadFailed as i32,
             "error",

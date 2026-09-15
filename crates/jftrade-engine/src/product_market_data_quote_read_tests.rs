@@ -257,14 +257,7 @@ async fn futu_securities_route_projects_broker_neutral_envelope_boundary() {
     assert_eq!(security["timezone"], "America/New_York");
     assert_eq!(response["meta"]["brokerId"], "futu");
     for absent in [
-        "extended",
-        "equity",
-        "warrant",
-        "option",
-        "index",
-        "plate",
-        "future",
-        "trust",
+        "extended", "equity", "warrant", "option", "index", "plate", "future", "trust",
     ] {
         assert!(
             security.get(absent).is_none(),

@@ -1434,8 +1434,7 @@ mod product_production_assembly_tests {
             jftrade_integration_futu::MINIMUM_OPEND_VERSION
         );
         assert_eq!(
-            unreachable["diagnosis"]["code"],
-            "OPEND_API_CONNECTIVITY",
+            unreachable["diagnosis"]["code"], "OPEND_API_CONNECTIVITY",
             "unreachable OpenD projection: {unreachable}"
         );
         assert_eq!(unreachable["diagnosis"]["manualRetryRequired"], true);
@@ -1504,8 +1503,7 @@ mod product_production_assembly_tests {
             "the rejected build is still reported: {unsupported}"
         );
         assert_eq!(
-            unsupported["diagnosis"]["code"],
-            "OPEND_VERSION_UNSUPPORTED",
+            unsupported["diagnosis"]["code"], "OPEND_VERSION_UNSUPPORTED",
             "the probe issue code must win over the generic connectivity code: {unsupported}"
         );
         assert_eq!(unsupported["diagnosis"]["manualRetryRequired"], true);
@@ -1537,7 +1535,10 @@ mod product_production_assembly_tests {
         }
     }
 
-    fn engine_probe_message_fields(scalars: &[(u8, u64)], nested: Option<(u8, Vec<u8>)>) -> Vec<u8> {
+    fn engine_probe_message_fields(
+        scalars: &[(u8, u64)],
+        nested: Option<(u8, Vec<u8>)>,
+    ) -> Vec<u8> {
         let mut body = Vec::new();
         for (tag, value) in scalars {
             body.extend(engine_probe_varint(u64::from(*tag) << 3));
@@ -1574,7 +1575,9 @@ mod product_production_assembly_tests {
         )
     }
 
-    fn read_engine_probe_frame(stream: &mut std::net::TcpStream) -> jftrade_integration_futu::Frame {
+    fn read_engine_probe_frame(
+        stream: &mut std::net::TcpStream,
+    ) -> jftrade_integration_futu::Frame {
         let mut header = [0_u8; 44];
         stream.read_exact(&mut header).expect("read frame header");
         let body_len = u32::from_le_bytes(header[12..16].try_into().expect("body length")) as usize;

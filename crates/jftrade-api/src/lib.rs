@@ -26,7 +26,11 @@ pub use router::{
     ApiState, LiveMarketDataStatus, LiveMarketDataStatusPort, RequestContext, build_router,
     current_request_context,
 };
-pub use sse::{SseEvent, encode_comment, encode_event, encode_retry};
+pub use sse::{
+    BufferedSseSink, SSE_RETRY_MILLIS, SseError, SseEvent, SseLoopError, SseLoopFuture, SseSink,
+    SseStreamLoopOptions, SseWriter, encode_comment, encode_event, encode_retry,
+    run_sse_stream_loop,
+};
 pub use websocket::{
     DEFAULT_WEBSOCKET_LIMIT, LiveConnectionMetrics, LiveConnectionPermit, LiveConnectionSnapshot,
     LiveDemandListener, LiveDepthSubscription, LiveHub, LiveHubConnection, LiveHubLifecycle,

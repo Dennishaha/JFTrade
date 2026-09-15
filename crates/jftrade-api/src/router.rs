@@ -27,9 +27,9 @@ use crate::websocket::{
     LiveSubscriptionSnapshot,
 };
 use crate::{
-    AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, AssetBundle, Clock,
-    LiveConnectionMetrics, RouteCatalog, SseEvent, SystemClock, TransportMetrics, encode_event,
-    encode_retry, websocket_origin_allowed,
+    AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, AssetBundle, BufferedSseSink, Clock,
+    LiveConnectionMetrics, RouteCatalog, SseEvent, SseWriter, SystemClock, TransportMetrics,
+    websocket_origin_allowed,
 };
 
 const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
@@ -484,14 +484,19 @@ fn should_use_spa_fallback(path: &str) -> bool {
 }
 
 fn sse_response(events: Vec<SseEvent>) -> Response<Body> {
-    let mut body = encode_retry(3000);
+    let sink = BufferedSseSink::new();
+    let Some(writer) = SseWriter::prepare(sink.clone()) else {
+        return empty_response(StatusCode::INTERNAL_SERVER_ERROR);
+    };
+    if writer.write_retry_directive().is_err() {
+        return empty_response(StatusCode::INTERNAL_SERVER_ERROR);
+    }
     for event in events {
-        match encode_event(&event) {
-            Ok(frame) => body.push_str(&frame),
-            Err(_) => return empty_response(StatusCode::INTERNAL_SERVER_ERROR),
+        if writer.write_sse_event(&event).is_err() {
+            return empty_response(StatusCode::INTERNAL_SERVER_ERROR);
         }
     }
-    let mut response = body_response(StatusCode::OK, "text/event-stream", body);
+    let mut response = body_response(StatusCode::OK, "text/event-stream", sink.body());
     response
         .headers_mut()
         .insert(CACHE_CONTROL, HeaderValue::from_static("no-cache"));
