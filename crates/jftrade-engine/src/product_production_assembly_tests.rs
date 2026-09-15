@@ -1393,6 +1393,216 @@ mod product_production_assembly_tests {
         ));
     }
 
+    /// Parity: go:452dea11:internal/app/apiserver/servercore/settings_broker_futu_health_test.go:16 TestFutuRuntimeAndHealthDiagnoseEnabledButUnreachableOpenD
+    ///
+    /// An enabled but unreachable OpenD is `offline`/`disconnected` with the
+    /// generic connectivity code and a restart hint.
+    #[test]
+    fn production_opend_health_diagnoses_enabled_but_unreachable_opend() {
+        let (_temp_dir, settings_path, config, security) = setup_test_env();
+
+        // Closed port: the coordinator cannot dial OpenD.
+        let closed_port = {
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind probe port");
+            let port = listener.local_addr().expect("probe port").port();
+            drop(listener);
+            port
+        };
+        fs::write(
+            &settings_path,
+            format!(
+                r#"{{"integration":{{"brokerId":"futu","enabled":true,"config":{{"type":"futu","host":"127.0.0.1","apiPort":{},"websocketPort":2,"maxWebSocketConnections":3,"useEncryption":false,"websocketKey":"diagnostic-key","tradeMarket":"HK","securityFirm":"FUTUSECURITIES"}}}}}}"#,
+                closed_port
+            ),
+        )
+        .expect("write unreachable OpenD settings");
+        let ports = production_ports(&config, &security).expect("production ports");
+        let unreachable = ports
+            .system_read
+            .read("/api/v1/system/futu-opend")
+            .expect("unreachable OpenD health projection");
+        assert_eq!(unreachable["status"], "offline");
+        assert_eq!(unreachable["runtime"]["connectivity"], "disconnected");
+        assert_eq!(unreachable["runtime"]["apiPort"], closed_port);
+        assert_eq!(unreachable["runtime"]["websocketKeyConfigured"], true);
+        assert_eq!(
+            unreachable["runtime"]["marketDataTransport"],
+            "bbgo-opend-tcp-api"
+        );
+        assert_eq!(
+            unreachable["runtime"]["minimumVersion"],
+            jftrade_integration_futu::MINIMUM_OPEND_VERSION
+        );
+        assert_eq!(
+            unreachable["diagnosis"]["code"],
+            "OPEND_API_CONNECTIVITY",
+            "unreachable OpenD projection: {unreachable}"
+        );
+        assert_eq!(unreachable["diagnosis"]["manualRetryRequired"], true);
+        assert_eq!(
+            unreachable["diagnosis"]["restartOpenDRecommended"], true,
+            "a dial failure asks the operator to restart OpenD"
+        );
+    }
+
+    /// Parity: go:452dea11:internal/app/apiserver/servercore/settings_broker_futu_health_test.go:66 TestFutuOpenDHealthRejectsOldBuildAndGuidesUpgrade
+    ///
+    /// An unsupported build keeps `degraded` plus `OPEND_VERSION_UNSUPPORTED`,
+    /// reports the detected `serverVersion` against the minimum, and guides an
+    /// upgrade instead of an OpenD restart.
+    #[test]
+    fn production_opend_health_rejects_old_build_and_guides_upgrade() {
+        let (_temp_dir, settings_path, config, security) = setup_test_env();
+
+        // Old build: OpenD answers, but below the supported protocol version.
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind opend fixture");
+        let old_version_port = listener.local_addr().expect("opend fixture").port();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept OpenD probe");
+            let init = read_engine_probe_frame(&mut stream);
+            assert_eq!(
+                init.header.proto_id,
+                jftrade_integration_futu::PROTO_INIT_CONNECT
+            );
+            write_engine_probe_response(
+                &mut stream,
+                &init,
+                engine_probe_message_fields(&[(1, 0)], Some((4, engine_probe_init_s2c()))),
+            );
+            let global = read_engine_probe_frame(&mut stream);
+            assert_eq!(
+                global.header.proto_id,
+                jftrade_integration_futu::PROTO_GET_GLOBAL_STATE
+            );
+            write_engine_probe_response(
+                &mut stream,
+                &global,
+                engine_probe_message_fields(
+                    &[(1, 0)],
+                    Some((4, engine_probe_global_state_s2c(1008, 6708))),
+                ),
+            );
+        });
+        fs::write(
+            &settings_path,
+            format!(
+                r#"{{"integration":{{"brokerId":"futu","enabled":true,"config":{{"type":"futu","host":"127.0.0.1","apiPort":{},"websocketPort":2,"maxWebSocketConnections":3,"useEncryption":false,"websocketKey":"diagnostic-key","tradeMarket":"HK","securityFirm":"FUTUSECURITIES"}}}}}}"#,
+                old_version_port
+            ),
+        )
+        .expect("write old-build OpenD settings");
+        let ports = production_ports(&config, &security).expect("production ports");
+        let unsupported = ports
+            .system_read
+            .read("/api/v1/system/futu-opend")
+            .expect("old-build OpenD health projection");
+        server.join().expect("opend fixture thread");
+        assert_eq!(unsupported["status"], "degraded");
+        assert_eq!(unsupported["runtime"]["connectivity"], "degraded");
+        assert_eq!(
+            unsupported["runtime"]["serverVersion"], "10.8.6708",
+            "the rejected build is still reported: {unsupported}"
+        );
+        assert_eq!(
+            unsupported["diagnosis"]["code"],
+            "OPEND_VERSION_UNSUPPORTED",
+            "the probe issue code must win over the generic connectivity code: {unsupported}"
+        );
+        assert_eq!(unsupported["diagnosis"]["manualRetryRequired"], true);
+        assert_eq!(
+            unsupported["diagnosis"]["restartOpenDRecommended"], false,
+            "an upgrade, not a restart, is required"
+        );
+        let summary = unsupported["diagnosis"]["summary"]
+            .as_str()
+            .expect("diagnosis summary");
+        assert!(
+            summary.contains(jftrade_integration_futu::MINIMUM_OPEND_VERSION),
+            "summary must name the minimum version: {summary}"
+        );
+    }
+
+    fn engine_probe_varint(mut value: u64) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        loop {
+            let mut byte = (value & 0x7f) as u8;
+            value >>= 7;
+            if value != 0 {
+                byte |= 0x80;
+            }
+            bytes.push(byte);
+            if value == 0 {
+                return bytes;
+            }
+        }
+    }
+
+    fn engine_probe_message_fields(scalars: &[(u8, u64)], nested: Option<(u8, Vec<u8>)>) -> Vec<u8> {
+        let mut body = Vec::new();
+        for (tag, value) in scalars {
+            body.extend(engine_probe_varint(u64::from(*tag) << 3));
+            body.extend(engine_probe_varint(*value));
+        }
+        if let Some((tag, message)) = nested {
+            body.extend(engine_probe_varint((u64::from(tag) << 3) | 2));
+            body.extend(engine_probe_varint(message.len() as u64));
+            body.extend(message);
+        }
+        body
+    }
+
+    fn engine_probe_init_s2c() -> Vec<u8> {
+        // server_ver=1009, conn_id=7
+        engine_probe_message_fields(&[(1, 1009), (3, 7)], None)
+    }
+
+    fn engine_probe_global_state_s2c(server_ver: u64, build_no: u64) -> Vec<u8> {
+        // markets HK/US/SH/SZ, quote+no trade login, version, time, Ready status
+        engine_probe_message_fields(
+            &[
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (6, 1),
+                (7, 0),
+                (8, server_ver),
+                (9, build_no),
+                (10, 1_754_000_000),
+            ],
+            None,
+        )
+    }
+
+    fn read_engine_probe_frame(stream: &mut std::net::TcpStream) -> jftrade_integration_futu::Frame {
+        let mut header = [0_u8; 44];
+        stream.read_exact(&mut header).expect("read frame header");
+        let body_len = u32::from_le_bytes(header[12..16].try_into().expect("body length")) as usize;
+        let mut packet = header.to_vec();
+        packet.resize(44 + body_len, 0);
+        stream
+            .read_exact(&mut packet[44..])
+            .expect("read frame body");
+        jftrade_integration_futu::decode_frame(&packet).expect("decode frame")
+    }
+
+    fn write_engine_probe_response(
+        stream: &mut std::net::TcpStream,
+        request: &jftrade_integration_futu::Frame,
+        body: Vec<u8>,
+    ) {
+        stream
+            .write_all(
+                &jftrade_integration_futu::encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &body,
+                )
+                .expect("encode response"),
+            )
+            .expect("write response");
+    }
+
     #[test]
     fn production_plugin_artifact_operations_are_atomic_and_restart_safe() {
         let (temp_dir, _settings_path, config, security) = setup_test_env();

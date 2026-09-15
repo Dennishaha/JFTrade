@@ -401,7 +401,7 @@ mod tests {
 
     use super::*;
     use crate::frame::HEADER_LEN;
-    use crate::{Frame, decode_frame, encode_frame};
+    use crate::{Frame, OpenDSessionCloseReason, decode_frame, encode_frame};
 
     #[test]
     fn tcp_probe_maps_login_global_state_and_market_readiness() {
@@ -681,6 +681,133 @@ mod tests {
         let packet = encode_frame(request.header.proto_id, request.header.serial_no, &body)
             .expect("response frame");
         stream.write_all(&packet).expect("response");
+    }
+
+    /// The Go probe reports protocol outcomes without a real OpenD: a peer
+    /// that closes during InitConnect or GetGlobalState degrades with the
+    /// transport error, and a Rejected response degrades with the same
+    /// `retType` text the Go caller composes.
+    #[test]
+    fn tcp_probe_reports_protocol_outcomes_without_a_real_opend() {
+        // Parity: go:452dea11:internal/integration/futu/probe_test.go:22 TestProbeOpenDReportsProtocolOutcomesWithoutARealOpenD
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (stream, _) = listener.accept().expect("accept");
+            drop(stream);
+        });
+        let error = OpenDTcpProbe::probe(OpenDTcpProbeConfig::new(address, Duration::from_secs(1)))
+            .expect_err("a peer that closes during InitConnect must not report healthy");
+        assert!(matches!(
+            error,
+            OpenDTcpProbeError::Session(OpenDManagedSessionError::Closed(
+                OpenDSessionCloseReason::PeerClosed
+            ))
+        ));
+        server.join().expect("server thread");
+
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init_request = read_request(&mut stream);
+            assert_eq!(init_request.header.proto_id, PROTO_INIT_CONNECT);
+            let response = InitConnectResponse {
+                ret_type: Some(-1),
+                ret_msg: None,
+                s2c: None,
+            };
+            write_response(&mut stream, &init_request, response.encode_to_vec());
+        });
+        let error = OpenDTcpProbe::probe(OpenDTcpProbeConfig::new(address, Duration::from_secs(1)))
+            .expect_err("an InitConnect rejection without a message must stay typed");
+        match error {
+            OpenDTcpProbeError::Rejected {
+                operation,
+                ret_type,
+                message,
+            } => {
+                assert_eq!(operation, "InitConnect");
+                assert_eq!(ret_type, -1);
+                assert_eq!(message, "OpenD request failed");
+            }
+            other => panic!("unexpected init rejection mapping: {other:?}"),
+        }
+        server.join().expect("server thread");
+
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init_request = read_request(&mut stream);
+            write_response(
+                &mut stream,
+                &init_request,
+                InitConnectResponse {
+                    ret_type: Some(RET_TYPE_SUCCEED),
+                    ret_msg: None,
+                    s2c: Some(InitConnectS2c {
+                        server_ver: 1009,
+                        conn_id: 7,
+                    }),
+                }
+                .encode_to_vec(),
+            );
+            let global_request = read_request(&mut stream);
+            assert_eq!(global_request.header.proto_id, PROTO_GET_GLOBAL_STATE);
+            drop(stream);
+        });
+        let error = OpenDTcpProbe::probe(OpenDTcpProbeConfig::new(address, Duration::from_secs(1)))
+            .expect_err("a peer that closes during GetGlobalState must not report healthy");
+        assert!(matches!(
+            error,
+            OpenDTcpProbeError::Session(OpenDManagedSessionError::Closed(
+                OpenDSessionCloseReason::PeerClosed
+            ))
+        ));
+        server.join().expect("server thread");
+
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init_request = read_request(&mut stream);
+            write_response(
+                &mut stream,
+                &init_request,
+                InitConnectResponse {
+                    ret_type: Some(RET_TYPE_SUCCEED),
+                    ret_msg: None,
+                    s2c: Some(InitConnectS2c {
+                        server_ver: 1009,
+                        conn_id: 7,
+                    }),
+                }
+                .encode_to_vec(),
+            );
+            let global_request = read_request(&mut stream);
+            let response = GetGlobalStateResponse {
+                ret_type: Some(-1),
+                ret_msg: None,
+                s2c: None,
+            };
+            write_response(&mut stream, &global_request, response.encode_to_vec());
+        });
+        let error = OpenDTcpProbe::probe(OpenDTcpProbeConfig::new(address, Duration::from_secs(1)))
+            .expect_err("a GetGlobalState rejection must stay typed");
+        match error {
+            OpenDTcpProbeError::Rejected {
+                operation,
+                ret_type,
+                message,
+            } => {
+                assert_eq!(operation, "GetGlobalState");
+                assert_eq!(ret_type, -1);
+                assert_eq!(message, "OpenD request failed");
+            }
+            other => panic!("unexpected global-state rejection mapping: {other:?}"),
+        }
+        server.join().expect("server thread");
     }
 
     #[test]

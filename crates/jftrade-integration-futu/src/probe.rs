@@ -98,9 +98,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_probe_opend_disconnected_and_version_enforcement_parity() {
+    fn probe_opend_reports_closed_port_as_disconnected() {
         // Parity: go:452dea11:internal/integration/futu/probe_test.go:114 TestProbeOpenDReportsClosedPortAsDisconnected
-        // Parity: go:452dea11:internal/integration/futu/probe_test.go:137 TestProbeFromGlobalStateEnforcesMinimumVersionAndMapsNeutralState
         let disconnected = OpenDProbe::disconnected("connection refused");
         assert_eq!(disconnected.status, "offline");
         assert_eq!(disconnected.connectivity, "disconnected");
@@ -110,7 +109,11 @@ mod tests {
             Some("OPEND_DISCONNECTED")
         );
         assert!(!disconnected.market_data_ready());
+    }
 
+    #[test]
+    fn probe_from_global_state_enforces_minimum_version_and_maps_neutral_state() {
+        // Parity: go:452dea11:internal/integration/futu/probe_test.go:137 TestProbeFromGlobalStateEnforcesMinimumVersionAndMapsNeutralState
         let nil_state = OpenDProbe::from_global_state(None, true);
         assert_eq!(nil_state.status, "degraded");
         assert_eq!(nil_state.connectivity, "degraded");
@@ -134,6 +137,25 @@ mod tests {
         );
         assert_eq!(unsupported.server_version.as_deref(), Some("10.8.6708"));
         assert!(!unsupported.market_data_ready());
+
+        // The healthy neutral state keeps the probe fields Go asserts.
+        let healthy = OpenDProbe::from_global_state(
+            Some(WireGlobalState {
+                qot_logged_in: Some(true),
+                trade_logged_in: Some(false),
+                server_version: Some("10.9.6908".to_owned()),
+                program_status: Some("Ready".to_owned()),
+                program_timestamp: None,
+                markets: Vec::new(),
+            }),
+            true,
+        );
+        assert_eq!(healthy.status, "healthy");
+        assert_eq!(healthy.connectivity, "connected");
+        assert_eq!(healthy.quote_logged_in, Some(true));
+        assert_eq!(healthy.trade_logged_in, Some(false));
+        assert_eq!(healthy.program_status.as_deref(), Some("Ready"));
+        assert!(healthy.market_data_ready());
     }
 
     #[test]

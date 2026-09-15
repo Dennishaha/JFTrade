@@ -207,6 +207,95 @@ async fn market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable(
     handle.shutdown().await.expect("shutdown product");
 }
 
+/// Parity boundary: go:452dea11:internal/integration/futu/security_details_test.go:12 TestSecurityDetailsMapPreservesCompleteBrokerNeutralWireShape
+/// Parity boundary: go:452dea11:internal/integration/futu/security_details_test.go:126 TestSecurityDetailsMapKeepsMissingOptionalAndProductBlocksNull
+/// Parity boundary: go:452dea11:internal/integration/futu/security_details_test.go:160 TestSecurityRefMapUsesCanonicalIdentity
+///
+/// Futu's Go helper converts the full `pkg/futu.SecurityDetails` model,
+/// including the extended/equity/warrant/option/index/plate/future/trust
+/// research blocks.  The Rust `/api/v1/market-data/securities/{market}/{symbol}`
+/// contract (`marketdata.SecurityDetailsPayload`) requires only
+/// `instrumentId`/`market`/`name`/`symbol` and documents that providers may add
+/// research fields, so Rust keeps the nine canonical fields and only enriches
+/// the equity pe/pb pair from the live snapshot.  This test freezes that
+/// boundary instead of claiming the Go research model was migrated.
+#[tokio::test]
+async fn futu_securities_route_projects_broker_neutral_envelope_boundary() {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    let port = ProductionMarketDataQuotePort::new(state, None, None, None);
+
+    let response = port
+        .read("/api/v1/market-data/securities/US/AAPL", "")
+        .await
+        .expect("Futu securities envelope");
+    let security = response["security"]
+        .as_object()
+        .expect("security object projection");
+    let mut keys: Vec<&str> = security.keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        vec![
+            "currency",
+            "exchange",
+            "instrumentId",
+            "market",
+            "name",
+            "securityType",
+            "supportedPeriods",
+            "symbol",
+            "timezone",
+        ],
+        "the Rust securities envelope is the OpenAPI-required field set: {response}"
+    );
+    assert_eq!(security["instrumentId"], "US.AAPL");
+    assert_eq!(security["market"], "US");
+    assert_eq!(security["symbol"], "AAPL");
+    assert_eq!(security["currency"], "USD");
+    assert_eq!(security["timezone"], "America/New_York");
+    assert_eq!(response["meta"]["brokerId"], "futu");
+    for absent in [
+        "extended",
+        "equity",
+        "warrant",
+        "option",
+        "index",
+        "plate",
+        "future",
+        "trust",
+    ] {
+        assert!(
+            security.get(absent).is_none(),
+            "unmigrated Go research block `{absent}` must not be fabricated: {response}"
+        );
+    }
+
+    // Canonical identity is derived from the route, not from a Futu
+    // `SecurityRef` model (Rust has no such type at this boundary).
+    let hk = port
+        .read("/api/v1/market-data/securities/HK/00700", "")
+        .await
+        .expect("Futu HK securities envelope");
+    assert_eq!(hk["security"]["instrumentId"], "HK.00700");
+    assert_eq!(hk["security"]["market"], "HK");
+    assert_eq!(hk["security"]["currency"], "HKD");
+    assert!(
+        hk["security"].get("warrant").is_none(),
+        "warrant research block stays absent: {hk}"
+    );
+
+    let invalid = port
+        .read("/api/v1/market-data/securities/XX/AAPL", "")
+        .await
+        .expect_err("unknown market must fail closed");
+    assert!(matches!(
+        invalid,
+        MarketDataQuoteReadSnapshotError::Failed { status: 400, code, .. } if code == "BAD_REQUEST"
+    ));
+}
+
 #[tokio::test]
 async fn market_data_quote_read_routes_are_not_registered_without_snapshot_port() {
     let directory = tempdir().expect("temporary directory");

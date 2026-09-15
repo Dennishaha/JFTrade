@@ -40,6 +40,8 @@ mod product_production_ports_plugins;
 mod product_production_ports_provider;
 #[path = "product_production_ports_strategy.rs"]
 mod product_production_ports_strategy;
+#[path = "product_production_ports_open_d_snapshot.rs"]
+mod product_production_ports_open_d_snapshot;
 #[path = "product_production_ports_system.rs"]
 mod product_production_ports_system;
 #[path = "product_production_ports_storage.rs"]

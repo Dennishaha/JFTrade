@@ -210,3 +210,212 @@ fn test_live_notification_from_response_routes_protocol_payloads_to_neutral_cate
         "已使用订阅额度 10，已使用历史 K 线额度 20。"
     );
 }
+
+/// The table below freezes level/title/label for every program-status state the
+/// Go baseline enumerates, including the unknown fallback.
+#[test]
+fn test_notification_labels_cover_every_supported_program_and_gateway_state() {
+    // Parity: internal/integration/futu/notifications_test.go:135 TestNotificationLabelsCoverEverySupportedProgramAndGatewayState
+    const PROGRAM_STATES: &[(i32, &str, &str, &str)] = &[
+        (ProgramStatusType::Loaded as i32, "info", "OpenD 程序状态更新", "已加载"),
+        (ProgramStatusType::Loging as i32, "info", "OpenD 程序状态更新", "登录中"),
+        (
+            ProgramStatusType::NeedPicVerifyCode as i32,
+            "warn",
+            "OpenD 需要图形验证码",
+            "需要图形验证码",
+        ),
+        (
+            ProgramStatusType::NeedPhoneVerifyCode as i32,
+            "warn",
+            "OpenD 需要手机验证码",
+            "需要手机验证码",
+        ),
+        (
+            ProgramStatusType::LoginFailed as i32,
+            "error",
+            "OpenD 登录失败",
+            "登录失败",
+        ),
+        (
+            ProgramStatusType::ForceUpdate as i32,
+            "error",
+            "OpenD 需要升级",
+            "需要升级客户端",
+        ),
+        (
+            ProgramStatusType::NessaryDataPreparing as i32,
+            "info",
+            "OpenD 程序状态更新",
+            "正在准备必要数据",
+        ),
+        (
+            ProgramStatusType::NessaryDataMissing as i32,
+            "error",
+            "OpenD 缺少必要数据",
+            "缺少必要数据",
+        ),
+        (
+            ProgramStatusType::UnAgreeDisclaimer as i32,
+            "error",
+            "OpenD 需要确认免责声明",
+            "未同意免责声明",
+        ),
+        (
+            ProgramStatusType::Ready as i32,
+            "success",
+            "OpenD 已就绪",
+            "已就绪",
+        ),
+        (
+            ProgramStatusType::ForceLogout as i32,
+            "error",
+            "OpenD 已被强制登出",
+            "已被强制登出",
+        ),
+        (
+            ProgramStatusType::DisclaimerPullFailed as i32,
+            "error",
+            "OpenD 程序状态更新",
+            "拉取免责声明失败",
+        ),
+        (9999, "error", "OpenD 程序状态更新", "程序状态已更新"),
+    ];
+    for (value, level, title, label) in PROGRAM_STATES {
+        assert_eq!(program_status_level(*value), *level, "level {value}");
+        assert_eq!(program_status_title(*value), *title, "title {value}");
+        assert_eq!(program_status_label(*value), *label, "label {value}");
+    }
+
+    const GATEWAY_EVENTS: &[(i32, &str, &str, &str)] = &[
+        (GtwEventType::None as i32, "info", "OpenD 运行事件", "无异常"),
+        (
+            GtwEventType::LocalCfgLoadFailed as i32,
+            "error",
+            "OpenD 运行事件",
+            "加载本地配置失败",
+        ),
+        (
+            GtwEventType::ApiSvrRunFailed as i32,
+            "error",
+            "OpenD 运行事件",
+            "OpenD 服务启动失败",
+        ),
+        (
+            GtwEventType::ForceUpdate as i32,
+            "warn",
+            "OpenD 需要升级",
+            "客户端版本过低",
+        ),
+        (
+            GtwEventType::LoginFailed as i32,
+            "error",
+            "OpenD 登录失败",
+            "登录失败",
+        ),
+        (
+            GtwEventType::UnAgreeDisclaimer as i32,
+            "error",
+            "OpenD 运行事件",
+            "未同意免责声明",
+        ),
+        (
+            GtwEventType::NetCfgMissing as i32,
+            "error",
+            "OpenD 运行事件",
+            "缺少必要网络配置",
+        ),
+        (
+            GtwEventType::KickedOut as i32,
+            "error",
+            "Futu 账户在别处登录",
+            "账户在别处登录",
+        ),
+        (
+            GtwEventType::LoginPwdChanged as i32,
+            "error",
+            "OpenD 运行事件",
+            "登录密码已修改",
+        ),
+        (
+            GtwEventType::BanLogin as i32,
+            "error",
+            "Futu 账户被禁止登录",
+            "用户被禁止登录",
+        ),
+        (
+            GtwEventType::NeedPicVerifyCode as i32,
+            "warn",
+            "OpenD 需要图形验证码",
+            "需要图形验证码",
+        ),
+        (
+            GtwEventType::NeedPhoneVerifyCode as i32,
+            "warn",
+            "OpenD 需要手机验证码",
+            "需要手机验证码",
+        ),
+        (
+            GtwEventType::AppDataNotExist as i32,
+            "error",
+            "OpenD 运行事件",
+            "程序自带数据不存在",
+        ),
+        (
+            GtwEventType::NessaryDataMissing as i32,
+            "error",
+            "OpenD 运行事件",
+            "缺少必要数据",
+        ),
+        (
+            GtwEventType::TradePwdChanged as i32,
+            "error",
+            "OpenD 运行事件",
+            "交易密码已修改",
+        ),
+        (
+            GtwEventType::EnableDeviceLock as i32,
+            "warn",
+            "OpenD 运行事件",
+            "已启用设备锁",
+        ),
+        (9999, "error", "OpenD 运行事件", "运行事件已更新"),
+    ];
+    for (value, level, title, label) in GATEWAY_EVENTS {
+        assert_eq!(gateway_event_level(*value), *level, "level {value}");
+        assert_eq!(gateway_event_title(*value), *title, "title {value}");
+        assert_eq!(gateway_event_label(*value), *label, "label {value}");
+    }
+}
+
+/// Notification-kind and quote-right labels are part of the neutral wire
+/// contract consumed by the console, so they must stay stable.
+#[test]
+fn test_notification_and_quote_right_labels_remain_stable() {
+    // Parity: internal/integration/futu/notifications_test.go:207 TestNotificationAndQuoteRightLabelsRemainStable
+    const NOTIFY_TYPES: &[(i32, &str)] = &[
+        (NotifyType::GtwEvent as i32, "OpenD 运行事件"),
+        (NotifyType::ProgramStatus as i32, "程序状态"),
+        (NotifyType::ConnStatus as i32, "连接状态"),
+        (NotifyType::QotRight as i32, "行情权限"),
+        (NotifyType::ApiQuota as i32, "API 额度"),
+        (NotifyType::UsedQuota as i32, "已使用额度"),
+        (9999, "系统通知"),
+    ];
+    for (value, label) in NOTIFY_TYPES {
+        assert_eq!(notify_type_label(*value), *label, "notify type {value}");
+    }
+
+    const QOT_RIGHTS: &[(i32, &str)] = &[
+        (QotCommonRight::Bmp as i32, "BMP"),
+        (QotCommonRight::Level1 as i32, "Level 1"),
+        (QotCommonRight::Level2 as i32, "Level 2"),
+        (QotCommonRight::Level3 as i32, "Level 3"),
+        (QotCommonRight::Sf as i32, "高级行情"),
+        (QotCommonRight::No as i32, "无权限"),
+        (QotCommonRight::Unknow as i32, "未知"),
+    ];
+    for (value, label) in QOT_RIGHTS {
+        assert_eq!(quote_right_label(*value), *label, "quote right {value}");
+    }
+}

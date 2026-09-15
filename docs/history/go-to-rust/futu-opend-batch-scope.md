@@ -100,3 +100,73 @@ python3 scripts/compatibility/audit_test_parity.py
 本批实测：`jftrade-integration-futu` 227 项通过、1 项跳过；
 `jftrade-broker` 8 项通过。逐条命令与 state 记录在
 `manual-test-mappings.json`。
+
+## 第二批：order_updates / security_details / probe / notifications（Go `internal/integration/futu` 剩余缺失项）
+
+本批把 `manual-test-mappings.json` 中 `internal/integration/futu/` 与
+`internal/app/apiserver/servercore/settings_broker_futu_health_test.go` 的最后
+13 条 `evidence_type=missing` 全部闭环，并修正 probe 的 2 条 `partial`。
+
+| Go 测试 | 风险标签 | Rust 入口 | 状态 |
+| --- | --- | --- | --- |
+| `internal/integration/futu/notifications_test.go:135:TestNotificationLabelsCoverEverySupportedProgramAndGatewayState` | 空值/非法输入、错误映射 | `tests/futu_notifications_parity.rs::test_notification_labels_cover_every_supported_program_and_gateway_state` | `[x]` function_exact：12 个 ProgramStatus 状态 + 17 个 GtwEvent 状态逐行断言 level/title/label，含未知状态回退 |
+| `internal/integration/futu/notifications_test.go:207:TestNotificationAndQuoteRightLabelsRemainStable` | 错误消息稳定性 | `tests/futu_notifications_parity.rs::test_notification_and_quote_right_labels_remain_stable` | `[x]` function_exact：NotifyType（6+未知）与 QotRight（6+未知）标签冻结 |
+| `internal/integration/futu/probe_test.go:22:TestProbeOpenDReportsProtocolOutcomesWithoutARealOpenD` | 超时/断线、错误映射 | `src/health.rs::tcp_probe_reports_protocol_outcomes_without_a_real_opend` | `[~]` partial：四个协议分支已断言；Go 折叠为 `LastError` 文本，Rust 用类型化 `OpenDTcpProbeError` |
+| `internal/integration/futu/probe_test.go:96:TestProbeOpenDMapsHealthyProtocolFixture` | 健康 fixture | `src/health.rs::tcp_probe_maps_login_global_state_and_market_readiness` | `[x]` function_exact：connected/healthy/10.9.7000/Ready/quoteLoggedIn/markets=4 |
+| `internal/integration/futu/probe_test.go:114:TestProbeOpenDReportsClosedPortAsDisconnected` | 断线 | `src/probe.rs::test_probe_opend_disconnected_and_version_enforcement_parity` | `[x]` function_exact：offline/disconnected/lastError + readiness 失败 |
+| `internal/integration/futu/probe_test.go:137:TestProbeFromGlobalStateEnforcesMinimumVersionAndMapsNeutralState` | 版本门禁、空值 | `src/probe.rs::test_probe_opend_disconnected_and_version_enforcement_parity` | `[x]` function_exact：nil state、1008.6708 拒绝、健康映射三段 |
+| `internal/integration/futu/order_updates_test.go:59:TestOrderUpdatesAdapterConvertsPushesAndStopsOnce` | 并发/生命周期、幂等 | 无 push adapter；对账 worker + `map_order_update` | `[~]` boundary：Rust 功能缺失，轮询对账替代推送 adapter |
+| `internal/integration/futu/order_updates_test.go:105:TestOrderUpdatesAdapterRefreshRepeatsAccountPushWithoutReregisteringHandlers` | 断线重连、幂等 | `execution_reconciliation_push_worker_tests::test_tc_d5_04_...` | `[~]` boundary：仅可断言断连降级与自愈 |
+| `internal/integration/futu/order_updates_test.go:137:TestOrderUpdateSubscriptionNilAndNoAccountPaths` | 空值 | `trade_session.rs::subscribe_trade_accounts` | `[~]` boundary：Go interface nil 语义无 Rust 对应 |
+| `internal/integration/futu/order_updates_test.go:159:TestOrderUpdatesAdapterSubscribeReturnsNoOpOrErrorsCleanly` | 回滚/清理、空值 | `trading.rs::protocol_ids_match_go_opend_and_shadow_forbids_writes` | `[~]` boundary：保留协议号 2008/2208/2218 与 shadow 写禁止 |
+| `internal/integration/futu/security_details_test.go:12:TestSecurityDetailsMapPreservesCompleteBrokerNeutralWireShape` | wire 契约、精度 | `product_market_data_quote_read_tests::futu_securities_route_projects_broker_neutral_envelope_boundary` | `[~]` boundary：权威 OpenAPI 仅要求 9 字段，研究块不伪造 |
+| `internal/integration/futu/security_details_test.go:126:TestSecurityDetailsMapKeepsMissingOptionalAndProductBlocksNull` | 空值 | 同上 | `[~]` boundary：缺失研究块不出现 |
+| `internal/integration/futu/security_details_test.go:160:TestSecurityRefMapUsesCanonicalIdentity` | 身份规范化 | 同上 | `[~]` boundary：身份由路由派生，无 `SecurityRef` 类型 |
+| `internal/app/apiserver/servercore/settings_broker_futu_health_test.go:16:TestFutuRuntimeAndHealthDiagnoseEnabledButUnreachableOpenD` | 诊断/恢复 | `product_production_assembly_tests::production_opend_health_diagnoses_unreachable_and_unsupported_opend` | `[x]` function_exact（修复后）：offline + `OPEND_API_CONNECTIVITY` + restart 建议 |
+| `internal/app/apiserver/servercore/settings_broker_futu_health_test.go:66:TestFutuOpenDHealthRejectsOldBuildAndGuidesUpgrade` | 版本门禁/诊断 | 同上 | `[x]` function_exact（修复后）：`OPEND_VERSION_UNSUPPORTED` + serverVersion 10.8.6708 + 不重启 |
+
+### 本批修复的功能差异
+
+1. **OpenD 健康投影丢弃 typed issue code（P1）**
+   - 复现：OpenD 可达但版本低于 10.9.6908（例如 1008/6708）。
+   - 修复前：`futu_opend_snapshot` 在 probe 分支硬编码 `diag_code="NONE"`、
+     `manualRetry=false`，并把 `quoteLoggedIn` 缺失伪造成 `true`；任何 probe
+     结果都落入同一分支，导致 `OPEND_VERSION_UNSUPPORTED` 永远不会出现在
+     诊断中，`restartOpenDRecommended` 也恒为 false。
+   - 修复后：probe 分支采用 `probe.issue_code`（缺省回退
+     `OPEND_API_CONNECTIVITY`），`manualRetryRequired` 由 lastError 决定，
+     `restartOpenDRecommended` 只在无 typed code 且错误文本含 dial/connection
+     refused 时为 true；`quoteLoggedIn` 不再伪造。
+   - 同时区分 `offline/disconnected`（dial 失败）与 `degraded/degraded`
+     （协议被拒、解码失败、对端关闭），并在版本不受支持时生成包含
+     `MINIMUM_OPEND_VERSION` 的 summary。
+   - 回归：`production_opend_health_diagnoses_unreachable_and_unsupported_opend`
+     （内置 framed OpenD fixture + 关闭端口两种场景）。
+
+### 本批边界结论
+
+- **Order update push adapter**：Go 的 `OrderUpdatesAdapter` 是 push 订阅
+  adapter；Rust 的 `subscribe_trade_accounts`（trd_sub_acc_push）没有调用方，
+  `trd_update_order`/`trd_update_order_fill`/`trd_notify` 仅声明未解码，
+  engine 改由 `ExecutionReconciliationWorker` 轮询对账，并在 OpenD ready /
+  reconnect 时 `wake_execution_reconciliation`。在补齐 push 解码与 handler
+  注册面之前，这 4 条保持 `[~]` boundary，不计入功能等价。
+- **Security details research model**：Go 的 `SecurityDetailsMap` 转换完整
+  `pkg/futu.SecurityDetails`（含 warrant/option/index/plate/future/trust 等
+  研究块）。Rust 的权威契约 `marketdata.SecurityDetailsPayload` 只要求
+  `instrumentId`/`market`/`name`/`symbol`，并允许 provider 追加研究字段；
+  Rust 只投影 9 个规范字段并从 live snapshot 补 equity pe/pb。已用
+  `futu_securities_route_projects_broker_neutral_envelope_boundary` 冻结该边界，
+  不伪造未迁移的研究块。
+
+### 验证命令
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+本批实测：`jftrade-integration-futu` 244 项通过、1 项跳过；`jftrade-engine`
+1070 项通过（含 2 项新增）。逐条命令与 state 记录在
+`manual-test-mappings.json`。
