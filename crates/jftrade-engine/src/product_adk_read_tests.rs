@@ -567,3 +567,289 @@ fn parse_sse_events(body: &str) -> Vec<AdkReadEvent> {
         })
         .collect()
 }
+
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:165 TestADKAuditRouteFiltersByKindAndSubjectID
+///
+/// Go's audit route forwards `kind` and `subjectId` into the store query and
+/// reports the filtered total (`total=2`, `returned=1`) with only the matching
+/// `agent.saved`/`agent-audit` event.  The Rust read owner must apply the same
+/// filters before pagination instead of returning every audit row.
+#[test]
+fn adk_audit_route_filters_by_kind_and_subject_id() {
+    use jftrade_store_sqlite::{AdkArtifactStore, AdkSessionStore, AdkStore, initialize_current};
+    use rusqlite::Connection;
+    use std::fs::File;
+    use std::path::Path;
+
+    fn init_db(path: &Path, component: &str) {
+        File::create(path).expect("create database file");
+        let connection = Connection::open(path).expect("open sqlite");
+        initialize_current(&connection, component).expect("initialize schema");
+    }
+
+    let dir = tempdir().expect("tempdir");
+    let adk_path = dir.path().join("adk.db");
+    let session_path = dir.path().join("sessions.db");
+    let artifact_path = dir.path().join("artifacts.db");
+    init_db(&adk_path, "adk");
+    init_db(&session_path, "adk-session");
+    init_db(&artifact_path, "adk-artifact");
+
+    let store = Arc::new(AdkStore::open(&adk_path).expect("open adk store"));
+    let session_store = Arc::new(AdkSessionStore::open(&session_path).expect("open session store"));
+    let artifact_store =
+        Arc::new(AdkArtifactStore::open(&artifact_path).expect("open artifact store"));
+    let port =
+        crate::product::product_production_ports::product_production_ports_adk::ProductionAdkPort::new_for_test(
+            store,
+            session_store,
+            artifact_store,
+            dir.path().join("settings.json"),
+        );
+
+    // Parity: internal/api/assistant/adk_routes_test.go:181 RecordAudit twice for
+    // agent.saved/agent-audit and once for provider.saved/provider-audit.
+    for (id, kind, subject) in [
+        ("audit-1", "agent.saved", "agent-audit"),
+        ("audit-2", "agent.saved", "agent-audit"),
+        ("audit-3", "provider.saved", "provider-audit"),
+    ] {
+        port.store
+            .record_audit_event(id, kind, subject, "{}")
+            .expect("record audit event");
+    }
+
+    let output = dispatch_adk_read(
+        Some(&port),
+        "GET",
+        "/api/v1/adk/audit",
+        "kind=agent.saved&subjectId=agent-audit&limit=1",
+    )
+    .expect("audit read");
+    let AdkReadOutput::Json(value) = output else {
+        panic!("audit read must be JSON");
+    };
+    assert_eq!(value["page"]["total"], 2, "filtered audit total");
+    assert_eq!(value["page"]["returned"], 1, "filtered audit returned");
+    let events = value["events"].as_array().expect("events array");
+    assert_eq!(events.len(), 1, "filtered audit page length");
+    assert_eq!(events[0]["kind"], "agent.saved");
+    assert_eq!(events[0]["subjectId"], "agent-audit");
+}
+
+/// Parity: go:452dea11:internal/api/assistant/adk_ops_test.go:216 TestADKMetricsIgnoresUnexpectedQueryParams
+///
+/// Go's metrics route takes no query parameters: `limit=abc&offset=-1&status=FAILED`
+/// is ignored and the response is a successful envelope with the persisted
+/// aggregate (`runs.total`).  Rust must not validate pagination for metrics.
+#[test]
+fn adk_metrics_route_ignores_unexpected_query_params() {
+    use jftrade_store_sqlite::{AdkArtifactStore, AdkSessionStore, AdkStore, initialize_current};
+    use rusqlite::Connection;
+    use std::fs::File;
+    use std::path::Path;
+
+    fn init_db(path: &Path, component: &str) {
+        File::create(path).expect("create database file");
+        let connection = Connection::open(path).expect("open sqlite");
+        initialize_current(&connection, component).expect("initialize schema");
+    }
+
+    let dir = tempdir().expect("tempdir");
+    let adk_path = dir.path().join("adk.db");
+    let session_path = dir.path().join("sessions.db");
+    let artifact_path = dir.path().join("artifacts.db");
+    init_db(&adk_path, "adk");
+    init_db(&session_path, "adk-session");
+    init_db(&artifact_path, "adk-artifact");
+
+    let store = Arc::new(AdkStore::open(&adk_path).expect("open adk store"));
+    let session_store = Arc::new(AdkSessionStore::open(&session_path).expect("open session store"));
+    let artifact_store =
+        Arc::new(AdkArtifactStore::open(&artifact_path).expect("open artifact store"));
+    let port =
+        crate::product::product_production_ports::product_production_ports_adk::ProductionAdkPort::new_for_test(
+            store,
+            session_store,
+            artifact_store,
+            dir.path().join("settings.json"),
+        );
+
+    let output = dispatch_adk_read(
+        Some(&port),
+        "GET",
+        "/api/v1/adk/metrics",
+        "limit=abc&offset=-1&status=FAILED",
+    )
+    .expect("metrics must ignore unexpected query params");
+    let AdkReadOutput::Json(value) = output else {
+        panic!("metrics must be JSON");
+    };
+    assert_eq!(
+        value["runs"]["total"], 0,
+        "empty metrics response must still aggregate runs"
+    );
+}
+
+/// Parity: go:452dea11:internal/api/assistant/adk_approval_test.go:335 TestADKRunCancelAndFilteredList
+///
+/// Go's runs route forwards `status`/`agentId` into the store query, so a
+/// filtered list reports the filtered total and only matching runs.  Rust must
+/// filter before pagination rather than returning every stored run.
+#[test]
+fn adk_runs_route_filters_by_status_and_agent_id() {
+    use jftrade_store_sqlite::{
+        AdkArtifactStore, AdkSessionStore, AdkStore, CreateAdkRunParams, initialize_current,
+    };
+    use rusqlite::Connection;
+    use std::fs::File;
+    use std::path::Path;
+
+    fn init_db(path: &Path, component: &str) {
+        File::create(path).expect("create database file");
+        let connection = Connection::open(path).expect("open sqlite");
+        initialize_current(&connection, component).expect("initialize schema");
+    }
+
+    let dir = tempdir().expect("tempdir");
+    let adk_path = dir.path().join("adk.db");
+    let session_path = dir.path().join("sessions.db");
+    let artifact_path = dir.path().join("artifacts.db");
+    init_db(&adk_path, "adk");
+    init_db(&session_path, "adk-session");
+    init_db(&artifact_path, "adk-artifact");
+
+    let store = Arc::new(AdkStore::open(&adk_path).expect("open adk store"));
+    let session_store = Arc::new(AdkSessionStore::open(&session_path).expect("open session store"));
+    let artifact_store =
+        Arc::new(AdkArtifactStore::open(&artifact_path).expect("open artifact store"));
+    let port =
+        crate::product::product_production_ports::product_production_ports_adk::ProductionAdkPort::new_for_test(
+            store,
+            session_store,
+            artifact_store,
+            dir.path().join("settings.json"),
+        );
+
+    // Parity: internal/api/assistant/adk_approval_test.go:335 — one CANCELLED run
+    // for agent-1 and one COMPLETED run for agent-2.
+    for (id, agent, status) in [
+        ("run-cancel", "agent-1", "CANCELLED"),
+        ("run-other", "agent-2", "COMPLETED"),
+    ] {
+        port.store
+            .create_run(CreateAdkRunParams {
+                id,
+                session_id: "session-1",
+                agent_id: agent,
+                status,
+                client_request_id: id,
+                request_fingerprint: id,
+                payload_json: &format!(
+                    r#"{{"id":"{id}","status":"{status}","workMode":"chat","toolCalls":[],"pendingApprovals":[]}}"#
+                ),
+            })
+            .expect("seed run");
+    }
+
+    let output = dispatch_adk_read(
+        Some(&port),
+        "GET",
+        "/api/v1/adk/runs",
+        "status=CANCELLED&agentId=agent-1&limit=1",
+    )
+    .expect("runs read");
+    let AdkReadOutput::Json(value) = output else {
+        panic!("runs read must be JSON");
+    };
+    assert_eq!(value["page"]["total"], 1, "filtered runs total");
+    let runs = value["runs"].as_array().expect("runs array");
+    assert_eq!(runs.len(), 1, "filtered runs length");
+    assert_eq!(runs[0]["id"], "run-cancel");
+    assert_eq!(runs[0]["status"], "CANCELLED");
+}
+
+/// Parity: go:452dea11:internal/assistant/service.go:340 ListApprovals
+///
+/// Go's approvals route forwards `status`/`agentId` into
+/// `ListApprovalsPage`, so the pending list only contains rows matching both
+/// filters.  Rust must apply the same predicate before pagination.
+#[test]
+fn adk_approvals_route_filters_by_status_and_agent_id() {
+    use jftrade_store_sqlite::{
+        AdkArtifactStore, AdkSessionStore, AdkStore, CreateAdkRunParams, initialize_current,
+    };
+    use rusqlite::Connection;
+    use std::fs::File;
+    use std::path::Path;
+
+    fn init_db(path: &Path, component: &str) {
+        File::create(path).expect("create database file");
+        let connection = Connection::open(path).expect("open sqlite");
+        initialize_current(&connection, component).expect("initialize schema");
+    }
+
+    let dir = tempdir().expect("tempdir");
+    let adk_path = dir.path().join("adk.db");
+    let session_path = dir.path().join("sessions.db");
+    let artifact_path = dir.path().join("artifacts.db");
+    init_db(&adk_path, "adk");
+    init_db(&session_path, "adk-session");
+    init_db(&artifact_path, "adk-artifact");
+
+    let store = Arc::new(AdkStore::open(&adk_path).expect("open adk store"));
+    let session_store = Arc::new(AdkSessionStore::open(&session_path).expect("open session store"));
+    let artifact_store =
+        Arc::new(AdkArtifactStore::open(&artifact_path).expect("open artifact store"));
+    let port =
+        crate::product::product_production_ports::product_production_ports_adk::ProductionAdkPort::new_for_test(
+            store,
+            session_store,
+            artifact_store,
+            dir.path().join("settings.json"),
+        );
+
+    for (run, agent) in [("run-approval-a", "agent-a"), ("run-approval-b", "agent-b")] {
+        port.store
+            .create_run(CreateAdkRunParams {
+                id: run,
+                session_id: "session-1",
+                agent_id: agent,
+                status: "PENDING",
+                client_request_id: run,
+                request_fingerprint: run,
+                payload_json: &format!(
+                    r#"{{"id":"{run}","status":"PENDING","workMode":"chat","toolCalls":[],"pendingApprovals":[]}}"#
+                ),
+            })
+            .expect("seed approval run");
+    }
+    port.store
+        .create_approval("approval-a", "run-approval-a", "agent-a", "PENDING", "{}")
+        .expect("seed pending approval");
+    port.store
+        .create_approval("approval-b", "run-approval-b", "agent-b", "PENDING", "{}")
+        .expect("seed other approval");
+    port.store
+        .create_approval("approval-c", "run-approval-b", "agent-b", "APPROVED", "{}")
+        .expect("seed resolved approval");
+
+    let output = dispatch_adk_read(
+        Some(&port),
+        "GET",
+        "/api/v1/adk/approvals",
+        "status=PENDING&agentId=agent-a",
+    )
+    .expect("approvals read");
+    let AdkReadOutput::Json(value) = output else {
+        panic!("approvals read must be JSON");
+    };
+    let approvals = value["approvals"].as_array().expect("approvals array");
+    assert_eq!(
+        approvals.len(),
+        1,
+        "pending approvals must be filtered: {approvals:?}"
+    );
+    assert_eq!(approvals[0]["id"], "approval-a");
+    assert_eq!(value["page"]["total"], 1, "filtered approvals total");
+}

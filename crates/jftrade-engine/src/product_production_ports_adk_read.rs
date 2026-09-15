@@ -1,11 +1,16 @@
-use std::fs;
-
 use super::*;
 
 #[path = "product_production_ports_adk_read_context.rs"]
 mod context_projection;
+#[path = "product_production_ports_adk_read_helpers.rs"]
+mod read_helpers;
 
 use context_projection::rebuild_context_snapshot;
+use read_helpers::{
+    context_status_for_read, estimate_context_tokens, is_context_user_event,
+    protected_context_event_start, recent_context_event_start,
+    sanitize_provider,
+};
 
 impl From<AdkStoreError> for AdkReadSnapshotError {
     fn from(error: AdkStoreError) -> Self {
@@ -218,10 +223,26 @@ impl ProductionAdkPort {
     }
 
     fn approvals(&self, query: &str) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
+        // Parity: go:452dea11:internal/assistant/service.go:340 ListApprovals —
+        // `status`/`agentId` are store-level predicates applied before
+        // pagination, and the reported total is the filtered count.
+        let status = query_param(query, "status")
+            .map(|value| value.trim().to_ascii_uppercase())
+            .filter(|value| !value.is_empty());
+        let agent_id = query_param(query, "agentId")
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty());
         let values = self
             .store
             .list_approvals()?
             .into_iter()
+            .filter(|row| {
+                status.as_deref().is_none_or(|expected| {
+                    row.status.trim().eq_ignore_ascii_case(expected)
+                }) && agent_id
+                    .as_deref()
+                    .is_none_or(|expected| row.agent_id == expected)
+            })
             .map(|row| {
                 payload(
                     &row.payload_json,
@@ -241,10 +262,33 @@ impl ProductionAdkPort {
     }
 
     fn runs(&self, query: &str) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
+        // Parity: go:452dea11:internal/api/assistant/session_run.go:187
+        // handleADKRuns — `status`/`agentId`/`sessionId` narrow the store query
+        // so the filtered total and returned rows match the request.
+        let status = query_param(query, "status")
+            .map(|value| value.trim().to_ascii_uppercase())
+            .filter(|value| !value.is_empty());
+        let agent_id = query_param(query, "agentId")
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty());
+        let session_id = query_param(query, "sessionId")
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty());
         let values = self
             .store
             .list_runs()?
             .into_iter()
+            .filter(|row| {
+                status
+                    .as_deref()
+                    .is_none_or(|expected| row.status.trim().eq_ignore_ascii_case(expected))
+                    && agent_id
+                        .as_deref()
+                        .is_none_or(|expected| row.agent_id == expected)
+                    && session_id
+                        .as_deref()
+                        .is_none_or(|expected| row.session_id == expected)
+            })
             .map(|row| {
                 payload(
                     &row.payload_json,
@@ -366,10 +410,27 @@ impl ProductionAdkPort {
     }
 
     fn audit(&self, query: &str) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
+        // Parity: go:452dea11:internal/api/assistant/observability.go handleADKAudit
+        // and persistence/store_audit.go auditEventWhere — `kind` and
+        // `subjectId` narrow the store query before pagination, so both the
+        // filtered total and the returned rows reflect the predicate.
+        let kind = query_param(query, "kind")
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty());
+        let subject_id = query_param(query, "subjectId")
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty());
         let values = self
             .store
             .list_audit_events()?
             .into_iter()
+            .filter(|row| {
+                kind.as_deref()
+                    .is_none_or(|expected| row.kind == expected)
+                    && subject_id
+                        .as_deref()
+                        .is_none_or(|expected| row.subject_id == expected)
+            })
             .map(|row| {
                 payload(
                     &row.payload_json,
@@ -655,118 +716,4 @@ impl ProductionAdkPort {
             events,
         }))
     }
-}
-
-
-fn estimate_context_tokens(value: &str) -> usize {
-    let bytes = value.trim().len();
-    if bytes == 0 {
-        0
-    } else {
-        bytes.saturating_add(3) / 4
-    }
-}
-
-fn context_status_for_read(ratio: f64, window: usize) -> &'static str {
-    if window == 0 {
-        "unknown"
-    } else if ratio >= 0.93 {
-        "critical"
-    } else if ratio >= 0.85 {
-        "near_limit"
-    } else if ratio >= 0.70 {
-        "warning"
-    } else {
-        "healthy"
-    }
-}
-
-fn is_context_user_event(event: &jftrade_store_sqlite::StoredAdkEvent) -> bool {
-    event.author.trim().eq_ignore_ascii_case("user")
-        || event.author.to_ascii_lowercase().contains("user")
-}
-
-fn recent_context_event_start(
-    events: &[jftrade_store_sqlite::StoredAdkEvent],
-    window: usize,
-) -> usize {
-    let mut hits = 0;
-    for index in (0..events.len()).rev() {
-        if !is_context_user_event(&events[index]) {
-            continue;
-        }
-        hits += 1;
-        if hits >= window {
-            return index;
-        }
-    }
-    0
-}
-
-fn protected_context_event_start(events: &[jftrade_store_sqlite::StoredAdkEvent]) -> usize {
-    events
-        .iter()
-        .position(|event| {
-            let content = event.content.to_ascii_lowercase();
-            content.contains("approval")
-                || content.contains("pending_input")
-                || content.contains("pending approval")
-                || content.contains("awaiting_input")
-        })
-        .unwrap_or(events.len())
-}
-
-fn sanitize_provider(
-    value: &mut Value,
-    provider_id: &str,
-    settings_path: &std::path::Path,
-) -> Result<(), AdkReadSnapshotError> {
-    let object = value.as_object_mut().ok_or_else(|| {
-        invalid_payload(
-            "provider",
-            "stored ADK provider payload must be a JSON object",
-        )
-    })?;
-    let payload_has_key = object
-        .get("apiKey")
-        .and_then(Value::as_str)
-        .is_some_and(|key| !key.trim().is_empty());
-    object.remove("apiKey");
-    let secret_has_key = read_secret_presence(settings_path, provider_id)?;
-    object.insert(
-        "hasApiKey".to_owned(),
-        Value::Bool(payload_has_key || secret_has_key),
-    );
-    Ok(())
-}
-
-fn read_secret_presence(
-    settings_path: &std::path::Path,
-    provider_id: &str,
-) -> Result<bool, AdkReadSnapshotError> {
-    let path = std::env::var_os("JFTRADE_ADK_SECRETS")
-        .filter(|value| !value.is_empty())
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| {
-            settings_path
-                .parent()
-                .filter(|parent| !parent.as_os_str().is_empty())
-                .map_or_else(
-                    || std::path::PathBuf::from("secrets/adk-secrets.json"),
-                    |parent| parent.join("secrets/adk-secrets.json"),
-                )
-        });
-    let bytes = match fs::read(path) {
-        Ok(bytes) => bytes,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
-        Err(error) => return Err(AdkReadSnapshotError::Unavailable(error.to_string())),
-    };
-    if bytes.iter().all(u8::is_ascii_whitespace) {
-        return Ok(false);
-    }
-    let secrets: std::collections::BTreeMap<String, String> = serde_json::from_slice(&bytes)
-        .map_err(|error| AdkReadSnapshotError::Unavailable(error.to_string()))?;
-    Ok(secrets
-        .get(provider_id)
-        .is_some_and(|key| !key.trim().is_empty()))
 }
