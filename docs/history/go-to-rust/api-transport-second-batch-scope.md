@@ -93,3 +93,20 @@ boundary）。新增 Rust 回归位于 `crates/jftrade-api/tests/transport_contr
 | [~] | `auth_test.go:28:TestTrustedAndValidatedRequestContextHelpers` | boundary：Rust 无可变 `*http.Request` 标记 API，等价信息由 `ApiRequest.desktop_trusted/origin_allowed` 与 `current_request_context` task-local 传递；`/health` 在 Go 生产已无 route，仅测试引用。 |
 
 每条 `[x]` 使用唯一 Rust 入口，已通过 audit 的唯一性校验。
+
+## 第六批（candles 路由查询解析与 market 大小写差异修复）
+
+`internal/api/marketdata/routes_test.go` 的 candles 查询族（267/302/321/337/357/387）
+全部闭环为 `[x] function_exact`，新增回归位于
+`crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs`。
+
+复现并修复的真实差异：Go 的 candles handler 接受小写 market 路径段（`us/aapl`）
+并在 service 内部规范化；Rust 的 `read_candles` 直接把路径段交给大小写敏感的
+`quote_market_code`，导致 400 `invalid market: us`。
+
+- 复现条件：`GET /api/v1/market-data/candles/us/aapl?period=k_60m&limit=5`。
+- 预期行为：200，provider 收到 `aapl` 与规范化的 `1h` 窗口。
+- 修复位置：`crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs`
+  的 `read_candles` 入口（在读取 owner 归一化 market，未改全局 `quote_market_code`
+  以免影响交易路径）。
+- 回归测试：`candle_route_preserves_legacy_query_parsing` 及同批 5 条 candles 测试。

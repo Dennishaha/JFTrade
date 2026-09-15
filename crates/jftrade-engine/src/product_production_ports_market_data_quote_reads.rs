@@ -207,6 +207,10 @@ impl ProductionMarketDataQuotePort {
         query: &str,
     ) -> Result<Value, MarketDataQuoteReadSnapshotError> {
         let (market, symbol) = parse_market_symbol_path(suffix)?;
+        // Go's candles handler accepts lower-case market path segments and
+        // upper-cases them inside the service; keep that normalization at the
+        // read owner so provider windows and session zones resolve identically.
+        let market = market.to_ascii_uppercase();
         let query_map =
             QueryMap::parse(query).map_err(|_| MarketDataQuoteReadSnapshotError::Failed {
                 status: 400,

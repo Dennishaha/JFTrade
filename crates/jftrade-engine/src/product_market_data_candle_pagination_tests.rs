@@ -260,3 +260,143 @@ fn test_broker_k_line_candles_response_rejects_invalid_provider_rows() {
     // 2. Valid close price
     assert!(validate_candle_positive_decimal("close", "100.5").is_ok());
 }
+
+#[tokio::test]
+async fn candle_route_preserves_legacy_query_parsing() {
+    // Parity: internal/api/marketdata/routes_test.go:267 TestCandlesRoutePreservesLegacyQueryParsing
+    // Legacy `from`/`to` values accept date-only and space-separated datetime
+    // forms; `period=k_60m` normalizes to `1h`; lower-case market segments are
+    // accepted like Go's service boundary.
+    let reader = Arc::new(PagedHistory::default());
+    let result = port(reader.clone())
+        .read(
+            "/api/v1/market-data/candles/us/aapl",
+            "period=k_60m&limit=5&from=2026-05-01&to=2026-05-02 15:04:05",
+        )
+        .await
+        .expect("legacy candles query");
+    assert!(result["candles"].is_array());
+    let requests = reader.requests.lock().unwrap();
+    let query = requests.first().expect("provider query");
+    assert_eq!(query.symbol, "aapl");
+    assert_eq!(query.period, "1h");
+    assert!(
+        query.begin_time.starts_with("2026-04-30") || query.begin_time.starts_with("2026-05-01"),
+        "from window = {}",
+        query.begin_time
+    );
+    assert!(
+        query.end_time.starts_with("2026-05-02"),
+        "to window = {}",
+        query.end_time
+    );
+}
+
+#[tokio::test]
+async fn candle_route_normalizes_repeated_sessions() {
+    // Parity: internal/api/marketdata/routes_test.go:302 TestCandlesRouteNormalizesRepeatedSessions
+    let reader = Arc::new(PagedHistory::default());
+    let result = port(reader.clone())
+        .read(
+            "/api/v1/market-data/candles/US/AAPL",
+            "period=5m&sessions=overnight,regular&sessions=extended&sessions=regular",
+        )
+        .await
+        .expect("repeated sessions");
+    assert!(result["candles"].is_array());
+    assert!(!reader.requests.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn candle_route_rejects_invalid_sessions() {
+    // Parity: internal/api/marketdata/routes_test.go:321 TestCandlesRouteRejectsInvalidSessions
+    let reader = Arc::new(PagedHistory::default());
+    let port = port(reader.clone());
+    for query in ["period=5m&sessions=", "period=5m&sessions=regular,invalid"] {
+        let error = port
+            .read("/api/v1/market-data/candles/US/AAPL", query)
+            .await
+            .expect_err("invalid sessions");
+        assert!(
+            matches!(
+                error,
+                MarketDataQuoteReadSnapshotError::Failed { status: 400, .. }
+            ),
+            "query {query} produced {error:?}"
+        );
+    }
+    assert!(reader.requests.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn candle_route_rejects_unsupported_period() {
+    // Parity: internal/api/marketdata/routes_test.go:337 TestCandlesRouteRejectsUnsupportedPeriod
+    let reader = Arc::new(PagedHistory::default());
+    let error = port(reader.clone())
+        .read("/api/v1/market-data/candles/HK/00700", "period=unsupported")
+        .await
+        .expect_err("unsupported period");
+    assert!(matches!(
+        error,
+        MarketDataQuoteReadSnapshotError::Failed { status: 400, .. }
+    ));
+    assert_eq!(reader.requests.lock().unwrap().len(), 0);
+    assert_eq!(reader.current_calls.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn candle_route_rejects_invalid_limit() {
+    // Parity: internal/api/marketdata/routes_test.go:387 TestCandlesRouteRejectsInvalidLimit
+    let reader = Arc::new(PagedHistory::default());
+    let error = port(reader.clone())
+        .read("/api/v1/market-data/candles/HK/00700", "limit=abc")
+        .await
+        .expect_err("invalid limit");
+    assert!(matches!(
+        error,
+        MarketDataQuoteReadSnapshotError::Failed { status: 400, .. }
+    ));
+    assert_eq!(reader.requests.lock().unwrap().len(), 0);
+    assert_eq!(reader.current_calls.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn candle_route_forwards_exclusive_before_and_rejects_invalid_combinations() {
+    // Parity: internal/api/marketdata/routes_test.go:357 TestCandlesRouteForwardsExclusiveBeforeAndRejectsInvalidCombinations
+    let reader = Arc::new(PagedHistory::default());
+    let port = port(reader.clone());
+    let valid = port
+        .read(
+            "/api/v1/market-data/candles/US/AAPL",
+            "period=5m&limit=20&before=2026-07-18T13:40:00Z",
+        )
+        .await
+        .expect("valid before");
+    assert!(valid["candles"].is_array());
+    {
+        let requests = reader.requests.lock().unwrap();
+        assert_eq!(
+            requests.last().expect("provider query").end_time,
+            "2026-07-18 09:40:00",
+            "before is forwarded as the exclusive provider window end"
+        );
+    }
+
+    for query in [
+        "period=5m&before=bad",
+        "period=5m&before=2026-07-18T13:40:00Z&from=2026-07-01",
+        "period=tick&before=2026-07-18T13:40:00Z",
+    ] {
+        let error = port
+            .read("/api/v1/market-data/candles/US/AAPL", query)
+            .await
+            .expect_err("invalid before combination");
+        assert!(
+            matches!(
+                error,
+                MarketDataQuoteReadSnapshotError::Failed { status: 400, .. }
+            ),
+            "query {query} produced {error:?}"
+        );
+    }
+}
