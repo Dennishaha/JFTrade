@@ -132,3 +132,53 @@ boundary）。新增 Rust 回归位于 `crates/jftrade-api/tests/transport_contr
 - 预期行为：503 + `Retry-After`（预热 1 秒、繁忙 2 秒）+ `MARKET_DATA_PROVIDER_WARMING`/`MARKET_DATA_PROVIDER_BUSY`，正文为 Go 的中文提示。
 - 修复位置：`crates/jftrade-engine/src/product_production_ports_market_data_projection.rs::classify_helper_runtime_code`（quote read 路径统一复用）。
 - 回归测试：`market_data_read_errors_expose_provider_warmup_retry_signal`、`market_data_read_errors_expose_provider_busy_retry_signal`、`market_data_read_errors_preserve_unclassified_helper_failures`。
+
+## 第八批（订阅写入契约、broker-neutral 轮询与 live 读取租约）
+
+本批闭环 `internal/api/marketdata/routes_test.go` / `routes_boundaries_test.go` 的订阅写入与
+live 读取条目，新增回归集中在
+`crates/jftrade-engine/src/product_production_ports_market_data_subscription_tests.rs`、
+`crates/jftrade-engine/src/product_market_data_quote_read_tests.rs` 与
+`crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs`。
+
+| 状态 | Go 测试 | Rust 入口 | 结论 |
+| --- | --- | --- | --- |
+| [x] | `internal/api/marketdata/routes_test.go:22:TestSubscriptionRoutesUseInstrumentRequestContract` | `product_production_ports_market_data_subscription_tests.rs::subscription_routes_preserve_instrument_request_contract_through_acquire_release_and_clear` | function_exact：KLINE:HK:00700:1m 的 channel/interval 请求契约保留，单目标 release、consumer-scoped clear、clear-all 每步的 entries/refCount/totalActiveSubscriptions 与 Go 一致。 |
+| [x] | `internal/api/marketdata/routes_test.go:96:TestSubscriptionRoutesUseBrokerNeutralPollingWithoutFutuLease` | `product_production_ports_market_data_subscription_tests.rs::broker_neutral_polling_acquire_heartbeat_release_never_consumes_futu_lease` | function_exact：`providerBrokerId=" Alpha "` 归一化为 alpha，acquire/heartbeat/release 的 action、totalActiveSubscriptions=0、quota、transport.mode=snapshot-poll-fallback 全对齐，且 DemandBook 逻辑条目始终为 0。 |
+| [x] | `internal/api/marketdata/routes_test.go:205:TestSubscriptionReleaseConsumerOnlyClearsConsumer` | `product_production_ports_market_data_subscription_tests.rs::consumer_only_release_keeps_other_consumer_entry` | function_exact：共享 SNAPSHOT:HK:00700 的 consumer-only release 后仅剩 other，独立条目不受影响。 |
+| [x] | `internal/api/marketdata/routes_test.go:239:TestClearSubscriptionRoutePreservesRunningStrategyLease` | `product_production_ports_market_data_subscription_tests.rs::clear_route_preserves_running_strategy_lease` | function_exact：Web clear 不删除 strategy-runtime:one 的托管租约，剩余条目 key/consumers 与 Go 相同。 |
+| [~] | `internal/api/marketdata/routes_test.go:563:TestReadRoutesMapProviderAndRequestFailures` | `product_market_data_quote_read_tests.rs::read_routes_map_provider_and_request_failures` | partial：heartbeat/normalize 400 与 provider 502、markets 500、security 502 均已由本回归或同批 fixture/回归冻结；唯一差异是 Go 的 Futu snapshot provider 失败走 502，而 Rust 在“无缓存且无 trade runtime 回退”时返回 503 `MARKET_DATA_QUOTE_READ_UNAVAILABLE`（helper snapshot 失败才是 502 `MARKET_SNAPSHOT_FAILED`）。属 P2 错误分类差异，已记录边界。 |
+| [x] | `internal/api/marketdata/routes_test.go:625:TestInstrumentSearchRouteReturnsSubsetResolutionContract` | `product_production_ports_market_data_catalog_tests.rs::instrument_search_route_returns_subset_resolution_contract` | function_exact：候选窗口固定 100、CN 子集过滤、稳定 provider 顺序、securityType 透传、JP 不可选带原因、`SH.600519` 走叶子 lookup 得 resolved/1 条。 |
+| [x] | `internal/api/marketdata/routes_test.go:725:TestInstrumentSearchRouteValidatesInputAndMapsProviderFailures` | `product_production_ports_market_data_catalog_tests.rs::instrument_search_route_validates_input_and_maps_provider_failures` | function_exact：missing→not_found、Toyota(JP)→unavailable+原因、五类非法请求 400 `MARKET_INSTRUMENT_INVALID`、Futu runtime 失败 fail closed、非 Futu helper 502 `MARKET_INSTRUMENT_SEARCH_FAILED`。 |
+| [x] | `internal/api/marketdata/routes_boundaries_test.go:387:TestLiveReadRoutesReturnConflictForMissingSubscriptionLease` | `product_market_data_quote_read_tests.rs::live_read_routes_require_a_logical_subscription_lease` | function_exact：snapshots/candles/depth 缺逻辑租约统一 409 `MARKET_DATA_SUBSCRIPTION_REQUIRED`，acquire SNAPSHOT 后恢复 200。本轮在读取 owner 新增 `require_basic_subscription_lease`。 |
+| [x] | `internal/api/marketdata/routes_boundaries_test.go:421:TestPollOnlyReadRoutesPrioritizeCapabilitiesAndPreserveLogicalLeases` | `product_market_data_quote_read_tests.rs::poll_only_read_routes_prioritize_capabilities_and_preserve_leases` | function_exact：poll-only provider 的 tick candles 与 depth 先判 capability，返回 409 `MARKET_DATA_CAPABILITY_UNSUPPORTED` 且不消费逻辑租约。 |
+| [x] | `internal/api/marketdata/routes_boundaries_test.go:502:TestSubscriptionRequestHelpersPreserveOnlyValidTargets` | `product_production_ports_market_data_subscription_tests.rs::subscription_request_helpers_preserve_only_valid_targets` | function_exact：混合 acquire 列表只保留唯一合法目标，全非法 acquire 400，缺一半身份的 release target 400 且已获取 demand 不变。 |
+| [x] | `internal/api/marketdata/routes_boundaries_test.go:555:TestReleaseAndClearMapSnapshotCancellationAfterLogicalCleanup` | `product_production_ports_market_data_subscription_tests.rs::release_and_clear_map_snapshot_failure_after_logical_cleanup` | function_exact：物理快照读取在逻辑清理后失败时，release 与 clear 均返回 500 `SUBSCRIPTION_FAILED`，且逻辑 demand 已先归零。 |
+
+### 本批功能修复记录
+
+1. **P1 live 读取逻辑租约（`routes_boundaries_test.go:387`）**
+   - 复现条件：active provider=Futu 且 router 已装配，未 acquire SNAPSHOT/KLINE/TICK 时读取
+     `GET /api/v1/market-data/snapshots/US/AAPL`、`candles?period=1m`、`depth?num=10`。
+   - 预期行为：三条路由均 409 `MARKET_DATA_SUBSCRIPTION_REQUIRED`，acquire 后 snapshot 恢复 200。
+   - 修复位置：`crates/jftrade-engine/src/product_production_ports_market_data_quote.rs` 新增
+     `require_basic_subscription_lease` 与 `subscription_required_error`；
+     `product_production_ports_market_data_quote_reads.rs` 在 snapshot 与 candles 入口调用它
+     （depth 走既有 `require_order_book_subscription`）。
+   - 回归测试：`live_read_routes_require_a_logical_subscription_lease`。
+
+2. **P1 poll-only capability 优先级（`routes_boundaries_test.go:421`）**
+   - 复现条件：active provider=yfinance，请求 `candles?period=tick` 与 `depth?num=10`。
+   - 预期行为：409 `MARKET_DATA_CAPABILITY_UNSUPPORTED`（含 provider id 与 capability 文案），
+     不再泄漏 502/503。
+   - 修复位置：`crates/jftrade-engine/src/product_production_ports_market_data_quote.rs::capability_unsupported_error`
+     与 `read_depth` 的非 Futu 分支；`product_production_ports_market_data_quote_reads.rs::read_candles`
+     的 poll-only tick 分支。
+   - 回归测试：`poll_only_read_routes_prioritize_capabilities_and_preserve_leases`；
+     `production_market_data_catalog_and_provider_ports` 同步更新未配置 depth 的期望。
+
+3. **P2 Futu snapshot 失败分类（`routes_test.go:563`，仍为 partial）**
+   - 复现条件：active provider=Futu、无 router 缓存且无 trade runtime 回退时读取 snapshot。
+   - 预期（Go）：502 默认映射；Rust 现状：503 `MARKET_DATA_QUOTE_READ_UNAVAILABLE`。
+   - 结论：属于“缓存不可用”语义与“provider 调用失败”语义的分类边界，保留 `[~] partial`
+     并记录为后续 P2 决策项，不强行改成 502。

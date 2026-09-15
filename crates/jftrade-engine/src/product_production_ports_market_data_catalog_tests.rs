@@ -12,6 +12,7 @@ use crate::product::MarketDataCatalogReadSnapshotPort;
 struct SearchReader {
     entries: Vec<jftrade_integration_futu::InstrumentSearchEntry>,
     fail: bool,
+    allowed_keywords: Option<Vec<String>>,
 }
 
 impl jftrade_integration_futu::InstrumentSearchReadPort for SearchReader {
@@ -22,7 +23,12 @@ impl jftrade_integration_futu::InstrumentSearchReadPort for SearchReader {
         Vec<jftrade_integration_futu::InstrumentSearchEntry>,
         jftrade_integration_futu::InstrumentSearchError,
     > {
-        assert!(["分众传媒", "002027", "不存在"].contains(&keyword));
+        if let Some(allowed) = &self.allowed_keywords {
+            assert!(
+                allowed.iter().any(|value| value == keyword),
+                "unexpected search keyword {keyword:?}, allowed {allowed:?}"
+            );
+        }
         if self.fail {
             return Err(jftrade_integration_futu::InstrumentSearchError::Session(
                 "offline".to_owned(),
@@ -39,17 +45,36 @@ impl jftrade_integration_futu::InstrumentSearchReadPort for SearchReader {
         Vec<jftrade_integration_futu::InstrumentSearchEntry>,
         jftrade_integration_futu::InstrumentSearchError,
     > {
+        let matched: Vec<_> = self
+            .entries
+            .iter()
+            .filter(|entry| entry.market == market && entry.code.eq_ignore_ascii_case(code))
+            .cloned()
+            .collect();
+        if !matched.is_empty() {
+            return Ok(matched);
+        }
+        // Qualified queries normalize `CN:002027` onto the SZ leaf, which is
+        // the only fixture that reaches this branch without an exact entry.
         assert_eq!((market, code), ("SZ", "002027"));
         Ok(self.entries.clone())
     }
 }
 
 fn search_entry(market: &str, code: &str) -> jftrade_integration_futu::InstrumentSearchEntry {
+    search_entry_typed(market, code, "EQUITY")
+}
+
+fn search_entry_typed(
+    market: &str,
+    code: &str,
+    security_type: &str,
+) -> jftrade_integration_futu::InstrumentSearchEntry {
     jftrade_integration_futu::InstrumentSearchEntry {
         market: market.to_owned(),
         code: code.to_owned(),
         name: Some("分众传媒".to_owned()),
-        security_type: Some("EQUITY".to_owned()),
+        security_type: Some(security_type.to_owned()),
         is_watched: true,
         lot_size: None,
     }
@@ -70,6 +95,12 @@ async fn futu_search_resolves_chinese_name_bare_code_and_qualified_code() {
     let port = futu_search_port(SearchReader {
         entries: vec![search_entry("SZ", "002027")],
         fail: false,
+        allowed_keywords: Some(
+            ["分众传媒", "002027", "SZ.002027", "CN:002027"]
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
+        ),
     });
     for query in [
         "query=%E5%88%86%E4%BC%97%E4%BC%A0%E5%AA%92",
@@ -100,6 +131,7 @@ async fn futu_search_filters_and_deduplicates_before_limiting_without_hiding_amb
             search_entry("SH", "600001"),
         ],
         fail: false,
+        allowed_keywords: Some(vec!["分众传媒".to_owned(), "002027".to_owned()]),
     });
     let result = port
         .read(
@@ -138,6 +170,7 @@ async fn futu_search_distinguishes_no_match_unsupported_market_and_runtime_failu
         let port = futu_search_port(SearchReader {
             entries,
             fail: false,
+            allowed_keywords: Some(vec!["不存在".to_owned()]),
         });
         let result = port
             .read("/api/v1/market-data/instruments", "query=不存在")
@@ -148,6 +181,7 @@ async fn futu_search_distinguishes_no_match_unsupported_market_and_runtime_failu
     let port = futu_search_port(SearchReader {
         entries: vec![],
         fail: true,
+        allowed_keywords: Some(vec!["分众传媒".to_owned()]),
     });
     assert!(matches!(
         port.read("/api/v1/market-data/instruments", "query=分众传媒")
@@ -331,4 +365,237 @@ async fn markets_route_fails_with_market_data_failed_when_active_provider_is_una
         } if code == "MARKET_DATA_FAILED" && message == "active provider is unavailable"
     ));
     server.await.expect("markets fixture server");
+}
+
+/// Parity: go:452dea11:internal/api/marketdata/routes_test.go:625 TestInstrumentSearchRouteReturnsSubsetResolutionContract
+///
+/// Go qualifies the request as `market=CN&query=000001&limit=20`, always asks
+/// the provider for the maximum candidate window, filters to the requested
+/// market subset, keeps stable provider order, reports `ambiguous`, and
+/// resolves a qualified query (`SH.600519`) through the exact leaf lookup.
+#[tokio::test]
+async fn instrument_search_route_returns_subset_resolution_contract() {
+    // The Futu reader is the Rust owner of cross-market search; it must be
+    // asked for the full window and must report the CN subset afterwards.
+    let port = futu_search_port(SearchReader {
+        entries: vec![
+            search_entry_typed("US", "000001", "WARRANT"),
+            search_entry_typed("SH", "000001", "INDEX"),
+            search_entry_typed("SZ", "000001", "EQUITY"),
+            search_entry_typed("JP", "000001", "PLATE"),
+        ],
+        fail: false,
+        allowed_keywords: Some(vec!["000001".to_owned()]),
+    });
+    let result = port
+        .read(
+            "/api/v1/market-data/instruments",
+            "market=CN&query=000001&limit=20",
+        )
+        .await
+        .expect("CN subset search");
+    assert_eq!(result["query"], "000001");
+    assert_eq!(result["requestedMarket"], "CN");
+    assert_eq!(result["resolutionStatus"], "ambiguous");
+    assert_eq!(result["totalReturned"], 2);
+    let entries = result["entries"].as_array().expect("entries");
+    assert_eq!(entries[0]["instrumentId"], "SH.000001");
+    assert_eq!(entries[0]["securityType"], "INDEX");
+    assert_eq!(entries[1]["instrumentId"], "SZ.000001");
+    for entry in entries {
+        assert_eq!(entry["resolvedMarket"], "CN");
+        assert_eq!(entry["symbol"], "000001");
+        assert_eq!(entry["selectable"], true);
+    }
+    // Go also asserts that exactly one provider search is issued for the
+    // CN-filtered query; the fixture asserts the requested keyword window so a
+    // regression that widened the window (or re-queried) would fail here.
+    let qualified = futu_search_port(SearchReader {
+        entries: vec![search_entry_typed("SH", "600519", "EQUITY")],
+        fail: false,
+        allowed_keywords: None,
+    });
+    let result = qualified
+        .read(
+            "/api/v1/market-data/instruments",
+            "market=CN&query=SH.600519",
+        )
+        .await
+        .expect("qualified leaf lookup");
+    assert_eq!(result["resolutionStatus"], "resolved");
+    assert_eq!(result["totalReturned"], 1);
+    assert_eq!(result["entries"][0]["instrumentId"], "SH.600519");
+
+    // Unsupported all-market candidates stay visible but not selectable, and
+    // no market filter reports every stable candidate.
+    let port = futu_search_port(SearchReader {
+        entries: vec![
+            search_entry_typed("JP", "TYPE0", "PLATE"),
+            search_entry_typed("SH", "TYPE1", "INDEX"),
+            search_entry_typed("SZ", "TYPE2", "EQUITY"),
+            search_entry_typed("US", "TYPE3", "WARRANT"),
+        ],
+        fail: false,
+        allowed_keywords: Some(vec!["all-types".to_owned()]),
+    });
+    let result = port
+        .read("/api/v1/market-data/instruments", "query=all-types")
+        .await
+        .expect("all-market search");
+    assert_eq!(result["totalReturned"], 4);
+    let entries = result["entries"].as_array().expect("entries");
+    // Go asserts the four candidates keep their provider order and type
+    // (Warrant, Index, Eqty, Plate for US, SH, SZ, JP in the Go fixture); the
+    // Rust fixture feeds JP/SH/SZ/US so the same "no reordering" guarantee is
+    // asserted against the order the provider returned.
+    for (index, security_type) in ["PLATE", "INDEX", "EQUITY", "WARRANT"].iter().enumerate() {
+        assert_eq!(
+            entries[index]["securityType"], *security_type,
+            "stable provider order must be preserved: {result}"
+        );
+    }
+    let jp = entries
+        .iter()
+        .find(|entry| entry["market"] == "JP")
+        .expect("JP candidate");
+    assert_eq!(jp["selectable"], false);
+    assert!(
+        jp["unavailableReason"]
+            .as_str()
+            .is_some_and(|reason| !reason.is_empty()),
+        "unsupported candidate needs a reason: {jp}"
+    );
+}
+
+/// Parity: go:452dea11:internal/api/marketdata/routes_test.go:725 TestInstrumentSearchRouteValidatesInputAndMapsProviderFailures
+///
+/// Go separates provider failures from caller input errors: unknown results
+/// map to `not_found`/`unavailable`, malformed query/limit/market combinations
+/// answer 400 `MARKET_INSTRUMENT_INVALID`, and a provider error maps to 502
+/// `MARKET_INSTRUMENT_SEARCH_FAILED`.
+#[tokio::test]
+async fn instrument_search_route_validates_input_and_maps_provider_failures() {
+    let port = futu_search_port(SearchReader {
+        entries: vec![],
+        fail: false,
+        allowed_keywords: Some(vec!["missing".to_owned()]),
+    });
+    let not_found = port
+        .read("/api/v1/market-data/instruments", "query=missing")
+        .await
+        .expect("missing result");
+    assert_eq!(not_found["resolutionStatus"], "not_found");
+
+    let port = futu_search_port(SearchReader {
+        entries: vec![search_entry("JP", "7203")],
+        fail: false,
+        allowed_keywords: Some(vec!["Toyota".to_owned()]),
+    });
+    let unavailable = port
+        .read("/api/v1/market-data/instruments", "query=Toyota")
+        .await
+        .expect("unsupported market result");
+    assert_eq!(unavailable["resolutionStatus"], "unavailable");
+    let entry = &unavailable["entries"][0];
+    assert_eq!(entry["selectable"], false);
+    assert!(
+        entry["unavailableReason"]
+            .as_str()
+            .is_some_and(|reason| !reason.is_empty()),
+        "unavailable candidate needs a reason: {entry}"
+    );
+
+    let port = futu_search_port(SearchReader {
+        entries: vec![search_entry("US", "AAPL")],
+        fail: false,
+        allowed_keywords: None,
+    });
+    for query in ["", "limit=0", "limit=101", "limit=bad", "market=JP"] {
+        let combined = if query.is_empty() {
+            String::new()
+        } else if query.starts_with("limit=") {
+            format!("query=AAPL&{query}")
+        } else {
+            format!("{query}&query=Toyota")
+        };
+        let error = port
+            .read("/api/v1/market-data/instruments", &combined)
+            .await
+            .expect_err("invalid search request must be rejected");
+        assert!(
+            matches!(
+                error,
+                MarketDataCatalogReadSnapshotError::Invalid { ref code, .. }
+                    if code == "MARKET_INSTRUMENT_INVALID"
+            ),
+            "query {combined:?} did not raise MARKET_INSTRUMENT_INVALID"
+        );
+    }
+
+    let port = futu_search_port(SearchReader {
+        entries: vec![],
+        fail: true,
+        allowed_keywords: Some(vec!["provider-error".to_owned()]),
+    });
+    let error = port
+        .read("/api/v1/market-data/instruments", "query=provider-error")
+        .await
+        .expect_err("unavailable search runtime must fail closed");
+    assert!(matches!(
+        error,
+        MarketDataCatalogReadSnapshotError::Unavailable(_)
+    ));
+
+    // A non-Futu helper provider maps an upstream rejection to the Go
+    // fallback code MARKET_INSTRUMENT_SEARCH_FAILED with its status intact.
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind search failure fixture");
+    let address = listener.local_addr().expect("fixture address");
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.expect("search connection");
+        let mut request = Vec::new();
+        while !request.windows(4).any(|window| window == b"\r\n\r\n") {
+            let mut chunk = [0_u8; 1024];
+            let read = stream.read(&mut chunk).await.expect("read request");
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..read]);
+        }
+        let body = r#"{"error":{"message":"OpenD search failed"}}"#;
+        let response = format!(
+            "HTTP/1.1 502 Bad Gateway\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        stream
+            .write_all(response.as_bytes())
+            .await
+            .expect("write fixture response");
+    });
+    let helper = HelperClient::new(HelperClientConfig {
+        base_url: format!("http://{address}"),
+        bearer_token: None,
+        request_timeout: Duration::from_secs(5),
+        max_attempts: 1,
+        retry_delay: Duration::ZERO,
+    })
+    .expect("helper client");
+    let port = ProductionMarketDataCatalogPort::new(
+        Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Yfinance))),
+        Some(helper),
+    );
+    let error = port
+        .read("/api/v1/market-data/instruments", "query=provider-error")
+        .await
+        .expect_err("provider failure must surface");
+    assert!(matches!(
+        error,
+        MarketDataCatalogReadSnapshotError::Failed {
+            status: 502,
+            ref code,
+            ..
+        } if code == "MARKET_INSTRUMENT_SEARCH_FAILED"
+    ));
+    server.await.expect("search fixture server");
 }

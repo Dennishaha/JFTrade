@@ -16,6 +16,9 @@ use serde_json::{Value, json};
 mod quote_reads;
 #[path = "product_production_ports_market_data_quote_snapshot.rs"]
 mod quote_snapshot;
+#[path = "product_production_ports_market_data_quote_lease.rs"]
+mod quote_lease;
+use quote_lease::capability_unsupported_error;
 use super::super::product_production_ports_trade::{canonical_candle_time, quote_market_code};
 use std::sync::{Arc, Mutex};
 
@@ -423,9 +426,9 @@ impl ProductionMarketDataQuotePort {
                 .map_err(|error| map_microstructure_error(error, "OPEND_DEPTH_FAILED"));
         }
 
-        Err(MarketDataQuoteReadSnapshotError::Unavailable(format!(
-            "depth provider is not supported for {market}.{symbol}"
-        )))
+        // Go rejects depth for a provider without `orderBookDepth` capability
+        // with 409 MARKET_DATA_CAPABILITY_UNSUPPORTED instead of a 5xx.
+        Err(capability_unsupported_error(provider, "order book depth"))
     }
 
     fn read_broker_feature(
@@ -552,38 +555,6 @@ impl ProductionMarketDataQuotePort {
                 &json!({"pageSize": page_size}),
             )
             .map_err(|error| map_microstructure_error(error, "OPEND_TICKS_FAILED"))
-    }
-
-    fn require_order_book_subscription(
-        &self,
-        instrument_id: &str,
-    ) -> Result<(), MarketDataQuoteReadSnapshotError> {
-        let Some(router) = self.router.as_ref() else {
-            return Err(MarketDataQuoteReadSnapshotError::Unavailable(
-                "market-data provider router is not configured".to_owned(),
-            ));
-        };
-        let demand = router
-            .lock()
-            .map_err(|error| MarketDataQuoteReadSnapshotError::Failed {
-                status: 500,
-                code: "MARKET_DATA_SUBSCRIPTION_FAILED".to_owned(),
-                message: format!("failed to lock market-data provider router: {error}"),
-                retry_after_seconds: None,
-            })?
-            .demand();
-        if demand.entries.iter().any(|entry| {
-            entry.channel.eq_ignore_ascii_case("ORDER_BOOK")
-                && entry.instrument_id.eq_ignore_ascii_case(instrument_id)
-        }) {
-            return Ok(());
-        }
-        Err(MarketDataQuoteReadSnapshotError::Failed {
-            status: 409,
-            code: "MARKET_DATA_SUBSCRIPTION_REQUIRED".to_owned(),
-            message: format!("ORDER_BOOK subscription required for {instrument_id}"),
-            retry_after_seconds: None,
-        })
     }
 }
 

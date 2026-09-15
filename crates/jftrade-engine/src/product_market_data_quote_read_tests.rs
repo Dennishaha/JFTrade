@@ -317,7 +317,7 @@ async fn futu_snapshot_route_projects_cached_extended_quote_contract() {
     let state = Arc::new(ActiveProviderState::new(Some(
         jftrade_settings::MarketDataProvider::Futu,
     )));
-    let router = ProviderRouter::new(4);
+    let mut router = ProviderRouter::new(4);
     let observed_at_ms = 1_750_000_000_000;
     let tick = jftrade_marketdata::Tick {
         instrument_id: "US.AAPL".to_owned(),
@@ -347,6 +347,21 @@ async fn futu_snapshot_route_projects_cached_extended_quote_contract() {
         provider_generation: 1,
     };
     router.cache_mut().insert(tick, 1).expect("cache tick");
+    // Go's live snapshot read requires a logical SNAPSHOT lease while a
+    // subscription reconciler is installed for the push provider.
+    router
+        .acquire_demand(
+            "quote-test",
+            [InstrumentRef {
+                channel: "SNAPSHOT".to_owned(),
+                market: "US".to_owned(),
+                symbol: "AAPL".to_owned(),
+                interval: None,
+            }],
+            false,
+            0,
+        )
+        .expect("snapshot demand");
     let port =
         ProductionMarketDataQuotePort::new(state, Some(Arc::new(Mutex::new(router))), None, None);
 
@@ -949,4 +964,291 @@ async fn request_market_data_quote_read_json_response(
         .collect();
     let value = serde_json::from_str(body).expect("JSON response");
     (status, headers, value)
+}
+
+/// Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:387 TestLiveReadRoutesReturnConflictForMissingSubscriptionLease
+///
+/// Go binds live snapshot/candles/depth reads behind the logical lease owned by
+/// the subscription reconciler: while Futu is active and no SNAPSHOT/KLINE
+/// lease exists, the reads answer 409 `MARKET_DATA_SUBSCRIPTION_REQUIRED`
+/// instead of touching provider state, and the same path succeeds after
+/// `POST /subscriptions` acquires the lease.
+#[tokio::test]
+async fn live_read_routes_require_a_logical_subscription_lease() {
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    let router = Arc::new(Mutex::new(futu_streaming_router()));
+    let port = ProductionMarketDataQuotePort::new(state, Some(router.clone()), None, None);
+
+    for (path, query) in [
+        ("/api/v1/market-data/snapshots/US/AAPL", ""),
+        ("/api/v1/market-data/candles/US/AAPL", "period=1m"),
+        ("/api/v1/market-data/depth/US/AAPL", "num=10"),
+    ] {
+        let error = port
+            .read(path, query)
+            .await
+            .expect_err("missing lease must be rejected before provider access");
+        assert!(
+            matches!(
+                error,
+                MarketDataQuoteReadSnapshotError::Failed {
+                    status: 409,
+                    ref code,
+                    ..
+                } if code == "MARKET_DATA_SUBSCRIPTION_REQUIRED"
+            ),
+            "path {path} did not require a subscription lease"
+        );
+    }
+
+    router
+        .lock()
+        .expect("router")
+        .acquire_demand(
+            "chart",
+            [InstrumentRef {
+                channel: "SNAPSHOT".to_owned(),
+                market: "US".to_owned(),
+                symbol: "AAPL".to_owned(),
+                interval: None,
+            }],
+            false,
+            0,
+        )
+        .expect("snapshot lease");
+    {
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock")
+            .as_millis() as i64;
+        router
+            .lock()
+            .expect("router")
+            .cache_mut()
+            .insert(
+                jftrade_marketdata::Tick {
+                    instrument_id: "US.AAPL".to_owned(),
+                    price: "101.5".parse().expect("tick price"),
+                    volume: "10".parse().expect("tick volume"),
+                    snapshot: None,
+                    observed_at_ms: now_ms,
+                    provider_generation: 1,
+                },
+                1,
+            )
+            .expect("cache tick");
+    }
+    let response = port
+        .read("/api/v1/market-data/snapshots/US/AAPL", "")
+        .await
+        .expect("leased snapshot read reaches the provider path");
+    assert_eq!(response["request"]["instrumentId"], "US.AAPL");
+}
+
+/// Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:421 TestPollOnlyReadRoutesPrioritizeCapabilitiesAndPreserveLogicalLeases
+///
+/// A poll-only provider has no broker-side lease to consume, so Go reports the
+/// capability gap first: tick candles and depth answer 409
+/// `MARKET_DATA_CAPABILITY_UNSUPPORTED`, while snapshot reads still require a
+/// logical lease when a reconciler is installed.
+#[tokio::test]
+async fn poll_only_read_routes_prioritize_capabilities_and_preserve_leases() {
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Yfinance)));
+    let port = ProductionMarketDataQuotePort::new(state, None, None, None);
+
+    for (path, query, capability) in [
+        (
+            "/api/v1/market-data/candles/US/AAPL",
+            "period=tick",
+            "tick candles",
+        ),
+        (
+            "/api/v1/market-data/depth/US/AAPL",
+            "num=10",
+            "order book depth",
+        ),
+    ] {
+        let error = port
+            .read(path, query)
+            .await
+            .expect_err("poll-only capability must be rejected");
+        assert!(
+            matches!(
+                error,
+                MarketDataQuoteReadSnapshotError::Failed {
+                    status: 409,
+                    ref code,
+                    ref message,
+                    ..
+                } if code == "MARKET_DATA_CAPABILITY_UNSUPPORTED" && message.contains(capability)
+            ),
+            "path {path} did not report {capability}"
+        );
+    }
+}
+
+/// The Futu descriptor used by live-read tests: streaming demand plus order
+/// book capability, matching `jftrade-integration-futu::provider_descriptor`.
+fn futu_streaming_router() -> ProviderRouter {
+    use jftrade_marketdata::{
+        ActivationMode, HealthStatus, ProviderCapabilities, ProviderConstraints,
+        ProviderDescriptor, ProviderReadiness,
+    };
+    let mut router = ProviderRouter::new(32);
+    router
+        .register(
+            ProviderDescriptor {
+                selection_id: "futu".to_owned(),
+                provider_id: "futu-opend".to_owned(),
+                display_name: "Futu OpenD".to_owned(),
+                broker_id: Some("futu".to_owned()),
+                source: "bbgo:futu".to_owned(),
+                default_market: "HK".to_owned(),
+                supported_markets: vec!["HK".to_owned(), "US".to_owned()],
+                transports: vec!["opend-tcp".to_owned()],
+                capabilities: ProviderCapabilities {
+                    snapshots: true,
+                    streaming_quotes: true,
+                    streaming_candles: true,
+                    streaming_depth: true,
+                    historical_candles: true,
+                    tick_candles: true,
+                    order_book_depth: true,
+                    ..ProviderCapabilities::default()
+                },
+                constraints: ProviderConstraints::default(),
+                notes: Vec::new(),
+            },
+            HealthStatus {
+                connected: true,
+                stream_mode: "push-stream".to_owned(),
+                readiness: ProviderReadiness::Ready,
+                ..HealthStatus::default()
+            },
+        )
+        .expect("register futu descriptor");
+    router
+        .activate("futu", ActivationMode::Explicit)
+        .expect("activate futu");
+    router
+}
+
+/// Parity: go:452dea11:internal/api/marketdata/routes_test.go:563 TestReadRoutesMapProviderAndRequestFailures
+///
+/// Go wires one failing provider and asserts the whole read group maps each
+/// failure to its transport status: provider 502, markets 500, security 502,
+/// snapshot 502, malformed heartbeat and normalize bodies 400.
+#[tokio::test]
+async fn read_routes_map_provider_and_request_failures() {
+    let provider = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    provider.set_readiness(false, true, false);
+    let runtime =
+        Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+    let quote = ProductionMarketDataQuotePort::new(provider.clone(), None, None, None)
+        .with_trade_runtime(Some(runtime.clone()));
+
+    // Provider descriptor failure: 502 on the catalog side of the provider.
+    // The Rust provider-status owner reports an unconfigured/unavailable
+    // provider as a transport failure instead of fabricating health.
+    let unconfigured = ProductionMarketDataQuotePort::new(
+        Arc::new(ActiveProviderState::new(None)),
+        None,
+        None,
+        None,
+    );
+    let security = unconfigured
+        .read("/api/v1/market-data/securities/US/AAPL", "")
+        .await
+        .expect_err("unconfigured provider must fail closed");
+    assert!(matches!(
+        security,
+        MarketDataQuoteReadSnapshotError::Unavailable(_)
+    ));
+    let snapshot = unconfigured
+        .read("/api/v1/market-data/snapshots/US/AAPL", "")
+        .await
+        .expect_err("unconfigured snapshot must fail closed");
+    assert!(matches!(
+        snapshot,
+        MarketDataQuoteReadSnapshotError::Unavailable(_)
+    ));
+
+    // A Futu runtime without any cached snapshot cannot invent a quote.
+    let snapshot = quote
+        .read("/api/v1/market-data/snapshots/US/AAPL", "")
+        .await
+        .expect_err("snapshot without cache must fail closed");
+    assert!(matches!(
+        snapshot,
+        MarketDataQuoteReadSnapshotError::Unavailable(_)
+    ));
+
+    // Malformed heartbeat body and provider-side normalize failures are input
+    // errors (400) instead of upstream failures.
+    let heartbeat = crate::product::product_market_data_subscription_mutation_port::MarketDataSubscriptionMutationRequest {
+        method: "POST".to_owned(),
+        path: "/api/v1/market-data/subscriptions/heartbeat".to_owned(),
+        query: String::new(),
+        body: b"bad".to_vec(),
+    };
+    let subscription =
+        crate::product::product_production_ports::ProductionMarketDataSubscriptionMutationPort::new(
+            provider.clone(),
+            None,
+            None,
+        );
+    let error = subscription
+        .dispatch(&heartbeat)
+        .expect_err("malformed heartbeat must be rejected");
+    assert!(matches!(
+        error,
+        crate::product::product_market_data_subscription_mutation_port::MarketDataSubscriptionMutationPortError::Failed {
+            status: 400,
+            ref code,
+            ..
+        } if code == "BAD_REQUEST"
+    ));
+
+    let actions =
+        crate::product::product_production_ports::ProductionMarketDataProviderActionsPort::new(
+            Some(Arc::new(quote)),
+        );
+    let normalize = actions
+        .dispatch(
+            &crate::product::product_market_data_provider_actions_port::MarketDataProviderActionsRequest {
+                method: "POST".to_owned(),
+                path: "/api/v1/market-data/instruments/normalize".to_owned(),
+                query: String::new(),
+                body: b"bad".to_vec(),
+            },
+        )
+        .await
+        .expect_err("malformed normalize body must be rejected");
+    assert!(matches!(
+        normalize,
+        crate::product::product_market_data_provider_actions_port::MarketDataProviderActionsPortError::Failed {
+            status: 400,
+            ref code,
+            ..
+        } if code == "BAD_REQUEST"
+    ));
+    let normalize = actions
+        .dispatch(
+            &crate::product::product_market_data_provider_actions_port::MarketDataProviderActionsRequest {
+                method: "POST".to_owned(),
+                path: "/api/v1/market-data/instruments/normalize".to_owned(),
+                query: String::new(),
+                body: br#"{"market":"INVALID","symbol":"12345"}"#.to_vec(),
+            },
+        )
+        .await
+        .expect_err("unsupported market must be rejected");
+    assert!(matches!(
+        normalize,
+        crate::product::product_market_data_provider_actions_port::MarketDataProviderActionsPortError::Failed {
+            status: 400,
+            ref code,
+            ..
+        } if code == "MARKET_INSTRUMENT_INVALID"
+    ));
 }

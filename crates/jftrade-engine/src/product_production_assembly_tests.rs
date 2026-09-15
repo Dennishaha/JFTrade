@@ -1209,9 +1209,16 @@ mod product_production_assembly_tests {
             .read("/api/v1/market-data/depth/US/AAPL", "")
             .await
             .expect_err("unconfigured depth must fail closed");
+        // Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:421
+        // Poll-only providers reject depth with 409 capability-unsupported
+        // before touching a provider, even when no helper is configured.
         assert!(matches!(
             depth_err,
-            crate::product::MarketDataQuoteReadSnapshotError::Unavailable(_)
+            crate::product::MarketDataQuoteReadSnapshotError::Failed {
+                status: 409,
+                code,
+                ..
+            } if code == "MARKET_DATA_CAPABILITY_UNSUPPORTED"
         ));
 
         // Subscription mutation verification (fail closed when router missing)

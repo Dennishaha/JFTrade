@@ -1,3 +1,4 @@
+use super::quote_lease::capability_unsupported_error;
 use super::quote_snapshot::{project_cached_snapshot, project_fallback_snapshot};
 use super::*;
 
@@ -29,6 +30,15 @@ impl ProductionMarketDataQuotePort {
         };
 
         let provider = self.active_provider()?;
+
+        // Go's `GetSnapshot` gates live reads behind
+        // `requireBasicSubscriptionDemand` once a subscription reconciler is
+        // installed for a push provider.  The router is the Rust owner of that
+        // logical demand, so its presence is the equivalent trigger; poll-only
+        // providers remain authorized by provider selection alone.
+        if provider == MarketDataProvider::Futu && self.router.is_some() {
+            self.require_basic_subscription_lease(&format!("{market}.{symbol}"), "SNAPSHOT", None)?;
+        }
 
         if let Some(helper) = &self.helper
             && (provider == MarketDataProvider::Yfinance || provider == MarketDataProvider::Akshare)
@@ -350,6 +360,25 @@ impl ProductionMarketDataQuotePort {
         }
 
         let provider = self.active_provider()?;
+
+        // Poll-only providers do not implement tick candles or broker depth;
+        // Go returns 409 MARKET_DATA_CAPABILITY_UNSUPPORTED before any
+        // provider call instead of leaking an upstream failure.
+        if period == "tick"
+            && matches!(
+                provider,
+                MarketDataProvider::Yfinance | MarketDataProvider::Akshare
+            )
+        {
+            return Err(capability_unsupported_error(provider, "tick candles"));
+        }
+
+        // Futu historical/tick candles are a live read once the router owns
+        // logical demand, so the client must hold a KLINE/TICK lease.
+        if provider == MarketDataProvider::Futu && self.router.is_some() {
+            let interval = (period != "tick").then_some(period);
+            self.require_basic_subscription_lease(&format!("{market}.{symbol}"), "KLINE", interval)?;
+        }
 
         if let Some(helper) = &self.helper
             && (provider == MarketDataProvider::Yfinance || provider == MarketDataProvider::Akshare)
