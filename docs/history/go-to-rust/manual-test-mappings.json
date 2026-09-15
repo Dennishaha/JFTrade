@@ -14763,11 +14763,11 @@
     "evidence_type": "function_exact"
   },
   "internal/integration/futu/subscription_reconciler_test.go:394:TestSubscriptionReconcilerProviderSwitchDefersPhysicalReleaseUntilOpenDEligible": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::provider_switch_defers_physical_release_until_opend_eligible",
+    "conclusion": "完整覆盖（含两处生产修复）：停用 Futu（desired→空）在最小保留期内不释放物理订阅，ownActiveCount=3、pendingReleaseCount=3、每条 entry 的 brokerState 为 pending_unsubscribe；窗口内重新激活复用 pending 且不重复订阅；再次停用并超过最小年龄后释放三条订阅并回到计数全 0。修复点一：ownActiveCount 过去把 pending 释放的订阅排除，而 Go 只把「已建立」作为 active 条件并额外计数 pending——该字段经 /api/v1 投影为 ownActiveCount，少算会让 UI 误判订阅已释放。修复点二：brokerState 过去输出 pending_release，而 Go 与 apps/web/src/composables/market-data/marketDataContract.ts 只承认 pending_unsubscribe，未知取值会被前端丢弃，故改为 Go 拼写",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(provider_switch_defers_physical_release_until_opend_eligible)'",
+    "evidence_type": "function_exact"
   },
   "internal/integration/futu/subscription_reconciler_test.go:459:TestSubscriptionReconcilerMeasuresRetentionFromOpenDAcknowledgement": {
     "status": "[x]",

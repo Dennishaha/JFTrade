@@ -747,6 +747,87 @@ fn desired_physical_subscriptions_reject_incomplete_refs_and_normalize_symbols()
 }
 
 #[test]
+fn provider_switch_defers_physical_release_until_opend_eligible() {
+    // Parity: go:452dea11:internal/integration/futu/subscription_reconciler_test.go:394 TestSubscriptionReconcilerProviderSwitchDefersPhysicalReleaseUntilOpenDEligible
+    let desired = [
+        reference("KLINE", Some("1m")),
+        InstrumentRef {
+            channel: "ORDER_BOOK".to_owned(),
+            market: "US".to_owned(),
+            symbol: "MSFT".to_owned(),
+            interval: None,
+        },
+    ];
+    let mut reconciler = SubscriptionReconciler::new(60_000);
+    let subscribe = reconciler.actions(&desired, 0, 1);
+    let keys: Vec<_> = subscribe
+        .iter()
+        .map(|action| match action {
+            ReconcileAction::Subscribe { subscription } => subscription.key.as_str(),
+            other => panic!("expected subscribe, got {other:?}"),
+        })
+        .collect();
+    assert_eq!(
+        keys,
+        vec!["BASIC:US.AAPL", "KLINE:US.AAPL:1m", "ORDER_BOOK:US.MSFT"]
+    );
+    for action in &subscribe {
+        reconciler.record_success(action, 0, 1);
+    }
+
+    // Deactivating Futu (desired -> empty) before the retention window must not
+    // release the physical subscriptions: a provider switch is reversible until
+    // OpenD's minimum subscription age elapses.
+    assert!(reconciler.actions(&[], 30_000, 1).is_empty());
+    let snapshot = reconciler.physical_snapshot(&[], 1, None);
+    assert_eq!(snapshot.desired_count, 0);
+    assert_eq!(snapshot.own_active_count, 3);
+    assert_eq!(snapshot.pending_release_count, 3);
+    // The web contract (`marketDataContract.ts`) only accepts
+    // `pending_unsubscribe`; any other spelling is dropped by the UI mapper.
+    assert!(
+        snapshot
+            .entries
+            .iter()
+            .all(|entry| entry.broker_state == "pending_unsubscribe"),
+        "entries = {:?}",
+        snapshot.entries
+    );
+
+    // Reactivating Futu inside the window reuses every pending subscription and
+    // produces no duplicate subscribe.
+    assert!(reconciler.actions(&desired, 30_000, 1).is_empty());
+    assert_eq!(
+        reconciler
+            .physical_snapshot(&desired, 1, None)
+            .pending_release_count,
+        0
+    );
+
+    // Deactivating again and waiting past the minimum age releases all three.
+    assert!(reconciler.actions(&[], 30_000, 1).is_empty());
+    let release = reconciler.actions(&[], 90_000, 1);
+    let released: Vec<_> = release
+        .iter()
+        .map(|action| match action {
+            ReconcileAction::Unsubscribe { subscription } => subscription.key.as_str(),
+            other => panic!("expected unsubscribe, got {other:?}"),
+        })
+        .collect();
+    assert_eq!(
+        released,
+        vec!["BASIC:US.AAPL", "KLINE:US.AAPL:1m", "ORDER_BOOK:US.MSFT"]
+    );
+    for action in &release {
+        reconciler.record_success(action, 90_000, 1);
+    }
+    let snapshot = reconciler.physical_snapshot(&[], 1, None);
+    assert_eq!(snapshot.own_active_count, 0);
+    assert_eq!(snapshot.pending_release_count, 0);
+    assert!(snapshot.entries.is_empty());
+}
+
+#[test]
 fn managed_session_close_updates_only_the_active_generation() {
     let recorder = Arc::new(MarketDataRuntimeRecorder::default());
     let mut lifecycle = OpenDSubscriptionLifecycle::new(Arc::clone(&recorder), 60_000);

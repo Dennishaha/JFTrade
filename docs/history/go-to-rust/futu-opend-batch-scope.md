@@ -24,6 +24,7 @@
 | `internal/integration/futu/subscription_reconciler_test.go:459:TestSubscriptionReconcilerMeasuresRetentionFromOpenDAcknowledgement` | 计时/保留期 | `subscriptions_tests::retention_is_measured_from_the_opend_acknowledgement` | `[x]` function_exact：subscribedAt/eligibleAt 取自 OpenD 确认时刻，60s 到点不释放、ack+60s 才释放 |
 | `internal/integration/futu/subscription_reconciler_test.go:499:TestSubscriptionReconcilerMeasuresRetryFromOpenDFailureAcknowledgement` | 重试/计时 | `subscriptions_tests::retry_is_measured_from_the_opend_failure_acknowledgement` | `[x]` function_exact：失败重试窗口从失败确认时刻起算（74_999 推迟、75_000 重试） |
 | `internal/integration/futu/subscription_reconciler_test.go:697:TestDesiredPhysicalSubscriptionsRejectsIncompleteRefsAndNormalizesSymbols` | 空值/非法输入 | `subscriptions_tests::desired_physical_subscriptions_reject_incomplete_refs_and_normalize_symbols` | `[x]` function_exact：空引用/缺 interval/未支持 channel 丢弃，限定符号补 market，无法限定则拒绝且不产出物理订阅 |
+| `internal/integration/futu/subscription_reconciler_test.go:394:TestSubscriptionReconcilerProviderSwitchDefersPhysicalReleaseUntilOpenDEligible` | provider 切换/延迟释放 | `subscriptions_tests::provider_switch_defers_physical_release_until_opend_eligible` | `[x]` function_exact：停用 Futu 在最小保留期内不释放（ownActiveCount=3、pendingReleaseCount=3、brokerState=pending_unsubscribe），窗口内重新激活复用 pending 不重复订阅，到期释放三条；修复 `ownActiveCount` 漏算 pending 释放与 `pending_release` 拼写不被前端契约接受两处生产缺陷 |
 
 ## 本批修复的功能差异
 

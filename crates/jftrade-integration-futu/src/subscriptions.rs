@@ -461,12 +461,20 @@ impl SubscriptionReconciler {
                 fallback_count += 1;
                 "fallback"
             } else if record.active && record.generation == generation {
+                // Go counts every established subscription in `ownActiveCount`,
+                // including the ones whose demand already went away: the
+                // physical subscription is still held (and still billed to the
+                // OpenD quota) until the minimum age elapses, which is exactly
+                // what `pendingReleaseCount` separately reports.
+                active_count += 1;
                 if desired {
-                    active_count += 1;
                     "active"
                 } else {
                     pending_release_count += 1;
-                    "pending_release"
+                    // Go/`marketDataContract.ts` name this state
+                    // `pending_unsubscribe`; the web contract drops any other
+                    // spelling, so the entry would otherwise render as unknown.
+                    "pending_unsubscribe"
                 }
             } else if record.failures > 0 {
                 "retrying"
