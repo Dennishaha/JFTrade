@@ -72,3 +72,24 @@ Rust 修复前：非 Futu provider 走 market-data helper 的 candles 路径硬�
 （非 Futu depth 在 Rust 返回不支持/Unavailable），且 Go 的 depth 失败码与
 depth=25 参数转发未在单条 Rust 测试中同时覆盖；`routes_test.go:459` 的七段
 复合成功契约分散在多个 Rust 专属测试中，尚无以单条测试按 Go 顺序完整回放。
+
+## 第五批（auth middleware 全量对齐）
+
+`internal/api/middleware/auth_test.go` 全 11 条已闭环（10 条 function_exact + 1 条接口形态
+boundary）。新增 Rust 回归位于 `crates/jftrade-api/tests/transport_contracts.rs`：
+
+| 状态 | Go 测试 | Rust 入口 |
+|---|---|---|
+| [x] | `auth_test.go:13:TestAuthSkipsPublicPaths` | `auth_skips_public_paths_without_credentials` |
+| [x] | `auth_test.go:51:TestAuthProtectsLogout` | `auth_protects_logout` |
+| [x] | `auth_test.go:71:TestAuthProtectsSystemStatus` | `auth_protects_system_status_without_credentials` |
+| [x] | `auth_test.go:112:TestAuthRejectsNilAuthenticator` | `auth_rejects_requests_without_any_authenticator` |
+| [x] | `auth_test.go:119:TestAuthRejectsUntrustedOrigin` | `auth_rejects_untrusted_origin_before_authentication` |
+| [x] | `auth_test.go:128:TestAuthRequiresOriginAndCSRFForSessionWrites` | `auth_requires_origin_and_csrf_for_session_writes` |
+| [x] | `auth_test.go:153:TestAuthTreatsPatchAsSessionWrite` | `auth_treats_patch_as_session_write_requiring_csrf` |
+| [x] | `auth_test.go:173:TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight` | `cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin` |
+| [x] | `auth_test.go:78:TestAuthTrustedHostWithoutBrowserOriginBypassesCSRFChecks` | `auth_trusted_caller_without_origin_bypasses_csrf` |
+| [x] | `auth_test.go:86:TestAuthTrustedHostStillRequiresTrustedBrowserOrigin` | `auth_trusted_caller_still_rejects_untrusted_provided_origin` |
+| [~] | `auth_test.go:28:TestTrustedAndValidatedRequestContextHelpers` | boundary：Rust 无可变 `*http.Request` 标记 API，等价信息由 `ApiRequest.desktop_trusted/origin_allowed` 与 `current_request_context` task-local 传递；`/health` 在 Go 生产已无 route，仅测试引用。 |
+
+每条 `[x]` 使用唯一 Rust 入口，已通过 audit 的唯一性校验。

@@ -689,3 +689,248 @@ async fn unconfigured_marketdata_route_returns_json_not_found() {
         "application/json; charset=utf-8"
     );
 }
+
+fn auth_router(
+    routes: impl IntoIterator<Item = (&'static str, &'static str)>,
+) -> (axum::Router, Arc<RecordingPort>) {
+    let port = Arc::new(RecordingPort::default());
+    let routes = RouteCatalog::new(routes.into_iter().map(|(method, path)| RouteSpec {
+        method: method.to_owned(),
+        path: path.to_owned(),
+    }))
+    .expect("routes");
+    let access = AccessPolicy {
+        desktop_token: Some("desktop-token".into()),
+        session_token: Some("session-token".into()),
+        csrf_token: Some("csrf-token".into()),
+        ..AccessPolicy::default()
+    }
+    .with_allowed_origins(["https://jftrade.local".into()]);
+    (
+        build_router(ApiState::new(routes, access, port.clone())),
+        port,
+    )
+}
+
+#[tokio::test]
+async fn auth_skips_public_paths_without_credentials() {
+    // Parity: internal/api/middleware/auth_test.go:13 TestAuthSkipsPublicPaths
+    let (router, port) = auth_router([
+        ("GET", "/api/v1/auth/login"),
+        ("GET", "/api/v1/auth/session"),
+    ]);
+    for path in ["/api/v1/auth/login", "/api/v1/auth/session"] {
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(path)
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_ne!(
+            response.status(),
+            StatusCode::UNAUTHORIZED,
+            "{path} must bypass auth"
+        );
+    }
+    assert_eq!(port.requests.lock().expect("requests").len(), 2);
+}
+
+#[tokio::test]
+async fn auth_protects_logout() {
+    // Parity: internal/api/middleware/auth_test.go:51 TestAuthProtectsLogout
+    let (router, _) = auth_router([("POST", "/api/v1/auth/logout")]);
+    let unauthenticated = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/v1/auth/logout")
+                .body(Body::empty())
+                .expect("logout"),
+        )
+        .await
+        .expect("logout response");
+    assert_eq!(unauthenticated.status(), StatusCode::UNAUTHORIZED);
+
+    // An authenticated session write still requires origin + CSRF.
+    let (router, _) = auth_router([("POST", "/api/v1/auth/logout")]);
+    let without_origin = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/v1/auth/logout")
+                .header("cookie", "jftrade_web_session=session-token")
+                .header("x-csrf-token", "csrf-token")
+                .body(Body::empty())
+                .expect("logout"),
+        )
+        .await
+        .expect("logout response");
+    assert_eq!(without_origin.status(), StatusCode::FORBIDDEN);
+
+    let allowed = router
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/v1/auth/logout")
+                .header("cookie", "jftrade_web_session=session-token")
+                .header("x-csrf-token", "csrf-token")
+                .header("origin", "https://jftrade.local")
+                .body(Body::empty())
+                .expect("logout"),
+        )
+        .await
+        .expect("logout response");
+    assert_eq!(allowed.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn auth_protects_system_status_without_credentials() {
+    // Parity: internal/api/middleware/auth_test.go:71 TestAuthProtectsSystemStatus
+    let (router, _) = auth_router([("GET", "/api/v1/system/status")]);
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/system/status")
+                .body(Body::empty())
+                .expect("status"),
+        )
+        .await
+        .expect("status response");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn auth_rejects_requests_without_any_authenticator() {
+    // Parity: internal/api/middleware/auth_test.go:112 TestAuthRejectsNilAuthenticator
+    let (router, port) = auth_router([("GET", "/api/v1/settings/ui")]);
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/settings/ui")
+                .body(Body::empty())
+                .expect("settings"),
+        )
+        .await
+        .expect("settings response");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    assert!(port.requests.lock().expect("requests").is_empty());
+}
+
+#[tokio::test]
+async fn auth_rejects_untrusted_origin_before_authentication() {
+    // Parity: internal/api/middleware/auth_test.go:119 TestAuthRejectsUntrustedOrigin
+    let (router, port) = auth_router([("GET", "/api/v1/settings/ui")]);
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/settings/ui")
+                .header("origin", "http://evil.example")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert!(port.requests.lock().expect("requests").is_empty());
+}
+
+#[tokio::test]
+async fn auth_trusted_caller_without_origin_bypasses_csrf() {
+    // Parity: internal/api/middleware/auth_test.go:78 TestAuthTrustedHostWithoutBrowserOriginBypassesCSRFChecks
+    let (router, _) = auth_router([("POST", "/api/v1/settings/ui")]);
+    let response = router
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/v1/settings/ui")
+                .header("authorization", "Bearer desktop-token")
+                .body(Body::from("{}"))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_ne!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn auth_trusted_caller_still_rejects_untrusted_provided_origin() {
+    // Parity: internal/api/middleware/auth_test.go:86 TestAuthTrustedHostStillRequiresTrustedBrowserOrigin
+    let (router, _) = auth_router([("POST", "/api/v1/settings/ui")]);
+    let request = |origin: &str, referer: Option<&str>| {
+        let mut builder = Request::builder()
+            .method(Method::POST)
+            .uri("/api/v1/settings/ui")
+            .header("authorization", "Bearer desktop-token")
+            .header("origin", origin);
+        if let Some(referer) = referer {
+            builder = builder.header("referer", referer);
+        }
+        builder.body(Body::from("{}")).expect("request")
+    };
+
+    let denied = router
+        .clone()
+        .oneshot(request("http://evil.example", None))
+        .await
+        .expect("untrusted origin");
+    assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+
+    let malformed = router
+        .clone()
+        .oneshot(request("null", Some("https://jftrade.local/app")))
+        .await
+        .expect("malformed origin");
+    assert_eq!(malformed.status(), StatusCode::FORBIDDEN);
+
+    let allowed = router
+        .oneshot(request("https://jftrade.local", None))
+        .await
+        .expect("trusted origin");
+    assert_ne!(allowed.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn auth_requires_origin_and_csrf_for_session_writes() {
+    // Parity: internal/api/middleware/auth_test.go:128 TestAuthRequiresOriginAndCSRFForSessionWrites
+    let (router, port) = auth_router([("POST", "/api/v1/settings/ui")]);
+    let request = |origin: Option<&str>, csrf: Option<&str>| {
+        let mut builder = Request::builder()
+            .method(Method::POST)
+            .uri("/api/v1/settings/ui")
+            .header("cookie", "jftrade_web_session=session-token");
+        if let Some(origin) = origin {
+            builder = builder.header("origin", origin);
+        }
+        if let Some(csrf) = csrf {
+            builder = builder.header("x-csrf-token", csrf);
+        }
+        builder.body(Body::from("{}")).expect("request")
+    };
+
+    let no_origin = router
+        .clone()
+        .oneshot(request(None, Some("csrf-token")))
+        .await
+        .expect("no origin");
+    assert_eq!(no_origin.status(), StatusCode::FORBIDDEN);
+
+    let bad_csrf = router
+        .clone()
+        .oneshot(request(Some("https://jftrade.local"), Some("wrong")))
+        .await
+        .expect("bad csrf");
+    assert_eq!(bad_csrf.status(), StatusCode::FORBIDDEN);
+
+    let accepted = router
+        .oneshot(request(Some("https://jftrade.local"), Some("csrf-token")))
+        .await
+        .expect("accepted");
+    assert_ne!(accepted.status(), StatusCode::FORBIDDEN);
+    assert_eq!(port.requests.lock().expect("requests").len(), 1);
+}
