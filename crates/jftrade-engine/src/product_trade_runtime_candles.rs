@@ -138,6 +138,25 @@ pub(super) fn parse_requested_sessions(
 }
 
 impl super::SharedTradeReadRuntime {
+    pub(crate) fn set_ticker_quotes(
+        &self,
+        reader: Option<std::sync::Arc<dyn jftrade_integration_futu::TickerQuoteReadPort>>,
+    ) {
+        *self
+            .ticker_quotes
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn ticker_quotes_reader(
+        &self,
+    ) -> Option<std::sync::Arc<dyn jftrade_integration_futu::TickerQuoteReadPort>> {
+        self.ticker_quotes
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+    }
+
     pub(crate) fn set_historical_klines(
         &self,
         reader: Option<std::sync::Arc<dyn jftrade_integration_futu::HistoricalKlineReadPort>>,

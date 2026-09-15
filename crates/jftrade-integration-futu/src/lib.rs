@@ -53,6 +53,7 @@ mod stock_screen_query;
 mod subscription_executor;
 mod subscriptions;
 mod technical_indicator_query;
+mod ticker_query;
 mod valuation_detail_query;
 // The generated module is crate-internal; generated messages must not leak to
 // engine consumers.  Generated code is intentionally exempt from local lint
@@ -277,6 +278,7 @@ pub use technical_indicator_query::{
     TechnicalIndicatorList, TechnicalIndicatorQuery, TechnicalIndicatorReadPort,
     TechnicalIndicatorResult,
 };
+pub use ticker_query::{OpenDTickerQuoteReader, TickerQuoteError, TickerQuoteReadPort};
 pub use trade_proto::ResponseError;
 pub use trade_session::{
     OpenDTradeReadClient, TradeModifyOrderRequest, TradePlaceComboOrderRequest,

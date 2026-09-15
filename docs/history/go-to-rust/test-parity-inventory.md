@@ -499,9 +499,9 @@
 | [~] | `go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:306`<br>`TestMarketSnapshotResponseQueriesQuoteSnapshotOnCacheMiss` | api_transport | 高风险 | `crates/jftrade-api` |  | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | pnpm run check:quick |
 | [~] | `go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:330`<br>`TestMarketSnapshotResponseForceRefreshBypassesCache` | api_transport | 高风险 | `crates/jftrade-api` |  | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | pnpm run check:quick |
 | [~] | `go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:368`<br>`TestMarketSnapshotResponseRejectsInvalidRefreshQuery` | api_transport | 普通边界 | `crates/jftrade-api` |  | 待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验 | node scripts/quality/cargo-nextest.mjs run -p jftrade-engine |
-| [~] | `go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:382`<br>`TestMarketCandlesTickResponseUsesFreshCache` | api_transport | 高风险 | `crates/jftrade-api` |  | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | pnpm run check:quick |
-| [~] | `go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:418`<br>`TestMarketCandlesTickResponseQueriesTickerOnCacheMiss` | api_transport | 高风险 | `crates/jftrade-api` |  | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | pnpm run check:quick |
-| [~] | `go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:442`<br>`TestMarketCandlesTickResponseFallsBackToCachedCandlesOnTickerError` | api_transport | 高风险 | `crates/jftrade-api` |  | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | pnpm run check:quick |
+| [x] | `go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:382`<br>`TestMarketCandlesTickResponseUsesFreshCache` | api_transport | 高风险 | `crates/jftrade-api` | crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::tick_candles_use_fresh_cache_without_querying_the_provider | Go 的 period=tick 请求先读 cache.Latest(TickFreshness)，命中时不调用 provider 并以 fromCache=true 返回。Rust read_tick_candles 用同一 router 缓存的 Fresh 判定，测试断言 provider ticker 调用数为 0、meta.fromCache=true、candle.at 等于样本 ObservedAt、pagination.hasMore=false，且缓存样本未被重复写入。 | node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked |
+| [x] | `go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:418`<br>`TestMarketCandlesTickResponseQueriesTickerOnCacheMiss` | api_transport | 高风险 | `crates/jftrade-api` | crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::tick_candles_query_the_provider_once_on_cache_miss_and_ingest_the_sample | Go 在 tick 缓存未命中时调用一次 QueryTicker 并 s.Ingest(*sample)。Rust 通过 OpenDTickerQuoteReader 执行一次 BasicQot 读，按 router recorder 代次写入共享缓存，测试断言调用数=1、meta.fromCache=false、样本被保留，且第二次读取直接命中缓存不再调用 provider。 | node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked |
+| [x] | `go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:442`<br>`TestMarketCandlesTickResponseFallsBackToCachedCandlesOnTickerError` | api_transport | 高风险 | `crates/jftrade-api` | crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::tick_candles_fall_back_to_retained_cache_on_ticker_error | Go 在 QueryTicker 失败且缓存仍有样本时返回缓存 candle 并置 fromCache=true，仅当无 candle 可产出时才返回错误。Rust 用同一分支：失败 + 保留样本 → 成功且 fromCache=true、at 等于保留样本时间；失败 + 空缓存 → Unavailable 失败关闭（由 tick_candles_surface_the_ticker_error_when_no_candle_is_retained 单独断言）。 | node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked |
 | [~] | `go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:478`<br>`TestMarketSecurityDetailsResponseQueriesSecuritySnapshot` | api_transport | 普通边界 | `crates/jftrade-api` |  | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | pnpm run check:quick |
 | [~] | `go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:533`<br>`TestMarketSecurityDetailsResponseIncludesWarrantBlock` | api_transport | 普通边界 | `crates/jftrade-api` |  | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | pnpm run check:quick |
 | [~] | `go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:555`<br>`TestMarketSecurityDetailsResponseIncludesOptionBlock` | api_transport | 普通边界 | `crates/jftrade-api` |  | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | pnpm run check:quick |
@@ -4478,8 +4478,8 @@
 | evidence_type | 数量 |
 |---|---:|
 | `boundary` | 119 |
-| `function_exact` | 145 |
-| `missing` | 4067 |
+| `function_exact` | 148 |
+| `missing` | 4064 |
 | `partial` | 120 |
 
 > `partial` 真实入口条目：120；`missing` 中仍带候选入口的条目：1；均不构成完整行为等价。

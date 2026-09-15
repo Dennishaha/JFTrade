@@ -323,6 +323,7 @@ async fn futu_snapshot_route_projects_cached_extended_quote_contract() {
         instrument_id: "US.AAPL".to_owned(),
         price: "114.97".parse().expect("tick price"),
         volume: "100".parse().expect("tick volume"),
+        volume_delta: None,
         snapshot: Some(jftrade_marketdata::TradeQuoteSnapshot {
             symbol: Some("US.AAPL".to_owned()),
             last_price: Some("114.97".parse().expect("regular price")),
@@ -1030,6 +1031,7 @@ async fn live_read_routes_require_a_logical_subscription_lease() {
                     instrument_id: "US.AAPL".to_owned(),
                     price: "101.5".parse().expect("tick price"),
                     volume: "10".parse().expect("tick volume"),
+                    volume_delta: None,
                     snapshot: None,
                     observed_at_ms: now_ms,
                     provider_generation: 1,

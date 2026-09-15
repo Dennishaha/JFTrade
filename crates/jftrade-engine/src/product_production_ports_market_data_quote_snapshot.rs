@@ -377,6 +377,7 @@ mod tests {
             instrument_id: "US.AAPL".to_owned(),
             price: decimal("114.97"),
             volume: decimal_text("1179135"),
+            volume_delta: None,
             snapshot: Some(snapshot),
             observed_at_ms: 1_750_000_000_000,
             provider_generation: 1,

@@ -73,6 +73,9 @@ pub(crate) struct SharedTradeReadRuntime {
     live_connection_limit: Arc<RwLock<Option<usize>>>,
     market_data_router: Arc<RwLock<Option<Arc<Mutex<ProviderRouter>>>>>,
     historical_klines: Arc<RwLock<Option<Arc<dyn HistoricalKlineReadPort>>>>,
+    /// Live BasicQot ticker reader for the `period=tick` candle branch; see
+    /// `product_trade_runtime_candles::set_ticker_quotes`.
+    ticker_quotes: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::TickerQuoteReadPort>>>>,
     security_snapshots: Arc<RwLock<Option<Arc<dyn SecuritySnapshotReadPort>>>>,
     pub(crate) future_info: Arc<RwLock<Option<Arc<dyn FutureInfoReadPort>>>>,
     pub(crate) option_expirations:

@@ -190,8 +190,16 @@ impl InstrumentRef {
 pub struct Tick {
     pub instrument_id: String,
     pub price: Decimal,
+    /// Cumulative provider volume counter for the active volume sequence
+    /// (normally the current session). Never a per-event quantity.
     #[serde(serialize_with = "serialize_decimal_number")]
     pub volume: DecimalText,
+    /// Non-negative volume represented by this event. Quote snapshots that do
+    /// not carry an explicit delta leave it absent, matching Go's
+    /// `marketdata.Tick.VolumeDelta` zero value; tick candles publish this
+    /// value rather than the cumulative counter.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub volume_delta: Option<DecimalText>,
     /// Optional fields preserved from a typed provider snapshot.  Keeping
     /// this broker-neutral lets consumers project rich quote/securities
     /// responses without reaching back into a concrete OpenD protocol.

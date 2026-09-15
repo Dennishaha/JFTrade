@@ -431,6 +431,7 @@ mod product_production_assembly_tests {
                     instrument_id: "US.AAPL".to_owned(),
                     price: "12.34".parse().expect("price"),
                     volume: "100".parse().expect("volume"),
+                    volume_delta: None,
                     snapshot: None,
                     observed_at_ms: 1_700_000_000_000,
                     provider_generation: 0,

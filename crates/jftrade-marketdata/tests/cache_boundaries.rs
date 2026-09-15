@@ -24,6 +24,7 @@ fn tick(
         instrument_id: instrument_id.to_owned(),
         price: price_dec(price),
         volume: decimal(volume),
+        volume_delta: None,
         snapshot,
         observed_at_ms,
         provider_generation,

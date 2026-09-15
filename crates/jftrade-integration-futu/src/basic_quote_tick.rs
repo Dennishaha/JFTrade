@@ -71,6 +71,10 @@ pub fn basic_quote_ticks_with_resolver(
                 instrument_id: instrument_id.clone(),
                 price,
                 volume: volume.clone(),
+                // BasicQot is a quote snapshot, not a trade print, so it
+                // carries no per-event delta; Go's `tickFromSnapshot` leaves
+                // `VolumeDelta` at its zero value for the same reason.
+                volume_delta: None,
                 snapshot: Some(TradeQuoteSnapshot {
                     symbol: Some(instrument_id.clone()),
                     name: quote.name,

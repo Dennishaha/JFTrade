@@ -241,6 +241,7 @@ mod tests {
             instrument_id: instrument_id.to_owned(),
             price: Decimal::new(1885, 1),
             volume: "10".parse().expect("volume"),
+            volume_delta: None,
             snapshot: None,
             observed_at_ms,
             provider_generation: generation,

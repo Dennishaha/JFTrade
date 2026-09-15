@@ -39,6 +39,7 @@ fn snapshot_tick(generation: u64, observed_at_ms: i64) -> Tick {
         instrument_id: "US.AAPL".to_owned(),
         price: Decimal::new(1885, 0),
         volume: "10".parse().expect("decimal volume"),
+        volume_delta: None,
         snapshot: None,
         observed_at_ms,
         provider_generation: generation,

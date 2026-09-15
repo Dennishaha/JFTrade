@@ -152,6 +152,7 @@ pub(super) fn provider_activation(
     let settings_path = settings_path.to_owned();
     let trade_runtime_for_activation = Arc::clone(&trade_runtime);
     let session_resolver_for_activation = session_resolver;
+    let session_resolver_for_ticker = session_resolver_for_activation.clone();
     Ok(Arc::new(move |provider, previous| {
         let has_managed_consumers = if previous.is_some_and(|prev| prev != provider) {
             let router = activation_router
@@ -218,6 +219,15 @@ pub(super) fn provider_activation(
                     trade_runtime_for_activation.set(read_client, trade_logged_in);
                     trade_runtime_for_activation.set_writer(write_client);
                     trade_runtime_for_activation.set_historical_klines(Some(historical_reader));
+                    // Go's `period=tick` candle branch answers from the tick
+                    // cache and only falls back to one provider ticker read on
+                    // a cache miss, so the same OpenD session owns that read.
+                    trade_runtime_for_activation.set_ticker_quotes(Some(Arc::new(
+                        jftrade_integration_futu::OpenDTickerQuoteReader::new(
+                            provider.coordinator(),
+                        )
+                        .with_session_resolver(session_resolver_for_ticker.clone()),
+                    )));
                     trade_runtime_for_activation.set_stock_screen_reader(Some(Arc::new(
                         jftrade_integration_futu::OpenDStockScreenReader::new(
                             provider.coordinator(),

@@ -9,6 +9,7 @@ mod model;
 mod router;
 mod runtime;
 mod snapshot_poll;
+mod tick_candles;
 
 pub use cache::{CacheLookup, TickCache};
 pub use catalog::{
@@ -28,3 +29,4 @@ pub use runtime::{CollectorRuntimeState, MarketDataRuntimeRecorder};
 pub use snapshot_poll::{
     SnapshotPollExecutor, SnapshotPollOutcome, SnapshotPollPolicy, SnapshotPollSkipReason,
 };
+pub use tick_candles::{TickCandle, tick_candles};

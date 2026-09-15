@@ -401,10 +401,33 @@ impl ProductionMarketDataQuotePort {
         }
 
         // Futu historical/tick candles are a live read once the router owns
-        // logical demand, so the client must hold a KLINE/TICK lease.
+        // logical demand, so the client must hold a subscription lease. Go
+        // labels the tick branch `TICK` (`requireBasicSubscriptionDemand`
+        // called with the read channel) while history uses `KLINE`.
         if provider == MarketDataProvider::Futu && self.router.is_some() {
-            let interval = (period != "tick").then_some(period);
-            self.require_basic_subscription_lease(&format!("{market}.{symbol}"), "KLINE", interval)?;
+            if period == "tick" {
+                self.require_basic_subscription_lease(
+                    &format!("{market}.{symbol}"),
+                    "TICK",
+                    None,
+                )?;
+            } else {
+                self.require_basic_subscription_lease(
+                    &format!("{market}.{symbol}"),
+                    "KLINE",
+                    Some(period),
+                )?;
+            }
+        }
+
+        // Go never forwards `period=tick` to the provider's historical K-line
+        // method. It answers from the shared tick cache, queries the provider
+        // ticker once when nothing fresh is cached, and still serves the
+        // retained window when that query fails.
+        if period == "tick" {
+            return self
+                .read_tick_candles(&market, &symbol, &sessions, limit, from_time, to_time)
+                .await;
         }
 
         if let Some(helper) = &self.helper

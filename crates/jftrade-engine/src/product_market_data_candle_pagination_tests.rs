@@ -3,8 +3,107 @@ use crate::product::product_production_ports::SharedTradeReadRuntime;
 use jftrade_integration_futu::{
     CurrentKlineError, CurrentKlineQuery, CurrentKlineResult, HistoricalKline,
     HistoricalKlineError, HistoricalKlineQuery, HistoricalKlineReadPort, HistoricalKlineResult,
-    HistoricalSecurity,
+    HistoricalSecurity, TickerQuoteError, TickerQuoteReadPort,
 };
+
+/// Test-local clock helpers. The production equivalents live behind a private
+/// module, and these fixtures only need a consistent millisecond/RFC3339 pair.
+fn current_unix_millis() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock")
+        .as_millis() as i64
+}
+
+fn format_unix_millis_rfc3339(ms: i64) -> String {
+    time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(ms) * 1_000_000)
+        .expect("valid timestamp")
+        .format(&time::format_description::well_known::Rfc3339)
+        .expect("RFC3339 formatting")
+}
+
+/// Records the provider ticker read that Go's `GetCandles` performs on a tick
+/// cache miss. A failing fixture proves the retained-cache fallback.
+#[derive(Debug, Default)]
+struct StubTicker {
+    calls: AtomicUsize,
+    tick: Mutex<Option<jftrade_marketdata::Tick>>,
+    fail: bool,
+}
+
+impl TickerQuoteReadPort for StubTicker {
+    fn query_ticker(
+        &self,
+        _instrument_id: &str,
+        _observed_at_ms: i64,
+    ) -> Result<Option<jftrade_marketdata::Tick>, TickerQuoteError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        if self.fail {
+            return Err(TickerQuoteError::Lock);
+        }
+        Ok(self.tick.lock().unwrap().clone())
+    }
+}
+
+fn tick_sample(
+    instrument_id: &str,
+    price: &str,
+    volume_delta: Option<&str>,
+    observed_at_ms: i64,
+    session: &str,
+) -> jftrade_marketdata::Tick {
+    jftrade_marketdata::Tick {
+        instrument_id: instrument_id.to_owned(),
+        price: price.parse().expect("tick price"),
+        volume: "1000".parse().expect("cumulative volume"),
+        volume_delta: volume_delta.map(|value| value.parse().expect("volume delta")),
+        snapshot: Some(jftrade_marketdata::TradeQuoteSnapshot {
+            session: Some(session.to_owned()),
+            ..Default::default()
+        }),
+        observed_at_ms,
+        provider_generation: 1,
+    }
+}
+
+fn tick_port(
+    mut router: Option<Arc<Mutex<ProviderRouter>>>,
+    ticker: Arc<StubTicker>,
+) -> ProductionMarketDataQuotePort {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_ticker_quotes(Some(ticker));
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    // Go's live-read harness acquires a logical subscription before the read,
+    // and `GetCandles` refuses a tick cache read without one.
+    if let Some(router) = router.as_mut() {
+        router
+            .lock()
+            .unwrap()
+            .acquire_demand(
+                "tick-candles-test",
+                [
+                    InstrumentRef {
+                        channel: "TICK".to_owned(),
+                        market: "HK".to_owned(),
+                        symbol: "00700".to_owned(),
+                        interval: None,
+                    },
+                    InstrumentRef {
+                        channel: "TICK".to_owned(),
+                        market: "US".to_owned(),
+                        symbol: "AAPL".to_owned(),
+                        interval: None,
+                    },
+                ],
+                false,
+                0,
+            )
+            .expect("tick lease");
+    }
+    ProductionMarketDataQuotePort::new(state, router, None, None).with_trade_runtime(Some(runtime))
+}
 
 #[derive(Debug, Default)]
 struct PagedHistory {
@@ -254,18 +353,14 @@ async fn candle_route_only_annotates_sessions_for_us_intraday_history() {
 }
 
 #[tokio::test]
-async fn candle_route_serves_tick_period_and_forwards_strict_before_window() {
+async fn candle_route_forwards_strict_before_window() {
     // Parity: internal/api/marketdata/routes_test.go:407 TestCandlesRouteTickAndStrictBeforePagination
-    // Go asserts a `period=tick` request is a successful non-paged response and
-    // that `before` is forwarded as the provider window end with `to` empty.
+    // The non-tick half of that baseline: `before` is forwarded as the
+    // provider window end while `to` stays empty. The tick half lives in
+    // `candle_pagination_tests::tick_candles_*` because Go serves `period=tick`
+    // from the tick cache instead of the historical reader.
     let reader = Arc::new(PagedHistory::default());
     let port = port(reader.clone());
-    let tick = port
-        .read("/api/v1/market-data/candles/US/AAPL", "period=tick")
-        .await
-        .expect("tick candles");
-    assert_eq!(tick["pagination"]["hasMore"], false);
-
     let paged = port
         .read(
             "/api/v1/market-data/candles/US/AAPL",
@@ -283,6 +378,312 @@ async fn candle_route_serves_tick_period_and_forwards_strict_before_window() {
         last.end_time, "2026-07-18 09:40:00",
         "before is forwarded as the provider window end (America/New_York)"
     );
+}
+
+/// Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:382 TestMarketCandlesTickResponseUsesFreshCache
+///
+/// A fresh cached sample answers a `period=tick` request without any provider
+/// call, and the response reports `meta.fromCache = true` together with the
+/// candle's own `at` timestamp.
+#[tokio::test]
+async fn tick_candles_use_fresh_cache_without_querying_the_provider() {
+    let now_ms = current_unix_millis();
+    let router = ProviderRouter::new(8);
+    router
+        .cache_mut()
+        .insert(
+            tick_sample("HK.00700", "321.4", Some("25"), now_ms, "regular"),
+            1,
+        )
+        .expect("cache tick");
+    let router = Arc::new(Mutex::new(router));
+    let ticker = Arc::new(StubTicker::default());
+    let port = tick_port(Some(router.clone()), ticker.clone());
+
+    let response = port
+        .read(
+            "/api/v1/market-data/candles/HK/00700",
+            "period=tick&limit=2",
+        )
+        .await
+        .expect("tick candles from cache");
+
+    assert_eq!(response["totalReturned"], 1);
+    assert_eq!(response["meta"]["fromCache"], true);
+    // Go's candle route overrides the pagination envelope for tick reads.
+    assert_eq!(response["pagination"]["hasMore"], false);
+    assert_eq!(response["request"]["period"], "tick");
+    assert_eq!(
+        response["request"]["instrument"]["instrumentId"],
+        "HK.00700"
+    );
+    let candle = &response["candles"][0];
+    assert_eq!(candle["period"], "tick");
+    assert_eq!(candle["open"], "321.4");
+    assert_eq!(candle["high"], "321.4");
+    assert_eq!(candle["low"], "321.4");
+    assert_eq!(candle["close"], "321.4");
+    // Tick candles publish the per-event delta, not the cumulative counter.
+    assert_eq!(candle["volume"], "25");
+    assert_eq!(candle["at"], format_unix_millis_rfc3339(now_ms));
+    assert_eq!(
+        ticker.calls.load(Ordering::SeqCst),
+        0,
+        "a fresh cached sample must not trigger a provider ticker read"
+    );
+    let history = router
+        .lock()
+        .unwrap()
+        .cache_handle()
+        .lock()
+        .unwrap()
+        .history("HK.00700");
+    assert_eq!(history.len(), 1, "the read must not duplicate the sample");
+}
+
+/// Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:418 TestMarketCandlesTickResponseQueriesTickerOnCacheMiss
+///
+/// A cache miss performs exactly one provider ticker read, ingests the sample
+/// and answers with `meta.fromCache = false`.
+#[tokio::test]
+async fn tick_candles_query_the_provider_once_on_cache_miss_and_ingest_the_sample() {
+    let now_ms = current_unix_millis();
+    let router = Arc::new(Mutex::new(ProviderRouter::new(8)));
+    let ticker = Arc::new(StubTicker {
+        tick: Mutex::new(Some(tick_sample(
+            "HK.00700",
+            "321.4",
+            Some("25"),
+            now_ms,
+            "regular",
+        ))),
+        ..StubTicker::default()
+    });
+    let port = tick_port(Some(router.clone()), ticker.clone());
+
+    let response = port
+        .read(
+            "/api/v1/market-data/candles/HK/00700",
+            "period=tick&limit=2",
+        )
+        .await
+        .expect("tick candles from the provider ticker");
+
+    assert_eq!(response["totalReturned"], 1);
+    assert_eq!(response["meta"]["fromCache"], false);
+    assert_eq!(response["candles"][0]["period"], "tick");
+    assert_eq!(response["candles"][0]["volume"], "25");
+    assert_eq!(
+        ticker.calls.load(Ordering::SeqCst),
+        1,
+        "a cache miss must issue exactly one provider ticker read"
+    );
+    // Go calls `s.Ingest(*sample)`, so the read itself must leave the sample
+    // available to the snapshot/latest readers.
+    let history = router
+        .lock()
+        .unwrap()
+        .cache_handle()
+        .lock()
+        .unwrap()
+        .history("HK.00700");
+    assert_eq!(history.len(), 1, "the ingested sample must be retained");
+    assert_eq!(history[0].price, "321.4".parse().expect("price"));
+
+    // The second read is now served from the fresh cache.
+    let cached = port
+        .read(
+            "/api/v1/market-data/candles/HK/00700",
+            "period=tick&limit=2",
+        )
+        .await
+        .expect("second tick read");
+    assert_eq!(cached["meta"]["fromCache"], true);
+    assert_eq!(
+        ticker.calls.load(Ordering::SeqCst),
+        1,
+        "the ingested sample must satisfy the next read"
+    );
+}
+
+/// Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:442 TestMarketCandlesTickResponseFallsBackToCachedCandlesOnTickerError
+///
+/// When the provider ticker fails but the cache still retains an older sample,
+/// Go answers from that sample with `fromCache = true` instead of surfacing the
+/// provider error.
+#[tokio::test]
+async fn tick_candles_fall_back_to_retained_cache_on_ticker_error() {
+    let now_ms = current_unix_millis();
+    let observed_at_ms = now_ms - 60_000;
+    let router = ProviderRouter::new(8);
+    router
+        .cache_mut()
+        .insert(
+            tick_sample("HK.00700", "321.4", Some("10"), observed_at_ms, "regular"),
+            1,
+        )
+        .expect("cache tick");
+    let ticker = Arc::new(StubTicker {
+        fail: true,
+        ..StubTicker::default()
+    });
+    let port = tick_port(Some(Arc::new(Mutex::new(router))), ticker.clone());
+
+    let response = port
+        .read(
+            "/api/v1/market-data/candles/HK/00700",
+            "period=tick&limit=2",
+        )
+        .await
+        .expect("ticker failure must fall back to the retained cache");
+
+    assert_eq!(response["totalReturned"], 1);
+    assert_eq!(response["meta"]["fromCache"], true);
+    assert_eq!(
+        response["candles"][0]["at"],
+        format_unix_millis_rfc3339(observed_at_ms)
+    );
+    assert_eq!(ticker.calls.load(Ordering::SeqCst), 1);
+}
+
+/// The retained-cache fallback must still fail closed when nothing is cached:
+/// Go returns the provider error instead of an empty success payload.
+#[tokio::test]
+async fn tick_candles_surface_the_ticker_error_when_no_candle_is_retained() {
+    let ticker = Arc::new(StubTicker {
+        fail: true,
+        ..StubTicker::default()
+    });
+    let port = tick_port(Some(Arc::new(Mutex::new(ProviderRouter::new(8)))), ticker);
+
+    let error = port
+        .read(
+            "/api/v1/market-data/candles/HK/00700",
+            "period=tick&limit=2",
+        )
+        .await
+        .expect_err("an empty cache with a failing ticker must fail closed");
+    assert!(matches!(
+        error,
+        MarketDataQuoteReadSnapshotError::Unavailable(_)
+    ));
+}
+
+/// A provider ticker read that answers without a usable sample is `(nil, nil)`
+/// in Go: the read still succeeds, nothing is ingested, and an empty cache
+/// produces an empty non-paged page rather than an error.
+#[tokio::test]
+async fn tick_candles_report_an_empty_page_when_the_ticker_returns_no_sample() {
+    let ticker = Arc::new(StubTicker::default());
+    let port = tick_port(
+        Some(Arc::new(Mutex::new(ProviderRouter::new(8)))),
+        ticker.clone(),
+    );
+    let response = port
+        .read(
+            "/api/v1/market-data/candles/HK/00700",
+            "period=tick&limit=2",
+        )
+        .await
+        .expect("a nil provider sample is not an error");
+    assert_eq!(response["totalReturned"], 0);
+    assert_eq!(response["meta"]["fromCache"], false);
+    assert_eq!(response["pagination"]["hasMore"], false);
+    assert_eq!(ticker.calls.load(Ordering::SeqCst), 1);
+}
+
+/// Go's `tickCandlesResponse` only annotates `meta.session`/`extendedHours`
+/// for US markets; a non-US tick read omits `meta.session` entirely.
+#[tokio::test]
+async fn tick_candles_only_annotate_us_session_metadata() {
+    let now_ms = current_unix_millis();
+    let router = Arc::new(Mutex::new(ProviderRouter::new(8)));
+    let ticker = Arc::new(StubTicker {
+        tick: Mutex::new(Some(tick_sample(
+            "US.AAPL",
+            "114.97",
+            Some("3"),
+            now_ms,
+            "after",
+        ))),
+        ..StubTicker::default()
+    });
+    let port = tick_port(Some(router.clone()), ticker.clone());
+
+    let us = port
+        .read(
+            "/api/v1/market-data/candles/US/AAPL",
+            "period=tick&sessions=regular,extended",
+        )
+        .await
+        .expect("US tick candles");
+    assert_eq!(us["meta"]["extendedHours"], true);
+    assert_eq!(us["meta"]["session"], "all");
+
+    ticker.tick.lock().unwrap().replace(tick_sample(
+        "HK.00700",
+        "321.4",
+        Some("1"),
+        now_ms,
+        "regular",
+    ));
+    router.lock().unwrap().cache_mut().clear();
+    let hk = port
+        .read("/api/v1/market-data/candles/HK/00700", "period=tick")
+        .await
+        .expect("HK tick candles");
+    assert_eq!(hk["meta"]["extendedHours"], false);
+    assert!(
+        hk["meta"].get("session").is_none(),
+        "non-US tick candles must omit meta.session: {hk}"
+    );
+}
+
+/// Go filters tick candles by the requested session groups before applying the
+/// limit. `pre` and `after` both belong to the `extended` group, so a
+/// `sessions=extended` page keeps the newest extended sample and drops the
+/// regular one.
+#[tokio::test]
+async fn tick_candles_filter_sessions_before_applying_the_limit() {
+    let now_ms = current_unix_millis();
+    let router = ProviderRouter::new(8);
+    for (offset, session) in [(4_000_i64, "regular"), (3_000, "after"), (2_000, "pre")] {
+        router
+            .cache_mut()
+            .insert(
+                tick_sample("US.AAPL", "114.97", Some("1"), now_ms - offset, session),
+                1,
+            )
+            .expect("cache tick");
+    }
+    let port = tick_port(
+        Some(Arc::new(Mutex::new(router))),
+        Arc::new(StubTicker::default()),
+    );
+
+    let response = port
+        .read(
+            "/api/v1/market-data/candles/US/AAPL",
+            "period=tick&limit=1&sessions=extended",
+        )
+        .await
+        .expect("extended tick candles");
+    assert_eq!(response["totalReturned"], 1);
+    assert_eq!(response["candles"][0]["session"], "pre");
+    assert_eq!(
+        response["request"]["sessions"],
+        serde_json::json!(["extended"])
+    );
+
+    let regular = port
+        .read(
+            "/api/v1/market-data/candles/US/AAPL",
+            "period=tick&limit=5&sessions=regular",
+        )
+        .await
+        .expect("regular tick candles");
+    assert_eq!(regular["totalReturned"], 1);
+    assert_eq!(regular["candles"][0]["session"], "regular");
 }
 
 #[tokio::test]

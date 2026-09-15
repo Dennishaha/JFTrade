@@ -63,3 +63,73 @@ Parity 函数”当作覆盖完成。
 （1110 passed）、`jftrade-marketdata`（51 passed）、
 `jftrade-integration-marketdata-helper --all-targets`（19 passed）、
 `pnpm run check:rust:architecture`、`python3 scripts/compatibility/audit_test_parity.py`。
+
+## 批次 C：tick candle 服务路径对齐（go:452dea11）
+
+`internal/app/apiserver/marketdataapp/market_http_test.go` 的三条 tick candle 测试
+（`TestMarketCandlesTickResponseUsesFreshCache`、`...QueriesTickerOnCacheMiss`、
+`...FallsBackToCachedCandlesOnTickerError`）此前在 Rust 中没有对应实现：Rust 把
+`period=tick` 直接交给 `historical_klines_window`，即用 historical K-line
+读代替 Go 的 tick cache 读。Go 的实际行为是：
+
+1. `requireProviderCapability(ctx, "tick candles")` 与 session 解析（US 默认
+   `regular,extended,overnight`）。
+2. `requireBasicSubscriptionDemand(market, symbol, "TICK")`——注意 Go 给 tick 读
+   的是 `TICK` channel，historical 读才是 `KLINE`。
+3. `fromCache := s.cache.Latest(instrumentID, TickFreshness) != nil`；命中即直接
+   投影。
+4. 未命中时调用一次 `s.provider.QueryTicker`，成功后 `s.Ingest(*sample)`；失败时
+   仍从 `s.cache.Snapshot(instrumentID)` 投影，只有在无 candle 可产出时才返回错误。
+5. `TickCandles` 把每个 tick 映射为 open=high=low=close=price、
+   `volume = VolumeDelta`（负数截断为 0）、`session = sample.Session`，再按请求
+   session 过滤、最后 `limitCandleMaps` 取最新 N 条。
+6. `tickCandlesResponse` 的 `ExtendedHours`/`IncludeSession` 都等于
+   `market == "US"`，因此 US tick 读固定 `extendedHours: true` + `meta.session: "all"`，
+   非 US 完全不输出 `meta.session`。
+
+### Rust 实现
+
+- `crates/jftrade-marketdata/src/tick_candles.rs`（新）：provider-neutral
+  `tick_candles()` 投影，含 15 分钟默认窗口、负 delta 截断、显式 bounds 与
+  `limit` 保留最新；`TickCandle::to_value` 用 `DecimalText` 规范化价格，去掉
+  provider 的尾随零以匹配 Go 的 `decimal.String()`。
+- `crates/jftrade-marketdata/src/cache.rs`：新增 `TickCache::history(instrumentID)`，
+  对应 Go 的 `Cache.Snapshot`（此前只有 `lookup`，无法投影保留窗口）。
+- `crates/jftrade-marketdata/src/model.rs`：`Tick` 新增 `volume_delta`
+  （对应 Go `Tick.VolumeDelta`）；candle volume 用 delta，而不是累计 volume。
+- `crates/jftrade-integration-futu/src/ticker_query.rs`（新）：
+  `TickerQuoteReadPort` / `OpenDTickerQuoteReader`，用同一条 OpenD session 执行
+  一次受 lifecycle 代次与 BASIC 订阅约束的 BasicQot 读；`Ok(None)` 表示 provider
+  返回了 `(nil, nil)`，与错误区分。
+- `crates/jftrade-engine/src/product_production_ports_market_data_quote_tick_candles.rs`（新）：
+  `read_tick_candles` 承担 cache-first → 单次 ticker → ingest → fallback 的完整
+  owner 逻辑，并生成 `tickCandlesResponse` 信封；`read_candles` 在 tick 分支
+  提前返回，不再落入 historical reader。
+- `crates/jftrade-engine/src/product_runtime_provider_activation.rs`：Futu 激活时
+  把 `OpenDTickerQuoteReader` 装进 `SharedTradeReadRuntime`。
+
+### 修复的功能差异（P1，cache/fallback/cancellation 边界）
+
+| 差异 | 复现条件 | Go 预期 | Rust 修复位置 | 回归测试 |
+| --- | --- | --- | --- | --- |
+| tick 请求被转发到 historical K-line 读 | `GET /api/v1/market-data/candles/US/AAPL?period=tick` | 由 tick cache 提供，非分页，`pagination.hasMore=false` | `product_production_ports_market_data_quote_reads.rs::read_candles` | `tick_candles_use_fresh_cache_without_querying_the_provider` |
+| tick 读没有 provider ticker 回退 | 空缓存 + `period=tick` | 调用一次 `QueryTicker` 并 ingest | `..._quote_tick_candles.rs::read_tick_candles` | `tick_candles_query_the_provider_once_on_cache_miss_and_ingest_the_sample` |
+| ticker 失败时丢失保留样本 | ticker 失败 + 缓存有旧样本 | 返回旧样本且 `fromCache=true` | 同上 | `tick_candles_fall_back_to_retained_cache_on_ticker_error` / `..._surface_the_ticker_error_when_no_candle_is_retained` |
+| tick 读误用 `KLINE` lease | Futu + router + 无 KLINE lease | 409 `MARKET_DATA_SUBSCRIPTION_REQUIRED`（channel `TICK`） | `..._quote_reads.rs` tick 分支 lease channel | `tick_candles_use_fresh_cache_without_querying_the_provider`（fixture 先取 TICK lease） |
+| candle volume 用累计 volume | `period=tick` | 用每事件 `VolumeDelta`，负数截断 | `jftrade-marketdata/src/tick_candles.rs` | `tick_candles_use_explicit_volume_delta_across_trading_days` |
+| `meta.session` 语义 | 非 US tick 读 | 完全不输出 `meta.session` | `..._quote_tick_candles.rs::tick_candles_response` | `tick_candles_only_annotate_us_session_metadata` |
+
+映射（`manual-test-mappings.json`）：
+
+- `market_http_test.go:382` → `...::tick_candles_use_fresh_cache_without_querying_the_provider` `[x]/function_exact`
+- `market_http_test.go:418` → `...::tick_candles_query_the_provider_once_on_cache_miss_and_ingest_the_sample` `[x]/function_exact`
+- `market_http_test.go:442` → `...::tick_candles_fall_back_to_retained_cache_on_ticker_error` `[x]/function_exact`
+
+原 `candle_route_serves_tick_period_and_forwards_strict_before_window` 把“tick 走
+historical 分页读”当成基线，属于对 Go 行为的误读，已改名为
+`candle_route_forwards_strict_before_window` 并只保留 `before` 断言。
+
+验证：`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked`
+（1120 passed）、`-p jftrade-marketdata --all-targets --locked`（54 passed）、
+`-p jftrade-integration-futu --all-targets --locked`（245 passed）、
+`python3 scripts/compatibility/audit_test_parity.py`。

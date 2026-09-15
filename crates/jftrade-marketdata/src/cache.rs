@@ -131,6 +131,19 @@ impl TickCache {
         self.ticks.clear();
     }
 
+    /// Returns every retained sample for one instrument in observation order.
+    ///
+    /// Go's cache exposes `Snapshot(instrumentID)` to the tick-candle reader so
+    /// a `period=tick` request projects the retained window instead of only the
+    /// freshest sample. Samples are cloned so the caller never holds the cache
+    /// lock while a response is assembled.
+    pub fn history(&self, instrument_id: &str) -> Vec<Tick> {
+        self.ticks
+            .get(&instrument_id.trim().to_ascii_uppercase())
+            .map(|entries| entries.iter().cloned().collect())
+            .unwrap_or_default()
+    }
+
     pub fn instrument_count(&self) -> usize {
         self.ticks.len()
     }
@@ -282,6 +295,7 @@ mod tests {
             instrument_id: "US.AAPL".to_owned(),
             price: Decimal::new(1885, 1),
             volume: "10".parse().expect("volume"),
+            volume_delta: None,
             snapshot: None,
             observed_at_ms: 100,
             provider_generation: 2,

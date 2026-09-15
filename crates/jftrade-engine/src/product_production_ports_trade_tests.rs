@@ -907,6 +907,7 @@ fn broker_securities_projects_real_futu_tick_cache() {
                 instrument_id: "US.AAPL".to_owned(),
                 price: "123.45".parse().expect("price"),
                 volume: "1000".parse().expect("decimal volume"),
+                volume_delta: None,
                 snapshot: Some(jftrade_marketdata::TradeQuoteSnapshot {
                     name: Some("Apple Inc.".to_owned()),
                     is_suspended: Some(false),
@@ -1029,6 +1030,7 @@ fn broker_quote_projects_real_futu_tick_cache_for_all_symbols() {
                 instrument_id: "US.AAPL".to_owned(),
                 price: "123.45".parse().expect("price"),
                 volume: "1000".parse().expect("decimal volume"),
+                volume_delta: None,
                 snapshot: Some(jftrade_marketdata::TradeQuoteSnapshot {
                     name: Some("Apple Inc.".to_owned()),
                     open_price: Some("120".parse().expect("open")),
@@ -1054,6 +1056,7 @@ fn broker_quote_projects_real_futu_tick_cache_for_all_symbols() {
                 instrument_id: "US.MSFT".to_owned(),
                 price: "200".parse().expect("price"),
                 volume: "2000".parse().expect("decimal volume"),
+                volume_delta: None,
                 snapshot: None,
                 observed_at_ms: 1_700_000_000_100,
                 provider_generation: 0,
@@ -1386,6 +1389,7 @@ fn trade_runtime_security_snapshots_falls_through_to_tick_cache_on_failure() {
                 instrument_id: "HK.00700".to_owned(),
                 price: "380".parse().expect("price"),
                 volume: "100".parse().expect("volume"),
+                volume_delta: None,
                 snapshot: None,
                 observed_at_ms: now_ms,
                 provider_generation: 0,
