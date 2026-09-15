@@ -363,7 +363,10 @@ impl ProductionMarketDataQuotePort {
                     &query_params,
                 )
                 .await
-                .map_err(|error| map_helper_quote_error(error, "OPEND_CANDLES_FAILED"))?;
+                // Go's providerFailureCode only surfaces OPEND_* codes for an
+                // explicit/active Futu provider; the helper branch is only
+                // reachable for non-Futu providers, so use the generic code.
+                .map_err(|error| map_helper_quote_error(error, "MARKET_CANDLES_FAILED"))?;
 
             return crate::product::product_candle_converter::convert_helper_candles_response(
                 resp,

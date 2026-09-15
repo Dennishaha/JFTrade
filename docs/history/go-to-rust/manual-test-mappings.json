@@ -1030,9 +1030,9 @@
   },
   "internal/api/marketdata/routes_boundaries_test.go:63:TestCandlesAndDepthRoutesMapProviderFailures": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_microstructure_quote_routes_preserve_provider_error_mapping",
-    "conclusion": "部分覆盖：Rust 逐项断言 session/decode/rate-limit 错误的 HTTP 状态、错误码和 retry-after，并覆盖 depth reader；Go 同时验证 candles 与 depth 两条 Gin route 及 depth 参数转发，Rust 使用 microstructure port 且未复现 candles route，不能标记为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_microstructure_quote_routes_preserve_provider_error_mapping)'",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_microstructure_quote_routes_preserve_provider_error_mapping；crates/jftrade-engine/tests/market_data_production_compatibility.rs::test_non_futu_helper_candles_failure_uses_generic_market_code",
+    "conclusion": "部分覆盖：已修复并回归非 Futu helper candles 失败码（Go 要求 MARKET_CANDLES_FAILED，修复前 Rust 误报 OPEND_CANDLES_FAILED）；depth 的 provider 错误映射已由 microstructure port 测试逐项覆盖，但 Go 的 depth 通用失败码 MARKET_DEPTH_FAILED 在 Rust 无对应非 Futu depth 实现（非 Futu depth 返回 Unavailable/不支持），且 Go 的 depth=25 参数转发断言未在单条 Rust 测试中同时覆盖，故保留 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_non_futu_helper_candles_failure_uses_generic_market_code)'",
     "evidence_type": "partial"
   },
   "internal/api/marketdata/routes_boundaries_test.go:97:TestMarketsRouteFailsWhenActiveProviderDescriptorIsUnavailable": {
@@ -1276,7 +1276,7 @@
   "internal/api/marketdata/routes_test.go:459:TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_microstructure_quote_routes_reject_invalid_queries_before_reader_call",
-    "conclusion": "部分覆盖：Rust 验证 num/pageSize/date 等非法查询在 reader 调用前返回 BAD_REQUEST，并断言调用计数为零；Go 测试还覆盖 provider、markets、security、snapshot、search、heartbeat 的成功响应，范围明显更广，不能标记为行为等价",
+    "conclusion": "部分覆盖：Go 这条复合测试串联 provider、markets、security、snapshot、subscription+heartbeat、search、normalize 七段成功契约。Rust 对应断言分散在 market_data_provider_read / production_ports_market_data_catalog / market_data_quote_read / subscription_mutation / production_assembly 等专属测试，其中 security 转发与 snapshot fromCache=false 已由 quote-read 测试覆盖，markets defaultMarket 与 search query 回显由 catalog 测试覆盖；但尚无单条 Rust 测试按 Go 顺序同时回放全部七段，故保留 partial，不标记 function_exact。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_microstructure_quote_routes_reject_invalid_queries_before_reader_call)'",
     "evidence_type": "partial"
   },

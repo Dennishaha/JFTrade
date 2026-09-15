@@ -1288,3 +1288,74 @@ async fn test_candle_converter_strict_rejection_boundaries() {
     runtime.shutdown().await.expect("clean shutdown");
     server_task.abort();
 }
+
+#[tokio::test]
+async fn test_non_futu_helper_candles_failure_uses_generic_market_code() {
+    // Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:63 TestCandlesAndDepthRoutesMapProviderFailures
+    // Go's providerFailureCode returns MARKET_CANDLES_FAILED whenever the
+    // active provider is not Futu; only an explicit/active Futu provider is
+    // allowed to surface the OPEND_* compatibility code.
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let helper_addr = listener.local_addr().unwrap();
+    let helper_task = tokio::spawn(async move {
+        while let Ok((mut stream, _)) = listener.accept().await {
+            let mut request = [0; 4096];
+            let _ = stream.read(&mut request).await;
+            let body = br#"{"status":"error","message":"candle feed unavailable"}"#;
+            let response = format!(
+                "HTTP/1.1 502 Bad Gateway\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                String::from_utf8_lossy(body)
+            );
+            let _ = stream.write_all(response.as_bytes()).await;
+        }
+    });
+    let temp_dir = tempfile::tempdir().unwrap();
+    let settings_path = temp_dir.path().join("settings.json");
+    fs::write(
+        &settings_path,
+        serde_json::to_string_pretty(&json!({
+            "activeMarketDataProvider": "yfinance",
+            "marketData": {}
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    let product_config = ProductConfig::desktop_production(
+        "127.0.0.1:0".parse().unwrap(),
+        &settings_path,
+        TEST_DESKTOP_TOKEN,
+    )
+    .expect("config")
+    .with_market_data_helper(
+        HelperClient::new(HelperClientConfig {
+            base_url: format!("http://{helper_addr}"),
+            bearer_token: None,
+            request_timeout: Duration::from_secs(2),
+            max_attempts: 1,
+            retry_delay: Duration::ZERO,
+        })
+        .unwrap(),
+    );
+    let runtime_config =
+        ProductRuntimeConfig::desktop(product_config, DesktopRetainedRuntimeConfig::default())
+            .unwrap();
+    let runtime = start_product_runtime(runtime_config)
+        .await
+        .expect("runtime start");
+    let addr = runtime.startup_record().address;
+
+    let response = request_api(
+        addr,
+        "GET",
+        "/api/v1/market-data/candles/US/AAPL?period=1d",
+        None,
+    )
+    .await;
+    assert_eq!(response.status, 502);
+    assert_eq!(response.body["error"]["code"], "MARKET_CANDLES_FAILED");
+
+    runtime.shutdown().await.expect("clean shutdown");
+    helper_task.abort();
+}

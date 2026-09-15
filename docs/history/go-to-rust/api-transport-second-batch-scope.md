@@ -53,3 +53,22 @@ panic 由 `catch_unwind` 转成 `sse write failed: ...`，与 Go 的 `defer reco
 - `internal/api/marketdata/routes_boundaries_test.go:63:TestCandlesAndDepthRoutesMapProviderFailures`：Rust 已覆盖 ticks/depth port 的错误映射与 retry-after，但 candles route 的 provider 失败映射仍走 helper/fixture 路径，未在单条测试中同时覆盖 candles 与 depth。
 
 补充说明：Go 的 `RunSSEStreamLoop` / `tickerC` 在 `go` 分支没有生产调用方（仅测试引用），Rust 侧仍按同语义提供 `run_sse_stream_loop`，以保证行为基线不被丢失。
+
+## 第四批（market-data provider 失败码差异修复）
+
+`internal/api/marketdata/routes_boundaries_test.go:63`（Go）断言 candles/depth 的 provider 失败码由 provider 决定：
+显式/激活 Futu 用 `OPEND_*_FAILED`，其余 provider 用 `MARKET_*_FAILED`。
+
+Rust 修复前：非 Futu provider 走 market-data helper 的 candles 路径硬编码
+`OPEND_CANDLES_FAILED`，与 Go 的 `MARKET_CANDLES_FAILED` 不一致。
+
+- 复现条件：`activeMarketDataProvider=yfinance`，helper candles 端点返回 502。
+- 预期行为：HTTP 502 + `MARKET_CANDLES_FAILED`。
+- 修复位置：`crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs`
+  （helper 分支只可能由非 Futu provider 进入，故使用通用失败码）。
+- 回归测试：`crates/jftrade-engine/tests/market_data_production_compatibility.rs::test_non_futu_helper_candles_failure_uses_generic_market_code`。
+
+仍保留 `[~] partial`：depth 的通用 `MARKET_DEPTH_FAILED` 没有对应 Rust 实现
+（非 Futu depth 在 Rust 返回不支持/Unavailable），且 Go 的 depth 失败码与
+depth=25 参数转发未在单条 Rust 测试中同时覆盖；`routes_test.go:459` 的七段
+复合成功契约分散在多个 Rust 专属测试中，尚无以单条测试按 Go 顺序完整回放。
