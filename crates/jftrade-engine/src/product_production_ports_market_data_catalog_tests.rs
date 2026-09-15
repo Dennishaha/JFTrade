@@ -1,8 +1,12 @@
 use super::*;
-use jftrade_integration_marketdata_helper::HelperClientConfig;
+use jftrade_integration_marketdata_helper::{HelperClient, HelperClientConfig};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
+use std::sync::Arc;
+
+use crate::product::product_active_provider_state::ActiveProviderState;
+use crate::product::MarketDataCatalogReadSnapshotPort;
 
 #[derive(Debug)]
 struct SearchReader {
@@ -264,4 +268,67 @@ async fn helper_catalog_projects_precision_and_sessions_to_camel_case() {
             "precision": {"price": 3, "quote": 3}, "tickSize": 0.001
         }));
     }
+}
+
+/// Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:97 TestMarketsRouteFailsWhenActiveProviderDescriptorIsUnavailable
+///
+/// Go resolves `defaultMarket` from `svc.ProviderDescriptor` after fetching the
+/// market list and maps a descriptor failure to 500 `MARKET_DATA_FAILED`.  The
+/// Rust owner reads the default market from the helper's own response, so the
+/// equivalent guarantee is: any helper failure on `/markets` surfaces 500 with
+/// `MARKET_DATA_FAILED` and the upstream message instead of a partial payload.
+#[tokio::test]
+async fn markets_route_fails_with_market_data_failed_when_active_provider_is_unavailable() {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind unavailable markets fixture");
+    let address = listener.local_addr().expect("fixture address");
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.expect("markets connection");
+        let mut request = Vec::new();
+        while !request.windows(4).any(|window| window == b"\r\n\r\n") {
+            let mut chunk = [0_u8; 1024];
+            let read = stream.read(&mut chunk).await.expect("read request");
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..read]);
+        }
+        let body = r#"{"error":{"message":"active provider is unavailable"}}"#;
+        let response = format!(
+            "HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        stream
+            .write_all(response.as_bytes())
+            .await
+            .expect("write fixture response");
+    });
+    let client = HelperClient::new(HelperClientConfig {
+        base_url: format!("http://{address}"),
+        bearer_token: None,
+        request_timeout: Duration::from_secs(5),
+        max_attempts: 1,
+        retry_delay: Duration::ZERO,
+    })
+    .expect("helper client");
+    let port = ProductionMarketDataCatalogPort::new(
+        Arc::new(ActiveProviderState::new(Some(
+            MarketDataProvider::Yfinance,
+        ))),
+        Some(client),
+    );
+    let error = port
+        .read("/api/v1/market-data/markets", "")
+        .await
+        .expect_err("provider failure must surface");
+    assert!(matches!(
+        error,
+        MarketDataCatalogReadSnapshotError::Failed {
+            status: 500,
+            ref code,
+            ref message,
+        } if code == "MARKET_DATA_FAILED" && message == "active provider is unavailable"
+    ));
+    server.await.expect("markets fixture server");
 }

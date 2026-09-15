@@ -211,6 +211,18 @@ pub(crate) fn parse_market_symbol_path(
     Ok((market.to_owned(), symbol.to_owned()))
 }
 
+/// Go's `ErrProviderChanged` projection: a read that raced a provider switch
+/// must fail with 409 `MARKET_DATA_PROVIDER_CHANGED` instead of returning data
+/// produced by the retired provider generation.
+pub(crate) fn provider_changed_error() -> MarketDataQuoteReadSnapshotError {
+    MarketDataQuoteReadSnapshotError::Failed {
+        status: 409,
+        code: "MARKET_DATA_PROVIDER_CHANGED".to_owned(),
+        message: "market-data provider changed".to_owned(),
+        retry_after_seconds: None,
+    }
+}
+
 pub(crate) fn map_helper_quote_error(
     error: jftrade_integration_marketdata_helper::HttpAdapterError,
     default_code: &str,
@@ -222,6 +234,22 @@ pub(crate) fn map_helper_quote_error(
             message,
             retry_after_seconds,
         } => {
+            // Go's yfinance/akshare adapters classify helper runtime warming and
+            // akshare pool/upstream pressure into ErrProviderWarming/ErrProviderBusy,
+            // and the transport layer renders them as 503 with a fixed
+            // Retry-After contract.  Keep that mapping at the read owner so the
+            // wire envelope matches Go instead of leaking the helper's
+            // provider-specific codes.
+            if let Some((status, mapped_code, mapped_message, retry_after)) =
+                classify_helper_runtime_code(&code)
+            {
+                return MarketDataQuoteReadSnapshotError::Failed {
+                    status,
+                    code: mapped_code.to_owned(),
+                    message: mapped_message.to_owned(),
+                    retry_after_seconds: Some(retry_after),
+                };
+            }
             let error_code = if !code.is_empty() {
                 code
             } else {
@@ -262,6 +290,26 @@ pub(crate) fn map_helper_quote_error(
     }
 }
 
+fn classify_helper_runtime_code(code: &str) -> Option<(u16, &'static str, &'static str, u64)> {
+    match code.trim().to_ascii_uppercase().as_str() {
+        "YFINANCE_RUNTIME_WARMING" | "AKSHARE_RUNTIME_WARMING" | "PROVIDER_RUNTIME_WARMING" => {
+            Some((
+                503,
+                "MARKET_DATA_PROVIDER_WARMING",
+                "行情服务正在预热，请稍后重试",
+                1,
+            ))
+        }
+        "AKSHARE_POOL_BUSY" | "AKSHARE_UPSTREAM_TIMEOUT" => Some((
+            503,
+            "MARKET_DATA_PROVIDER_BUSY",
+            "行情服务当前繁忙，请稍后重试",
+            2,
+        )),
+        _ => None,
+    }
+}
+
 pub(crate) fn broker_polling_subscription_response(
     consumer_id: &str,
     broker_id: &str,
@@ -293,4 +341,82 @@ pub(crate) fn broker_polling_subscription_response(
             "mode": "snapshot-poll-fallback",
         },
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use jftrade_integration_marketdata_helper::HttpAdapterError;
+
+    fn remote_error(status: u16, code: &str, message: &str) -> HttpAdapterError {
+        HttpAdapterError::Remote {
+            status,
+            code: code.to_owned(),
+            message: message.to_owned(),
+            retry_after_seconds: None,
+        }
+    }
+
+    #[test]
+    fn market_data_read_errors_expose_provider_warmup_retry_signal() {
+        // Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:286 TestMarketDataReadErrorsExposeProviderWarmupRetrySignal
+        for code in [
+            "YFINANCE_RUNTIME_WARMING",
+            "AKSHARE_RUNTIME_WARMING",
+            "PROVIDER_RUNTIME_WARMING",
+        ] {
+            let error = map_helper_quote_error(
+                remote_error(503, code, "runtime is warming up"),
+                "MARKET_CANDLES_FAILED",
+            );
+            assert!(matches!(
+                error,
+                MarketDataQuoteReadSnapshotError::Failed {
+                    status: 503,
+                    ref code,
+                    ref message,
+                    retry_after_seconds: Some(1),
+                } if code == "MARKET_DATA_PROVIDER_WARMING"
+                    && message == "行情服务正在预热，请稍后重试"
+            ));
+        }
+    }
+
+    #[test]
+    fn market_data_read_errors_expose_provider_busy_retry_signal() {
+        // Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:300 TestMarketDataReadErrorsExposeProviderBusyRetrySignal
+        for code in ["AKSHARE_POOL_BUSY", "AKSHARE_UPSTREAM_TIMEOUT"] {
+            let error = map_helper_quote_error(
+                remote_error(503, code, "worker pool is busy"),
+                "MARKET_CANDLES_FAILED",
+            );
+            assert!(matches!(
+                error,
+                MarketDataQuoteReadSnapshotError::Failed {
+                    status: 503,
+                    ref code,
+                    ref message,
+                    retry_after_seconds: Some(2),
+                } if code == "MARKET_DATA_PROVIDER_BUSY"
+                    && message == "行情服务当前繁忙，请稍后重试"
+            ));
+        }
+    }
+
+    #[test]
+    fn market_data_read_errors_preserve_unclassified_helper_failures() {
+        let error = map_helper_quote_error(
+            remote_error(429, "RATE_LIMITED", "slow down"),
+            "MARKET_CANDLES_FAILED",
+        );
+        assert!(matches!(
+            error,
+            MarketDataQuoteReadSnapshotError::Failed {
+                status: 429,
+                ref code,
+                retry_after_seconds: None,
+                ..
+            } if code == "RATE_LIMITED"
+        ));
+    }
 }

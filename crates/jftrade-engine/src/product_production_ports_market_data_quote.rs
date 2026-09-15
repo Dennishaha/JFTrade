@@ -21,7 +21,7 @@ use std::sync::{Arc, Mutex};
 
 use super::product_production_ports_market_data_projection::{
     current_unix_millis, format_unix_millis_rfc3339, map_helper_quote_error,
-    parse_market_symbol_path, render_subscriptions_data,
+    parse_market_symbol_path, provider_changed_error, render_subscriptions_data,
 };
 use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::product_query::{

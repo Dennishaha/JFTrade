@@ -309,6 +309,33 @@ fn subscription_mutation_replay_matches_go_fixture_data_errors_and_retry_metadat
 }
 
 #[test]
+fn subscription_mutations_map_canceled_context_to_failed() {
+    // Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:523 TestSubscriptionHandlersMapCanceledServiceOperations
+    // Go maps a canceled service context on acquire/release/clear/heartbeat to
+    // 500 SUBSCRIPTION_FAILED.  The fixture freezes the same four canceled
+    // occurrences so the mapping has its own Rust evidence entry.
+    let fixture = fixture();
+    let port = Arc::new(FixturePort::from_fixture(&fixture));
+    let api = MarketDataSubscriptionMutationApi::new(Some(port));
+    // Replay in fixture order: several canceled occurrences share a request key
+    // with earlier successful cases, so the queued responses must be consumed
+    // sequentially to reach the canceled occurrence.
+    let mut asserted = 0;
+    for case in &fixture.cases {
+        let result = api.dispatch(&request_for(case));
+        if case.context_error != "canceled" || case.request_path.contains("/prediction/") {
+            continue;
+        }
+        let error = result.expect_err("canceled service operation must fail");
+        assert_eq!(error.status, 500, "case {}", case.name);
+        assert_eq!(error.code, "SUBSCRIPTION_FAILED", "case {}", case.name);
+        assert_eq!(error.message, "context canceled", "case {}", case.name);
+        asserted += 1;
+    }
+    assert_eq!(asserted, 4, "market-data canceled occurrences");
+}
+
+#[test]
 fn subscription_mutation_fails_closed_without_port_and_rejects_unknown_routes() {
     let fixture = fixture();
     let api = MarketDataSubscriptionMutationApi::new(None);

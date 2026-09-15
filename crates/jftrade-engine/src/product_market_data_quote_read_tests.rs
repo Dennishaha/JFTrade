@@ -12,7 +12,11 @@ use tokio::net::TcpStream;
 use jftrade_integration_futu::{
     MarketMicrostructureError, MarketMicrostructureOperation, MarketMicrostructureReadPort,
 };
+use jftrade_integration_marketdata_helper::{HelperClient, HelperClientConfig};
 use jftrade_marketdata::{InstrumentRef, ProviderRouter};
+use jftrade_settings::{MarketDataProvider, MarketDataProviderRuntimePort};
+use std::time::Duration;
+use tokio::net::TcpListener;
 
 use crate::product::product_production_ports::ProductionMarketDataQuotePort;
 
@@ -381,6 +385,169 @@ async fn futu_snapshot_route_projects_cached_extended_quote_contract() {
         }
         other => panic!("unexpected error for invalid refresh: {other:?}"),
     }
+}
+
+/// Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:273 TestMarketDataReadErrorsExposeProviderSwitchRetrySignal
+///
+/// Go's `GetSnapshot` reads `providerGeneration` before the provider query and
+/// re-reads it afterwards, returning `ErrProviderChanged` (HTTP 409
+/// `MARKET_DATA_PROVIDER_CHANGED`) when a switch landed while the read was in
+/// flight.  The same fence must hold for the helper-backed read owner.
+#[tokio::test]
+async fn snapshot_read_fences_provider_generation_switch_during_helper_query() {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind snapshot helper fixture");
+    let helper_address = listener.local_addr().expect("helper address");
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Yfinance)));
+    let state_for_server = Arc::clone(&state);
+    let helper_task = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.expect("helper connection");
+        let mut request = Vec::new();
+        loop {
+            let mut chunk = [0_u8; 1024];
+            let read = stream.read(&mut chunk).await.expect("read helper request");
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..read]);
+            if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                break;
+            }
+        }
+        // The provider switch lands after the read owner captured the
+        // generation but before the helper response is delivered.
+        state_for_server
+            .activate(MarketDataProvider::Akshare)
+            .expect("activate akshare");
+        let body = r#"{"market":"US","symbol":"AAPL","instrument_id":"US.AAPL","price":"188.50","observed_at":"2026-09-15T12:00:00Z","source":"yfinance"}"#;
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        stream
+            .write_all(response.as_bytes())
+            .await
+            .expect("write helper response");
+    });
+    let helper = HelperClient::new(HelperClientConfig {
+        base_url: format!("http://{helper_address}"),
+        bearer_token: None,
+        request_timeout: Duration::from_secs(2),
+        max_attempts: 1,
+        retry_delay: Duration::ZERO,
+    })
+    .expect("helper client");
+    let port = ProductionMarketDataQuotePort::new(state, None, Some(helper), None);
+    let error = port
+        .read("/api/v1/market-data/snapshots/US/AAPL", "")
+        .await
+        .expect_err("provider switch must fence the in-flight snapshot read");
+    assert!(matches!(
+        error,
+        MarketDataQuoteReadSnapshotError::Failed {
+            status: 409,
+            ref code,
+            ..
+        } if code == "MARKET_DATA_PROVIDER_CHANGED"
+    ));
+    helper_task.await.expect("helper task");
+}
+
+/// Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:35 TestInstrumentHandlersRejectMissingURIParameters
+///
+/// Go's security-details/snapshot/candles/depth handlers all reject a missing
+/// URI parameter with 400 `BAD_REQUEST` and `invalid instrument` before the
+/// provider is invoked.  Rust encodes the same contract in the read owner's
+/// path parser, so every instrument route must fail identically.
+#[tokio::test]
+async fn instrument_read_routes_reject_missing_uri_parameters() {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    let port = ProductionMarketDataQuotePort::new(state, None, None, None);
+    for path in [
+        "/api/v1/market-data/securities/",
+        "/api/v1/market-data/snapshots/",
+        "/api/v1/market-data/candles/",
+        "/api/v1/market-data/depth/",
+    ] {
+        let error = port
+            .read(path, "")
+            .await
+            .expect_err("missing URI parameters must be rejected");
+        assert!(
+            matches!(
+                error,
+                MarketDataQuoteReadSnapshotError::Failed {
+                    status: 400,
+                    ref code,
+                    ref message,
+                    ..
+                } if code == "BAD_REQUEST" && message == "invalid instrument"
+            ),
+            "path {path} did not preserve the missing-URI contract"
+        );
+    }
+}
+
+/// Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:208 TestSnapshotRejectsMalformedRefreshQuery
+///
+/// The malformed `refresh` query is rejected before any provider access; the
+/// baseline asserts the provider stub was never called for the request.
+#[tokio::test]
+async fn snapshot_rejects_malformed_refresh_before_provider_access() {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind refresh helper fixture");
+    let helper_address = listener.local_addr().expect("helper address");
+    let helper_calls = Arc::new(AtomicUsize::new(0));
+    let calls_for_server = Arc::clone(&helper_calls);
+    let helper_task = tokio::spawn(async move {
+        while let Ok((mut stream, _)) = listener.accept().await {
+            calls_for_server.fetch_add(1, Ordering::SeqCst);
+            let mut request = [0_u8; 4096];
+            let _ = stream.read(&mut request).await;
+            let body = r#"{"error":{"code":"UNEXPECTED","message":"provider must not be called"}}"#;
+            let response = format!(
+                "HTTP/1.1 502 Bad Gateway\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            let _ = stream.write_all(response.as_bytes()).await;
+        }
+    });
+    let helper = HelperClient::new(HelperClientConfig {
+        base_url: format!("http://{helper_address}"),
+        bearer_token: None,
+        request_timeout: Duration::from_secs(2),
+        max_attempts: 1,
+        retry_delay: Duration::ZERO,
+    })
+    .expect("helper client");
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Yfinance)));
+    let port = ProductionMarketDataQuotePort::new(state, None, Some(helper), None);
+    let error = port
+        .read(
+            "/api/v1/market-data/snapshots/US/AAPL",
+            "refresh=not-a-boolean",
+        )
+        .await
+        .expect_err("malformed refresh must be rejected");
+    assert!(matches!(
+        error,
+        MarketDataQuoteReadSnapshotError::Failed {
+            status: 400,
+            ref code,
+            ref message,
+            ..
+        } if code == "BAD_REQUEST" && message == "invalid refresh query"
+    ));
+    assert_eq!(
+        helper_calls.load(Ordering::SeqCst),
+        0,
+        "malformed refresh must be rejected before provider access"
+    );
+    helper_task.abort();
 }
 
 #[derive(Debug)]

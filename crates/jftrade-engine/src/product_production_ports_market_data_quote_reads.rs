@@ -38,6 +38,12 @@ impl ProductionMarketDataQuotePort {
                 MarketDataProvider::Akshare => "akshare",
                 MarketDataProvider::Futu => "futu",
             };
+            // Go's GetSnapshot fences the provider query with the active
+            // provider generation and reports ErrProviderChanged (HTTP 409
+            // MARKET_DATA_PROVIDER_CHANGED) when a switch lands mid-read, so a
+            // snapshot produced by the retired provider never reaches the
+            // caller or the cache.
+            let generation = self.active_provider_state.snapshot().generation;
             let resp = helper
                 .get_provider_json::<HelperSnapshotResponse>(
                     provider_str,
@@ -45,6 +51,9 @@ impl ProductionMarketDataQuotePort {
                 )
                 .await
                 .map_err(|error| map_helper_quote_error(error, "MARKET_SNAPSHOT_FAILED"))?;
+            if self.active_provider_state.snapshot().generation != generation {
+                return Err(provider_changed_error());
+            }
 
             let instrument_id = format!("{market}.{symbol}");
             let price_str = resp.price.as_str();
@@ -143,6 +152,7 @@ impl ProductionMarketDataQuotePort {
                 }));
             }
 
+            let generation = self.active_provider_state.snapshot().generation;
             let fallback_snapshot = if let (Some(runtime), Some(market_code)) =
                 (&self.trade_runtime, quote_market_code(&market))
             {
@@ -163,6 +173,9 @@ impl ProductionMarketDataQuotePort {
             } else {
                 None
             };
+            if self.active_provider_state.snapshot().generation != generation {
+                return Err(provider_changed_error());
+            }
 
             if let Some(snap) = fallback_snapshot {
                 let fallback_observed_at = format_unix_millis_rfc3339(now_ms);

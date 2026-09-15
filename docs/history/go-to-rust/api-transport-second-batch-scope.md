@@ -110,3 +110,25 @@ boundary）。新增 Rust 回归位于 `crates/jftrade-api/tests/transport_contr
   的 `read_candles` 入口（在读取 owner 归一化 market，未改全局 `quote_market_code`
   以免影响交易路径）。
 - 回归测试：`candle_route_preserves_legacy_query_parsing` 及同批 5 条 candles 测试。
+
+## 第三批：market-data 读取错误映射与 provider generation fencing（P0/P1）
+
+| 状态 | Go 测试 | Rust 证据 | 差异结论 |
+| --- | --- | --- | --- |
+| [x] | `internal/api/marketdata/routes_boundaries_test.go:273:TestMarketDataReadErrorsExposeProviderSwitchRetrySignal` | `crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_read_fences_provider_generation_switch_during_helper_query` | function_exact：Go 的 `GetSnapshot` 读取前记录 `providerGeneration`、返回后复核并在切换时返回 `ErrProviderChanged`（409 `MARKET_DATA_PROVIDER_CHANGED`）。Rust 原先没有该栅栏，快照会带着已退役 provider 的数据返回。本轮在 `read_snapshots` 的 helper 分支与 Futu fallback 分支补上 generation 复核；回归测试让 helper 在响应前 `activate(Akshare)`，断言 409 + `MARKET_DATA_PROVIDER_CHANGED`。 |
+| [x] | `internal/api/marketdata/routes_boundaries_test.go:286:TestMarketDataReadErrorsExposeProviderWarmupRetrySignal` | `crates/jftrade-engine/src/product_production_ports_market_data_projection.rs::tests::market_data_read_errors_expose_provider_warmup_retry_signal` | function_exact：Go 的 `writeMarketDataReadError` 对 `ErrProviderWarming` 返回 503 + `Retry-After: 1` + `MARKET_DATA_PROVIDER_WARMING`。Rust 原先直接透传 helper 的 `*_RUNTIME_WARMING` 码，本轮在共享 helper 错误投影层按 Go 的 `classifyRuntimeError` 语义归类，覆盖 `YFINANCE_RUNTIME_WARMING`、`AKSHARE_RUNTIME_WARMING`、`PROVIDER_RUNTIME_WARMING`。 |
+| [x] | `internal/api/marketdata/routes_boundaries_test.go:300:TestMarketDataReadErrorsExposeProviderBusyRetrySignal` | `crates/jftrade-engine/src/product_production_ports_market_data_projection.rs::tests::market_data_read_errors_expose_provider_busy_retry_signal` | function_exact：Go 的 akshare 适配器把 `AKSHARE_POOL_BUSY`/`AKSHARE_UPSTREAM_TIMEOUT` 归为 `ErrProviderBusy`，路由返回 503 + `Retry-After: 2` + `MARKET_DATA_PROVIDER_BUSY`。Rust 原先直接透传这两个码，本轮归类到共享投影；同批的 `market_data_read_errors_preserve_unclassified_helper_failures` 保证其他 helper 错误不被改写。 |
+
+复现与修复记录（P0，唯一写入所有权相邻的读一致性）：
+
+- 复现条件：active provider 为 yfinance/akshare，`GET /api/v1/market-data/snapshots/US/AAPL` 进行中，设置写入触发 `ActiveProviderState::activate` 递增 generation。
+- 预期行为：409 `MARKET_DATA_PROVIDER_CHANGED`，且该快照不得进入调用方结果。
+- 修复位置：`crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs`（`read_snapshots` 的 helper 与 Futu fallback 两处），共享错误构造在 `product_production_ports_market_data_projection.rs::provider_changed_error`。
+- 回归测试：`snapshot_read_fences_provider_generation_switch_during_helper_query`。
+
+复现与修复记录（P1，Provider retry 语义）：
+
+- 复现条件：helper 在预热期返回 503 `YFINANCE_RUNTIME_WARMING`/`AKSHARE_RUNTIME_WARMING`/`PROVIDER_RUNTIME_WARMING`；akshare 线程池饱和或上游超时返回 503 `AKSHARE_POOL_BUSY`/`AKSHARE_UPSTREAM_TIMEOUT`。
+- 预期行为：503 + `Retry-After`（预热 1 秒、繁忙 2 秒）+ `MARKET_DATA_PROVIDER_WARMING`/`MARKET_DATA_PROVIDER_BUSY`，正文为 Go 的中文提示。
+- 修复位置：`crates/jftrade-engine/src/product_production_ports_market_data_projection.rs::classify_helper_runtime_code`（quote read 路径统一复用）。
+- 回归测试：`market_data_read_errors_expose_provider_warmup_retry_signal`、`market_data_read_errors_expose_provider_busy_retry_signal`、`market_data_read_errors_preserve_unclassified_helper_failures`。

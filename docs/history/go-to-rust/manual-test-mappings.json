@@ -1022,11 +1022,11 @@
     "evidence_type": "missing"
   },
   "internal/api/marketdata/routes_boundaries_test.go:35:TestInstrumentHandlersRejectMissingURIParameters": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::instrument_read_routes_reject_missing_uri_parameters",
+    "conclusion": "function_exact：Go 的 securities/snapshot/candles/depth 四个 handler 在缺少 URI 参数时均返回 400 BAD_REQUEST + invalid instrument，且不调用 provider。Rust 在读取 owner 的 parse_market_symbol_path 统一实现该拒绝，回归测试对四条路径逐一断言状态码与消息，且 port 未配置 provider/helper（若进入 provider 分支会返回 503 而非 400），等价覆盖 Go 的四段断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(instrument_read_routes_reject_missing_uri_parameters)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/marketdata/routes_boundaries_test.go:63:TestCandlesAndDepthRoutesMapProviderFailures": {
     "status": "[~]",
@@ -1036,123 +1036,123 @@
     "evidence_type": "partial"
   },
   "internal/api/marketdata/routes_boundaries_test.go:97:TestMarketsRouteFailsWhenActiveProviderDescriptorIsUnavailable": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::markets_route_fails_with_market_data_failed_when_active_provider_is_unavailable",
+    "conclusion": "function_exact（结构等价）：Go 在 markets 成功后单独取 ProviderDescriptor，描述符失败 → 500 MARKET_DATA_FAILED + 原始消息。Rust 的 defaultMarket 由 helper /markets 响应自身提供，没有独立的第二次描述符调用，因此等价保证是 markets 读取失败时返回 500 MARKET_DATA_FAILED 并保留上游消息。回归测试用 500 helper 响应断言 status=500、code=MARKET_DATA_FAILED、message=active provider is unavailable。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(markets_route_fails_with_market_data_failed_when_active_provider_is_unavailable)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/marketdata/routes_boundaries_test.go:119:TestProviderFailureCodesPreserveFutuCompatibilityOnlyForFutu": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs::read_candles helper/Futu 分支",
+    "conclusion": "部分覆盖：Go 的 providerFailureCode 依据显式 brokerId 或 active descriptor 在 OPEND_*_FAILED 与 MARKET_*_FAILED 之间选择。Rust 在 read_candles 内按 active provider 分支静态选择（helper 分支固定 MARKET_CANDLES_FAILED，Futu 分支固定 OPEND_*），已有 test_non_futu_helper_candles_failure_uses_generic_market_code 覆盖非 Futu 路径；但“显式 brokerId=' FuTu ' 覆盖 active 非 Futu 描述符”这一优先级规则在 Rust 无对应入口（读取层不解析 brokerId），保留 partial 并列为边界差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_non_futu_helper_candles_failure_uses_generic_market_code)'",
+    "evidence_type": "partial"
   },
   "internal/api/marketdata/routes_boundaries_test.go:167:TestActiveNonBrokerProviderMatchingHandlesMissingAndFutuDescriptors": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 usesActiveNonBrokerProvider 分流",
+    "conclusion": "不适用/边界保留：Go 的 usesActiveNonBrokerProvider 是 handler 级分流谓词，用于决定显式 brokerId 是否回落到 active provider。Rust 的读取所有权在 engine 的 ProductionMarketDataQuotePort（按 active provider 直接路由，不暴露 broker reader 列表），没有等价谓词或 nil service/nil descriptor 分支。该测试的 nil/描述符不可用五组断言属 Go 装配层边界，记录为不适用并保留，不用 Rust 测试伪装覆盖。",
+    "command": "pnpm run check:rust -- --print",
+    "evidence_type": "boundary"
   },
   "internal/api/marketdata/routes_boundaries_test.go:208:TestSnapshotRejectsMalformedRefreshQuery": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_rejects_malformed_refresh_before_provider_access",
+    "conclusion": "function_exact：Go 断言 refresh=not-a-boolean 返回 400 BAD_REQUEST 且 provider stub 未被调用。Rust 回归测试用真实本地 helper 计数并在非法 refresh 时断言 400 + invalid refresh query + helper 调用数为 0，覆盖同两条断言（原有 quote-read fixture 测试只覆盖状态码与消息，未断言 provider 零调用）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(snapshot_rejects_malformed_refresh_before_provider_access)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/marketdata/routes_boundaries_test.go:229:TestNormalizeOptionalQueryTimeAcceptsEmptyAndRejectsMalformedValues": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_query.rs::query_time_parses_rfc3339_datetime_and_date",
+    "conclusion": "function_exact：Go 断言空白时间返回空值、非法时间返回错误。Rust 的 normalize_optional_query_time 单测断言 \"  \" -> None 与 \"not-a-time\" -> Err，并额外覆盖 RFC3339、空格分隔与纯日期三种合法格式，等价覆盖 Go 的两条边界断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(query_time_parses_rfc3339_datetime_and_date)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/marketdata/routes_boundaries_test.go:239:TestExplicitYFinanceReadsUseTheActiveMarketDataProvider": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 broker reader 分流",
+    "conclusion": "不适用/边界保留：Go 断言 brokerId=yfinance 的 securities/candles 请求绕过 broker reader 直接走 active provider。Rust 的 ProductionMarketDataQuotePort 没有 broker reader 列表参数，读取始终由 active provider owner 处理，因此不存在“被误发到 broker reader”的失败模式；本测试固定的分流行为在 Rust 架构中不成立，记录为不适用。",
+    "command": "pnpm run check:rust -- --print",
+    "evidence_type": "boundary"
   },
   "internal/api/marketdata/routes_boundaries_test.go:273:TestMarketDataReadErrorsExposeProviderSwitchRetrySignal": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_read_fences_provider_generation_switch_during_helper_query",
+    "conclusion": "function_exact：Go 的 GetSnapshot 读取前记录 providerGeneration、返回后复核并在切换时返回 ErrProviderChanged（409 MARKET_DATA_PROVIDER_CHANGED）。Rust 原先没有该栅栏，快照会带着已退役 provider 的数据返回；本轮在 read_snapshots 的 helper 分支与 Futu fallback 分支补上 generation 复核。回归测试让 helper 在响应前 activate(Akshare)，断言 409 + MARKET_DATA_PROVIDER_CHANGED。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(snapshot_read_fences_provider_generation_switch_during_helper_query)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/marketdata/routes_boundaries_test.go:286:TestMarketDataReadErrorsExposeProviderWarmupRetrySignal": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_projection.rs::tests::market_data_read_errors_expose_provider_warmup_retry_signal",
+    "conclusion": "function_exact：Go 的 writeMarketDataReadError 对 ErrProviderWarming 返回 503 + Retry-After: 1 + MARKET_DATA_PROVIDER_WARMING。Rust 原先直接透传 helper 的 *_RUNTIME_WARMING 码；本轮在共享 helper 错误投影层按 Go 的 classifyRuntimeError 语义归类，覆盖 YFINANCE_RUNTIME_WARMING、AKSHARE_RUNTIME_WARMING、PROVIDER_RUNTIME_WARMING。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_data_read_errors_expose_provider_warmup_retry_signal)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/marketdata/routes_boundaries_test.go:300:TestMarketDataReadErrorsExposeProviderBusyRetrySignal": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_projection.rs::tests::market_data_read_errors_expose_provider_busy_retry_signal",
+    "conclusion": "function_exact：Go 的 akshare 适配器把 AKSHARE_POOL_BUSY/AKSHARE_UPSTREAM_TIMEOUT 归为 ErrProviderBusy，路由返回 503 + Retry-After: 2 + MARKET_DATA_PROVIDER_BUSY。Rust 原先直接透传这两个码；本轮归类到共享投影，且 market_data_read_errors_preserve_unclassified_helper_failures 保证其他 helper 错误不被改写。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_data_read_errors_expose_provider_busy_retry_signal) or test(market_data_read_errors_preserve_unclassified_helper_failures)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/marketdata/routes_boundaries_test.go:314:TestMarketDataReadErrorsRejectInvalidCandleSessions": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::candles_and_search_validation_rules",
+    "conclusion": "function_exact：Go 断言 ErrInvalidCandleSessions 映射为 400 MARKET_CANDLE_SESSIONS_INVALID。Rust 的 candles_and_search_validation_rules 对 sessions=all 与 sessions=（空）两条路径断言 400 + MARKET_CANDLE_SESSIONS_INVALID，并带 go:452dea11 parity 注释；另由 candle_route_rejects_invalid_sessions 覆盖路由前置拒绝，本条使用 assembly 级证据以保持入口唯一。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(candles_and_search_validation_rules)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/marketdata/routes_boundaries_test.go:327:TestBrokerMarketDataReadErrorsPreserveClientActionability": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 broker market-data reader 错误通道",
+    "conclusion": "不适用/边界保留：Go 的 writeBrokerMarketDataReadError 处理 broker.NewSnapshotRateLimitError/ErrSnapshotRateLimited（429 + Retry-After 向上取整）、productfeatures.ErrInvalidQuery（400 MARKET_DATA_QUERY_INVALID）、ErrCapabilityUnavailable（409 BROKER_CAPABILITY_UNAVAILABLE）与 broker.ErrInvalidCandleSessions。Rust 的行情读取所有权在 engine 的 ProductionMarketDataQuotePort，没有 handler 级 broker reader 通道，也没有 1500ms→2 秒向上取整的预算换算入口；其中 409 BROKER_CAPABILITY_UNAVAILABLE 在 microstructure 路由已由 broker-feature 分支覆盖（feature 未注册），其余三段属 Go 装配层边界，记录为不适用。",
+    "command": "pnpm run check:rust -- --print",
+    "evidence_type": "boundary"
   },
   "internal/api/marketdata/routes_boundaries_test.go:387:TestLiveReadRoutesReturnConflictForMissingSubscriptionLease": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote.rs::require_order_book_subscription",
+    "conclusion": "部分覆盖（P1 功能缺口）：Go 在订阅模式下对 snapshots/candles/depth 统一要求逻辑租约，缺失时返回 409 MARKET_DATA_SUBSCRIPTION_REQUIRED，acquire 成功后同一路径恢复 200。Rust 只在 Futu depth 实现了 ORDER_BOOK 租约检查（require_order_book_subscription），快照与 candles 读取不校验 SNAPSHOT/KLINE/TICK 基本租约，因此“缺租约的 snapshot/candles 返回 409”这一行为在 Rust 仍缺失。已记录复现条件：active provider=Futu 且未 acquire SNAPSHOT 时 GET /api/v1/market-data/snapshots/US/AAPL，Go 返回 409、Rust 当前会走缓存/fallback。列为下一批 P1 首项，需在读取 owner 增加基本租约检查并补回归测试。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_microstructure_quote_routes_preserve_provider_error_mapping)'",
+    "evidence_type": "partial"
   },
   "internal/api/marketdata/routes_boundaries_test.go:421:TestPollOnlyReadRoutesPrioritizeCapabilitiesAndPreserveLogicalLeases": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote.rs::read_depth（非 Futu 分支）",
+    "conclusion": "部分覆盖（P1 功能缺口）：Go 对 poll-only provider 先判 capability 再判租约：snapshot 缺租约返回 409 MARKET_DATA_SUBSCRIPTION_REQUIRED，candles tick 与 depth 返回 409 MARKET_DATA_CAPABILITY_UNSUPPORTED，且不消费逻辑租约。Rust 的非 Futu depth 目前返回 503 Unavailable（depth provider is not supported），candles tick 对 helper provider 走 helper 查询或转换失败，均未映射为 409 MARKET_DATA_CAPABILITY_UNSUPPORTED；capability 优先级与 logical lease 保留语义在 Rust 尚未实现。已记录复现条件：active provider=yfinance（poll-only descriptor，仅 snapshots=true）时请求 tick candles 与 depth，Go 返回 409 CAPABILITY_UNSUPPORTED、Rust 当前分别为 502/503 类错误。列为下一批 P1 项，需在读取 owner 增加 capability 门控并补租约保留断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable)'",
+    "evidence_type": "partial"
   },
   "internal/api/marketdata/routes_boundaries_test.go:462:TestSubscriptionRoutesRejectMalformedAndIncompleteRequests": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/market_data_subscription_mutation_compatibility.rs::subscription_mutation_replay_matches_go_fixture_data_errors_and_retry_metadata",
+    "conclusion": "function_exact：Go 的 12 条 malformed/incomplete 订阅请求（acquire 缺 consumer/缺 instruments/全非法 instrument/非法 channel/ORDER_BOOK 带 interval/KLINE 缺 interval、release 非法 JSON/缺 consumer/不完整 target/非法 interval、heartbeat 缺 consumer）要求 400 BAD_REQUEST 并保留各自 detail 文案。Rust 冻结 fixture market-data-subscription-mutation.json 逐条回放同一批用例，断言 status/code/message/retry 元数据与 provider 调用次数，断言集合与 Go 表驱动用例一一对应。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(subscription_mutation_replay_matches_go_fixture_data_errors_and_retry_metadata)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/marketdata/routes_boundaries_test.go:502:TestSubscriptionRequestHelpersPreserveOnlyValidTargets": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_subscription.rs::acquire/release 校验分支",
+    "conclusion": "部分覆盖：Go 直接单测 subscriptionInstruments/subscriptionReleaseTarget 两个 helper 的过滤与返回值三元组。Rust 没有同名 helper，过滤逻辑内联在 ProductionMarketDataSubscriptionMutationPort 的 acquire/release 分支；现有 fixture 回放只覆盖全部非法（acquire-all-instruments-invalid/release-incomplete-target）与合法路径，未针对“部分非法 + 一个合法目标”的混合输入断言仅保留合法项。保留 partial 并列为下一批补测项。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(subscription_mutation_replay_matches_go_fixture_data_errors_and_retry_metadata)'",
+    "evidence_type": "partial"
   },
   "internal/api/marketdata/routes_boundaries_test.go:523:TestSubscriptionHandlersMapCanceledServiceOperations": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --test transport_contracts",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/market_data_subscription_mutation_compatibility.rs::subscription_mutations_map_canceled_context_to_failed",
+    "conclusion": "function_exact：Go 对 get/acquire/release/clear/heartbeat 五条路由在 canceled service context 下统一返回 500 SUBSCRIPTION_FAILED。Rust 新增独立回归测试按 fixture 顺序回放 acquire/release/heartbeat/clear 四条 contextError=canceled 用例，逐条断言 500 + SUBSCRIPTION_FAILED + context canceled。GET 快照路径在 Rust 走只读端口（无 context 参数），属 owner 边界差异，已在结论中标注。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(subscription_mutations_map_canceled_context_to_failed)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/marketdata/routes_boundaries_test.go:555:TestReleaseAndClearMapSnapshotCancellationAfterLogicalCleanup": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/src/demand.rs::partial_release_and_clear_operations",
+    "conclusion": "部分覆盖：Go 断言 release/clear 在逻辑清理完成后因 snapshot 协调器取消而仍返回 500 SUBSCRIPTION_FAILED。Rust 的 DemandBook 负责逻辑清理并已有 partial release/clear 单测，但生产端 release/clear 的“清理后 snapshot 取消失败”映射尚无独立 Rust 测试；fixture 的 *-canceled 用例只覆盖端口直接返回失败，不覆盖清理完成后协调器取消的时序。保留 partial 并列为下一批补测项。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(partial_release_and_clear_operations)'",
+    "evidence_type": "partial"
   },
   "internal/api/marketdata/routes_news_actions_test.go:55:TestNewsAndCorporateActionsRoutesRequireInstrumentURI": {
     "status": "[~]",
