@@ -359,6 +359,18 @@ impl SemanticContext<'_> {
         for argument in arguments {
             self.visit_expr(argument);
         }
+        // Go's public helper guard runs before the generic unsupported-call
+        // diagnostic so a script that calls an internal JFTrade helper gets
+        // the actionable "use Pine v6 ..." replacement instead of a bare
+        // `function not supported` error.
+        if let Some(guard) = public_helper_guard(callee) {
+            self.summary.diagnostics.push(Diagnostic::error(
+                guard.code,
+                guard.message,
+                range.start_line,
+            ));
+            return ValueType::Unknown;
+        }
         if is_visual_call(&lower) {
             self.summary.diagnostics.push(Diagnostic::warning(
                 "PINE_VISUAL_IGNORED",
@@ -556,4 +568,108 @@ fn format_expr_call(callee: &str, arguments: &[Expr]) -> String {
             .collect::<Vec<_>>()
             .join(", ")
     )
+}
+
+/// Stable guard metadata for a JFTrade-only helper that must not appear in a
+/// public Pine v6 script.
+pub(crate) struct PublicHelperGuard {
+    pub code: &'static str,
+    pub message: String,
+}
+
+/// Maps a public helper call to the Go guard diagnostic, mirroring
+/// `pkg/strategy/pine/public_helper_guard.go`.
+pub(crate) fn public_helper_guard(callee: &str) -> Option<PublicHelperGuard> {
+    let lower = callee.trim().to_ascii_lowercase();
+    if let Some(name) = lower.strip_prefix("ta.") {
+        if let Some(replacement) = ta_shortcut_replacement(name) {
+            return Some(PublicHelperGuard {
+                code: "PINE_PUBLIC_TA_SHORTCUT",
+                message: format!(
+                    "ta.{name}() is a JFTrade-only shortcut; use Pine v6 {replacement} instead"
+                ),
+            });
+        }
+    }
+    let replacement = internal_helper_replacement(&lower)?;
+    Some(PublicHelperGuard {
+        code: "PINE_INTERNAL_HELPER_PUBLIC",
+        message: format!(
+            "{lower}() is an internal JFTrade helper; use Pine v6 {replacement} instead"
+        ),
+    })
+}
+
+fn ta_shortcut_replacement(name: &str) -> Option<&'static str> {
+    match name {
+        "adx" => Some("ta.dmi"),
+        _ => None,
+    }
+}
+
+/// The substring of Go's `publicDisabledHelperNames` that the Rust parser can
+/// currently reach; every entry keeps the documented Pine v6 replacement.
+fn internal_helper_replacement(name: &str) -> Option<&'static str> {
+    match name {
+        "alma" => Some("ta.alma"),
+        "anchored_vwap" => Some("ta.vwap(source, timeframe.change(...))"),
+        "atr" => Some("ta.atr"),
+        "bbw" => Some("ta.bbw"),
+        "bollinger" => Some("ta.bb"),
+        "barssince" => Some("ta.barssince"),
+        "cci" => Some("ta.cci"),
+        "change" => Some("ta.change"),
+        "cmo" => Some("ta.cmo"),
+        "cog" => Some("ta.cog"),
+        "correlation" => Some("ta.correlation"),
+        "cum" => Some("ta.cum"),
+        "dev" => Some("ta.dev"),
+        "dmi" => Some("ta.dmi"),
+        "falling" => Some("ta.falling"),
+        "highest" => Some("ta.highest"),
+        "highestbars" => Some("ta.highestbars"),
+        "history" => Some("series[n]"),
+        "ifelse" => Some("condition ? valueWhenTrue : valueWhenFalse"),
+        "kc" => Some("ta.kc"),
+        "kcw" => Some("ta.kcw"),
+        "kdj" => Some("ta.stoch plus Pine smoothing"),
+        "linreg" => Some("ta.linreg"),
+        "lowest" => Some("ta.lowest"),
+        "lowestbars" => Some("ta.lowestbars"),
+        "ma" => Some("ta.sma/ta.ema/ta.rma/ta.wma/ta.hma/ta.vwma"),
+        "macd" => Some("ta.macd"),
+        "median" => Some("ta.median"),
+        "mfi" => Some("ta.mfi"),
+        "mode" => Some("ta.mode"),
+        "mom" => Some("ta.mom"),
+        "notify" => Some("alert"),
+        "obv" => Some("ta.obv"),
+        "percentile_linear_interpolation" => Some("ta.percentile_linear_interpolation"),
+        "percentile_nearest_rank" => Some("ta.percentile_nearest_rank"),
+        "percentrank" => Some("ta.percentrank"),
+        "pivothigh" => Some("ta.pivothigh"),
+        "pivotlow" => Some("ta.pivotlow"),
+        "previous" => Some("series[1]"),
+        "range" => Some("ta.range"),
+        "rising" => Some("ta.rising"),
+        "roc" => Some("ta.roc"),
+        "rsi" => Some("ta.rsi"),
+        "sar" => Some("ta.sar"),
+        "security_source" => Some("request.security"),
+        "stdev" => Some("ta.stdev"),
+        "stoch" => Some("ta.stoch"),
+        "sum" => Some("ta.sum"),
+        "supertrend" => Some("ta.supertrend"),
+        "swma" => Some("ta.swma"),
+        "tr" => Some("ta.tr"),
+        "tsi" => Some("ta.tsi"),
+        "variance" => Some("ta.variance"),
+        "valuewhen" => Some("ta.valuewhen"),
+        "vwap" => Some("ta.vwap"),
+        "williams_r" => Some("ta.wpr"),
+        "williamsr" => Some("ta.wpr"),
+        "cross_over" => Some("ta.crossover"),
+        "cross_under" => Some("ta.crossunder"),
+        _ => None,
+    }
 }

@@ -19,3 +19,33 @@ fallback、catalog activity 空页，以及 catalog runtime 恢复的 2 条生�
 验证命令已逐条写入 `manual-test-mappings.json`，使用 `jftrade-strategy` 和
 `jftrade-engine` 的 nextest wrapper。后续应在所属 runtime/store 领域先补失败
 回归测试，再考虑将两条 partial 升级为 function_exact。
+
+## 批次：Pine public helper guard 功能补齐
+
+本批处理 `pkg/strategy/pine/parse_test.go` 中最关键的一组公共入口保护：
+编译期拒绝 JFTrade 内部 helper，并给出 Pine v6 替换建议。
+
+| Go 测试 | Rust 入口 | 结论 |
+| --- | --- | --- |
+| `parse_test.go:54 TestCompileRejectsPublicInternalHelperCalls` | `jftrade-strategy::pine::public_helper_guard_tests::compile_rejects_public_internal_helper_calls` | `[x]`：`ma/bollinger/cross_over/cross_under/notify` 等调用使编译失败并输出替换建议。 |
+| `parse_test.go:84 TestAnalyzeScriptReportsPublicInternalHelperDiagnostics` | `...::analyze_script_reports_public_internal_helper_diagnostics` | `[x]`：`PINE_INTERNAL_HELPER_PUBLIC` 与 `PINE_PUBLIC_TA_SHORTCUT` 两个稳定诊断码、第 3 行定位、替换文案与 Go 一致。 |
+
+### 发现并修复的真实功能缺失
+
+- 复现：`//@version=6` + `strategy(...)` + `fast = ma(EMA, 14)`。
+- 修复前：Rust `semantic.rs::visit_call` 只报
+  `function "ma" is not supported by the Pine v6 runtime`，没有 Go 的
+  `PINE_INTERNAL_HELPER_PUBLIC` 诊断码，也没有可执行的迁移建议。
+- 预期（Go `public_helper_guard.go`）：内部 helper 报
+  `PINE_INTERNAL_HELPER_PUBLIC`，`ta.adx` 报 `PINE_PUBLIC_TA_SHORTCUT`，
+  消息中包含 `use Pine v6 ...`。
+- 修复位置：`crates/jftrade-strategy/src/pine/semantic.rs` 新增
+  `public_helper_guard`（60 条 Go helper 名单 + `ta.adx` 快捷方式），并在
+  `visit_call` 里先于通用 unsupported 诊断触发。
+- 回归：上述两条测试，以及该 crate 全量 22 项测试。
+
+### 后续
+
+`pkg/strategy/pine/parse_test.go` 剩余 33 项（编译 IR 降级、订单元数据、
+多 bar 历史引用、v12/v13 指标、UDF/静态 for、诊断边界等）继续保持
+`[~]`，将在后续批次逐条核对。

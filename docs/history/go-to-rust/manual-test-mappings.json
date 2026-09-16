@@ -28889,18 +28889,18 @@
     "evidence_type": "missing"
   },
   "pkg/strategy/pine/parse_test.go:54:TestCompileRejectsPublicInternalHelperCalls": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::public_helper_guard_tests::compile_rejects_public_internal_helper_calls",
+    "conclusion": "function_exact：ma/bollinger/cross_over/cross_under/notify 等 JFTrade 内部 helper 调用都会失败编译并给出 Pine v6 替换建议。本轮为 Rust 补齐 Go 的 public helper guard（此前只报 generic “function not supported”）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(public_helper_guard)'"
   },
   "pkg/strategy/pine/parse_test.go:84:TestAnalyzeScriptReportsPublicInternalHelperDiagnostics": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::public_helper_guard_tests::analyze_script_reports_public_internal_helper_diagnostics",
+    "conclusion": "function_exact：ma(...) 报 PINE_INTERNAL_HELPER_PUBLIC + “use Pine v6 ta.sma/ta.ema”，ta.adx(...) 报 PINE_PUBLIC_TA_SHORTCUT + “use Pine v6 ta.dmi”，诊断行号第 3 行，与 Go 断言一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(public_helper_guard)'"
   },
   "pkg/strategy/pine/parse_test.go:113:TestCompileAcceptsNativePineIndicatorPublicEntry": {
     "status": "[~]",

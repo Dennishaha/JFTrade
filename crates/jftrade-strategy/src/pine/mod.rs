@@ -137,3 +137,71 @@ fn has_errors(diagnostics: &[Diagnostic]) -> bool {
         .iter()
         .any(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
 }
+
+#[cfg(test)]
+mod public_helper_guard_tests {
+    use super::*;
+
+    /// Parity: pkg/strategy/pine/parse_test.go:84
+    /// TestAnalyzeScriptReportsPublicInternalHelperDiagnostics
+    ///
+    /// Go reports an error diagnostic with a stable code and the Pine v6
+    /// replacement when a script calls a JFTrade-internal helper or the
+    /// `ta.adx` shortcut. Rust must fail the compile with the same codes
+    /// instead of silently analysing the call.
+    #[test]
+    fn analyze_script_reports_public_internal_helper_diagnostics() {
+        for (line, code, wanted) in [
+            (
+                "fast = ma(EMA, 14)",
+                "PINE_INTERNAL_HELPER_PUBLIC",
+                "ta.sma/ta.ema",
+            ),
+            ("adx = ta.adx(14)", "PINE_PUBLIC_TA_SHORTCUT", "ta.dmi"),
+        ] {
+            let source =
+                format!("//@version=6\nstrategy(\"helper diagnostics\", overlay=true)\n{line}");
+            let analysis = analyze_script(&source, AnalysisOptions::default());
+            assert!(!analysis.ok, "analysis must fail for {line}");
+            let diagnostic = analysis
+                .diagnostics
+                .first()
+                .unwrap_or_else(|| panic!("missing diagnostic for {line}"));
+            assert_eq!(diagnostic.code, code, "code for {line}");
+            assert_eq!(diagnostic.line, 3, "line for {line}");
+            assert!(
+                diagnostic.message.contains(wanted),
+                "message {:?} must mention {wanted}",
+                diagnostic.message
+            );
+        }
+    }
+
+    /// Parity: pkg/strategy/pine/parse_test.go:54
+    /// TestCompileRejectsPublicInternalHelperCalls
+    #[test]
+    fn compile_rejects_public_internal_helper_calls() {
+        for (line, wanted) in [
+            ("fast = ma(EMA, 14)", "ta.sma/ta.ema"),
+            ("band = bollinger(20, 2)", "ta.bb"),
+            ("x = cross_over(fast, slow)", "ta.crossover"),
+            ("x = cross_under(fast, slow)", "ta.crossunder"),
+            ("notify(\"hello\")", "alert"),
+        ] {
+            let source =
+                format!("//@version=6\nstrategy(\"reject helpers\", overlay=true)\n{line}");
+            let compilation = compile(&source);
+            assert!(!compilation.ok, "compile must fail for {line}");
+            let messages = compilation
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.message.clone())
+                .collect::<Vec<_>>()
+                .join(" | ");
+            assert!(
+                messages.contains(wanted),
+                "diagnostics for {line} = {messages:?}, want {wanted}"
+            );
+        }
+    }
+}

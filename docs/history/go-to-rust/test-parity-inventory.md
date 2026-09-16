@@ -4146,8 +4146,8 @@
 | [~] | `go:452dea11:pkg/strategy/pine/parse_semantic_test.go:377`<br>`TestCompileIgnoresVisualCallsWithWarning` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |  | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)' |
 | [~] | `go:452dea11:pkg/strategy/pine/parse_semantic_test.go:401`<br>`TestAnalyzeScriptReturnsVisualMetadata` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |  | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)' |
 | [~] | `go:452dea11:pkg/strategy/pine/parse_test.go:10`<br>`TestParseScriptLowersPineStrategyToIR` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |  | 待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验 | node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(native_pipeline_parses_lowers_and_plans_strategy_requirements)' |
-| [~] | `go:452dea11:pkg/strategy/pine/parse_test.go:54`<br>`TestCompileRejectsPublicInternalHelperCalls` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |  | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)' |
-| [~] | `go:452dea11:pkg/strategy/pine/parse_test.go:84`<br>`TestAnalyzeScriptReportsPublicInternalHelperDiagnostics` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |  | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)' |
+| [x] | `go:452dea11:pkg/strategy/pine/parse_test.go:54`<br>`TestCompileRejectsPublicInternalHelperCalls` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` | crates/jftrade-strategy/src/pine/mod.rs::public_helper_guard_tests::compile_rejects_public_internal_helper_calls | function_exact：ma/bollinger/cross_over/cross_under/notify 等 JFTrade 内部 helper 调用都会失败编译并给出 Pine v6 替换建议。本轮为 Rust 补齐 Go 的 public helper guard（此前只报 generic “function not supported”）。 | node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(public_helper_guard)' |
+| [x] | `go:452dea11:pkg/strategy/pine/parse_test.go:84`<br>`TestAnalyzeScriptReportsPublicInternalHelperDiagnostics` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` | crates/jftrade-strategy/src/pine/mod.rs::public_helper_guard_tests::analyze_script_reports_public_internal_helper_diagnostics | function_exact：ma(...) 报 PINE_INTERNAL_HELPER_PUBLIC + “use Pine v6 ta.sma/ta.ema”，ta.adx(...) 报 PINE_PUBLIC_TA_SHORTCUT + “use Pine v6 ta.dmi”，诊断行号第 3 行，与 Go 断言一致。 | node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(public_helper_guard)' |
 | [~] | `go:452dea11:pkg/strategy/pine/parse_test.go:113`<br>`TestCompileAcceptsNativePineIndicatorPublicEntry` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |  | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)' |
 | [~] | `go:452dea11:pkg/strategy/pine/parse_test.go:126`<br>`TestCompileUsesStrategyDefaultQuantityForEntryWithoutQty` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |  | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)' |
 | [~] | `go:452dea11:pkg/strategy/pine/parse_test.go:145`<br>`TestCompileParsesBacktestStrategyMetadata` | strategy_pine | 普通边界 | `crates/jftrade-strategy, crates/jftrade-integration-pine` |  | 待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论 | node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)' |
@@ -4478,8 +4478,8 @@
 | evidence_type | 数量 |
 |---|---:|
 | `boundary` | 126 |
-| `function_exact` | 173 |
-| `missing` | 4031 |
+| `function_exact` | 175 |
+| `missing` | 4029 |
 | `partial` | 121 |
 
 > `partial` 真实入口条目：121；`missing` 中仍带候选入口的条目：1；均不构成完整行为等价。
