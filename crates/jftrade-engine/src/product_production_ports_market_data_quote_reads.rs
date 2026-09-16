@@ -553,8 +553,21 @@ impl ProductionMarketDataQuotePort {
             // projection must not claim every candle is `regular`.
             let annotate_session = market.eq_ignore_ascii_case("US")
                 && is_intraday_candle_period(period);
-            let futu_result =
-                runtime.historical_klines_window(&jftrade_integration_futu::HistoricalKlineQuery {
+            // US intraday history must fan out across OpenD session routes
+            // (RTH/ETH/ALL) so extended and overnight bars are actually
+            // returned; daily/non-US windows stay on the unsegmented plan.
+            let route_sessions = crate::product::kline_route_sessions(
+                &market,
+                period,
+                &sessions,
+            );
+            let route_plans = jftrade_integration_futu::build_request_plans(
+                &format!("{market}.{symbol}"),
+                jftrade_integration_futu::period_duration_seconds(period),
+                route_sessions.as_deref(),
+            );
+            let futu_result = runtime.historical_klines_window_routed(
+                &jftrade_integration_futu::HistoricalKlineQuery {
                     market: market_code,
                     symbol: symbol.clone(),
                     period: period.to_owned(),
@@ -565,7 +578,12 @@ impl ProductionMarketDataQuotePort {
                     next_req_key: Vec::new(),
                     extended_time: Some(extended_hours),
                     session: None,
-                });
+                },
+                &route_plans,
+                |plan, page| {
+                    filter_routed_page(plan, page, self.calendar.as_deref(), &market);
+                },
+            );
             let mut result = match futu_result {
                 Ok(res) if !res.klines.is_empty() => res,
                 other => {
@@ -774,3 +792,5 @@ impl ProductionMarketDataQuotePort {
         ))
     }
 }
+
+include!("product_route_session_helper.rs");

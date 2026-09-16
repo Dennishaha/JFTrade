@@ -10,6 +10,7 @@ mod frame;
 mod future_info_query;
 mod health;
 mod history;
+mod history_session_plan;
 mod instrument_search_query;
 pub mod kline_query;
 mod managed_session;
@@ -96,6 +97,11 @@ pub use health::{
 pub use history::{
     HistoricalKline, HistoricalKlineError, HistoricalKlineQuery, HistoricalKlineReadPort,
     HistoricalKlineResult, HistoricalSecurity, OpenDHistoricalKlineReader,
+};
+pub use history_session_plan::{
+    HistoricalKlineRequestPlan, HistoricalKlineRouteError, MarketSession, SESSION_ALL, SESSION_ETH,
+    SESSION_OVERNIGHT, SESSION_RTH, build_request_plans, should_fallback_to_all,
+    should_split_historical_kline_requests,
 };
 pub use instrument_search_query::{
     InstrumentSearchEntry, InstrumentSearchError, InstrumentSearchReadPort,

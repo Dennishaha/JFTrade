@@ -202,3 +202,56 @@ python3 scripts/compatibility/audit_test_parity.py
 `pkg/futu/opend/new_methods_test.go` 尚有 20 项、`pkg/futu/exchange_test.go`
 尚有 23 项、`pkg/futu/adapter_new_methods_test.go` 22 项、
 `pkg/futu/exchange_kline_test.go` 16 项保持 `[~]`，将在后续批次逐条处理。
+
+## 批次：US 历史 K 线会话路由（RTH/ETH/ALL）
+
+| Go 测试 | Rust 证据入口 | 状态 |
+| --- | --- | --- |
+| `pkg/futu/exchange_kline_test.go:50 TestQueryKLinesSplitsUSHistoricalRequestsBySessionAndMergesResults` | `jftrade-engine::product::tests::...::us_intraday_history_fans_out_across_opend_session_routes` | `[x]`：RTH/ETH/ALL 三路由扇出 + 重复 bucket 由更具体路由覆盖。 |
+| `pkg/futu/exchange_kline_test.go:106 TestQueryKLinesForSessionsFiltersUSHistoricalRoutes` | `...::us_regular_only_history_uses_a_single_rth_route` | `[x]`：regular-only 只发 RTH。 |
+| `pkg/futu/exchange_kline_test.go:131 TestHistoricalKLineSessionHelpersFilterAndPlanExplicitSelections` | `jftrade-integration-futu::history_session_plan::tests::session_planner_selects_explicit_routes_and_keep_sets` | `[x]`：pre-only → 单条 ETH，keepSessions 对齐。 |
+| `pkg/futu/exchange_kline_test.go:178 TestResolveHistoricalRequestSessionUsesRouteForRTHAndOvernight` | `jftrade-integration-futu::history_session_plan::tests::routed_sessions_override_the_clock_classification` | `[x]`：路由强制 regular/overnight。 |
+| `pkg/futu/exchange_kline_test.go:192 TestQueryKLinesFallsBackToSessionAllWhenHistoricalRouteUnsupported` | `...::us_history_falls_back_to_session_all_when_a_route_is_rejected` | `[x]`：ETH 被拒后回退 Session_ALL 并返回完整窗口。 |
+| `pkg/futu/exchange_kline_test.go:228 TestShouldFallbackHistoricalKLineSplitRecognizesChineseSupportedSessionsMessage` | `jftrade-integration-futu::history_session_plan::tests::chinese_supported_session_message_triggers_the_all_fallback` | `[x]`：中文会话提示触发回退（含负例）。 |
+| `pkg/futu/exchange_kline_test.go:17 TestQueryTickersBatchesBasicQotRequests` | `jftrade-integration-futu::history_session_plan::tests::non_us_and_daily_requests_stay_unsegmented` | `[~]`/partial：仅覆盖分段前提，批量报价合并由 `basic_quote_query` 承担。 |
+
+验证命令：
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(history_session_plan)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(us_intraday_history_fans_out_across_opend_session_routes)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(us_regular_only_history_uses_a_single_rth_route)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(us_history_falls_back_to_session_all_when_a_route_is_rejected)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked
+```
+
+### 发现并修复的真实功能差异
+
+- 复现：`GET /api/v1/market-data/candles/US/AAPL?period=1m`（无 `sessions` 参数）。
+  修复前：Rust 只发一次未分段的 `Qot_RequestHistoryKL`，US 盘前/盘后/隔夜 bar 拿不到，
+  也没有 `Session_ALL` 回退路径。
+  预期（Go `pkg/futu/exchange_kline.go::queryHistoricalKLinesAcrossPlans`）：US 小时级及以下窗口
+  按 RTH→ETH→ALL 扇出，合并去重后由调用方按请求会话过滤；单条路由被 OpenD 以
+  “不支持/无效/仅支持”类消息拒绝时整体回退到 `Session_ALL`。
+- 修复位置：
+  - `crates/jftrade-integration-futu/src/history_session_plan.rs`（新增）：
+    `MarketSession`、`HistoricalKlineRequestPlan`、`build_request_plans`、
+    `should_fallback_to_all`、`HistoricalKlineRouteError`。
+  - `crates/jftrade-engine/src/product_trade_runtime_candles.rs`：
+    `historical_klines_window_routed` 执行多路由扇出、按路由 keep-session 过滤与回退。
+  - `crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs`：
+    Futu 历史读取改为调用路由版本，keep-filter 使用 `jftrade-calendar` 的
+    `classify_session`（DST/假日/隔夜由日历拥有），日历缺失或无法分类时不静默丢 bar。
+  - `crates/jftrade-engine/src/product_wire_helpers.rs`：
+    `kline_route_sessions` 把 API `sessions` 值（regular/extended/pre/after/overnight）
+    映射到路由集合，缺省即全会话。
+
+### 边界与未迁移项
+
+- 本次未改动非 US 市场、日线及以上窗口的行为（保持 unsegmented），
+  与非 US/日线相关的既有测试全部通过。
+- `pkg/futu/exchange_kline_test.go` 其余项（ticker 批量、日内标签归一化、
+  9 页以上分页、扩大页大小、当前未闭合 bucket 合并、stream 重建）仍在清单中待办。
+- 已知 flake：`jftrade-integration-futu` 的
+  `health::tests::tcp_probe_reports_protocol_outcomes_without_a_real_opend`
+  在基线工作树同样失败（本地端口竞争），与本批改动无关，定向重跑通过。

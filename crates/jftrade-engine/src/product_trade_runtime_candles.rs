@@ -219,4 +219,76 @@ impl super::SharedTradeReadRuntime {
             .ok_or_else(|| "Futu historical klines runtime is unavailable".to_owned())?;
         reader.query_window(query).map_err(|error| error.to_string())
     }
+
+    /// US-aware history read: fans the window out across OpenD session routes
+    /// and merges the results, falling back to `Session_ALL` when the server
+    /// rejects an individual route.
+    ///
+    /// Parity: `pkg/futu/exchange_kline.go::queryHistoricalKLinesAcrossPlans`.
+    pub(crate) fn historical_klines_window_routed<F>(
+        &self,
+        query: &jftrade_integration_futu::HistoricalKlineQuery,
+        plans: &[jftrade_integration_futu::HistoricalKlineRequestPlan],
+        mut keep_route_candles: F,
+    ) -> Result<HistoricalKlineResult, String>
+    where
+        F: FnMut(
+            &jftrade_integration_futu::HistoricalKlineRequestPlan,
+            &mut HistoricalKlineResult,
+        ),
+    {
+        if plans.len() <= 1 && plans.first().is_none_or(|plan| plan.session.is_none()) {
+            return self.historical_klines_window(query);
+        }
+        let mut merged: Option<HistoricalKlineResult> = None;
+        for plan in plans {
+            let mut routed = query.clone();
+            routed.extended_time = Some(plan.extended_time);
+            routed.session = plan.session;
+            match self.historical_klines_window(&routed) {
+                Ok(mut result) => {
+                    // A routed plan keeps only the market sessions it owns so
+                    // the broad `Session_ALL` route cannot overwrite the more
+                    // specific RTH/ETH candles with its duplicates.
+                    keep_route_candles(plan, &mut result);
+                    merged = Some(match merged {
+                        Some(existing) => merge_routed_history(existing, result),
+                        None => result,
+                    });
+                }
+                Err(error) => {
+                    let route_error = jftrade_integration_futu::HistoricalKlineRouteError {
+                        session: plan.session,
+                        ret_type: 1,
+                        err_code: 0,
+                        ret_msg: error.clone(),
+                    };
+                    if !jftrade_integration_futu::should_fallback_to_all(plan, &route_error) {
+                        return Err(error);
+                    }
+                    let all = jftrade_integration_futu::HistoricalKlineRequestPlan::all(
+                        plan.keep_sessions.clone(),
+                    );
+                    let mut request = query.clone();
+                    request.extended_time = Some(all.extended_time);
+                    request.session = all.session;
+                    return self.historical_klines_window(&request);
+                }
+            }
+        }
+        merged.ok_or_else(|| "Futu historical klines runtime is unavailable".to_owned())
+    }
+}
+
+/// Merges two routed pages, keeping the last writer for a duplicate bucket so
+/// the later (more specific) route wins, mirroring Go's map assignment order.
+fn merge_routed_history(
+    mut existing: HistoricalKlineResult,
+    page: HistoricalKlineResult,
+) -> HistoricalKlineResult {
+    existing.name = existing.name.or(page.name);
+    existing.klines =
+        jftrade_integration_futu::merge_klines_by_time(&existing.klines, &page.klines);
+    existing.next_req_key = page.next_req_key;
+    existing
 }

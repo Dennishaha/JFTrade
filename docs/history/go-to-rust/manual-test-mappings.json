@@ -15982,31 +15982,31 @@
   },
   "pkg/futu/exchange_kline_test.go:17:TestQueryTickersBatchesBasicQotRequests": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "evidence_type": "partial",
+    "rust_entry": "crates/jftrade-integration-futu/src/history_session_plan.rs::tests::non_us_and_daily_requests_stay_unsegmented",
+    "conclusion": "partial：本批只覆盖该测试用作前提的分段规则（HK 与非日线以上窗口保持 unsegmented）；批量 GetBasicQot 合并在 Rust 侧由 basic_quote_query 承担，未在本批断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(history_session_plan)'"
   },
   "pkg/futu/exchange_kline_test.go:50:TestQueryKLinesSplitsUSHistoricalRequestsBySessionAndMergesResults": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::us_intraday_history_fans_out_across_opend_session_routes",
+    "conclusion": "function_exact：US 日线以下窗口按 RTH→ETH→ALL 三条路由扇出（请求 session 顺序断言一致），重复 bucket 由更具体的路由覆盖（ETH 100 / RTH 110 覆盖 ALL 的 95/105）。规划逻辑在 crates/jftrade-integration-futu/src/history_session_plan.rs::build_request_plans。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(us_intraday_history_fans_out_across_opend_session_routes)'"
   },
   "pkg/futu/exchange_kline_test.go:106:TestQueryKLinesForSessionsFiltersUSHistoricalRoutes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::us_regular_only_history_uses_a_single_rth_route",
+    "conclusion": "function_exact：sessions=regular 只发起一条 RTH 路由并只保留 regular bar（1 条 candle）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(us_regular_only_history_uses_a_single_rth_route)'"
   },
   "pkg/futu/exchange_kline_test.go:131:TestHistoricalKLineSessionHelpersFilterAndPlanExplicitSelections": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/history_session_plan.rs::tests::session_planner_selects_explicit_routes_and_keep_sets",
+    "conclusion": "function_exact：pre-only 选择产出单条 ETH 计划且 keepSessions=[Pre]；Session_ALL fallback 的 keepSessions=[Overnight] 与 Go 一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(history_session_plan)'"
   },
   "pkg/futu/exchange_kline_test.go:150:TestQueryKLinesForSessionsFiltersCurrentUSBucket": {
     "status": "[~]",
@@ -16016,25 +16016,25 @@
     "evidence_type": "missing"
   },
   "pkg/futu/exchange_kline_test.go:178:TestResolveHistoricalRequestSessionUsesRouteForRTHAndOvernight": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/history_session_plan.rs::tests::routed_sessions_override_the_clock_classification",
+    "conclusion": "function_exact：RTH 路由强制 regular、OVERNIGHT 路由强制 overnight，且 keep-filter 丢弃不属于该路由的 pre bar。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(history_session_plan)'"
   },
   "pkg/futu/exchange_kline_test.go:192:TestQueryKLinesFallsBackToSessionAllWhenHistoricalRouteUnsupported": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::us_history_falls_back_to_session_all_when_a_route_is_rejected",
+    "conclusion": "function_exact：ETH 路由被 OpenD 以“时段仅支持设置 RTH，ETH，ALL”拒绝后，请求序列为 RTH→ETH→ALL 且 fallback 页返回三条完整窗口 candle。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(us_history_falls_back_to_session_all_when_a_route_is_rejected)'"
   },
   "pkg/futu/exchange_kline_test.go:228:TestShouldFallbackHistoricalKLineSplitRecognizesChineseSupportedSessionsMessage": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/history_session_plan.rs::tests::chinese_supported_session_message_triggers_the_all_fallback",
+    "conclusion": "function_exact：中文“获取历史K线的时段仅支持设置 RTH，ETH，ALL”触发 Session_ALL fallback；另有同路由/异路由与无关消息的负例。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(history_session_plan)'"
   },
   "pkg/futu/exchange_kline_test.go:241:TestQueryKLinesNormalizesIntradayHistoryLabelToBucketStart": {
     "status": "[~]",

@@ -234,6 +234,232 @@ async fn candle_route_excludes_before_boundary_and_can_continue_loading_older_pa
     assert_eq!(reader.current_calls.load(Ordering::SeqCst), 0);
 }
 
+/// Session-routed history reader for US intraday windows.
+#[derive(Debug, Default)]
+struct RoutedHistory {
+    requests: Mutex<Vec<HistoricalKlineQuery>>,
+    /// Per-route candles keyed by the OpenD session value.
+    by_session: std::collections::BTreeMap<i32, Vec<HistoricalKline>>,
+    /// Routes answering with an unsupported-sessions rejection.
+    reject_sessions: Vec<i32>,
+    current_calls: AtomicUsize,
+}
+
+impl HistoricalKlineReadPort for RoutedHistory {
+    fn query(
+        &self,
+        query: &HistoricalKlineQuery,
+    ) -> Result<HistoricalKlineResult, HistoricalKlineError> {
+        self.requests.lock().unwrap().push(query.clone());
+        let session = query.session.unwrap_or_default();
+        if self.reject_sessions.contains(&session) {
+            return Err(HistoricalKlineError::Rejected {
+                ret_type: 1,
+                err_code: 0,
+                message: "获取历史K线的时段仅支持设置 RTH，ETH，ALL".to_owned(),
+            });
+        }
+        Ok(HistoricalKlineResult {
+            security: HistoricalSecurity {
+                market: 11,
+                code: "AAPL".into(),
+            },
+            name: Some("Apple".into()),
+            klines: self.by_session.get(&session).cloned().unwrap_or_default(),
+            next_req_key: Vec::new(),
+        })
+    }
+
+    fn query_current(
+        &self,
+        _: &CurrentKlineQuery,
+    ) -> Result<CurrentKlineResult, CurrentKlineError> {
+        self.current_calls.fetch_add(1, Ordering::SeqCst);
+        Ok(CurrentKlineResult::default())
+    }
+}
+
+fn us_candle(time: &str, open: f64) -> HistoricalKline {
+    HistoricalKline {
+        time: time.to_owned(),
+        is_blank: false,
+        high_price: Some(open),
+        open_price: Some(open),
+        low_price: Some(open),
+        close_price: Some(open),
+        volume: Some(10),
+        turnover: None,
+        change_rate: None,
+    }
+}
+
+fn routed_port(
+    reader: Arc<RoutedHistory>,
+    calendar: Arc<jftrade_calendar::CalendarManager>,
+) -> ProductionMarketDataQuotePort {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_historical_klines(Some(reader));
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    ProductionMarketDataQuotePort::new(state, None, None, None)
+        .with_trade_runtime(Some(runtime))
+        .with_calendar(calendar)
+}
+
+fn default_calendar() -> Arc<jftrade_calendar::CalendarManager> {
+    Arc::new(
+        jftrade_calendar::CalendarManager::new(
+            jftrade_calendar::CalendarSourceRegistry::default(),
+            None,
+            jftrade_calendar::CalendarManagerSettings::default(),
+        )
+        .expect("calendar manager"),
+    )
+}
+
+/// Parity: pkg/futu/exchange_kline_test.go:50
+/// TestQueryKLinesSplitsUSHistoricalRequestsBySessionAndMergesResults
+///
+/// A US intraday history read without an explicit `sessions` parameter must
+/// fan out across the RTH/ETH/ALL OpenD routes and merge the returned bars.
+#[tokio::test]
+async fn us_intraday_history_fans_out_across_opend_session_routes() {
+    use jftrade_integration_futu::{SESSION_ALL, SESSION_ETH, SESSION_RTH};
+    // Fixture times are exchange-local (America/New_York): 06:00 ET is a
+    // pre-market bar, 11:30 ET is regular, and 22:00 ET is the overnight
+    // carry that the broad `Session_ALL` route also returns as a duplicate.
+    let reader = Arc::new(RoutedHistory {
+        by_session: [
+            (SESSION_RTH, vec![us_candle("2026-05-20 11:30:00", 110.0)]),
+            (SESSION_ETH, vec![us_candle("2026-05-20 06:00:00", 100.0)]),
+            (
+                SESSION_ALL,
+                vec![
+                    us_candle("2026-05-19 22:00:00", 90.0),
+                    us_candle("2026-05-20 06:00:00", 95.0),
+                    us_candle("2026-05-20 11:30:00", 105.0),
+                ],
+            ),
+        ]
+        .into_iter()
+        .collect(),
+        ..RoutedHistory::default()
+    });
+    let result = routed_port(reader.clone(), default_calendar())
+        .read(
+            "/api/v1/market-data/candles/US/AAPL",
+            "period=1m&limit=10&from=2026-05-20T08:00:00Z&to=2026-05-20T16:00:00Z",
+        )
+        .await
+        .expect("US intraday routed candles");
+    let routes = reader
+        .requests
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|request| request.session)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        routes,
+        vec![Some(SESSION_RTH), Some(SESSION_ETH), Some(SESSION_ALL)]
+    );
+    let candles = result["candles"].as_array().expect("candles");
+    // Duplicate buckets resolve to the more specific route's candle.
+    let by_at: std::collections::BTreeMap<&str, f64> = candles
+        .iter()
+        .filter_map(|candle| {
+            Some((
+                candle.get("at")?.as_str()?,
+                candle.get("open")?.as_str()?.parse().ok()?,
+            ))
+        })
+        .collect();
+    assert_eq!(by_at.get("2026-05-20T10:00:00Z"), Some(&100.0));
+    assert_eq!(by_at.get("2026-05-20T15:30:00Z"), Some(&110.0));
+    assert_eq!(by_at.get("2026-05-20T02:00:00Z"), Some(&90.0));
+    assert_eq!(candles.len(), 3, "one bar per routed session: {result}");
+}
+
+/// Parity: pkg/futu/exchange_kline_test.go:106
+/// TestQueryKLinesForSessionsFiltersUSHistoricalRoutes
+#[tokio::test]
+async fn us_regular_only_history_uses_a_single_rth_route() {
+    use jftrade_integration_futu::{SESSION_ALL, SESSION_ETH, SESSION_RTH};
+    let reader = Arc::new(RoutedHistory {
+        by_session: [
+            (SESSION_RTH, vec![us_candle("2026-05-20 11:30:00", 110.0)]),
+            (SESSION_ETH, vec![us_candle("2026-05-20 06:00:00", 100.0)]),
+            (SESSION_ALL, vec![us_candle("2026-05-19 22:00:00", 90.0)]),
+        ]
+        .into_iter()
+        .collect(),
+        ..RoutedHistory::default()
+    });
+    let result = routed_port(reader.clone(), default_calendar())
+        .read(
+            "/api/v1/market-data/candles/US/AAPL",
+            "period=1m&limit=10&sessions=regular&from=2026-05-20T00:00:00Z&to=2026-05-21T00:00:00Z",
+        )
+        .await
+        .expect("regular-only candles");
+    let routes = reader
+        .requests
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|request| request.session)
+        .collect::<Vec<_>>();
+    assert_eq!(routes, vec![Some(SESSION_RTH)]);
+    let candles = result["candles"].as_array().expect("candles");
+    assert_eq!(candles.len(), 1);
+    assert_eq!(candles[0]["at"], "2026-05-20T15:30:00Z");
+}
+
+/// Parity: pkg/futu/exchange_kline_test.go:192
+/// TestQueryKLinesFallsBackToSessionAllWhenHistoricalRouteUnsupported
+#[tokio::test]
+async fn us_history_falls_back_to_session_all_when_a_route_is_rejected() {
+    use jftrade_integration_futu::{SESSION_ALL, SESSION_ETH, SESSION_RTH};
+    let reader = Arc::new(RoutedHistory {
+        by_session: [
+            (SESSION_RTH, vec![us_candle("2026-05-20 11:30:00", 110.0)]),
+            (
+                SESSION_ALL,
+                vec![
+                    us_candle("2026-05-19 22:00:00", 90.0),
+                    us_candle("2026-05-20 06:00:00", 100.0),
+                    us_candle("2026-05-20 11:30:00", 110.0),
+                ],
+            ),
+        ]
+        .into_iter()
+        .collect(),
+        reject_sessions: vec![SESSION_ETH],
+        ..RoutedHistory::default()
+    });
+    let result = routed_port(reader.clone(), default_calendar())
+        .read(
+            "/api/v1/market-data/candles/US/AAPL",
+            "period=1m&limit=10&from=2026-05-20T08:00:00Z&to=2026-05-20T16:00:00Z",
+        )
+        .await
+        .expect("fallback Session_ALL candles");
+    let routes = reader
+        .requests
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|request| request.session)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        routes,
+        vec![Some(SESSION_RTH), Some(SESSION_ETH), Some(SESSION_ALL)]
+    );
+    let candles = result["candles"].as_array().expect("candles");
+    assert_eq!(candles.len(), 3, "fallback ALL route must serve the window");
+}
+
 fn port_with_calendar(
     reader: Arc<PagedHistory>,
     calendar: Arc<jftrade_calendar::CalendarManager>,
