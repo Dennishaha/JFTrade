@@ -157,7 +157,7 @@ pub(crate) fn query_futu_runtime(
     project_futu_screen_result(page, request)
 }
 
-fn map_futu_screen_error(
+pub(super) fn map_futu_screen_error(
     error: jftrade_integration_futu::StockScreenQueryError,
 ) -> ResearchScreenWritePortError {
     use jftrade_integration_futu::StockScreenQueryError;
@@ -434,7 +434,7 @@ fn futu_cell(
     cell
 }
 
-fn futu_quote_currency(market: &str, symbol: &str, name: &str) -> Option<&'static str> {
+pub(super) fn futu_quote_currency(market: &str, symbol: &str, name: &str) -> Option<&'static str> {
     let market = market.trim().to_ascii_uppercase();
     let symbol = symbol.trim().to_ascii_uppercase();
     let name = name.trim().to_ascii_uppercase();

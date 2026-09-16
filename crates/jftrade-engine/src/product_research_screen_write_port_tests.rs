@@ -114,3 +114,58 @@ fn futu_interval_factor_rejects_non_catalog_operator_before_provider_call() {
         .as_str()
         .is_some_and(|message| message.contains("operator")));
 }
+
+/// A port that fails loudly: stable-key/market validation must reject the
+/// request before the provider port is ever consulted.
+#[derive(Debug)]
+struct UnreachablePort;
+
+impl ResearchScreenWritePort for UnreachablePort {
+    fn query(
+        &self,
+        _request: &ResearchScreenWriteQuery,
+    ) -> Result<Value, ResearchScreenWritePortError> {
+        panic!("provider port must not be called for an invalid definition")
+    }
+}
+
+#[test]
+fn research_screen_definition_rejects_unsupported_market_and_stable_keys() {
+    for (body, expected) in [
+        (
+            r#"{"brokerId":"futu","market":"SG","catalogVersion":"futu-stock-screen-v1","querySchemaVersion":2}"#,
+            "market",
+        ),
+        (
+            r#"{"brokerId":"futu","market":"HK","catalogVersion":"futu-stock-screen-v1","querySchemaVersion":2,"conditions":[{"factor":{"instanceId":"missing","factorKey":"missing.factor"},"operator":"between","value":1}]}"#,
+            "missing.factor",
+        ),
+        (
+            r#"{"brokerId":"futu","market":"HK","catalogVersion":"futu-stock-screen-v1","querySchemaVersion":2,"columns":[{"columnId":"x","factor":{"instanceId":"x","factorKey":"not.a.factor"}}]}"#,
+            "not.a.factor",
+        ),
+        (
+            r#"{"brokerId":"futu","market":"HK","catalogVersion":"futu-stock-screen-v1","querySchemaVersion":2,"sorts":[{"factor":{"factorKey":"simple.price"},"direction":"sideways"}]}"#,
+            "direction",
+        ),
+        (
+            r#"{"brokerId":"api-test","market":"US","catalogVersion":"futu-stock-screen-v1","querySchemaVersion":2,"page":{"limit":101}}"#,
+            "page.limit",
+        ),
+    ] {
+        let response = dispatch_research_screen_write(
+            &ResearchScreenWriteRequest {
+                method: "POST".to_owned(),
+                path: RESEARCH_SCREEN_PATH.to_owned(),
+                body: Some(body.as_bytes().to_vec()),
+            },
+            Some(&UnreachablePort),
+            "fixture-time",
+        );
+        assert_eq!(response.status, 400, "{body}");
+        let message = response.body["error"]["message"]
+            .as_str()
+            .unwrap_or_default();
+        assert!(message.contains(expected), "{body} -> {message}");
+    }
+}

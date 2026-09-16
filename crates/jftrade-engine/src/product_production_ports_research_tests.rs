@@ -162,6 +162,286 @@ fn futu_stock_screen_projects_exact_mainland_rows_and_omits_combined_total() {
 }
 
 #[test]
+fn futu_stock_screen_selects_parameterized_columns_and_derives_counter_currency() {
+    use jftrade_integration_futu::{
+        StockScreenProperty, StockScreenPropertyParams, StockScreenResult, StockScreenSecurity,
+        StockScreenValue,
+    };
+
+    fn row(
+        stock_id: u64,
+        market: &str,
+        code: &str,
+        name: &str,
+        indicator_params: Vec<i64>,
+        price: f64,
+    ) -> jftrade_integration_futu::StockScreenItem {
+        jftrade_integration_futu::StockScreenItem {
+            stock_id,
+            security: Some(StockScreenSecurity {
+                market: market.to_owned(),
+                code: code.to_owned(),
+                instrument_id: format!("{market}.{code}"),
+            }),
+            results: vec![
+                StockScreenResult {
+                    factor_key: "basic.name".to_owned(),
+                    property: StockScreenProperty {
+                        category: "basic".to_owned(),
+                        provider_id: 1102,
+                        factor_key: "basic.name".to_owned(),
+                        params: StockScreenPropertyParams::default(),
+                    },
+                    value: StockScreenValue::String {
+                        value: name.to_owned(),
+                    },
+                    enum_type_name: None,
+                    enum_name: None,
+                    end_time: None,
+                },
+                StockScreenResult {
+                    factor_key: "indicator.ma".to_owned(),
+                    property: StockScreenProperty {
+                        category: "indicator".to_owned(),
+                        provider_id: 18,
+                        factor_key: "indicator.ma".to_owned(),
+                        params: StockScreenPropertyParams {
+                            period: Some(11),
+                            indicator_params,
+                            ..Default::default()
+                        },
+                    },
+                    value: StockScreenValue::Number { value: price },
+                    enum_type_name: None,
+                    enum_name: None,
+                    end_time: None,
+                },
+            ],
+        }
+    }
+
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, true);
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_stock_screen_reader(Some(Arc::new(FutuScreenFixture {
+        page: jftrade_integration_futu::StockScreenPage {
+            last_page: false,
+            all_count: Some(2),
+            items: vec![
+                row(1, "HK", "80700", "腾讯控股-R", vec![20], 180.0),
+                row(2, "HK", "00700", "腾讯控股", vec![60], 170.0),
+            ],
+        },
+    })));
+    let request = ResearchScreenWriteQuery {
+        broker_id: "futu".to_owned(),
+        account_id: String::new(),
+        trading_environment: String::new(),
+        market: "HK".to_owned(),
+        offset: 0,
+        limit: 10,
+        definition: json!({
+            "catalogVersion": "futu-stock-screen-v1",
+            "querySchemaVersion": 2,
+            "market": "HK",
+            "pool": {},
+            "conditions": [],
+            "columns": [
+                {"columnId": "ma20-column", "factor": {"instanceId": "ma20", "factorKey": "indicator.ma", "params": {"period": 11, "indicatorParams": [20]}}},
+                {"columnId": "ma60-column", "factor": {"instanceId": "ma60", "factorKey": "indicator.ma", "params": {"period": 11, "indicatorParams": [60]}}}
+            ],
+            "sorts": []
+        }),
+        columns: vec![
+            ResearchScreenColumn {
+                column_id: "ma20-column".to_owned(),
+                instance_id: "ma20".to_owned(),
+                factor_key: "indicator.ma".to_owned(),
+                label: String::new(),
+                unit: String::new(),
+            },
+            ResearchScreenColumn {
+                column_id: "ma60-column".to_owned(),
+                instance_id: "ma60".to_owned(),
+                factor_key: "indicator.ma".to_owned(),
+                label: String::new(),
+                unit: String::new(),
+            },
+        ],
+    };
+    let value = port_query_futu_screen(&state, &runtime, &request);
+    // Parameterized columns must bind to the row result whose provider params
+    // match the requested instance, not to the first same-key result.
+    assert_eq!(
+        value["entries"][0]["cells"]["ma20-column"]["value"]["number"],
+        180.0
+    );
+    assert_eq!(
+        value["entries"][0]["cells"]["ma20-column"]["instanceId"],
+        "ma20"
+    );
+    assert_eq!(
+        value["entries"][1]["cells"]["ma60-column"]["value"]["number"],
+        170.0
+    );
+    // HK RMB counters report CNY, plain HKD counters stay HKD.
+    assert_eq!(value["entries"][0]["quoteCurrency"], "CNY");
+    assert_eq!(value["entries"][1]["quoteCurrency"], "HKD");
+}
+
+fn port_query_futu_screen(
+    state: &Arc<ActiveProviderState>,
+    runtime: &Arc<SharedTradeReadRuntime>,
+    request: &ResearchScreenWriteQuery,
+) -> Value {
+    let port = ProductionResearchScreenHelperPort {
+        active_provider_state: Arc::clone(state),
+        helper: None,
+        trade_runtime: Some(Arc::clone(runtime)),
+    };
+    port.query(request).expect("Futu stock screen")
+}
+
+#[test]
+fn futu_stock_screen_filters_exact_mainland_markets_and_maps_rate_limit() {
+    use jftrade_integration_futu::{
+        StockScreenProperty, StockScreenPropertyParams, StockScreenResult, StockScreenSecurity,
+        StockScreenValue,
+    };
+
+    fn plain_row(
+        stock_id: u64,
+        market: &str,
+        code: &str,
+    ) -> jftrade_integration_futu::StockScreenItem {
+        jftrade_integration_futu::StockScreenItem {
+            stock_id,
+            security: Some(StockScreenSecurity {
+                market: market.to_owned(),
+                code: code.to_owned(),
+                instrument_id: format!("{market}.{code}"),
+            }),
+            results: vec![StockScreenResult {
+                factor_key: "basic.name".to_owned(),
+                property: StockScreenProperty {
+                    category: "basic".to_owned(),
+                    provider_id: 1102,
+                    factor_key: "basic.name".to_owned(),
+                    params: StockScreenPropertyParams::default(),
+                },
+                value: StockScreenValue::String {
+                    value: code.to_owned(),
+                },
+                enum_type_name: None,
+                enum_name: None,
+                end_time: None,
+            }],
+        }
+    }
+
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, true);
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_stock_screen_reader(Some(Arc::new(FutuScreenFixture {
+        page: jftrade_integration_futu::StockScreenPage {
+            last_page: false,
+            all_count: Some(20),
+            items: vec![
+                plain_row(101, "SH", "600519"),
+                plain_row(202, "SZ", "000001"),
+            ],
+        },
+    })));
+    let request = ResearchScreenWriteQuery {
+        broker_id: "futu".to_owned(),
+        account_id: String::new(),
+        trading_environment: String::new(),
+        market: "SZ".to_owned(),
+        offset: 10,
+        limit: 10,
+        definition: json!({
+            "catalogVersion": "futu-stock-screen-v1",
+            "querySchemaVersion": 2,
+            "market": "SZ",
+            "pool": {},
+            "conditions": [],
+            "columns": [],
+            "sorts": []
+        }),
+        columns: Vec::new(),
+    };
+    let value = port_query_futu_screen(&state, &runtime, &request);
+    assert_eq!(value["entries"].as_array().map(Vec::len), Some(1));
+    assert_eq!(value["entries"][0]["instrumentId"], "SZ.000001");
+    // nextOffset advances by the raw provider page size, not by the filtered
+    // row count, so a page that only contains other markets still moves on.
+    assert_eq!(value["nextOffset"], 12);
+    assert_eq!(
+        value["warnings"][0],
+        "OpenD reports only a combined A-share total; total is omitted for exact SH/SZ results."
+    );
+    assert!(value.get("total").is_none());
+}
+
+#[test]
+fn futu_stock_screen_rate_limit_maps_to_retry_after_seconds() {
+    let error = screen::map_futu_screen_error(
+        jftrade_integration_futu::StockScreenQueryError::RateLimited {
+            retry_after_ms: 2_500,
+        },
+    );
+    assert!(matches!(
+        error,
+        ResearchScreenWritePortError::RateLimited {
+            ref message,
+            retry_after: 3,
+        } if message.contains("rate limited")
+    ));
+    // A sub-second window must still be surfaced as at least one second.
+    let error = screen::map_futu_screen_error(
+        jftrade_integration_futu::StockScreenQueryError::RateLimited {
+            retry_after_ms: 40,
+        },
+    );
+    assert!(matches!(
+        error,
+        ResearchScreenWritePortError::RateLimited { retry_after: 1, .. }
+    ));
+}
+
+#[test]
+fn stock_screen_quote_currency_uses_security_counter_identity() {
+    for (market, symbol, name, expected) in [
+        ("US", "AAPL", "Apple", Some("USD")),
+        ("SH", "600519", "贵州茅台", Some("CNY")),
+        ("SZ", "000001", "平安银行", Some("CNY")),
+        ("HK", "00700", "腾讯控股", Some("HKD")),
+        ("HK", "80700", "腾讯控股-R", Some("CNY")),
+        ("HK", "81211", "比亚迪股份-R", Some("CNY")),
+        // RMB code without the -R marker stays unresolved rather than guessed.
+        ("HK", "80700", "腾讯控股", None),
+        // An -R marker on an HKD code is contradictory and stays unresolved.
+        ("HK", "00700", "腾讯控股-R", None),
+        ("HK", "00700", "", None),
+        // HK counters require the five-digit form.
+        ("HK", "700", "腾讯控股", None),
+        ("US", "", "Apple", None),
+        ("SG", "D05", "DBS", None),
+    ] {
+        assert_eq!(
+            screen::futu_quote_currency(market, symbol, name),
+            expected,
+            "{market}.{symbol} ({name})"
+        );
+    }
+}
+
+
+#[test]
 fn research_helper_request_rejects_unsupported_or_malformed_paths() {
     assert!(matches!(
         research_helper_request("/api/v1/research/technical-indicators/US.AAPL", ""),

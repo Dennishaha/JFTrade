@@ -888,3 +888,54 @@ git diff --check
   是每次读取的墙钟毫秒值，跨毫秒即抖动失败（全量并发运行时命中）。Go 基线
   `TestQueryBrokerMarginRatiosUsesCacheWithinTTL` 只断言缓存结果与 `Trd_GetMarginRatio`
   调用次数，故改为比较 `marginRatios` 负载并保留调用次数断言。
+
+## 批次：pkg/futu/adapter_stock_screen_test.go（11 项）
+
+基线：`go:452dea11`。本批 11 项全部 `[x]`（`function_exact`），无功能差异。
+
+### 行为映射
+
+| Go 测试 | Rust 证据 |
+|---|---|
+| `:15 TestTranslateResearchScreenParamsBuildsStrictStockScreenRequest` | `crates/jftrade-integration-futu/tests/stock_screen_protocol.rs::stock_screen_request_encodes_typed_filters_retrieve_sort_and_resolves_mainland_identity` |
+| `:105 TestTranslateResearchScreenParamsValidatesStableKeysAndMarket` | `crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::research_screen_definition_rejects_unsupported_market_and_stable_keys` |
+| `:142 TestStockScreenFeatureResultNormalizesIdentityCellsAndOffset` | `...product_production_ports_research_tests.rs::futu_stock_screen_projects_exact_mainland_rows_and_omits_combined_total` |
+| `:188 TestNormalizeStockScreenRowPreservesParameterizedInstanceIdentity` | `...::futu_stock_screen_selects_parameterized_columns_and_derives_counter_currency` |
+| `:228 TestStockScreenFeatureResultUsesPerRowMainlandIdentityAndFiltersExactMarkets` | `...::futu_stock_screen_filters_exact_mainland_markets_and_maps_rate_limit` |
+| `:316 TestStockScreenMainlandIdentityMustBeAuthoritative` | `crates/jftrade-integration-futu/tests/stock_screen_protocol.rs::stock_screen_identity_resolution_fails_closed_without_static_info` |
+| `:327 TestResearchScreenQuoteCurrencyUsesSecurityCounterIdentity` | `...::stock_screen_quote_currency_uses_security_counter_identity` |
+| `:367 TestResearchScreenLimiterAllowsTenPerThirtySeconds` | `...stock_screen_protocol.rs::stock_screen_reader_rejects_unsupported_market_and_throttles_after_ten_calls` |
+| `:385 TestResearchScreenRateLimitErrorRoundTrip` | `...::futu_stock_screen_rate_limit_maps_to_retry_after_seconds` |
+| `:395 TestResearchScreenTranslationEdges` | `crates/jftrade-integration-futu/src/stock_screen_query.rs::tests::rejects_unknown_factors_and_market_mismatch_during_encoding` |
+| `:607 TestStockScreenNormalizationEdges` | `crates/jftrade-integration-futu/src/stock_screen_query.rs::tests::decodes_every_value_type_and_keeps_property_unit_semantics` |
+
+### 新增证据
+
+- `crates/jftrade-integration-futu/tests/stock_screen_protocol.rs`：三个真实
+  loopback framed OpenD 测试，覆盖 `Qot_StockScreen`(3252) 的 C2S 严格校验
+  （隐式市场过滤、typed filterList、retrieveList、sortList、pageFrom/pageCount、
+  watchlistStockIds）、`Qot_GetStaticInfo` 双市场候选身份解析、A 股身份不可解析时
+  fail closed，以及 10 次/30 秒本地限流。
+- `stock_screen_query.rs` 模块测试新增三类因子全表编码、全类别非法输入拒绝、
+  全部 valueType 解码与未知 provider id 丢弃。
+- 引擎侧新增参数化列实例绑定、HK 人民币柜台币种、exact SH/SZ 过滤与
+  `Retry-After` 秒数向上取整映射。
+
+### 结论
+
+Go 的 `adapter_stock_screen.go` / `stock_screen_normalization.go` 行为在 Rust
+由 `jftrade-integration-futu::stock_screen_query`（协议与身份解析）与
+`jftrade-engine::product_production_ports_research_screen`（投影、币种、限流映射）
+两处 owner 承接，未在 API handler 复制业务逻辑。老 GET `/api/v1/research/screens`
+仍走同一 typed reader，wire 字段 `nextOffset` 与前端 `useStockScreenerController`
+一致。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```

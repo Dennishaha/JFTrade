@@ -1868,4 +1868,329 @@ mod tests {
         }
         assert!(limiter.retry_after().is_some());
     }
+
+    #[test]
+    fn encodes_every_factor_category_condition_and_property() {
+        let query = StockScreenQuery::new(
+            "HK",
+            serde_json::json!({
+                "conditions": [
+                    {"factor": {"factorKey": "simple.price", "params": {}}, "value": {"min": 10.0}},
+                    {"factor": {"factorKey": "cumulative.price_change_pct", "params": {"days": 5}}, "value": {"min": 10.0, "continuousPeriod": 2}},
+                    {"factor": {"factorKey": "financial.net_profit", "params": {"term": 10, "year": 2025}}, "value": {"min": 10.0}},
+                    {"factor": {"factorKey": "indicator.ma", "params": {"period": 11, "indicatorParams": [6]}}, "value": {"position": 1, "secondValue": 0}},
+                    {"factor": {"factorKey": "pattern.macd_gold_cross", "params": {"period": 11}}, "value": {"match": true}},
+                    {"factor": {"factorKey": "featured.chips_profit_ratio", "params": {}}, "value": {"min": 10.0}},
+                    {"factor": {"factorKey": "broker.concentrated_distribution", "params": {"days": 5}}, "value": {"min": 10.0}},
+                    {"factor": {"factorKey": "option.stock_iv", "params": {}}, "value": {"min": 10.0}},
+                    {"factor": {"factorKey": "kline_shape.shape_type", "params": {"period": 11}}, "value": [1]}
+                ],
+                "columns": [{"factor": {"factorKey": "financial.roe"}}],
+                "sorts": [{"factor": {"factorKey": "simple.market_cap"}, "direction": "desc"}],
+                "pool": {"plates": [{"parentPlateId": "BK1000", "plateIds": ["BK1001"]}]}
+            }),
+            50,
+            50,
+        )
+        .expect("query");
+        let request =
+            Request::decode(encode_request(&query).expect("encode").as_slice()).expect("decode");
+        let c2s = request.c2s;
+        // Nine conditions plus the implicit market filter and the plate query.
+        assert_eq!(c2s.filter_list.len(), 11);
+        assert!(c2s.filter_list[0].simple_field_query.is_some());
+        assert!(c2s.filter_list[1].simple_property_query.is_some());
+        assert!(c2s.filter_list[2].cumulative_property_query.is_some());
+        assert!(c2s.filter_list[3].financial_property_query.is_some());
+        assert!(c2s.filter_list[4].indicator_positional_query.is_some());
+        assert!(c2s.filter_list[5].indicator_pattern_query.is_some());
+        assert!(c2s.filter_list[6].featured_property_query.is_some());
+        assert!(c2s.filter_list[7].broker_holdings_query.is_some());
+        assert!(c2s.filter_list[8].option_query.is_some());
+        assert!(c2s.filter_list[9].kline_shape_query.is_some());
+        let plate = c2s.filter_list[10]
+            .plate_query
+            .as_ref()
+            .expect("plate query");
+        assert_eq!(plate.plate_list.len(), 1);
+        assert_eq!(
+            plate.plate_list[0].parent_plate_id.as_deref(),
+            Some("BK1000")
+        );
+        assert_eq!(plate.plate_list[0].plate_id_list, vec!["BK1001".to_owned()]);
+
+        let cumulative = c2s.filter_list[2]
+            .cumulative_property_query
+            .as_ref()
+            .expect("cumulative");
+        assert_eq!(cumulative.property.days, Some(5));
+        assert_eq!(cumulative.continuous_period, Some(2));
+        let financial = c2s.filter_list[3]
+            .financial_property_query
+            .as_ref()
+            .expect("financial");
+        assert_eq!(financial.property.term, Some(10));
+        assert_eq!(financial.property.year, Some(2025));
+        let indicator = c2s.filter_list[4]
+            .indicator_positional_query
+            .as_ref()
+            .expect("indicator");
+        assert_eq!(indicator.position, 1);
+        assert_eq!(indicator.period, 11);
+        assert_eq!(indicator.first_indicator_params, vec![6]);
+        let pattern = c2s.filter_list[5]
+            .indicator_pattern_query
+            .as_ref()
+            .expect("pattern");
+        assert_eq!(pattern.period, 11);
+        assert_eq!(pattern.is_matching, Some(true));
+        let broker = c2s.filter_list[7]
+            .broker_holdings_query
+            .as_ref()
+            .expect("broker");
+        assert_eq!(
+            broker.property.as_ref().expect("broker property").days,
+            Some(5)
+        );
+        let option = c2s.filter_list[8].option_query.as_ref().expect("option");
+        assert_eq!(
+            option.property.as_ref().expect("option property").name,
+            Some(1000)
+        );
+        let shape = c2s.filter_list[9]
+            .kline_shape_query
+            .as_ref()
+            .expect("kline shape");
+        assert_eq!(shape.value_set, vec![1]);
+
+        // The adapter prepends the implicit basic.code retrieve because the
+        // caller only asked for a financial column.
+        assert_eq!(c2s.retrieve_list.len(), 2);
+        assert_eq!(
+            c2s.retrieve_list[0]
+                .basic_property
+                .as_ref()
+                .and_then(|property| property.name),
+            Some(1101)
+        );
+        assert_eq!(
+            c2s.retrieve_list[1]
+                .financial_property
+                .as_ref()
+                .and_then(|property| property.name),
+            Some(4110)
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_factors_and_market_mismatch_during_encoding() {
+        // Unknown factor keys are rejected by the protocol encoder itself, so a
+        // malformed definition can never reach OpenD.
+        let error = encode_request(
+            &StockScreenQuery::new(
+                "HK",
+                serde_json::json!({"conditions": [{"factor": {"factorKey": "missing.factor"}, "value": 1}]}),
+                0,
+                50,
+            )
+            .expect("query"),
+        )
+        .expect_err("unknown filter factor");
+        assert!(error.to_string().contains("unknown stock-screen factor"));
+
+        let error = encode_request(
+            &StockScreenQuery::new(
+                "HK",
+                serde_json::json!({"columns": [{"factor": {"factorKey": "nope"}}]}),
+                0,
+                50,
+            )
+            .expect("query"),
+        )
+        .expect_err("unknown retrieve factor");
+        assert!(error.to_string().contains("unknown stock-screen factor"));
+
+        let error = encode_request(
+            &StockScreenQuery::new(
+                "US",
+                serde_json::json!({"sorts": [{"factor": {"factorKey": "simple.price"}, "direction": "sideways"}]}),
+                0,
+                50,
+            )
+            .expect("query"),
+        )
+        .expect_err("invalid sort direction");
+        assert!(error.to_string().contains("sort direction"));
+
+        // `field.market` must agree with the request market.
+        let error = encode_request(
+            &StockScreenQuery::new(
+                "HK",
+                serde_json::json!({"conditions": [{"factor": {"factorKey": "field.market"}, "value": [2]}]}),
+                0,
+                50,
+            )
+            .expect("query"),
+        )
+        .expect_err("market mismatch");
+        assert!(error.to_string().contains("must match request market"));
+
+        // An empty plate group is rejected rather than silently ignored.
+        let error = encode_request(
+            &StockScreenQuery::new(
+                "HK",
+                serde_json::json!({"pool": {"plates": [{"plateIds": [" ", ""]}]}}),
+                0,
+                50,
+            )
+            .expect("query"),
+        )
+        .expect_err("empty plate group");
+        assert!(error.to_string().contains("plateIds"));
+
+        // A field condition without values is rejected.
+        let error = encode_request(
+            &StockScreenQuery::new(
+                "US",
+                serde_json::json!({"conditions": [{"factor": {"factorKey": "field.market"}}]}),
+                0,
+                50,
+            )
+            .expect("query"),
+        )
+        .expect_err("empty field condition");
+        assert!(error.to_string().contains("integer array"));
+    }
+
+    #[test]
+    fn decodes_every_value_type_and_keeps_property_unit_semantics() {
+        use crate::trade_proto::qot_stock_screen::{
+            PropertyBasic, PropertyFinancial, ResultPropertyBasic, ResultPropertyFinancial,
+            RspItemResult,
+        };
+
+        let text = ResultPropertyBasic {
+            property: Some(PropertyBasic { name: Some(1101) }),
+            value_type: Some(1),
+            sval: Some("AAPL".into()),
+            ..Default::default()
+        };
+        let integer = ResultPropertyBasic {
+            property: Some(PropertyBasic { name: Some(1102) }),
+            value_type: Some(2),
+            ival: Some(11),
+            ..Default::default()
+        };
+        let array = ResultPropertyBasic {
+            property: Some(PropertyBasic { name: Some(1103) }),
+            value_type: Some(3),
+            aval: vec![1, 2],
+            ..Default::default()
+        };
+        let number = ResultPropertyBasic {
+            property: Some(PropertyBasic { name: Some(1102) }),
+            value_type: Some(4),
+            dval: Some(12.5),
+            ..Default::default()
+        };
+        let missing = ResultPropertyBasic {
+            property: Some(PropertyBasic { name: Some(1102) }),
+            value_type: Some(4),
+            dval: None,
+            ..Default::default()
+        };
+        // An unknown provider id is skipped instead of being surfaced as a
+        // factor the catalog cannot name.
+        let unknown = ResultPropertyBasic {
+            property: Some(PropertyBasic {
+                name: Some(999_999),
+            }),
+            value_type: Some(1),
+            sval: Some("ignored".into()),
+            ..Default::default()
+        };
+        let financial = ResultPropertyFinancial {
+            property: Some(PropertyFinancial {
+                name: Some(4101),
+                term: Some(10),
+                year: Some(2025),
+                ..Default::default()
+            }),
+            value_type: Some(2),
+            ival: Some(7),
+            end_time: Some(1_700_000_000),
+            ..Default::default()
+        };
+        let item = WireItem {
+            stock_id: Some(5),
+            results: vec![
+                RspItemResult {
+                    basic_property_result: Some(text),
+                    ..Default::default()
+                },
+                RspItemResult {
+                    basic_property_result: Some(integer),
+                    ..Default::default()
+                },
+                RspItemResult {
+                    basic_property_result: Some(array),
+                    ..Default::default()
+                },
+                RspItemResult {
+                    basic_property_result: Some(number),
+                    ..Default::default()
+                },
+                RspItemResult {
+                    basic_property_result: Some(missing),
+                    ..Default::default()
+                },
+                RspItemResult {
+                    basic_property_result: Some(unknown),
+                    ..Default::default()
+                },
+                RspItemResult {
+                    financial_property_result: Some(financial),
+                    ..Default::default()
+                },
+            ],
+        };
+        let body = Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(S2c {
+                data_list: vec![item],
+                last_page: Some(1),
+                all_count: Some(1),
+            }),
+        }
+        .encode_to_vec();
+        let page = decode_response(&body).expect("decode");
+        let results = &page.items[0].results;
+        // The unknown provider id is dropped, leaving six typed results.
+        assert_eq!(results.len(), 6);
+        assert!(
+            matches!(results[0].value, StockScreenValue::String { ref value } if value == "AAPL")
+        );
+        assert!(matches!(
+            results[1].value,
+            StockScreenValue::Integer { value: 11 }
+        ));
+        assert!(
+            matches!(results[2].value, StockScreenValue::IntegerArray { ref values } if values == &vec![1, 2])
+        );
+        assert!(matches!(results[3].value, StockScreenValue::Number { value } if value == 12.5));
+        assert!(matches!(results[4].value, StockScreenValue::Missing));
+        assert!(matches!(
+            results[5].value,
+            StockScreenValue::Integer { value: 7 }
+        ));
+        assert_eq!(results[5].factor_key, "financial.net_profit");
+        assert_eq!(results[5].property.params.term, Some(10));
+        assert_eq!(results[5].property.params.year, Some(2025));
+        assert_eq!(results[5].end_time, Some(1_700_000_000));
+        assert_eq!(results[1].factor_key, "basic.name");
+        assert_eq!(results[2].factor_key, "basic.industry");
+        assert!(page.last_page);
+    }
 }
