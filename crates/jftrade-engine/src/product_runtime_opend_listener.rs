@@ -110,13 +110,22 @@ impl jftrade_integration_futu::OpenDSessionEventListener for LiveHubOpenDEventLi
                     if code.is_empty() {
                         return;
                     };
+                    // Parity: `go:452dea11:pkg/futu/stream_orderbook.go:48`
+                    // `handleOrderBookPush`. Go never reads the server receive
+                    // timestamps; it only requires a resolvable security and at
+                    // least one non-zero best price. Fall back to the local
+                    // clock so a push without server times is not dropped.
                     let at = ob
                         .server_receive_time_bid
                         .as_deref()
-                        .or(ob.server_receive_time_ask.as_deref());
-                    let Some(at) = at.filter(|s| !s.trim().is_empty()) else {
-                        return;
-                    };
+                        .filter(|value| !value.trim().is_empty())
+                        .or_else(|| {
+                            ob.server_receive_time_ask
+                                .as_deref()
+                                .filter(|value| !value.trim().is_empty())
+                        })
+                        .map(str::to_owned)
+                        .unwrap_or_else(current_utc_rfc3339);
                     let bids = ob
                         .bids
                         .iter()
@@ -143,7 +152,13 @@ impl jftrade_integration_futu::OpenDSessionEventListener for LiveHubOpenDEventLi
                             })
                         })
                         .collect::<Vec<_>>();
-                    let envelope = order_book_depth_envelope(market, &code, at, bids, asks);
+                    // Go builds the best bid/ask BookTicker and returns before
+                    // emitting when both sides are zero, so an empty or
+                    // zero-priced push never reaches consumers.
+                    if bids.is_empty() && asks.is_empty() {
+                        return;
+                    }
+                    let envelope = order_book_depth_envelope(market, &code, &at, bids, asks);
                     self.live_hub.publish(envelope);
                 }
                 _ => {}

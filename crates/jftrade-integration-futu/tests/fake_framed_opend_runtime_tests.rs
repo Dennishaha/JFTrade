@@ -64,6 +64,11 @@ struct SubC2s {
     sub_type_list: Vec<i32>,
     #[prost(bool, optional, tag = "3")]
     is_sub_or_unsub: Option<bool>,
+    #[prost(bool, optional, tag = "4")]
+    is_reg_or_un_reg_push: Option<bool>,
+    /// Go `QuoteSubRequest.IsSubOrderBookDetail` (tag 8 on the wire).
+    #[prost(bool, optional, tag = "8")]
+    is_sub_order_book_detail: Option<bool>,
 }
 
 #[derive(Clone, PartialEq, Message)]
@@ -351,6 +356,132 @@ fn test_reconnect_and_demand_replay_with_framed_opend() {
     assert_eq!(replayed, "NVDA");
 
     runtime.shutdown().expect("shutdown");
+    server.join().expect("server join");
+}
+
+#[test]
+fn test_order_book_reconcile_splits_hk_detail_and_deduplicates_replay() {
+    // Parity: go:452dea11:pkg/futu/exchange_orderbook_test.go:237
+    // TestEnsureOrderBookPushSubscriptionsSplitsDetailsAndDeduplicates and
+    // :178 TestGroupOrderBookRequestsForPushSplitsHKAndNonHK. Go splits HK and
+    // non-HK requests into separate Qot_Sub calls so only the HK batch carries
+    // IsSubOrderBookDetail; Rust issues one physical subscribe per instrument,
+    // so the flag must ride exactly on the HK request.
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind");
+    let address = listener.local_addr().expect("local_addr");
+
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let init = read_framed_frame(&mut stream).expect("init frame");
+        assert_eq!(init.header.proto_id, PROTO_INIT_CONNECT);
+        write_framed_response(
+            &mut stream,
+            PROTO_INIT_CONNECT,
+            init.header.serial_no,
+            &InitResponse {
+                ret_type: Some(0),
+                ret_msg: Some("ok".to_owned()),
+                s2c: Some(InitState {
+                    server_ver: 1009,
+                    conn_id: 21,
+                }),
+            }
+            .encode_to_vec(),
+        );
+
+        let mut observed = Vec::new();
+        for _ in 0..2 {
+            let sub = read_framed_frame(&mut stream).expect("order-book sub frame");
+            assert_eq!(sub.header.proto_id, PROTO_QOT_SUB);
+            let request = SubRequest::decode(sub.body.as_slice()).expect("sub request");
+            let c2s = request.c2s.expect("sub c2s");
+            assert_eq!(c2s.is_sub_or_unsub, Some(true));
+            assert_eq!(c2s.is_reg_or_un_reg_push, Some(true));
+            assert_eq!(c2s.sub_type_list, vec![2]);
+            assert_eq!(c2s.securities.len(), 1);
+            let security = &c2s.securities[0];
+            observed.push((
+                security.market.expect("market"),
+                security.code.clone().expect("code"),
+                c2s.is_sub_order_book_detail,
+            ));
+            write_framed_response(
+                &mut stream,
+                PROTO_QOT_SUB,
+                sub.header.serial_no,
+                &SubResponse {
+                    ret_type: Some(0),
+                    ret_msg: Some("ok".to_owned()),
+                }
+                .encode_to_vec(),
+            );
+        }
+        // Report whether a third Qot_Sub arrives after the repeated reconcile
+        // pass so the assertion can distinguish "idle" from "resent".
+        stream
+            .set_read_timeout(Some(Duration::from_millis(400)))
+            .expect("read timeout");
+        let mut header = [0_u8; 44];
+        let resent = match stream.read(&mut header) {
+            Ok(0) => false,
+            Ok(_) => true,
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                ) =>
+            {
+                false
+            }
+            Err(error) => panic!("unexpected read error: {error}"),
+        };
+        assert!(
+            !resent,
+            "a repeated reconcile pass must not resend order-book subscriptions"
+        );
+        assert_eq!(
+            observed,
+            vec![
+                (1, "00700".to_owned(), Some(true)),
+                (11, "AAPL".to_owned(), None),
+            ]
+        );
+    });
+
+    let demand = vec![
+        InstrumentRef {
+            channel: "ORDER_BOOK".to_owned(),
+            market: "HK".to_owned(),
+            symbol: "00700".to_owned(),
+            interval: None,
+        },
+        InstrumentRef {
+            channel: "ORDER_BOOK".to_owned(),
+            market: "US".to_owned(),
+            symbol: "AAPL".to_owned(),
+            interval: None,
+        },
+    ];
+    let recorder = Arc::new(MarketDataRuntimeRecorder::default());
+    let mut coordinator = OpenDSessionCoordinator::connect(
+        OpenDTcpProbeConfig::new(address, Duration::from_secs(2)),
+        recorder,
+        demand.clone(),
+        1_700_000_000_000,
+    )
+    .expect("order-book reconcile");
+    let snapshot = coordinator.physical_snapshot().expect("snapshot");
+    assert_eq!(snapshot.own_active_count, 2);
+    assert_eq!(snapshot.entries.len(), 2);
+
+    // The repeated pass is a no-op; the server asserts nothing is resent.
+    coordinator
+        .reconcile(&demand, 1_700_000_000_000 + 1_000)
+        .expect("replayed reconcile");
+    let snapshot = coordinator.physical_snapshot().expect("snapshot");
+    assert_eq!(snapshot.own_active_count, 2);
+
+    coordinator.close().expect("close");
     server.join().expect("server join");
 }
 

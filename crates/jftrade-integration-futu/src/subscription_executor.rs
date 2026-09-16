@@ -944,4 +944,324 @@ mod tests {
             Err(SubscriptionExecutorError::UnsupportedInterval(_))
         ));
     }
+
+    #[test]
+    fn order_book_request_construction_keeps_market_code_and_subtype_identity() {
+        // Parity: go:452dea11:pkg/futu/exchange_orderbook_test.go:20
+        // TestSubscribeOrderBookRequestConstruction. The subscription carries a
+        // typed security with a non-nil market and an unchanged code, and an
+        // unparsable symbol is rejected before any OpenD call.
+        let hk = qot_sub_request(&action(SubscriptionKind::OrderBook, "HK.00700", None))
+            .expect("HK order-book request");
+        assert_eq!(hk.security_list.len(), 1);
+        assert_eq!(hk.security_list[0].market, Some(1));
+        assert_eq!(hk.security_list[0].code.as_deref(), Some("00700"));
+        assert_eq!(hk.sub_type_list, [2]);
+        assert_eq!(hk.is_sub_or_un_sub, Some(true));
+        assert_eq!(hk.is_reg_or_un_reg_push, Some(true));
+
+        let us = qot_sub_request(&action(SubscriptionKind::OrderBook, "US.AAPL", None))
+            .expect("US order-book request");
+        assert_eq!(us.security_list[0].market, Some(11));
+        assert_eq!(us.security_list[0].code.as_deref(), Some("AAPL"));
+        assert_eq!(us.sub_type_list, [2]);
+
+        // A security without a usable market/code must never reach OpenD.
+        for invalid in ["BAD", "US.AAPL.EXTRA", ".AAPL", "US."] {
+            assert!(
+                matches!(
+                    qot_sub_request(&action(SubscriptionKind::OrderBook, invalid, None)),
+                    Err(SubscriptionExecutorError::InvalidInstrument(_))
+                ),
+                "{invalid} must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn order_book_detail_follows_each_instruments_market_not_list_order() {
+        // Parity: go:452dea11:pkg/futu/exchange_orderbook_test.go:47
+        // TestIsHKMarket. Go returns true when *any* security is HK and false
+        // for an empty list; Rust has no batch-wide flag, so detail must be
+        // derived from each instrument's own market regardless of order.
+        let classify = |instrument: &str| {
+            qot_sub_request(&action(SubscriptionKind::OrderBook, instrument, None))
+                .expect("order-book request")
+                .is_sub_order_book_detail
+        };
+        assert_eq!(classify("HK.00700"), Some(true));
+        assert_eq!(classify("US.AAPL"), None);
+        assert_eq!(classify("SH.600519"), None);
+        assert_eq!(classify("SZ.000001"), None);
+
+        // Mixed lists in either order keep per-instrument detail; there is no
+        // "HK anywhere means every request carries detail" coupling.
+        // Detail is derived per instrument, so list order cannot leak the HK
+        // flag onto the US request.
+        for instruments in [["HK.00700", "US.AAPL"], ["US.AAPL", "HK.00700"]] {
+            for instrument in instruments {
+                let expected = if instrument.starts_with("HK.") {
+                    Some(true)
+                } else {
+                    None
+                };
+                assert_eq!(
+                    classify(instrument),
+                    expected,
+                    "{instrument} detail must not depend on list order"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn order_book_reconcile_plan_splits_hk_and_non_hk_requests() {
+        // Parity: go:452dea11:pkg/futu/exchange_orderbook_test.go:178
+        // TestGroupOrderBookRequestsForPushSplitsHKAndNonHK. Go emits one batch
+        // with detail for HK and one without for everything else; Rust plans one
+        // physical subscribe per instrument, so a mixed demand yields exactly
+        // two requests whose detail flags differ.
+        let desired = [
+            InstrumentRef {
+                channel: "ORDER_BOOK".to_owned(),
+                market: "HK".to_owned(),
+                symbol: "00700".to_owned(),
+                interval: None,
+            },
+            InstrumentRef {
+                channel: "ORDER_BOOK".to_owned(),
+                market: "US".to_owned(),
+                symbol: "AAPL".to_owned(),
+                interval: None,
+            },
+        ];
+        let mut reconciler = crate::SubscriptionReconciler::new(0);
+        let actions = reconciler.actions(&desired, 0, 1);
+        assert_eq!(actions.len(), 2);
+        let mut hk_detail = None;
+        let mut us_detail = None;
+        for action in &actions {
+            let request = qot_sub_request(action).expect("order-book subscribe request");
+            match request.security_list[0].market {
+                Some(1) => {
+                    assert_eq!(request.security_list[0].code.as_deref(), Some("00700"));
+                    hk_detail = request.is_sub_order_book_detail;
+                }
+                Some(11) => {
+                    assert_eq!(request.security_list[0].code.as_deref(), Some("AAPL"));
+                    us_detail = request.is_sub_order_book_detail.or(Some(false));
+                }
+                other => panic!("unexpected market {other:?}"),
+            }
+        }
+        assert_eq!(hk_detail, Some(true), "HK request must enable SF detail");
+        assert_eq!(
+            us_detail,
+            Some(false),
+            "US request must not enable SF detail"
+        );
+    }
+
+    #[test]
+    fn order_book_lease_gate_closes_without_demand_and_reopens_with_a_lease() {
+        // Parity: go:452dea11:pkg/futu/exchange_orderbook_test.go:281
+        // TestOrderBookSubscriptionLifecycleRequiresLeaseAndUnsubscribes. A read
+        // without an order-book lease must not produce any OpenD subscribe; the
+        // same read after acquiring the lease must.
+        let mut lifecycle =
+            OpenDSubscriptionLifecycle::new(Arc::new(MarketDataRuntimeRecorder::default()), 0);
+        assert!(
+            lifecycle.reconcile_demand(&[], 0).is_empty(),
+            "no order-book lease means no subscription work"
+        );
+        let lease = InstrumentRef {
+            channel: "ORDER_BOOK".to_owned(),
+            market: "US".to_owned(),
+            symbol: "AAPL".to_owned(),
+            interval: None,
+        };
+        let actions = lifecycle.reconcile_demand(std::slice::from_ref(&lease), 0);
+        assert_eq!(actions.len(), 1);
+        let request = qot_sub_request(&actions[0]).expect("leased order-book subscribe");
+        assert_eq!(request.is_sub_or_un_sub, Some(true));
+        assert_eq!(request.sub_type_list, [2]);
+        assert_eq!(request.security_list[0].market, Some(11));
+
+        // Dropping the lease releases exactly the order book that was
+        // established, and the unsubscribe keeps the same identity.
+        assert!(lifecycle.record_subscription_success(&actions[0], 0, lifecycle.generation()));
+        let release = lifecycle.reconcile_demand(&[], 0);
+        assert_eq!(release.len(), 1);
+        let unsubscribe = qot_sub_request(&release[0]).expect("release request");
+        assert_eq!(unsubscribe.is_sub_or_un_sub, Some(false));
+        assert_eq!(unsubscribe.is_reg_or_un_reg_push, Some(false));
+        assert_eq!(unsubscribe.security_list[0].market, Some(11));
+        assert_eq!(unsubscribe.security_list[0].code.as_deref(), Some("AAPL"));
+    }
+
+    #[test]
+    fn order_book_replay_deduplicates_already_active_subscriptions() {
+        // Parity: go:452dea11:pkg/futu/exchange_orderbook_test.go:237
+        // TestEnsureOrderBookPushSubscriptionsSplitsDetailsAndDeduplicates. A
+        // second ensure pass for an already-registered order book must not emit
+        // another subscribe action.
+        let mut reconciler = crate::SubscriptionReconciler::new(0);
+        let mut desired = vec![
+            InstrumentRef {
+                channel: "ORDER_BOOK".to_owned(),
+                market: "HK".to_owned(),
+                symbol: "00700".to_owned(),
+                interval: None,
+            },
+            InstrumentRef {
+                channel: "ORDER_BOOK".to_owned(),
+                market: "US".to_owned(),
+                symbol: "AAPL".to_owned(),
+                interval: None,
+            },
+        ];
+        let first = reconciler.actions(&desired, 0, 1);
+        assert_eq!(first.len(), 2);
+        for action in &first {
+            reconciler.record_success(action, 0, 1);
+        }
+        let replay = reconciler.actions(&desired, 1, 1);
+        assert!(
+            replay.is_empty(),
+            "an already registered order book must not be resubscribed: {replay:?}"
+        );
+        // Releasing one instrument only releases that instrument.
+        desired.retain(|reference| reference.symbol != "00700");
+        let release = reconciler.actions(&desired, 1, 1);
+        assert_eq!(release.len(), 1);
+        assert!(matches!(
+            &release[0],
+            ReconcileAction::Unsubscribe { subscription }
+                if subscription.instrument_id == "HK.00700"
+        ));
+    }
+
+    #[test]
+    fn order_book_reconciler_isolates_quote_and_kline_families() {
+        // Parity: go:452dea11:pkg/futu/exchange_orderbook_test.go:156
+        // TestSubscriptionRegistryQuoteAndKLineFamiliesAreIndependent.
+        let mut reconciler = crate::SubscriptionReconciler::new(0);
+        let order_book = [InstrumentRef {
+            channel: "ORDER_BOOK".to_owned(),
+            market: "US".to_owned(),
+            symbol: "AAPL".to_owned(),
+            interval: None,
+        }];
+        let order_book_and_kline = [
+            order_book[0].clone(),
+            InstrumentRef {
+                channel: "KLINE".to_owned(),
+                market: "US".to_owned(),
+                symbol: "AAPL".to_owned(),
+                interval: Some("1m".to_owned()),
+            },
+        ];
+        let order_book_actions = reconciler.actions(&order_book, 0, 1);
+        assert_eq!(order_book_actions.len(), 1);
+        reconciler.record_success(&order_book_actions[0], 0, 1);
+
+        // The K-line family still needs its own BASIC and KLINE physical
+        // subscriptions; the order-book record must not satisfy either.
+        let kline_actions = reconciler.actions(&order_book_and_kline, 0, 1);
+        let mut keys = kline_actions
+            .iter()
+            .map(|action| match action {
+                ReconcileAction::Subscribe { subscription } => subscription.key.clone(),
+                ReconcileAction::Unsubscribe { .. } => panic!("unexpected unsubscribe"),
+            })
+            .collect::<Vec<_>>();
+        keys.sort();
+        assert_eq!(keys, vec!["BASIC:US.AAPL", "KLINE:US.AAPL:1m"]);
+    }
+
+    #[test]
+    fn order_book_lifecycle_leases_hk_detail_and_releases_idempotently() {
+        // Parity: go:452dea11:pkg/futu/exchange_orderbook_test.go:281
+        // TestOrderBookSubscriptionLifecycleRequiresLeaseAndUnsubscribes.
+        //
+        // The executor reads the registry state through the reconcile plan: a
+        // released or never-leased order book produces no subscribe action, and
+        // the HK detail flag rides only on the HK request.
+        assert!(matches!(
+            qot_sub_request(&action(SubscriptionKind::OrderBook, "BAD", None)),
+            Err(SubscriptionExecutorError::InvalidInstrument(_))
+        ));
+
+        let lease = InstrumentRef {
+            channel: "ORDER_BOOK".to_owned(),
+            market: "US".to_owned(),
+            symbol: "AAPL".to_owned(),
+            interval: None,
+        };
+        let mut lifecycle =
+            OpenDSubscriptionLifecycle::new(Arc::new(MarketDataRuntimeRecorder::default()), 0);
+        // No lease yet: the plan is empty and the query gate must stay closed.
+        assert!(lifecycle.reconcile_demand(&[], 0).is_empty());
+        let plan = crate::desired_subscriptions(std::slice::from_ref(&lease));
+        assert_eq!(plan.physical.len(), 1);
+        assert_eq!(plan.physical[0].key, "ORDER_BOOK:US.AAPL");
+        let actions = lifecycle.reconcile_demand(std::slice::from_ref(&lease), 0);
+        assert_eq!(actions.len(), 1);
+        let subscribe = qot_sub_request(&actions[0]).expect("US order-book subscribe");
+        assert_eq!(subscribe.security_list[0].market, Some(11));
+        assert_eq!(subscribe.sub_type_list, [2]);
+        assert_eq!(subscribe.is_sub_or_un_sub, Some(true));
+        assert_eq!(subscribe.is_reg_or_un_reg_push, Some(true));
+        assert_eq!(
+            subscribe.is_sub_order_book_detail, None,
+            "US order-book requests must not ask for HK SF detail"
+        );
+
+        // Releasing the lease after the minimum age emits exactly one
+        // unsubscribe that also unregisters push delivery. A lease that never
+        // reached OpenD is dropped locally with no round trip, matching Go's
+        // "missing subscriptions are treated as already released" behavior.
+        let generation = lifecycle.generation();
+        let mut reconciler = crate::SubscriptionReconciler::new(0);
+        let live = reconciler.actions(std::slice::from_ref(&lease), 0, generation);
+        assert_eq!(live.len(), 1);
+        assert!(
+            reconciler.actions(&[], 0, generation).is_empty(),
+            "a never-established order book has nothing to release"
+        );
+        reconciler.record_success(&live[0], 0, generation);
+        let release = reconciler.actions(&[], 0, generation);
+        assert_eq!(release.len(), 1);
+        let unsubscribe = qot_sub_request(&release[0]).expect("unsubscribe request");
+        assert_eq!(unsubscribe.is_sub_or_un_sub, Some(false));
+        assert_eq!(unsubscribe.is_reg_or_un_reg_push, Some(false));
+        assert_eq!(unsubscribe.sub_type_list, [2]);
+        assert_eq!(unsubscribe.security_list[0].market, Some(11));
+
+        // HK requests carry the SF detail flag on both directions; the Go
+        // lifecycle asserts the detail flag on the HK unsubscribe.
+        let hk_subscribe = qot_sub_request(&action(SubscriptionKind::OrderBook, "HK.00700", None))
+            .expect("HK order-book subscribe");
+        assert_eq!(hk_subscribe.is_sub_order_book_detail, Some(true));
+        let hk_unsubscribe = {
+            let hk_lease = InstrumentRef {
+                channel: "ORDER_BOOK".to_owned(),
+                market: "HK".to_owned(),
+                symbol: "00700".to_owned(),
+                interval: None,
+            };
+            let mut reconciler = crate::SubscriptionReconciler::new(0);
+            let live = reconciler.actions(std::slice::from_ref(&hk_lease), 0, generation);
+            assert_eq!(live.len(), 1);
+            reconciler.record_success(&live[0], 0, generation);
+            let release = reconciler.actions(&[], 0, generation);
+            assert_eq!(release.len(), 1);
+            qot_sub_request(&release[0]).expect("HK unsubscribe request")
+        };
+        assert_eq!(
+            hk_unsubscribe.is_sub_order_book_detail,
+            Some(true),
+            "HK order-book release must keep the SF detail flag"
+        );
+    }
 }

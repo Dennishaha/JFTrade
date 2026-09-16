@@ -647,6 +647,65 @@ python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
 
+## 批次：pkg/futu/exchange_orderbook_test.go（11 项）
+
+基线：`go:452dea11`。本批 11 项全部 `[x]`（`function_exact`），发现并修复 1 处真实功能差异。
+
+### 真实功能差异（已修复）
+
+1. **order-book 推送要求 server 接收时间，缺失即丢弃整条推送**
+   - 依据：`go:452dea11:pkg/futu/stream_orderbook.go:48`
+     `handleOrderBookPush`。Go 只要求 `futuSymbolFromSecurity` 可解析且
+     `Buy`/`Sell` 至少一侧非零，从不读取 `SvrRecvTimeBid`/`SvrRecvTimeAsk`。
+   - 差异：`crates/jftrade-engine/src/product_runtime_opend_listener.rs` 的
+     `QuotePush::OrderBook` 分支此前要求 bid/ask 接收时间至少一个非空，
+     否则直接 `return`；OpenD 在部分行情下不回填该字段时，整个 depth 推送
+     会静默消失。同时缺少「两侧均无价位就不推送」的 Go 语义。
+   - 修复位置：`crates/jftrade-engine/src/product_runtime_opend_listener.rs`
+     （缺失时间戳回落 `current_utc_rfc3339()`；bids/asks 均为空时丢弃）。
+   - 回归：`product_runtime_opend_listener_tests::order_book_pushes_no_longer_require_server_receive_times`
+     （时间戳缺失仍发布完整 depth）与
+     `order_book_pushes_without_any_price_are_dropped`（全空不发布）。
+
+### 行为映射
+
+| Go 测试 | Rust 证据 |
+|---|---|
+| `:20 TestSubscribeOrderBookRequestConstruction` | `subscription_executor::tests::order_book_request_construction_keeps_market_code_and_subtype_identity` |
+| `:47 TestIsHKMarket` | `subscription_executor::tests::order_book_detail_follows_each_instruments_market_not_list_order` |
+| `:99 TestSubscriptionRegistryOrderBook` | `subscriptions_tests::order_book_registry_marks_stay_independent_and_reset_clears_them` |
+| `:129 TestSubscriptionRegistryOrderBookReset` | `subscriptions_tests::order_book_registry_reset_clears_marks_for_a_replacement_connection` |
+| `:144 TestSubscriptionRegistryOrderBookEnsure` | `subscriptions_tests::order_book_registry_ensure_lazily_yields_an_order_book_plan_entry` |
+| `:156 TestSubscriptionRegistryQuoteAndKLineFamiliesAreIndependent` | `subscription_executor::tests::order_book_reconciler_isolates_quote_and_kline_families` |
+| `:178 TestGroupOrderBookRequestsForPushSplitsHKAndNonHK` | `subscription_executor::tests::order_book_reconcile_plan_splits_hk_and_non_hk_requests` |
+| `:214 TestGroupOrderBookRequestsForPushSingleHKBatchNeedsDetail` | `subscription_executor::tests::hk_order_book_subscribe_requests_detail_and_registers_push` |
+| `:237 TestEnsureOrderBookPushSubscriptionsSplitsDetailsAndDeduplicates` | `tests/fake_framed_opend_runtime_tests.rs::test_order_book_reconcile_splits_hk_detail_and_deduplicates_replay` |
+| `:281 TestOrderBookSubscriptionLifecycleRequiresLeaseAndUnsubscribes` | `subscription_executor::tests::order_book_lifecycle_leases_hk_detail_and_releases_idempotently` |
+| `:363 TestHandleOrderBookPushEmitsSingleCompleteBookTicker` | `product_runtime_opend_listener_tests::order_book_pushes_no_longer_require_server_receive_times` |
+
+### 架构差异说明
+
+- Go 用 `subscriptionRegistry.orderBook` / `orderBookPush` 两张标记表加
+  `groupOrderBookRequestsForPush` 的 HK/非 HK 批量拆分。Rust 由
+  `SubscriptionReconciler` 的 generation 化记录 + 每 instrument 一条物理
+  订阅动作承接，因此不再存在“批次里任一 HK 就让整批带 detail”的耦合；
+  HK detail 由每条订阅自身市场推导。旧 getter 语义（`isHKMarket` 空列表
+  false、任一 HK true）在逐条路径上等价，已用顺序无关的断言固定。
+- Go `UnsubscribeOrderBook` 对不存在的订阅直接返回 nil；Rust reconciler
+  对「从未建立」的记录在离开 demand 时本地丢弃，不产生 unsubscribe action。
+- 新增 framed harness 字段 `is_reg_or_un_reg_push`(tag 4) 与
+  `is_sub_order_book_detail`(tag 8)，与生产 `QotSubC2s` 的 tag 一致。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```
+
 ---
 
 ## 批次：`pkg/futu/exchange_test.go`（27 项）

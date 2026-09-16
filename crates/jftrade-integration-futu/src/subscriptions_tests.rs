@@ -1199,3 +1199,136 @@ fn released_never_established_records_are_dropped_without_fallback_leakage() {
     assert_eq!(snapshot.fallback_count, 0);
     assert!(!reconciler.has_fallback_subscriptions());
 }
+
+#[test]
+fn order_book_registry_marks_stay_independent_and_reset_clears_them() {
+    // Parity: go:452dea11:pkg/futu/exchange_orderbook_test.go:99
+    // TestSubscriptionRegistryOrderBook and :129 TestSubscriptionRegistryOrderBookReset.
+    //
+    // Rust has no mark table; the reconciler record is the equivalent owner and
+    // must keep ORDER_BOOK independent from BASIC for the same instrument, then
+    // drop both when the connection is replaced.
+    let mut reconciler = SubscriptionReconciler::new(0);
+    let order_book = [InstrumentRef {
+        channel: "ORDER_BOOK".to_owned(),
+        market: "HK".to_owned(),
+        symbol: "00700".to_owned(),
+        interval: None,
+    }];
+    let order_book_and_quote = [
+        order_book[0].clone(),
+        InstrumentRef {
+            channel: "SNAPSHOT".to_owned(),
+            market: "HK".to_owned(),
+            symbol: "00700".to_owned(),
+            interval: None,
+        },
+    ];
+    // Recording only the order book leaves the quote family still unestablished.
+    let order_book_actions = reconciler.actions(&order_book, 0, 1);
+    assert_eq!(order_book_actions.len(), 1);
+    reconciler.record_success(&order_book_actions[0], 0, 1);
+    assert!(reconciler.actions(&order_book, 0, 1).is_empty());
+    // Adding the quote family keeps the order book desired, so the only new
+    // action is the BASIC subscribe.
+    let basic_actions = reconciler
+        .actions(&order_book_and_quote, 0, 1)
+        .into_iter()
+        .filter(|action| {
+            matches!(
+                action,
+                ReconcileAction::Subscribe { subscription }
+                    if subscription.kind == SubscriptionKind::Basic
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        basic_actions.len(),
+        1,
+        "an ORDER_BOOK record must not satisfy the quote family for the same instrument"
+    );
+    assert!(matches!(
+        &basic_actions[0],
+        ReconcileAction::Subscribe { subscription } if subscription.kind == SubscriptionKind::Basic
+    ));
+
+    // A reset (fresh reconciler / new connection generation) clears the marks:
+    // the generic family comparison no longer sees the old order book.
+    let mut reset = SubscriptionReconciler::new(0);
+    let actions = reset.actions(&order_book, 0, 1);
+    assert_eq!(actions.len(), 1);
+    assert!(matches!(
+        &actions[0],
+        ReconcileAction::Subscribe { subscription } if subscription.kind == SubscriptionKind::OrderBook
+    ));
+}
+
+#[test]
+fn order_book_registry_ensure_lazily_yields_an_order_book_plan_entry() {
+    // Parity: go:452dea11:pkg/futu/exchange_orderbook_test.go:144
+    // TestSubscriptionRegistryOrderBookEnsure. Go's ensure() lazily creates the
+    // orderBook/orderBookPush maps so a fresh registry can be marked. Rust has
+    // no mark map: a fresh reconciler must derive the ORDER_BOOK plan entry from
+    // demand on first use, before any record exists.
+    let mut reconciler = SubscriptionReconciler::new(0);
+    let desired = [
+        InstrumentRef {
+            channel: "ORDER_BOOK".to_owned(),
+            market: "US".to_owned(),
+            symbol: "NVDA".to_owned(),
+            interval: None,
+        },
+        // A KLINE reference without an interval is dropped and must not create
+        // an order-book entry.
+        InstrumentRef {
+            channel: "KLINE".to_owned(),
+            market: "US".to_owned(),
+            symbol: "NVDA".to_owned(),
+            interval: None,
+        },
+    ];
+    let actions = reconciler.actions(&desired, 0, 1);
+    assert_eq!(actions.len(), 1);
+    let subscription = match &actions[0] {
+        ReconcileAction::Subscribe { subscription } => subscription,
+        other => panic!("expected subscribe action, got {other:?}"),
+    };
+    assert_eq!(subscription.key, "ORDER_BOOK:US.NVDA");
+    assert_eq!(subscription.kind, SubscriptionKind::OrderBook);
+    assert_eq!(subscription.interval, None);
+    assert_eq!(subscription.instrument_id, "US.NVDA");
+}
+
+#[test]
+fn order_book_registry_reset_clears_marks_for_a_replacement_connection() {
+    // Parity: go:452dea11:pkg/futu/exchange_orderbook_test.go:129
+    // TestSubscriptionRegistryOrderBookReset. Go's reset() drops both the
+    // orderBook and orderBookPush marks for every instrument. Rust ties marks to
+    // a connection generation: records established under generation 1 must not
+    // satisfy generation 2, which forces a fresh subscribe.
+    let desired = [InstrumentRef {
+        channel: "ORDER_BOOK".to_owned(),
+        market: "HK".to_owned(),
+        symbol: "00700".to_owned(),
+        interval: None,
+    }];
+    let mut reconciler = SubscriptionReconciler::new(0);
+    let first = reconciler.actions(&desired, 0, 1);
+    assert_eq!(first.len(), 1);
+    reconciler.record_success(&first[0], 0, 1);
+    assert!(reconciler.actions(&desired, 0, 1).is_empty());
+
+    // Generation 2 is the replacement connection: the old mark is not reused.
+    let replay = reconciler.actions(&desired, 0, 2);
+    assert_eq!(
+        replay.len(),
+        1,
+        "a reset connection must re-subscribe the order book"
+    );
+    let subscription = match &replay[0] {
+        ReconcileAction::Subscribe { subscription } => subscription,
+        other => panic!("expected subscribe action, got {other:?}"),
+    };
+    assert_eq!(subscription.key, "ORDER_BOOK:HK.00700");
+    assert_eq!(subscription.kind, SubscriptionKind::OrderBook);
+}

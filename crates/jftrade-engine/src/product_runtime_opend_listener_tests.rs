@@ -156,6 +156,78 @@ async fn order_book_pushes_publish_depth_for_the_subscribed_instrument() {
     );
 }
 
+// Parity: go:452dea11:pkg/futu/stream_orderbook.go:48 handleOrderBookPush
+#[tokio::test]
+async fn order_book_pushes_no_longer_require_server_receive_times() {
+    // Go's handler only needs a resolvable security plus at least one non-zero
+    // best price; it never reads `SvrRecvTimeBid`/`SvrRecvTimeAsk`. Rust must
+    // not silently drop a push whose timestamps are absent.
+    let (_hub, listener, mut connection) = subscribed(&["HK.00700"]);
+    listener.on_event(&OpenDSessionCoordinatorOutcome::Push(QuotePush::OrderBook(
+        OrderBookPush {
+            security: Some(Security {
+                market: Some(1),
+                code: Some("00700".to_owned()),
+            }),
+            name: None,
+            asks: vec![OrderBookLevel {
+                price: Some(320.0),
+                volume: Some(100),
+                order_count: Some(1),
+                details: Vec::new(),
+                high_precision_volume: None,
+            }],
+            bids: vec![OrderBookLevel {
+                price: Some(319.0),
+                volume: Some(150),
+                order_count: Some(1),
+                details: Vec::new(),
+                high_precision_volume: None,
+            }],
+            server_receive_time_bid: None,
+            server_receive_time_bid_timestamp: None,
+            server_receive_time_ask: None,
+            server_receive_time_ask_timestamp: None,
+            order_book_type: None,
+        },
+    )));
+    let event = next_event(&mut connection)
+        .await
+        .expect("a push without server receive times must still publish");
+    assert_eq!(event["type"], "market.depth");
+    assert_eq!(event["entityId"], "HK.00700");
+    assert_eq!(event["payload"]["depth"]["bids"][0]["price"], 319.0);
+    assert_eq!(event["payload"]["depth"]["asks"][0]["price"], 320.0);
+}
+
+// Parity: go:452dea11:pkg/futu/stream_orderbook.go:48 handleOrderBookPush
+#[tokio::test]
+async fn order_book_pushes_without_any_price_are_dropped() {
+    // Go builds a BookTicker and returns before emitting when both best bid and
+    // best ask are zero. Rust must not publish an all-empty depth envelope.
+    let (_hub, listener, mut connection) = subscribed(&["HK.00700"]);
+    listener.on_event(&OpenDSessionCoordinatorOutcome::Push(QuotePush::OrderBook(
+        OrderBookPush {
+            security: Some(Security {
+                market: Some(1),
+                code: Some("00700".to_owned()),
+            }),
+            name: None,
+            asks: Vec::new(),
+            bids: Vec::new(),
+            server_receive_time_bid: Some("2025-01-01 10:00:00.000".to_owned()),
+            server_receive_time_bid_timestamp: None,
+            server_receive_time_ask: None,
+            server_receive_time_ask_timestamp: None,
+            order_book_type: None,
+        },
+    )));
+    assert!(
+        next_event(&mut connection).await.is_none(),
+        "a push without any best price must not publish an empty depth event"
+    );
+}
+
 #[tokio::test]
 async fn basic_quote_pushes_publish_delta_and_cumulative_volume() {
     let (_hub, listener, mut connection) = subscribed(&["HK.00700"]);
