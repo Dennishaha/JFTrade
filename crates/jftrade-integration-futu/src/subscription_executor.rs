@@ -319,6 +319,26 @@ mod tests {
     }
 
     #[test]
+    fn unsubscribe_request_sets_is_sub_or_un_sub_false_and_keeps_security() {
+        // Parity: pkg/futu/opend/new_methods_test.go:352 TestUnsubscribeQuotes
+        //
+        // Go asserts the unsubscribe path keeps the same security identity and
+        // flips `IsSubOrUnSub` to false. The executor shares one builder for
+        // subscribe/unsubscribe, so this pins the unsubscribe branch directly.
+        let request = match action(SubscriptionKind::Basic, "HK.00700", None) {
+            ReconcileAction::Subscribe { subscription } => {
+                qot_sub_request(&ReconcileAction::Unsubscribe { subscription })
+                    .expect("unsubscribe request")
+            }
+            _ => unreachable!(),
+        };
+        assert_eq!(request.is_sub_or_un_sub, Some(false));
+        assert_eq!(request.security_list[0].market, Some(1));
+        assert_eq!(request.security_list[0].code.as_deref(), Some("00700"));
+        assert_eq!(request.sub_type_list, [1]);
+    }
+
+    #[test]
     fn qot_sub_mapping_matches_go_market_and_interval_values() {
         let request = match action(SubscriptionKind::Kline, "HK.00700", Some("1m")) {
             ReconcileAction::Subscribe { subscription } => {

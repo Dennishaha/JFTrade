@@ -343,3 +343,32 @@ fn test_normalize_execution_order_preserves_broker_abstraction() {
     let order = parse_order(&payload).expect("broker-selected order");
     assert_eq!(order.broker_id, "ib");
 }
+
+#[test]
+fn test_futu_security_from_symbol_uses_market_parser() {
+    // Parity: pkg/futu/exchange_test.go:152 TestFutuSecurityFromSymbolUsesMarketParser
+    use super::execution_order_parse::normalize_instrument;
+
+    for (raw, want_market, want_code, want_canonical) in [
+        ("HK.00700", "HK", "00700", "HK.00700"),
+        ("HK:00700", "HK", "00700", "HK.00700"),
+        ("US.AAPL", "US", "AAPL", "US.AAPL"),
+        ("SH.600519", "CN", "600519", "SH.600519"),
+        ("SZ.000001", "CN", "000001", "SZ.000001"),
+    ] {
+        let (market, canonical, code) = normalize_instrument(None, raw, None)
+            .unwrap_or_else(|error| panic!("{raw}: {error}"));
+        assert_eq!(market, want_market, "market for {raw}");
+        assert_eq!(canonical, want_canonical, "canonical for {raw}");
+        assert_eq!(code, want_code, "code for {raw}");
+    }
+
+    // `CN` is the aggregate SH/SZ market; it must not resolve on its own,
+    // matching Go's "requires an exchange-qualified symbol" error.
+    let error = normalize_instrument(None, "CN.600519", None)
+        .expect_err("aggregate CN prefix must fail closed");
+    assert!(
+        error.contains("exchange-qualified"),
+        "error = {error:?}"
+    );
+}

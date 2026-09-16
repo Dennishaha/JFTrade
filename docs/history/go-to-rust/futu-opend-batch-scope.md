@@ -170,3 +170,35 @@ python3 scripts/compatibility/audit_test_parity.py
 本批实测：`jftrade-integration-futu` 244 项通过、1 项跳过；`jftrade-engine`
 1070 项通过（含 2 项新增）。逐条命令与 state 记录在
 `manual-test-mappings.json`。
+
+## 批次：opend new_methods 与 exchange 协议常量收口
+
+本批把 `pkg/futu/exchange_test.go:434` 与 `pkg/futu/opend/new_methods_test.go`
+中可证明等价的项转为 `[x]`/`function_exact`，其余记录边界。
+
+| Go 测试 | Rust 入口 | 结论 |
+| --- | --- | --- |
+| `pkg/futu/exchange_test.go:434 TestTradeProtocolConstantsMatchOfficialIDs` | `jftrade-integration-futu::trading::tests::protocol_ids_match_go_opend_and_shadow_forbids_writes` | `[x]`：本轮给 `TradeProtocol` 补齐 `GetMaxTradeQuantity=2111`、`GetMarginRatio=2223`、`GetCashFlowSummary=2226`，连同既有 2211/2222 与 Go 五个官方 ID 完全一致。 |
+| `pkg/futu/exchange_test.go:152 TestFutuSecurityFromSymbolUsesMarketParser` | `jftrade-engine::...::test_futu_security_from_symbol_uses_market_parser` | `[x]`：HK./HK:/US./SH./SZ. 解析矩阵与 `CN.600519` 拒绝一致；`normalize_instrument` 提升为 `pub(super)` 以供证据测试。 |
+| `pkg/futu/exchange_test.go:47 TestQueryMarketsReturnsBootstrapMarket` | `jftrade-integration-futu::provider::tests::futu_descriptor_is_static_and_valid_without_connecting_to_opend` | `[~]`/partial：Rust 用静态 ProviderDescriptor 表达市场/币种，不提供 bootstrap 符号行情档案。 |
+| `pkg/futu/exchange_test.go:125 TestInferMarketUsesMarketProfiles` | 同上（前置解析测试） | `[~]`/boundary：Go 的 tickSize/pricePrecision 档案在 Rust 无对应模型。 |
+| `pkg/futu/opend/new_methods_test.go:313 TestSubscribeQuotes` | `subscription_executor::tests::executor_sends_subscribe_and_unsubscribe_over_one_framed_session` | `[x]`：`isSubOrUnSub=true` 经 Qot_Sub(3001) 帧发送，market/code 与 Go 一致。 |
+| `pkg/futu/opend/new_methods_test.go:352 TestUnsubscribeQuotes` | `subscription_executor::tests::unsubscribe_request_sets_is_sub_or_un_sub_false_and_keeps_security` | `[x]`：本轮新增专属退订分支测试。 |
+| `pkg/futu/opend/new_methods_test.go:499 TestRequestHistoryKL` | `history::tests::history_wire_frame_keeps_protocol_and_serial_for_mock_opend` | `[x]`：响应经 frame 往返保留 nextReqKey 与 s2c。 |
+| `pkg/futu/opend/new_methods_test.go:578 TestGetSecuritySnapshot` | `security_snapshot_query::tests::maps_security_snapshot_bbo_and_equity_metrics_without_defaults` | `[x]`：Qot_GetSecuritySnapshot(3203) 解码 BBO/equity 指标且不补默认值。 |
+
+### 本批发现
+
+- `TradeProtocol` 枚举此前缺少 `GetMaxTradeQuantity`/`GetMarginRatio`/`GetCashFlowSummary`
+  三个官方协议 ID；Go 的 `TestTradeProtocolConstantsMatchOfficialIDs` 直接断言这些常量，
+  属于 Rust 功能缺失（不是仅缺测试），本轮补齐枚举成员。
+- Go 的 `pkg/futu/opend` 客户端封装（连接复用、call 计数、错误包装、
+  `GetGlobalState`/`GetKL`/`UnlockTrade`/`LockTrade` 等）在 Rust 由
+  `managed_session`/`session_coordinator`/各 typed query 模块承担，二者
+  结构不同；这些条目的逐项等价仍需后续批次按具体断言继续核对。
+
+### 剩余高缺口文件
+
+`pkg/futu/opend/new_methods_test.go` 尚有 20 项、`pkg/futu/exchange_test.go`
+尚有 23 项、`pkg/futu/adapter_new_methods_test.go` 22 项、
+`pkg/futu/exchange_kline_test.go` 16 项保持 `[~]`，将在后续批次逐条处理。

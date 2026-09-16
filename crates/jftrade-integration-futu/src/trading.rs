@@ -23,6 +23,12 @@ pub enum TradeProtocol {
     PlaceComboOrder,
     UpdateOrder,
     UpdateOrderFill,
+    /// Official OpenD id 2111; read-only max-trade-quantity query.
+    GetMaxTradeQuantity,
+    /// Official OpenD id 2223; read-only margin-ratio query.
+    GetMarginRatio,
+    /// Official OpenD id 2226; read-only cash-flow summary query.
+    GetCashFlowSummary,
 }
 
 impl TradeProtocol {
@@ -43,6 +49,9 @@ impl TradeProtocol {
             Self::GetHistoryOrderFillList => 2222,
             Self::GetOrderFee => 2225,
             Self::PlaceComboOrder => 2227,
+            Self::GetMaxTradeQuantity => 2111,
+            Self::GetMarginRatio => 2223,
+            Self::GetCashFlowSummary => 2226,
         }
     }
 
@@ -148,6 +157,12 @@ mod tests {
         assert_eq!(TradeProtocol::PlaceOrder.id(), 2202);
         assert_eq!(TradeProtocol::ModifyOrder.id(), 2205);
         assert_eq!(TradeProtocol::UpdateOrderFill.id(), 2218);
+        // Parity: pkg/futu/exchange_test.go:434 TestTradeProtocolConstantsMatchOfficialIDs
+        assert_eq!(TradeProtocol::GetMaxTradeQuantity.id(), 2111);
+        assert_eq!(TradeProtocol::GetOrderFillList.id(), 2211);
+        assert_eq!(TradeProtocol::GetHistoryOrderFillList.id(), 2222);
+        assert_eq!(TradeProtocol::GetMarginRatio.id(), 2223);
+        assert_eq!(TradeProtocol::GetCashFlowSummary.id(), 2226);
         assert_eq!(
             plan_shadow_protocol(TradeProtocol::PlaceOrder),
             Err(TradeProtocolError::WriteForbidden(2202))

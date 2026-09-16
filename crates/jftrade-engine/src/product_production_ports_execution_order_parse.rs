@@ -644,7 +644,7 @@ fn number_field(object: &Map<String, Value>, key: &str) -> Option<f64> {
 /// Normalize the public market/symbol pair the same way as Go's
 /// `market.ParseInstrument`: an exchange-qualified symbol determines the
 /// prefix, while the resolved market for SH/SZ is the aggregate CN market.
-fn normalize_instrument(
+pub(super) fn normalize_instrument(
     requested_market: Option<&str>,
     raw_symbol: &str,
     supplied_code: Option<&str>,
