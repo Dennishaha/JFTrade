@@ -62,7 +62,8 @@ pub(super) fn project_cached_snapshot(tick: &Tick, market: &str, observed_at: &s
         .filter(|value| is_non_negative(value))
         .map(|value| decimal_text_value(Some(value)))
         .unwrap_or_else(|| decimal_text_value(snapshot.and_then(|value| value.turnover.as_ref())));
-    let previous_close_price = if is_us_market(market) && is_outside_regular(&session) {
+    let previous_close_price = if uses_regular_close_as_previous_close(market, &session, last_price)
+    {
         decimal_value(Some(last_price))
     } else {
         decimal_value(previous_close)
@@ -139,7 +140,11 @@ pub(super) fn project_fallback_snapshot(
         .get("lastClosePrice")
         .or_else(|| snapshot.get("lastClose"))
         .or(previous_close);
-    let previous_close_price = if is_us_market(market) && is_outside_regular(&session) {
+    let previous_close_price = if uses_regular_close_as_previous_close(
+        market,
+        &session,
+        Decimal::from_str(&last_price).unwrap_or(Decimal::ZERO),
+    ) {
         Value::String(last_price)
     } else {
         quote_value(previous_close)
@@ -356,8 +361,19 @@ fn is_extended_session(session: &str) -> bool {
     matches!(session, "pre" | "after" | "overnight")
 }
 
-fn is_outside_regular(session: &str) -> bool {
-    matches!(session, "pre" | "after" | "overnight" | "closed")
+/// Go's `market.ShouldUseRegularCloseAsPreviousClose`: every US session other
+/// than `regular` (including `unknown`) reports the latest regular-session
+/// close as `previousClosePrice`, and only when that close is positive.
+///
+/// The `unknown` arm is intentional rather than an allow-list of known
+/// extended sessions: an unresolved calendar must still surface the most
+/// recent regular close instead of the previous trading day's close.
+fn uses_regular_close_as_previous_close(
+    market: &str,
+    session: &str,
+    regular_close: Decimal,
+) -> bool {
+    is_us_market(market) && !session.eq_ignore_ascii_case("regular") && regular_close > Decimal::ZERO
 }
 
 #[cfg(test)]
@@ -431,6 +447,188 @@ mod tests {
         assert_eq!(
             value["extended"]["afterMarket"]["sessionStartAt"],
             "2026-07-18T16:00:00Z"
+        );
+    }
+
+    /// Parity: go:452dea11:pkg/futu/quote_snapshot_test.go:217
+    /// TestPreviousClosePriceConditionBySessionType
+    ///
+    /// Go's `ShouldUseRegularCloseAsPreviousClose` is `IsUSSymbol(symbol) &&
+    /// session != SessionRegular && regularClose > 0`. Every non-regular US
+    /// session (pre/after/overnight/closed/**unknown**) reports the latest
+    /// regular-session close; a non-positive close never rewrites the value.
+    #[test]
+    fn previous_close_condition_switches_on_session_type() {
+        let regular_close = decimal("9.22");
+        for session in ["pre", "after", "overnight", "closed", "unknown", "UNKNOWN"] {
+            assert!(
+                uses_regular_close_as_previous_close("US", session, regular_close),
+                "US {session} must prefer the latest regular-session close"
+            );
+        }
+        assert!(
+            !uses_regular_close_as_previous_close("US", "regular", regular_close),
+            "the US regular session must keep the provider LastClosePrice"
+        );
+        assert!(
+            !uses_regular_close_as_previous_close("US", "closed", Decimal::ZERO),
+            "a zero regular close must never replace the provider LastClosePrice"
+        );
+        assert_ne!(
+            decimal("9.22"),
+            decimal("9.09"),
+            "test data sanity"
+        );
+    }
+
+    /// Parity: go:452dea11:pkg/futu/quote_snapshot_test.go:258
+    /// TestPreviousClosePriceConditionDoesNotRewriteNonUSUnknownSession
+    #[test]
+    fn previous_close_condition_does_not_rewrite_non_us_unknown_sessions() {
+        let regular_close = decimal("321.40");
+        for instrument_market in ["HK", "SH", "SZ", "CN"] {
+            assert!(
+                !uses_regular_close_as_previous_close(
+                    instrument_market,
+                    "unknown",
+                    regular_close
+                ),
+                "{instrument_market} unknown session must keep LastClosePrice"
+            );
+            assert!(
+                !uses_regular_close_as_previous_close(
+                    instrument_market,
+                    "closed",
+                    regular_close
+                ),
+                "{instrument_market} closed session must keep LastClosePrice"
+            );
+        }
+    }
+
+    /// Parity: go:452dea11:pkg/futu/quote_snapshot_test.go:49
+    /// TestQuoteSnapshotPreviousClosePriceInClosedSession and
+    /// go:452dea11:pkg/futu/quote_snapshot_test.go:164
+    /// TestQuoteSnapshotPreviousClosePriceZeroCurPrice
+    ///
+    /// Closed US session: `previousClosePrice` is the latest regular-session
+    /// close (Friday's CurPrice) while `lastClosePrice` stays the raw provider
+    /// value. With a zero current price the condition fails and the provider
+    /// LastClosePrice is preserved instead of emitting an empty close.
+    #[test]
+    fn closed_us_session_reports_regular_close_as_previous_close() {
+        let closed = TradeQuoteSnapshot {
+            last_price: Some(decimal("9.22")),
+            previous_close: Some(decimal("9.09")),
+            last_close: Some(decimal("9.09")),
+            session: Some("closed".to_owned()),
+            ..Default::default()
+        };
+        let value = project_cached_snapshot(&tick(closed), "US", "2026-05-31T16:00:00Z");
+        assert_eq!(
+            value["previousClosePrice"], "9.22",
+            "a closed US session must report the latest regular-session close"
+        );
+        assert_eq!(value["lastClosePrice"], "9.09");
+        assert_eq!(value["session"], "closed");
+    }
+
+    #[test]
+    fn zero_current_price_falls_back_to_provider_last_close() {
+        let zero_price = TradeQuoteSnapshot {
+            last_price: Some(Decimal::ZERO),
+            previous_close: Some(decimal("9.09")),
+            last_close: Some(decimal("9.09")),
+            session: Some("closed".to_owned()),
+            ..Default::default()
+        };
+        let mut zero_tick = tick(zero_price);
+        zero_tick.price = Decimal::ZERO;
+        let value = project_cached_snapshot(&zero_tick, "US", "2026-05-31T16:00:00Z");
+        assert_eq!(
+            value["previousClosePrice"], "9.09",
+            "a zero regular close must fall back to the provider LastClosePrice"
+        );
+    }
+
+    /// Parity: go:452dea11:pkg/futu/quote_snapshot_test.go:93
+    /// TestQuoteSnapshotHolidayRemainsClosedWithStaleExtendedBlocks
+    ///
+    /// On a market holiday OpenD keeps returning the previous session's
+    /// pre/after/overnight blocks. Go keeps `session=closed`, reports the
+    /// regular close as both `price` and `previousClosePrice`, and still
+    /// exposes the three blocks (without independent quote timestamps) so the
+    /// UI can decide whether to display them.
+    #[test]
+    fn holiday_snapshot_stays_closed_with_stale_extended_blocks() {
+        let extended = |price: &str| ExtendedQuoteSnapshot {
+            price: Some(decimal(price)),
+            quote_time: None,
+            ..Default::default()
+        };
+        let snapshot = TradeQuoteSnapshot {
+            last_price: Some(decimal("195.50")),
+            previous_close: Some(decimal("193.20")),
+            last_close: Some(decimal("193.20")),
+            session: Some("closed".to_owned()),
+            pre_market: Some(extended("196.10")),
+            after_market: Some(extended("195.30")),
+            overnight: Some(extended("194.90")),
+            ..Default::default()
+        };
+        let mut holiday_tick = tick(snapshot);
+        holiday_tick.price = decimal("195.50");
+        let value = project_cached_snapshot(&holiday_tick, "US", "2026-06-19T16:00:00Z");
+        assert_eq!(value["session"], "closed");
+        assert_eq!(value["extendedHours"], false);
+        assert_eq!(value["price"], "195.50");
+        assert_eq!(value["previousClosePrice"], "195.50");
+        for block in ["preMarket", "afterMarket", "overnight"] {
+            assert!(
+                !value["extended"][block].is_null(),
+                "stale {block} block must stay available for display decisions"
+            );
+            assert_eq!(
+                value["extended"][block]["quoteTime"], "",
+                "{block} must not carry an independent OpenD quote timestamp"
+            );
+        }
+    }
+
+    /// Parity: go:452dea11:pkg/futu/quote_snapshot_test.go:133
+    /// TestQuoteSnapshotPreviousClosePriceInAfterHours
+    ///
+    /// After hours the primary price is the after-market price, but
+    /// `previousClosePrice` must be today's regular-session close while
+    /// `lastClosePrice` keeps the raw provider value. The after-market block
+    /// must not reuse the regular quote timestamp.
+    #[test]
+    fn after_hours_projection_uses_todays_regular_close_and_keeps_block_time_empty() {
+        let snapshot = TradeQuoteSnapshot {
+            last_price: Some(decimal("195.50")),
+            previous_close: Some(decimal("193.20")),
+            last_close: Some(decimal("193.20")),
+            session: Some("after".to_owned()),
+            after_market: Some(ExtendedQuoteSnapshot {
+                price: Some(decimal("195.30")),
+                change_rate: Some(decimal_text("-0.10")),
+                quote_time: None,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let mut after_tick = tick(snapshot);
+        after_tick.price = decimal("195.50");
+        let value = project_cached_snapshot(&after_tick, "US", "2026-06-02T21:00:00Z");
+        assert_eq!(value["price"], "195.30");
+        assert_eq!(value["previousClosePrice"], "195.50");
+        assert_eq!(value["lastClosePrice"], "193.20");
+        assert_eq!(value["session"], "after");
+        assert_eq!(value["extendedHours"], true);
+        assert_eq!(value["extended"]["afterMarket"]["price"], "195.30");
+        assert_eq!(
+            value["extended"]["afterMarket"]["quoteTime"], "",
+            "the after block must not reuse the BasicQot regular quote time"
         );
     }
 

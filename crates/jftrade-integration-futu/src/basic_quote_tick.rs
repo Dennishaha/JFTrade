@@ -567,6 +567,42 @@ mod tests {
         }
     }
 
+    /// Parity: go:452dea11:pkg/futu/quote_snapshot_test.go:14
+    /// TestQuoteSnapshotResolvesHighPrecisionVolumeWithoutLosingInt64Precision
+    ///
+    /// `ordinaryVolume` (9_007_199_254_740_993) is not representable as f64, so
+    /// the required int64 field must survive untouched unless `hpVolume` is a
+    /// usable positive value; a zero or non-finite `hpVolume` never erases it.
+    #[test]
+    fn high_precision_volume_never_loses_required_int64_precision() {
+        const ORDINARY_VOLUME: i64 = 9_007_199_254_740_993;
+        let cases: [(&str, Option<f64>, &str); 4] = [
+            ("fractional high precision value", Some(1000.5), "1000.5"),
+            (
+                "zero high precision value keeps positive ordinary volume",
+                Some(0.0),
+                "9007199254740993",
+            ),
+            (
+                "non-finite high precision value falls back",
+                Some(f64::NAN),
+                "9007199254740993",
+            ),
+            (
+                "missing high precision value falls back",
+                None,
+                "9007199254740993",
+            ),
+        ];
+        for (name, hp_volume, expected) in cases {
+            let mut basic = quote(11, "AAPL", 200.0, ORDINARY_VOLUME);
+            basic.hp_volume = hp_volume;
+            let ticks = basic_quote_ticks(vec![basic], 1_752_595_200_000, 1)
+                .unwrap_or_else(|error| panic!("{name}: {error}"));
+            assert_eq!(ticks[0].volume.to_string(), expected, "case: {name}");
+        }
+    }
+
     #[test]
     fn preserves_fractional_high_precision_volume() {
         let mut fractional_volume = quote(11, "AAPL", 1.0, 1);
@@ -697,6 +733,55 @@ mod tests {
             "previous close must not be overwritten by the current lunch price"
         );
         assert!(snapshot.pre_market.is_none() && snapshot.after_market.is_none());
+    }
+
+    /// Parity: go:452dea11:pkg/futu/quote_snapshot_test.go:183
+    /// TestQuoteSnapshotPreviousClosePriceForHKLunchBreak
+    ///
+    /// HK has no US extended-hours model: during the lunch break the calendar
+    /// resolves `closed`, `price` stays the latest traded price, and
+    /// `previousClose` must remain the provider LastClosePrice so the change
+    /// percentage does not collapse to zero.
+    #[test]
+    fn hk_lunch_break_keeps_provider_last_close_as_previous_close() {
+        let resolver = StaticSessionResolver(QuoteSessionContext {
+            session: "closed".to_owned(),
+            trading_date: "2026-06-12".to_owned(),
+            timezone: "Asia/Hong_Kong".to_owned(),
+            sessions: vec![
+                QuoteSessionWindow {
+                    kind: "regular".to_owned(),
+                    start_minute: 570,
+                    end_minute: 720,
+                },
+                QuoteSessionWindow {
+                    kind: "regular".to_owned(),
+                    start_minute: 780,
+                    end_minute: 960,
+                },
+            ],
+        });
+        let mut lunch = quote(1, "00700", 321.40, 12_345_678);
+        lunch.last_close_price = Some(318.90);
+        lunch.open_price = Some(320.00);
+        lunch.high_price = Some(322.20);
+        lunch.low_price = Some(319.80);
+        lunch.turnover = Some(3_955_555_555.0);
+        let ticks =
+            basic_quote_ticks_with_resolver(vec![lunch], 1_781_238_600_000, 1, Some(&resolver))
+                .expect("HK lunch tick");
+        let tick = &ticks[0];
+        let snapshot = tick.snapshot.as_ref().expect("snapshot");
+        assert_eq!(snapshot.session.as_deref(), Some("closed"));
+        assert_eq!(tick.price.to_string(), "321.4");
+        assert_eq!(
+            snapshot.previous_close.expect("previous close").to_string(),
+            "318.9"
+        );
+        assert!(
+            snapshot.previous_close.expect("previous close") != tick.price,
+            "Price and PreviousClosePrice must not collapse to the same value"
+        );
     }
 
     #[test]

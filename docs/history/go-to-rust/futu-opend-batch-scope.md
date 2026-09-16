@@ -1252,3 +1252,63 @@ pnpm run check:rust:architecture
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+## 批次：pkg/futu/quote_snapshot_test.go（8 项）
+
+基线：`go:320084a5`。本批核对 `quoteSnapshotFromBasicQotAt` 的
+previousClosePrice 会话条件、HpVolume 精度回退、HK 午休与节假日陈旧 extended block。
+
+### 发现的功能差异（已修复）
+
+1. **previousClosePrice 条件漏掉 unknown 会话**（P1，session 边界）
+   - Go：`market.ShouldUseRegularCloseAsPreviousClose(symbol, session, regularClose)` =
+     `IsUSSymbol(symbol) && session != SessionRegular && regularClose > 0`。
+   - 修复前：Rust `product_production_ports_market_data_quote_snapshot.rs` 用
+     allow-list `matches!(session, "pre" | "after" | "overnight" | "closed")`，
+     US `unknown` 会话不会使用最近常规收盘价；同时未显式断言 `regularClose > 0`
+     （零价只在 `decimal_value(Some(..))` 路径上间接表现）。
+   - 复制条件：US 标的在日历解析失败/未覆盖时得到 `session=unknown`，
+     `GET /api/v1/market-data/snapshots/US/AAPL` 返回 provider LastClosePrice 而非最近常规收盘价。
+   - 预期（Go）：`session != regular` 的全部 US 会话（含 `unknown`）使用最近常规收盘价。
+   - 修复位置：新增 `uses_regular_close_as_previous_close(market, session, regular_close)`，
+     `project_cached_snapshot` 与 `project_fallback_snapshot` 共用。
+   - 回归测试：`previous_close_condition_switches_on_session_type`、
+     `previous_close_condition_does_not_rewrite_non_us_unknown_sessions`。
+
+### 行为映射
+
+| Go 测试 | Rust owner / 测试 | 状态与结论 |
+| --- | --- | --- |
+| `:14 TestQuoteSnapshotResolvesHighPrecisionVolumeWithoutLosingInt64Precision` | `basic_quote_tick::tests::high_precision_volume_never_loses_required_int64_precision` | `[x]` function_exact：1000.5 生效；0/NaN/缺失回退 int64，9_007_199_254_740_993 精度不丢失 |
+| `:49 TestQuoteSnapshotPreviousClosePriceInClosedSession` | `quote_snapshot::tests::closed_us_session_reports_regular_close_as_previous_close` | `[x]` function_exact：closed 用最近常规收盘价，lastClosePrice 保留原值 |
+| `:93 TestQuoteSnapshotHolidayRemainsClosedWithStaleExtendedBlocks` | `quote_snapshot::tests::holiday_snapshot_stays_closed_with_stale_extended_blocks` | `[x]` function_exact：节假日保持 closed，三个陈旧 block 保留且无独立 quoteTime |
+| `:133 TestQuoteSnapshotPreviousClosePriceInAfterHours` | `quote_snapshot::tests::after_hours_projection_uses_todays_regular_close_and_keeps_block_time_empty` | `[x]` function_exact：盘后主价格取 after block，previousClosePrice=当日常规收盘 |
+| `:164 TestQuoteSnapshotPreviousClosePriceZeroCurPrice` | `quote_snapshot::tests::zero_current_price_falls_back_to_provider_last_close` | `[x]` function_exact：CurPrice=0 回退 LastClosePrice |
+| `:183 TestQuoteSnapshotPreviousClosePriceForHKLunchBreak` | `basic_quote_tick::tests::hk_lunch_break_keeps_provider_last_close_as_previous_close` | `[x]` function_exact：HK 午休 closed + lastClose 保留，price≠previousClose |
+| `:217 TestPreviousClosePriceConditionBySessionType` | `quote_snapshot::tests::previous_close_condition_switches_on_session_type` | `[x]` function_exact：regular 用 LastClose，其余（含 unknown）用最近常规收盘；<=0 不改写 |
+| `:258 TestPreviousClosePriceConditionDoesNotRewriteNonUSUnknownSession` | `quote_snapshot::tests::previous_close_condition_does_not_rewrite_non_us_unknown_sessions` | `[x]` function_exact：HK/SH/SZ/CN unknown/closed 均不改写 |
+
+### 边界说明
+
+- Go 的 `quoteSnapshotFromBasicQotAt` 同时产出 `Price`/`PreviousClosePrice`/`LastClosePrice`
+  三个字段与 pre/after/overnight block；Rust 把它拆成
+  `basic_quote_tick::basic_quote_ticks_with_resolver`（provider→neutral，session 与 block 归属）
+  与 `product_production_ports_market_data_quote_snapshot::project_cached_snapshot`
+  （neutral→公开 wire，previousClosePrice 决策）。同一 Go 断言按 owner 归属分别映射，
+  未在两侧重复实现同一规则。
+- Go 的 `SessionUnknown` 只在日历无法分类时出现；Rust 的 `normalized_session`
+  把缺失 session 归一为 `regular`，因此 `unknown` 只会在日历显式返回该标签时出现，
+  规则本身仍按 `!= regular` 判定。
+- HK 午休用例在 Rust 需要显式注入日历 resolver（`StaticSessionResolver`），
+  因为无 resolver 的 fallback 只按市场分钟区间判定；生产组合始终注入
+  `RuntimeCalendarResolver`，与 Go 的 `CurrentCalendarResolver` 一致。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```

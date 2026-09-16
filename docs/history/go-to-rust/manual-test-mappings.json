@@ -17416,60 +17416,60 @@
     "evidence_type": "missing"
   },
   "pkg/futu/quote_snapshot_test.go:14:TestQuoteSnapshotResolvesHighPrecisionVolumeWithoutLosingInt64Precision": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_tick.rs::tests::high_precision_volume_never_loses_required_int64_precision",
+    "conclusion": "function_exact：hpVolume 为可用的正数（1000.5）时使用它；为 0、NaN 或缺失时回退到必需的 int64 volume，9_007_199_254_740_993 不会被 f64 精度吞掉。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/quote_snapshot_test.go:49:TestQuoteSnapshotPreviousClosePriceInClosedSession": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::tests::closed_us_session_reports_regular_close_as_previous_close",
+    "conclusion": "function_exact：US 收盘会话下 previousClosePrice 取最近常规收盘价（9.22，即 CurPrice），lastClosePrice 保留 provider 原始值（9.09），session=closed。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/quote_snapshot_test.go:93:TestQuoteSnapshotHolidayRemainsClosedWithStaleExtendedBlocks": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::tests::holiday_snapshot_stays_closed_with_stale_extended_blocks",
+    "conclusion": "function_exact：节假日仍为 closed、价格与 previousClosePrice 均为常规收盘价，pre/after/overnight 三个陈旧 block 仍保留（quoteTime 为空）供展示决策，extendedHours=false。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/quote_snapshot_test.go:133:TestQuoteSnapshotPreviousClosePriceInAfterHours": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::tests::after_hours_projection_uses_todays_regular_close_and_keeps_block_time_empty",
+    "conclusion": "function_exact：盘后主价格为 after block 价（195.30），previousClosePrice 为当日常规收盘价（195.50），lastClosePrice 保留 193.20，session=after 且 after block 不复用常规 quoteTime。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/quote_snapshot_test.go:164:TestQuoteSnapshotPreviousClosePriceZeroCurPrice": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::tests::zero_current_price_falls_back_to_provider_last_close",
+    "conclusion": "function_exact：CurPrice=0 时不满足 >0 条件，previousClosePrice 回退到 provider LastClosePrice（9.09），不输出空值。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/quote_snapshot_test.go:183:TestQuoteSnapshotPreviousClosePriceForHKLunchBreak": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_tick.rs::tests::hk_lunch_break_keeps_provider_last_close_as_previous_close",
+    "conclusion": "function_exact：HK 午休解析为 closed、price 为最新成交价 321.4，previousClose 保持 provider LastClosePrice 318.9，二者不相等（涨跌幅不会塌陷为 0）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/quote_snapshot_test.go:217:TestPreviousClosePriceConditionBySessionType": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::tests::previous_close_condition_switches_on_session_type",
+    "conclusion": "function_exact：US regular 保留 LastClosePrice；pre/after/overnight/closed/unknown 均使用最近常规收盘价；常规收盘价 <= 0 时不改写。修复：Rust 此前用 allow-list（pre/after/overnight/closed）漏掉 unknown，与 Go 的 session != regular 语义不一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/quote_snapshot_test.go:258:TestPreviousClosePriceConditionDoesNotRewriteNonUSUnknownSession": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::tests::previous_close_condition_does_not_rewrite_non_us_unknown_sessions",
+    "conclusion": "function_exact：HK/SH/SZ/CN 的 unknown 与 closed 会话都不改写 previousClosePrice，仅 US 适用该规则。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/read_account_test.go:12:TestRecoverableOpenDErrClassifiesConnectionFailures": {
     "status": "[~]",
