@@ -16,6 +16,14 @@ pub struct OptionSellerScreenerQuery {
     pub is_asc: Option<bool>,
     pub filters: Vec<EventIndicator>,
 }
+
+impl OptionSellerScreenerQuery {
+    /// Strict OpenD validation for the translated request; mirrors Go's
+    /// `opend.ValidateAdvancedC2S` step for Qot_GetOptionSellerScreener.
+    pub fn validate(&self) -> Result<(), OptionSellerScreenerQueryError> {
+        validate_query(self)
+    }
+}
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OptionSellerScreenerItem {
@@ -310,4 +318,51 @@ pub enum OptionSellerScreenerQueryError {
     InvalidResponse(String),
     #[error("OpenD session: {0}")]
     Session(#[from] OpenDSessionCoordinatorError),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn query(option_market: i32, seller_type: i32) -> OptionSellerScreenerQuery {
+        OptionSellerScreenerQuery {
+            option_market,
+            seller_type,
+            sort_type: None,
+            is_asc: None,
+            filters: Vec::new(),
+        }
+    }
+
+    /// Parity: go:452dea11:pkg/futu/adapter_option_fix_test.go:168
+    /// TestFutuOptionEventValidationRejectsUnsupportedInputs (seller case)
+    #[test]
+    fn strict_validation_rejects_each_unsupported_seller_boundary() {
+        for (option_market, seller_type) in [(1, 1), (1, 2), (3, 1), (3, 2)] {
+            query(option_market, seller_type)
+                .validate()
+                .unwrap_or_else(|error| {
+                    panic!("seller {option_market}/{seller_type} rejected: {error}")
+                });
+        }
+        for (option_market, seller_type) in [(2, 1), (4, 1), (0, 1), (1, 0), (1, 3), (5, 7)] {
+            assert!(
+                query(option_market, seller_type).validate().is_err(),
+                "seller {option_market}/{seller_type} must be rejected before any RPC"
+            );
+        }
+        let unsupported_sort = OptionSellerScreenerQuery {
+            sort_type: Some(9),
+            ..query(1, 1)
+        };
+        assert!(unsupported_sort.validate().is_err());
+        let unsupported_filter = OptionSellerScreenerQuery {
+            filters: vec![EventIndicator {
+                indicator_type: 99,
+                value: None,
+            }],
+            ..query(1, 1)
+        };
+        assert!(unsupported_filter.validate().is_err());
+    }
 }

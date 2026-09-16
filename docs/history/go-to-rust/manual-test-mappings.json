@@ -15428,67 +15428,67 @@
     "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_option_fix_test.go:12:TestFutuRootAdapterForwardsBatchSnapshotsThroughProtocol3203": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_actions_tests.rs::batch_snapshots_forward_each_instrument_through_the_snapshot_reader_once",
+    "conclusion": "function_exact：批量快照入口对每个标的只发起一次快照读取（生产 owner 为 Qot_GetSecuritySnapshot/3203），并断言被请求标的被逐字转发；Go 断言 protocol 3203 call count == 1。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_option_fix_test.go:31:TestFutuDeclaredCapabilitiesHaveExecutableAdapterInterfaces": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::every_declared_capability_resolves_to_an_executable_production_adapter",
+    "conclusion": "function_exact：遍历 /api/v1/brokers/capabilities 的 catalog features，要求每个 feature 声明 adapterInterface 与至少一个 operation，且每个 operation 都能解析到已安装的 production adapter（非 MissingInternalAdapter），覆盖 Go 的 ImplementsAdapterInterface 断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_option_fix_test.go:56:TestFutuOptionEventRequestsPassStrictOpenDValidation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_options_tests.rs::option_event_operation_queries_pass_strict_opend_validation",
+    "conclusion": "function_exact：US equity→1、US index→2、earnings HK index→4、covered call→1、cash secured put→2 全部通过 typed reader 的严格校验（等价 opend.ValidateAdvancedC2S）；0DTE 保持 US-only。修复：earnings screener 此前拒绝 Go 允许的 US/HK index 市场（optionMarket 2/4）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_option_fix_test.go:120:TestFutuZeroDteContractRebuildsBrokerNeutralChainContext": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_options_tests.rs::zero_dte_contract_query_rebuilds_chain_context_and_projects_drilldown",
+    "conclusion": "function_exact：引擎从 broker-neutral locator 重建 owner/strikeDateTimestamp/chainInfo{productCode,multiplier,contractSize,expirationType,underlying} 并交给 typed reader 严格校验（fixture 断言重建结果），公开 entry 不含原始 chainInfo。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_option_fix_test.go:168:TestFutuOptionEventValidationRejectsUnsupportedInputs": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/option_seller_screener_query.rs::tests::strict_validation_rejects_each_unsupported_seller_boundary",
+    "conclusion": "function_exact：seller 只接受 US/HK security（1/3）+ covered_call/cash_secured_put，HK 0DTE、未支持 sort/indicator 全部在 RPC 前拒绝；0DTE 的 HK 拒绝与 earnings 的 CN 拒绝在 engine 翻译测试中断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_option_fix_test.go:206:TestFutuOptionRequestTranslationBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_options_tests.rs::option_event_request_translation_boundaries_match_go_helpers",
+    "conclusion": "function_exact：不支持的 option market（SH/HK 0DTE/CN）、非法 option security（缺少 market 前缀）在 provider 前 400/422 拒绝，owner filter 只构造一条 indicator，覆盖 Go 的 futuOptionMarket/optionSecurityMap/appendOptionFilter 边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_option_fix_test.go:261:TestFutuZeroDteContractTranslationRejectsEachInvalidBoundary": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_options_tests.rs::zero_dte_contract_translation_rejects_each_invalid_boundary",
+    "conclusion": "function_exact：HK 市场、非法 owner、缺失 expiryTimestamp、缺失 chainLocator.productCode、未支持 sort、未支持 optionType 六类边界逐项拒绝（engine 层）；typed reader 另有 strict_validation_rejects_each_invalid_zero_dte_contract_boundary 覆盖同一边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_option_fix_test.go:331:TestFutuOptionNumericParameterBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 untyped numeric parameter helpers",
+    "conclusion": "boundary：Go 的 int64Param/floatParam/int32Param 用于把 map[string]any 形式的 protojson 参数强转为数字；Rust 用强类型 Option<i64>/Option<f64>/Option<i32> 字段（OptionZeroDteChainLocatorQuery 的 serde 反序列化）承载同样的转换，非法数字在 serde 反序列化阶段即被拒绝，无需运行期 helper。等价边界已由 zero_dte_contract_translation_rejects_each_invalid_boundary 的缺失/非法 locator 用例覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "pkg/futu/adapter_option_fix_test.go:362:TestFutuZeroDteNormalizationHandlesAbsentAndNestedUnderlying": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_options_tests.rs::zero_dte_drilldown_context_prefers_owner_and_falls_back_to_nested_underlying",
+    "conclusion": "function_exact：drilldownContext 优先取 entry owner 的 instrumentId，缺失时回退 chainInfo.underlying.instrumentId；无 chain 的 entry 原样通过且不注入 context。修复：新增 project_zero_dte_drilldown 统一投影并删除原始 chainInfo（此前 0DTE screener 会把 chainInfo 一并泄漏到公开 entry）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_prediction_boundaries_test.go:15:TestFutuPredictionMilestonesResolveOwningEventBeforeQuery": {
     "status": "[~]",

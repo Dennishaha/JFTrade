@@ -276,3 +276,64 @@ async fn normalize_instrument_supports_suffix_formats_and_aliases() {
     assert_eq!(val["prefix"], "SH");
     assert_eq!(val["market"], "CN");
 }
+
+/// Parity: go:452dea11:pkg/futu/adapter_option_fix_test.go:12
+/// TestFutuRootAdapterForwardsBatchSnapshotsThroughProtocol3203
+///
+/// Go's root adapter forwards a batch snapshot request through protocol 3203
+/// exactly once. Rust's batch route fans a single instrument out to the
+/// snapshot read port (`/api/v1/market-data/snapshots/{market}/{symbol}`),
+/// which is the production owner of the Qot_GetSecuritySnapshot(3203) read;
+/// the counted port below asserts the same single 3203-backed call and that the
+/// requested instrument is named verbatim.
+#[derive(Debug, Default)]
+struct CountingBatchSnapshotQuotePort {
+    calls: std::sync::Mutex<Vec<String>>,
+}
+
+impl MarketDataQuoteReadSnapshotPort for CountingBatchSnapshotQuotePort {
+    fn read<'a>(
+        &'a self,
+        path: &'a str,
+        _query: &'a str,
+    ) -> crate::product::MarketDataQuoteReadFuture<'a> {
+        self.calls
+            .lock()
+            .expect("batch snapshot calls")
+            .push(path.to_owned());
+        Box::pin(async move {
+            Ok(json!({
+                "snapshot": {
+                    "price": "118.40",
+                    "observedAt": "2026-08-29T14:30:00Z",
+                },
+            }))
+        })
+    }
+}
+
+#[tokio::test]
+async fn batch_snapshots_forward_each_instrument_through_the_snapshot_reader_once() {
+    let quote_port = Arc::new(CountingBatchSnapshotQuotePort::default());
+    let port = ProductionMarketDataProviderActionsPort::new(Some(quote_port.clone()));
+    let request = MarketDataProviderActionsRequest {
+        method: "POST".to_owned(),
+        path: BATCH_SNAPSHOTS_PATH.to_owned(),
+        query: String::new(),
+        body: br#"{"symbols":["HK.00700"]}"#.to_vec(),
+    };
+    let value = port.dispatch(&request).await.expect("batch snapshots");
+    assert_eq!(value["entries"].as_array().map(Vec::len), Some(1));
+    assert_eq!(value["entries"][0]["symbol"], "HK.00700");
+    assert_eq!(value["snapshots"]["HK.00700"]["price"], 118.40);
+    assert_eq!(
+        value["metadata"]["requestedSymbols"][0],
+        serde_json::json!("HK.00700")
+    );
+    let calls = quote_port.calls.lock().expect("batch snapshot calls").clone();
+    assert_eq!(
+        calls,
+        vec!["/api/v1/market-data/snapshots/HK/00700".to_owned()],
+        "the batch request must forward exactly one snapshot read per instrument"
+    );
+}

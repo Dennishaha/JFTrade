@@ -1178,3 +1178,77 @@ cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locke
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+## 批次：pkg/futu/adapter_option_fix_test.go（9 项）
+
+基线：`go:320084a5`（上一批提交后）。本批把 Futures/期权事件族的
+`injectAdvancedDefaults` + `opend.ValidateAdvancedC2S` + drilldown 归一化逐项映射到
+Rust 的 typed OpenD reader 与 engine 翻译层。
+
+### 发现的功能差异（已修复）
+
+1. **earnings screener 拒绝 Go 允许的 index 市场**（P1，provider error mapping）
+   - Go `injectOptionEventDefaults` → `futuOptionMarket` 对
+     `underlyingProductClass=index` 返回 2（US index）/4（HK index），
+     `opend.ValidateAdvancedC2S` 对 1..4 全部通过。
+   - 修复前：`ProductMarketDataOptionsPort` 的 earnings 分支只接受
+     `US/HK` 的 `equity|option`，`operation=earnings&market=HK&underlyingProductClass=index`
+     返回 400 `earnings screener supports US/HK security options only`；
+     typed reader `validate_query` 也只接受 1|3。
+   - 复制条件：`GET /api/v1/market-data/options/events?operation=earnings&market=HK&underlyingProductClass=index`。
+   - 预期（Go）：`optionMarket=4`，请求送达 provider。
+   - 修复位置：`crates/jftrade-engine/src/product_production_ports_market_data_options_events.rs::parse_screener_common`、
+     `crates/jftrade-integration-futu/src/option_earnings_screener_query.rs::validate_query`。
+   - 回归测试：`option_event_operation_queries_pass_strict_opend_validation`、
+     `option_earnings_screener_query::tests::accepts_security_and_index_option_markets`。
+
+2. **0DTE screener 公开 entry 泄漏原始 `chainInfo`**（P1，wire 契约）
+   - Go `optionZeroDteFeatureResult` 先把 `chainInfo` 投影为 `drilldownContext`
+     （owner → `chainInfo.underlying` 回退），然后 `delete(entry, "chainInfo")`。
+   - 修复前：Rust 写入 `drilldownContext` 但保留 `chainInfo`，公开 entry 同时含
+     OpenD 原始结构与中立结构；且 underlying 只取 owner，不回退嵌套
+     `chainInfo.underlying`。
+   - 复制条件：`GET /api/v1/market-data/options/events?operation=zero_dte&market=US&underlying=US.AAPL`
+     （owner 缺失时 `chainInfo.underlying` 被忽略）。
+   - 修复位置：`product_production_ports_market_data_options_events.rs::project_zero_dte_drilldown`。
+   - 回归测试：`zero_dte_drilldown_context_prefers_owner_and_falls_back_to_nested_underlying`。
+
+### 行为映射
+
+| Go 测试 | Rust owner / 测试 | 状态与结论 |
+| --- | --- | --- |
+| `:12 TestFutuRootAdapterForwardsBatchSnapshotsThroughProtocol3203` | `product_production_ports_market_data_actions_tests::batch_snapshots_forward_each_instrument_through_the_snapshot_reader_once` | `[x]` function_exact：每个标的恰好一次 3203 owner 读取，转发标的逐字一致 |
+| `:31 TestFutuDeclaredCapabilitiesHaveExecutableAdapterInterfaces` | `product_production_assembly_tests::every_declared_capability_resolves_to_an_executable_production_adapter` | `[x]` function_exact：catalog 每个 feature 的 adapterInterface/operations 都能解析到已安装 adapter |
+| `:56 TestFutuOptionEventRequestsPassStrictOpenDValidation` | `product_production_ports_market_data_options_tests::option_event_operation_queries_pass_strict_opend_validation` | `[x]` function_exact：US equity/index、HK index earnings、covered call/CSP 全部通过严格校验；0DTE 保持 US-only |
+| `:120 TestFutuZeroDteContractRebuildsBrokerNeutralChainContext` | `...options_tests::zero_dte_contract_query_rebuilds_chain_context_and_projects_drilldown` | `[x]` function_exact：locator→chainInfo 重建 + typed 校验，公开 entry 无原始 chainInfo |
+| `:168 TestFutuOptionEventValidationRejectsUnsupportedInputs` | `option_seller_screener_query::tests::strict_validation_rejects_each_unsupported_seller_boundary` | `[x]` function_exact：非法 optionMarket/sellerType/sort/indicator 在 RPC 前拒绝 |
+| `:206 TestFutuOptionRequestTranslationBoundaries` | `...options_tests::option_event_request_translation_boundaries_match_go_helpers` | `[x]` function_exact：不支持市场、非法 security 前缀、owner filter 形状 |
+| `:261 TestFutuZeroDteContractTranslationRejectsEachInvalidBoundary` | `...options_tests::zero_dte_contract_translation_rejects_each_invalid_boundary`；`option_zero_dte_contract_query::tests::strict_validation_rejects_each_invalid_zero_dte_contract_boundary` | `[x]` function_exact：六类边界逐项拒绝 |
+| `:331 TestFutuOptionNumericParameterBoundaries` | 不适用：Rust 无 untyped numeric parameter helpers | `[~]` boundary：强类型 serde 字段替代 `int64Param/floatParam/int32Param`，非法数字在反序列化阶段拒绝 |
+| `:362 TestFutuZeroDteNormalizationHandlesAbsentAndNestedUnderlying` | `...options_tests::zero_dte_drilldown_context_prefers_owner_and_falls_back_to_nested_underlying` | `[x]` function_exact：owner 优先、嵌套 underlying 回退、无 chain 原样通过 |
+
+### 边界说明
+
+- Go 的 `injectAdvancedDefaults` 是"先注入默认值、再跑 protojson 严格反序列化"的两段式；
+  Rust 把同一语义拆成 engine 翻译（`parse_screener_common` / `parse_seller_query` /
+  `parse_zero_dte_contract_query`）+ typed reader 的 `validate()`，两处共同构成等价边界，
+  因此同一 Go 测试可能映射到 engine 与 integration 两个 Rust 测试（见 `:261`）。
+- 三个 screener/contract query 新增 `pub fn validate()`，把原本私有的
+  `validate_query` 暴露为显式契约，便于调用方与测试在 RPC 前断言，不改变调用路径。
+- Go 的 `int64Param` 接受 `int/int32/int64/float64/json.Number/string` 六种动态类型；
+  Rust 的请求体通过 `serde` 直接反序列化为类型化字段，不存在运行期动态转换分支，
+  故记 boundary 而不是伪造 helper。
+- `:120` 的 Go 断言还包含 `sortType=2`（open_interest）；Rust 的
+  `FixtureOptionZeroDteContractReader` 断言重建后的 `sort_type == Some(2)`，
+  由同一 Rust 测试覆盖。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+pnpm run check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```

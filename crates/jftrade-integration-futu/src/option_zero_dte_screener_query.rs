@@ -21,6 +21,17 @@ pub struct OptionZeroDteScreenerQuery {
     pub filters: Vec<EventIndicator>,
 }
 
+impl OptionZeroDteScreenerQuery {
+    /// Strict OpenD validation for the translated request.
+    ///
+    /// Go runs the same check as `opend.ValidateAdvancedC2S` after its
+    /// adapter has injected defaults, so callers can assert that a translated
+    /// query is well-formed before an RPC is attempted.
+    pub fn validate(&self) -> Result<(), OptionZeroDteScreenerQueryError> {
+        validate_query(self)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OptionZeroDteChainInfo {
@@ -373,6 +384,46 @@ pub enum OptionZeroDteScreenerQueryError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn query(option_market: i32) -> OptionZeroDteScreenerQuery {
+        OptionZeroDteScreenerQuery {
+            option_market,
+            sort_type: None,
+            is_asc: None,
+            count: 50,
+            page: None,
+            filters: Vec::new(),
+        }
+    }
+
+    /// Parity: go:452dea11:pkg/futu/adapter_option_fix_test.go:168
+    /// TestFutuOptionEventValidationRejectsUnsupportedInputs (0DTE screener case)
+    ///
+    /// Go's 0DTE screener defaults inject optionMarket 1/2 for US and then run
+    /// strict descriptor validation. HK (3/4) must fail closed.
+    #[test]
+    fn strict_validation_accepts_only_us_zero_dte_screener_markets() {
+        for option_market in [1, 2] {
+            query(option_market).validate().unwrap_or_else(|error| {
+                panic!("0DTE optionMarket {option_market} rejected: {error}")
+            });
+        }
+        for option_market in [0, 3, 4, 5] {
+            assert!(
+                query(option_market).validate().is_err(),
+                "0DTE optionMarket {option_market} must be rejected before any RPC"
+            );
+        }
+        for count in [0, 501] {
+            let out_of_range = OptionZeroDteScreenerQuery { count, ..query(1) };
+            assert!(out_of_range.validate().is_err(), "count {count}");
+        }
+        let unsupported_sort = OptionZeroDteScreenerQuery {
+            sort_type: Some(9),
+            ..query(1)
+        };
+        assert!(unsupported_sort.validate().is_err());
+    }
 
     #[test]
     fn rejects_non_us_or_out_of_range_page_size() {

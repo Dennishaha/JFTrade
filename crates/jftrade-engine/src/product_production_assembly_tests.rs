@@ -1838,6 +1838,84 @@ mod product_production_assembly_tests {
         );
     }
 
+    /// Parity: go:452dea11:pkg/futu/adapter_option_fix_test.go:31
+    /// TestFutuDeclaredCapabilitiesHaveExecutableAdapterInterfaces
+    ///
+    /// Go walks the Futu descriptor capabilities, resolves each feature in the
+    /// builtin catalog, and asserts the adapter implements the declared
+    /// `AdapterInterface`. Rust's equivalent boundary is the production route
+    /// registry: every catalog feature must declare an adapter interface and
+    /// every declared operation must resolve to an installed production
+    /// adapter instead of a missing one.
+    #[test]
+    fn every_declared_capability_resolves_to_an_executable_production_adapter() {
+        let (_temp_dir, _settings_path, config, security) = setup_test_env();
+        let ports = production_ports(&config, &security).expect("production ports");
+        let registry =
+            crate::product::product_production_route_registry::ProductionRouteRegistry::bind(
+                &ports,
+            )
+            .expect("every declared production adapter must be installed");
+        let catalog = ports
+            .broker
+            .read("/api/v1/brokers/capabilities", "")
+            .expect("capability catalog");
+        let features = catalog["catalog"]["features"]
+            .as_array()
+            .expect("catalog features");
+        assert!(
+            !features.is_empty(),
+            "the capability catalog must not be empty"
+        );
+        let mut checked_operations = 0_usize;
+        for feature in features {
+            let id = feature["id"].as_str().expect("feature id");
+            let adapter = feature["adapterInterface"].as_str().unwrap_or_default();
+            assert!(
+                !adapter.trim().is_empty(),
+                "feature {id} declares no executable adapter interface"
+            );
+            let operations = feature["operations"]
+                .as_array()
+                .unwrap_or_else(|| panic!("feature {id} declares no operations"));
+            assert!(
+                !operations.is_empty(),
+                "feature {id} ({adapter}) declares no operations"
+            );
+            for operation in operations {
+                let operation_id = operation["id"].as_str().expect("operation id");
+                let method = operation["httpMethod"].as_str().expect("http method");
+                let template = operation["api"].as_str().expect("operation api");
+                let concrete = template
+                    .split('/')
+                    .map(|segment| {
+                        if segment.starts_with('{') && segment.ends_with('}') {
+                            "test-id"
+                        } else {
+                            segment
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("/");
+                let binding = registry.resolve(method, &concrete).unwrap_or_else(|| {
+                    panic!(
+                        "feature {id} operation {operation_id} ({method} {template}) has no production adapter"
+                    )
+                });
+                assert_ne!(
+                    binding.adapter_binding,
+                    ProductionAdapterBinding::MissingInternalAdapter,
+                    "feature {id} operation {operation_id} declares {adapter} without an installed adapter"
+                );
+                checked_operations += 1;
+            }
+        }
+        assert!(
+            checked_operations >= 50,
+            "the audit must cover the full declared operation surface, saw {checked_operations}"
+        );
+    }
+
     #[test]
     fn production_registry_rejects_a_missing_binding_instead_of_registering_it() {
         let (_temp_dir, _settings_path, config, security) = setup_test_env();

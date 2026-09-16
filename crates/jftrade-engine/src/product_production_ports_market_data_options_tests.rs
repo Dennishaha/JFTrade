@@ -715,6 +715,115 @@ impl jftrade_integration_futu::OptionZeroDteScreenerReadPort for FixtureZeroDteS
 }
 
 #[derive(Debug)]
+struct FixtureOptionZeroDteContractReader;
+
+impl jftrade_integration_futu::OptionZeroDteContractReadPort
+    for FixtureOptionZeroDteContractReader
+{
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::OptionZeroDteContractQuery,
+    ) -> Result<
+        Vec<jftrade_integration_futu::OptionZeroDteContractItem>,
+        jftrade_integration_futu::OptionZeroDteContractQueryError,
+    > {
+        assert_eq!(query.owner.instrument_id, "US.AAPL");
+        assert_eq!(query.strike_date_timestamp, 1_784_332_800);
+        assert_eq!(
+            query.chain_info.product_code.as_deref(),
+            Some("AAPL"),
+            "the engine must rebuild the chain context from the query locator"
+        );
+        assert_eq!(query.sort_type, Some(2));
+        assert_eq!(query.filters.len(), 1);
+        query.validate().expect("strict OpenD chain validation");
+        Ok(vec![jftrade_integration_futu::OptionZeroDteContractItem {
+            option: jftrade_integration_futu::OptionEventSecurity {
+                market: "US".into(),
+                code: "AAPL260918C00100000".into(),
+                quote_market: "US".into(),
+                trade_market: "US".into(),
+                instrument_id: "US.AAPL260918C00100000".into(),
+            },
+            name: Some("AAPL Call".into()),
+            option_type: Some(1),
+            option_price: Some(1.25),
+            change_rate: None,
+            volume: Some(10),
+            open_interest: Some(5),
+            iv: Some(20.0),
+            delta: None,
+            gamma: None,
+            vega: None,
+            theta: None,
+            rho: None,
+            buy_break_even_point: None,
+            buy_to_bep: None,
+            buy_profit_probability: None,
+            sell_profit_probability: None,
+        }])
+    }
+}
+
+#[derive(Debug)]
+struct FixtureSellerScreenerReader;
+
+impl jftrade_integration_futu::OptionSellerScreenerReadPort for FixtureSellerScreenerReader {
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::OptionSellerScreenerQuery,
+    ) -> Result<
+        Vec<jftrade_integration_futu::OptionSellerScreenerItem>,
+        jftrade_integration_futu::OptionSellerScreenerQueryError,
+    > {
+        assert!(
+            matches!(query.option_market, 1 | 3),
+            "seller optionMarket {} must be US/HK security",
+            query.option_market
+        );
+        assert!(
+            matches!(query.seller_type, 1 | 2),
+            "seller sellerType {} must be covered call or cash secured put",
+            query.seller_type
+        );
+        query.validate().expect("strict OpenD seller validation");
+        let owner = jftrade_integration_futu::OptionEventSecurity {
+            market: "US".into(),
+            code: "AAPL".into(),
+            quote_market: "US".into(),
+            trade_market: "US".into(),
+            instrument_id: "US.AAPL".into(),
+        };
+        Ok(vec![jftrade_integration_futu::OptionSellerScreenerItem {
+            option: jftrade_integration_futu::OptionEventSecurity {
+                market: "US".into(),
+                code: "AAPL260918C00100000".into(),
+                quote_market: "US".into(),
+                trade_market: "US".into(),
+                instrument_id: "US.AAPL260918C00100000".into(),
+            },
+            name: Some("AAPL Call".into()),
+            option_type: Some(1),
+            strike_price: Some(100.0),
+            strike_time: Some("2026-09-18".into()),
+            strike_timestamp: None,
+            left_days: Some(20),
+            option_price: Some(1.25),
+            stock_price: Some(101.0),
+            premium: Some(125.0),
+            otm_degree: Some(0.1),
+            iv: Some(20.0),
+            interval_return: Some(1.0),
+            annualized_return: Some(12.0),
+            itm_probability: Some(0.2),
+            striked_interval_return: None,
+            striked_annualized_return: None,
+            owner: Some(owner),
+        }])
+    }
+}
+
+#[derive(Debug)]
 struct FixtureEarningsScreenerReader;
 
 impl jftrade_integration_futu::OptionEarningsScreenerReadPort for FixtureEarningsScreenerReader {
@@ -725,9 +834,16 @@ impl jftrade_integration_futu::OptionEarningsScreenerReadPort for FixtureEarning
         jftrade_integration_futu::OptionEarningsScreenerPage,
         jftrade_integration_futu::OptionEarningsScreenerQueryError,
     > {
-        assert_eq!(query.option_market, 1);
+        assert!(
+            (1..=4).contains(&query.option_market),
+            "earnings optionMarket {} is outside Qot_OptionCommon.OptionMarket",
+            query.option_market
+        );
+        query
+            .validate()
+            .expect("strict OpenD earnings validation");
         assert_eq!(query.count, 50);
-        assert_eq!(query.filters.len(), 1);
+        assert!(query.filters.len() <= 1);
         let owner = jftrade_integration_futu::OptionEventSecurity {
             market: "US".into(),
             code: "AAPL".into(),
@@ -935,7 +1051,9 @@ fn ready_port() -> ProductionMarketDataOptionsPort {
         }),
     })));
     runtime.set_option_zero_dte_screener(Some(Arc::new(FixtureZeroDteScreenerReader)));
+    runtime.set_option_zero_dte_contract(Some(Arc::new(FixtureOptionZeroDteContractReader)));
     runtime.set_option_earnings_screener(Some(Arc::new(FixtureEarningsScreenerReader)));
+    runtime.set_option_seller_screener(Some(Arc::new(FixtureSellerScreenerReader)));
     ProductionMarketDataOptionsPort {
         active_provider_state: state,
         trade_runtime: Some(runtime),
@@ -1563,4 +1681,275 @@ fn event_projection_accepts_empty_valid_result() {
     assert_eq!(value["entries"], serde_json::json!([]));
     assert_eq!(value["hasMore"], false);
     assert_eq!(value["total"], 0);
+}
+
+/// Parity: go:452dea11:pkg/futu/adapter_option_fix_test.go:56
+/// TestFutuOptionEventRequestsPassStrictOpenDValidation
+///
+/// Go injects broker-neutral defaults and then runs `opend.ValidateAdvancedC2S`
+/// against the registered protobuf descriptors, so an unsupported market or
+/// product class fails before any RPC. Rust performs the same translation in
+/// the composition root (`parse_screener_common` / `parse_seller_query`) and
+/// re-validates the translated query through the typed reader's `validate()`.
+#[test]
+fn option_event_operation_queries_pass_strict_opend_validation() {
+    // Go's table: US equity -> 1, US index -> 2, HK index -> 4 (earnings),
+    // covered call -> 1, cash secured put -> 2. Each translated query must
+    // survive strict OpenD validation before an RPC is attempted.
+    let zero_dte = [("US", 1, "equity"), ("US", 2, "index"), ("US", 1, "equity")];
+    for (market, option_market, product_class) in zero_dte {
+        let query = jftrade_integration_futu::OptionZeroDteScreenerQuery {
+            option_market,
+            sort_type: None,
+            is_asc: None,
+            count: 50,
+            page: None,
+            filters: vec![option_type_filter(1)],
+        };
+        query
+            .validate()
+            .unwrap_or_else(|error| panic!("0DTE {market}/{product_class}: {error}"));
+    }
+    for (market, product_class, option_market) in
+        [("US", "equity", 1), ("US", "index", 2), ("HK", "index", 4)]
+    {
+        let value = ready_port()
+            .read(
+                "/api/v1/market-data/options/events",
+                &format!(
+                    "operation=earnings&market={market}&underlyingProductClass={product_class}"
+                ),
+            )
+            .expect("earnings screener response");
+        assert_eq!(value["total"], 1);
+        let query = jftrade_integration_futu::OptionEarningsScreenerQuery {
+            option_market,
+            sort_type: None,
+            is_asc: None,
+            count: 50,
+            page: None,
+            filters: vec![option_type_filter(1)],
+        };
+        query
+            .validate()
+            .unwrap_or_else(|error| panic!("earnings {market}/{product_class}: {error}"));
+    }
+    // The 0DTE screener is US-only in Go, so the HK index market must never be
+    // accepted on that operation even though the enum value exists.
+    assert!(
+        jftrade_integration_futu::OptionZeroDteScreenerQuery {
+            option_market: 4,
+            sort_type: None,
+            is_asc: None,
+            count: 50,
+            page: None,
+            filters: Vec::new(),
+        }
+        .validate()
+        .is_err()
+    );
+
+    for (seller_type, strategy) in [(1, "covered_call"), (2, "cash_secured_put")] {
+        let value = ready_port()
+            .read(
+                "/api/v1/market-data/options/events",
+                &format!("operation=seller&market=US&underlying=US.AAPL&sellerStrategy={strategy}"),
+            )
+            .expect("seller screener response");
+        assert_eq!(value["entries"].as_array().map(Vec::len), Some(1));
+        let query = jftrade_integration_futu::OptionSellerScreenerQuery {
+            option_market: 1,
+            seller_type,
+            sort_type: None,
+            is_asc: None,
+            filters: vec![option_type_filter(1)],
+        };
+        query
+            .validate()
+            .unwrap_or_else(|error| panic!("seller {strategy}: {error}"));
+    }
+}
+
+/// Parity: go:452dea11:pkg/futu/adapter_option_fix_test.go:120
+/// TestFutuZeroDteContractRebuildsBrokerNeutralChainContext
+///
+/// Go rebuilds `chainInfo` from the broker-neutral locator before the RPC and
+/// runs it through `ValidateAdvancedC2S`. The Rust equivalent is the engine's
+/// `parse_zero_dte_contract_query`, which reconstructs `owner` /
+/// `strikeDateTimestamp` / `chainInfo{productCode,multiplier,contractSize,expirationType,underlying}`
+/// from the request and then passes the typed reader's strict validation; the
+/// fixture asserts that rebuilt shape.
+#[test]
+fn zero_dte_contract_query_rebuilds_chain_context_and_projects_drilldown() {
+    let value = ready_port()
+        .read(
+            "/api/v1/market-data/options/events",
+            concat!(
+                "operation=zero_dte_contract&market=US&underlying=US.AAPL",
+                "&expiryTimestamp=1784332800&sort=open_interest&optionType=call",
+                "&chainLocator={\"productCode\":\"AAPL\",\"multiplier\":100,",
+                "\"contractSize\":100,\"expirationType\":2}"
+            ),
+        )
+        .expect("0DTE contract response");
+    assert_eq!(value["entries"][0]["option"]["instrumentId"], "US.AAPL260918C00100000");
+    assert_eq!(value["total"], 1);
+    assert_eq!(value["hasMore"], false);
+    assert!(
+        value["entries"][0].get("chainInfo").is_none(),
+        "raw OpenD chainInfo leaked into the public entry: {}",
+        value["entries"][0]
+    );
+}
+
+/// Parity: go:452dea11:pkg/futu/adapter_option_fix_test.go:362
+/// TestFutuZeroDteNormalizationHandlesAbsentAndNestedUnderlying
+///
+/// The entry owner is preferred, and an absent owner falls back to the nested
+/// `chainInfo.underlying`. Entries without a chain are passed through untouched.
+#[test]
+fn zero_dte_drilldown_context_prefers_owner_and_falls_back_to_nested_underlying() {
+    let nested = super::product_production_ports_market_data_options_events::project_zero_dte_drilldown(
+        serde_json::json!({
+            "name": "nested",
+            "chainInfo": {
+                "underlying": {"instrumentId": "US.BABA"},
+                "strikeDateTimestamp": 1,
+                "productCode": "BABA",
+                "contractShareSize": 100.0,
+                "expirationType": 2,
+            },
+        }),
+    );
+    assert_eq!(
+        nested["drilldownContext"]["underlyingInstrumentId"],
+        "US.BABA"
+    );
+    assert!(nested.get("chainInfo").is_none());
+
+    let without_chain = super::product_production_ports_market_data_options_events::project_zero_dte_drilldown(
+        serde_json::json!({"name": "without-chain"}),
+    );
+    assert!(without_chain.get("drilldownContext").is_none());
+    assert_eq!(without_chain["name"], "without-chain");
+}
+
+fn option_type_filter(option_type: i64) -> jftrade_integration_futu::EventIndicator {
+    jftrade_integration_futu::EventIndicator {
+        indicator_type: 1,
+        value: Some(jftrade_integration_futu::EventIndicatorValue {
+            value_list: vec![option_type],
+            value_interval: None,
+            string_value_list: Vec::new(),
+            security_list: Vec::new(),
+        }),
+    }
+}
+
+/// Parity: go:452dea11:pkg/futu/adapter_option_fix_test.go:206
+/// TestFutuOptionRequestTranslationBoundaries
+///
+/// Go checks the small translation helpers directly: unsupported market,
+/// invalid security prefix, filter append/wrap, locator decoding, sort and
+/// option-type enums. Rust performs the same translation in the engine's
+/// query parser, so the equivalent assertions drive the public operation.
+#[test]
+fn option_event_request_translation_boundaries_match_go_helpers() {
+    let port = ready_port();
+
+    // Unsupported option market (Go: futuOptionMarket("SH", "equity") errors).
+    for query in [
+        "operation=unusual&market=SH&underlying=SH.600000",
+        "operation=zero_dte&market=HK&underlying=HK.00700",
+        "operation=earnings&market=CN",
+        "operation=seller&market=SH&underlying=SH.600000",
+    ] {
+        let error = port
+            .read("/api/v1/market-data/options/events", query)
+            .expect_err("unsupported option market must be rejected");
+        assert!(
+            matches!(
+                error,
+                MarketDataOptionsReadSnapshotError::Failed { status: 400, .. }
+                    | MarketDataOptionsReadSnapshotError::Failed { status: 422, .. }
+            ),
+            "{query} produced {error:?}"
+        );
+    }
+
+    // Invalid option security (Go: optionSecurityMap("missing-market-prefix")).
+    let error = port
+        .read(
+            "/api/v1/market-data/options/events",
+            "operation=unusual&market=US&underlying=AAPL",
+        )
+        .expect_err("invalid option security must be rejected");
+    assert!(matches!(
+        error,
+        MarketDataOptionsReadSnapshotError::Failed { status: 400, .. }
+    ));
+
+    // Go appends to an existing filterList and wraps a legacy non-list value.
+    // Rust always builds exactly one owner indicator for the translated query,
+    // so the fixture asserts the single-filter shape rather than duplicating
+    // the Go slice helper.
+    let value = port
+        .read(
+            "/api/v1/market-data/options/events",
+            "operation=zero_dte&market=US&underlying=US.AAPL",
+        )
+        .expect("0DTE screener response");
+    assert_eq!(value["entries"].as_array().map(Vec::len), Some(1));
+
+    // Go's zeroDteContractSort / zeroDteOptionType tables (including the
+    // unsupported value) are covered by the contract translation test below.
+}
+
+/// Parity: go:452dea11:pkg/futu/adapter_option_fix_test.go:261
+/// TestFutuZeroDteContractTranslationRejectsEachInvalidBoundary
+#[test]
+fn zero_dte_contract_translation_rejects_each_invalid_boundary() {
+    let port = ready_port();
+    let valid_locator = "&chainLocator={\"productCode\":\"AAPL\",\"multiplier\":100,\"contractSize\":100}";
+    for (name, query) in [
+        (
+            "HK market",
+            "operation=zero_dte_contract&market=HK&underlying=HK.00700&expiryTimestamp=1784332800".to_owned(),
+        ),
+        (
+            "invalid owner",
+            "operation=zero_dte_contract&market=US&underlying=invalid&expiryTimestamp=1784332800".to_owned(),
+        ),
+        (
+            "missing expiry",
+            "operation=zero_dte_contract&market=US&underlying=US.AAPL".to_owned()
+                + valid_locator,
+        ),
+        (
+            "missing product code",
+            "operation=zero_dte_contract&market=US&underlying=US.AAPL&expiryTimestamp=1784332800&chainLocator={\"productCode\":\" \"}".to_owned(),
+        ),
+        (
+            "unsupported sort",
+            "operation=zero_dte_contract&market=US&underlying=US.AAPL&expiryTimestamp=1784332800&sort=unsupported".to_owned()
+                + valid_locator,
+        ),
+        (
+            "unsupported option type",
+            "operation=zero_dte_contract&market=US&underlying=US.AAPL&expiryTimestamp=1784332800&optionType=unsupported".to_owned()
+                + valid_locator,
+        ),
+    ] {
+        let error = port
+            .read("/api/v1/market-data/options/events", &query)
+            .expect_err(name);
+        let status = match error {
+            MarketDataOptionsReadSnapshotError::Failed { status, .. } => status,
+            other => panic!("{name}: unexpected {other:?}"),
+        };
+        assert!(
+            matches!(status, 400 | 422),
+            "{name}: expected a boundary rejection, got {status}"
+        );
+    }
 }

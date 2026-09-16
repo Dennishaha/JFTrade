@@ -17,6 +17,14 @@ pub struct OptionZeroDteContractQuery {
     pub is_asc: Option<bool>,
     pub filters: Vec<EventIndicator>,
 }
+
+impl OptionZeroDteContractQuery {
+    /// Strict OpenD validation for the translated request; mirrors Go's
+    /// `opend.ValidateAdvancedC2S` step for Qot_GetOptionZeroDteContract.
+    pub fn validate(&self) -> Result<(), OptionZeroDteContractQueryError> {
+        validate_query(self)
+    }
+}
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OptionZeroDteContractItem {
@@ -313,6 +321,101 @@ fn non_negative(
     }
     Ok(value)
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn owner() -> OptionEventSecurity {
+        OptionEventSecurity {
+            market: "US".into(),
+            code: "BABA".into(),
+            quote_market: "US".into(),
+            trade_market: "US".into(),
+            instrument_id: "US.BABA".into(),
+        }
+    }
+
+    fn query(
+        chain_info: OptionZeroDteChainInfo,
+        strike_date_timestamp: i64,
+        sort_type: Option<i32>,
+        filters: Vec<EventIndicator>,
+    ) -> OptionZeroDteContractQuery {
+        OptionZeroDteContractQuery {
+            owner: owner(),
+            strike_date_timestamp,
+            chain_info,
+            sort_type,
+            is_asc: None,
+            filters,
+        }
+    }
+
+    /// Parity: go:452dea11:pkg/futu/adapter_option_fix_test.go:261
+    /// TestFutuZeroDteContractTranslationRejectsEachInvalidBoundary
+    #[test]
+    fn strict_validation_rejects_each_invalid_zero_dte_contract_boundary() {
+        let valid_chain = OptionZeroDteChainInfo {
+            strike_date_timestamp: Some(1_784_332_800),
+            product_code: Some("BABA".into()),
+            multiplier: Some(100.0),
+            contract_share_size: Some(100.0),
+            expiration_type: Some(2),
+            underlying: Some(owner()),
+        };
+
+        let mut hk = query(valid_chain.clone(), 1_784_332_800, None, Vec::new());
+        hk.owner.market = "HK".into();
+        assert!(hk.validate().is_err(), "HK 0DTE contract owner");
+
+        let mut invalid_owner = query(valid_chain.clone(), 1_784_332_800, None, Vec::new());
+        invalid_owner.owner.code = "  ".into();
+        assert!(invalid_owner.validate().is_err(), "invalid owner");
+
+        assert!(
+            query(valid_chain.clone(), 0, None, Vec::new())
+                .validate()
+                .is_err(),
+            "missing expiry"
+        );
+
+        let mut missing_code = valid_chain.clone();
+        missing_code.product_code = Some(" ".into());
+        assert!(
+            query(missing_code, 1_784_332_800, None, Vec::new())
+                .validate()
+                .is_err(),
+            "missing product code"
+        );
+
+        assert!(
+            query(valid_chain.clone(), 1_784_332_800, Some(9), Vec::new())
+                .validate()
+                .is_err(),
+            "unsupported sort"
+        );
+
+        assert!(
+            query(
+                valid_chain.clone(),
+                1_784_332_800,
+                None,
+                vec![EventIndicator {
+                    indicator_type: 99,
+                    value: None,
+                }]
+            )
+            .validate()
+            .is_err(),
+            "unsupported indicator"
+        );
+
+        query(valid_chain, 1_784_332_800, Some(2), Vec::new())
+            .validate()
+            .expect("the rebuilt broker-neutral chain context must validate");
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum OptionZeroDteContractQueryError {
     #[error("invalid 0DTE contract query: {0}")]

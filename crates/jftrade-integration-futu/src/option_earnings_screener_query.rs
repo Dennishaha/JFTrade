@@ -19,6 +19,14 @@ pub struct OptionEarningsScreenerQuery {
     pub filters: Vec<EventIndicator>,
 }
 
+impl OptionEarningsScreenerQuery {
+    /// Strict OpenD validation for the translated request; mirrors Go's
+    /// `opend.ValidateAdvancedC2S` step for Qot_GetOptionEarningsScreener.
+    pub fn validate(&self) -> Result<(), OptionEarningsScreenerQueryError> {
+        validate_query(self)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OptionEarningsScreenerItem {
@@ -123,9 +131,13 @@ impl OptionEarningsScreenerReadPort for OpenDOptionEarningsScreenerReader {
 fn validate_query(
     query: &OptionEarningsScreenerQuery,
 ) -> Result<(), OptionEarningsScreenerQueryError> {
-    if !matches!(query.option_market, 1 | 3) {
+    // OpenD accepts US/HK security *and* index option markets for the earnings
+    // screener (Qot_OptionCommon.OptionMarket 1..4).  The public route already
+    // translates `underlyingProductClass=index` into 2/4, so the typed reader
+    // must accept the same four values instead of rejecting index at runtime.
+    if !matches!(query.option_market, 1..=4) {
         return Err(OptionEarningsScreenerQueryError::InvalidQuery(
-            "earnings optionMarket must be US (1) or HK (3) security".into(),
+            "earnings optionMarket must be US/HK security (1/3) or index (2/4)".into(),
         ));
     }
     if !(1..=500).contains(&query.count) {
@@ -375,8 +387,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn accepts_only_security_option_markets() {
-        for option_market in [1, 3] {
+    fn accepts_security_and_index_option_markets() {
+        for option_market in [1, 2, 3, 4] {
             let query = OptionEarningsScreenerQuery {
                 option_market,
                 sort_type: None,
@@ -385,17 +397,25 @@ mod tests {
                 page: None,
                 filters: Vec::new(),
             };
-            assert!(validate_query(&query).is_ok());
+            assert!(
+                validate_query(&query).is_ok(),
+                "optionMarket {option_market} must pass strict OpenD validation"
+            );
         }
-        let query = OptionEarningsScreenerQuery {
-            option_market: 2,
-            sort_type: None,
-            is_asc: None,
-            count: 50,
-            page: None,
-            filters: Vec::new(),
-        };
-        assert!(validate_query(&query).is_err());
+        for option_market in [0, 5] {
+            let query = OptionEarningsScreenerQuery {
+                option_market,
+                sort_type: None,
+                is_asc: None,
+                count: 50,
+                page: None,
+                filters: Vec::new(),
+            };
+            assert!(
+                validate_query(&query).is_err(),
+                "optionMarket {option_market} is outside Qot_OptionCommon.OptionMarket"
+            );
+        }
     }
 
     #[test]

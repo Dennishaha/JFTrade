@@ -134,27 +134,8 @@ fn read_zero_dte(
         .map_err(map_zero_dte_error)?;
     let mut entries = Vec::with_capacity(page.items.len());
     for item in page.items {
-        let mut value =
-            serde_json::to_value(item).map_err(|error| bad_gateway(error.to_string()))?;
-        if let Some(chain) = value.get("chainInfo").cloned() {
-            let underlying = value
-                .get("owner")
-                .and_then(|owner| owner.get("instrumentId"))
-                .cloned()
-                .unwrap_or(Value::Null);
-            let context = json!({
-                "underlyingInstrumentId": underlying,
-                "expiryTimestamp": chain.get("strikeDateTimestamp").cloned().unwrap_or(Value::Null),
-                "chain": {
-                    "productCode": chain.get("productCode").cloned().unwrap_or(Value::Null),
-                    "multiplier": chain.get("multiplier").cloned().unwrap_or(Value::Null),
-                    "contractSize": chain.get("contractShareSize").cloned().unwrap_or(Value::Null),
-                    "expirationType": chain.get("expirationType").cloned().unwrap_or(Value::Null),
-                },
-            });
-            value["drilldownContext"] = context;
-        }
-        entries.push(value);
+        let value = serde_json::to_value(item).map_err(|error| bad_gateway(error.to_string()))?;
+        entries.push(project_zero_dte_drilldown(value));
     }
     screener_result(entries, page.next_page, page.update_timestamp, None)
 }
@@ -176,6 +157,43 @@ fn read_zero_dte_contract(
         .map(|item| serde_json::to_value(item).map_err(|error| bad_gateway(error.to_string())))
         .collect::<Result<Vec<_>, _>>()?;
     screener_result(entries, None, None, None)
+}
+
+/// Project the OpenD `chainInfo` payload into the broker-neutral drilldown
+/// context and drop the raw field.
+///
+/// Go's `optionZeroDteFeatureResult` reads the underlying instrument from the
+/// entry owner first, falls back to the nested `chainInfo.underlying`, and then
+/// deletes `chainInfo` so the raw OpenD shape never reaches a public entry.
+pub(super) fn project_zero_dte_drilldown(mut value: Value) -> Value {
+    let Some(chain) = value.get("chainInfo").cloned() else {
+        return value;
+    };
+    let underlying = value
+        .get("owner")
+        .and_then(security_instrument_id)
+        .or_else(|| chain.get("underlying").and_then(security_instrument_id))
+        .unwrap_or_default();
+    let context = json!({
+        "underlyingInstrumentId": underlying,
+        "expiryTimestamp": chain.get("strikeDateTimestamp").cloned().unwrap_or(Value::Null),
+        "chain": {
+            "productCode": chain.get("productCode").cloned().unwrap_or(Value::Null),
+            "multiplier": chain.get("multiplier").cloned().unwrap_or(Value::Null),
+            "contractSize": chain.get("contractShareSize").cloned().unwrap_or(Value::Null),
+            "expirationType": chain.get("expirationType").cloned().unwrap_or(Value::Null),
+        },
+    });
+    if let Some(object) = value.as_object_mut() {
+        object.remove("chainInfo");
+    }
+    value["drilldownContext"] = context;
+    value
+}
+
+fn security_instrument_id(value: &Value) -> Option<String> {
+    let instrument_id = value.get("instrumentId")?.as_str()?.trim();
+    (!instrument_id.is_empty()).then(|| instrument_id.to_owned())
 }
 
 fn read_earnings(
@@ -365,17 +383,23 @@ fn parse_screener_common(
         .get_first("underlyingProductClass")
         .map(|value| value.trim().to_ascii_lowercase())
         .unwrap_or_else(|| "equity".to_owned());
-    let option_market = match (market.as_str(), product_class.as_str(), zero_dte) {
-        ("US", "equity" | "option" | "", true) => 1,
-        ("US", "index", true) => 2,
-        ("US", "equity" | "option" | "", false) => 1,
-        ("HK", "equity" | "option" | "", false) => 3,
-        ("HK", "index", false) => 4,
-        _ if zero_dte => return Err(zero_dte_market_unavailable()),
-        _ => {
-            return Err(bad_request(
-                "earnings screener supports US/HK security options only",
-            ));
+    let option_market = if zero_dte {
+        match (market.as_str(), product_class.as_str()) {
+            ("US", "equity" | "option" | "") => 1,
+            ("US", "index") => 2,
+            _ => return Err(zero_dte_market_unavailable()),
+        }
+    } else {
+        match (market.as_str(), product_class.as_str()) {
+            ("US", "equity" | "option" | "") => 1,
+            ("US", "index") => 2,
+            ("HK", "equity" | "option" | "") => 3,
+            ("HK", "index") => 4,
+            _ => {
+                return Err(bad_request(
+                    "earnings screener supports US/HK security or index options",
+                ));
+            }
         }
     };
     let count = map
