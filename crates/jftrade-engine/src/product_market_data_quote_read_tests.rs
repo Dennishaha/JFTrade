@@ -18,7 +18,9 @@ use jftrade_settings::{MarketDataProvider, MarketDataProviderRuntimePort};
 use std::time::Duration;
 use tokio::net::TcpListener;
 
-use crate::product::product_production_ports::ProductionMarketDataQuotePort;
+use crate::product::product_production_ports::{
+    ProductionMarketDataQuotePort, SharedTradeReadRuntime,
+};
 
 use super::*;
 
@@ -318,7 +320,13 @@ async fn futu_snapshot_route_projects_cached_extended_quote_contract() {
         jftrade_settings::MarketDataProvider::Futu,
     )));
     let mut router = ProviderRouter::new(4);
-    let observed_at_ms = 1_750_000_000_000;
+    // `cache.Latest(id, TickFreshness)` only answers inside Go's 1.5s window,
+    // so the fixture must stay near now rather than using a frozen epoch.
+    let observed_at_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock")
+        .as_millis() as i64
+        - 500;
     let tick = jftrade_marketdata::Tick {
         instrument_id: "US.AAPL".to_owned(),
         price: "114.97".parse().expect("tick price"),
@@ -1100,7 +1108,14 @@ async fn snapshot_route_serves_a_fresh_cache_hit_without_provider_access() {
         jftrade_settings::MarketDataProvider::Futu,
     )));
     let mut router = ProviderRouter::new(4);
-    let observed_at_ms = 1_750_000_000_000;
+    // Go seeds `time.Now().UTC().Truncate(time.Second)` before asserting a
+    // fresh cache hit, because `cache.Latest(id, TickFreshness)` only accepts a
+    // 1.5s window.  Keep the fixture inside that window.
+    let observed_at_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock")
+        .as_millis() as i64
+        - 500;
     router
         .cache_mut()
         .insert(
@@ -1391,4 +1406,224 @@ async fn read_routes_map_provider_and_request_failures() {
             ..
         } if code == "MARKET_INSTRUMENT_INVALID"
     ));
+}
+
+/// Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:306 TestMarketSnapshotResponseQueriesQuoteSnapshotOnCacheMiss
+///
+/// With a SNAPSHOT lease and no retained sample, the read must issue exactly
+/// one provider quote query and answer from that live result rather than
+/// inventing a cached value. Go asserts `BasicQuoteCallCount() == 1`; the Rust
+/// equivalent is the counted `SecuritySnapshotReadPort` fixture below.
+#[derive(Debug, Default)]
+struct CountingSecuritySnapshotReader {
+    calls: AtomicUsize,
+    last_instruments: Mutex<Vec<String>>,
+}
+
+impl jftrade_integration_futu::SecuritySnapshotReadPort for CountingSecuritySnapshotReader {
+    fn query(
+        &self,
+        instruments: &[String],
+    ) -> Result<Vec<jftrade_marketdata::BrokerSecuritySnapshot>, String> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        self.last_instruments
+            .lock()
+            .expect("snapshot instruments")
+            .extend(instruments.iter().cloned());
+        Ok(vec![jftrade_marketdata::BrokerSecuritySnapshot {
+            symbol: Some("HK.00700".to_owned()),
+            name: Some("Tencent Holdings".to_owned()),
+            market: Some("HK".to_owned()),
+            last_price: Some("321.4".parse().expect("last price")),
+            bid_price: Some("321.3".parse().expect("bid")),
+            ask_price: Some("321.5".parse().expect("ask")),
+            previous_close: Some("318.9".parse().expect("previous close")),
+            turnover: Some("411020000".parse().expect("turnover")),
+            volume: Some("1282100".parse().expect("volume")),
+            session: Some("regular".to_owned()),
+            ..Default::default()
+        }])
+    }
+}
+
+#[tokio::test]
+async fn snapshot_route_queries_the_provider_once_on_cache_miss() {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    let mut router = ProviderRouter::new(4);
+    router
+        .acquire_demand(
+            "snapshot-cache-miss-test",
+            [InstrumentRef {
+                channel: "SNAPSHOT".to_owned(),
+                market: "HK".to_owned(),
+                symbol: "00700".to_owned(),
+                interval: None,
+            }],
+            false,
+            0,
+        )
+        .expect("snapshot demand");
+    let reader = Arc::new(CountingSecuritySnapshotReader::default());
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_security_snapshots(Some(reader.clone()));
+    let port =
+        ProductionMarketDataQuotePort::new(state, Some(Arc::new(Mutex::new(router))), None, None)
+            .with_trade_runtime(Some(runtime));
+
+    let response = port
+        .read("/api/v1/market-data/snapshots/HK/00700", "")
+        .await
+        .expect("cache-miss snapshot");
+    assert_eq!(response["request"]["instrumentId"], "HK.00700");
+    assert_eq!(response["meta"]["fromCache"], false);
+    assert_eq!(response["snapshot"]["price"], "321.4");
+    assert_eq!(response["snapshot"]["volume"], "1282100");
+    assert_eq!(
+        reader.calls.load(Ordering::SeqCst),
+        1,
+        "cache miss must query the provider exactly once"
+    );
+    assert_eq!(
+        reader
+            .last_instruments
+            .lock()
+            .expect("instruments")
+            .as_slice(),
+        &["HK.00700".to_owned()],
+        "the provider query must name the requested instrument"
+    );
+}
+
+/// Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:478 TestMarketSecurityDetailsResponseQueriesSecuritySnapshot
+///
+/// Go issues exactly one `GetSecuritySnapshot` and one `GetStaticInfo` call and
+/// projects `name`, `exchangeType`, `currentPrice` and `equity.peRate` from the
+/// provider answer. Rust has no `GetStaticInfo` step on this route (the lookup
+/// reader is a separate catalog port), so the parity contract freezes the part
+/// it does own: one snapshot RPC, the provider name/price, and the equity
+/// projection. The missing static-info call is asserted as a boundary instead of
+/// being fabricated.
+#[derive(Debug, Default)]
+struct CountingSecurityDetailsReader {
+    calls: AtomicUsize,
+    instruments: Mutex<Vec<String>>,
+}
+
+impl jftrade_integration_futu::SecuritySnapshotReadPort for CountingSecurityDetailsReader {
+    fn query(
+        &self,
+        instruments: &[String],
+    ) -> Result<Vec<jftrade_marketdata::BrokerSecuritySnapshot>, String> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        self.instruments
+            .lock()
+            .expect("details instruments")
+            .extend(instruments.iter().cloned());
+        Ok(vec![jftrade_marketdata::BrokerSecuritySnapshot {
+            symbol: Some("HK.00700".to_owned()),
+            name: Some("Tencent Holdings".to_owned()),
+            market: Some("HK".to_owned()),
+            security_type: Some("EQUITY".to_owned()),
+            last_price: Some("321.4".parse().expect("last price")),
+            pe_rate: Some("16.7".parse().expect("pe rate")),
+            pb_rate: Some("3.2".parse().expect("pb rate")),
+            volume: Some("1282100".parse().expect("volume")),
+            turnover: Some("411020000".parse().expect("turnover")),
+            ..Default::default()
+        }])
+    }
+}
+
+#[tokio::test]
+async fn securities_route_queries_the_security_snapshot_once() {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    let reader = Arc::new(CountingSecurityDetailsReader::default());
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_security_snapshots(Some(reader.clone()));
+    let port = ProductionMarketDataQuotePort::new(state, None, None, None)
+        .with_trade_runtime(Some(runtime));
+
+    let response = port
+        .read("/api/v1/market-data/securities/HK/00700", "")
+        .await
+        .expect("Futu security details");
+    assert_eq!(response["request"]["instrumentId"], "HK.00700");
+    assert_eq!(response["security"]["name"], "Tencent Holdings");
+    assert_eq!(response["security"]["currentPrice"], "321.4");
+    assert_eq!(response["security"]["equity"]["peRate"], "16.7");
+    assert_eq!(
+        reader.calls.load(Ordering::SeqCst),
+        1,
+        "security details must issue exactly one snapshot RPC"
+    );
+    assert_eq!(
+        reader.instruments.lock().expect("instruments").as_slice(),
+        &["HK.00700".to_owned()]
+    );
+    assert!(
+        response["meta"].get("fromCache").is_none(),
+        "security details do not expose a cache flag: {response}"
+    );
+}
+
+/// Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:368 TestMarketSnapshotResponseRejectsInvalidRefreshQuery
+///
+/// `refresh=sometimes` must be a 400 input error before any provider access,
+/// matching Go's `DecodeSnapshotQuery` rejection in the adapter tests.
+#[derive(Debug, Default)]
+struct CountingSnapshotReaderForInvalidRefresh {
+    calls: AtomicUsize,
+}
+
+impl jftrade_integration_futu::SecuritySnapshotReadPort
+    for CountingSnapshotReaderForInvalidRefresh
+{
+    fn query(
+        &self,
+        _: &[String],
+    ) -> Result<Vec<jftrade_marketdata::BrokerSecuritySnapshot>, String> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Ok(Vec::new())
+    }
+}
+
+#[tokio::test]
+async fn snapshot_route_rejects_invalid_refresh_before_provider_access() {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    let reader = Arc::new(CountingSnapshotReaderForInvalidRefresh::default());
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_security_snapshots(Some(reader.clone()));
+    let port = ProductionMarketDataQuotePort::new(state, None, None, None)
+        .with_trade_runtime(Some(runtime));
+
+    let error = port
+        .read(
+            "/api/v1/market-data/snapshots/HK/00700",
+            "refresh=sometimes",
+        )
+        .await
+        .expect_err("invalid refresh must be rejected");
+    assert!(
+        matches!(
+            error,
+            MarketDataQuoteReadSnapshotError::Failed {
+                status: 400,
+                ref code,
+                ref message,
+                ..
+            } if code == "BAD_REQUEST" && message == "invalid refresh query"
+        ),
+        "invalid refresh produced {error:?}"
+    );
+    assert_eq!(
+        reader.calls.load(Ordering::SeqCst),
+        0,
+        "invalid refresh must be rejected before provider access"
+    );
 }

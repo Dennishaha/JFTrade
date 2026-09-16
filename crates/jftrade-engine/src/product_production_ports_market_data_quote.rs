@@ -694,36 +694,49 @@ fn retry_after_seconds(message: &str) -> Option<u64> {
 }
 
 fn enrich_security_from_snapshot(sec: &mut serde_json::Map<String, Value>, s: &Value) {
-    for (src, dst) in [
-        ("lotSize", "lotSize"),
-        ("openPrice", "openPrice"),
-        ("highPrice", "highPrice"),
-        ("lowPrice", "lowPrice"),
-        ("previousClose", "lastClosePrice"),
-        ("previousClose", "previousClosePrice"),
-        ("lastClosePrice", "lastClosePrice"),
-        ("lastPrice", "currentPrice"),
-        ("bidPrice", "bidPrice"),
-        ("askPrice", "askPrice"),
-        ("volume", "volume"),
-        ("turnover", "turnover"),
-        ("status", "status"),
-        ("isSuspended", "isSuspended"),
-        ("isSuspended", "isSuspend"),
-        ("updateTime", "updateTime"),
-        ("peRate", "peRate"),
-        ("pbRate", "pbRate"),
+    // Go's `SecurityDetailsMap` renders every price/ratio through
+    // `decimalJSON`, i.e. a JSON string. Keep the public securities contract
+    // string-typed even though the provider snapshot carries numbers.
+    let stringified = |value: &Value| -> Value {
+        match value {
+            Value::String(_) => value.clone(),
+            Value::Number(number) => Value::String(number.to_string()),
+            other => other.clone(),
+        }
+    };
+    for (src, dst, as_string) in [
+        ("lotSize", "lotSize", false),
+        ("openPrice", "openPrice", true),
+        ("highPrice", "highPrice", true),
+        ("lowPrice", "lowPrice", true),
+        ("previousClose", "lastClosePrice", true),
+        ("previousClose", "previousClosePrice", true),
+        ("lastClosePrice", "lastClosePrice", true),
+        ("lastPrice", "currentPrice", true),
+        ("bidPrice", "bidPrice", true),
+        ("askPrice", "askPrice", true),
+        ("volume", "volume", true),
+        ("turnover", "turnover", true),
+        ("status", "status", false),
+        ("isSuspended", "isSuspended", false),
+        ("isSuspended", "isSuspend", false),
+        ("updateTime", "updateTime", false),
+        ("peRate", "peRate", true),
+        ("pbRate", "pbRate", true),
     ] {
         if let Some(v) = s.get(src) {
-            sec.insert(dst.to_owned(), v.clone());
+            sec.insert(
+                dst.to_owned(),
+                if as_string { stringified(v) } else { v.clone() },
+            );
         }
     }
     let mut equity = serde_json::Map::new();
     if let Some(v) = s.get("peRate") {
-        equity.insert("peRate".to_owned(), v.clone());
+        equity.insert("peRate".to_owned(), stringified(v));
     }
     if let Some(v) = s.get("pbRate") {
-        equity.insert("pbRate".to_owned(), v.clone());
+        equity.insert("pbRate".to_owned(), stringified(v));
     }
     if !equity.is_empty() {
         sec.insert("equity".to_owned(), Value::Object(equity));

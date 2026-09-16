@@ -273,14 +273,15 @@ async fn us_intraday_futu_candles_carry_calendar_resolved_session_labels() {
             "2026-01-05 07:00:00".to_owned(),
             // After-hours (17:00 ET).
             "2026-01-05 17:00:00".to_owned(),
+            // Overnight carry (22:00 ET on 2026-01-05 = 2026-01-06T03:00:00Z).
+            "2026-01-05 22:00:00".to_owned(),
         ],
         ..PagedHistory::default()
     });
+    // Go passes no `sessions` flag here, so the read must resolve the US
+    // intraday default of regular+extended+overnight.
     let result = port_with_calendar(reader, calendar)
-        .read(
-            "/api/v1/market-data/candles/US/AAPL",
-            "period=1m&limit=10&sessions=regular,extended,overnight",
-        )
+        .read("/api/v1/market-data/candles/US/AAPL", "period=1m&limit=10")
         .await
         .expect("US intraday candles");
     let candles = result["candles"].as_array().expect("candles array");
@@ -307,6 +308,11 @@ async fn us_intraday_futu_candles_carry_calendar_resolved_session_labels() {
         labels.get("2026-01-05T22:00:00Z"),
         Some(&"after"),
         "17:00 ET is an after-hours bar: {result}"
+    );
+    assert_eq!(
+        labels.get("2026-01-06T03:00:00Z"),
+        Some(&"overnight"),
+        "22:00 ET is the overnight carry: {result}"
     );
     assert!(
         candles.iter().all(|candle| candle["session"].is_string()),
@@ -991,4 +997,38 @@ async fn candle_route_forwards_exclusive_before_and_rejects_invalid_combinations
             "query {query} produced {error:?}"
         );
     }
+}
+
+/// Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:137 TestMarketCandlesResponseRejectsInvalidSessionsBeforeFutuAccess
+///
+/// The market-dataapp harness asserts only that `sessions="regular,unknown"`
+/// fails the read. This dedicated case keeps that item verifiable while also
+/// proving the failure happened before the Futu reader was touched: no
+/// historical request, no current-bar request.
+#[tokio::test]
+async fn market_http_rejects_invalid_sessions_before_provider_access() {
+    let reader = Arc::new(PagedHistory::default());
+    let error = port(reader.clone())
+        .read(
+            "/api/v1/market-data/candles/US/NVDA",
+            "period=1m&sessions=regular,unknown",
+        )
+        .await
+        .expect_err("invalid sessions must fail the read");
+    assert!(
+        matches!(
+            error,
+            MarketDataQuoteReadSnapshotError::Failed { status: 400, .. }
+        ),
+        "invalid sessions produced {error:?}"
+    );
+    assert!(
+        reader.requests.lock().unwrap().is_empty(),
+        "invalid sessions must be rejected before any Futu history call"
+    );
+    assert_eq!(
+        reader.current_calls.load(Ordering::SeqCst),
+        0,
+        "invalid sessions must not query the current bar"
+    );
 }

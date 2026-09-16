@@ -1,5 +1,6 @@
 use super::quote_lease::capability_unsupported_error;
 use super::quote_snapshot::{project_cached_snapshot, project_fallback_snapshot};
+use super::quote_tick_candles::TICK_FRESHNESS_MS;
 use super::*;
 
 impl ProductionMarketDataQuotePort {
@@ -141,9 +142,13 @@ impl ProductionMarketDataQuotePort {
                     let router_guard = router.lock().unwrap_or_else(|e| e.into_inner());
                     let cache_handle = router_guard.cache_handle();
                     let cache_guard = cache_handle.lock().unwrap_or_else(|e| e.into_inner());
-                    match cache_guard.lookup(&instrument_id, now_ms, 30_000) {
-                        CacheLookup::Fresh(t) | CacheLookup::Stale(t) => Some(t),
-                        CacheLookup::Missing => None,
+                    // Go reads `cache.Latest(instrumentID, TickFreshness)`;
+                    // only a sample inside the 1.5s freshness window may
+                    // answer the read. A stale sample must fall through to
+                    // the provider instead of masquerading as a cache hit.
+                    match cache_guard.lookup(&instrument_id, now_ms, TICK_FRESHNESS_MS) {
+                        CacheLookup::Fresh(t) => Some(t),
+                        CacheLookup::Stale(_) | CacheLookup::Missing => None,
                     }
                 })
             };
@@ -347,8 +352,11 @@ impl ProductionMarketDataQuotePort {
         let sessions = match sessions_opt {
             Some(s) => s,
             None => {
+                // Go resolves the unrequested session set from the provider's
+                // available sessions: US intraday history advertises
+                // regular+extended+overnight, everything else only regular.
                 if market.eq_ignore_ascii_case("US") && is_intraday_candle_period(period) {
-                    vec!["regular", "extended"]
+                    vec!["regular", "extended", "overnight"]
                 } else {
                     vec!["regular"]
                 }

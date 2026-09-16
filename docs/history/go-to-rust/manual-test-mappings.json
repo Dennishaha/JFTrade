@@ -3304,11 +3304,11 @@
     "evidence_type": "missing"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:18:TestMarketCandlesResponseUsesExchangeResolvedSessionsForUSIntraday": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::us_intraday_futu_candles_carry_calendar_resolved_session_labels",
+    "conclusion": "function_exact：无 sessions 参数时按 Go 的 US 日内默认 regular+extended+overnight 解析，逐根 K 线由交易所日历标注 pre/regular/after/overnight，meta.session=all、extendedHours=true。本轮修复读取 owner 的默认会话集合。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(us_intraday_futu_candles_carry_calendar_resolved_session_labels)'"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:91:TestMarketCandlesResponseOmitsSessionMetadataForDailyCandles": {
     "status": "[x]",
@@ -3318,11 +3318,11 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:137:TestMarketCandlesResponseRejectsInvalidSessionsBeforeFutuAccess": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::market_http_rejects_invalid_sessions_before_provider_access",
+    "conclusion": "function_exact：sessions= 与 sessions=regular,invalid 都在 provider 访问前返回 400（reader.requests 为空），与 Go 的 “invalid sessions error != nil before Futu access” 等价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_http_rejects_invalid_sessions_before_provider_access)'"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:150:TestMarketCandlesResponseClassifiesUnknownUSSessionAsDataError": {
     "status": "[x]",
@@ -3339,11 +3339,11 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:306:TestMarketSnapshotResponseQueriesQuoteSnapshotOnCacheMiss": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_route_queries_the_provider_once_on_cache_miss",
+    "conclusion": "function_exact：无缓存样本时恰好调用一次 provider 快照（计数 fixture 断言 calls==1 且 instrument=HK.00700），返回 meta.fromCache=false 与实时价格/成交量。本轮同时修复快照缓存新鲜度：Go 只接受 TickFreshness(1.5s) 内的 Fresh，Rust 此前把 30s 内 Stale 也当命中，导致 cache miss 不查 provider。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(snapshot_route_queries_the_provider_once_on_cache_miss)'"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:330:TestMarketSnapshotResponseForceRefreshBypassesCache": {
     "status": "[x]",
@@ -3353,11 +3353,11 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:368:TestMarketSnapshotResponseRejectsInvalidRefreshQuery": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_route_rejects_invalid_refresh_before_provider_access",
+    "conclusion": "function_exact：refresh=sometimes 返回 400 BAD_REQUEST(\"invalid refresh query\")，且计数 fixture 证明 provider 未被访问，与 Go DecodeSnapshotQuery 的拒绝语义一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(snapshot_route_rejects_invalid_refresh_before_provider_access)'"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:382:TestMarketCandlesTickResponseUsesFreshCache": {
     "status": "[x]",
@@ -3381,53 +3381,53 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:478:TestMarketSecurityDetailsResponseQueriesSecuritySnapshot": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::securities_route_queries_the_security_snapshot_once",
+    "conclusion": "function_exact：security details 恰好一次 GetSecuritySnapshot（计数 fixture），name/currentPrice 来自实时快照、equity.peRate 投影存在。Go 另有 GetStaticInfo 调用属于其 pkg/futu 详情模型（Rust 该字段来自 snapshot 或 search lookup），已作为边界记录；本轮修复 currentPrice/peRate 等价格字段以字符串输出，与 Go decimalJSON 契约一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(securities_route_queries_the_security_snapshot_once)'"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:533:TestMarketSecurityDetailsResponseIncludesWarrantBlock": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "evidence_type": "boundary",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_securities_route_projects_broker_neutral_envelope_boundary",
+    "conclusion": "boundary（契约不同）：Go 的 warrant 研究块（warrantType/owner/issuerCode + productClass=cbbc/marketSegment=derivatives）不在 Rust /api/v1/market-data/securities 契约内；Rust 冻结九字段 envelope 且研究块一律不伪造。 Rust 侧同一测试断言字段集合恰为九项、八类研究块不存在且不得伪造，并覆盖 US/HK 规范身份与非法 market 400。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(futu_securities_route_projects_broker_neutral_envelope_boundary)'"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:555:TestMarketSecurityDetailsResponseIncludesOptionBlock": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "evidence_type": "boundary",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_securities_route_projects_broker_neutral_envelope_boundary",
+    "conclusion": "boundary（契约不同）：Go 的 option 研究块（optionType/owner/expiryDateDistance + productClass=option）不在 Rust 契约内；Rust 以 broker-neutral envelope 为边界。 Rust 侧同一测试断言字段集合恰为九项、八类研究块不存在且不得伪造，并覆盖 US/HK 规范身份与非法 market 400。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(futu_securities_route_projects_broker_neutral_envelope_boundary)'"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:577:TestMarketSecurityDetailsResponseIncludesFutureBlock": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "evidence_type": "boundary",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_securities_route_projects_broker_neutral_envelope_boundary",
+    "conclusion": "boundary（契约不同）：Go 的 future 研究块（isMainContract/position + productClass=future）不在 Rust 契约内；Rust 冻结 envelope 边界。 Rust 侧同一测试断言字段集合恰为九项、八类研究块不存在且不得伪造，并覆盖 US/HK 规范身份与非法 market 400。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(futu_securities_route_projects_broker_neutral_envelope_boundary)'"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:592:TestMarketSecurityDetailsResponseIncludesTrustBlock": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "evidence_type": "boundary",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_securities_route_projects_broker_neutral_envelope_boundary",
+    "conclusion": "boundary（契约不同）：Go 的 trust 研究块（assetClass/aum + productClass=fund）不在 Rust 契约内；Rust 冻结 envelope 边界。 Rust 侧同一测试断言字段集合恰为九项、八类研究块不存在且不得伪造，并覆盖 US/HK 规范身份与非法 market 400。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(futu_securities_route_projects_broker_neutral_envelope_boundary)'"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:607:TestMarketSecurityDetailsResponseIncludesIndexBlock": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "evidence_type": "boundary",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_securities_route_projects_broker_neutral_envelope_boundary",
+    "conclusion": "boundary（契约不同）：Go 的 index 研究块（raiseCount/fallCount + productClass=index）不在 Rust 契约内；Rust 冻结 envelope 边界。 Rust 侧同一测试断言字段集合恰为九项、八类研究块不存在且不得伪造，并覆盖 US/HK 规范身份与非法 market 400。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(futu_securities_route_projects_broker_neutral_envelope_boundary)'"
   },
   "internal/app/apiserver/marketdataapp/market_http_test.go:622:TestMarketSecurityDetailsResponseIncludesPlateBlock": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "evidence_type": "boundary",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_securities_route_projects_broker_neutral_envelope_boundary",
+    "conclusion": "boundary（契约不同）：Go 的 plate 研究块（raiseCount/equalCount + productClass=plate）不在 Rust 契约内；Rust 冻结 envelope 边界。 Rust 侧同一测试断言字段集合恰为九项、八类研究块不存在且不得伪造，并覆盖 US/HK 规范身份与非法 market 400。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(futu_securities_route_projects_broker_neutral_envelope_boundary)'"
   },
   "internal/app/apiserver/marketdataapp/provider_boundaries_test.go:145:TestMarketDataProviderClosureAndOptionalCapabilityBoundaries": {
     "status": "[~]",

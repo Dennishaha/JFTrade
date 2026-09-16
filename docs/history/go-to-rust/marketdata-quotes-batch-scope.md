@@ -192,3 +192,47 @@ OpenD 读客户端，无计数 seam，属 `boundary`（计数断言只能在集�
 
 验证：`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked`
 （1125 passed）、`python3 scripts/compatibility/audit_test_parity.py`。
+
+## 批次：market_http_test.go 剩余 18 项收口
+
+本批把 `internal/app/apiserver/marketdataapp/market_http_test.go` 的 18 条
+Go 测试全部处理完：12 条 `[x]`/`function_exact`，6 条研究块冻结为
+`[~]`/boundary。此前 7 条已闭环，本批新增 5 条：
+
+| Go 测试 | Rust 入口 | 结论 |
+| --- | --- | --- |
+| `:18 TestMarketCandlesResponseUsesExchangeResolvedSessionsForUSIntraday` | `candle_pagination_tests::us_intraday_futu_candles_carry_calendar_resolved_session_labels` | `[x]`：无 `sessions` 参数时按 Go 的 US 日内默认 `regular+extended+overnight` 解析；逐根标注 pre/regular/after/overnight，`meta.session=all`。修复读取 owner 的默认会话集合。 |
+| `:137 TestMarketCandlesResponseRejectsInvalidSessionsBeforeFutuAccess` | `candle_pagination_tests::market_http_rejects_invalid_sessions_before_provider_access` | `[x]`：`sessions=regular,unknown` 返回 400，且历史/当前 K 线调用计数均为 0。 |
+| `:306 TestMarketSnapshotResponseQueriesQuoteSnapshotOnCacheMiss` | `quote_read_tests::snapshot_route_queries_the_provider_once_on_cache_miss` | `[x]`：cache miss 恰好一次 provider 快照，`fromCache=false`。 |
+| `:368 TestMarketSnapshotResponseRejectsInvalidRefreshQuery` | `quote_read_tests::snapshot_route_rejects_invalid_refresh_before_provider_access` | `[x]`：`refresh=sometimes` 返回 400 且 provider 未被访问。 |
+| `:478 TestMarketSecurityDetailsResponseQueriesSecuritySnapshot` | `quote_read_tests::securities_route_queries_the_security_snapshot_once` | `[x]`：恰好一次 `GetSecuritySnapshot`，name/currentPrice/equity.peRate 来自实时快照。 |
+
+### 本批发现并修复的真实功能差异
+
+1. **快照缓存新鲜度**
+   - 复现：缓存中存在 1.5s~30s 的旧样本，请求快照。
+   - 修复前：Rust 用 30s 窗口且接受 `Stale`，直接返回旧价，cache miss 不再查询 provider。
+   - 预期（Go `cache.Latest(id, TickFreshness)`）：只有 1.5s 内的 `Fresh` 可命中，否则必须查询 provider。
+   - 修复：`product_production_ports_market_data_quote_reads.rs` 改用共享的
+     `TICK_FRESHNESS_MS` 并只接受 `CacheLookup::Fresh`。
+   - 回归：`snapshot_route_queries_the_provider_once_on_cache_miss`、
+     `snapshot_route_serves_a_fresh_cache_hit_without_provider_access`。
+2. **securities 价格字段类型**
+   - 复现：实时快照携带数字型价格，请求 `/api/v1/market-data/securities/HK/00700`。
+   - 修复前：Rust 输出 JSON 数字（`321.4`），Go `decimalJSON` 输出字符串（`"321.4"`）。
+   - 修复：`enrich_security_from_snapshot` 对价格/比率字段统一字符串化。
+   - 回归：`securities_route_queries_the_security_snapshot_once`。
+3. **US 日内默认会话集合**
+   - 复现：US 日内 K 线请求不带 `sessions`。
+   - 修复前：默认 `regular+extended`，缺 `overnight`，`meta.sessions` 与 Go 不一致。
+   - 修复：默认解析为 `regular+extended+overnight`。
+   - 回归：`us_intraday_futu_candles_carry_calendar_resolved_session_labels`。
+
+### 冻结边界
+
+`:533/:555/:577/:592/:607/:622` 六条研究块（warrant/option/future/trust/
+index/plate）停留在 `[~]`/boundary：Go 把这些块放在完整
+`pkg/futu.SecurityDetails` 模型里，Rust `/api/v1/market-data/securities`
+的权威契约只有九字段 envelope 并允许 provider 追加研究字段。Rust 侧
+`futu_securities_route_projects_broker_neutral_envelope_boundary` 断言这些
+块不存在且不得伪造。

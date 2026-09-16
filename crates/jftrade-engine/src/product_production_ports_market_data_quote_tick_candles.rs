@@ -9,7 +9,7 @@ use jftrade_marketdata::{CacheLookup, tick_candles};
 
 /// Freshness window Go applies before it decides a cached sample can answer a
 /// live read without touching the provider (`TickFreshness`).
-const TICK_FRESHNESS_MS: i64 = 1_500;
+pub(super) const TICK_FRESHNESS_MS: i64 = 1_500;
 
 impl ProductionMarketDataQuotePort {
     pub(super) async fn read_tick_candles(
