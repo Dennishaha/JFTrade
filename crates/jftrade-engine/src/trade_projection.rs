@@ -47,7 +47,131 @@ pub(super) fn funds_value(request: &ResolvedTradeRequest, value: TradeFundsSnaps
             })
         })
         .collect::<Vec<_>>();
-    json!({"checkedAt": checked_at(), "connectivity": "connected", "currencyBalances": balances, "marketAssets": assets, "summary": {"accountId": request.account_id, "tradingEnvironment": request.environment, "market": request.market, "power": value.funds.power, "totalAssets": value.funds.total_assets, "cash": value.funds.cash, "marketValue": value.funds.market_val, "frozenCash": value.funds.frozen_cash, "debtCash": value.funds.debt_cash, "availableWithdrawalCash": value.funds.avl_withdrawal_cash, "currency": value.funds.currency, "availableFunds": value.funds.available_funds, "unrealizedPnl": value.funds.unrealized_pl, "realizedPnl": value.funds.realized_pl, "securitiesAssets": value.funds.securities_assets, "fundAssets": value.funds.fund_assets, "bondAssets": value.funds.bond_assets, "longMarketValue": value.funds.long_mv, "shortMarketValue": value.funds.short_mv, "netCashPower": value.funds.net_cash_power, "maxWithdrawal": value.funds.max_withdrawal, "pendingAsset": value.funds.pending_asset, "initialMargin": value.funds.initial_margin, "maintenanceMargin": value.funds.maintenance_margin, "marginCallMargin": value.funds.margin_call_margin, "isPdt": value.funds.is_pdt, "pdtSeq": value.funds.pdt_seq, "beginningDTBP": value.funds.beginning_dtbp, "remainingDTBP": value.funds.remaining_dtbp, "dtCallAmount": value.funds.dt_call_amount, "exposureLevel": value.funds.exposure_level, "exposureLimit": value.funds.exposure_limit, "usedLimit": value.funds.used_limit, "remainingLimit": value.funds.remaining_limit}})
+    // Parity: `go:452dea11:pkg/futu/trade_read_proto.go` + `internal/trading/responses.go`.
+    // Go's `brokerFundsSnapshotFromProto` maps these protobuf enums through
+    // `optionalEnumStringPtr` (enum-name suffix, upper-cased, UNKNOWN -> nil),
+    // and the wire contract is `trading.BrokerFundsSummary` in
+    // `contracts/openapi/openapi.json`: `power` is named `purchasingPower`,
+    // `maxPowerShort` is `shortSellingPower`, and `currency`/`riskStatus`/
+    // `dtStatus`/`exposureLevel` are strings, not raw integers. The console
+    // (`AccountAssetStrip.vue`, `AccountMoreSection.vue`) reads those names.
+    let funds = &value.funds;
+    let mut summary = serde_json::Map::with_capacity(37);
+    summary.insert("accountId".to_owned(), json!(request.account_id));
+    summary.insert(
+        "tradingEnvironment".to_owned(),
+        json!(request.environment),
+    );
+    summary.insert("market".to_owned(), json!(request.market));
+    summary.insert(
+        "currency".to_owned(),
+        json!(currency_label(funds.currency)),
+    );
+    summary.insert("totalAssets".to_owned(), json!(funds.total_assets));
+    summary.insert("securitiesAssets".to_owned(), json!(funds.securities_assets));
+    summary.insert("fundAssets".to_owned(), json!(funds.fund_assets));
+    summary.insert("bondAssets".to_owned(), json!(funds.bond_assets));
+    summary.insert("cash".to_owned(), json!(funds.cash));
+    summary.insert("marketValue".to_owned(), json!(funds.market_val));
+    summary.insert("longMarketValue".to_owned(), json!(funds.long_mv));
+    summary.insert("shortMarketValue".to_owned(), json!(funds.short_mv));
+    summary.insert("purchasingPower".to_owned(), json!(funds.power));
+    summary.insert(
+        "shortSellingPower".to_owned(),
+        json!(funds.max_power_short),
+    );
+    summary.insert("netCashPower".to_owned(), json!(funds.net_cash_power));
+    summary.insert(
+        "availableWithdrawalCash".to_owned(),
+        json!(funds.avl_withdrawal_cash),
+    );
+    summary.insert("maxWithdrawal".to_owned(), json!(funds.max_withdrawal));
+    summary.insert("availableFunds".to_owned(), json!(funds.available_funds));
+    summary.insert("frozenCash".to_owned(), json!(funds.frozen_cash));
+    summary.insert("pendingAsset".to_owned(), json!(funds.pending_asset));
+    summary.insert("unrealizedPnl".to_owned(), json!(funds.unrealized_pl));
+    summary.insert("realizedPnl".to_owned(), json!(funds.realized_pl));
+    summary.insert("initialMargin".to_owned(), json!(funds.initial_margin));
+    summary.insert(
+        "maintenanceMargin".to_owned(),
+        json!(funds.maintenance_margin),
+    );
+    summary.insert(
+        "marginCallMargin".to_owned(),
+        json!(funds.margin_call_margin),
+    );
+    summary.insert(
+        "riskStatus".to_owned(),
+        json!(risk_status_label(funds.risk_status)),
+    );
+    summary.insert("debtCash".to_owned(), json!(funds.debt_cash));
+    summary.insert("isPdt".to_owned(), json!(funds.is_pdt));
+    summary.insert("pdtSeq".to_owned(), json!(funds.pdt_seq));
+    summary.insert("beginningDTBP".to_owned(), json!(funds.beginning_dtbp));
+    summary.insert("remainingDTBP".to_owned(), json!(funds.remaining_dtbp));
+    summary.insert("dtCallAmount".to_owned(), json!(funds.dt_call_amount));
+    summary.insert(
+        "dtStatus".to_owned(),
+        json!(dt_status_label(funds.dt_status)),
+    );
+    summary.insert(
+        "exposureLevel".to_owned(),
+        json!(exposure_level_label(funds.exposure_level)),
+    );
+    summary.insert("exposureLimit".to_owned(), json!(funds.exposure_limit));
+    summary.insert("usedLimit".to_owned(), json!(funds.used_limit));
+    summary.insert("remainingLimit".to_owned(), json!(funds.remaining_limit));
+    json!({
+        "checkedAt": checked_at(),
+        "connectivity": "connected",
+        "currencyBalances": balances,
+        "marketAssets": assets,
+        "summary": summary,
+    })
+}
+
+/// Parity: `go:452dea11:pkg/futu/trade_read_helpers.go:116`
+/// `optionalEnumStringPtr` + `enumName` + `normalizeRuntimeEnum`. The protobuf
+/// enum name keeps only the suffix after the first `_` and upper-cases it, so
+/// `CltRiskStatus_Level1` becomes `LEVEL1`; `Unknown` (code 0) maps to nil.
+pub(super) fn risk_status_label(value: Option<i32>) -> Option<&'static str> {
+    match value {
+        Some(1) => Some("LEVEL1"),
+        Some(2) => Some("LEVEL2"),
+        Some(3) => Some("LEVEL3"),
+        Some(4) => Some("LEVEL4"),
+        Some(5) => Some("LEVEL5"),
+        Some(6) => Some("LEVEL6"),
+        Some(7) => Some("LEVEL7"),
+        Some(8) => Some("LEVEL8"),
+        Some(9) => Some("LEVEL9"),
+        _ => None,
+    }
+}
+
+/// Parity: `go:452dea11:pkg/futu/trade_read_proto.go:61` `DTStatus_name`.
+pub(super) fn dt_status_label(value: Option<i32>) -> Option<&'static str> {
+    match value {
+        Some(1) => Some("UNLIMITED"),
+        Some(2) => Some("EMCALL"),
+        Some(3) => Some("DTCALL"),
+        _ => None,
+    }
+}
+
+/// Parity: `go:452dea11:pkg/futu/trade_read_proto.go:62`
+/// `ExposureLevel_name`.
+pub(super) fn exposure_level_label(value: Option<i32>) -> Option<&'static str> {
+    match value {
+        Some(1) => Some("NORMAL"),
+        Some(2) => Some("NEARLIMIT"),
+        Some(3) => Some("RESTRICTED"),
+        Some(4) => Some("SAFE"),
+        Some(5) => Some("MODERATE"),
+        Some(6) => Some("WARNING"),
+        Some(7) => Some("MARGINCALL"),
+        _ => None,
+    }
 }
 
 pub(crate) fn position_value(

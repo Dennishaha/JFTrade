@@ -732,3 +732,74 @@ cargo clippy -p jftrade-integration-futu -p jftrade-engine -p jftrade-marketdata
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+## 批次：`pkg/futu/adapter_new_methods_test.go`（22 项）
+
+基线：`go:452dea11`。本批 14 项 `[x]`（`function_exact`）+ 8 项 `[~]`
+（boundary 4 / partial 4）。逐项复核 Go 行为后发现并修复 **资金摘要 wire 契约漂移**，
+并补齐 securities/order-book 的独立行为证据。
+
+### 本批发现与修复
+
+1. **资金摘要字段名与枚举类型偏离 OpenAPI 契约**（真实功能差异 → 已修复）
+   - 依据：`go:452dea11:pkg/futu/trade_read_proto.go:31`、`internal/trading/responses.go:139`
+     与 `contracts/openapi/openapi.json`（`trading.BrokerFundsSummary`）。
+   - 差异：Rust `trade_projection::funds_value` 输出 `power`（应为 `purchasingPower`）、
+     `currency` 为整数（应为字符串 `HKD/USD/...`）、`exposureLevel`/`dtStatus`/`riskStatus`
+     为整数（应为 `NORMAL/UNLIMITED/LEVEL1` 枚举名）、缺少 `shortSellingPower`、
+     缺少 `riskStatus`/`dtStatus`。前端 `AccountAssetStrip.vue` 读取 `purchasingPower`、
+     `shortSellingPower`、`riskStatus`，`AccountMoreSection.vue` 读取 `dtStatus`，
+     缺失字段会让账户页静默显示空值。
+   - 修复位置：`crates/jftrade-engine/src/trade_projection.rs::funds_value`，
+     新增 `risk_status_label` / `dt_status_label` / `exposure_level_label`，
+     严格按 Go `enumName`（截掉枚举类型前缀）+ `normalizeRuntimeEnum`（大写、
+     Unknown→null）映射；字段名对齐 OpenAPI。
+   - 回归：`funds_projection_preserves_full_margin_pdt_and_exposure_fields`
+     断言新字段名与新枚举字符串，并显式断言旧 `power` 键已不存在。
+2. **周期别名映射**（`period_to_kl_type`）：`1M` 月线特例、`1min/5min/1hour/2h/3h/4h/daily/weekly/monthly/quarter/1y` 等别名与 Go 全表对齐；
+   非法周期保留 daily 兜底但由 route 层 `normalize_candle_period` 拒绝。
+
+### `[x]`（14 项 function_exact）
+
+| Go 测试 | Rust 证据 |
+| --- | --- |
+| `:14 TestConvertFundsSnapshotFullMarginFields` | `jftrade-engine::...trade_tests::funds_projection_preserves_full_margin_pdt_and_exposure_fields` |
+| `:78 TestConvertFundsSnapshotNilMarginFields` | `...::funds_projection_keeps_missing_margin_fields_absent` |
+| `:112 TestConvertFundsSnapshotCurrencyBalances` | `...::funds_projection_preserves_currency_and_market_asset_arrays` |
+| `:140 TestSecuritiesFromSymbols` | `basic_quote_query::tests::normalized_instruments_trims_uppercases_dedupes_and_rejects_invalid` |
+| `:175 TestSecuritySymbol` | `basic_quote_tick::tests::security_projection_builds_market_qualified_symbol` |
+| `:182 TestSecuritySymbolNil` | `basic_quote_tick::tests::security_projection_rejects_nil_or_unknown_market` |
+| `:191 TestFutuKLTypeFromIntervalStringAll` | `kline_query::tests::period_to_kl_type_matches_go_interval_aliases` |
+| `:257 TestBrokerFundsSnapshotFromProtoFullMargin` | `trade_session::tests::funds_read_maps_full_margin_pdt_and_exposure_proto_fields` |
+| `:344 TestBrokerFundsSnapshotFromProtoNilFunds` | `trade_proto::tests::funds_missing_s2c_normalizes_to_an_empty_snapshot` |
+| `:431 TestOrderBookLevelFromPb` | `market_microstructure_query::tests::order_book_levels_project_price_volume_count_and_details` |
+| `:465 TestOrderBookLevelFromPbNil` | `...::order_book_levels_return_empty_for_empty_input` |
+| `:475 TestOrderBookLevelFromPbEmptyDetails` | `...::order_book_levels_omit_detail_list_when_absent` |
+| `:492 TestOrderBookSnapshotFromOpendResult` | `...::depth_read_projects_name_times_and_levels_from_opend_s2c` |
+| `:559 TestOrderBookSnapshotFromOpendResultEmptyResult` | `...::depth_read_returns_empty_arrays_for_empty_s2c_lists` |
+
+### 边界与 partial（8 项 `[~]`）
+
+- `:103 TestConvertFundsSnapshotNilInput`（boundary）：Rust 拥有所有权的
+  `TradeFundsSnapshot` 不存在 nil 指针输入；缺失 S2C 归一到 `Funds::default()`。
+- `:156/:163 TestSecuritiesFromSymbolsInvalid/Empty`（partial）：Rust 入口是
+  `normalized_instruments` + route 层订阅校验，不存在 Go 的
+  `securitiesFromSymbols` proto builder；已覆盖 trim/大写/去重/非法拒绝/空返回。
+- `:228 TestFutuKLTypeFromIntervalStringInvalid`（partial）：Go 返回 error，
+  Rust 保留 daily 兜底并显式记录差异。
+- `:237/:248 TestInt64AsFloat64Ptr(+Nil)`（boundary）：Rust 用 `Option<f64>` 强类型，
+  无运行期 int64→float64 指针 helper。
+- `:358 TestBrokerFundsSnapshotRoundTripNoMargin`（partial）：Rust 无 Go 的双结构
+  round-trip，已覆盖无 margin 数据时 debt/isPdt/exposure 保持 null。
+- `:552 TestOrderBookSnapshotFromOpendResultNil`（boundary）：Rust 缺失 S2C 时
+  `decode_missing(Qot_GetOrderBook, s2c)` fail closed，不制造 nil/空成功。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast   # 1492 passed / 1 skipped
+cargo fmt --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py   # keys OK, 0 invalid [x]
+git diff --check
+```

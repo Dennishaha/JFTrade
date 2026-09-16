@@ -1431,6 +1431,95 @@ fn funds_snapshot_projection_preserves_available_and_withdrawable_cash() {
 }
 
 #[test]
+fn funds_read_maps_full_margin_pdt_and_exposure_proto_fields() {
+    // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:257
+    // TestBrokerFundsSnapshotFromProtoFullMargin.
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        assert_eq!(request.header.proto_id, trd_get_funds::PROTOCOL_ID);
+        let response = trd_get_funds::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_funds::S2c {
+                header: trade_header(1, 12345, 1).into(),
+                funds: Some(trd_common::Funds {
+                    power: 200_000.0,
+                    total_assets: 500_000.0,
+                    cash: 100_000.0,
+                    market_val: 350_000.0,
+                    frozen_cash: 10_000.0,
+                    debt_cash: 50_000.0,
+                    avl_withdrawal_cash: 80_000.0,
+                    max_power_short: Some(100_000.0),
+                    net_cash_power: Some(120_000.0),
+                    long_mv: Some(350_000.0),
+                    short_mv: Some(0.0),
+                    max_withdrawal: Some(150_000.0),
+                    initial_margin: Some(50_000.0),
+                    maintenance_margin: Some(25_000.0),
+                    margin_call_margin: Some(15_000.0),
+                    risk_status: Some(1),
+                    securities_assets: Some(300_000.0),
+                    fund_assets: Some(50_000.0),
+                    bond_assets: Some(0.0),
+                    is_pdt: Some(true),
+                    pdt_seq: Some("3/3".to_owned()),
+                    beginning_dtbp: Some(100_000.0),
+                    remaining_dtbp: Some(75_000.0),
+                    dt_call_amount: Some(5_000.0),
+                    dt_status: Some(1),
+                    exposure_level: Some(1),
+                    exposure_limit: Some(2_000_000.0),
+                    used_limit: Some(800_000.0),
+                    remaining_limit: Some(1_200_000.0),
+                    ..Default::default()
+                }),
+            }),
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 22).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let funds = client
+        .read_funds(trade_header(1, 12345, 1), None, None, None)
+        .expect("funds snapshot");
+    assert_eq!(funds.funds.power, 200_000.0);
+    assert_eq!(funds.funds.debt_cash, 50_000.0);
+    assert_eq!(funds.funds.max_power_short, Some(100_000.0));
+    assert_eq!(funds.funds.initial_margin, Some(50_000.0));
+    assert_eq!(funds.funds.maintenance_margin, Some(25_000.0));
+    assert_eq!(funds.funds.margin_call_margin, Some(15_000.0));
+    assert_eq!(funds.funds.risk_status, Some(1));
+    assert_eq!(funds.funds.is_pdt, Some(true));
+    assert_eq!(funds.funds.pdt_seq.as_deref(), Some("3/3"));
+    assert_eq!(funds.funds.beginning_dtbp, Some(100_000.0));
+    assert_eq!(funds.funds.remaining_dtbp, Some(75_000.0));
+    assert_eq!(funds.funds.dt_call_amount, Some(5_000.0));
+    assert_eq!(funds.funds.dt_status, Some(1));
+    assert_eq!(funds.funds.exposure_level, Some(1));
+    assert_eq!(funds.funds.exposure_limit, Some(2_000_000.0));
+    assert_eq!(funds.funds.used_limit, Some(800_000.0));
+    assert_eq!(funds.funds.remaining_limit, Some(1_200_000.0));
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
 fn margin_ratio_read_projects_permit_fee_and_tier_ratios() {
     // Parity: go:452dea11:pkg/futu/exchange_test.go:609
     // TestQueryBrokerMarginRatiosReturnsMarginData

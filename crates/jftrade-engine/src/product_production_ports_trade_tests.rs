@@ -331,6 +331,153 @@ impl TradeReadPort for OrderFixtureRead {
     }
 }
 
+/// Reader exposing the full margin/exposure/PDT funds surface that Go's
+/// `convertFundsSnapshot` / `brokerFundsSnapshotFromProto` pass through.
+#[derive(Debug)]
+struct FullFundsRead;
+
+impl TradeReadPort for FullFundsRead {
+    fn read_accounts(
+        &self,
+        user_id: u64,
+        category: Option<i32>,
+        general: Option<bool>,
+    ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_accounts(user_id, category, general)
+    }
+    fn read_funds(
+        &self,
+        header: TradeHeader,
+        _: Option<bool>,
+        _: Option<i32>,
+        _: Option<i32>,
+    ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+        Ok(TradeFundsSnapshot {
+            header,
+            funds: TradeFunds {
+                power: 200_000.0,
+                total_assets: 500_000.0,
+                cash: 100_000.0,
+                market_val: 350_000.0,
+                frozen_cash: 10_000.0,
+                debt_cash: 50_000.0,
+                avl_withdrawal_cash: 80_000.0,
+                currency: Some(1),
+                available_funds: Some(120_000.0),
+                unrealized_pl: Some(1_000.0),
+                realized_pl: Some(2_000.0),
+                risk_level: Some(1),
+                initial_margin: Some(50_000.0),
+                maintenance_margin: Some(25_000.0),
+                cash_info_list: vec![
+                    jftrade_integration_futu::TradeCashInfo {
+                        currency: Some(1),
+                        cash: Some(100_000.0),
+                        available_balance: Some(80_000.0),
+                        net_cash_power: Some(120_000.0),
+                    },
+                    jftrade_integration_futu::TradeCashInfo {
+                        currency: Some(2),
+                        cash: Some(50_000.0),
+                        available_balance: Some(40_000.0),
+                        net_cash_power: Some(60_000.0),
+                    },
+                ],
+                max_power_short: Some(100_000.0),
+                net_cash_power: Some(120_000.0),
+                long_mv: Some(350_000.0),
+                short_mv: Some(0.0),
+                pending_asset: Some(5_000.0),
+                max_withdrawal: Some(150_000.0),
+                risk_status: Some(1),
+                margin_call_margin: Some(15_000.0),
+                is_pdt: Some(true),
+                pdt_seq: Some("3/3".to_owned()),
+                beginning_dtbp: Some(100_000.0),
+                remaining_dtbp: Some(75_000.0),
+                dt_call_amount: Some(5_000.0),
+                dt_status: Some(1),
+                securities_assets: Some(300_000.0),
+                fund_assets: Some(50_000.0),
+                bond_assets: Some(0.0),
+                market_info_list: vec![
+                    jftrade_integration_futu::TradeMarketInfo {
+                        trd_market: Some(1),
+                        assets: Some(300_000.0),
+                    },
+                    jftrade_integration_futu::TradeMarketInfo {
+                        trd_market: Some(2),
+                        assets: Some(200_000.0),
+                    },
+                ],
+                crypto_mv: None,
+                exposure_level: Some(1),
+                exposure_limit: Some(2_000_000.0),
+                used_limit: Some(800_000.0),
+                remaining_limit: Some(1_200_000.0),
+            },
+        })
+    }
+    fn read_cash_flows(
+        &self,
+        header: TradeHeader,
+        clearing_date: String,
+        direction: Option<i32>,
+    ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_cash_flows(header, clearing_date, direction)
+    }
+    fn read_order_fees(
+        &self,
+        header: TradeHeader,
+        order_ids: Vec<String>,
+    ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_order_fees(header, order_ids)
+    }
+    fn read_margin_ratios(
+        &self,
+        header: TradeHeader,
+        securities: Vec<TradeSecurity>,
+    ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_margin_ratios(header, securities)
+    }
+    fn read_max_trade_quantity(
+        &self,
+        request: TradeMaxTradeQuantityRequest,
+    ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+        FakeTradeRead.read_max_trade_quantity(request)
+    }
+    fn read_positions(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        min: Option<f64>,
+        max: Option<f64>,
+        refresh: Option<bool>,
+        asset: Option<i32>,
+        currency: Option<i32>,
+        option_view: Option<bool>,
+    ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_positions(header, filter, min, max, refresh, asset, currency, option_view)
+    }
+    fn read_orders(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        statuses: Vec<i32>,
+        refresh: Option<bool>,
+    ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_orders(header, filter, statuses, refresh)
+    }
+    fn read_fills(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        refresh: Option<bool>,
+    ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_fills(header, filter, refresh)
+    }
+}
+
 #[derive(Debug)]
 struct ErrorTradeRead {
     message: &'static str,
@@ -491,6 +638,109 @@ fn broker_read_projects_futu_funds_from_neutral_client() {
         .expect("funds");
     assert_eq!(value["summary"]["totalAssets"], 2.0);
     assert_eq!(value["connectivity"], "connected");
+}
+
+#[test]
+fn funds_projection_preserves_full_margin_pdt_and_exposure_fields() {
+    // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:14
+    // TestConvertFundsSnapshotFullMarginFields and :257
+    // TestBrokerFundsSnapshotFromProtoFullMargin.
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FullFundsRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let value = port
+        .read(
+            "/api/v1/brokers/futu/funds",
+            "accountId=42&tradingEnvironment=REAL&market=HK",
+        )
+        .expect("funds");
+    let summary = &value["summary"];
+    assert_eq!(summary["purchasingPower"], 200_000.0);
+    assert_eq!(summary["totalAssets"], 500_000.0);
+    assert_eq!(summary["debtCash"], 50_000.0);
+    assert_eq!(summary["shortSellingPower"], 100_000.0);
+    assert_eq!(summary["initialMargin"], 50_000.0);
+    assert_eq!(summary["maintenanceMargin"], 25_000.0);
+    assert_eq!(summary["marginCallMargin"], 15_000.0);
+    assert_eq!(summary["riskStatus"], "LEVEL1");
+    assert_eq!(summary["isPdt"], true);
+    assert_eq!(summary["pdtSeq"], "3/3");
+    assert_eq!(summary["beginningDTBP"], 100_000.0);
+    assert_eq!(summary["remainingDTBP"], 75_000.0);
+    assert_eq!(summary["dtCallAmount"], 5_000.0);
+    assert_eq!(summary["dtStatus"], "UNLIMITED");
+    assert_eq!(summary["exposureLevel"], "NORMAL");
+    assert_eq!(summary["currency"], "HKD");
+    assert_eq!(summary["exposureLimit"], 2_000_000.0);
+    assert_eq!(summary["usedLimit"], 800_000.0);
+    assert_eq!(summary["remainingLimit"], 1_200_000.0);
+    // The OpenAPI contract (trading.BrokerFundsSummary) and the Vue console
+    // consume these exact names; a legacy `power` key or a raw integer
+    // `currency`/`exposureLevel` would silently regress the wire shape.
+    assert!(summary.get("power").is_none());
+    assert!(summary.get("shortSellingPower").is_some());
+    assert_eq!(value["currencyBalances"].as_array().map(Vec::len), Some(2));
+    assert_eq!(value["currencyBalances"][0]["currency"], "HKD");
+    assert_eq!(value["marketAssets"].as_array().map(Vec::len), Some(2));
+}
+
+#[test]
+fn funds_projection_keeps_missing_margin_fields_absent() {
+    // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:78
+    // TestConvertFundsSnapshotNilMarginFields.
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let value = port
+        .read("/api/v1/brokers/futu/funds", "accountId=42&market=US")
+        .expect("funds");
+    let summary = &value["summary"];
+    assert!(summary["isPdt"].is_null());
+    assert!(summary["exposureLevel"].is_null());
+    assert!(summary["initialMargin"].is_null());
+    assert_eq!(value["currencyBalances"], json!([]));
+}
+
+#[test]
+fn funds_projection_preserves_currency_and_market_asset_arrays() {
+    // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:112
+    // TestConvertFundsSnapshotCurrencyBalances. The full funds fixture carries
+    // two cash-info rows (HKD/USD) and two market-info rows (HK/US) so the
+    // per-currency and per-market breakdowns must survive the neutral wire.
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FullFundsRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let value = port
+        .read(
+            "/api/v1/brokers/futu/funds",
+            "accountId=42&tradingEnvironment=REAL&market=HK",
+        )
+        .expect("funds");
+    let balances = value["currencyBalances"]
+        .as_array()
+        .expect("currency balances");
+    assert_eq!(balances.len(), 2);
+    assert_eq!(balances[0]["currency"], "HKD");
+    assert_eq!(balances[0]["cash"], 100_000.0);
+    assert_eq!(balances[0]["availableWithdrawalCash"], 80_000.0);
+    assert_eq!(balances[0]["netCashPower"], 120_000.0);
+    assert_eq!(balances[1]["currency"], "USD");
+    assert_eq!(balances[1]["cash"], 50_000.0);
+    let assets = value["marketAssets"].as_array().expect("market assets");
+    assert_eq!(assets.len(), 2);
+    assert_eq!(assets[0]["market"], "HK");
+    assert_eq!(assets[0]["assets"], 300_000.0);
+    assert_eq!(assets[1]["market"], "US");
+    assert_eq!(assets[1]["assets"], 200_000.0);
 }
 
 #[test]

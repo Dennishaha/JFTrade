@@ -527,9 +527,10 @@ mod tests {
     fn qot_sub_unsub_all_matches_go_all_flag_encoding() {
         // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:1082 TestSubscribeQuotesUnsubAll
         //
-        // Go sets isUnsubAll=true with no security list. Rust has no caller for
-        // the all-subscription cancel path, so this pins the wire encoding the
-        // Go test asserts and records that no product owner drives it yet.
+        // The Go-branch baseline sets isUnsubAll=true with no security list.
+        // Rust has no caller for the all-subscription cancel path, so this pins
+        // the wire encoding the baseline asserts and records that no product
+        // owner drives it yet.
         let request = QotSubC2s {
             security_list: Vec::new(),
             sub_type_list: Vec::new(),

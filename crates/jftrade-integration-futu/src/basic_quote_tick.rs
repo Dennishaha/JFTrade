@@ -378,13 +378,61 @@ fn collector_volume(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    #[test]
+    fn security_projection_builds_market_qualified_symbol() {
+        // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:175
+        // TestSecuritySymbol.
+        assert_eq!(
+            instrument_id_from_security(&Security {
+                market: Some(1),
+                code: Some("00700".to_owned()),
+            })
+            .as_deref(),
+            Some("HK.00700")
+        );
+        assert_eq!(
+            instrument_id_from_security(&Security {
+                market: Some(11),
+                code: Some("aapl".to_owned()),
+            })
+            .as_deref(),
+            Some("US.AAPL")
+        );
+    }
+
+    #[test]
+    fn security_projection_rejects_nil_or_unknown_market() {
+        // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:182
+        // TestSecuritySymbolNil and :156 TestSecuritiesFromSymbolsInvalid.
+        assert_eq!(
+            instrument_id_from_security(&Security {
+                market: None,
+                code: Some("00700".to_owned()),
+            }),
+            None
+        );
+        assert_eq!(
+            instrument_id_from_security(&Security {
+                market: Some(1),
+                code: Some("  ".to_owned()),
+            }),
+            None
+        );
+        assert_eq!(
+            instrument_id_from_security(&Security {
+                market: Some(9_999),
+                code: Some("00700".to_owned()),
+            }),
+            None
+        );
+    }
     use serde::Deserialize;
 
     use crate::{
         PreAfterMarketData, QuoteSessionContext, QuoteSessionResolver, QuoteSessionWindow,
     };
-
-    use super::*;
 
     #[derive(Clone, Debug)]
     struct StaticSessionResolver(QuoteSessionContext);

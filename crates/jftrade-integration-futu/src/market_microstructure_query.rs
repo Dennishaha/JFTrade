@@ -202,37 +202,8 @@ impl OpenDMarketMicrostructureReader {
         let s2c = response
             .s2c
             .ok_or_else(|| decode_missing("Qot_GetOrderBook", "s2c"))?;
-        let levels = |items: Vec<crate::trade_proto::qot_common::OrderBook>| {
-            items
-                .into_iter()
-                .map(|item| {
-                    finite(item.price, "depth price")?;
-                    if item.volume < 0 {
-                        return Err(MarketMicrostructureError::Decode {
-                            operation: "Qot_GetOrderBook",
-                            message: "negative depth volume".to_owned(),
-                        });
-                    }
-                    let mut value = json!({
-                        "price": item.price,
-                        "volume": item.volume as f64,
-                        "orderCount": item.oreder_count,
-                    });
-                    if !item.detail_list.is_empty() {
-                        value["detailList"] = json!(item
-                            .detail_list
-                            .into_iter()
-                            .map(|detail| {
-                                json!({"orderId": detail.order_id, "volume": detail.volume as f64})
-                            })
-                            .collect::<Vec<_>>());
-                    }
-                    Ok(value)
-                })
-                .collect::<Result<Vec<_>, MarketMicrostructureError>>()
-        };
-        let asks = levels(s2c.order_book_ask_list)?;
-        let bids = levels(s2c.order_book_bid_list)?;
+        let asks = order_book_levels(s2c.order_book_ask_list)?;
+        let bids = order_book_levels(s2c.order_book_bid_list)?;
         let (market, symbol) = instrument_id.split_once('.').unwrap_or(("", instrument_id));
         let resolved_at = time::OffsetDateTime::now_utc()
             .format(&time::format_description::well_known::Rfc3339)
@@ -602,6 +573,45 @@ impl OpenDMarketMicrostructureReader {
     }
 }
 
+/// Projects OpenD order-book levels into the neutral depth JSON.
+///
+/// Parity: `go:452dea11:pkg/futu/adapter_new_methods.go`
+/// `orderBookLevelFromPb`: price/volume/orderCount always project, the
+/// optional detail list is present only when OpenD supplied entries, and
+/// non-finite prices or negative volumes fail closed.
+fn order_book_levels(
+    items: Vec<crate::trade_proto::qot_common::OrderBook>,
+) -> Result<Vec<Value>, MarketMicrostructureError> {
+    items
+        .into_iter()
+        .map(|item| {
+            finite(item.price, "depth price")?;
+            if item.volume < 0 {
+                return Err(MarketMicrostructureError::Decode {
+                    operation: "Qot_GetOrderBook",
+                    message: "negative depth volume".to_owned(),
+                });
+            }
+            let mut value = json!({
+                "price": item.price,
+                "volume": item.volume as f64,
+                "orderCount": item.oreder_count,
+            });
+            if !item.detail_list.is_empty() {
+                value["detailList"] = json!(
+                    item.detail_list
+                        .into_iter()
+                        .map(|detail| {
+                            json!({"orderId": detail.order_id, "volume": detail.volume as f64})
+                        })
+                        .collect::<Vec<_>>()
+                );
+            }
+            Ok(value)
+        })
+        .collect()
+}
+
 fn ensure_ok(
     operation: &'static str,
     ret_type: i32,
@@ -661,5 +671,242 @@ fn optional_string(params: &Value, key: &str) -> Result<Option<String>, MarketMi
         _ => Err(MarketMicrostructureError::Invalid(format!(
             "{key} must be a string"
         ))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
+
+    use super::*;
+    use crate::trade_proto::qot_common::{OrderBook, OrderBookDetail};
+
+    #[derive(Clone, PartialEq, Message)]
+    struct InitResponse {
+        #[prost(int32, optional, tag = "1")]
+        ret_type: Option<i32>,
+        #[prost(message, optional, tag = "4")]
+        s2c: Option<InitState>,
+    }
+
+    #[derive(Clone, PartialEq, Message)]
+    struct InitState {
+        #[prost(int32, tag = "1")]
+        server_ver: i32,
+        #[prost(uint64, tag = "3")]
+        conn_id: u64,
+    }
+
+    fn read_frame(stream: &mut std::net::TcpStream) -> crate::Frame {
+        let mut header = [0_u8; crate::frame::HEADER_LEN];
+        stream.read_exact(&mut header).expect("frame header");
+        let body_len = u32::from_le_bytes(header[12..16].try_into().expect("length")) as usize;
+        let mut packet = Vec::from(header);
+        let mut body = vec![0_u8; body_len];
+        stream.read_exact(&mut body).expect("frame body");
+        packet.extend(body);
+        crate::decode_frame(&packet).expect("decoded frame")
+    }
+
+    /// Serves one Qot_GetOrderBook request over a loopback framed session and
+    /// hands the client a coordinator bound to that session.
+    fn depth_reader_with_response(
+        response: crate::trade_proto::qot_get_order_book::Response,
+    ) -> OpenDMarketMicrostructureReader {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init = read_frame(&mut stream);
+            stream
+                .write_all(
+                    &crate::encode_frame(
+                        init.header.proto_id,
+                        init.header.serial_no,
+                        &InitResponse {
+                            ret_type: Some(0),
+                            s2c: Some(InitState {
+                                server_ver: 1009,
+                                conn_id: 7,
+                            }),
+                        }
+                        .encode_to_vec(),
+                    )
+                    .expect("init frame"),
+                )
+                .expect("init response");
+            let request = read_frame(&mut stream);
+            assert_eq!(
+                request.header.proto_id,
+                crate::trade_proto::qot_get_order_book::PROTOCOL_ID
+            );
+            let decoded =
+                crate::trade_proto::qot_get_order_book::Request::decode(request.body.as_slice())
+                    .expect("depth request");
+            assert_eq!(decoded.c2s.security.market, 11);
+            assert_eq!(decoded.c2s.security.code, "AAPL");
+            stream
+                .write_all(
+                    &crate::encode_frame(
+                        request.header.proto_id,
+                        request.header.serial_no,
+                        &response.encode_to_vec(),
+                    )
+                    .expect("response frame"),
+                )
+                .expect("response");
+        });
+        let coordinator = Arc::new(Mutex::new(
+            OpenDSessionCoordinator::connect(
+                crate::OpenDTcpProbeConfig::new(address, Duration::from_secs(1)),
+                Arc::new(jftrade_marketdata::MarketDataRuntimeRecorder::default()),
+                Vec::new(),
+                0,
+            )
+            .expect("coordinator"),
+        ));
+        OpenDMarketMicrostructureReader::new(coordinator)
+    }
+
+    fn depth_response(
+        name: Option<String>,
+        asks: Vec<OrderBook>,
+        bids: Vec<OrderBook>,
+    ) -> crate::trade_proto::qot_get_order_book::Response {
+        crate::trade_proto::qot_get_order_book::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(crate::trade_proto::qot_get_order_book::S2c {
+                security: crate::trade_proto::qot_common::Security {
+                    market: 11,
+                    code: "AAPL".to_owned(),
+                },
+                name,
+                order_book_ask_list: asks,
+                order_book_bid_list: bids,
+                svr_recv_time_bid: Some("2025-01-01 10:00:00.000".to_owned()),
+                svr_recv_time_bid_timestamp: None,
+                svr_recv_time_ask: Some("2025-01-01 10:00:01.000".to_owned()),
+                svr_recv_time_ask_timestamp: None,
+                order_book_type: None,
+            }),
+        }
+    }
+
+    fn level(price: f64, volume: i64, order_count: i32) -> OrderBook {
+        OrderBook {
+            price,
+            volume,
+            oreder_count: order_count,
+            detail_list: Vec::new(),
+            hp_volume: None,
+        }
+    }
+
+    #[test]
+    fn order_book_levels_project_price_volume_count_and_details() {
+        // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:431
+        // TestOrderBookLevelFromPb.
+        let levels = order_book_levels(vec![OrderBook {
+            price: 175.5,
+            volume: 5_000,
+            oreder_count: 3,
+            detail_list: vec![OrderBookDetail {
+                order_id: 12_345,
+                volume: 1_000,
+            }],
+            hp_volume: None,
+        }])
+        .expect("levels");
+        assert_eq!(levels.len(), 1);
+        assert_eq!(levels[0]["price"], 175.5);
+        assert_eq!(levels[0]["volume"], 5_000.0);
+        assert_eq!(levels[0]["orderCount"], 3);
+        assert_eq!(levels[0]["detailList"][0]["orderId"], 12_345);
+        assert_eq!(levels[0]["detailList"][0]["volume"], 1_000.0);
+    }
+
+    #[test]
+    fn order_book_levels_return_empty_for_empty_input() {
+        // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:465
+        // TestOrderBookLevelFromPbNil.
+        assert!(
+            order_book_levels(Vec::new())
+                .expect("nil levels")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn order_book_levels_omit_detail_list_when_absent() {
+        // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:475
+        // TestOrderBookLevelFromPbEmptyDetails.
+        let levels = order_book_levels(vec![level(100.0, 200, 1)]).expect("empty details");
+        assert_eq!(levels[0]["price"], 100.0);
+        assert!(
+            levels[0].get("detailList").is_none(),
+            "Go omits the detail list when OpenD supplies no entries"
+        );
+    }
+
+    #[test]
+    fn depth_read_projects_name_times_and_levels_from_opend_s2c() {
+        // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:492
+        // TestOrderBookSnapshotFromOpendResult.
+        let reader = depth_reader_with_response(depth_response(
+            Some("Tencent".to_owned()),
+            vec![level(320.0, 100, 1), level(321.0, 200, 2)],
+            vec![level(319.0, 150, 1)],
+        ));
+        let value = reader
+            .query(
+                MarketMicrostructureOperation::Depth,
+                "US.AAPL",
+                &json!({"num": 10}),
+            )
+            .expect("depth");
+        assert_eq!(value["depth"]["symbol"], "US.AAPL");
+        assert_eq!(value["depth"]["name"], "Tencent");
+        assert_eq!(value["depth"]["svrRecvTimeBid"], "2025-01-01 10:00:00.000");
+        assert_eq!(value["depth"]["svrRecvTimeAsk"], "2025-01-01 10:00:01.000");
+        assert_eq!(value["depth"]["asks"][0]["price"], 320.0);
+        assert_eq!(value["depth"]["asks"][1]["price"], 321.0);
+        assert_eq!(value["depth"]["bids"][0]["price"], 319.0);
+    }
+
+    #[test]
+    fn depth_read_returns_empty_arrays_for_empty_s2c_lists() {
+        // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:559
+        // TestOrderBookSnapshotFromOpendResultEmptyResult.
+        let reader = depth_reader_with_response(depth_response(None, Vec::new(), Vec::new()));
+        let value = reader
+            .query(
+                MarketMicrostructureOperation::Depth,
+                "US.AAPL",
+                &json!({"num": 10}),
+            )
+            .expect("empty depth");
+        assert_eq!(value["depth"]["bids"], json!([]));
+        assert_eq!(value["depth"]["asks"], json!([]));
+        assert!(value["depth"].get("name").is_none());
+    }
+
+    #[test]
+    fn order_book_levels_fail_closed_on_negative_volume_and_non_finite_price() {
+        let negative = order_book_levels(vec![level(100.0, -1, 1)]);
+        assert!(matches!(
+            negative,
+            Err(MarketMicrostructureError::Decode { message, .. })
+                if message.contains("negative depth volume")
+        ));
+        let non_finite = order_book_levels(vec![level(f64::NAN, 1, 1)]);
+        assert!(matches!(
+            non_finite,
+            Err(MarketMicrostructureError::Decode { .. })
+        ));
     }
 }

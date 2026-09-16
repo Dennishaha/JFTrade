@@ -67,19 +67,33 @@ pub trait CurrentKlineReadPort: Send + Sync + std::fmt::Debug {
 }
 
 pub fn period_to_kl_type(period: &str) -> i32 {
-    match period.trim().to_ascii_lowercase().as_str() {
-        "1m" => 1,
-        "1d" | "day" => 2,
-        "1w" | "week" => 3,
-        "1mo" | "month" => 4,
-        "1y" | "year" => 5,
-        "5m" => 6,
-        "15m" => 7,
-        "30m" => 8,
-        "60m" | "1h" => 9,
-        "3m" => 10,
-        "3mo" | "quarter" => 11,
-        "10m" => 12,
+    let trimmed = period.trim();
+    // Parity: go:452dea11:pkg/futu/adapter_new_methods.go:105
+    // `futuKLTypeFromIntervalString`. Go special-cases month before
+    // lower-casing because `strings.ToLower("1M") == "1m"` (1-minute).
+    if matches!(trimmed, "1M" | "month" | "monthly") {
+        return 4;
+    }
+    match trimmed.to_ascii_lowercase().as_str() {
+        "1m" | "1min" => 1,
+        "1d" | "day" | "daily" => 2,
+        "1w" | "week" | "weekly" => 3,
+        "1q" | "quarter" => 11,
+        "1y" | "year" | "yearly" => 5,
+        "3m" | "3min" => 10,
+        "5m" | "5min" => 6,
+        "10m" | "10min" => 12,
+        "15m" | "15min" => 7,
+        "30m" | "30min" => 8,
+        "60m" | "60min" | "1h" | "1hour" => 9,
+        "120m" | "120min" | "2h" => 13,
+        "180m" | "180min" | "3h" => 14,
+        "240m" | "240min" | "4h" => 15,
+        "1mo" => 4,
+        // Go returns an error for an unknown period. The Rust caller already
+        // validates the period through `period_duration_seconds`/route
+        // validation before encoding, so the fallback keeps the historical
+        // daily default instead of changing the public encoder signature.
         _ => 2,
     }
 }
@@ -277,6 +291,53 @@ mod tests {
         assert_eq!(decoded.c2s.req_num, 2);
         assert_eq!(decoded.c2s.security.market, 1);
         assert_eq!(decoded.c2s.security.code, "00700");
+    }
+
+    #[test]
+    fn period_to_kl_type_matches_go_interval_aliases() {
+        // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:191
+        // TestFutuKLTypeFromIntervalStringAll. Every Go alias maps to the
+        // official QotCommon KLType value, including the 1M month special case
+        // that must not be lower-cased into 1-minute.
+        for (period, expected) in [
+            ("1m", 1),
+            ("1min", 1),
+            ("5m", 6),
+            ("5min", 6),
+            ("15m", 7),
+            ("30m", 8),
+            ("60m", 9),
+            ("1h", 9),
+            ("1hour", 9),
+            ("2h", 13),
+            ("3h", 14),
+            ("4h", 15),
+            ("10m", 12),
+            ("3m", 10),
+            ("120m", 13),
+            ("180m", 14),
+            ("240m", 15),
+            ("1d", 2),
+            ("day", 2),
+            ("daily", 2),
+            ("1w", 3),
+            ("week", 3),
+            ("weekly", 3),
+            ("1M", 4),
+            ("month", 4),
+            ("monthly", 4),
+            ("1mo", 4),
+            ("quarter", 11),
+            ("1q", 11),
+            ("1y", 5),
+            ("year", 5),
+            ("yearly", 5),
+        ] {
+            assert_eq!(period_to_kl_type(period), expected, "period={period}");
+        }
+        // Go errors on an unknown period; Rust keeps the historical daily
+        // fallback because the route layer validates periods before encoding.
+        assert_eq!(period_to_kl_type("invalid"), 2);
     }
 
     #[test]

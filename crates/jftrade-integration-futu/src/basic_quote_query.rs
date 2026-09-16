@@ -366,6 +366,30 @@ mod tests {
         lifecycle_with_recorder().0
     }
 
+    #[test]
+    fn normalized_instruments_trims_uppercases_dedupes_and_rejects_invalid() {
+        // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:140/:156/:163
+        // TestSecuritiesFromSymbols / Invalid / Empty.
+        //
+        // Go's `securitiesFromSymbols` parses each "MARKET.CODE" through the
+        // market profile and fails the whole list on the first bad symbol.
+        // Rust normalizes the list before encoding the Qot_GetBasicQot c2s.
+        assert_eq!(
+            normalized_instruments(&[" hk.00700 ".to_owned(), "US.aapl".to_owned()])
+                .expect("valid instruments"),
+            vec!["HK.00700".to_owned(), "US.AAPL".to_owned()]
+        );
+        assert_eq!(
+            normalized_instruments(&["US.AAPL".to_owned(), "us.aapl".to_owned()]).expect("dedupe"),
+            vec!["US.AAPL".to_owned()]
+        );
+        assert!(normalized_instruments(&[]).expect("empty").is_empty());
+        assert!(matches!(
+            normalized_instruments(&["INVALID".to_owned()]),
+            Err(BasicQuoteQueryError::InvalidInstrument(instrument)) if instrument == "INVALID"
+        ));
+    }
+
     fn multi_instrument_lifecycle() -> OpenDSubscriptionLifecycle {
         let recorder = Arc::new(MarketDataRuntimeRecorder::default());
         let mut lifecycle = OpenDSubscriptionLifecycle::new(recorder, 60_000);
