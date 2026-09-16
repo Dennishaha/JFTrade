@@ -153,13 +153,18 @@ fn qot_sub_request(action: &ReconcileAction) -> Result<QotSubC2s, SubscriptionEx
         ReconcileAction::Unsubscribe { subscription } => (subscription, false),
     };
     let (market, code) = split_instrument(&subscription.instrument_id)?;
+    // Go distinguishes BasicQot push registration from the subscription call:
+    // plain subscribe omits `isRegOrUnRegPush` so an already-installed stream
+    // push registration is preserved, while K-line/order-book subscriptions
+    // explicitly disable server push (pkg/futu/exchange_basicqot.go,
+    // exchange_kline.go, exchange_orderbook.go).
     let (sub_type, register_push) = match subscription.kind {
         SubscriptionKind::Basic => (1, None),
         SubscriptionKind::Kline => (
             kline_sub_type(subscription.interval.as_deref())?,
             Some(false),
         ),
-        SubscriptionKind::OrderBook => (2, Some(false)),
+        SubscriptionKind::OrderBook => (2, None),
     };
     Ok(QotSubC2s {
         security_list: vec![QotSecurity {
@@ -169,6 +174,13 @@ fn qot_sub_request(action: &ReconcileAction) -> Result<QotSubC2s, SubscriptionEx
         sub_type_list: vec![sub_type],
         is_sub_or_un_sub: Some(subscribe),
         is_reg_or_un_reg_push: register_push,
+        reg_push_rehab_type_list: Vec::new(),
+        is_first_push: None,
+        // Go always sends isUnsubAll (defaulting to false) on Qot_Sub.
+        is_unsub_all: Some(false),
+        is_sub_order_book_detail: None,
+        extended_time: None,
+        session: None,
     })
 }
 
@@ -241,6 +253,18 @@ struct QotSubC2s {
     is_sub_or_un_sub: Option<bool>,
     #[prost(bool, optional, tag = "4")]
     is_reg_or_un_reg_push: Option<bool>,
+    #[prost(int32, repeated, tag = "5")]
+    reg_push_rehab_type_list: Vec<i32>,
+    #[prost(bool, optional, tag = "6")]
+    is_first_push: Option<bool>,
+    #[prost(bool, optional, tag = "7")]
+    is_unsub_all: Option<bool>,
+    #[prost(bool, optional, tag = "8")]
+    is_sub_order_book_detail: Option<bool>,
+    #[prost(bool, optional, tag = "9")]
+    extended_time: Option<bool>,
+    #[prost(int32, optional, tag = "10")]
+    session: Option<i32>,
 }
 
 #[derive(Clone, PartialEq, Message)]
@@ -269,6 +293,7 @@ mod tests {
     use std::thread;
 
     use super::*;
+    use crate::transport::read_framed_frame;
     use crate::{
         OpenDSessionEvent, OpenDSubscriptionLifecycle, PROTO_UPDATE_BASIC_QOT,
         PhysicalSubscription, decode_frame, encode_frame,
@@ -357,6 +382,85 @@ mod tests {
         assert_eq!(basic.security_list[0].market, Some(11));
         assert_eq!(basic.sub_type_list, [1]);
         assert_eq!(basic.is_reg_or_un_reg_push, None);
+    }
+
+    #[test]
+    fn qot_sub_all_options_match_go_quote_sub_request_encoding() {
+        // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:1023 TestSubscribeQuotesAllOptions
+        // Parity: go:452dea11:pkg/futu/opend/market_read_boundaries_test.go:21 TestSubscribeQuotesEncodesAdvancedMarketDataOptions
+        //
+        // Go's QuoteSubRequest is a public option bag; Rust derives the same
+        // wire options from subscription kind. This pins the encoding contract
+        // for every field Rust supports, and proves the repeated rehab type
+        // list stays absent unless a caller sets one.
+        let request = QotSubC2s {
+            security_list: vec![QotSecurity {
+                market: Some(11),
+                code: Some("AAPL".to_owned()),
+            }],
+            sub_type_list: vec![1, 6],
+            is_sub_or_un_sub: Some(true),
+            is_reg_or_un_reg_push: Some(true),
+            reg_push_rehab_type_list: vec![1],
+            is_first_push: Some(true),
+            is_unsub_all: Some(false),
+            is_sub_order_book_detail: None,
+            extended_time: Some(true),
+            session: Some(1),
+        };
+        let decoded = super::QotSubRequest { c2s: Some(request) };
+        let round_trip =
+            super::QotSubRequest::decode(decoded.encode_to_vec().as_slice()).expect("round trip");
+        let c2s = round_trip.c2s.expect("c2s");
+        assert_eq!(c2s.security_list.len(), 1);
+        assert_eq!(c2s.security_list[0].market, Some(11));
+        assert_eq!(c2s.security_list[0].code.as_deref(), Some("AAPL"));
+        assert_eq!(c2s.sub_type_list, [1, 6]);
+        assert_eq!(c2s.is_sub_or_un_sub, Some(true));
+        assert_eq!(c2s.is_reg_or_un_reg_push, Some(true));
+        assert_eq!(c2s.reg_push_rehab_type_list, [1]);
+        assert_eq!(c2s.is_first_push, Some(true));
+        assert_eq!(c2s.is_unsub_all, Some(false));
+        assert_eq!(c2s.extended_time, Some(true));
+        assert_eq!(c2s.session, Some(1));
+
+        // The executor only emits options it can derive; unsupported optional
+        // fields must stay unset rather than being fabricated as false.
+        let derived = super::qot_sub_request(&action(SubscriptionKind::Basic, "US.AAPL", None))
+            .expect("basic request");
+        assert_eq!(derived.is_first_push, None);
+        assert_eq!(derived.extended_time, None);
+        assert_eq!(derived.session, None);
+        assert_eq!(derived.is_sub_order_book_detail, None);
+        assert!(derived.reg_push_rehab_type_list.is_empty());
+        assert_eq!(derived.is_unsub_all, Some(false));
+    }
+
+    #[test]
+    fn qot_sub_unsub_all_matches_go_all_flag_encoding() {
+        // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:1082 TestSubscribeQuotesUnsubAll
+        //
+        // Go sets isUnsubAll=true with no security list. Rust has no caller for
+        // the all-subscription cancel path, so this pins the wire encoding the
+        // Go test asserts and records that no product owner drives it yet.
+        let request = QotSubC2s {
+            security_list: Vec::new(),
+            sub_type_list: Vec::new(),
+            is_sub_or_un_sub: Some(true),
+            is_reg_or_un_reg_push: None,
+            reg_push_rehab_type_list: Vec::new(),
+            is_first_push: None,
+            is_unsub_all: Some(true),
+            is_sub_order_book_detail: None,
+            extended_time: None,
+            session: None,
+        };
+        let decoded = super::QotSubRequest { c2s: Some(request) };
+        let value =
+            super::QotSubRequest::decode(decoded.encode_to_vec().as_slice()).expect("decode");
+        let c2s = value.c2s.expect("c2s");
+        assert_eq!(c2s.is_unsub_all, Some(true));
+        assert!(c2s.security_list.is_empty());
     }
 
     #[test]
@@ -495,6 +599,69 @@ mod tests {
                 message
             } if message == "subscription denied"
         ));
+        server.join().expect("server");
+    }
+
+    #[test]
+    fn qot_sub_rejection_surfaces_ret_type_err_code_and_message() {
+        // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:716 TestSubscribeQuotesError
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init = read_framed_frame(&mut stream).expect("init request");
+            let response = InitResponse {
+                ret_type: Some(0),
+                s2c: Some(InitState {
+                    server_ver: 1009,
+                    conn_id: 1,
+                }),
+            };
+            stream
+                .write_all(
+                    &encode_frame(
+                        init.header.proto_id,
+                        init.header.serial_no,
+                        &response.encode_to_vec(),
+                    )
+                    .expect("init response"),
+                )
+                .expect("write init response");
+
+            let request = read_framed_frame(&mut stream).expect("qot sub request");
+            let response = QotSubResponse {
+                ret_type: Some(-1),
+                ret_msg: Some("invalid security".to_owned()),
+                err_code: Some(1102),
+            };
+            stream
+                .write_all(
+                    &encode_frame(
+                        request.header.proto_id,
+                        request.header.serial_no,
+                        &response.encode_to_vec(),
+                    )
+                    .expect("sub response"),
+                )
+                .expect("write sub response");
+            let mut byte = [0_u8; 1];
+            let _ = stream.read(&mut byte);
+        });
+
+        let mut executor =
+            OpenDSubscriptionExecutor::connect(address, Duration::from_secs(1)).expect("executor");
+        let error = executor
+            .execute(&action(SubscriptionKind::Basic, "US.AAPL", None))
+            .expect_err("rejection must surface");
+        assert!(matches!(
+            error,
+            SubscriptionExecutorError::Rejected {
+                ret_type: -1,
+                error_code: 1102,
+                ref message,
+            } if message == "invalid security"
+        ));
+        let _ = executor.session().managed_session().close();
         server.join().expect("server");
     }
 

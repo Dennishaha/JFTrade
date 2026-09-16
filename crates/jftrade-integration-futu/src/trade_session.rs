@@ -1012,7 +1012,24 @@ impl TradeWritePort for OpenDTradeReadClient {
                 },
             }),
         )?;
-        trd_unlock_trade::decode_response(&body)?;
+        // Go's Client.UnlockTrade accepts any retType=0 response and does not
+        // require S2C (pkg/futu/opend/trading_writes.go). The shared
+        // `decode_response` helper rejects a missing S2C, which turned a
+        // successful unlock/lock acknowledgement into MissingS2c.
+        let response = <trd_unlock_trade::Response as prost::Message>::decode(body.as_slice())
+            .map_err(|error| {
+                TradeSessionError::Response(ResponseError::Decode {
+                    operation: "UnlockTrade",
+                    message: error.to_string(),
+                })
+            })?;
+        if response.ret_type != 0 {
+            return Err(TradeSessionError::Response(ResponseError::ReturnCode {
+                ret_type: response.ret_type,
+                err_code: response.err_code.unwrap_or_default(),
+                message: response.ret_msg.unwrap_or_default(),
+            }));
+        }
         Ok(())
     }
 

@@ -210,7 +210,20 @@ pub fn decode_get_kl_response(
                 .unwrap_or_else(|| "OpenD Qot_GetKL failed".to_owned()),
         });
     }
-    let s2c = response.s2c.ok_or(CurrentKlineError::MissingS2c)?;
+    // Go's GetKL treats a missing S2C as an empty result
+    // (pkg/futu/opend/kline.go: `if response.GetS2C() == nil { return
+    // &KLineResult{}, nil }`). Returning MissingS2c here made a valid empty
+    // response look like a protocol failure.
+    let Some(s2c) = response.s2c else {
+        return Ok(CurrentKlineResult {
+            security: HistoricalSecurity {
+                market: 0,
+                code: String::new(),
+            },
+            name: None,
+            klines: Vec::new(),
+        });
+    };
     let klines = s2c
         .kl_list
         .into_iter()
@@ -345,6 +358,105 @@ mod tests {
                 ..
             }
         );
+    }
+
+    #[test]
+    fn get_kl_maps_name_and_klines_for_a_valid_response() {
+        // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:466 TestGetKL
+        let wire_response = wire::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(wire::S2c {
+                security: crate::trade_proto::qot_common::Security {
+                    market: 1,
+                    code: "00700".to_owned(),
+                },
+                name: Some("Tencent".to_owned()),
+                kl_list: vec![crate::trade_proto::qot_common::KLine {
+                    time: "2026-05-31 15:55".to_owned(),
+                    is_blank: false,
+                    high_price: Some(381.0),
+                    open_price: Some(380.5),
+                    low_price: Some(377.0),
+                    close_price: Some(378.0),
+                    last_close_price: None,
+                    volume: Some(1000),
+                    turnover: Some(378_000.0),
+                    turnover_rate: None,
+                    pe: None,
+                    change_rate: None,
+                    timestamp: None,
+                    hp_volume: None,
+                }],
+            }),
+        };
+        // 5m keeps the label at the bucket start.
+        let result = decode_get_kl_response(&wire_response.encode_to_vec(), "5m")
+            .expect("valid GetKL response");
+        assert_eq!(result.name.as_deref(), Some("Tencent"));
+        assert_eq!(result.security.market, 1);
+        assert_eq!(result.security.code, "00700");
+        assert_eq!(result.klines.len(), 1);
+        assert_eq!(result.klines[0].time, "2026-05-31 15:55");
+        assert_eq!(result.klines[0].close_price, Some(378.0));
+    }
+
+    #[test]
+    fn get_kl_missing_s2c_returns_an_empty_result() {
+        // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:768 TestGetKLNullS2C
+        //
+        // Go's GetKL returns an empty KLineResult when OpenD omits S2C without
+        // treating it as a protocol failure.
+        let wire_response = wire::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: None,
+        };
+        let result = decode_get_kl_response(&wire_response.encode_to_vec(), "1d")
+            .expect("missing s2c yields an empty result");
+        assert!(result.klines.is_empty());
+        assert!(result.name.is_none());
+
+        // A present-but-empty S2C must behave identically.
+        let empty_s2c = wire::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(wire::S2c {
+                security: crate::trade_proto::qot_common::Security {
+                    market: 1,
+                    code: "00700".to_owned(),
+                },
+                name: None,
+                kl_list: Vec::new(),
+            }),
+        };
+        let result = decode_get_kl_response(&empty_s2c.encode_to_vec(), "1d")
+            .expect("empty kl list yields an empty result");
+        assert!(result.klines.is_empty());
+    }
+
+    #[test]
+    fn get_kl_rejects_a_protocol_error_with_typed_details() {
+        // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:466 TestGetKL
+        let wire_response = wire::Response {
+            ret_type: -1,
+            ret_msg: Some("kline entitlement missing".to_owned()),
+            err_code: Some(1002),
+            s2c: None,
+        };
+        let error = decode_get_kl_response(&wire_response.encode_to_vec(), "1m")
+            .expect_err("rejection must stay typed");
+        assert!(matches!(
+            error,
+            CurrentKlineError::Rejected {
+                ret_type: -1,
+                err_code: 1002,
+                ..
+            }
+        ));
     }
 
     #[test]

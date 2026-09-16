@@ -16891,11 +16891,11 @@
     "evidence_type": "missing"
   },
   "pkg/futu/opend/new_methods_test.go:272:TestGetGlobalState": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/health.rs::tests::global_state_maps_market_login_and_version_fields",
+    "conclusion": "function_exact：Go 的 typed GetGlobalState 投影 marketHK/US/SH/SZ、qotLogined、trdLogined、serverVer。Rust 无独立 reader，健康探针是唯一 owner；测试用同一 fixture 断言 serverVersion=\"9.0.5008\"（低于最低版本 → degraded/OPEND_VERSION_UNSUPPORTED）与支持版本下的 serverVersion=\"10.9.6908\"、quote/trade 登录位、programStatus、HK/US/SH/SZ 四个市场状态逐项相等。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(global_state_maps_market_login_and_version_fields)'"
   },
   "pkg/futu/opend/new_methods_test.go:313:TestSubscribeQuotes": {
     "status": "[x]",
@@ -16912,25 +16912,25 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(unsubscribe_request_sets_is_sub_or_un_sub_false_and_keeps_security)'"
   },
   "pkg/futu/opend/new_methods_test.go:391:TestGetBasicQot": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_query.rs::tests::basic_quote_query_maps_a_single_security_success_response",
+    "conclusion": "function_exact：单标的 GetBasicQot 成功路径。请求经 Qot_GetBasicQot(3008?) 帧发出并只含 1 个 security；响应用户断言 1 条 quote、curPrice 与 security(market=11, code=AAPL) 均与 Go 的 validBasicQot 断言一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(basic_quote_query_maps_a_single_security_success_response)'"
   },
   "pkg/futu/opend/new_methods_test.go:419:TestSubscribeBasicQot": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "evidence_type": "partial",
+    "rust_entry": "crates/jftrade-integration-futu/src/quote_push_tests.rs::decodes_basic_kline_and_order_book_pushes_with_go_field_semantics",
+    "conclusion": "partial：Go 测的是 SubscribeBasicQot(callback) 回调适配器 + Qot_UpdateBasicQot(3005) push。Rust 无回调式 API，push 经 OpenDSessionCoordinator→QuotePush→LiveHub；解码契约（security/curPrice 等）由该测试覆盖，但“订阅后由 stream 层注册 push 并触发 callback”的端到端路径尚未逐条断言，且成交量差分语义仍缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(decodes_basic_kline_and_order_book_pushes_with_go_field_semantics)'"
   },
   "pkg/futu/opend/new_methods_test.go:466:TestGetKL": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/kline_query.rs::tests::get_kl_maps_name_and_klines_for_a_valid_response",
+    "conclusion": "function_exact：Qot_GetKL(3006) 成功响应映射 name=\"Tencent\"、security(market=1, code=00700) 与 1 条 kline（time 保持 5m 桶起点、closePrice=378.0），与 Go 断言逐项一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(get_kl_maps_name_and_klines_for_a_valid_response)'"
   },
   "pkg/futu/opend/new_methods_test.go:499:TestRequestHistoryKL": {
     "status": "[x]",
@@ -16940,11 +16940,11 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(history_wire_frame_keeps_protocol_and_serial_for_mock_opend)'"
   },
   "pkg/futu/opend/new_methods_test.go:534:TestGetStaticInfo": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/instrument_search_query_tests.rs::static_info_lookup_maps_every_security_static_basic_field",
+    "conclusion": "function_exact：Qot_GetStaticInfo(3202) 解码 security/name/type/lotSize/priceSpread/listTime 等全部静态字段，缺失字段不补默认值，覆盖 Go 对 GetStaticInfo 的字段断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(static_info_lookup_maps_every_security_static_basic_field)'"
   },
   "pkg/futu/opend/new_methods_test.go:578:TestGetSecuritySnapshot": {
     "status": "[x]",
@@ -16954,109 +16954,109 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(maps_security_snapshot_bbo_and_equity_metrics_without_defaults)'"
   },
   "pkg/futu/opend/new_methods_test.go:627:TestUnlockTrade": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/trade_session_tests.rs::unlock_trade_omits_security_firm_when_the_caller_does_not_request_one",
+    "conclusion": "function_exact：Trd_UnlockTrade 编码 unlock=true 与 pwdMD5，且 securityFirm 保持未设置（Go 传 nil），对应 Go 的 TestUnlockTrade 断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(unlock_trade_omits_security_firm_when_the_caller_does_not_request_one)'"
   },
   "pkg/futu/opend/new_methods_test.go:654:TestLockTrade": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/trade_session_tests.rs::lock_trade_sends_unlock_false_without_a_security_firm",
+    "conclusion": "function_exact：锁定路径发送 unlock=false 且不带 securityFirm，与 Go TestLockTrade 的 receivedUnlock=false 断言等价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(lock_trade_sends_unlock_false_without_a_security_firm)'"
   },
   "pkg/futu/opend/new_methods_test.go:683:TestGetBasicQotError": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_query.rs::tests::basic_quote_query_propagates_negative_ret_type_with_err_code_and_message",
+    "conclusion": "function_exact：retType=-1/errCode=1000/retMsg=\"no permission\" 时返回 typed Rejected 错误（不再退化为空列表），与 Go 期望的 error 行为一致；缺失 S2C 的成功响应仍返回空列表（由 TestGetBasicQotEmptyS2C 单独覆盖）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(basic_quote_query_propagates_negative_ret_type_with_err_code_and_message)'"
   },
   "pkg/futu/opend/new_methods_test.go:700:TestGetGlobalStateError": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/health.rs::tests::tcp_probe_preserves_opend_rejection_and_unsupported_version",
+    "conclusion": "function_exact：GetGlobalState retType=-1 不再被吞掉，探针返回 typed OpenDTcpProbeError::Rejected{operation:\"GetGlobalState\", ret_type:-1}；同时覆盖 InitConnect 拒绝与版本不支持分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(tcp_probe_preserves_opend_rejection_and_unsupported_version)'"
   },
   "pkg/futu/opend/new_methods_test.go:716:TestSubscribeQuotesError": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscription_executor.rs::tests::qot_sub_rejection_surfaces_ret_type_err_code_and_message",
+    "conclusion": "function_exact：Qot_Sub retType=-1/errCode=1102/retMsg=\"invalid security\" 映射为 SubscriptionExecutorError::Rejected，完整保留 ret_type/error_code/message。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(qot_sub_rejection_surfaces_ret_type_err_code_and_message)'"
   },
   "pkg/futu/opend/new_methods_test.go:734:TestUnlockTradeError": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/trade_session_tests.rs::unlock_trade_propagates_opend_rejection",
+    "conclusion": "function_exact：解禁失败（retType=-1/errCode=9/wrong password）返回 typed TradeSessionError::Response(ReturnCode)，错误不被吞掉。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(unlock_trade_propagates_opend_rejection)'"
   },
   "pkg/futu/opend/new_methods_test.go:752:TestGetBasicQotEmptyS2C": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_query.rs::tests::basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent",
+    "conclusion": "function_exact：retType=0 且 S2C 缺失时返回空 Vec 而不是错误、也不伪造零值 quote，与 Go 的 len(qots)==0 断言一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent)'"
   },
   "pkg/futu/opend/new_methods_test.go:768:TestGetKLNullS2C": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/kline_query.rs::tests::get_kl_missing_s2c_returns_an_empty_result",
+    "conclusion": "function_exact：S2C 缺失或 klList 为空时 GetKL 返回空 klines（不报错），与 Go len(result.KLines)==0 一致。修复：decode_get_kl_response 此前把缺失 S2C 判为协议错误。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(get_kl_missing_s2c_returns_an_empty_result)'"
   },
   "pkg/futu/opend/new_methods_test.go:791:TestGetGlobalStateAdvancedFields": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "evidence_type": "boundary",
+    "rust_entry": "crates/jftrade-integration-futu/src/health.rs::tests::global_state_maps_market_login_and_version_fields",
+    "conclusion": "boundary：Go 额外断言 marketUSFuture/localTime/qotSvrIpAddr/trdSvrIpAddr/connID/programStatus。Rust 的 WireGlobalState 只保留产品路径消费的 HK/US/SH/SZ + 登录位 + serverVersion + programStatus（与 internal/integration/futu/probe.go::ProbeFromGlobalState 一致），期货市场状态、IP 与 connID 未迁移且无消费方；保留边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(global_state_maps_market_login_and_version_fields)'"
   },
   "pkg/futu/opend/new_methods_test.go:848:TestRequestHistoryKLPagination": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/history.rs::tests::history_pagination_round_trips_the_next_req_key_across_pages",
+    "conclusion": "function_exact：第 1 页返回 nextReqKey=\"page2\" + 1 条 kline，携带该 key 的第 2 页返回空 nextReqKey + 1 条 kline，与 Go 两页断言一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(history_pagination_round_trips_the_next_req_key_across_pages)'"
   },
   "pkg/futu/opend/new_methods_test.go:919:TestGetBasicQotMultipleSecurities": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_query.rs::tests::basic_quote_query_maps_multiple_securities_in_order",
+    "conclusion": "function_exact：两个 security 按请求顺序编码（第二个解析为 market=11/code=MSFT），响应保序映射 2 条 quote 且 curPrice 分别相等。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(basic_quote_query_maps_multiple_securities_in_order)'"
   },
   "pkg/futu/opend/new_methods_test.go:954:TestUnlockTradeWithSecurityFirm": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/trade_session_tests.rs::unlock_trade_encodes_unlock_flag_and_security_firm",
+    "conclusion": "function_exact：显式 securityFirm=1（FutuSecurities）被编码进 Trd_UnlockTrade，unlock=true 且 pwdMD5 一并转发。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(unlock_trade_encodes_unlock_flag_and_security_firm)'"
   },
   "pkg/futu/opend/new_methods_test.go:986:TestGetSecuritySnapshotIndex": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "evidence_type": "boundary",
+    "rust_entry": "crates/jftrade-integration-futu/src/security_snapshot_query.rs::tests::maps_security_snapshot_bbo_and_equity_metrics_without_defaults",
+    "conclusion": "boundary：Qot_GetSecuritySnapshot(3203) 的 BBO/equity 指标已逐字段映射；Go 的 indexExData(raiseCount/fallCount/equalCount) 在 Rust broker-neutral TradeQuoteSnapshot 中无中立字段，/api/v1/market-data/securities/* 也刻意不输出 Go 的 index/plate 研究块（见 jftrade-engine::...::futu_securities_route_projects_broker_neutral_envelope_boundary）。保留边界，不伪造指标。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(maps_security_snapshot_bbo_and_equity_metrics_without_defaults)'"
   },
   "pkg/futu/opend/new_methods_test.go:1023:TestSubscribeQuotesAllOptions": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscription_executor.rs::tests::qot_sub_all_options_match_go_quote_sub_request_encoding",
+    "conclusion": "function_exact：isSubOrUnSub/isRegOrUnRegPush/isFirstPush/extendedTime/session 与 2 个 subType 全部按 Go 的 QuoteSubRequest 选项编码，rehabTypeList 保持缺省；executor 不为派生请求伪造未指定字段。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(qot_sub_all_options_match_go_quote_sub_request_encoding)'"
   },
   "pkg/futu/opend/new_methods_test.go:1082:TestSubscribeQuotesUnsubAll": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscription_executor.rs::tests::qot_sub_unsub_all_matches_go_all_flag_encoding",
+    "conclusion": "function_exact：isUnsubAll=true 且 securityList 为空时按 Go 语义编码取消全部订阅；Rust 无产品调用方驱动该路径，仅固定 wire 契约。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(qot_sub_unsub_all_matches_go_all_flag_encoding)'"
   },
   "pkg/futu/opend/orderbook_boundaries_test.go:14:TestGetOrderBookRejectsDisconnectedSession": {
     "status": "[~]",

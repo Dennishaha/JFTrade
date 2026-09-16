@@ -366,6 +366,33 @@ mod tests {
         lifecycle_with_recorder().0
     }
 
+    fn multi_instrument_lifecycle() -> OpenDSubscriptionLifecycle {
+        let recorder = Arc::new(MarketDataRuntimeRecorder::default());
+        let mut lifecycle = OpenDSubscriptionLifecycle::new(recorder, 60_000);
+        let actions = lifecycle.reconcile_demand(
+            &[
+                InstrumentRef {
+                    channel: "SNAPSHOT".to_owned(),
+                    market: "US".to_owned(),
+                    symbol: "AAPL".to_owned(),
+                    interval: None,
+                },
+                InstrumentRef {
+                    channel: "SNAPSHOT".to_owned(),
+                    market: "US".to_owned(),
+                    symbol: "MSFT".to_owned(),
+                    interval: None,
+                },
+            ],
+            0,
+        );
+        let generation = lifecycle.generation();
+        for action in &actions {
+            assert!(lifecycle.record_subscription_success(action, 0, generation));
+        }
+        lifecycle
+    }
+
     fn lifecycle_with_recorder() -> (OpenDSubscriptionLifecycle, Arc<MarketDataRuntimeRecorder>) {
         let recorder = Arc::new(MarketDataRuntimeRecorder::default());
         let mut lifecycle = OpenDSubscriptionLifecycle::new(Arc::clone(&recorder), 60_000);
@@ -544,6 +571,187 @@ mod tests {
                 lifecycle_generation: 2,
             })
         ));
+        server.join().expect("server thread");
+    }
+
+    #[test]
+    fn basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent() {
+        // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:752 TestGetBasicQotEmptyS2C
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init = read_framed_frame(&mut stream).expect("init request");
+            respond(&mut stream, &init, vec![0x08, 0x00, 0x22, 0x00]);
+            let empty = read_framed_frame(&mut stream).expect("nil s2c request");
+            respond(
+                &mut stream,
+                &empty,
+                Response {
+                    ret_type: Some(0),
+                    ret_msg: None,
+                    err_code: None,
+                    s2c: None,
+                }
+                .encode_to_vec(),
+            );
+        });
+        let config = OpenDTcpProbeConfig::new(address, Duration::from_secs(1));
+        let session =
+            OpenDInitializedSession::connect_with_push_notifications(&config, 1).expect("session");
+        let executor = OpenDBasicQuoteExecutor::new(session);
+        let lifecycle = lifecycle();
+        // Go returns an empty slice when S2C is missing instead of failing or
+        // fabricating a zero-valued quote.
+        assert_eq!(
+            executor
+                .query(&lifecycle, &["US.AAPL".to_owned()])
+                .expect("nil s2c yields an empty list"),
+            Vec::new()
+        );
+        server.join().expect("server thread");
+    }
+
+    #[test]
+    fn basic_quote_query_maps_a_single_security_success_response() {
+        // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:391 TestGetBasicQot
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init = read_framed_frame(&mut stream).expect("init request");
+            respond(&mut stream, &init, vec![0x08, 0x00, 0x22, 0x00]);
+            let request = read_framed_frame(&mut stream).expect("query request");
+            assert_eq!(request.header.proto_id, crate::PROTO_GET_BASIC_QOT);
+            let decoded = BasicQuoteRequest::decode(request.body.as_slice()).expect("request");
+            let securities = decoded.c2s.expect("c2s").security_list;
+            assert_eq!(securities.len(), 1);
+            respond(
+                &mut stream,
+                &request,
+                Response {
+                    ret_type: Some(0),
+                    ret_msg: None,
+                    err_code: None,
+                    s2c: Some(ResponseS2c {
+                        quotes: vec![quote()],
+                    }),
+                }
+                .encode_to_vec(),
+            );
+        });
+        let config = OpenDTcpProbeConfig::new(address, Duration::from_secs(1));
+        let session =
+            OpenDInitializedSession::connect_with_push_notifications(&config, 1).expect("session");
+        let executor = OpenDBasicQuoteExecutor::new(session);
+        let lifecycle = lifecycle();
+        // Go asserts exactly one quote and pins its curPrice.
+        let quotes = executor
+            .query(&lifecycle, &["US.AAPL".to_owned()])
+            .expect("basic quote");
+        assert_eq!(quotes.len(), 1);
+        assert_eq!(quotes[0].cur_price, Some(189.5));
+        assert_eq!(
+            quotes[0]
+                .security
+                .as_ref()
+                .map(|security| (security.market, security.code.as_deref())),
+            Some((Some(11), Some("AAPL")))
+        );
+        server.join().expect("server thread");
+    }
+
+    #[test]
+    fn basic_quote_query_propagates_negative_ret_type_with_err_code_and_message() {
+        // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:683 TestGetBasicQotError
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init = read_framed_frame(&mut stream).expect("init request");
+            respond(&mut stream, &init, vec![0x08, 0x00, 0x22, 0x00]);
+            let rejected = read_framed_frame(&mut stream).expect("rejected request");
+            respond(
+                &mut stream,
+                &rejected,
+                Response {
+                    ret_type: Some(-1),
+                    ret_msg: Some("no permission".to_owned()),
+                    err_code: Some(1000),
+                    s2c: None,
+                }
+                .encode_to_vec(),
+            );
+        });
+        let config = OpenDTcpProbeConfig::new(address, Duration::from_secs(1));
+        let session =
+            OpenDInitializedSession::connect_with_push_notifications(&config, 1).expect("session");
+        let executor = OpenDBasicQuoteExecutor::new(session);
+        let lifecycle = lifecycle();
+        assert!(matches!(
+            executor.query(&lifecycle, &["US.AAPL".to_owned()]),
+            Err(BasicQuoteQueryError::Rejected {
+                ret_type: -1,
+                error_code: 1000,
+                ref message,
+            }) if message == "no permission"
+        ));
+        server.join().expect("server thread");
+    }
+
+    #[test]
+    fn basic_quote_query_maps_multiple_securities_in_order() {
+        // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:919 TestGetBasicQotMultipleSecurities
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init = read_framed_frame(&mut stream).expect("init request");
+            respond(&mut stream, &init, vec![0x08, 0x00, 0x22, 0x00]);
+            let request = read_framed_frame(&mut stream).expect("query request");
+            assert_eq!(request.header.proto_id, crate::PROTO_GET_BASIC_QOT);
+            let decoded = BasicQuoteRequest::decode(request.body.as_slice()).expect("request");
+            let securities = decoded.c2s.expect("c2s").security_list;
+            assert_eq!(securities.len(), 2);
+            assert_eq!(securities[1].market, Some(11));
+            assert_eq!(securities[1].code.as_deref(), Some("MSFT"));
+            let mut first = quote();
+            first.security = Some(QotSecurity {
+                market: Some(11),
+                code: Some("AAPL".to_owned()),
+            });
+            let mut second = quote();
+            second.cur_price = Some(88.5);
+            second.security = Some(QotSecurity {
+                market: Some(11),
+                code: Some("MSFT".to_owned()),
+            });
+            respond(
+                &mut stream,
+                &request,
+                Response {
+                    ret_type: Some(0),
+                    ret_msg: None,
+                    err_code: None,
+                    s2c: Some(ResponseS2c {
+                        quotes: vec![first, second],
+                    }),
+                }
+                .encode_to_vec(),
+            );
+        });
+
+        let config = OpenDTcpProbeConfig::new(address, Duration::from_secs(1));
+        let session =
+            OpenDInitializedSession::connect_with_push_notifications(&config, 1).expect("session");
+        let executor = OpenDBasicQuoteExecutor::new(session);
+        let lifecycle = multi_instrument_lifecycle();
+        let quotes = executor
+            .query(&lifecycle, &["US.AAPL".to_owned(), "US.MSFT".to_owned()])
+            .expect("quotes");
+        assert_eq!(quotes.len(), 2);
+        assert_eq!(quotes[0].cur_price, Some(189.5));
+        assert_eq!(quotes[1].cur_price, Some(88.5));
         server.join().expect("server thread");
     }
 

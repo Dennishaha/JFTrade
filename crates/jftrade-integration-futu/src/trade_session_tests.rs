@@ -1176,3 +1176,197 @@ fn trade_write_wrappers_surface_call_errors() {
     assert!(matches!(error, TradeSessionError::Session(_)));
     server.join().expect("server");
 }
+
+#[test]
+fn unlock_trade_encodes_unlock_flag_and_security_firm() {
+    // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:954 TestUnlockTradeWithSecurityFirm
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let unlock_request = read_frame(&mut stream);
+        assert_eq!(
+            unlock_request.header.proto_id,
+            trd_unlock_trade::PROTOCOL_ID
+        );
+        let decoded =
+            trd_unlock_trade::Request::decode(unlock_request.body.as_slice()).expect("request");
+        assert!(decoded.c2s.unlock);
+        assert_eq!(decoded.c2s.pwd_md5.as_deref(), Some("dummyMD5"));
+        assert_eq!(decoded.c2s.security_firm, Some(1));
+        let response = trd_unlock_trade::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: None,
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    unlock_request.header.proto_id,
+                    unlock_request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+        let mut byte = [0_u8; 1];
+        let _ = stream.read(&mut byte);
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 17).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session_with_conn_id(Arc::clone(&session), 42);
+    client
+        .unlock_trade(TradeUnlockRequest {
+            unlock: true,
+            password_md5: Some("dummyMD5".to_owned()),
+            security_firm: Some(1),
+        })
+        .expect("unlock trade");
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn unlock_trade_omits_security_firm_when_the_caller_does_not_request_one() {
+    // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:627 TestUnlockTrade
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        assert_eq!(request.header.proto_id, trd_unlock_trade::PROTOCOL_ID);
+        let decoded = trd_unlock_trade::Request::decode(request.body.as_slice()).expect("request");
+        assert!(decoded.c2s.unlock, "unlock must send unlock=true");
+        assert_eq!(decoded.c2s.pwd_md5.as_deref(), Some("dummyMD5"));
+        assert_eq!(
+            decoded.c2s.security_firm, None,
+            "Go passes a nil securityFirm for the plain unlock path"
+        );
+        let response = trd_unlock_trade::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: None,
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+        let mut byte = [0_u8; 1];
+        let _ = stream.read(&mut byte);
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 21).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session_with_conn_id(Arc::clone(&session), 42);
+    client
+        .unlock_trade(TradeUnlockRequest {
+            unlock: true,
+            password_md5: Some("dummyMD5".to_owned()),
+            security_firm: None,
+        })
+        .expect("unlock trade");
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn lock_trade_sends_unlock_false_without_a_security_firm() {
+    // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:654 TestLockTrade
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        let decoded = trd_unlock_trade::Request::decode(request.body.as_slice()).expect("request");
+        assert!(!decoded.c2s.unlock, "lock must send unlock=false");
+        assert_eq!(decoded.c2s.security_firm, None);
+        let response = trd_unlock_trade::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: None,
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+        let mut byte = [0_u8; 1];
+        let _ = stream.read(&mut byte);
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 18).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session_with_conn_id(Arc::clone(&session), 42);
+    client
+        .unlock_trade(TradeUnlockRequest {
+            unlock: false,
+            password_md5: Some(String::new()),
+            security_firm: None,
+        })
+        .expect("lock trade");
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn unlock_trade_propagates_opend_rejection() {
+    // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:734 TestUnlockTradeError
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        let response = trd_unlock_trade::Response {
+            ret_type: -1,
+            ret_msg: Some("wrong password".to_owned()),
+            err_code: Some(9),
+            s2c: None,
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 19).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session_with_conn_id(Arc::clone(&session), 42);
+    let error = client
+        .unlock_trade(TradeUnlockRequest {
+            unlock: true,
+            password_md5: Some("wrong_pwd".to_owned()),
+            security_firm: None,
+        })
+        .expect_err("unlock rejection must fail closed");
+    assert!(matches!(
+        error,
+        TradeSessionError::Response(ResponseError::ReturnCode {
+            ret_type: -1,
+            err_code: 9,
+            ..
+        })
+    ));
+    session.close().expect("close");
+    server.join().expect("server");
+}

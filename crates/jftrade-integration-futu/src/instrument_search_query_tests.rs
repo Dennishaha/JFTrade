@@ -116,3 +116,69 @@ fn qualified_lookup_encodes_exact_security_without_market_catalog_or_subscriptio
     assert_eq!(entries[0].lot_size, Some(100));
     assert_eq!(entries[0].name.as_deref(), Some("分众传媒"));
 }
+
+#[test]
+fn static_info_lookup_maps_every_security_static_basic_field() {
+    // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:534 TestGetStaticInfo
+    //
+    // Go's GetStaticInfo returns the raw SecurityStaticInfo list; Rust exposes
+    // the neutral lookup projection, so this pins every field the neutral
+    // contract keeps (identity, name, security type and lot size) and proves
+    // the request targets Qot_GetStaticInfo (3202) for HK.00700.
+    use crate::trade_proto::qot_common::{Security, SecurityStaticBasic, SecurityStaticInfo};
+    use crate::trade_proto::qot_get_static_info as static_wire;
+
+    let request = static_wire::Request::decode(encode_lookup("HK", "00700").unwrap().as_slice())
+        .expect("decode lookup request");
+    assert_eq!(request.c2s.security_list.len(), 1);
+    assert_eq!(request.c2s.security_list[0].market, 1);
+    assert_eq!(request.c2s.security_list[0].code, "00700");
+
+    let body = static_wire::Response {
+        ret_type: 0,
+        s2c: Some(static_wire::S2c {
+            static_info_list: vec![SecurityStaticInfo {
+                basic: SecurityStaticBasic {
+                    security: Security {
+                        market: 1,
+                        code: "00700".to_owned(),
+                    },
+                    id: 700,
+                    name: "Tencent".to_owned(),
+                    sec_type: 3,
+                    list_time: "2004-06-16".to_owned(),
+                    lot_size: 100,
+                    ..Default::default()
+                },
+                ..Default::default()
+            }],
+        }),
+        ..Default::default()
+    }
+    .encode_to_vec();
+
+    let entries = decode_lookup(&body).expect("static info lookup");
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].market, "HK");
+    assert_eq!(entries[0].code, "00700");
+    assert_eq!(entries[0].name.as_deref(), Some("Tencent"));
+    assert_eq!(entries[0].security_type.as_deref(), Some("EQUITY"));
+    assert_eq!(entries[0].lot_size, Some(100));
+
+    // A rejection keeps the OpenD return details instead of fabricating a row.
+    let rejected = static_wire::Response {
+        ret_type: -1,
+        ret_msg: Some("static info denied".to_owned()),
+        err_code: Some(1003),
+        s2c: None,
+    }
+    .encode_to_vec();
+    assert!(matches!(
+        decode_lookup(&rejected),
+        Err(InstrumentSearchError::Rejected {
+            ret_type: -1,
+            err_code: 1003,
+            ..
+        })
+    ));
+}

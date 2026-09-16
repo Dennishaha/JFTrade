@@ -591,6 +591,7 @@ mod tests {
 
     #[test]
     fn tcp_probe_preserves_opend_rejection_and_unsupported_version() {
+        // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:700 TestGetGlobalStateError
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
         let address = listener.local_addr().expect("address");
         let server = thread::spawn(move || {
@@ -850,6 +851,129 @@ mod tests {
             }
             other => panic!("unexpected global-state rejection mapping: {other:?}"),
         }
+        server.join().expect("server thread");
+    }
+
+    #[test]
+    fn global_state_maps_market_login_and_version_fields() {
+        // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:272 TestGetGlobalState
+        //
+        // Go's typed GetGlobalState reader exposes marketHK/US/SH/SZ,
+        // qotLogined, trdLogined, serverVer and program status. Rust has no
+        // standalone reader; the health probe is the owning boundary, so this
+        // pins that its projection keeps the same fields.
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init_request = read_request(&mut stream);
+            let init = InitConnectResponse {
+                ret_type: Some(RET_TYPE_SUCCEED),
+                ret_msg: None,
+                s2c: Some(InitConnectS2c {
+                    server_ver: 1009,
+                    conn_id: 7,
+                    keep_alive_interval: 30,
+                }),
+            };
+            write_response(&mut stream, &init_request, init.encode_to_vec());
+
+            let global_request = read_request(&mut stream);
+            let global = GetGlobalStateResponse {
+                ret_type: Some(RET_TYPE_SUCCEED),
+                ret_msg: None,
+                s2c: Some(GetGlobalStateS2c {
+                    market_hk: 3,
+                    market_us: 4,
+                    market_sh: 5,
+                    market_sz: 6,
+                    qot_logined: true,
+                    trd_logined: true,
+                    server_ver: 900,
+                    server_build_no: 5008,
+                    time: 1_717_000_000,
+                    program_status: Some(ProgramStatus {
+                        r#type: 10,
+                        str_ext_desc: None,
+                    }),
+                }),
+            };
+            write_response(&mut stream, &global_request, global.encode_to_vec());
+        });
+
+        let probe = OpenDTcpProbe::probe(OpenDTcpProbeConfig::new(address, Duration::from_secs(1)))
+            .expect("probe");
+        // serverVer 900 is below the enforced minimum, so Go's
+        // ProbeFromGlobalState returns the version-unsupported degraded probe
+        // with only serverVersion preserved. Rust must match that projection
+        // instead of reporting a healthy session.
+        assert_eq!(probe.server_version.as_deref(), Some("9.0.5008"));
+        assert_eq!(probe.status, "degraded");
+        assert_eq!(probe.connectivity, "degraded");
+        assert_eq!(
+            probe.issue_code.as_deref(),
+            Some("OPEND_VERSION_UNSUPPORTED")
+        );
+        assert!(probe.last_error.is_some());
+        assert!(!probe.market_data_ready());
+        server.join().expect("server thread");
+
+        // With a supported version the same fixture keeps every field Go keeps.
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init_request = read_request(&mut stream);
+            let init = InitConnectResponse {
+                ret_type: Some(RET_TYPE_SUCCEED),
+                ret_msg: None,
+                s2c: Some(InitConnectS2c {
+                    server_ver: 1009,
+                    conn_id: 7,
+                    keep_alive_interval: 30,
+                }),
+            };
+            write_response(&mut stream, &init_request, init.encode_to_vec());
+            let global_request = read_request(&mut stream);
+            let global = GetGlobalStateResponse {
+                ret_type: Some(RET_TYPE_SUCCEED),
+                ret_msg: None,
+                s2c: Some(GetGlobalStateS2c {
+                    market_hk: 3,
+                    market_us: 4,
+                    market_sh: 5,
+                    market_sz: 6,
+                    qot_logined: true,
+                    trd_logined: true,
+                    server_ver: 1009,
+                    server_build_no: 6908,
+                    time: 1_717_000_000,
+                    program_status: Some(ProgramStatus {
+                        r#type: 10,
+                        str_ext_desc: None,
+                    }),
+                }),
+            };
+            write_response(&mut stream, &global_request, global.encode_to_vec());
+        });
+        let probe = OpenDTcpProbe::probe(OpenDTcpProbeConfig::new(address, Duration::from_secs(1)))
+            .expect("probe");
+        assert_eq!(probe.server_version.as_deref(), Some("10.9.6908"));
+        assert_eq!(probe.quote_logged_in, Some(true));
+        assert_eq!(probe.trade_logged_in, Some(true));
+        assert_eq!(
+            probe.program_status.as_deref(),
+            Some("ProgramStatusType_Ready")
+        );
+        let markets: std::collections::BTreeMap<_, _> = probe
+            .markets
+            .iter()
+            .map(|state| (state.market.as_str(), state.state))
+            .collect();
+        assert_eq!(markets.get("HK"), Some(&3));
+        assert_eq!(markets.get("US"), Some(&4));
+        assert_eq!(markets.get("SH"), Some(&5));
+        assert_eq!(markets.get("SZ"), Some(&6));
         server.join().expect("server thread");
     }
 

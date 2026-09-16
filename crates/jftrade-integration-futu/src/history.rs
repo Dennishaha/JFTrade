@@ -344,6 +344,84 @@ mod tests {
     }
 
     #[test]
+    fn history_pagination_round_trips_the_next_req_key_across_pages() {
+        // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:848 TestRequestHistoryKLPagination
+        //
+        // Go drives pagination by echoing the returned nextReqKey into the next
+        // request and expecting an empty key on the final page. This pins the
+        // same wire round trip without needing a live socket.
+        let first_page = HistoryResponse {
+            ret_type: Some(0),
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(HistoryS2c {
+                security: None,
+                kl_list: Vec::new(),
+                next_req_key: Some(b"page2".to_vec()),
+                name: Some("Tencent".to_owned()),
+            }),
+        };
+        let decoded =
+            HistoryResponse::decode(first_page.encode_to_vec().as_slice()).expect("first page");
+        let next_req_key = decoded
+            .s2c
+            .as_ref()
+            .and_then(|s2c| s2c.next_req_key.clone())
+            .expect("first page carries a cursor");
+        assert_eq!(next_req_key, b"page2");
+
+        let mut query = HistoricalKlineQuery {
+            market: 1,
+            symbol: "00700".to_owned(),
+            period: "1d".to_owned(),
+            adjustment: 0,
+            begin_time: "2026-05-01".to_owned(),
+            end_time: "2026-05-31".to_owned(),
+            max_ack_kl_num: Some(100),
+            next_req_key: next_req_key.clone(),
+            extended_time: None,
+            session: None,
+        };
+        let request = HistoryRequest::decode(encode_request(&query).as_slice())
+            .expect("second request")
+            .c2s
+            .expect("c2s");
+        assert_eq!(request.next_req_key, Some(next_req_key));
+        assert_eq!(request.max_ack_kl_num, Some(100));
+
+        let final_page = HistoryResponse {
+            ret_type: Some(0),
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(HistoryS2c {
+                security: None,
+                kl_list: Vec::new(),
+                next_req_key: None,
+                name: None,
+            }),
+        };
+        let decoded =
+            HistoryResponse::decode(final_page.encode_to_vec().as_slice()).expect("final page");
+        assert!(
+            decoded
+                .s2c
+                .as_ref()
+                .and_then(|s2c| s2c.next_req_key.as_ref())
+                .is_none(),
+            "the last page must not advertise another cursor"
+        );
+
+        // An empty cursor must stay absent on the wire so the next request is a
+        // fresh first page instead of a zero-length resumption.
+        query.next_req_key = Vec::new();
+        let request = HistoryRequest::decode(encode_request(&query).as_slice())
+            .expect("fresh request")
+            .c2s
+            .expect("c2s");
+        assert_eq!(request.next_req_key, None);
+    }
+
+    #[test]
     fn history_response_maps_rejection_without_fabricating_s2c() {
         let response = HistoryResponse {
             ret_type: Some(-1),

@@ -413,3 +413,84 @@ node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib --l
 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(trade)'
 python3 scripts/compatibility/audit_test_parity.py
 ```
+
+## 批次：`pkg/futu/opend/new_methods_test.go` 全量收口
+
+本批把 `go:452dea11:pkg/futu/opend/new_methods_test.go` 的 24 条测试全部落成
+`[x]`/`[~]` 结论，并修复 2 处真实功能差异。
+
+### 本批结论
+
+| Go 测试 | Rust 证据入口 | 状态 |
+| --- | --- | --- |
+| `new_methods_test.go:272 TestGetGlobalState` | `health::tests::global_state_maps_market_login_and_version_fields` | `[x]` |
+| `new_methods_test.go:313 TestSubscribeQuotes` | `subscription_executor::tests::executor_sends_subscribe_and_unsubscribe_over_one_framed_session` | `[x]`（前批） |
+| `new_methods_test.go:352 TestUnsubscribeQuotes` | `subscription_executor::tests::unsubscribe_request_sets_is_sub_or_un_sub_false_and_keeps_security` | `[x]`（前批） |
+| `new_methods_test.go:391 TestGetBasicQot` | `basic_quote_query::tests::basic_quote_query_maps_a_single_security_success_response` | `[x]` |
+| `new_methods_test.go:419 TestSubscribeBasicQot` | `quote_push_tests::decodes_basic_kline_and_order_book_pushes_with_go_field_semantics` | `[~]`/partial |
+| `new_methods_test.go:466 TestGetKL` | `kline_query::tests::get_kl_maps_name_and_klines_for_a_valid_response` | `[x]` |
+| `new_methods_test.go:499 TestRequestHistoryKL` | `history::tests::history_wire_frame_keeps_protocol_and_serial_for_mock_opend` | `[x]`（前批） |
+| `new_methods_test.go:534 TestGetStaticInfo` | `instrument_search_query_tests::static_info_lookup_maps_every_security_static_basic_field` | `[x]` |
+| `new_methods_test.go:578 TestGetSecuritySnapshot` | `security_snapshot_query::tests::maps_security_snapshot_bbo_and_equity_metrics_without_defaults` | `[x]`（前批） |
+| `new_methods_test.go:627 TestUnlockTrade` | `trade_session_tests::unlock_trade_omits_security_firm_when_the_caller_does_not_request_one` | `[x]` |
+| `new_methods_test.go:654 TestLockTrade` | `trade_session_tests::lock_trade_sends_unlock_false_without_a_security_firm` | `[x]` |
+| `new_methods_test.go:683 TestGetBasicQotError` | `basic_quote_query::tests::basic_quote_query_propagates_negative_ret_type_with_err_code_and_message` | `[x]` |
+| `new_methods_test.go:700 TestGetGlobalStateError` | `health::tests::tcp_probe_preserves_opend_rejection_and_unsupported_version` | `[x]` |
+| `new_methods_test.go:716 TestSubscribeQuotesError` | `subscription_executor::tests::qot_sub_rejection_surfaces_ret_type_err_code_and_message` | `[x]` |
+| `new_methods_test.go:734 TestUnlockTradeError` | `trade_session_tests::unlock_trade_propagates_opend_rejection` | `[x]` |
+| `new_methods_test.go:752 TestGetBasicQotEmptyS2C` | `basic_quote_query::tests::basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent` | `[x]` |
+| `new_methods_test.go:768 TestGetKLNullS2C` | `kline_query::tests::get_kl_missing_s2c_returns_an_empty_result` | `[x]` |
+| `new_methods_test.go:791 TestGetGlobalStateAdvancedFields` | `health::tests::global_state_maps_market_login_and_version_fields` | `[~]`/boundary |
+| `new_methods_test.go:848 TestRequestHistoryKLPagination` | `history::tests::history_pagination_round_trips_the_next_req_key_across_pages` | `[x]` |
+| `new_methods_test.go:919 TestGetBasicQotMultipleSecurities` | `basic_quote_query::tests::basic_quote_query_maps_multiple_securities_in_order` | `[x]` |
+| `new_methods_test.go:954 TestUnlockTradeWithSecurityFirm` | `trade_session_tests::unlock_trade_encodes_unlock_flag_and_security_firm` | `[x]` |
+| `new_methods_test.go:986 TestGetSecuritySnapshotIndex` | `security_snapshot_query::tests::maps_security_snapshot_bbo_and_equity_metrics_without_defaults` | `[~]`/boundary |
+| `new_methods_test.go:1023 TestSubscribeQuotesAllOptions` | `subscription_executor::tests::qot_sub_all_options_match_go_quote_sub_request_encoding` | `[x]` |
+| `new_methods_test.go:1082 TestSubscribeQuotesUnsubAll` | `subscription_executor::tests::qot_sub_unsub_all_matches_go_all_flag_encoding` | `[x]` |
+
+### 本批发现与修复
+
+- **GetKL 把缺失 S2C 判成协议错误**（已修复）
+  - Go `pkg/futu/opend/kline.go::GetKL` 在 `retType==0` 且 S2C（或 klList）缺失时
+    返回空 `KLines`；Rust 之前直接 `MissingS2c`，会把正常的“无数据”放大成读取失败。
+  - 修复位置：`crates/jftrade-integration-futu/src/kline_query.rs::decode_get_kl_response`。
+  - 回归：`get_kl_missing_s2c_returns_an_empty_result`（缺失 S2C 与空 klList 两条分支）
+    与 `get_kl_rejects_a_protocol_error_with_typed_details`（拒绝仍保持 typed）。
+- **UnlockTrade 要求 S2C 才能确认成功**（已修复）
+  - Go `UnlockTrade` 只校验 `retType==0`，接受缺失 S2C 的成功 ack；Rust 走
+    `decode_response` 宏时无条件要求 S2C，导致解禁被误报 `MissingS2c`。
+  - 修复位置：`crates/jftrade-integration-futu/src/trade_session.rs::unlock_trade`。
+  - 回归：`unlock_trade_encodes_unlock_flag_and_security_firm`、
+    `unlock_trade_omits_security_firm_when_the_caller_does_not_request_one`、
+    `unlock_trade_propagates_opend_rejection`。
+- **Qot_Sub 可选字段缺失**（已补齐 wire 契约）
+  - 新增 `regPushRehabTypeList`(5)/`isFirstPush`(6)/`isUnsubAll`(7)/
+    `isSubOrderBookDetail`(8)/`extendedTime`(9)/`session`(10)，并对齐
+    Go 的“未指定则不发送”语义：Basic 保留既有 push 注册（`None`），
+    K 线显式 `isRegOrUnRegPush=false`，`isUnsubAll` 总是显式 `false`。
+  - 回归：`qot_sub_all_options_match_go_quote_sub_request_encoding`、
+    `qot_sub_unsub_all_matches_go_all_flag_encoding`。
+
+### 边界保留（不迁移为等价测试）
+
+- `TestGetSecuritySnapshotIndex`：Go 的 `indexExData`（raiseCount/fallCount/equalCount）
+  在 Rust 的 broker-neutral `TradeQuoteSnapshot` 中没有中立字段，
+  `internal/integration/futu/security_details.go` 对应的 `index`/`plate` 研究块
+  也未迁移；Rust 路由显式不伪造这些块。
+- `TestGetGlobalStateAdvancedFields`：`marketHKFuture/marketUSFuture/marketSGFuture/
+  marketJPFuture`、`localTime`、`qotSvrIpAddr`、`trdSvrIpAddr`、`connID` 只存在于
+  Go 的 `opend.Client.GetGlobalState` 投影中。Rust 的 `WireGlobalState` 只保留
+  产品路径真正消费的 HK/US/SH/SZ 四市场、登录位、版本与 programStatus。
+- `TestSubscribeBasicQot` 回调 adapter：Rust 没有 `SubscribeBasicQot(callback)` API，
+  推送经 `OpenDSessionCoordinator` → `QuotePush` → LiveHub 事件；解码契约由
+  `quote_push_tests` 覆盖，成交量差分语义仍待补（见下批）。
+
+验证命令：
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked --no-fail-fast
+cargo fmt --check
+cargo clippy -p jftrade-integration-futu --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```
