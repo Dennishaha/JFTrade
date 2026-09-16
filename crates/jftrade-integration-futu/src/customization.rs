@@ -10,11 +10,12 @@ use prost::Message;
 use serde_json::{Value, json};
 use thiserror::Error;
 
-use crate::{OpenDSessionCoordinator, OpenDSessionCoordinatorError};
+use crate::{
+    OpenDSessionCoordinator, OpenDSessionCoordinatorError, PROTO_GET_USER_SECURITY,
+    PROTO_GET_USER_SECURITY_GROUP,
+};
 
-const PROTO_GET_USER_SECURITY: u32 = 3213;
 const PROTO_MODIFY_USER_SECURITY: u32 = 3214;
-const PROTO_GET_USER_SECURITY_GROUP: u32 = 3222;
 const PROTO_GET_PRICE_REMINDER: u32 = 3221;
 const PROTO_SET_PRICE_REMINDER: u32 = 3220;
 const PROTO_GET_OPTION_EVENT_ALERT: u32 = 3308;

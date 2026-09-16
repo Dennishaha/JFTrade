@@ -22,6 +22,8 @@ pub struct InstrumentSearchEntry {
 pub enum InstrumentSearchError {
     #[error("invalid instrument search keyword")]
     InvalidQuery,
+    #[error("OpenD search maxCount must be between 1 and {MAX_SEARCH_QUOTE_COUNT}: {0}")]
+    InvalidMaxCount(i32),
     #[error("OpenD instrument search unavailable: {0}")]
     Session(String),
     #[error("decode OpenD instrument search: {0}")]
@@ -38,12 +40,35 @@ pub enum InstrumentSearchError {
 
 pub trait InstrumentSearchReadPort: Send + Sync + std::fmt::Debug {
     fn search(&self, keyword: &str) -> Result<Vec<InstrumentSearchEntry>, InstrumentSearchError>;
+
+    /// Searches with the caller's `Qot_GetSearchQuote.maxCount`.
+    ///
+    /// Go validates `maxCount` to `1..=100` at the client boundary
+    /// (`pkg/futu/opend/search_quote.go::GetSearchQuote`) and forwards the
+    /// caller's value, so a product limit lower than 100 must reach OpenD as
+    /// that value instead of being normalized after the fact. The default keeps
+    /// existing embedders on the historical 100-result request.
+    fn search_with_limit(
+        &self,
+        keyword: &str,
+        max_count: i32,
+    ) -> Result<Vec<InstrumentSearchEntry>, InstrumentSearchError> {
+        if !(1..=MAX_SEARCH_QUOTE_COUNT).contains(&max_count) {
+            return Err(InstrumentSearchError::InvalidMaxCount(max_count));
+        }
+        let _ = max_count;
+        self.search(keyword)
+    }
+
     fn lookup(
         &self,
         market: &str,
         code: &str,
     ) -> Result<Vec<InstrumentSearchEntry>, InstrumentSearchError>;
 }
+
+/// Go `maxSearchQuoteCount`: OpenD rejects anything outside `1..=100`.
+pub const MAX_SEARCH_QUOTE_COUNT: i32 = 100;
 
 #[derive(Clone)]
 pub struct OpenDInstrumentSearchReader {
@@ -79,7 +104,15 @@ impl OpenDInstrumentSearchReader {
 
 impl InstrumentSearchReadPort for OpenDInstrumentSearchReader {
     fn search(&self, keyword: &str) -> Result<Vec<InstrumentSearchEntry>, InstrumentSearchError> {
-        decode_response(&self.call(wire::PROTOCOL_ID, &encode_request(keyword)?)?)
+        self.search_with_limit(keyword, MAX_SEARCH_QUOTE_COUNT)
+    }
+
+    fn search_with_limit(
+        &self,
+        keyword: &str,
+        max_count: i32,
+    ) -> Result<Vec<InstrumentSearchEntry>, InstrumentSearchError> {
+        decode_response(&self.call(wire::PROTOCOL_ID, &encode_request(keyword, max_count)?)?)
     }
 
     fn lookup(
@@ -93,15 +126,18 @@ impl InstrumentSearchReadPort for OpenDInstrumentSearchReader {
     }
 }
 
-fn encode_request(keyword: &str) -> Result<Vec<u8>, InstrumentSearchError> {
+fn encode_request(keyword: &str, max_count: i32) -> Result<Vec<u8>, InstrumentSearchError> {
     let keyword = keyword.trim();
     if keyword.is_empty() || keyword.chars().any(char::is_control) {
         return Err(InstrumentSearchError::InvalidQuery);
     }
+    if !(1..=MAX_SEARCH_QUOTE_COUNT).contains(&max_count) {
+        return Err(InstrumentSearchError::InvalidMaxCount(max_count));
+    }
     Ok(wire::Request {
         c2s: wire::C2s {
             keyword: keyword.to_owned(),
-            max_count: Some(100),
+            max_count: Some(max_count),
             header: None,
         },
     }
@@ -117,13 +153,13 @@ fn decode_response(body: &[u8]) -> Result<Vec<InstrumentSearchEntry>, Instrument
             message: response.ret_msg.unwrap_or_default(),
         });
     }
-    response
-        .s2c
-        .ok_or(InstrumentSearchError::MissingField("s2c"))?
-        .search_quote_list
-        .into_iter()
-        .map(map_entry)
-        .collect()
+    // Go returns a non-nil empty slice when OpenD answers success without S2C
+    // (`pkg/futu/opend/search_quote.go::GetSearchQuote`), so a payload-less ack
+    // is "no matches", not a protocol failure.
+    let Some(s2c) = response.s2c else {
+        return Ok(Vec::new());
+    };
+    s2c.search_quote_list.into_iter().map(map_entry).collect()
 }
 
 fn map_entry(entry: wire::SearchQuote) -> Result<InstrumentSearchEntry, InstrumentSearchError> {

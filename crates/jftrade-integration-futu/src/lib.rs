@@ -104,7 +104,7 @@ pub use history_session_plan::{
     should_split_historical_kline_requests,
 };
 pub use instrument_search_query::{
-    InstrumentSearchEntry, InstrumentSearchError, InstrumentSearchReadPort,
+    InstrumentSearchEntry, InstrumentSearchError, InstrumentSearchReadPort, MAX_SEARCH_QUOTE_COUNT,
     OpenDInstrumentSearchReader,
 };
 pub use kline_query::{
@@ -319,9 +319,19 @@ pub use valuation_detail_query::{
 pub const PROTO_INIT_CONNECT: u32 = 1001;
 pub const PROTO_GET_GLOBAL_STATE: u32 = 1002;
 pub const PROTO_KEEP_ALIVE: u32 = 1004;
+/// OpenD user-info read. Declared so the protocol-id table can be asserted
+/// against Go (`pkg/futu/opend/protocol_ids_test.go`); the product path reads
+/// account/quote rights through the typed trade session instead.
+pub const PROTO_GET_USER_INFO: u32 = 1005;
+pub const PROTO_GET_USER_SECURITY_GROUP: u32 = 3222;
+pub const PROTO_GET_USER_SECURITY: u32 = 3213;
 pub const PROTO_QOT_SUB: u32 = 3001;
 pub const PROTO_GET_SUB_INFO: u32 = 3003;
 pub const PROTO_GET_BASIC_QOT: u32 = 3004;
+pub const PROTO_GET_STATIC_INFO: u32 = 3202;
+pub const PROTO_GET_PLATE_SET: u32 = 3204;
+pub const PROTO_GET_PLATE_SECURITY: u32 = 3205;
+pub const PROTO_GET_SEARCH_QUOTE: u32 = 3262;
 pub const PROTO_GET_SECURITY_SNAPSHOT: u32 = 3203;
 pub const PROTO_UPDATE_BASIC_QOT: u32 = 3005;
 pub const PROTO_GET_KL: u32 = 3006;

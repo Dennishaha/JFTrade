@@ -17136,11 +17136,11 @@
     "evidence_type": "missing"
   },
   "pkg/futu/opend/protocol_ids_test.go:5:TestStaticInfoAndKLineUpdateProtocolIDsDoNotOverlap": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/trading.rs::tests::market_read_protocol_ids_match_go_and_do_not_overlap",
+    "conclusion": "function_exact：新增 PROTO_GET_USER_INFO=1005、PROTO_GET_STATIC_INFO=3202、PROTO_GET_PLATE_SET=3204、PROTO_GET_PLATE_SECURITY=3205、PROTO_GET_SEARCH_QUOTE=3262 常量，并逐项断言等于 Go 的 opend 常量；同时断言 staticInfo 与 Qot_UpdateKL(3007) 不重叠。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(market_read_protocol_ids_match_go_and_do_not_overlap)'"
   },
   "pkg/futu/opend/read_boundary_test.go:15:TestReadHelpersPropagateClosedClientErrors": {
     "status": "[~]",
@@ -17157,25 +17157,25 @@
     "evidence_type": "missing"
   },
   "pkg/futu/opend/search_quote_test.go:14:TestGetSearchQuoteSendsKeywordAndReturnsCandidates": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/instrument_search_query_tests.rs::search_request_preserves_chinese_name_and_requests_full_candidate_window",
+    "conclusion": "function_exact：关键词 trim 后保留中文（\" 分众传媒 \" → \"分众传媒\"），maxCount 由调用方传入（1/10/100 逐项断言原值到达 OpenD），c2s 无 header；候选映射由 search_response_maps_chinese_stock_and_preserves_unavailable_markets 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(search_request_preserves_chinese_name_and_requests_full_candidate_window)'"
   },
   "pkg/futu/opend/search_quote_test.go:48:TestGetSearchQuoteValidatesInputAndPreservesOpenDErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/instrument_search_query_tests.rs::search_failures_and_malformed_responses_are_not_empty_successes",
+    "conclusion": "function_exact：maxCount 越界（0/-1/101/i32::MAX）在编码前返回 InvalidMaxCount；空/控制字符关键词返回 InvalidQuery；retType!=0 返回 typed Rejected（errCode/message 保留），不会被当成空成功。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(search_failures_and_malformed_responses_are_not_empty_successes)'"
   },
   "pkg/futu/opend/search_quote_test.go:77:TestGetSearchQuoteNormalizesMissingPayload": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/instrument_search_query_tests.rs::a_success_without_a_payload_normalizes_to_an_empty_candidate_list",
+    "conclusion": "function_exact：retType=0 且 S2C 缺失时返回空候选列表而非协议错误（对齐 Go 的 GetSearchQuote 返回空 slice）。修复：此前把缺失 S2C 报为 MissingField(\"s2c\")。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(a_success_without_a_payload_normalizes_to_an_empty_candidate_list)'"
   },
   "pkg/futu/opend/subscription_info_test.go:13:TestGetSubInfoUsesReadOnlySubscriptionProtocol": {
     "status": "[~]",
@@ -17332,60 +17332,60 @@
     "evidence_type": "boundary"
   },
   "pkg/futu/opend/user_security_test.go:15:TestGetUserSecurityGroupsEncodesAllAndReturnsCustomAndSystemGroups": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/tests/user_security_protocol.rs::groups_encode_group_type_all_and_project_custom_and_system",
+    "conclusion": "function_exact：Qot_GetUserSecurityGroup(3222) 请求编码 groupType=3（All），响应两组的 name/type 映射为 Long Term/custom 与 All/system。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(groups_encode_group_type_all_and_project_custom_and_system)'"
   },
   "pkg/futu/opend/user_security_test.go:51:TestGetUserSecuritiesEncodesTrimmedGroupName": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/tests/user_security_protocol.rs::members_encode_a_trimmed_group_name_and_project_static_info",
+    "conclusion": "function_exact：Qot_GetUserSecurity(3213) 请求的 groupName 在编码前已 trim（\"  Long Term  \" → \"Long Term\"），响应 staticInfo 映射 instrumentId=HK.00700、lotSize、name。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(members_encode_a_trimmed_group_name_and_project_static_info)'"
   },
   "pkg/futu/opend/user_security_test.go:93:TestUserSecurityMethodsRejectInvalidInputBeforeEncoding": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/tests/user_security_protocol.rs::a_blank_group_name_is_rejected_before_any_rpc",
+    "conclusion": "function_exact：空/纯空白 groupName（\"\"、\"   \"、\"\\t\\n\"）在构造请求前即返回 \"group name is required\"，不发任何 RPC，与 Go 的本地校验一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(a_blank_group_name_is_rejected_before_any_rpc)'"
   },
   "pkg/futu/opend/user_security_test.go:103:TestUserSecurityMethodsPropagateBusinessErrorsAndEmptyResults": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/tests/user_security_protocol.rs::a_rejected_group_query_surfaces_the_opend_message",
+    "conclusion": "function_exact：分组查询被拒（retType=-1/errCode=429/\"group query rate limited\"）时返回错误并保留 OpenD 原始 message，不静默降级为空列表。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(a_rejected_group_query_surfaces_the_opend_message)'"
   },
   "pkg/futu/opend/user_security_test.go:125:TestUserSecurityMethodsNormalizeMissingGroupsAndReportSecurityErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/tests/user_security_protocol.rs::a_missing_group_payload_is_an_empty_list_but_member_errors_stay_typed",
+    "conclusion": "function_exact：成功但缺 S2C 的分组查询归一化为空列表；成员查询被拒（errCode=403/\"watchlist access denied\"）仍返回 typed 错误并保留 message。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(a_missing_group_payload_is_an_empty_list_but_member_errors_stay_typed)'"
   },
   "pkg/futu/opend/user_security_test.go:148:TestUserSecurityProtocolIDs": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/trading.rs::tests::user_security_protocol_ids_match_go",
+    "conclusion": "function_exact：PROTO_GET_USER_SECURITY=3213、PROTO_GET_USER_SECURITY_GROUP=3222 提升为公开常量，customization.rs 改为复用同一常量，测试逐项断言等于 Go。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(user_security_protocol_ids_match_go)'"
   },
   "pkg/futu/opend/version_test.go:8:TestFormatVersion": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/health.rs::tests::version_support_matches_go_minimum_version_rule",
+    "conclusion": "function_exact：FormatVersion(1009,6908)=\"10.9.6908\"，无 build 时 FormatVersion(504,0)=\"5.4\"。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(version_support_matches_go_minimum_version_rule)'"
   },
   "pkg/futu/opend/version_test.go:17:TestValidateMinimumVersion": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/health.rs::tests::minimum_version_validation_matches_go_boundaries",
+    "conclusion": "function_exact：提取 version_supported 规则并逐项断言 Go 的 6 个用例——1009/6908 与 1009/7000 通过、1010 任意 build 通过（更小 minor 线也接受）、1009/6808 与 1008/7000 与 504/0 拒绝。修复：此前内联判断只覆盖 serverVer==1009。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(minimum_version_validation_matches_go_boundaries)'"
   },
   "pkg/futu/quote_snapshot_adapter_boundaries_test.go:15:TestQuoteSnapshotUsesCompleteActiveExtendedBlock": {
     "status": "[~]",

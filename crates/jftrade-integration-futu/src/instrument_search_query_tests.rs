@@ -2,17 +2,58 @@ use super::*;
 
 #[test]
 fn search_request_preserves_chinese_name_and_requests_full_candidate_window() {
-    let request = wire::Request::decode(encode_request(" 分众传媒 ").unwrap().as_slice()).unwrap();
+    let request =
+        wire::Request::decode(encode_request(" 分众传媒 ", 100).unwrap().as_slice()).unwrap();
     assert_eq!(wire::PROTOCOL_ID, 3262);
     assert_eq!(request.c2s.keyword, "分众传媒");
     assert_eq!(request.c2s.max_count, Some(100));
     assert!(request.c2s.header.is_none());
     for keyword in ["", " ", "分众\n传媒"] {
         assert!(matches!(
-            encode_request(keyword),
+            encode_request(keyword, 100),
             Err(InstrumentSearchError::InvalidQuery)
         ));
     }
+
+    // Parity: go:452dea11:pkg/futu/opend/search_quote_test.go:48
+    // TestGetSearchQuoteValidatesInputAndPreservesOpenDErrors
+    //
+    // Go forwards the caller's maxCount and rejects anything outside 1..=100
+    // before encoding, so a product limit must not be silently rewritten.
+    for max_count in [0, -1, 101, i32::MAX] {
+        assert!(matches!(
+            encode_request("AAPL", max_count),
+            Err(InstrumentSearchError::InvalidMaxCount(value)) if value == max_count
+        ));
+    }
+    for max_count in [1, 10, 100] {
+        let request =
+            wire::Request::decode(encode_request("AAPL", max_count).unwrap().as_slice()).unwrap();
+        assert_eq!(
+            request.c2s.max_count,
+            Some(max_count),
+            "the caller's maxCount must reach OpenD unchanged"
+        );
+    }
+}
+
+#[test]
+fn a_success_without_a_payload_normalizes_to_an_empty_candidate_list() {
+    // Parity: go:452dea11:pkg/futu/opend/search_quote_test.go:77
+    // TestGetSearchQuoteNormalizesMissingPayload
+    let body = wire::Response {
+        ret_type: 0,
+        ret_msg: None,
+        err_code: None,
+        s2c: None,
+    }
+    .encode_to_vec();
+    assert!(
+        decode_response(&body)
+            .expect("missing payload is not an error")
+            .is_empty(),
+        "a payload-less success must normalize to an empty list"
+    );
 }
 
 fn response(entries: Vec<wire::SearchQuote>) -> Vec<u8> {
@@ -74,10 +115,13 @@ fn search_failures_and_malformed_responses_are_not_empty_successes() {
         s2c: None,
     }
     .encode_to_vec();
-    assert!(matches!(
-        decode_response(&missing),
-        Err(InstrumentSearchError::MissingField("s2c"))
-    ));
+    // Go's `GetSearchQuote` treats a payload-less success as "no matches", so
+    // this stays a distinct empty-success case rather than a protocol error.
+    assert!(
+        decode_response(&missing)
+            .expect("missing payload")
+            .is_empty()
+    );
     assert!(decode_response(&response(vec![wire::SearchQuote::default()])).is_err());
     assert!(decode_response(&[0xff]).is_err());
     assert!(decode_response(&response(vec![])).unwrap().is_empty());

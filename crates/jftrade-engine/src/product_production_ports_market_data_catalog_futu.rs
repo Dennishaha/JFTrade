@@ -28,11 +28,16 @@ pub(super) async fn read(
         })?;
     let keyword = query.to_owned();
     let target = qualified.clone();
+    // Go forwards the caller's limit as `Qot_GetSearchQuote.maxCount`
+    // (pkg/futu/adapter_marketdata_reader.go::QuerySecuritySearch), so OpenD
+    // receives the requested window instead of a fixed 100.
+    let requested = i32::try_from(limit.max(1)).unwrap_or(i32::MAX);
+    let requested = requested.min(jftrade_integration_futu::MAX_SEARCH_QUOTE_COUNT);
     let entries = tokio::task::spawn_blocking(move || {
         if let Some(instrument) = target {
             reader.lookup(&instrument.prefix, &instrument.code)
         } else {
-            reader.search(&keyword)
+            reader.search_with_limit(&keyword, requested)
         }
     })
     .await

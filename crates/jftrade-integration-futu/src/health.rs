@@ -186,8 +186,7 @@ impl OpenDTcpProbe {
             .s2c
             .ok_or(OpenDTcpProbeError::MissingGlobalState)?;
         let server_version = format_version(state.server_ver, state.server_build_no);
-        let version_supported =
-            state.server_ver > 1009 || (state.server_ver == 1009 && state.server_build_no >= 6908);
+        let version_supported = version_supported(state.server_ver, state.server_build_no);
         Ok(OpenDProbe::from_global_state(
             Some(WireGlobalState {
                 qot_logged_in: Some(state.qot_logined),
@@ -280,6 +279,18 @@ fn format_version(server_ver: i32, build_no: i32) -> String {
     } else {
         format!("{major}.{minor}")
     }
+}
+
+/// True when the reported OpenD build meets `MINIMUM_OPEND_VERSION`.
+///
+/// Go's `opend.ValidateMinimumVersion` accepts any build on a newer minor line
+/// (`serverVer > 1009`), the exact minimum build on 10.9, and rejects every
+/// older minor regardless of build number. Keeping this beside
+/// `format_version` means the probe and the version test share one rule.
+fn version_supported(server_ver: i32, build_no: i32) -> bool {
+    let minimum: i32 = 1009;
+    let minimum_build: i32 = 6908;
+    server_ver > minimum || (server_ver == minimum && build_no >= minimum_build)
 }
 
 fn format_timestamp(seconds: i64) -> String {
@@ -852,6 +863,38 @@ mod tests {
             other => panic!("unexpected global-state rejection mapping: {other:?}"),
         }
         server.join().expect("server thread");
+    }
+
+    #[test]
+    fn version_support_matches_go_minimum_version_rule() {
+        // Parity: go:452dea11:pkg/futu/opend/version_test.go:8 TestFormatVersion
+        assert_eq!(format_version(1009, 6908), "10.9.6908");
+        assert_eq!(format_version(504, 0), "5.4");
+    }
+
+    #[test]
+    fn minimum_version_validation_matches_go_boundaries() {
+        // Parity: go:452dea11:pkg/futu/opend/version_test.go:17 TestValidateMinimumVersion
+        for (server_ver, build_no, supported) in [
+            // "current exact"
+            (1009, 6908, true),
+            // "newer build"
+            (1009, 7000, true),
+            // "newer minor": any build on a newer minor line is accepted.
+            (1010, 6908, true),
+            (1010, 0, true),
+            // "old build"
+            (1009, 6808, false),
+            // "old minor" stays unsupported even with a newer build number.
+            (1008, 7000, false),
+            (504, 0, false),
+        ] {
+            assert_eq!(
+                version_supported(server_ver, build_no),
+                supported,
+                "serverVer={server_ver} buildNo={build_no}"
+            );
+        }
     }
 
     #[test]

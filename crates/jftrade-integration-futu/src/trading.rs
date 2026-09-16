@@ -172,6 +172,28 @@ mod tests {
     }
 
     #[test]
+    fn market_read_protocol_ids_match_go_and_do_not_overlap() {
+        // Parity: go:452dea11:pkg/futu/opend/protocol_ids_test.go:5
+        // TestStaticInfoAndKLineUpdateProtocolIDsDoNotOverlap
+        assert_eq!(crate::PROTO_GET_USER_INFO, 1005);
+        assert_eq!(crate::PROTO_GET_STATIC_INFO, 3202);
+        assert_eq!(crate::PROTO_GET_PLATE_SET, 3204);
+        assert_eq!(crate::PROTO_GET_PLATE_SECURITY, 3205);
+        assert_eq!(crate::PROTO_UPDATE_KL, 3007);
+        assert_eq!(crate::PROTO_GET_SEARCH_QUOTE, 3262);
+        assert_eq!(crate::PROTO_GET_SUB_INFO, 3003);
+        assert_ne!(crate::PROTO_GET_STATIC_INFO, crate::PROTO_UPDATE_KL);
+    }
+
+    #[test]
+    fn user_security_protocol_ids_match_go() {
+        // Parity: go:452dea11:pkg/futu/opend/user_security_test.go:148
+        // TestUserSecurityProtocolIDs
+        assert_eq!(crate::PROTO_GET_USER_SECURITY, 3213);
+        assert_eq!(crate::PROTO_GET_USER_SECURITY_GROUP, 3222);
+    }
+
+    #[test]
     fn mapper_rejects_partial_or_malformed_fill_fields() {
         let raw = RawOrderUpdate {
             event_id: "event-1".to_owned(),

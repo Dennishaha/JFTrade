@@ -578,3 +578,71 @@ cargo clippy -p jftrade-marketdata -p jftrade-engine -p jftrade-api -p jftrade-i
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+## 批次：`pkg/futu/opend/` 用户安全组、搜索与版本边界
+
+本批处理 `user_security_test.go`(6)、`search_quote_test.go`(3)、
+`protocol_ids_test.go`(1)、`version_test.go`(2)，共 12 条，修掉 3 处真实差异。
+
+### 本批结论
+
+| Go 测试 | Rust 证据入口 | 状态 |
+| --- | --- | --- |
+| `protocol_ids_test.go:5 TestStaticInfoAndKLineUpdateProtocolIDsDoNotOverlap` | `trading::tests::market_read_protocol_ids_match_go_and_do_not_overlap` | `[x]` |
+| `user_security_test.go:148 TestUserSecurityProtocolIDs` | `trading::tests::user_security_protocol_ids_match_go` | `[x]` |
+| `user_security_test.go:15 TestGetUserSecurityGroupsEncodesAllAndReturnsCustomAndSystemGroups` | `user_security_protocol::groups_encode_group_type_all_and_project_custom_and_system` | `[x]` |
+| `user_security_test.go:51 TestGetUserSecuritiesEncodesTrimmedGroupName` | `user_security_protocol::members_encode_a_trimmed_group_name_and_project_static_info` | `[x]` |
+| `user_security_test.go:93 TestUserSecurityMethodsRejectInvalidInputBeforeEncoding` | `user_security_protocol::a_blank_group_name_is_rejected_before_any_rpc` | `[x]` |
+| `user_security_test.go:103 TestUserSecurityMethodsPropagateBusinessErrorsAndEmptyResults` | `user_security_protocol::a_rejected_group_query_surfaces_the_opend_message` | `[x]` |
+| `user_security_test.go:125 TestUserSecurityMethodsNormalizeMissingGroupsAndReportSecurityErrors` | `user_security_protocol::a_missing_group_payload_is_an_empty_list_but_member_errors_stay_typed` | `[x]` |
+| `search_quote_test.go:14 TestGetSearchQuoteSendsKeywordAndReturnsCandidates` | `instrument_search_query_tests::search_request_preserves_chinese_name_and_requests_full_candidate_window` | `[x]` |
+| `search_quote_test.go:48 TestGetSearchQuoteValidatesInputAndPreservesOpenDErrors` | `instrument_search_query_tests::search_failures_and_malformed_responses_are_not_empty_successes` | `[x]` |
+| `search_quote_test.go:77 TestGetSearchQuoteNormalizesMissingPayload` | `instrument_search_query_tests::a_success_without_a_payload_normalizes_to_an_empty_candidate_list` | `[x]` |
+| `version_test.go:8 TestFormatVersion` | `health::tests::version_support_matches_go_minimum_version_rule` | `[x]` |
+| `version_test.go:17 TestValidateMinimumVersion` | `health::tests::minimum_version_validation_matches_go_boundaries` | `[x]` |
+
+### 本批发现与修复
+
+- **搜索 `maxCount` 被写死为 100**（功能差异 → 已修复）
+  - Go `GetSearchQuote(keyword, maxCount)` 校验 `1..=100` 后把调用方数值原样下发，
+    `QuerySecuritySearch` 也把请求的 `limit`（默认 100）传进去。
+  - Rust 之前无条件发送 `max_count=100`，调用方较小的 limit 只在本地截断，
+    OpenD 仍按 100 检索并计费。
+  - 修复位置：`crates/jftrade-integration-futu/src/instrument_search_query.rs`
+    （新增 `search_with_limit`、`MAX_SEARCH_QUOTE_COUNT`、`InvalidMaxCount`）与
+    `crates/jftrade-engine/src/product_production_ports_market_data_catalog_futu.rs`
+    （把请求 limit 传入）。
+  - 回归：`search_request_preserves_chinese_name_and_requests_full_candidate_window`。
+- **搜索缺失 S2C 被当成协议错误**（功能差异 → 已修复）
+  - Go 在 `retType==0` 且 S2C 缺失时返回空 slice；Rust 报
+    `MissingField("s2c")`，把“无匹配”放大成 502。
+  - 修复位置：`instrument_search_query.rs::decode_response`。
+  - 回归：`a_success_without_a_payload_normalizes_to_an_empty_candidate_list`。
+- **最低版本判断只覆盖 10.9 一条线**（潜在功能差异 → 已修复并提取）
+  - Go `ValidateMinimumVersion` 接受 `serverVer > 1009` 的任意 build；
+    Rust 的内联表达式把 `1010` 及更高 minor 的 `build_no==0` 情形交给 `>` 分支，
+    逻辑正确但无法单独验证，且与 `FormatVersion` 分离。
+  - 修复位置：`crates/jftrade-integration-futu/src/health.rs` 提取
+    `version_supported(server_ver, build_no)`，探针改为调用它。
+  - 回归：`minimum_version_validation_matches_go_boundaries`（逐项覆盖 Go 的 6 个用例）。
+
+### 说明
+
+- 用户安全组/自选股读取此前只有实现、没有逐项证据；本批新增
+  `tests/user_security_protocol.rs`，用真实 loopback 帧覆盖
+  `Qot_GetUserSecurityGroup(3222)` 与 `Qot_GetUserSecurity(3213)` 的
+  请求编码、拒绝映射与缺载荷归一化。
+- 协议 ID 常量从 `customization.rs` 的私有常量提升为 crate 级公开常量
+  （`PROTO_GET_USER_SECURITY`、`PROTO_GET_USER_SECURITY_GROUP`），并新增
+  `PROTO_GET_USER_INFO`、`PROTO_GET_STATIC_INFO`、`PROTO_GET_PLATE_SET`、
+  `PROTO_GET_PLATE_SECURITY`、`PROTO_GET_SEARCH_QUOTE` 以便逐项断言。
+
+验证命令：
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```
