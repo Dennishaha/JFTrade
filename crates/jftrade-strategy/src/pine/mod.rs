@@ -361,6 +361,369 @@ strategy.entry("Long", strategy.long, qty=5)"#;
 }
 
 #[cfg(test)]
+mod framework_language_feature_tests {
+    use super::lower::LoweredStatement;
+    use super::*;
+
+    /// Parity: pkg/strategy/pine/parse_test.go:560
+    /// TestCompileSupportsFrameworkLanguageFeatures
+    ///
+    /// Go asserts `var`/reassignment modes plus the normalized
+    /// `ifelse(history(close, 1) == na, 0, nz(history(close, 1), close))`
+    /// expression. Rust keeps typed assignment modes and the parsed ternary;
+    /// `ifelse(...)` normalizes to the ternary form during lowering.
+    #[test]
+    fn compile_supports_framework_language_features() {
+        let script = r#"//@version=6
+strategy("Framework", overlay=true)
+var count = 0
+count := count + 1
+signal = close[1] == na ? 0 : nz(close[1], close)
+if close > close[1]
+    log.info("up")"#;
+        let compilation = compile(script);
+        assert!(
+            compilation.ok,
+            "diagnostics = {:?}",
+            compilation.diagnostics
+        );
+        let program = compilation.program.expect("lowered program");
+        let statements = &program.hooks[0].statements;
+        let LoweredStatement::Let { mode, .. } = &statements[0] else {
+            panic!("statement 0 is not a let: {:?}", statements[0]);
+        };
+        assert_eq!(mode, "var");
+        let LoweredStatement::Let { mode, .. } = &statements[1] else {
+            panic!("statement 1 is not a let: {:?}", statements[1]);
+        };
+        assert_eq!(mode, "reassign");
+        let LoweredStatement::Let { expression, .. } = &statements[2] else {
+            panic!("statement 2 is not a let: {:?}", statements[2]);
+        };
+        let rendered = expression.to_string().replace(", ", ",");
+        for expected in ["nz(close[1]", "close[1]", "na"] {
+            assert!(
+                rendered.contains(&expected.replace(", ", ",")),
+                "signal {rendered:?} must contain {expected}"
+            );
+        }
+        let LoweredStatement::If { condition, .. } = &statements[3] else {
+            panic!("statement 3 is not an if: {:?}", statements[3]);
+        };
+        // Rust renders comparison operators by their enum name; normalize to
+        // the Go symbol form before comparing.
+        let condition = condition
+            .to_string()
+            .replace("Greater", ">")
+            .replace("Less", "<")
+            .replace("Equal", "==");
+        assert_eq!(condition, "(close > close[1])");
+    }
+}
+
+#[cfg(test)]
+mod udf_and_loop_boundary_tests {
+    use super::*;
+
+    fn diagnostics(script: &str) -> Vec<Diagnostic> {
+        compile(script).diagnostics
+    }
+
+    /// Parity: pkg/strategy/pine/parse_test.go:790
+    /// TestCompileSupportsExpressionUDFAndStaticForUnroll
+    ///
+    /// Go unrolls `for i = 0 to 3` into four `sum + history(close, i)`
+    /// statements and inlines both UDFs. Rust keeps the loop as a typed `For`
+    /// with the UDF call intact and defers unrolling/inlining to the PineTS
+    /// worker, so the shared contract asserted here is that the script
+    /// compiles with both UDF declarations preserved and the loop body
+    /// visible in the lowered IR.
+    #[test]
+    fn compile_accepts_expression_udf_and_static_for_unroll() {
+        let script = r#"//@version=6
+strategy("UDF For", overlay=true)
+isBull(src) => src > src[1]
+smooth(src, len) => ta.ema(src, len)
+len = input.int(3, "Length")
+fast = smooth(close, len)
+sum = 0
+for i = 0 to 3
+    sum := sum + close[i]
+if isBull(close) and fast > fast[1] and sum > 0
+    strategy.entry("Long", strategy.long, qty=1)"#;
+        let compilation = compile(script);
+        assert!(
+            compilation.ok,
+            "diagnostics = {:?}",
+            compilation.diagnostics
+        );
+        let program = compilation.program.expect("lowered program");
+        assert_eq!(program.functions.len(), 2, "UDF declarations preserved");
+        let names = program
+            .functions
+            .iter()
+            .map(|function| function.name.clone())
+            .collect::<Vec<_>>();
+        assert_eq!(names, vec!["isBull", "smooth"]);
+        let lowered = format!("{:?}", program.hooks[0].statements);
+        assert!(lowered.contains("For"), "loop must stay typed: {lowered}");
+        assert!(
+            lowered.contains("close") && lowered.contains("\"i\""),
+            "loop body must keep the bar history receiver and index: {lowered}"
+        );
+    }
+
+    /// Parity: pkg/strategy/pine/parse_test.go:838
+    /// TestValidateScriptReportsUnsupportedUDFAndStaticForCases
+    ///
+    /// Go reports six UDF/loop validation messages. Rust currently rejects a
+    /// subset (recursion, zero step, iteration cap) and accepts the rest, so
+    /// the covered cases are asserted here and the remaining ones stay on the
+    /// checklist as a Rust feature gap.
+    #[test]
+    fn validate_script_reports_supported_udf_and_static_for_boundaries() {
+        for (script, wanted) in [
+            (
+                r#"//@version=6
+strategy("Loop", overlay=true)
+for i = 0 to 3 by 0
+    log.info("nope")"#,
+                "for loop step cannot be 0",
+            ),
+            (
+                r#"//@version=6
+strategy("Loop", overlay=true)
+for i = 0 to 100
+    log.info("nope")"#,
+                "for loop expands to more than 100 iterations",
+            ),
+        ] {
+            let found = diagnostics(script);
+            let messages = found
+                .iter()
+                .map(|diagnostic| diagnostic.message.clone())
+                .collect::<Vec<_>>()
+                .join(" | ");
+            assert!(
+                messages.contains(wanted),
+                "diagnostics = {messages:?}, want {wanted}"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod risk_declaration_metadata_tests {
+    use super::lower::StrategyMetadata;
+    use super::*;
+
+    fn metadata(script: &str) -> StrategyMetadata {
+        let compilation = compile(script);
+        assert!(
+            compilation.ok,
+            "diagnostics = {:?}",
+            compilation.diagnostics
+        );
+        compilation.program.expect("lowered program").metadata
+    }
+
+    /// Parity: pkg/strategy/pine/parse_test.go:718
+    /// TestCompileSupportsAllowEntryInRiskDeclaration
+    #[test]
+    fn compile_supports_allow_entry_in_risk_declaration() {
+        let metadata = metadata(
+            r#"//@version=6
+strategy("Allow entry", overlay=true)
+strategy.risk.allow_entry_in(strategy.direction.long)
+if close > open
+    strategy.entry("Long", strategy.long, qty=1)"#,
+        );
+        assert_eq!(metadata.allowed_entry_direction.as_deref(), Some("long"));
+    }
+
+    /// Parity: pkg/strategy/pine/parse_test.go:732
+    /// TestCompileSupportsRuntimeRiskDeclarations
+    #[test]
+    fn compile_supports_runtime_risk_declarations() {
+        let metadata = metadata(
+            r#"//@version=6
+strategy("Risk declarations", overlay=true)
+strategy.risk.max_drawdown(10, strategy.percent_of_equity, alert_message="dd")
+strategy.risk.max_intraday_loss(5, strategy.cash, "day")
+strategy.risk.max_intraday_filled_orders(3, alert_message="fills")
+strategy.risk.max_position_size(12)
+strategy.risk.max_cons_loss_days(2, "days")
+if close > open
+    strategy.entry("Long", strategy.long, qty=1)"#,
+        );
+        assert_eq!(metadata.max_drawdown_value.as_deref(), Some("10"));
+        assert_eq!(
+            metadata.max_drawdown_type.as_deref(),
+            Some("percent_of_equity")
+        );
+        assert_eq!(metadata.max_drawdown_alert.as_deref(), Some("dd"));
+        assert_eq!(metadata.max_intraday_loss_value.as_deref(), Some("5"));
+        assert_eq!(metadata.max_intraday_loss_type.as_deref(), Some("cash"));
+        assert_eq!(metadata.max_intraday_loss_alert.as_deref(), Some("day"));
+        assert_eq!(metadata.max_intraday_filled_orders, Some(3));
+        assert_eq!(
+            metadata.max_intraday_filled_orders_alert.as_deref(),
+            Some("fills")
+        );
+        assert_eq!(metadata.max_position_size.as_deref(), Some("12"));
+        assert_eq!(metadata.max_cons_loss_days, Some(2));
+        assert_eq!(metadata.max_cons_loss_days_alert.as_deref(), Some("days"));
+    }
+}
+
+#[cfg(test)]
+mod advanced_indicator_requirement_tests {
+    use super::*;
+
+    fn requirement_keys(script: &str) -> Vec<String> {
+        let compilation = compile(script);
+        assert!(
+            compilation.ok,
+            "diagnostics = {:?}",
+            compilation.diagnostics
+        );
+        compilation
+            .requirements
+            .indicators
+            .iter()
+            .map(|requirement| requirement.key.clone())
+            .collect()
+    }
+
+    /// Parity: pkg/strategy/pine/parse_test.go:587
+    /// TestCompileSupportsV12AdvancedIndicators
+    #[test]
+    fn compile_supports_v12_advanced_indicators() {
+        let keys = requirement_keys(
+            r#"//@version=6
+strategy("Advanced indicators", overlay=true)
+lr = ta.linreg(close, 5, 0)
+obvValue = ta.obv
+pivotHigh = ta.pivothigh(high, 2, 2)
+pivotLow = ta.pivotlow(low, 2, 2)
+[basis, upper, lower] = ta.kc(close, 5, 1.5)
+width = ta.kcw(close, 5, 1.5)
+almaValue = ta.alma(close, 5, 0.85, 6)
+if close > lr and obvValue > 0 and upper > lower and width > 0 and almaValue > 0
+    strategy.entry("Long", strategy.long, qty=1)"#,
+        );
+        for expected in [
+            "linreg:close:5:0",
+            "obv:close",
+            "pivothigh:high:2:2",
+            "pivotlow:low:2:2",
+            "kc:close:5:1.5:true",
+            "kcw:close:5:1.5:true",
+            "alma:close:5:0.85:6",
+        ] {
+            assert!(
+                keys.iter().any(|key| key == expected),
+                "requirements {keys:?} missing {expected}"
+            );
+        }
+    }
+
+    /// Parity: pkg/strategy/pine/parse_test.go:621
+    /// TestCompileSupportsV12AdvancedIndicatorsInStaticIntradaySecurity
+    #[test]
+    fn compile_supports_v12_advanced_indicators_in_static_intraday_security() {
+        let keys = requirement_keys(
+            r#"//@version=6
+strategy("Advanced MTF", overlay=true)
+lr = request.security(syminfo.tickerid, "15", ta.linreg(close, 5, 0))
+obvValue = request.security(syminfo.tickerid, "15", ta.obv)
+pivotHigh = request.security(syminfo.tickerid, "15", ta.pivothigh(2, 2))
+[basis, upper, lower] = request.security(syminfo.tickerid, "15", ta.kc(close, 5, 1.5))
+almaValue = request.security(syminfo.tickerid, "15", ta.alma(close, 5, 0.85, 6))
+if close > lr and obvValue > 0 and pivotHigh > 0 and upper > lower and almaValue > 0
+    strategy.entry("Long", strategy.long, qty=1)"#,
+        );
+        for expected in [
+            "linreg:close:5:0:15m",
+            "obv:close:15m",
+            "pivothigh:high:2:2:15m",
+            "kc:close:5:1.5:true:15m",
+            "alma:close:5:0.85:6:15m",
+        ] {
+            assert!(
+                keys.iter().any(|key| key == expected),
+                "requirements {keys:?} missing {expected}"
+            );
+        }
+    }
+
+    /// Parity: pkg/strategy/pine/parse_test.go:651
+    /// TestCompileSupportsV13MigrationIndicators
+    #[test]
+    fn compile_supports_v13_migration_indicators() {
+        let keys = requirement_keys(
+            r#"//@version=6
+strategy("v1.3 indicators", overlay=true)
+cmoValue = ta.cmo(close, 5)
+tsiValue = ta.tsi(close, 2, 3)
+corrValue = ta.correlation(close, high, 5)
+devValue = ta.dev(close, 5)
+medianValue = ta.median(close, 5)
+pLinear = ta.percentile_linear_interpolation(close, 5, 50)
+pNearest = ta.percentile_nearest_rank(close, 5, 80)
+rankValue = ta.percentrank(close, 5)
+swmaValue = ta.swma(close)
+rounded = math.round_to_mintick(math.avg(close, open))
+if cmoValue > 0 and tsiValue > 0 and corrValue > 0 and devValue > 0 and medianValue > 0 and pLinear > 0 and pNearest > 0 and rankValue > 0 and swmaValue > 0 and rounded > 0
+    strategy.entry("Long", strategy.long, qty=1)"#,
+        );
+        for expected in [
+            "cmo:close:5",
+            "tsi:close:2:3",
+            "correlation:close:high:5",
+            "dev:close:5",
+            "median:close:5",
+            "percentile_linear_interpolation:close:5:50",
+            "percentile_nearest_rank:close:5:80",
+            "percentrank:close:5",
+            "swma:close",
+        ] {
+            assert!(
+                keys.iter().any(|key| key == expected),
+                "requirements {keys:?} missing {expected}"
+            );
+        }
+    }
+
+    /// Parity: pkg/strategy/pine/parse_test.go:690
+    /// TestCompileSupportsV13IndicatorsInStaticIntradaySecurity
+    #[test]
+    fn compile_supports_v13_indicators_in_static_intraday_security() {
+        let keys = requirement_keys(
+            r#"//@version=6
+strategy("v1.3 MTF indicators", overlay=true)
+cmoValue = request.security(syminfo.tickerid, "15", ta.cmo(close, 5))
+corrValue = request.security(syminfo.tickerid, "15", ta.correlation(close, high, 5))
+pctValue = request.security(syminfo.tickerid, "15", ta.percentile_nearest_rank(close, 5, 80))
+swmaValue = request.security(syminfo.tickerid, "15", ta.swma(close))
+if cmoValue > 0 and corrValue > 0 and pctValue > 0 and swmaValue > 0
+    strategy.entry("Long", strategy.long, qty=1)"#,
+        );
+        for expected in [
+            "cmo:close:5:15m",
+            "correlation:close:high:5:15m",
+            "percentile_nearest_rank:close:5:80:15m",
+            "swma:close:15m",
+        ] {
+            assert!(
+                keys.iter().any(|key| key == expected),
+                "requirements {keys:?} missing {expected}"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
 mod order_subset_compile_tests {
     use super::lower::LoweredStatement;
     use super::*;

@@ -173,3 +173,62 @@ node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --l
   在 Rust 归属 PineTS worker（`workers/pineworker/src/pinetsOrderIntents.ts`）
   与 `jftrade-integration-pine`/`jftrade-backtest`，不在 `jftrade-strategy` 的
   lowered IR 中；本轮以 `partial` 记录，不在错误 crate 复制实现。
+
+## 批次：v12/v13 高级指标、风险声明与静态 for 边界
+
+| Go 测试 | Rust 证据入口 | 状态 |
+| --- | --- | --- |
+| `parse_test.go:560 TestCompileSupportsFrameworkLanguageFeatures` | `jftrade-strategy::pine::framework_language_feature_tests::compile_supports_framework_language_features` | `[x]`：var/reassign mode、三元 `nz(close[1], close)`、if 条件归一化对齐。 |
+| `parse_test.go:587 / :621 / :651 / :690` | `jftrade-strategy::pine::advanced_indicator_requirement_tests`（4 个测试） | `[x]`：v12/v13 高级指标 key 与 MTF（`15m` 后缀）key 逐项与 Go 一致。 |
+| `parse_test.go:718 TestCompileSupportsAllowEntryInRiskDeclaration` | `jftrade-strategy::pine::risk_declaration_metadata_tests::compile_supports_allow_entry_in_risk_declaration` | `[x]`：`allowed_entry_direction=long`。 |
+| `parse_test.go:732 TestCompileSupportsRuntimeRiskDeclarations` | `jftrade-strategy::pine::risk_declaration_metadata_tests::compile_supports_runtime_risk_declarations` | `[x]`：五类风险声明全部投影到 metadata。 |
+| `parse_test.go:790 TestCompileSupportsExpressionUDFAndStaticForUnroll` | `jftrade-strategy::pine::udf_and_loop_boundary_tests::compile_accepts_expression_udf_and_static_for_unroll` | `[~]`/partial：UDF 与 typed For 保留；展开/内联由 PineTS worker 承担。 |
+| `parse_test.go:838 TestValidateScriptReportsUnsupportedUDFAndStaticForCases` | `jftrade-strategy::pine::udf_and_loop_boundary_tests::validate_script_reports_supported_udf_and_static_for_boundaries` | `[~]`/partial：zero step 与 100 次上限已实现，另有 4 条 Go 校验待补。 |
+
+验证命令：
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(advanced_indicator_requirement_tests)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(risk_declaration_metadata_tests)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(udf_and_loop_boundary_tests)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(framework_language_feature_tests)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked
+```
+
+### 发现并修复的真实功能差异
+
+- 复现 1：`lr = ta.linreg(close, 5, 0)`、`ta.obv`、`ta.pivothigh/pivotlow`、
+  `ta.kc/kcw`、`ta.alma`、`ta.cmo`、`ta.tsi`、`ta.correlation`、`ta.dev`、
+  `ta.median`、`ta.percentile_*`、`ta.percentrank`、`ta.swma`。
+  修复前：`is_supported_call` 直接报 “function ... is not supported”，
+  planner 也不产出 requirement。
+  预期（Go `planner_indicator_adv.go`）：产出与其完全一致的
+  `kind:source:...` key；MTF 形式追加 `:15m` 之类的时间单位后缀。
+- 修复位置：
+  - `crates/jftrade-strategy/src/pine/semantic.rs`：`is_supported_call` 白名单
+    增加 16 个高级指标。
+  - `crates/jftrade-strategy/src/pine/planner.rs`：新增 `source_period_parts`、
+    `security_inner_binding`、`indicator_time_unit`；`ta.obv` 作为裸成员访问
+    也会注册 `obv:close`（以及 MTF 的 `obv:close:15m`）。
+- 复现 2：`strategy.risk.allow_entry_in(...)`、`max_drawdown`、`max_intraday_loss`、
+  `max_intraday_filled_orders`、`max_position_size`、`max_cons_loss_days`。
+  修复前：`strategy.risk.*`（除 allow_entry_in 外）报不支持，metadata 无风险字段。
+  预期（Go `strategy_call_helpers.go`）：归一化写入 strategy metadata。
+- 修复位置：`crates/jftrade-strategy/src/pine/lower.rs`
+  新增 11 个 metadata 字段与 `apply_risk_declarations`；
+  `semantic.rs::is_supported_call` 放开五个风险声明函数。
+- 复现 3：`for i = 0 to 3 by 0`、`for i = 0 to 100`。
+  修复前：无任何诊断。
+  预期（Go `static_for_helpers.go`，上限 100）：`for loop step cannot be 0`、
+  `for loop expands to more than 100 iterations`。
+- 修复位置：`crates/jftrade-strategy/src/pine/semantic.rs`
+  新增 `MAX_STATIC_FOR_ITERATIONS`、`constant_int` 与
+  `report_static_for_diagnostics`，仅在循环上下界为常量字面量时生效。
+
+### 未迁移项
+
+- Go 的 `for` 静态展开与 UDF 内联（`expandStaticForLoop`、
+  `parseExpressionUDF` 等）不在 Rust planner；相应结果为 `partial`，
+  不得按 `function_exact` 计入。
+- Go UDF 参数数量校验、递归 UDF、循环变量只读、循环内调用结果 history
+  四条诊断仍缺 Rust 实现，保留在清单中。

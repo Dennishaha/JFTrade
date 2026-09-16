@@ -143,6 +143,25 @@ struct SemanticContext<'a> {
 /// Go's maximum `series[n]` lookback (`pkg/strategy/pine/parse.go`).
 const MAX_HISTORY_LOOKBACK: u64 = 500;
 
+/// Go's static `for` unroll cap (`pkg/strategy/pine/parse.go`).
+const MAX_STATIC_FOR_ITERATIONS: u64 = 100;
+
+/// Reads a constant integer literal, including a leading unary minus.
+fn constant_int(expression: &Expr) -> Option<i64> {
+    match &expression.kind {
+        ExprKind::Number { value } => value.trim().parse().ok(),
+        ExprKind::Unary {
+            op: UnaryOp::Negate,
+            expression,
+        } => constant_int(expression).map(|value| -value),
+        ExprKind::Unary {
+            op: UnaryOp::Positive,
+            expression,
+        } => constant_int(expression),
+        _ => None,
+    }
+}
+
 impl SemanticContext<'_> {
     fn visit_statement(&mut self, statement: &Statement) {
         match statement {
@@ -201,6 +220,7 @@ impl SemanticContext<'_> {
                 end,
                 step,
                 body,
+                range,
                 ..
             } => {
                 for expression in [Some(start), Some(end), step.as_ref()]
@@ -217,6 +237,7 @@ impl SemanticContext<'_> {
                         ));
                     }
                 }
+                self.report_static_for_diagnostics(start, end, step.as_ref(), *range);
                 for item in body {
                     self.visit_statement(item);
                 }
@@ -271,6 +292,74 @@ impl SemanticContext<'_> {
                     .push(Diagnostic::error(code, message, range.start_line));
             }
         }
+    }
+
+    /// Parity: `pkg/strategy/pine/static_for_helpers.go::expandStaticForLoopValues`.
+    ///
+    /// Go unrolls a constant `for` loop and rejects a zero step, a step that
+    /// never reaches the end value, and more than
+    /// `maxStaticForIterations = 100` iterations. Rust keeps the loop typed
+    /// but surfaces the same three diagnostics for constant bounds.
+    fn report_static_for_diagnostics(
+        &mut self,
+        start: &Expr,
+        end: &Expr,
+        step: Option<&Expr>,
+        range: SourceRange,
+    ) {
+        let line = range.start_line;
+        let (Some(start), Some(end)) = (constant_int(start), constant_int(end)) else {
+            return;
+        };
+        let step = match step {
+            Some(step) => match constant_int(step) {
+                Some(step) => step,
+                None => return,
+            },
+            None => 1,
+        };
+        if step == 0 {
+            self.summary.diagnostics.push(Diagnostic::error(
+                "PINE_LOOP_LIMIT_UNSUPPORTED",
+                "for loop step cannot be 0",
+                line,
+            ));
+            return;
+        }
+        if (step > 0 && start > end) || (step < 0 && start < end) {
+            self.summary.diagnostics.push(Diagnostic::error(
+                "PINE_LOOP_LIMIT_UNSUPPORTED",
+                "for loop step does not reach the end value",
+                line,
+            ));
+            return;
+        }
+        let mut iterations = 0u64;
+        let mut value = start;
+        loop {
+            iterations += 1;
+            if iterations > MAX_STATIC_FOR_ITERATIONS {
+                self.summary.diagnostics.push(Diagnostic::error(
+                    "PINE_LOOP_LIMIT_UNSUPPORTED",
+                    format!("for loop expands to more than {MAX_STATIC_FOR_ITERATIONS} iterations"),
+                    line,
+                ));
+                return;
+            }
+            if value == end {
+                return;
+            }
+            let next = value.saturating_add(step);
+            if next == value {
+                break;
+            }
+            value = next;
+        }
+        self.summary.diagnostics.push(Diagnostic::error(
+            "PINE_LOOP_LIMIT_UNSUPPORTED",
+            "for loop step does not reach the end value",
+            line,
+        ));
     }
 
     /// Parity: `pkg/strategy/pine/validate.go::historyDiagnosticMessage`.
@@ -478,6 +567,11 @@ fn is_supported_call(callee: &str) -> bool {
             | "strategy.cancel"
             | "strategy.cancel_all"
             | "strategy.risk.allow_entry_in"
+            | "strategy.risk.max_drawdown"
+            | "strategy.risk.max_intraday_loss"
+            | "strategy.risk.max_intraday_filled_orders"
+            | "strategy.risk.max_position_size"
+            | "strategy.risk.max_cons_loss_days"
             | "alert"
             | "alertcondition"
             | "log.info"
@@ -515,6 +609,22 @@ fn is_supported_call(callee: &str) -> bool {
             | "ta.dmi"
             | "ta.supertrend"
             | "ta.sar"
+            | "ta.linreg"
+            | "ta.obv"
+            | "ta.pivothigh"
+            | "ta.pivotlow"
+            | "ta.kc"
+            | "ta.kcw"
+            | "ta.alma"
+            | "ta.cmo"
+            | "ta.tsi"
+            | "ta.correlation"
+            | "ta.dev"
+            | "ta.median"
+            | "ta.percentile_linear_interpolation"
+            | "ta.percentile_nearest_rank"
+            | "ta.percentrank"
+            | "ta.swma"
             | "ta.crossover"
             | "ta.crossunder"
             | "ta.cross"

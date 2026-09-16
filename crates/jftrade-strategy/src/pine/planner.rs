@@ -442,7 +442,23 @@ impl PlannerContext {
                 self.visit_expr(when_true)?;
                 self.visit_expr(when_false)?;
             }
-            ExprKind::Member { object, .. } => self.visit_expr(object)?,
+            ExprKind::Member { object, member } => {
+                self.visit_expr(object)?;
+                // `ta.obv` is a bare member access rather than a call; Go's
+                // `parseOBVBinding` treats it as `obv()` over `close`.
+                if member.eq_ignore_ascii_case("obv")
+                    && matches!(&object.kind, ExprKind::Identifier { name } if name.eq_ignore_ascii_case("ta"))
+                {
+                    self.indicators.insert(
+                        "obv:close".to_owned(),
+                        IndicatorRequirement {
+                            alias: String::new(),
+                            kind: "obv".to_owned(),
+                            key: "obv:close".to_owned(),
+                        },
+                    );
+                }
+            }
             ExprKind::Index { object, index } => {
                 self.visit_expr(object)?;
                 self.visit_expr(index)?;
@@ -521,7 +537,7 @@ fn requirement_for_call(
                     .push(argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()));
             }
         }
-        "ta.atr" | "ta.stdev" | "ta.variance" | "ta.wpr" | "ta.vwap" | "ta.mfi" | "ta.obv" => {
+        "ta.atr" | "ta.stdev" | "ta.variance" | "ta.wpr" | "ta.vwap" | "ta.mfi" => {
             kind = lower.strip_prefix("ta.").unwrap_or_default();
             for argument in arguments {
                 key_parts
@@ -535,6 +551,108 @@ fn requirement_for_call(
                     .push(argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()));
             }
         }
+        // Advanced indicator bindings mirror
+        // `pkg/strategy/ir/planner_indicator_adv.go` key construction so the
+        // worker-side catalog can resolve the same requirement keys. The
+        // security wrapper delegates to this table through
+        // `security_indicator_requirement`.
+        "ta.linreg" => {
+            kind = "linreg";
+            let mut parts = source_period_parts(callee, arguments, line, 2)?;
+            let offset = argument_text(arguments.get(2))
+                .ok_or_else(|| invalid(line, "ta.linreg offset must be a non-negative integer"))?;
+            parts.push(offset);
+            key_parts.extend(parts);
+        }
+        "ta.obv" => {
+            kind = "obv";
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            key_parts.push(source);
+        }
+        "ta.pivothigh" | "ta.pivotlow" => {
+            kind = lower.strip_prefix("ta.").unwrap_or_default();
+            let default_source = if kind == "pivotlow" { "low" } else { "high" };
+            let (source, lengths): (String, &[Expr]) = match arguments.len() {
+                2 => (default_source.to_owned(), arguments),
+                3 => (
+                    argument_text(arguments.first()).unwrap_or_else(|| default_source.to_owned()),
+                    &arguments[1..],
+                ),
+                _ => {
+                    return Err(invalid(
+                        line,
+                        format!("{callee} requires left and right bars with optional source"),
+                    ));
+                }
+            };
+            let left = argument_text(lengths.first())
+                .ok_or_else(|| invalid(line, format!("{callee} left bars must be positive")))?;
+            let right = argument_text(lengths.get(1))
+                .ok_or_else(|| invalid(line, format!("{callee} right bars must be positive")))?;
+            key_parts.extend([source, left, right]);
+        }
+        "ta.kc" | "ta.kcw" => {
+            kind = lower.strip_prefix("ta.").unwrap_or_default();
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let length = argument_text(arguments.get(1))
+                .ok_or_else(|| invalid(line, format!("{callee} length must be positive")))?;
+            let multiplier = argument_text(arguments.get(2))
+                .ok_or_else(|| invalid(line, format!("{callee} multiplier must be positive")))?;
+            let use_true_range =
+                argument_text(arguments.get(3)).unwrap_or_else(|| "true".to_owned());
+            key_parts.extend([source, length, multiplier, use_true_range]);
+        }
+        "ta.alma" => {
+            kind = "alma";
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let length = argument_text(arguments.get(1))
+                .ok_or_else(|| invalid(line, "ta.alma length must be positive"))?;
+            let offset = argument_text(arguments.get(2))
+                .ok_or_else(|| invalid(line, "ta.alma offset must be numeric"))?;
+            let sigma = argument_text(arguments.get(3))
+                .ok_or_else(|| invalid(line, "ta.alma sigma must be positive"))?;
+            key_parts.extend([source, length, offset, sigma]);
+        }
+        "ta.cmo" | "ta.dev" | "ta.median" | "ta.percentrank" => {
+            kind = lower.strip_prefix("ta.").unwrap_or_default();
+            key_parts.extend(source_period_parts(callee, arguments, line, 2)?);
+        }
+        "ta.tsi" => {
+            kind = "tsi";
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let short = argument_text(arguments.get(1))
+                .ok_or_else(|| invalid(line, "ta.tsi short length must be positive"))?;
+            let long = argument_text(arguments.get(2))
+                .ok_or_else(|| invalid(line, "ta.tsi long length must be positive"))?;
+            key_parts.extend([source, short, long]);
+        }
+        "ta.correlation" => {
+            kind = "correlation";
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let second = argument_text(arguments.get(1))
+                .ok_or_else(|| invalid(line, "ta.correlation second source is required"))?;
+            let length = argument_text(arguments.get(2))
+                .ok_or_else(|| invalid(line, "ta.correlation length must be positive"))?;
+            key_parts.extend([source, second, length]);
+        }
+        "ta.percentile_linear_interpolation" | "ta.percentile_nearest_rank" => {
+            kind = lower.strip_prefix("ta.").unwrap_or_default();
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let length = argument_text(arguments.get(1))
+                .ok_or_else(|| invalid(line, format!("{callee} length must be positive")))?;
+            let percentage = argument_text(arguments.get(2)).ok_or_else(|| {
+                invalid(
+                    line,
+                    format!("{callee} percentage must be between 0 and 100"),
+                )
+            })?;
+            key_parts.extend([source, length, percentage]);
+        }
+        "ta.swma" => {
+            kind = "swma";
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            key_parts.push(source);
+        }
         "request.security" => {
             if arguments.len() < 3 {
                 return Err(invalid(
@@ -542,9 +660,25 @@ fn requirement_for_call(
                     "request.security requires symbol, timeframe, and expression",
                 ));
             }
+            // Go lowers a supported MTF indicator expression into the plain
+            // indicator key with a time-unit suffix
+            // (`linreg:close:5:0:15m`), so downstream workers resolve the same
+            // catalog entry as a chart-timeframe indicator.
+            let timeframe_text = argument_text(arguments.get(1)).unwrap_or_default();
+            if let Some(time_unit) = indicator_time_unit(&timeframe_text)
+                && let Some((inner_kind, mut parts)) =
+                    security_inner_binding(arguments.get(2), line)?
+            {
+                parts.push(time_unit);
+                return Ok(Some(IndicatorRequirement {
+                    alias: alias.to_owned(),
+                    kind: inner_kind.clone(),
+                    key: format!("{inner_kind}:{}", parts.join(":")),
+                }));
+            }
             kind = "security";
             let symbol = argument_text(arguments.first()).unwrap_or_default();
-            let timeframe = argument_text(arguments.get(1)).unwrap_or_default();
+            let timeframe = timeframe_text;
             let expression = argument_text(arguments.get(2)).unwrap_or_default();
             key_parts.extend([symbol, timeframe, expression]);
         }
@@ -555,6 +689,152 @@ fn requirement_for_call(
         kind: kind.to_owned(),
         key: format!("{}:{}", kind, key_parts.join(":")),
     }))
+}
+
+/// Go's `pineTimeframeUnit` accepts a fixed set of timeframes and represents
+/// each as a suffix (`minute`, `hour`, `15m`, `day`, ...). The Rust planner
+/// only needs the units that can appear in an indicator key.
+fn indicator_time_unit(raw: &str) -> Option<String> {
+    let clean = raw.trim().trim_matches('"').trim_matches('\'');
+    match clean.to_ascii_uppercase().as_str() {
+        "1" => Some("minute".to_owned()),
+        "5" | "15" | "30" | "45" | "120" | "240" => Some(format!("{clean}m")),
+        "60" => Some("hour".to_owned()),
+        "D" => Some("day".to_owned()),
+        "W" => Some("week".to_owned()),
+        "M" => Some("month".to_owned()),
+        _ if clean.ends_with('m') && clean[..clean.len() - 1].parse::<u32>().is_ok() => {
+            Some(clean.to_ascii_lowercase())
+        }
+        _ => None,
+    }
+}
+
+/// Projects the supported `ta.<indicator>(...)` expression inside
+/// `request.security` onto its Go indicator key parts.
+fn security_inner_binding(
+    expression: Option<&Expr>,
+    line: usize,
+) -> Result<Option<(String, Vec<String>)>, PlannerError> {
+    let Some(expression) = expression else {
+        return Ok(None);
+    };
+    // `ta.obv` is a bare member access, not a call; Go's
+    // `lowerSupportedRequestSecurityInner` rewrites it to `obv(close, <unit>)`.
+    if let ExprKind::Member { object, member } = &expression.kind
+        && member.eq_ignore_ascii_case("obv")
+        && matches!(&object.kind, ExprKind::Identifier { name } if name.eq_ignore_ascii_case("ta"))
+    {
+        return Ok(Some(("obv".to_owned(), vec!["close".to_owned()])));
+    }
+    let ExprKind::Call { callee, arguments } = &expression.kind else {
+        return Ok(None);
+    };
+    let lower = callee.to_ascii_lowercase();
+    let kind = lower.strip_prefix("ta.").unwrap_or_default().to_owned();
+    let mut parts = match kind.as_str() {
+        "linreg" => {
+            let mut parts = source_period_parts(callee, arguments, line, 2)?;
+            parts.push(
+                argument_text(arguments.get(2)).ok_or_else(|| {
+                    invalid(line, "ta.linreg offset must be a non-negative integer")
+                })?,
+            );
+            parts
+        }
+        "obv" => vec![argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned())],
+        "pivothigh" | "pivotlow" => {
+            let default_source = if kind == "pivotlow" { "low" } else { "high" };
+            let (source, lengths): (String, &[Expr]) = match arguments.len() {
+                2 => (default_source.to_owned(), arguments),
+                3 => (
+                    argument_text(arguments.first()).unwrap_or_else(|| default_source.to_owned()),
+                    &arguments[1..],
+                ),
+                _ => return Ok(None),
+            };
+            let left = argument_text(lengths.first())
+                .ok_or_else(|| invalid(line, format!("{callee} left bars must be positive")))?;
+            let right = argument_text(lengths.get(1))
+                .ok_or_else(|| invalid(line, format!("{callee} right bars must be positive")))?;
+            vec![source, left, right]
+        }
+        "kc" | "kcw" => {
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let length = argument_text(arguments.get(1))
+                .ok_or_else(|| invalid(line, format!("{callee} length must be positive")))?;
+            let multiplier = argument_text(arguments.get(2))
+                .ok_or_else(|| invalid(line, format!("{callee} multiplier must be positive")))?;
+            let use_true_range =
+                argument_text(arguments.get(3)).unwrap_or_else(|| "true".to_owned());
+            vec![source, length, multiplier, use_true_range]
+        }
+        "alma" => {
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let length = argument_text(arguments.get(1))
+                .ok_or_else(|| invalid(line, "ta.alma length must be positive"))?;
+            let offset = argument_text(arguments.get(2))
+                .ok_or_else(|| invalid(line, "ta.alma offset must be numeric"))?;
+            let sigma = argument_text(arguments.get(3))
+                .ok_or_else(|| invalid(line, "ta.alma sigma must be positive"))?;
+            vec![source, length, offset, sigma]
+        }
+        "cmo" | "dev" | "median" | "percentrank" => {
+            source_period_parts(callee, arguments, line, 2)?
+        }
+        "tsi" => {
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let short = argument_text(arguments.get(1))
+                .ok_or_else(|| invalid(line, "ta.tsi short length must be positive"))?;
+            let long = argument_text(arguments.get(2))
+                .ok_or_else(|| invalid(line, "ta.tsi long length must be positive"))?;
+            vec![source, short, long]
+        }
+        "correlation" => {
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let second = argument_text(arguments.get(1))
+                .ok_or_else(|| invalid(line, "ta.correlation second source is required"))?;
+            let length = argument_text(arguments.get(2))
+                .ok_or_else(|| invalid(line, "ta.correlation length must be positive"))?;
+            vec![source, second, length]
+        }
+        "percentile_linear_interpolation" | "percentile_nearest_rank" => {
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let length = argument_text(arguments.get(1))
+                .ok_or_else(|| invalid(line, format!("{callee} length must be positive")))?;
+            let percentage = argument_text(arguments.get(2)).ok_or_else(|| {
+                invalid(
+                    line,
+                    format!("{callee} percentage must be between 0 and 100"),
+                )
+            })?;
+            vec![source, length, percentage]
+        }
+        "swma" => vec![argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned())],
+        _ => return Ok(None),
+    };
+    parts.retain(|part| !part.is_empty());
+    Ok(Some((kind, parts)))
+}
+
+/// Shared `source:length` projection for the advanced source+period
+/// indicators (`cog`, `cmo`, `dev`, `median`, `percentrank`).
+fn source_period_parts(
+    callee: &str,
+    arguments: &[Expr],
+    line: usize,
+    minimum: usize,
+) -> Result<Vec<String>, PlannerError> {
+    if arguments.len() < minimum {
+        return Err(invalid(
+            line,
+            format!("{callee} requires source and length"),
+        ));
+    }
+    let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+    let length = argument_text(arguments.get(1))
+        .ok_or_else(|| invalid(line, format!("{callee} length must be positive")))?;
+    Ok(vec![source, length])
 }
 
 fn argument_text(expression: Option<&Expr>) -> Option<String> {

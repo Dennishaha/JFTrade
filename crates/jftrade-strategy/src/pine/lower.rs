@@ -21,6 +21,17 @@ pub struct StrategyMetadata {
     pub slippage: Option<i64>,
     pub process_on_close: bool,
     pub allowed_entry_direction: Option<String>,
+    pub max_drawdown_value: Option<String>,
+    pub max_drawdown_type: Option<String>,
+    pub max_drawdown_alert: Option<String>,
+    pub max_intraday_loss_value: Option<String>,
+    pub max_intraday_loss_type: Option<String>,
+    pub max_intraday_loss_alert: Option<String>,
+    pub max_intraday_filled_orders: Option<i64>,
+    pub max_intraday_filled_orders_alert: Option<String>,
+    pub max_position_size: Option<String>,
+    pub max_cons_loss_days: Option<i64>,
+    pub max_cons_loss_days_alert: Option<String>,
 }
 
 impl Default for StrategyMetadata {
@@ -39,6 +50,17 @@ impl Default for StrategyMetadata {
             slippage: None,
             process_on_close: false,
             allowed_entry_direction: None,
+            max_drawdown_value: None,
+            max_drawdown_type: None,
+            max_drawdown_alert: None,
+            max_intraday_loss_value: None,
+            max_intraday_loss_type: None,
+            max_intraday_loss_alert: None,
+            max_intraday_filled_orders: None,
+            max_intraday_filled_orders_alert: None,
+            max_position_size: None,
+            max_cons_loss_days: None,
+            max_cons_loss_days_alert: None,
         }
     }
 }
@@ -137,7 +159,8 @@ pub fn lower(program: &Program) -> Result<LoweredProgram, LowerError> {
             line: 1,
             message: "a strategy(...) declaration is required".to_owned(),
         })?;
-    let metadata = lower_metadata(strategy);
+    let mut metadata = lower_metadata(strategy);
+    apply_risk_declarations(program, &mut metadata);
     let mut statements = Vec::new();
     let mut functions = Vec::new();
     for statement in &program.statements {
@@ -309,6 +332,97 @@ fn lower_metadata(strategy: &StrategyDeclaration) -> StrategyMetadata {
         metadata.process_on_close = value;
     }
     metadata
+}
+
+/// Parity: `pkg/strategy/pine/strategy_call_helpers.go` risk declarations.
+///
+/// Go parses `strategy.risk.*` calls while walking the script and writes the
+/// values into the strategy metadata. Rust applies the same projection after
+/// lowering so `close_all`-style actions keep their call while the executable
+/// risk limits stay visible on `LoweredProgram::metadata`.
+fn apply_risk_declarations(program: &Program, metadata: &mut StrategyMetadata) {
+    for statement in &program.statements {
+        let Statement::Call { expression, .. } = statement else {
+            continue;
+        };
+        let ExprKind::Call { callee, arguments } = &expression.kind else {
+            continue;
+        };
+        match callee.to_ascii_lowercase().as_str() {
+            "strategy.risk.allow_entry_in" => {
+                if let Some(value) = arguments.first().and_then(simple_string) {
+                    let normalized = value.trim().to_ascii_lowercase();
+                    let normalized = normalized
+                        .strip_prefix("strategy.direction.")
+                        .or_else(|| normalized.strip_prefix("strategy."))
+                        .unwrap_or(&normalized);
+                    if matches!(normalized, "all" | "long" | "short") {
+                        metadata.allowed_entry_direction = Some(normalized.to_owned());
+                    }
+                }
+            }
+            "strategy.risk.max_drawdown" | "strategy.risk.max_intraday_loss" => {
+                let Some(value) = arguments.first().and_then(simple_string) else {
+                    continue;
+                };
+                let amount_type = arguments.get(1).and_then(simple_string).map(|raw| {
+                    raw.trim()
+                        .to_ascii_lowercase()
+                        .strip_prefix("strategy.")
+                        .unwrap_or(&raw.to_ascii_lowercase())
+                        .to_owned()
+                });
+                let amount_type = amount_type
+                    .filter(|kind| matches!(kind.as_str(), "percent_of_equity" | "cash"));
+                let alert = risk_alert_message(arguments, 2);
+                if callee.eq_ignore_ascii_case("strategy.risk.max_drawdown") {
+                    metadata.max_drawdown_value = Some(value);
+                    metadata.max_drawdown_type = amount_type;
+                    metadata.max_drawdown_alert = alert;
+                } else {
+                    metadata.max_intraday_loss_value = Some(value);
+                    metadata.max_intraday_loss_type = amount_type;
+                    metadata.max_intraday_loss_alert = alert;
+                }
+            }
+            "strategy.risk.max_intraday_filled_orders" | "strategy.risk.max_cons_loss_days" => {
+                let Some(count) = arguments.first().and_then(simple_i64) else {
+                    continue;
+                };
+                let alert = risk_alert_message(arguments, 1);
+                if callee.eq_ignore_ascii_case("strategy.risk.max_intraday_filled_orders") {
+                    metadata.max_intraday_filled_orders = Some(count);
+                    metadata.max_intraday_filled_orders_alert = alert;
+                } else {
+                    metadata.max_cons_loss_days = Some(count);
+                    metadata.max_cons_loss_days_alert = alert;
+                }
+            }
+            "strategy.risk.max_position_size" => {
+                if let Some(value) = arguments.first().and_then(simple_string) {
+                    metadata.max_position_size = Some(value);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn risk_alert_message(arguments: &[Expr], positional_index: usize) -> Option<String> {
+    let candidate = arguments.get(positional_index)?;
+    if let ExprKind::Binary {
+        left,
+        op: super::parser::BinaryOp::Equal,
+        right,
+    } = &candidate.kind
+    {
+        if matches!(&left.kind, ExprKind::Identifier { name } if name.eq_ignore_ascii_case("alert_message"))
+        {
+            return simple_string(right);
+        }
+        return None;
+    }
+    simple_string(candidate)
 }
 
 fn simple_string(expression: &Expr) -> Option<String> {
