@@ -647,6 +647,61 @@ python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
 
+## 批次：pkg/futu/adapter_earnings_calendar_test.go（10 项）
+
+基线：`go:8a78fc78`。本批 10 项全部 `[x]`（`function_exact`）。
+
+### 功能差异
+
+Rust 此前完全没有 Futu 财报日历能力：`Qot_GetEarningsCalendar.proto`
+未纳入 build.rs，integration 层没有 typed reader，engine 没有
+`/api/v1/research/calendars?operation=earnings` 的 OpenD 分支，
+研究路由在 `read_market_calendar` 里直接对 Futu 返回 unavailable。
+本批按 Go 基线补齐完整链路，而不是只补测试。
+
+### 行为映射
+
+| Go 测试 | Rust 入口 |
+| --- | --- |
+| `:12 TestTranslateEarningsCalendarParamsMapsBusinessSemantics` | `crates/jftrade-engine/src/research_earnings_calendar_query_tests.rs::tests::translate_earnings_calendar_params_maps_business_semantics` |
+| `:51 TestTranslateEarningsCalendarParamsRejectsUnsupportedMarketConditions` | `...::translate_earnings_calendar_params_rejects_unsupported_market_conditions` |
+| `:61 TestEarningsCalendarDateChunksLimitEveryOpenDCallToSevenDays` | `...::earnings_calendar_date_chunks_limit_every_opend_call_to_seven_days` |
+| `:79 TestEarningsCalendarDateChunksSupportsThirtyFiveDayGridAndRejectsLongerThanFortyTwo` | `...::earnings_calendar_date_chunks_supports_thirty_five_day_grid_and_rejects_longer_than_forty_two` |
+| `:96 TestDeduplicateEarningsCalendarEntriesUsesDateAndSecurity` | `...::deduplicate_earnings_calendar_entries_uses_date_and_security` |
+| `:110 TestCollectEarningsCalendarChunksFailsTheWholeRangeWhenOneChunkFails` | `...::collect_earnings_calendar_chunks_fails_the_whole_range_when_one_chunk_fails` |
+| `:137 TestCollectEarningsCalendarChunksUsesEveryExactSegmentInOrder` | `...::collect_earnings_calendar_chunks_uses_every_exact_segment_in_order` |
+| `:164 TestEarningsCalendarParameterValidationEdges` | `...::earnings_calendar_parameter_validation_edges` |
+| `:190 TestEarningsCalendarDateValidationEdges` | `...::earnings_calendar_date_validation_edges` |
+| `:217 TestDeduplicateEarningsCalendarEntriesFallsBackForAnonymousRows` | `...::deduplicate_earnings_calendar_entries_falls_back_for_anonymous_rows` |
+
+### 实现与新增证据
+
+- `crates/jftrade-integration-futu/src/earnings_calendar_query.rs`：协议 3401
+  的 typed reader，负责 C2S protobuf 编码、拒绝/缺失 s2c/非法响应映射、
+  `MARKET:CODE` 身份解析和逐字段投影；`validate_query` 对 market、
+  日期和 filter 形状做边界校验。
+- `crates/jftrade-engine/src/research_earnings_calendar_query.rs`：公开查询
+  到 OpenD 请求的唯一翻译 owner，包含 7 天分块、42 天上限、
+  `eventDate+instrumentId+symbol` 去重、匿名行回退、整批失败不合并部分
+  结果，以及 `OPEND_EARNINGS_CALENDAR_FAILED` 502 错误映射。
+- `crates/jftrade-integration-futu/tests/earnings_calendar_protocol.rs`：
+  真实 loopback framed OpenD 测试，断言 proto_id 3401 的 C2S
+  字段与 C2S filter 区间，并验证响应投影。
+- `crates/jftrade-engine/src/product_production_ports_research.rs`：
+  Futu + `/api/v1/research/calendars` + 缺省/earning 操作走 OpenD
+  reader；其余日历操作保持原有边界结论；`SharedTradeReadRuntime`
+  在 provider 激活/重置时安装或清空 reader，保持唯一写入所有权。
+- 额外修复多字节日期输入会触发 UTF-8 切片 panic：现在按 Go 基线返回
+  非法日期错误；同时移除分块循环里 `mem::take` 造成的过滤器状态隐患。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(earnings_calendar)' --all-targets --locked
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(earnings_calendar)' --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+```
+
 ## 批次：pkg/futu/exchange_orderbook_test.go（11 项）
 
 基线：`go:452dea11`。本批 11 项全部 `[x]`（`function_exact`），发现并修复 1 处真实功能差异。

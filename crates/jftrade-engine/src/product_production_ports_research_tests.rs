@@ -28,6 +28,75 @@ struct FutuScreenFixture {
     page: jftrade_integration_futu::StockScreenPage,
 }
 
+#[derive(Debug)]
+struct FutuEarningsCalendarFixture {
+    items: Vec<jftrade_integration_futu::EarningsCalendarItem>,
+}
+
+impl jftrade_integration_futu::EarningsCalendarReadPort for FutuEarningsCalendarFixture {
+    fn query(
+        &self,
+        _query: &jftrade_integration_futu::EarningsCalendarQuery,
+    ) -> Result<
+        jftrade_integration_futu::EarningsCalendarPage,
+        jftrade_integration_futu::EarningsCalendarQueryError,
+    > {
+        Ok(jftrade_integration_futu::EarningsCalendarPage {
+            items: self.items.clone(),
+        })
+    }
+}
+
+#[test]
+fn futu_earnings_calendar_route_defaults_to_earnings_and_projects_event_identity() {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, true);
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_earnings_calendar_reader(Some(Arc::new(FutuEarningsCalendarFixture {
+        items: vec![jftrade_integration_futu::EarningsCalendarItem {
+            security: jftrade_integration_futu::EarningsCalendarSecurity {
+                market: "US".to_owned(),
+                code: "AAPL".to_owned(),
+                instrument_id: "US.AAPL".to_owned(),
+            },
+            name: Some("Apple".to_owned()),
+            earnings_date: Some("2026-07-22".to_owned()),
+            earnings_timestamp: None,
+            pub_type: None,
+            period_text: Some("2025Q2".to_owned()),
+            estimate_list: Vec::new(),
+            option_volume: None,
+            iv: None,
+            iv_rank: None,
+            iv_percentile: None,
+            market_cap: None,
+            price: None,
+        }],
+    })));
+    let port = ProductionResearchPort {
+        active_provider_state: state,
+        helper: None,
+        trade_runtime: Some(runtime),
+    };
+    // The Futu default calendar operation is `earnings`; omitting the
+    // parameter must still reach the OpenD reader instead of the helper path.
+    let value = port
+        .read(
+            "/api/v1/research/calendars",
+            "brokerId=futu&market=US&beginDate=2026-07-22&endDate=2026-07-22",
+        )
+        .expect("Futu earnings calendar");
+    assert_eq!(value["provider"]["capability"], "available");
+    assert_eq!(value["total"], 1);
+    assert_eq!(value["entries"][0]["instrumentId"], "US.AAPL");
+    assert_eq!(value["entries"][0]["symbol"], "AAPL");
+    assert_eq!(value["entries"][0]["eventDate"], "2026-07-22");
+    assert_eq!(value["entries"][0]["calendarType"], "earnings");
+    assert_eq!(value["metadata"]["rangeChunks"], 1);
+}
+
 impl jftrade_integration_futu::StockScreenReadPort for FutuScreenFixture {
     fn query(
         &self,

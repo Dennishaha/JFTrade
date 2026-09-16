@@ -3,6 +3,8 @@
 use std::sync::Arc;
 
 use jftrade_integration_futu::{
+    EarningsCalendarPage, EarningsCalendarQuery, EarningsCalendarQueryError,
+    EarningsCalendarReadPort,
     FutuIndicatorCalculation, FutuIndicatorList, FutuIndicatorListQuery,
     FutuIndicatorQueryError, FutuIndicatorReadPort, FutuInstitutionQuery,
     FutuInstitutionQueryError, FutuInstitutionReadPort, FutuInstitutionResult,
@@ -14,6 +16,45 @@ use jftrade_integration_futu::{
 use super::SharedTradeReadRuntime;
 
 impl SharedTradeReadRuntime {
+    pub(crate) fn set_earnings_calendar_reader(
+        &self,
+        reader: Option<Arc<dyn EarningsCalendarReadPort>>,
+    ) {
+        *self
+            .earnings_calendar_reader
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn earnings_calendar_reader_available(&self) -> bool {
+        self.earnings_calendar_reader
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn earnings_calendar_reader(
+        &self,
+    ) -> Option<Arc<dyn EarningsCalendarReadPort>> {
+        self.earnings_calendar_reader
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+    }
+
+    pub(crate) fn earnings_calendar(
+        &self,
+        query: &EarningsCalendarQuery,
+    ) -> Result<EarningsCalendarPage, EarningsCalendarQueryError> {
+        self.earnings_calendar_reader()
+            .ok_or_else(|| {
+                EarningsCalendarQueryError::InvalidQuery(
+                    "Futu earnings-calendar research runtime is unavailable".to_owned(),
+                )
+            })?
+            .query(query)
+    }
+
     pub(crate) fn set_stock_screen_reader(
         &self,
         reader: Option<Arc<dyn StockScreenReadPort>>,

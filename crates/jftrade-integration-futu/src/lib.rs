@@ -6,6 +6,7 @@ mod basic_quote_query;
 mod basic_quote_tick;
 mod corporate_actions_query;
 mod customization;
+mod earnings_calendar_query;
 mod frame;
 mod future_info_query;
 mod health;
@@ -84,6 +85,12 @@ pub use corporate_actions_query::{
 pub use customization::{
     AlertCustomizationReadPort, AlertCustomizationWritePort, FutuAlertQuery, FutuAlertWrite,
     FutuRemoteWatchlistReader, RemoteWatchlistReadPort, RemoteWatchlistWritePort,
+};
+pub use earnings_calendar_query::{
+    EARNINGS_CALENDAR_PROTOCOL_ID, EarningsCalendarBoundary, EarningsCalendarEstimate,
+    EarningsCalendarFilter, EarningsCalendarInterval, EarningsCalendarItem, EarningsCalendarPage,
+    EarningsCalendarQuery, EarningsCalendarQueryError, EarningsCalendarReadPort,
+    EarningsCalendarSecurity, OpenDEarningsCalendarReader, earnings_calendar_market_value,
 };
 pub use frame::{Frame, FrameError, Header, decode_frame, encode_frame};
 pub use future_info_query::{

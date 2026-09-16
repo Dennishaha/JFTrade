@@ -62,10 +62,7 @@ use prediction::{
 #[derive(Clone, Default)]
 pub(crate) struct SharedTradeReadRuntime {
     state: Arc<RwLock<TradeRuntimeState>>,
-    /// The command-side client is tracked separately from the read snapshot.
-    /// Provider activation can replace the OpenD session after the product
-    /// ports have been constructed, so execution writes must resolve this
-    /// handle at call time rather than retaining a startup-only `Option`.
+    /// Command-side writes resolve this handle at call time after activation.
     trade_writer: Arc<RwLock<Option<Arc<dyn TradeWritePort>>>>,
     pub(crate) margin_ratio_cache: MarginRatioCache,
     connection: Arc<RwLock<Option<TradeRuntimeConnection>>>,
@@ -127,6 +124,8 @@ pub(crate) struct SharedTradeReadRuntime {
     pub(crate) corporate_actions_reader: Arc<RwLock<Option<Arc<dyn FutuCorporateActionsReadPort>>>>,
     pub(crate) stock_screen_reader:
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::StockScreenReadPort>>>>,
+    pub(crate) earnings_calendar_reader:
+        Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::EarningsCalendarReadPort>>>>,
     pub(crate) remote_watchlist_reader:
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::RemoteWatchlistReadPort>>>>,
     pub(crate) remote_watchlist_writer:
@@ -773,6 +772,7 @@ fn lookup_tick_snapshot(
             .clear();
         self.set_corporate_actions_reader(None);
         self.set_stock_screen_reader(None);
+        self.set_earnings_calendar_reader(None);
         self.set_customization_readers(None, None);
         self.set_customization_writers(None, None);
     }

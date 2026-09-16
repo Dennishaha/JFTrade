@@ -30,6 +30,10 @@ pub(crate) use screen::ProductionResearchScreenHelperPort;
 mod screen_query;
 use screen_query::read_futu_screen;
 
+#[path = "research_earnings_calendar_query.rs"]
+mod earnings_calendar_query;
+use earnings_calendar_query::read_futu_earnings_calendar;
+
 #[path = "product_production_ports_research_futu.rs"]
 mod futu;
 
@@ -269,6 +273,25 @@ impl ResearchReadSnapshotPort for ProductionResearchPort {
                 path,
                 query,
             );
+        }
+        if provider == jftrade_settings::MarketDataProvider::Futu
+            && path == "/api/v1/research/calendars"
+        {
+            // `earnings` is the Futu default operation for the calendar route;
+            // it is served by the OpenD reader instead of the helper path.
+            let operation = query_map
+                .get_first("operation")
+                .unwrap_or_default()
+                .trim()
+                .to_ascii_lowercase();
+            if operation.is_empty() || operation == "earnings" {
+                if !snapshot.opend_ready {
+                    return Err(ResearchReadSnapshotError::Unavailable(
+                        "Futu OpenD earnings-calendar research runtime is not ready".to_owned(),
+                    ));
+                }
+                return read_futu_earnings_calendar(self.trade_runtime.as_ref(), query);
+            }
         }
         if matches!(
             path,

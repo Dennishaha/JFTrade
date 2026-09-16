@@ -278,6 +278,10 @@ pub mod qot_get_option_earnings_screener {
     ));
     pub const PROTOCOL_ID: u32 = 3313;
 }
+pub mod qot_get_earnings_calendar {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_earnings_calendar.rs"));
+    pub const PROTOCOL_ID: u32 = 3401;
+}
 pub mod qot_get_option_seller_screener {
     include!(concat!(
         env!("OUT_DIR"),

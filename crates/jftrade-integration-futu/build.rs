@@ -49,6 +49,7 @@ fn main() {
         "../../proto/futu/Qot_GetOptionZeroDteScreener.proto",
         "../../proto/futu/Qot_GetOptionZeroDteContract.proto",
         "../../proto/futu/Qot_GetOptionEarningsScreener.proto",
+        "../../proto/futu/Qot_GetEarningsCalendar.proto",
         "../../proto/futu/Qot_GetOptionSellerScreener.proto",
         "../../proto/futu/Qot_OptionCommon.proto",
         "../../proto/futu/Qot_OptionScreen.proto",

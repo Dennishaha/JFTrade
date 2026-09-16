@@ -452,6 +452,9 @@ pub(crate) fn install_security_catalog_readers(
     trade_runtime.set_instrument_search_reader(Some(Arc::new(
         jftrade_integration_futu::OpenDInstrumentSearchReader::new(Arc::clone(coordinator)),
     )));
+    trade_runtime.set_earnings_calendar_reader(Some(Arc::new(
+        jftrade_integration_futu::OpenDEarningsCalendarReader::new(Arc::clone(coordinator)),
+    )));
 }
 
 #[cfg(test)]
