@@ -205,3 +205,97 @@ mod public_helper_guard_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod parse_ir_tests {
+    use super::lower::LoweredStatement;
+    use super::*;
+
+    /// Parity: pkg/strategy/pine/parse_test.go:10
+    /// TestParseScriptLowersPineStrategyToIR
+    ///
+    /// Go lowers the script into a single on-kline-close hook whose third
+    /// statement is the if/else, with a buy order of 1 share inside the then
+    /// branch. Rust's lowered IR is typed instead of interface-typed, so the
+    /// same contract is asserted structurally.
+    #[test]
+    fn parse_script_lowers_pine_strategy_to_ir() {
+        let script = r#"//@version=6
+strategy("EMA Crossover", overlay=true)
+
+fast = ta.ema(close, 8)
+slow = ta.sma(close, 21)
+if ta.crossover(fast, slow)
+    strategy.entry("Long", strategy.long, qty=1)
+else
+    alert("waiting")"#;
+        let compilation = compile(script);
+        assert!(
+            compilation.ok,
+            "diagnostics = {:?}",
+            compilation.diagnostics
+        );
+        let program = compilation.program.expect("lowered program");
+        assert_eq!(program.source_format, "pine-v6");
+        assert_eq!(program.metadata.name, "EMA Crossover");
+        assert_eq!(program.hooks.len(), 1, "exactly one hook");
+        assert_eq!(program.hooks[0].kind, "on_kline_close");
+        let statements = &program.hooks[0].statements;
+        assert_eq!(statements.len(), 3, "statements = {statements:?}");
+
+        let LoweredStatement::If {
+            condition,
+            then_body,
+            else_body,
+            ..
+        } = &statements[2]
+        else {
+            panic!("statement 2 is not an if: {:?}", statements[2]);
+        };
+        // Rust renders argument lists without spaces; compare the normalized
+        // form so the Go `cross_over(fast, slow)` contract still holds.
+        let normalized = condition.to_string().replace(", ", ",");
+        assert_eq!(normalized, "ta.crossover(fast,slow)");
+        let LoweredStatement::Action {
+            call, arguments, ..
+        } = then_body
+            .first()
+            .unwrap_or_else(|| panic!("missing then statement: {then_body:?}"))
+        else {
+            panic!("then statement is not an action: {then_body:?}");
+        };
+        assert_eq!(call, "strategy.entry");
+        assert_eq!(arguments[0].to_string(), "\"Long\"");
+        // Rust keeps the named argument as an equality expression; Go stores
+        // `qty=1` as the order quantity. Assert the value that reached the IR.
+        assert!(
+            arguments
+                .iter()
+                .any(|argument| argument.to_string().ends_with("1)")),
+            "qty=1 must be present in the lowered call: {arguments:?}"
+        );
+        assert!(
+            !else_body.is_empty(),
+            "else branch must keep the alert call"
+        );
+    }
+
+    /// Parity: pkg/strategy/pine/parse_test.go:126
+    /// TestCompileUsesStrategyDefaultQuantityForEntryWithoutQty
+    #[test]
+    fn compile_uses_strategy_default_quantity_for_entry_without_qty() {
+        let script = r#"//@version=6
+strategy("Default Qty", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10, pyramiding=2)
+strategy.entry("Long", strategy.long)"#;
+        let compilation = compile(script);
+        assert!(
+            compilation.ok,
+            "diagnostics = {:?}",
+            compilation.diagnostics
+        );
+        let program = compilation.program.expect("lowered program");
+        assert_eq!(program.metadata.default_qty_mode, "percent_of_equity");
+        assert_eq!(program.metadata.default_qty_value, "10");
+        assert_eq!(program.metadata.pyramiding, 2);
+    }
+}

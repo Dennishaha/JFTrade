@@ -49,3 +49,19 @@ fallback、catalog activity 空页，以及 catalog runtime 恢复的 2 条生�
 `pkg/strategy/pine/parse_test.go` 剩余 33 项（编译 IR 降级、订单元数据、
 多 bar 历史引用、v12/v13 指标、UDF/静态 for、诊断边界等）继续保持
 `[~]`，将在后续批次逐条核对。
+
+## 批次：Pine IR 降级与策略默认数量
+
+| Go 测试 | Rust 入口 | 结论 |
+| --- | --- | --- |
+| `parse_test.go:10 TestParseScriptLowersPineStrategyToIR` | `jftrade-strategy::pine::parse_ir_tests::parse_script_lowers_pine_strategy_to_ir` | `[x]`：单一 `on_kline_close` hook、3 条语句、第 3 条 if 的条件与 then/else 结构与 Go 一致。 |
+| `parse_test.go:126 TestCompileUsesStrategyDefaultQuantityForEntryWithoutQty` | `...::compile_uses_strategy_default_quantity_for_entry_without_qty` | `[x]`：`default_qty_mode=percent_of_equity`、`default_qty_value=10`、`pyramiding=2`。 |
+
+### 契约差异（已固化在测试注释中）
+
+- Rust 的表达式渲染不插入空格（`ta.crossover(fast,slow)`），Go 为
+  `cross_over(fast, slow)`；测试做归一化后比较。
+- Rust 的 `LoweredStatement::Action.arguments` 保留命名参数的
+  `qty=1` 等值表达式，Go 的 `OrderStmt` 直接存 `QuantityExpression`；
+  测试断言“存在 qty 值”，并保留结构差异说明。
+

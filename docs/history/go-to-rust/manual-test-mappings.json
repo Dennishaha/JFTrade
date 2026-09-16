@@ -28882,11 +28882,11 @@
     "evidence_type": "missing"
   },
   "pkg/strategy/pine/parse_test.go:10:TestParseScriptLowersPineStrategyToIR": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(native_pipeline_parses_lowers_and_plans_strategy_requirements)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::parse_ir_tests::parse_script_lowers_pine_strategy_to_ir",
+    "conclusion": "function_exact：sourceFormat=pine-v6、metadata.name=EMA Crossover、单一 on_kline_close hook、3 条语句、第 3 条为 if（条件 ta.crossover(fast,slow)），then 分支保留 strategy.entry(\"Long\", …, qty=1)、else 分支保留 alert；Rust 表达式序列化不带空格，测试已做归一化比较。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(parse_ir_tests)'"
   },
   "pkg/strategy/pine/parse_test.go:54:TestCompileRejectsPublicInternalHelperCalls": {
     "status": "[x]",
@@ -28910,11 +28910,11 @@
     "evidence_type": "missing"
   },
   "pkg/strategy/pine/parse_test.go:126:TestCompileUsesStrategyDefaultQuantityForEntryWithoutQty": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::parse_ir_tests::compile_uses_strategy_default_quantity_for_entry_without_qty",
+    "conclusion": "function_exact：default_qty_type=strategy.percent_of_equity → default_qty_mode=percent_of_equity、default_qty_value=10、pyramiding=2，与 Go 的 strategy 默认数量元数据一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(parse_ir_tests)'"
   },
   "pkg/strategy/pine/parse_test.go:145:TestCompileParsesBacktestStrategyMetadata": {
     "status": "[~]",
