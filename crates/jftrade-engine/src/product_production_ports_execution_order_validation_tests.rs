@@ -182,3 +182,164 @@ fn test_normalize_execution_order_rejects_invalid_instrument() {
     let err = parse_order(&missing_symbol).expect_err("missing symbol must be rejected");
     assert!(err.to_lowercase().contains("symbol") || err.to_lowercase().contains("instrument") || err.to_lowercase().contains("code"));
 }
+
+#[test]
+fn test_normalize_execution_order_defaults_us_limit_order() {
+    // Parity: internal/trading/execution_test.go:16 TestNormalizeExecutionOrderDefaultsUSLimitOrder
+    let payload = json!({
+        "accountId": "1001",
+        "market": "us",
+        "symbol": "aapl",
+        "side": "buy",
+        "quantity": 10,
+        "price": 123.45,
+        "brokerId": "test-broker",
+    });
+    let order = parse_order(&payload).expect("default US limit order");
+    assert_eq!(order.broker_id, "test-broker");
+    assert_eq!(order.market, "US");
+    assert_eq!(order.symbol, "US.AAPL");
+    assert_eq!(order.side, 1); // BUY
+    assert_eq!(order.order_type, 1); // LIMIT
+    assert_eq!(order.header.trd_env, 0); // SIMULATE default
+    // Trade market codes are OpenD's TrdMarket enum (US = 2), not the quote
+    // market enum (11) used on the read side.
+    assert_eq!(order.header.trd_market, 2); // US trade market
+    assert_eq!(order.time_in_force, Some(0)); // DAY
+    assert_eq!(order.session, Some(1)); // RTH
+    assert_eq!(order.fill_outside_rth, Some(false));
+}
+
+#[test]
+fn test_normalize_execution_order_supports_extended_us_limit_sessions() {
+    // Parity: internal/trading/execution_test.go:47 TestNormalizeExecutionOrderSupportsExtendedUSLimitSessions
+    let payload = json!({
+        "accountId": "1001",
+        "market": "US",
+        "symbol": "AAPL",
+        "side": "SELL",
+        "orderType": "LIMIT",
+        "session": "ETH",
+        "quantity": 5,
+        "price": 88.0,
+    });
+    let order = parse_order(&payload).expect("ETH limit order");
+    assert_eq!(order.side, 2); // SELL
+    assert_eq!(order.session, Some(2)); // ETH
+    assert_eq!(order.fill_outside_rth, Some(true));
+}
+
+#[test]
+fn test_normalize_execution_order_supports_stop_and_market_orders() {
+    // Parity: internal/trading/execution_test.go:71 TestNormalizeExecutionOrderSupportsStopAndMarketOrders
+    let stop = json!({
+        "accountId": "1001",
+        "market": "US",
+        "symbol": "AAPL",
+        "side": "SELL",
+        "orderType": "STOP",
+        "quantity": 4,
+        "stopPrice": 97.5,
+    });
+    let stop_order = parse_order(&stop).expect("stop order");
+    assert_eq!(stop_order.order_type, 3); // STOP
+    assert_eq!(stop_order.stop_price, Some(97.5));
+
+    let market = json!({
+        "accountId": "1001",
+        "market": "HK",
+        "symbol": "00700",
+        "side": "BUY",
+        "orderType": "MARKET",
+        "quantity": 100,
+    });
+    let market_order = parse_order(&market).expect("market order");
+    assert_eq!(market_order.order_type, 2); // MARKET
+    assert_eq!(market_order.market, "HK");
+    assert_eq!(market_order.session, None);
+}
+
+#[test]
+fn test_normalize_execution_order_rejects_business_rule_violations() {
+    // Parity: internal/trading/execution_test.go:96 TestNormalizeExecutionOrderRejectsBusinessRuleViolations
+    let missing_price = json!({
+        "accountId": "1001",
+        "market": "US",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "quantity": 1,
+    });
+    let error = parse_order(&missing_price).expect_err("limit order requires price");
+    assert!(error.contains("requires price"), "error = {error:?}");
+
+    let missing_stop = json!({
+        "accountId": "1001",
+        "market": "US",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "orderType": "STOP_LIMIT",
+        "quantity": 1,
+        "price": 10.0,
+    });
+    let error = parse_order(&missing_stop).expect_err("stop limit requires stopPrice");
+    assert!(error.contains("stopPrice"), "error = {error:?}");
+
+    let hk_session = json!({
+        "accountId": "1001",
+        "market": "HK",
+        "symbol": "00700",
+        "side": "BUY",
+        "quantity": 1,
+        "orderType": "MARKET",
+        "session": "ETH",
+    });
+    let error = parse_order(&hk_session).expect_err("HK session must be rejected");
+    assert!(
+        error.contains("US market orders only"),
+        "error = {error:?}"
+    );
+
+    let fok = json!({
+        "accountId": "1001",
+        "market": "US",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "quantity": 1,
+        "price": 10.0,
+        "timeInForce": "FOK",
+    });
+    let error = parse_order(&fok).expect_err("FOK must be rejected");
+    assert!(
+        error.to_ascii_lowercase().contains("timeinforce")
+            && error.to_ascii_uppercase().contains("FOK"),
+        "error = {error:?}"
+    );
+
+    let stop_limit = json!({
+        "accountId": "1001",
+        "market": "US",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "quantity": 1,
+        "orderType": "STOP_LIMIT",
+        "price": 10.0,
+        "stopPrice": 9.0,
+    });
+    parse_order(&stop_limit).expect("stop limit with both prices is valid");
+}
+
+#[test]
+fn test_normalize_execution_order_preserves_broker_abstraction() {
+    // Parity: internal/trading/execution_test.go:159 TestNormalizeExecutionOrderPreservesBrokerAbstraction
+    let payload = json!({
+        "accountId": "1001",
+        "brokerId": "ib",
+        "market": "US",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "quantity": 1,
+        "price": 10.0,
+    });
+    let order = parse_order(&payload).expect("broker-selected order");
+    assert_eq!(order.broker_id, "ib");
+}

@@ -346,3 +346,34 @@ fn test_place_broker_order_fails_closed_when_real_risk_gateway_is_unavailable() 
         Some("PRE_TRADE_RISK_UNAVAILABLE")
     );
 }
+
+#[test]
+fn pre_trade_risk_snapshot_uses_empty_vectors_not_null() {
+    // Parity: internal/trading/execution_test.go:687 TestPreTradeRiskSnapshotUsesNonNilEmptySlices
+    //
+    // Go guards against `nil` slices so JSON renders `[]` instead of `null`.
+    // Rust models those fields as `Vec`, so the equivalent contract is that a
+    // default snapshot serializes every collection as an empty array.
+    let snapshot = jftrade_trading::RealTradeRiskSnapshot::from_control_state(
+        jftrade_trading::RealTradeControlState::default(),
+        None,
+    );
+    assert!(snapshot.hard_stop_entries.is_empty());
+    assert!(snapshot.hard_stop_events.is_empty());
+    assert!(snapshot.kill_switch_events.is_empty());
+    assert!(snapshot.risk_events.is_empty());
+
+    let encoded = serde_json::to_value(&snapshot).expect("snapshot JSON");
+    for key in [
+        "hardStopEntries",
+        "hardStopEvents",
+        "killSwitchEvents",
+        "riskEvents",
+    ] {
+        assert_eq!(
+            encoded[key],
+            serde_json::json!([]),
+            "{key} must serialize as an empty array, never null"
+        );
+    }
+}
