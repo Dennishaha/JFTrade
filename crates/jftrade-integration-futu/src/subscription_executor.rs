@@ -180,6 +180,23 @@ fn qot_sub_request(action: &ReconcileAction) -> Result<QotSubC2s, SubscriptionEx
     // (pkg/futu/exchange_orderbook.go::groupOrderBookRequestsForPush).
     let order_book_detail =
         (subscription.kind == SubscriptionKind::OrderBook && market == 1).then_some(true);
+    // Go's `makeKLineSubscriptionRequest` marks US intraday (<= 1h) K-line
+    // subscribe/unsubscribe requests as extended-session and asks for
+    // `Session_ALL`. K-line pushes stay unregistered, but the session routing
+    // itself is part of the requested subscription contract: without it OpenD
+    // only returns RTH data and the live candle stream silently diverges from
+    // Go for pre/post-market bars.
+    let intraday_us_kline = subscription.kind == SubscriptionKind::Kline && market == 11 && {
+        let seconds = crate::kline_query::period_duration_seconds(
+            subscription.interval.as_deref().unwrap_or_default(),
+        );
+        seconds > 0 && seconds <= 3600
+    };
+    let (extended_time, session) = if intraday_us_kline {
+        (Some(true), Some(crate::history_session_plan::SESSION_ALL))
+    } else {
+        (None, None)
+    };
     Ok(QotSubC2s {
         security_list: vec![QotSecurity {
             market: Some(market),
@@ -193,8 +210,8 @@ fn qot_sub_request(action: &ReconcileAction) -> Result<QotSubC2s, SubscriptionEx
         // Go always sends isUnsubAll (defaulting to false) on Qot_Sub.
         is_unsub_all: Some(false),
         is_sub_order_book_detail: order_book_detail,
-        extended_time: None,
-        session: None,
+        extended_time,
+        session,
     })
 }
 
@@ -465,6 +482,116 @@ mod tests {
         // The coordinator is the stream owner, so Basic subscribes register
         // push delivery (`pkg/futu/stream.go::subscribeBasicQotPush`).
         assert_eq!(basic.is_reg_or_un_reg_push, Some(true));
+    }
+
+    #[test]
+    fn subscription_pairs_are_exact_idempotent_and_use_all_session_for_us_intraday_kline() {
+        // Parity: go:8a78fc78:pkg/futu/subscription_lifecycle_test.go:19
+        // TestExchangeSubscriptionMethodsArePairedExactAndIdempotent.
+        //
+        // Go subscribes Basic (push) and US 1m K-line, repeats both with a
+        // lower-case symbol, then unsubscribes both twice. The reconciler
+        // suppresses the duplicate calls, so exactly four Qot_Sub requests are
+        // emitted and each pair carries identical security/subType parameters.
+        let mut reconciler = crate::SubscriptionReconciler::new(0);
+        let initial = reconciler.actions(
+            &[
+                InstrumentRef {
+                    channel: "SNAPSHOT".to_owned(),
+                    market: "HK".to_owned(),
+                    symbol: "00700".to_owned(),
+                    interval: None,
+                },
+                InstrumentRef {
+                    channel: "KLINE".to_owned(),
+                    market: "US".to_owned(),
+                    symbol: "aapl".to_owned(),
+                    interval: Some("1m".to_owned()),
+                },
+            ],
+            0,
+            1,
+        );
+        let subscribe_requests = initial
+            .iter()
+            .map(|action| qot_sub_request(action).expect("subscribe request"))
+            .collect::<Vec<_>>();
+        // Rust models KLINE demand as a BASIC physical subscription plus the
+        // exact KLINE physical subscription (Go keeps the two registries apart
+        // and its `SubscribeKLine` only sends the KL subtype). The paired
+        // idempotency contract is the same: three physical entries, each
+        // subscribed once and released once with identical parameters.
+        assert_eq!(
+            subscribe_requests.len(),
+            3,
+            "HK Basic + US Basic + US K-line physical pairs"
+        );
+        for action in &initial {
+            reconciler.record_success(action, 0, 1);
+        }
+
+        // A repeated subscribe for the same physical subscription is a no-op.
+        let desired = [
+            InstrumentRef {
+                channel: "SNAPSHOT".to_owned(),
+                market: "HK".to_owned(),
+                symbol: "00700".to_owned(),
+                interval: None,
+            },
+            InstrumentRef {
+                channel: "KLINE".to_owned(),
+                market: "US".to_owned(),
+                symbol: "AAPL".to_owned(),
+                interval: Some("1m".to_owned()),
+            },
+        ];
+        assert!(reconciler.actions(&desired, 1, 1).is_empty());
+
+        // Releasing both emits exactly the paired unsubscribes with the same
+        // identity as their subscribe counterparts.
+        let release = reconciler.actions(&[], 2, 1);
+        let unsubscribe_requests = release
+            .iter()
+            .map(|action| qot_sub_request(action).expect("unsubscribe request"))
+            .collect::<Vec<_>>();
+        assert_eq!(unsubscribe_requests.len(), 3);
+        for (subscribe, unsubscribe) in subscribe_requests.iter().zip(unsubscribe_requests.iter()) {
+            assert_eq!(subscribe.is_sub_or_un_sub, Some(true));
+            assert_eq!(unsubscribe.is_sub_or_un_sub, Some(false));
+            assert_eq!(subscribe.security_list, unsubscribe.security_list);
+            assert_eq!(subscribe.sub_type_list, unsubscribe.sub_type_list);
+            assert_eq!(subscribe.sub_type_list.len(), 1);
+        }
+        // Once the release is acknowledged the records are gone, so repeating
+        // it produces no further OpenD calls (Go returns nil for a missing
+        // subscription before touching the client).
+        for action in &release {
+            reconciler.record_success(action, 2, 1);
+        }
+        assert!(reconciler.actions(&[], 3, 1).is_empty());
+
+        // Basic registers pushes; the US 1m K-line keeps pushes disabled and
+        // routes Session_ALL exactly like Go's `makeKLineSubscriptionRequest`.
+        let by_sub_type = |sub_type: i32| {
+            subscribe_requests
+                .iter()
+                .find(|request| request.sub_type_list == [sub_type])
+                .expect("sub type")
+        };
+        let basic = by_sub_type(1);
+        assert_eq!(basic.is_reg_or_un_reg_push, Some(true));
+        assert_eq!(basic.extended_time, None);
+        assert_eq!(basic.session, None);
+        let kline = by_sub_type(11);
+        assert_eq!(kline.is_reg_or_un_reg_push, Some(false));
+        assert_eq!(kline.extended_time, Some(true));
+        assert_eq!(
+            kline.session,
+            Some(crate::history_session_plan::SESSION_ALL)
+        );
+
+        assert_eq!(basic.security_list[0].market, Some(1));
+        assert_eq!(kline.security_list[0].market, Some(11));
     }
 
     #[test]
@@ -1263,5 +1390,128 @@ mod tests {
             Some(true),
             "HK order-book release must keep the SF detail flag"
         );
+    }
+
+    #[test]
+    fn subscription_methods_reject_invalid_symbols_and_intervals_before_qot_sub() {
+        // Parity: go:8a78fc78:pkg/futu/subscription_lifecycle_test.go:270
+        // TestSubscriptionMethodsValidateSymbolsAndIntervals.
+        //
+        // Go validates the symbol and interval before contacting OpenD, so an
+        // invalid Basic or K-line subscribe/unsubscribe never issues Qot_Sub.
+        // Rust shares one request builder for subscribe and unsubscribe, so
+        // pinning it once proves both directions fail closed.
+        for instrument in ["BAD", "US.AAPL.EXTRA", ".AAPL", "US."] {
+            assert!(
+                matches!(
+                    qot_sub_request(&action(SubscriptionKind::Basic, instrument, None)),
+                    Err(SubscriptionExecutorError::InvalidInstrument(_))
+                ),
+                "Basic instrument {instrument:?} must be rejected"
+            );
+            assert!(
+                matches!(
+                    qot_sub_request(&action(SubscriptionKind::Kline, instrument, Some("1m"))),
+                    Err(SubscriptionExecutorError::InvalidInstrument(_))
+                ),
+                "K-line instrument {instrument:?} must be rejected"
+            );
+        }
+        for interval in ["bad", "2m", "0m", ""] {
+            assert!(
+                matches!(
+                    qot_sub_request(&action(SubscriptionKind::Kline, "HK.00700", Some(interval))),
+                    Err(SubscriptionExecutorError::UnsupportedInterval(_))
+                ),
+                "interval {interval:?} must be rejected"
+            );
+        }
+        // A valid pair still encodes, proving the validation is not a blanket
+        // rejection of the subscription path.
+        assert!(qot_sub_request(&action(SubscriptionKind::Kline, "HK.00700", Some("1m"))).is_ok());
+    }
+
+    #[test]
+    fn executor_sends_us_intraday_kline_session_all_on_the_wire() {
+        // Parity: go:8a78fc78:pkg/futu/subscription_lifecycle_test.go:19
+        // TestExchangeSubscriptionMethodsArePairedExactAndIdempotent asserts the
+        // captured US K-line Qot_Sub pair carries `Session_ALL`; the K-line push
+        // flag stays false. Verify the bytes actually leave the executor.
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let mut captured = Vec::new();
+            for exchange in 0..3 {
+                let mut header = [0_u8; crate::frame::HEADER_LEN];
+                stream.read_exact(&mut header).expect("header");
+                let body_len =
+                    u32::from_le_bytes(header[12..16].try_into().expect("length")) as usize;
+                let mut body = vec![0_u8; body_len];
+                stream.read_exact(&mut body).expect("body");
+                let frame =
+                    decode_frame(&[header.as_slice(), body.as_slice()].concat()).expect("frame");
+                let response = if exchange == 0 {
+                    assert_eq!(frame.header.proto_id, crate::PROTO_INIT_CONNECT);
+                    InitResponse {
+                        ret_type: Some(0),
+                        s2c: Some(InitState {
+                            server_ver: 1009,
+                            conn_id: 1,
+                        }),
+                    }
+                    .encode_to_vec()
+                } else {
+                    assert_eq!(frame.header.proto_id, crate::PROTO_QOT_SUB);
+                    let request = QotSubRequest::decode(frame.body.as_slice()).expect("request");
+                    captured.push(request.c2s.expect("c2s"));
+                    QotSubResponse {
+                        ret_type: Some(0),
+                        ret_msg: None,
+                        err_code: None,
+                    }
+                    .encode_to_vec()
+                };
+                let packet = encode_frame(frame.header.proto_id, frame.header.serial_no, &response)
+                    .expect("response");
+                stream.write_all(&packet).expect("write response");
+            }
+            captured
+        });
+
+        let mut executor =
+            OpenDSubscriptionExecutor::connect(address, Duration::from_secs(1)).expect("executor");
+        let subscribe = action(SubscriptionKind::Kline, "US.AAPL", Some("1m"));
+        executor.execute(&subscribe).expect("subscribe");
+        let physical = match subscribe {
+            ReconcileAction::Subscribe { subscription } => subscription,
+            _ => unreachable!(),
+        };
+        executor
+            .execute(&ReconcileAction::Unsubscribe {
+                subscription: physical,
+            })
+            .expect("unsubscribe");
+        let captured = server.join().expect("server");
+
+        assert_eq!(captured.len(), 2);
+        for (index, c2s) in captured.iter().enumerate() {
+            assert_eq!(c2s.sub_type_list, [11]);
+            assert_eq!(
+                c2s.extended_time,
+                Some(true),
+                "request {index} extendedTime"
+            );
+            assert_eq!(
+                c2s.session,
+                Some(crate::history_session_plan::SESSION_ALL),
+                "request {index} session"
+            );
+            assert_eq!(c2s.is_reg_or_un_reg_push, Some(false));
+            assert_eq!(c2s.security_list[0].market, Some(11));
+            assert_eq!(c2s.security_list[0].code.as_deref(), Some("AAPL"));
+        }
+        assert_eq!(captured[0].is_sub_or_un_sub, Some(true));
+        assert_eq!(captured[1].is_sub_or_un_sub, Some(false));
     }
 }

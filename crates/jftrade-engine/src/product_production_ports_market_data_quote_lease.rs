@@ -106,3 +106,40 @@ pub(super) fn capability_unsupported_error(
         retry_after_seconds: None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Parity: go:8a78fc78:pkg/futu/subscription_lifecycle_test.go:215
+    /// TestSubscriptionRequiredErrorFormattingAndNilConnectionGeneration.
+    ///
+    /// Go's factory renders the channel, instrument and interval into the
+    /// public error so the transport can surface the exact missing lease. The
+    /// Rust formatter is shared by candle/depth/snapshot gates and must keep
+    /// the same actionable shape instead of leaking a provider error string.
+    #[test]
+    fn subscription_required_error_formats_channel_instrument_and_interval() {
+        let message = |error: super::MarketDataQuoteReadSnapshotError| match error {
+            super::MarketDataQuoteReadSnapshotError::Failed { message, .. } => message,
+            other => panic!("unexpected error: {other:?}"),
+        };
+
+        assert_eq!(
+            message(subscription_required_error("KLINE", "US.AAPL", Some("1m"))),
+            "market-data subscription required: acquire a KLINE lease for US.AAPL:1m before reading live data"
+        );
+
+        // A blank interval must not render a trailing colon, matching Go's
+        // `normalizeSubscriptionInterval` + empty-detail branch.
+        assert_eq!(
+            message(subscription_required_error(" basic ", "US.AAPL", Some("   "))),
+            "market-data subscription required: acquire a  basic  lease for US.AAPL before reading live data"
+        );
+
+        assert_eq!(
+            message(subscription_required_error("ORDER_BOOK", "", None)),
+            "market-data subscription required: acquire a ORDER_BOOK lease for  before reading live data"
+        );
+    }
+}

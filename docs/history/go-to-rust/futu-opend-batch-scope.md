@@ -1053,3 +1053,73 @@ cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locke
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+## 批次：pkg/futu/subscription_lifecycle_test.go（10 项）
+
+基线：`go:8a78fc78`。本批 10 项全部 `[x]`（`function_exact`）。
+
+### 功能差异与修复
+
+1. **US 盘中 K 线订阅缺少 extended session 路由**（P1）。
+   复现：对 `US.AAPL` 订阅 1m K 线，捕获 Qot_Sub 请求。
+   预期（Go `makeKLineSubscriptionRequest`）：`ExtendedTime=true`、
+   `Session=Session_ALL`、`IsRegOrUnRegPush=false`。
+   实际（修复前）：Rust 只发送 subtype 11，两个 session 字段均为空，OpenD
+   仅回 RTH 数据，盘前/盘后 bar 静默缺失。
+   修复位置：`crates/jftrade-integration-futu/src/subscription_executor.rs`
+   `qot_sub_request`（复用 `kline_query::period_duration_seconds` 与
+   `history_session_plan::SESSION_ALL`，仅 US 且 <=1h 生效）。
+   回归：`subscription_pairs_are_exact_idempotent_and_use_all_session_for_us_intraday_kline`、
+   `executor_sends_us_intraday_kline_session_all_on_the_wire`。
+
+2. **订阅额度把 optionUsedQuota 误当自有连接额度**（P0，资金/额度安全相邻）。
+   复现：Qot_GetSubInfo 返回 `ConnSubInfoList` 与 `optionUsedQuota` 时读取
+   `ownUsedQuota`。
+   预期（Go `Exchange.QuerySubscriptionQuota`）：OwnUsed 只累加
+   `IsOwnConnData=true` 的 `UsedQuota`；S2C tag 4 是 `optionUsedQuota`。
+   实际（修复前）：Rust 直接把 tag 4 当 OwnUsed，且 S2C 根本没有解析
+   ConnSubInfoList，导致订阅编排用错误的额度做决策。
+   修复位置：`crates/jftrade-integration-futu/src/session_coordinator.rs`
+   （新增 `ConnSubInfo`、`own_used_quota()`，并保持
+   `IsReqAllConn=true`）；同步修正
+   `crates/jftrade-integration-futu/tests/fake_framed_opend_runtime_tests.rs`
+   与 `crates/jftrade-engine/tests/market_data_production_compatibility.rs`
+   两处使用错误 tag 语义的 fixture。
+   回归：`quota_separates_own_and_other_connections_without_reading_option_quota`
+   及真实 composition runtime 用例。
+
+### 行为映射
+
+| Go 测试 | Rust 入口 |
+| --- | --- |
+| `:19 TestExchangeSubscriptionMethodsArePairedExactAndIdempotent` | `crates/jftrade-integration-futu/src/subscription_executor.rs::tests::subscription_pairs_are_exact_idempotent_and_use_all_session_for_us_intraday_kline` |
+| `:80 TestExchangeSubscriptionCacheUpdatesOnlyAfterOpenDConfirmation` | `crates/jftrade-integration-futu/src/subscriptions_tests.rs::failed_or_replayed_subscriptions_are_not_active_until_opend_confirms` |
+| `:123 TestQueryKLinesWithoutLeaseReturnsExplicitErrorBeforeRealtimeRead` | `crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::candle_read_without_a_kline_lease_fails_before_realtime_provider_access` |
+| `:142 TestBasicQuoteReadRequiresExplicitLeaseAndNeverLeaksRawOpenDError` | `crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::basic_quote_read_requires_a_lease_and_never_leaks_the_raw_opend_error` |
+| `:162 TestConnectionGenerationInvalidatesClosedSessionAndItsSubscriptions` | `crates/jftrade-integration-futu/src/subscriptions_tests.rs::closed_session_generation_invalidates_its_subscriptions_and_requires_replay` |
+| `:194 TestExchangeCloseIsTerminalAndPreventsOrphanedReconnect` | `crates/jftrade-integration-futu/src/session_coordinator.rs::tests::coordinator_close_is_terminal_and_prevents_orphaned_reconnect` |
+| `:215 TestSubscriptionRequiredErrorFormattingAndNilConnectionGeneration` | `crates/jftrade-engine/src/product_production_ports_market_data_quote_lease.rs::tests::subscription_required_error_formats_channel_instrument_and_interval` |
+| `:236 TestFailedConnectionDoesNotAdvanceEstablishedSessionGeneration` | `crates/jftrade-integration-futu/src/session_coordinator.rs::tests::failed_connection_does_not_advance_the_established_session_generation` |
+| `:246 TestExchangeQuerySubscriptionQuotaSeparatesOwnAndOtherConnections` | `crates/jftrade-integration-futu/src/session_coordinator.rs::tests::quota_separates_own_and_other_connections_without_reading_option_quota` |
+| `:270 TestSubscriptionMethodsValidateSymbolsAndIntervals` | `crates/jftrade-integration-futu/src/subscription_executor.rs::tests::subscription_methods_reject_invalid_symbols_and_intervals_before_qot_sub` |
+
+### 边界说明
+
+- Go 的 `Exchange.SubscribeKLine` 只发送 KL subtype；Rust 的物理订阅计划为
+  `KLINE` 同时持有 BASIC + KLINE 两条物理记录（K 线读取需要 Basic 快照）。
+  因此成对/幂等断言覆盖 3 条物理订阅，而不是 Go 的 2 条；这是既有架构
+  owner 差异，不改变 Go 的 wire 语义（subtype、push 标志、session 均逐字段对齐）。
+- `:215` 的 Go nil receiver 分支（`var nilExchange *Exchange`）在 Rust 没有对应
+  类型：`OpenDSessionCoordinator` 不是指针可空对象，无 session 时返回
+  `Closed`。该分支已在同批 `coordinator_close_is_terminal_...` 用 post-close
+  行为覆盖，故仍记 `function_exact` 而非 boundary。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```

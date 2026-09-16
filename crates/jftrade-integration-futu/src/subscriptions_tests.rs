@@ -1332,3 +1332,160 @@ fn order_book_registry_reset_clears_marks_for_a_replacement_connection() {
     assert_eq!(subscription.key, "ORDER_BOOK:HK.00700");
     assert_eq!(subscription.kind, SubscriptionKind::OrderBook);
 }
+
+#[test]
+fn closed_session_generation_invalidates_its_subscriptions_and_requires_replay() {
+    // Parity: go:8a78fc78:pkg/futu/subscription_lifecycle_test.go:162
+    // TestConnectionGenerationInvalidatesClosedSessionAndItsSubscriptions.
+    //
+    // Go closes the active client, observes a newer ConnectionGeneration and
+    // then requires the stale lease to be re-established. Rust ties every
+    // record to a generation: replaying after a reconnect makes the old
+    // generation inactive until OpenD acknowledges the replacement session.
+    let recorder = Arc::new(jftrade_marketdata::MarketDataRuntimeRecorder::default());
+    let mut lifecycle = OpenDSubscriptionLifecycle::new(Arc::clone(&recorder), 0);
+    let desired = [reference("SNAPSHOT", None)];
+    let first = lifecycle.reconcile_demand(&desired, 0);
+    assert_eq!(first.len(), 1);
+    let initial_generation = lifecycle.generation();
+    assert!(lifecycle.record_subscription_success(&first[0], 0, initial_generation));
+    assert_eq!(
+        lifecycle.active_basic_instruments(),
+        vec!["US.AAPL".to_owned()]
+    );
+
+    // The peer closes the session: replay actions are fenced to a strictly
+    // newer generation and the old subscription stops being active.
+    let replay = lifecycle.reconfigure_for_reconnect(&desired);
+    let invalidated_generation = lifecycle.generation();
+    assert!(
+        invalidated_generation > initial_generation,
+        "generation did not advance after session close: \
+         {initial_generation} -> {invalidated_generation}"
+    );
+    assert_eq!(replay.len(), 1);
+    assert!(
+        lifecycle.active_basic_instruments().is_empty(),
+        "a closed session must not retain a stale lease"
+    );
+    // Stale acknowledgements from the old generation are rejected outright.
+    assert!(!lifecycle.record_subscription_success(&first[0], 1, initial_generation));
+
+    // Re-subscribing on the replacement session makes it active again.
+    assert!(lifecycle.record_subscription_success(&replay[0], 1, invalidated_generation));
+    assert_eq!(
+        lifecycle.active_basic_instruments(),
+        vec!["US.AAPL".to_owned()]
+    );
+}
+
+#[test]
+fn failed_or_replayed_subscriptions_are_not_active_until_opend_confirms() {
+    // Parity: go:8a78fc78:pkg/futu/subscription_lifecycle_test.go:80
+    // TestExchangeSubscriptionCacheUpdatesOnlyAfterOpenDConfirmation.
+    //
+    // Go returns the OpenD rejection, keeps the subscription out of the cache
+    // and lets the caller retry. Rust records the failure, keeps the record
+    // inactive, and only flips it active once OpenD acknowledges the retry.
+    let desired = [reference("KLINE", Some("5m"))];
+    let mut reconciler = SubscriptionReconciler::new(0);
+    let actions = reconciler.actions(&desired, 0, 1);
+    assert_eq!(actions.len(), 2, "KLINE also owns its BASIC subscription");
+
+    // The BASIC companion subscription succeeds on the first attempt so the
+    // retry assertions below isolate the rejected K-line record.
+    let basic = actions
+        .iter()
+        .find(|action| {
+            matches!(
+                action,
+                ReconcileAction::Subscribe { subscription }
+                    if subscription.kind == SubscriptionKind::Basic
+            )
+        })
+        .expect("basic subscription");
+    reconciler.record_success(basic, 0, 1);
+
+    let kline = actions
+        .iter()
+        .find_map(|action| match action {
+            ReconcileAction::Subscribe { subscription }
+                if subscription.kind == SubscriptionKind::Kline =>
+            {
+                Some(subscription.clone())
+            }
+            _ => None,
+        })
+        .expect("kline subscription");
+
+    // First attempt fails with a quota rejection: nothing becomes active and
+    // the bounded retry window is armed.
+    assert_eq!(
+        reconciler.record_failure(&kline, 0, 1, Some("quota exceeded".to_owned())),
+        5_000
+    );
+    assert!(
+        reconciler
+            .active_instruments(SubscriptionKind::Kline, 1)
+            .is_empty()
+    );
+    let retry = reconciler.actions(&desired, 5_000, 1);
+    assert_eq!(retry.len(), 1, "retry after the failure window");
+
+    // Only the OpenD-confirmed retry marks the record active.
+    reconciler.record_success(&retry[0], 5_000, 1);
+    assert_eq!(
+        reconciler.active_instruments(SubscriptionKind::Kline, 1),
+        vec!["US.AAPL".to_owned()]
+    );
+
+    // Releasing demand produces the exact K-line unsubscribe plus the BASIC
+    // companion release; a rejected K-line release keeps its record and
+    // retries.
+    let release = reconciler.actions(&[], 6_000, 1);
+    assert_eq!(release.len(), 2, "K-line and its BASIC companion");
+    // The BASIC companion releases cleanly; only the rejected K-line
+    // unsubscribe stays behind on its bounded retry window.
+    for action in &release {
+        if matches!(
+            action,
+            ReconcileAction::Unsubscribe { subscription }
+                if subscription.kind == SubscriptionKind::Basic
+        ) {
+            reconciler.record_success(action, 6_000, 1);
+        }
+    }
+    let subscription = release
+        .iter()
+        .find_map(|action| match action {
+            ReconcileAction::Unsubscribe { subscription }
+                if subscription.kind == SubscriptionKind::Kline =>
+            {
+                Some(subscription.clone())
+            }
+            _ => None,
+        })
+        .expect("kline unsubscribe");
+    assert_eq!(
+        reconciler.record_unsubscribe_failure(&subscription, 6_000, 1, Some("busy".to_owned())),
+        5_000
+    );
+    assert_eq!(
+        reconciler.active_instruments(SubscriptionKind::Kline, 1),
+        vec!["US.AAPL".to_owned()],
+        "a rejected release must not drop the active record"
+    );
+    assert!(reconciler.actions(&[], 10_999, 1).is_empty());
+    assert!(matches!(
+        reconciler
+            .actions(&[], 11_000, 1)
+            .iter()
+            .filter(|action| matches!(
+                action,
+                ReconcileAction::Unsubscribe { subscription }
+                    if subscription.kind == SubscriptionKind::Kline
+            ))
+            .count(),
+        1
+    ));
+}

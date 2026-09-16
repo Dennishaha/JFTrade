@@ -223,7 +223,7 @@ impl OpenDSessionCoordinator {
         self.lifecycle.set_quota(
             to_quota(s2c.total_used_quota),
             to_quota(s2c.remain_quota),
-            to_quota(s2c.own_used_quota),
+            own_used_quota(&s2c.conn_sub_info_list),
             checked_at_ms,
             None,
         );
@@ -480,12 +480,39 @@ struct GetSubInfoResponse {
 
 #[derive(Clone, PartialEq, Message)]
 struct GetSubInfoS2c {
+    /// `Qot_Common.ConnSubInfo` list. `ownUsedQuota` is derived from the
+    /// entries that report `isOwnConnData=true`; the numeric tag 4 of this
+    /// message is `optionUsedQuota`, not the own-connection quota.
+    #[prost(message, repeated, tag = "1")]
+    conn_sub_info_list: Vec<ConnSubInfo>,
     #[prost(int32, optional, tag = "2")]
     total_used_quota: Option<i32>,
     #[prost(int32, optional, tag = "3")]
     remain_quota: Option<i32>,
     #[prost(int32, optional, tag = "4")]
-    own_used_quota: Option<i32>,
+    option_used_quota: Option<i32>,
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct ConnSubInfo {
+    #[prost(int32, optional, tag = "2")]
+    used_quota: Option<i32>,
+    #[prost(bool, optional, tag = "3")]
+    is_own_conn_data: Option<bool>,
+}
+
+/// Mirrors Go `Exchange.QuerySubscriptionQuota`: TotalUsed/Remaining cover all
+/// OpenD connections while OwnUsed sums only this connection's entries.
+fn own_used_quota(list: &[ConnSubInfo]) -> Option<u64> {
+    let mut own_used = 0_u64;
+    let mut seen_own = false;
+    for connection in list {
+        if connection.is_own_conn_data.unwrap_or(false) {
+            seen_own = true;
+            own_used = own_used.saturating_add(to_quota(connection.used_quota).unwrap_or_default());
+        }
+    }
+    seen_own.then_some(own_used)
 }
 
 fn to_quota(value: Option<i32>) -> Option<u64> {
@@ -673,9 +700,27 @@ mod tests {
                 GetSubInfoResponse {
                     ret_type: Some(0),
                     s2c: Some(GetSubInfoS2c {
+                        // Go counts only the connections that report
+                        // `isOwnConnData=true`; a total of 4 here must come
+                        // from the three own entries, not from an unrelated
+                        // option quota field.
+                        conn_sub_info_list: vec![
+                            ConnSubInfo {
+                                used_quota: Some(2),
+                                is_own_conn_data: Some(true),
+                            },
+                            ConnSubInfo {
+                                used_quota: Some(2),
+                                is_own_conn_data: Some(true),
+                            },
+                            ConnSubInfo {
+                                used_quota: Some(9),
+                                is_own_conn_data: Some(false),
+                            },
+                        ],
                         total_used_quota: Some(11),
                         remain_quota: Some(39),
-                        own_used_quota: Some(4),
+                        option_used_quota: None,
                     }),
                     ..Default::default()
                 }
@@ -728,6 +773,178 @@ mod tests {
             }),
         }
         .encode_to_vec()
+    }
+
+    #[test]
+    fn quota_separates_own_and_other_connections_without_reading_option_quota() {
+        // Parity: go:8a78fc78:pkg/futu/subscription_lifecycle_test.go:246
+        // TestExchangeQuerySubscriptionQuotaSeparatesOwnAndOtherConnections.
+        //
+        // Go sums `ConnSubInfoList` entries whose `IsOwnConnData` is true and
+        // takes TotalUsed/Remaining from the top level. S2C tag 4 is
+        // `optionUsedQuota`, so reading it as the own-connection total would
+        // report a wrong number whenever this connection has no option
+        // subscription.
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init = read_framed_frame(&mut stream).expect("init request");
+            write_response(
+                &mut stream,
+                PROTO_INIT_CONNECT,
+                init.header.serial_no,
+                InitResponse {
+                    ret_type: Some(0),
+                    s2c: Some(InitState {
+                        server_ver: 1009,
+                        conn_id: 7,
+                    }),
+                }
+                .encode_to_vec(),
+            );
+            let quota = read_framed_frame(&mut stream).expect("quota request");
+            assert_eq!(quota.header.proto_id, PROTO_GET_SUB_INFO);
+            let request = GetSubInfoRequest::decode(quota.body.as_slice()).expect("quota request");
+            assert_eq!(request.c2s.is_req_all_conn, Some(true));
+            write_response(
+                &mut stream,
+                PROTO_GET_SUB_INFO,
+                quota.header.serial_no,
+                GetSubInfoResponse {
+                    ret_type: Some(0),
+                    ret_msg: None,
+                    s2c: Some(GetSubInfoS2c {
+                        conn_sub_info_list: vec![
+                            ConnSubInfo {
+                                used_quota: Some(3),
+                                is_own_conn_data: Some(true),
+                            },
+                            ConnSubInfo {
+                                used_quota: Some(2),
+                                is_own_conn_data: Some(true),
+                            },
+                            ConnSubInfo {
+                                used_quota: Some(7),
+                                is_own_conn_data: Some(false),
+                            },
+                        ],
+                        total_used_quota: Some(12),
+                        remain_quota: Some(88),
+                        option_used_quota: Some(60),
+                    }),
+                }
+                .encode_to_vec(),
+            );
+        });
+
+        let recorder = Arc::new(MarketDataRuntimeRecorder::default());
+        let mut coordinator = OpenDSessionCoordinator::connect(
+            OpenDTcpProbeConfig::new(address, Duration::from_secs(1)),
+            recorder,
+            Vec::new(),
+            0,
+        )
+        .expect("connect");
+        coordinator.refresh_quota(1).expect("quota");
+        let snapshot = coordinator.physical_snapshot().expect("snapshot");
+        assert_eq!(snapshot.total_used_quota, Some(12));
+        assert_eq!(snapshot.remain_quota, Some(88));
+        assert_eq!(
+            snapshot.own_used_quota,
+            Some(5),
+            "OwnUsed must sum own connections only, never optionUsedQuota"
+        );
+        coordinator.close().expect("close");
+        server.join().expect("server");
+    }
+
+    #[test]
+    fn failed_connection_does_not_advance_the_established_session_generation() {
+        // Parity: go:8a78fc78:pkg/futu/subscription_lifecycle_test.go:236
+        // TestFailedConnectionDoesNotAdvanceEstablishedSessionGeneration.
+        //
+        // A refused connect must leave the coordinator without a session and
+        // without advancing a generation that a later subscriber could observe.
+        let result = OpenDSessionCoordinator::connect(
+            OpenDTcpProbeConfig::new(
+                "127.0.0.1:1".parse().expect("addr"),
+                Duration::from_millis(30),
+            ),
+            Arc::new(MarketDataRuntimeRecorder::default()),
+            Vec::new(),
+            0,
+        );
+        assert!(result.is_err(), "unavailable OpenD must fail closed");
+    }
+
+    #[test]
+    fn coordinator_close_is_terminal_and_prevents_orphaned_reconnect() {
+        // Parity: go:8a78fc78:pkg/futu/subscription_lifecycle_test.go:194
+        // TestExchangeCloseIsTerminalAndPreventsOrphanedReconnect.
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init = read_framed_frame(&mut stream).expect("init");
+            write_response(
+                &mut stream,
+                PROTO_INIT_CONNECT,
+                init.header.serial_no,
+                InitResponse {
+                    ret_type: Some(0),
+                    s2c: Some(InitState {
+                        server_ver: 1009,
+                        conn_id: 7,
+                    }),
+                }
+                .encode_to_vec(),
+            );
+            let mut byte = [0_u8; 1];
+            match stream.read(&mut byte) {
+                Ok(0) => {}
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        std::io::ErrorKind::ConnectionReset
+                            | std::io::ErrorKind::ConnectionAborted
+                            | std::io::ErrorKind::BrokenPipe
+                    ) => {}
+                result => panic!("unexpected client close result: {result:?}"),
+            }
+        });
+
+        let recorder = Arc::new(MarketDataRuntimeRecorder::default());
+        let mut coordinator = OpenDSessionCoordinator::connect(
+            OpenDTcpProbeConfig::new(address, Duration::from_secs(1)),
+            recorder,
+            Vec::new(),
+            0,
+        )
+        .expect("connect");
+        assert!(coordinator.close().expect("close"));
+        // A second close is idempotent and returns false, matching Go's
+        // `Exchange.Close` which only tears down an active client.
+        assert!(!coordinator.close().expect("second close"));
+        // Any post-close operation is rejected as Closed instead of reviving a
+        // session or silently reconnecting.
+        assert!(matches!(
+            coordinator.reconcile_topology(&[], 1),
+            Err(OpenDSessionCoordinatorError::Closed)
+        ));
+        assert!(matches!(
+            coordinator.refresh_quota(2),
+            Err(OpenDSessionCoordinatorError::Closed)
+        ));
+        assert!(matches!(
+            coordinator.poll_once(
+                "2026-08-24T00:00:00Z".parse().expect("timestamp"),
+                Duration::from_millis(1)
+            ),
+            Err(OpenDSessionCoordinatorError::Closed)
+        ));
+        assert!(coordinator.physical_snapshot().is_none());
+        server.join().expect("server");
     }
 
     #[test]

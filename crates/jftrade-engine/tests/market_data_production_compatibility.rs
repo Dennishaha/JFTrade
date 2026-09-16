@@ -96,12 +96,22 @@ struct GetSubInfoResponse {
 
 #[derive(Clone, PartialEq, Message)]
 struct GetSubInfoS2c {
+    #[prost(message, repeated, tag = "1")]
+    conn_sub_info_list: Vec<ConnSubInfo>,
     #[prost(int32, optional, tag = "2")]
     total_used_quota: Option<i32>,
     #[prost(int32, optional, tag = "3")]
     remain_quota: Option<i32>,
     #[prost(int32, optional, tag = "4")]
-    own_used_quota: Option<i32>,
+    option_used_quota: Option<i32>,
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct ConnSubInfo {
+    #[prost(int32, optional, tag = "2")]
+    used_quota: Option<i32>,
+    #[prost(bool, optional, tag = "3")]
+    is_own_conn_data: Option<bool>,
 }
 
 #[derive(Clone, PartialEq, Message)]
@@ -499,9 +509,25 @@ async fn test_futu_quota_and_subscriptions_through_real_composition_runtime() {
                                     ret_type: Some(0),
                                     ret_msg: Some("ok".to_owned()),
                                     s2c: Some(GetSubInfoS2c {
+                                        // Go sums only `isOwnConnData=true`
+                                        // entries; tag 4 is optionUsedQuota.
+                                        conn_sub_info_list: vec![
+                                            ConnSubInfo {
+                                                used_quota: Some(4),
+                                                is_own_conn_data: Some(true),
+                                            },
+                                            ConnSubInfo {
+                                                used_quota: Some(2),
+                                                is_own_conn_data: Some(true),
+                                            },
+                                            ConnSubInfo {
+                                                used_quota: Some(14),
+                                                is_own_conn_data: Some(false),
+                                            },
+                                        ],
                                         total_used_quota: Some(20),
                                         remain_quota: Some(80),
-                                        own_used_quota: Some(6),
+                                        option_used_quota: Some(1),
                                     }),
                                 }
                                 .encode_to_vec(),

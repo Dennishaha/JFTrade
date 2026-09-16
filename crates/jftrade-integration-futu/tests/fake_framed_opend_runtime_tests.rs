@@ -42,12 +42,22 @@ struct GetSubInfoResponse {
 
 #[derive(Clone, PartialEq, Message)]
 struct GetSubInfoS2c {
+    #[prost(message, repeated, tag = "1")]
+    conn_sub_info_list: Vec<ConnSubInfo>,
     #[prost(int32, optional, tag = "2")]
     total_used_quota: Option<i32>,
     #[prost(int32, optional, tag = "3")]
     remain_quota: Option<i32>,
     #[prost(int32, optional, tag = "4")]
-    own_used_quota: Option<i32>,
+    option_used_quota: Option<i32>,
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct ConnSubInfo {
+    #[prost(int32, optional, tag = "2")]
+    used_quota: Option<i32>,
+    #[prost(bool, optional, tag = "3")]
+    is_own_conn_data: Option<bool>,
 }
 
 #[derive(Clone, PartialEq, Message)]
@@ -140,9 +150,23 @@ fn test_quota_success_field_missing_protocol_error_and_preservation() {
                 ret_type: Some(0),
                 ret_msg: Some("ok".to_owned()),
                 s2c: Some(GetSubInfoS2c {
+                    conn_sub_info_list: vec![
+                        ConnSubInfo {
+                            used_quota: Some(3),
+                            is_own_conn_data: Some(true),
+                        },
+                        ConnSubInfo {
+                            used_quota: Some(2),
+                            is_own_conn_data: Some(true),
+                        },
+                        ConnSubInfo {
+                            used_quota: Some(7),
+                            is_own_conn_data: Some(false),
+                        },
+                    ],
                     total_used_quota: Some(15),
                     remain_quota: Some(85),
-                    own_used_quota: Some(5),
+                    option_used_quota: Some(1),
                 }),
             }
             .encode_to_vec(),

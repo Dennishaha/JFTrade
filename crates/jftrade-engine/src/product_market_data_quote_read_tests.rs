@@ -1627,3 +1627,131 @@ async fn snapshot_route_rejects_invalid_refresh_before_provider_access() {
         "invalid refresh must be rejected before provider access"
     );
 }
+
+/// Parity: go:8a78fc78:pkg/futu/subscription_lifecycle_test.go:123
+/// TestQueryKLinesWithoutLeaseReturnsExplicitErrorBeforeRealtimeRead.
+///
+/// A history read without an explicit KLINE lease fails with 409
+/// `MARKET_DATA_SUBSCRIPTION_REQUIRED` before any provider access; the message
+/// names the KLINE channel and the interval, and never leaks a raw OpenD error.
+#[tokio::test]
+async fn candle_read_without_a_kline_lease_fails_before_realtime_provider_access() {
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    let router = Arc::new(Mutex::new(futu_streaming_router()));
+    // Bound the history reader to a live loopback peer that must never be
+    // reached while the lease is missing.
+    let listener = StdTcpListener::bind("127.0.0.1:0").expect("listener");
+    listener
+        .set_nonblocking(true)
+        .expect("nonblocking listener");
+    let port = ProductionMarketDataQuotePort::new(state, Some(router), None, None);
+
+    let error = port
+        .read("/api/v1/market-data/candles/US/AAPL", "period=1m&limit=2")
+        .await
+        .expect_err("missing KLINE lease must be rejected");
+    match error {
+        MarketDataQuoteReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            ..
+        } => {
+            assert_eq!(status, 409);
+            assert_eq!(code, "MARKET_DATA_SUBSCRIPTION_REQUIRED");
+            assert!(message.contains("KLINE"), "message = {message}");
+            assert!(message.contains("US.AAPL:1m"), "message = {message}");
+            assert!(
+                !message.to_ascii_lowercase().contains("opend"),
+                "the raw provider error must not leak: {message}"
+            );
+        }
+        other => panic!("unexpected error: {other:?}"),
+    }
+
+    // The rejected read must not have opened any provider connection.
+    match listener.accept() {
+        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {}
+        other => panic!("missing lease leaked a provider connection: {other:?}"),
+    }
+}
+
+/// Parity: go:8a78fc78:pkg/futu/subscription_lifecycle_test.go:142
+/// TestBasicQuoteReadRequiresExplicitLeaseAndNeverLeaksRawOpenDError.
+///
+/// QueryTicker without a Basic lease answers the broker-neutral 409 envelope
+/// before any provider access; after acquiring the SNAPSHOT lease the same
+/// route proceeds. The public message never contains a raw OpenD error.
+#[tokio::test]
+async fn basic_quote_read_requires_a_lease_and_never_leaks_the_raw_opend_error() {
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    let router = Arc::new(Mutex::new(futu_streaming_router()));
+    let port = ProductionMarketDataQuotePort::new(state, Some(router.clone()), None, None);
+
+    let error = port
+        .read("/api/v1/market-data/snapshots/US/AAPL", "")
+        .await
+        .expect_err("missing lease must be rejected before provider access");
+    match error {
+        MarketDataQuoteReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            ..
+        } => {
+            assert_eq!(status, 409);
+            assert_eq!(code, "MARKET_DATA_SUBSCRIPTION_REQUIRED");
+            assert!(message.contains("SNAPSHOT"), "message = {message}");
+            assert!(message.contains("US.AAPL"), "message = {message}");
+            assert!(
+                !message.contains("retType") && !message.contains("Qot_"),
+                "raw OpenD detail leaked: {message}"
+            );
+        }
+        other => panic!("unexpected error: {other:?}"),
+    }
+
+    // Acquire the logical lease and seed the documented cache source: the same
+    // read now passes the gate rather than reporting a subscription error.
+    router
+        .lock()
+        .expect("router")
+        .acquire_demand(
+            "ticker",
+            [InstrumentRef {
+                channel: "SNAPSHOT".to_owned(),
+                market: "US".to_owned(),
+                symbol: "AAPL".to_owned(),
+                interval: None,
+            }],
+            false,
+            0,
+        )
+        .expect("snapshot lease");
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock")
+        .as_millis() as i64;
+    router
+        .lock()
+        .expect("router")
+        .cache_mut()
+        .insert(
+            jftrade_marketdata::Tick {
+                instrument_id: "US.AAPL".to_owned(),
+                price: "188.25".parse().expect("price"),
+                volume: "7".parse().expect("volume"),
+                volume_delta: None,
+                snapshot: None,
+                observed_at_ms: now_ms,
+                provider_generation: 1,
+            },
+            1,
+        )
+        .expect("cache tick");
+    let response = port
+        .read("/api/v1/market-data/snapshots/US/AAPL", "")
+        .await
+        .expect("leased read");
+    assert_eq!(response["request"]["instrumentId"], "US.AAPL");
+}
