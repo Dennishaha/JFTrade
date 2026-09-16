@@ -13,7 +13,6 @@ mod markets;
 pub(super) use markets::{
     market_label, quote_market, quote_market_label, sec_market, trade_market,
 };
-use markets::quote_market_from_trade_market;
 
 #[derive(Clone, Debug)]
 pub(super) struct ParsedOrder {
@@ -484,15 +483,15 @@ pub(super) fn parse_combo_with_defaults(
                     instrument.trim_start_matches("US.").to_owned(),
                 )
             } else {
-                instrument.rsplit_once('.').map_or_else(
-                    || {
-                        (
-                            quote_market_from_trade_market(order.header.trd_market),
-                            instrument.clone(),
-                        )
-                    },
-                    |(market, code)| (quote_market(market), code.trim().to_owned()),
-                )
+                // Go resolves every option leg through
+                // `futuSecurityFromSymbol` -> `market.ParseInstrument`, which
+                // rejects a symbol without a market prefix.  Falling back to
+                // the trade market here would accept `BAD` as an unqualified
+                // US option and hide a malformed caller intent.
+                let (market, code) = instrument.rsplit_once('.').ok_or_else(|| {
+                    "combo leg instrumentId must be in MARKET.CODE form".to_owned()
+                })?;
+                (quote_market(market), code.trim().to_owned())
             };
             if market == 0 || code.trim().is_empty() {
                 return Err("combo leg instrumentId has an unsupported market".to_owned());

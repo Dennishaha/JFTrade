@@ -28,16 +28,6 @@ pub(crate) fn quote_market(value: &str) -> i32 {
     }
 }
 
-pub(crate) fn quote_market_from_trade_market(value: i32) -> i32 {
-    match value {
-        1 => 1,
-        2 => 11,
-        3 => 0,
-        6 => 31,
-        _ => 0,
-    }
-}
-
 pub(crate) fn quote_market_label(value: i32) -> &'static str {
     match value {
         1 => "HK",

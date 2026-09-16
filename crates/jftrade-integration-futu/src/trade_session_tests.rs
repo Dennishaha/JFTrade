@@ -580,6 +580,61 @@ fn place_order_encodes_packet_conn_id_and_projects_server_order_identity() {
 }
 
 #[test]
+fn event_contract_place_order_encodes_amount_and_prediction_side() {
+    // Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:403
+    // TestFutuTradeProductRequestAndReadLifecycleBranches. Go's
+    // placeOrderRequestFromSubmitOrder forwards the event amount and maps the
+    // YES prediction side to PredSide_Yes (1) on the wire.
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        assert_eq!(request.header.proto_id, trd_place_order::PROTOCOL_ID);
+        let decoded = trd_place_order::Request::decode(request.body.as_slice()).expect("request");
+        assert_eq!(decoded.c2s.amount, Some(20.0));
+        assert_eq!(decoded.c2s.pred_side, Some(1));
+        let response = trd_place_order::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_place_order::S2c {
+                header: trade_header(0, 77_001, 1).into(),
+                order_id: Some(9002),
+                order_id_ex: Some("server-event-1".to_owned()),
+            }),
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+        let mut byte = [0_u8; 1];
+        let _ = stream.read(&mut byte);
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 31).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session_with_conn_id(Arc::clone(&session), 42);
+    let mut request = place_request(0.6);
+    request.code = "US.EVENT".to_owned();
+    request.quantity = 1.0;
+    request.amount = Some(20.0);
+    request.prediction_side = Some(1);
+    let result = client
+        .place_order(request)
+        .expect("event contract place order");
+    assert_eq!(result.order_id_ex.as_deref(), Some("server-event-1"));
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
 fn modify_order_encodes_packet_conn_id_and_returns_server_identity() {
     // Parity: go:452dea11:pkg/futu/opend/trading_methods_test.go:83 TestPlaceOrderAndModifyOrderEncodeTradeWrites
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
@@ -1984,6 +2039,108 @@ fn max_trade_quantity_read_projects_cash_and_margin_buying_power() {
     assert_eq!(snapshot.max_buy_back, Some(150.0));
     session.close().expect("close");
     server.join().expect("server");
+}
+
+#[test]
+fn combo_protocol_transport_errors_are_surfaced() {
+    // Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:475
+    // TestFutuComboProtocolTransportErrors. Dropping the OpenD response for
+    // Trd_GetComboMaxTrdQtys or Trd_PlaceComboOrder must surface a session
+    // error instead of being reported as an empty/successful combo.
+    let max_listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let max_address = max_listener.local_addr().expect("address");
+    let max_server = thread::spawn(move || {
+        let (stream, _) = max_listener.accept().expect("accept");
+        let mut byte = [0_u8; 1];
+        let _ = std::io::Read::read(&mut { stream }, &mut byte);
+    });
+    let max_session = Arc::new(
+        OpenDManagedSession::connect(max_address, Duration::from_millis(500), 29)
+            .expect("max session"),
+    );
+    let max_client = OpenDTradeReadClient::from_managed_session(Arc::clone(&max_session));
+    max_session.close().expect("close max session");
+    let error = max_client
+        .read_combo_max_trade_quantity(TradeComboMaxTradeQuantityRequest {
+            header: trade_header(1, 1001, 2),
+            combo_legs: vec![
+                crate::TradeComboLeg {
+                    market: 11,
+                    code: "US.ONE".to_owned(),
+                    side: Some(1),
+                    qty_ratio: Some(1.0),
+                    position_id: None,
+                    pred_side: None,
+                },
+                crate::TradeComboLeg {
+                    market: 11,
+                    code: "US.TWO".to_owned(),
+                    side: Some(2),
+                    qty_ratio: Some(1.0),
+                    position_id: None,
+                    pred_side: None,
+                },
+            ],
+            quantity: 1.0,
+            price: None,
+            order_type: 1,
+            order_id_ex: None,
+        })
+        .expect_err("dropped combo max trade quantity response must fail");
+    assert!(
+        matches!(error, TradeSessionError::Session(_)),
+        "error = {error:?}"
+    );
+    max_server.join().expect("max server");
+
+    let place_listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let place_address = place_listener.local_addr().expect("address");
+    let place_server = thread::spawn(move || {
+        let (stream, _) = place_listener.accept().expect("accept");
+        let mut byte = [0_u8; 1];
+        let _ = std::io::Read::read(&mut { stream }, &mut byte);
+    });
+    let place_session = Arc::new(
+        OpenDManagedSession::connect(place_address, Duration::from_millis(500), 30)
+            .expect("place session"),
+    );
+    let place_client = OpenDTradeReadClient::from_managed_session(Arc::clone(&place_session));
+    place_session.close().expect("close place session");
+    let error = place_client
+        .place_combo_order(TradePlaceComboOrderRequest {
+            header: trade_header(1, 1001, 2),
+            combo_legs: vec![
+                crate::TradeComboLeg {
+                    market: 11,
+                    code: "US.ONE".to_owned(),
+                    side: Some(1),
+                    qty_ratio: Some(1.0),
+                    position_id: None,
+                    pred_side: None,
+                },
+                crate::TradeComboLeg {
+                    market: 11,
+                    code: "US.TWO".to_owned(),
+                    side: Some(2),
+                    qty_ratio: Some(1.0),
+                    position_id: None,
+                    pred_side: None,
+                },
+            ],
+            quantity: 1.0,
+            price: None,
+            order_type: 1,
+            time_in_force: None,
+            expire_time: None,
+            remark: None,
+            quote_id: None,
+        })
+        .expect_err("dropped combo place response must fail");
+    assert!(
+        matches!(error, TradeSessionError::Session(_)),
+        "error = {error:?}"
+    );
+    place_server.join().expect("place server");
 }
 
 #[test]

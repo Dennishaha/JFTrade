@@ -1,7 +1,8 @@
 use super::*;
 
 use jftrade_integration_futu::{
-    TradeAccountSnapshot, TradeCashFlowSnapshot, TradeComboMaxTradeQuantityRequest,
+    PredictionMarketReadError, PredictionMarketReadPort, TradeAccountSnapshot,
+    TradeCashFlowSnapshot, TradeComboMaxTradeQuantityRequest,
     TradeComboMaxTradeQuantitySnapshot, TradeFillSnapshot, TradeFilter, TradeFundsSnapshot,
     TradeHeader, TradeMarginRatioSnapshot, TradeMaxTradeQuantityRequest,
     TradeMaxTradeQuantitySnapshot, TradeModifyOrderRequest, TradeOrderFeeSnapshot,
@@ -11,6 +12,29 @@ use jftrade_integration_futu::{
 };
 use serde_json::json;
 use std::sync::{Arc, Mutex};
+
+/// Prediction-market read fixture keyed by the requested event-contract code.
+///
+/// `OpenDPredictionMarketReader::snapshot` returns every snapshot row that
+/// OpenD sends, in wire order.  The engine's event-contract validation must
+/// filter on the requested code before reading `status`, so the fixture keeps
+/// an unrelated ACTIVE contract ahead of the requested one exactly like the
+/// Go loopback server in
+/// `pkg/futu/advanced_product_adapter_contracts_test.go:216`.
+#[derive(Debug)]
+struct PredictionReadFixture {
+    entries: Vec<Value>,
+    error: Option<String>,
+}
+
+impl PredictionMarketReadPort for PredictionReadFixture {
+    fn read(&self, _path: &str, _query: &str) -> Result<Value, PredictionMarketReadError> {
+        if let Some(message) = self.error.as_ref() {
+            return Err(PredictionMarketReadError::Transport(message.clone()));
+        }
+        Ok(json!({"entries": self.entries}))
+    }
+}
 
 #[test]
 fn buying_power_defaults_follow_settings_and_preserve_explicit_environment() {
@@ -351,6 +375,121 @@ fn event_parlay_preview_without_real_rfq_adapter_is_unavailable() {
     let error = port
         .combo_preview(&payload)
         .expect_err("RFQ adapter is required");
+    assert!(matches!(error, ExecutionWritePortError::Unavailable(_)));
+}
+
+fn event_parlay_payload() -> Value {
+    json!({
+        "accountId": "42",
+        "brokerId": "futu",
+        "market": "US",
+        "tradingEnvironment": "SIMULATE",
+        "clientOrderId": "parlay-1",
+        "orderKind": "event_parlay",
+        "productClass": "event_contract",
+        "rfqId": "rfq-1",
+        "mvc": "US.MVC",
+        "quoteExpiresAt": "2999-01-01T00:00:00Z",
+        "amount": 10.0,
+        "legs": [
+            {"instrumentId": "US.EC.ONE", "side": "BUY", "ratio": 1, "predictionSide": "YES"},
+            {"instrumentId": "US.EC.TWO", "side": "SELL", "ratio": 1, "predictionSide": "NO"}
+        ]
+    })
+}
+
+fn event_contract_entry(code: &str, status: i64) -> Value {
+    json!({
+        "code": {"market": 101, "code": code},
+        "status": status,
+    })
+}
+
+fn event_parlay_port_with_prediction(
+    runtime: &Arc<SharedTradeReadRuntime>,
+    reader: Option<Arc<dyn PredictionMarketReadPort>>,
+) -> ProductionExecutionPort {
+    runtime.set_prediction_adapters(reader, None, Some(Arc::new(ComboQuoteFixture)));
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, false);
+    let (store, directory) = execution_store();
+    let _ = directory.keep();
+    ProductionExecutionPort {
+        store,
+        active_provider_state: state,
+        trade_logged_in: None,
+        trade_read_port: None,
+        trade_write_port: None,
+        trade_runtime: Some(Arc::clone(runtime)),
+        cancel_inflight: Arc::new(std::sync::Mutex::new(std::collections::BTreeSet::new())),
+        risk_coordinator: None,
+        default_trading_environment: None,
+        notification_projector: None,
+    }
+}
+
+#[derive(Debug)]
+struct ComboQuoteFixture;
+
+impl jftrade_integration_futu::PredictionComboQuotePort for ComboQuoteFixture {
+    fn quote(&self, _payload: &Value) -> Result<Value, PredictionMarketReadError> {
+        Ok(json!({"entries": []}))
+    }
+}
+
+#[test]
+fn event_parlay_preview_rejects_inactive_contract_filtered_from_snapshot_list() {
+    // Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:216
+    // TestFutuEventContractStatusBranches. OpenD may return protocol-compatible
+    // snapshot rows for several contracts; the requested CLOSED contract must be
+    // selected by code and rejected as a business denial, even when an unrelated
+    // ACTIVE row precedes it in the response array.
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    let port = event_parlay_port_with_prediction(
+        &runtime,
+        Some(Arc::new(PredictionReadFixture {
+            entries: vec![
+                event_contract_entry("UNRELATED", 2),
+                event_contract_entry("EC.ONE", 3),
+                event_contract_entry("EC.TWO", 2),
+            ],
+            error: None,
+        })),
+    );
+    let error = port
+        .combo_preview(&event_parlay_payload())
+        .expect_err("closed contract must not preview");
+    match error {
+        ExecutionWritePortError::Failed { status, message, .. } => {
+            assert_eq!(status, 400);
+            assert!(
+                message.contains("not active"),
+                "closed contract message = {message:?}"
+            );
+        }
+        other => panic!("closed contract error = {other:?}"),
+    }
+}
+
+#[test]
+fn event_parlay_preview_surfaces_snapshot_transport_failure() {
+    // Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:475
+    // TestFutuComboProtocolTransportErrors. A dropped Qot_GetEventContractSnapshot
+    // (3445) must fail closed as an infrastructure error instead of reaching the
+    // preview persistence path.
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    let port = event_parlay_port_with_prediction(
+        &runtime,
+        Some(Arc::new(PredictionReadFixture {
+            entries: Vec::new(),
+            error: Some("request timed out".to_owned()),
+        })),
+    );
+    let error = port
+        .combo_preview(&event_parlay_payload())
+        .expect_err("snapshot transport failure must fail closed");
     assert!(matches!(error, ExecutionWritePortError::Unavailable(_)));
 }
 

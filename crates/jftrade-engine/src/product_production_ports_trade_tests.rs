@@ -2032,6 +2032,56 @@ fn broker_capabilities_microstructure_and_research_runtime_ready() {
 }
 
 #[test]
+fn broker_capabilities_keep_warrants_hk_only_and_futures_discoverable_in_hk_us() {
+    // Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:235
+    // TestFutuWarrantsStayHKOnlyAndFuturesRemainDiscoverable. Warrants are a
+    // Hong Kong-only product (warrant + cbbc), while futures stay discoverable
+    // for HK and US without leaking into SH/SZ.
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let value = port
+        .read("/api/v1/brokers/capabilities", "")
+        .expect("read capabilities");
+    let runtime_items = value["runtime"].as_array().expect("runtime items");
+
+    for market in ["HK", "US", "SH", "SZ"] {
+        let market_items = runtime_items
+            .iter()
+            .filter(|item| item["market"] == market)
+            .collect::<Vec<_>>();
+        let warrants = market_items
+            .iter()
+            .find(|item| item["featureId"] == "derivatives.warrants");
+        assert_eq!(
+            warrants.is_some(),
+            market == "HK",
+            "{market} warrants capability"
+        );
+        if let Some(item) = warrants {
+            assert_eq!(
+                item["capability"]["productClasses"],
+                serde_json::json!(["warrant", "cbbc"]),
+                "{market} warrant product classes"
+            );
+        }
+        let futures = market_items
+            .iter()
+            .any(|item| item["featureId"] == "derivatives.futures");
+        assert_eq!(
+            futures,
+            market == "HK" || market == "US",
+            "{market} futures capability"
+        );
+    }
+}
+
+#[test]
 fn broker_capabilities_quote_right_unverified_when_opend_disconnected() {
     let runtime = Arc::new(SharedTradeReadRuntime::default());
     runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));

@@ -15,8 +15,8 @@ use std::time::Duration;
 
 use jftrade_integration_futu::{
     Frame, FutuRemoteWatchlistReader, OpenDSessionCoordinator, OpenDTcpProbeConfig,
-    PROTO_GET_USER_SECURITY, PROTO_GET_USER_SECURITY_GROUP, RemoteWatchlistReadPort, decode_frame,
-    encode_frame,
+    PROTO_GET_USER_SECURITY, PROTO_GET_USER_SECURITY_GROUP, RemoteWatchlistReadPort,
+    RemoteWatchlistWritePort, decode_frame, encode_frame,
 };
 use jftrade_marketdata::MarketDataRuntimeRecorder;
 use prost::Message;
@@ -243,6 +243,51 @@ fn groups_encode_group_type_all_and_project_custom_and_system() {
     assert_eq!(groups[0]["type"], "custom");
     assert_eq!(groups[1]["name"], "All");
     assert_eq!(groups[1]["type"], "system");
+    close(&coordinator);
+    task.join().expect("server");
+}
+
+// Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:22
+// TestFutuAdvancedSpecializedReadersAndCustomizationSuccess (watchlist write)
+//
+// ApplyCustomization for the remote watchlist maps `op: 1` to the OpenD
+// ModifyUserSecurity add operation and forwards the security list unchanged.
+#[test]
+fn remote_watchlist_modify_encodes_group_operation_and_security_list() {
+    use jftrade_integration_futu::trade_proto::qot_modify_user_security as wire;
+
+    let (address, task) = server(move |stream, request, _next| {
+        assert_eq!(request.header.proto_id, 3214);
+        let decoded = wire::Request::decode(request.body.as_slice()).expect("modify request");
+        assert_eq!(decoded.c2s.group_name, "Favorites");
+        assert_eq!(decoded.c2s.op, 1);
+        assert_eq!(decoded.c2s.security_list.len(), 1);
+        assert_eq!(decoded.c2s.security_list[0].market, 11);
+        assert_eq!(decoded.c2s.security_list[0].code, "AAPL");
+        write_response(
+            stream,
+            request.header.proto_id,
+            request.header.serial_no,
+            wire::Response {
+                ret_type: 0,
+                ret_msg: None,
+                err_code: None,
+                s2c: None,
+            }
+            .encode_to_vec(),
+        );
+    });
+    let coordinator = make_coordinator(address, Duration::from_secs(1));
+    let reader = FutuRemoteWatchlistReader::new(Arc::clone(&coordinator));
+    let written = reader
+        .modify(
+            "Favorites",
+            "add",
+            &[serde_json::json!({"market": 11, "code": "AAPL"})],
+        )
+        .expect("remote watchlist write");
+    assert_eq!(written["groupName"], "Favorites");
+    assert_eq!(written["changed"], 1);
     close(&coordinator);
     task.join().expect("server");
 }

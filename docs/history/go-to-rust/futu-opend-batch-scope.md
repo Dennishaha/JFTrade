@@ -1312,3 +1312,69 @@ cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locke
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+## 批次：pkg/futu/advanced_product_adapter_contracts_test.go（8 项）
+
+基线：`go:206a9dfd`。本批 8 项最终为 2 `[x]`、6 `[~]`（partial/boundary），发现并修复 2 处真实差异。
+
+### 真实功能差异（已修复）
+
+1. **Option combo 腿缺少 MARKET.CODE 前缀被静默接受（P0，订单写入边界）**
+   - 复现：`POST /api/v1/execution/combos/previews`，legs 中传入 `{"instrumentId":"BAD",...}`。
+   - 预期（Go）：`futuSecurityFromSymbol` -> `market.ParseInstrument` 拒绝无市场前缀的符号，
+     `PreviewComboOrder`/`PlaceComboOrder` 返回错误。
+   - 修复前：Rust `parse_combo_with_defaults` 用 `quote_market_from_trade_market(trd_market)`
+     回退，把 `BAD` 当成交易市场的未限定代码接受并继续组合流程。
+   - 修复后：非 event_parlay 腿必须含 `MARKET.CODE`，否则返回
+     `combo leg instrumentId must be in MARKET.CODE form`；并删除不再使用的
+     `quote_market_from_trade_market`。
+   - 回归测试：`product_production_ports_execution_order_validation_tests::combo_intent_rejects_missing_kind_legs_and_account`。
+
+2. **SecuritySnapshot securityType 缺 PlateSet/Forex/Crypto（P2，产品身份标签）**
+   - 复现：Qot_GetSecuritySnapshot 返回 secType=9/11/12。
+   - 修复前：`security_snapshot_query::security_type` 落 `UNKNOWN`，而 `instrument_search_query`
+     已输出 `PLATESET`/`FOREX`/`CRYPTO`，同一 provider 内两套标签不一致。
+   - 修复后：补齐 9/11/12 分支，并与搜索 reader 的枚举表逐值一致。
+   - 回归测试：`security_snapshot_query::tests::security_type_mapping_matches_futu_proto_definitions`。
+
+### 行为映射
+
+| Go 测试 | Rust 入口 | 状态与结论 |
+| --- | --- | --- |
+| `:22 TestFutuAdvancedSpecializedReadersAndCustomizationSuccess` | `user_security_protocol.rs::remote_watchlist_modify_encodes_group_operation_and_security_list`；`prediction_category_protocol.rs::prediction_category_read_encodes_protocol_and_projects_entries`；`product_production_ports_market_data_catalog_tests.rs::futu_search_distinguishes_no_match_unsupported_market_and_runtime_failure` | `[~]` partial：按 owner 拆分；新增 3214 watchlist 写入与 3434 分类 loopback 证据，search/错误传播与 depth 已有独立测试 |
+| `:150 TestFutuComboAdapterErrorPropagationBranches` | `product_production_ports_execution_order_validation_tests.rs::combo_intent_rejects_missing_kind_legs_and_account` | `[~]` partial：三条 parse 边界已断言并修复无前缀腿；place/cancel 缺账户两条适配器级断言仍缺 |
+| `:216 TestFutuEventContractStatusBranches` | `product_production_ports_execution_preview_tests.rs::event_parlay_preview_rejects_inactive_contract_filtered_from_snapshot_list` | `[x]` function_exact：过滤不相关 ACTIVE 行后按 code 判定 CLOSED 并拒绝 |
+| `:235 TestFutuWarrantsStayHKOnlyAndFuturesRemainDiscoverable` | `product_production_ports_trade_tests.rs::broker_capabilities_keep_warrants_hk_only_and_futures_discoverable_in_hk_us` | `[x]` function_exact：warrants 仅 HK、productClasses=[warrant,cbbc]，futures 仅 HK|US |
+| `:262 TestSecurityDetailsProductIdentityFallbacks` | `product_market_data_quote_read_tests.rs::futu_securities_route_projects_broker_neutral_envelope_boundary` | `[~]` boundary：Rust 无 SecurityDetails/ProductClass/MarketSegment 类型，公开路由只投影 9 字段契约 |
+| `:336 TestFutuSnapshotProductExtensionsAndSecurityTypeMapping` | `security_snapshot_query.rs::tests::security_type_mapping_matches_futu_proto_definitions` | `[~]` partial：securityType 枚举已与 Go 对齐并修复 9/11/12；SnapshotExData 子块与 ProductClass 无对应结构 |
+| `:403 TestFutuTradeProductRequestAndReadLifecycleBranches` | `execution_order_validation_tests.rs::event_single_rejects_negative_amount_and_invalid_prediction_side`；`trade_session_tests.rs::event_contract_place_order_encodes_amount_and_prediction_side` | `[~]` partial：amount/predictionSide 校验与 Trd_PlaceOrder 编码已覆盖；持仓 ProductClass/OrderKind 属边界 |
+| `:475 TestFutuComboProtocolTransportErrors` | `trade_session_tests.rs::combo_protocol_transport_errors_are_surfaced`；`execution_preview_tests.rs::event_parlay_preview_surfaces_snapshot_transport_failure` | `[~]` partial：combo max/place 会话关闭报错与 3445 Transport→Unavailable 分流均有回归 |
+
+### 新增测试
+
+- `crates/jftrade-integration-futu/tests/prediction_category_protocol.rs`：loopback 3434 分类读取，
+  断言请求 c2s.category 与 categoryName/tags 投影。
+- `crates/jftrade-integration-futu/tests/user_security_protocol.rs`：
+  `remote_watchlist_modify_encodes_group_operation_and_security_list`（3214 group/op/securityList）。
+- `crates/jftrade-integration-futu/src/trade_session_tests.rs`：
+  `combo_protocol_transport_errors_are_surfaced`、
+  `event_contract_place_order_encodes_amount_and_prediction_side`。
+- `crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs`：
+  `event_parlay_preview_rejects_inactive_contract_filtered_from_snapshot_list`、
+  `event_parlay_preview_surfaces_snapshot_transport_failure`。
+- `crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs`：
+  `combo_intent_rejects_missing_kind_legs_and_account`、
+  `event_single_rejects_negative_amount_and_invalid_prediction_side`。
+- `crates/jftrade-engine/src/product_production_ports_trade_tests.rs`：
+  `broker_capabilities_keep_warrants_hk_only_and_futures_discoverable_in_hk_us`。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+pnpm run check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```

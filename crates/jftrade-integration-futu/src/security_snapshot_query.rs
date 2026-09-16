@@ -301,7 +301,10 @@ fn security_type(value: i32) -> &'static str {
         6 => "INDEX",
         7 => "PLATE",
         8 => "OPTION",
+        9 => "PLATESET",
         10 => "FUTURE",
+        11 => "FOREX",
+        12 => "CRYPTO",
         _ => "UNKNOWN",
     }
 }
@@ -540,6 +543,10 @@ mod tests {
 
     #[test]
     fn security_type_mapping_matches_futu_proto_definitions() {
+        // Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:336
+        // TestFutuSnapshotProductExtensionsAndSecurityTypeMapping. Go projects
+        // the OpenD SecurityType enum through its generated name table, so
+        // PlateSet/Forex/Crypto are distinct labels rather than UNKNOWN.
         assert_eq!(security_type(1), "BOND");
         assert_eq!(security_type(2), "BWRT");
         assert_eq!(security_type(3), "EQUITY");
@@ -548,7 +555,10 @@ mod tests {
         assert_eq!(security_type(6), "INDEX");
         assert_eq!(security_type(7), "PLATE");
         assert_eq!(security_type(8), "OPTION");
+        assert_eq!(security_type(9), "PLATESET");
         assert_eq!(security_type(10), "FUTURE");
+        assert_eq!(security_type(11), "FOREX");
+        assert_eq!(security_type(12), "CRYPTO");
         assert_eq!(security_type(99), "UNKNOWN");
     }
 

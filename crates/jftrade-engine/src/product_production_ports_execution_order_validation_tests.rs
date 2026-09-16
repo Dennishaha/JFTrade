@@ -120,6 +120,92 @@ fn combo_preview_hash_binds_client_order_id() {
 }
 
 #[test]
+fn combo_intent_rejects_missing_kind_legs_and_account() {
+    // Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:150
+    // TestFutuComboAdapterErrorPropagationBranches. The Go adapter rejects an
+    // empty ComboOrderIntent, a leg whose instrumentId has no market prefix,
+    // and a valid intent whose accountId cannot resolve a trade account.
+    assert!(parse_combo(&json!({})).is_err(), "empty combo intent");
+
+    let bad_symbol = json!({
+        "accountId": "1001",
+        "market": "US",
+        "clientOrderId": "combo-bad-symbol",
+        "orderKind": "option_combo",
+        "productClass": "option",
+        "underlyingInstrumentId": "US.AAPL",
+        "optionStrategy": "vertical",
+        "nearExpiry": "2026-07-17",
+        "spread": 10,
+        "legs": [
+            {"instrumentId": "BAD", "productClass": "option", "side": "BUY", "ratio": 1},
+            {
+                "instrumentId": "US.AAPL260717C00210000",
+                "productClass": "option",
+                "side": "SELL",
+                "ratio": 1
+            }
+        ]
+    });
+    let error = parse_combo(&bad_symbol).expect_err("unqualified option leg must be rejected");
+    assert!(
+        error.contains("MARKET.CODE"),
+        "unqualified leg error = {error:?}"
+    );
+
+    let missing_account = json!({
+        "market": "US",
+        "clientOrderId": "combo-missing-account",
+        "orderKind": "option_combo",
+        "productClass": "option",
+        "underlyingInstrumentId": "US.AAPL",
+        "optionStrategy": "vertical",
+        "nearExpiry": "2026-07-17",
+        "spread": 10,
+        "legs": [
+            {"instrumentId": "US.ONE", "side": "BUY", "ratio": 1},
+            {"instrumentId": "US.TWO", "side": "SELL", "ratio": 1}
+        ]
+    });
+    let error = parse_combo(&missing_account).expect_err("accountId is required");
+    assert!(error.contains("accountId"), "error = {error:?}");
+}
+
+#[test]
+fn event_single_rejects_negative_amount_and_invalid_prediction_side() {
+    // Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:403
+    // TestFutuTradeProductRequestAndReadLifecycleBranches. A negative
+    // event amount and a "MAYBE" prediction side fail before the request is
+    // built; a valid YES contract maps to Futu's PredSide_Yes (1).
+    let base = |amount: Value, side: &str| {
+        json!({
+            "accountId": "1001",
+            "market": "US",
+            "symbol": "US.EVENT",
+            "side": "BUY",
+            "orderType": "LIMIT",
+            "quantity": 1,
+            "price": 0.6,
+            "clientOrderId": "event-1",
+            "orderKind": "event_single",
+            "productClass": "event_contract",
+            "amount": amount,
+            "predictionSide": side,
+        })
+    };
+    let error = parse_order(&base(json!(-1.0), "YES")).expect_err("negative amount");
+    assert!(error.contains("quantity must be positive"), "error = {error:?}");
+
+    let error = parse_order(&base(json!(20.0), "MAYBE")).expect_err("invalid prediction side");
+    assert!(error.contains("predictionSide"), "error = {error:?}");
+
+    let parsed = parse_order(&base(json!(20.0), "YES")).expect("valid event contract");
+    assert_eq!(parsed.prediction_side, Some(1));
+    assert_eq!(parsed.amount, Some(20.0));
+    assert_eq!(parsed.order_kind, "event_single");
+}
+
+#[test]
 fn test_normalize_execution_order_uses_env_fallback_and_supports_non_limit_us_sessions() {
     // Parity: internal/trading/execution_test.go:965 TestNormalizeExecutionOrderUsesEnvFallbackAndSupportsNonLimitUSSessions
     let payload = json!({
