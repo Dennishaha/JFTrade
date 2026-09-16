@@ -299,3 +299,103 @@ strategy.entry("Long", strategy.long)"#;
         assert_eq!(program.metadata.pyramiding, 2);
     }
 }
+
+#[cfg(test)]
+mod parse_metadata_tests {
+    use super::lower::LoweredStatement;
+    use super::*;
+
+    /// Parity: pkg/strategy/pine/parse_test.go:145
+    /// TestCompileParsesBacktestStrategyMetadata
+    #[test]
+    fn compile_parses_backtest_strategy_metadata() {
+        let script = r#"//@version=6
+strategy("Costs", initial_capital=250000, commission_type=strategy.commission.percent, commission_value=0.15, slippage=3, process_orders_on_close=true)
+strategy.entry("Long", strategy.long, qty=1)"#;
+        let compilation = compile(script);
+        assert!(
+            compilation.ok,
+            "diagnostics = {:?}",
+            compilation.diagnostics
+        );
+        let metadata = compilation.program.expect("program").metadata;
+        assert_eq!(metadata.initial_capital.as_deref(), Some("250000"));
+        assert_eq!(metadata.commission_type.as_deref(), Some("percent"));
+        assert_eq!(metadata.commission_value.as_deref(), Some("0.15"));
+        assert_eq!(metadata.slippage, Some(3));
+        assert!(metadata.process_on_close);
+    }
+
+    /// Parity: pkg/strategy/pine/parse_test.go:186
+    /// TestCompileExplicitEntryQtyOverridesStrategyDefaultQuantity
+    #[test]
+    fn compile_explicit_entry_qty_overrides_strategy_default_quantity() {
+        let script = r#"//@version=6
+strategy("Explicit Qty", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10)
+strategy.entry("Long", strategy.long, qty=5)"#;
+        let compilation = compile(script);
+        assert!(
+            compilation.ok,
+            "diagnostics = {:?}",
+            compilation.diagnostics
+        );
+        let program = compilation.program.expect("program");
+        assert_eq!(
+            program.metadata.default_qty_mode, "percent_of_equity",
+            "strategy default stays percent_of_equity"
+        );
+        let LoweredStatement::Action {
+            call, arguments, ..
+        } = &program.hooks[0].statements[0]
+        else {
+            panic!("first statement is not an action");
+        };
+        assert_eq!(call, "strategy.entry");
+        assert!(
+            arguments
+                .iter()
+                .any(|argument| argument.to_string().ends_with("5)")),
+            "explicit qty=5 must survive lowering: {arguments:?}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod parse_history_reference_tests {
+    use super::lower::LoweredStatement;
+    use super::*;
+
+    /// Parity: pkg/strategy/pine/parse_test.go:232
+    /// TestCompileSupportsMultiBarHistoryReferences
+    ///
+    /// Go rewrites `close[2]` into `history(close, 2)` inside the lowered
+    /// condition. Rust keeps the same information as a typed `Index`
+    /// expression, so the contract is asserted structurally: every multi-bar
+    /// reference survives lowering with its lookback and receiver intact.
+    #[test]
+    fn compile_supports_multi_bar_history_references() {
+        let script = r#"//@version=6
+strategy("History", overlay=true)
+[basis, upper, lower] = ta.bb(close, 20, 2)
+emaFast = ta.ema(close, 3)
+if close > close[2] and hlc3 > hlc3[3] and emaFast > emaFast[5] and close > upper[2]
+    strategy.entry("Long", strategy.long, qty=1)"#;
+        let compilation = compile(script);
+        assert!(
+            compilation.ok,
+            "diagnostics = {:?}",
+            compilation.diagnostics
+        );
+        let program = compilation.program.expect("program");
+        let LoweredStatement::If { condition, .. } = &program.hooks[0].statements[2] else {
+            panic!("statement 2 is not an if");
+        };
+        let rendered = condition.to_string();
+        for expected in ["close[2]", "hlc3[3]", "emaFast[5]", "upper[2]"] {
+            assert!(
+                rendered.contains(expected),
+                "condition {rendered:?} must keep {expected}"
+            );
+        }
+    }
+}

@@ -284,7 +284,20 @@ fn lower_metadata(strategy: &StrategyDeclaration) -> StrategyMetadata {
         metadata.initial_capital = Some(value);
     }
     if let Some(value) = named.get("commission_type").and_then(simple_string) {
-        metadata.commission_type = Some(value);
+        // Go's `normalizeStrategyCommissionType` strips the
+        // `strategy.commission.` prefix and only accepts the three documented
+        // values, so the lowered metadata stores the bare enum.
+        let normalized = value.trim().to_ascii_lowercase();
+        let normalized = normalized
+            .strip_prefix("strategy.commission.")
+            .unwrap_or(&normalized)
+            .to_owned();
+        if matches!(
+            normalized.as_str(),
+            "percent" | "cash_per_order" | "cash_per_contract"
+        ) {
+            metadata.commission_type = Some(normalized);
+        }
     }
     if let Some(value) = named.get("commission_value").and_then(simple_string) {
         metadata.commission_value = Some(value);

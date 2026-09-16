@@ -65,3 +65,21 @@ fallback、catalog activity 空页，以及 catalog runtime 恢复的 2 条生�
   `qty=1` 等值表达式，Go 的 `OrderStmt` 直接存 `QuantityExpression`；
   测试断言“存在 qty 值”，并保留结构差异说明。
 
+## 批次：Pine 元数据、历史引用与显式数量
+
+| Go 测试 | Rust 入口 | 结论 |
+| --- | --- | --- |
+| `parse_test.go:145 TestCompileParsesBacktestStrategyMetadata` | `parse_metadata_tests::compile_parses_backtest_strategy_metadata` | `[x]`：初始资金、佣金、滑点、收盘处理全部一致。 |
+| `parse_test.go:186 TestCompileExplicitEntryQtyOverridesStrategyDefaultQuantity` | `parse_metadata_tests::compile_explicit_entry_qty_overrides_strategy_default_quantity` | `[x]`：显式 qty 覆盖策略默认。 |
+| `parse_test.go:232 TestCompileSupportsMultiBarHistoryReferences` | `parse_history_reference_tests::compile_supports_multi_bar_history_references` | `[x]`：四个多 bar 引用在 lowering 后保留。 |
+| `parse_test.go:167 TestCompilePreservesOrderNotificationMetadataAndImmediateClose` | `lower.rs::lower_statement` | `[~]`/boundary：Rust `Action` 无 typed Comment/AlertMessage/DisableAlert/Immediate 投影。 |
+
+### 发现并修复的真实功能差异
+
+- 复现：`commission_type=strategy.commission.percent`。
+- 修复前：Rust 原样保留 `strategy.commission.percent`。
+- 预期（Go `normalizeStrategyCommissionType`）：剥离 `strategy.commission.`
+  前缀并规范为 `percent`，未知值不加警告即忽略。
+- 修复位置：`crates/jftrade-strategy/src/pine/lower.rs::lower_metadata`。
+- 回归：`compile_parses_backtest_strategy_metadata`。
+
