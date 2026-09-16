@@ -732,14 +732,247 @@ pub(crate) fn positions_projection(
 pub(crate) fn orders_projection(
     payload: trade_proto::trd_get_order_list::S2c,
 ) -> Vec<TradeOrderSnapshot> {
-    payload.order_list.into_iter().map(Into::into).collect()
+    let mut orders = payload
+        .order_list
+        .into_iter()
+        .map(Into::into)
+        .collect::<Vec<_>>();
+    // Parity: `go:452dea11:pkg/futu/exchange_trade_read.go:285`
+    // `brokerOrderSnapshotsFromProto` sorts by `brokerOrderSortKey` descending
+    // (UpdatedAt, falling back to SubmittedAt) and breaks ties on the numeric
+    // broker order id descending. OpenD's own ordering is not a contract, so
+    // the neutral read must reproduce Go's newest-first rows.
+    orders.sort_by(|left, right| {
+        order_sort_key(right)
+            .cmp(&order_sort_key(left))
+            .then_with(|| right.order_id.cmp(&left.order_id))
+    });
+    orders
 }
 pub(crate) fn fills_projection(
     payload: trade_proto::trd_get_order_fill_list::S2c,
 ) -> Vec<TradeFillSnapshot> {
-    payload
+    let mut fills = payload
         .order_fill_list
         .into_iter()
         .map(Into::into)
-        .collect()
+        .collect::<Vec<_>>();
+    // Parity: `go:452dea11:pkg/futu/exchange_trade_read.go:306`
+    // `brokerOrderFillSnapshotsFromProto` sorts by FilledAt descending and
+    // breaks ties on the numeric broker fill id descending.
+    fills.sort_by(|left, right| {
+        fill_sort_key(right)
+            .cmp(&fill_sort_key(left))
+            .then_with(|| right.fill_id.cmp(&left.fill_id))
+    });
+    fills
+}
+
+/// Sort key for `TradeOrderSnapshot`, mirroring Go's `brokerOrderSortKey`:
+/// UpdatedAt wins when parseable, otherwise SubmittedAt; unparseable values
+/// sort last.
+fn order_sort_key(order: &TradeOrderSnapshot) -> (u8, i64, i64) {
+    let updated = time_sort_key(order.update_timestamp, &order.update_time);
+    if updated.0 == 1 {
+        return updated;
+    }
+    time_sort_key(order.create_timestamp, &order.create_time)
+}
+
+fn fill_sort_key(fill: &TradeFillSnapshot) -> (u8, i64, i64) {
+    time_sort_key(fill.create_timestamp, &fill.create_time)
+}
+
+/// Mirrors Go's `formatBrokerOrderTime(timestamp, fallback, ...)`: a positive
+/// unix seconds timestamp wins over the textual fallback, and unparseable text
+/// sorts last. Naive fallback strings are interpreted as UTC; the engine's
+/// per-market timezone normalization happens before this projection.
+fn time_sort_key(timestamp: Option<f64>, fallback: &str) -> (u8, i64, i64) {
+    if let Some(timestamp) = timestamp.filter(|value| value.is_finite() && *value > 0.0) {
+        let seconds = timestamp.trunc() as i64;
+        let nanos = ((timestamp.fract()) * 1_000_000_000.0).round() as i64;
+        return (1, seconds, nanos.clamp(0, 999_999_999));
+    }
+    parse_order_time(fallback)
+        .map(|(seconds, nanos)| (1, seconds, nanos))
+        .unwrap_or((0, 0, 0))
+}
+
+/// Parses the RFC3339 form OpenD emits (`2026-06-20T13:35:00Z`, fractional
+/// seconds allowed) plus the space-separated fallback form
+/// (`2026-06-20 09:30:00`), returning `(unix_seconds, nanosecond_remainder)`.
+/// Anything unparseable yields `None` so callers can sort it last.
+fn parse_order_time(value: &str) -> Option<(i64, i64)> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if let Ok(parsed) =
+        time::OffsetDateTime::parse(trimmed, &time::format_description::well_known::Rfc3339)
+    {
+        return Some((parsed.unix_timestamp(), i64::from(parsed.nanosecond())));
+    }
+    for format in [
+        "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]",
+        "[year]-[month]-[day] [hour]:[minute]:[second]",
+    ] {
+        if let Ok(format) = time::format_description::parse_borrowed::<2>(format)
+            && let Ok(parsed) = time::PrimitiveDateTime::parse(trimmed, &format)
+        {
+            let utc = parsed.assume_utc();
+            return Some((utc.unix_timestamp(), i64::from(utc.nanosecond())));
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::trade_proto::trd_common::{Order, OrderFill};
+
+    fn order(
+        id: u64,
+        create_time: &str,
+        update_time: &str,
+        create_timestamp: Option<f64>,
+        update_timestamp: Option<f64>,
+    ) -> Order {
+        Order {
+            trd_side: 1,
+            order_type: 1,
+            order_status: 5,
+            order_id: id,
+            order_id_ex: String::new(),
+            code: "AAPL".to_owned(),
+            name: String::new(),
+            qty: 1.0,
+            price: None,
+            create_time: create_time.to_owned(),
+            update_time: update_time.to_owned(),
+            fill_qty: None,
+            fill_avg_price: None,
+            last_err_msg: None,
+            sec_market: None,
+            create_timestamp,
+            update_timestamp,
+            remark: None,
+            trd_market: None,
+            expire_time: None,
+            order_amount: None,
+            time_in_force: None,
+            fill_outside_rth: None,
+            aux_price: None,
+            trail_type: None,
+            trail_value: None,
+            trail_spread: None,
+            currency: None,
+            session: None,
+            jp_acc_type: None,
+            strategy_type: None,
+            combo_legs: Vec::new(),
+        }
+    }
+
+    fn fill(id: u64, create_time: &str, create_timestamp: Option<f64>) -> OrderFill {
+        OrderFill {
+            trd_side: 1,
+            fill_id: id,
+            fill_id_ex: String::new(),
+            order_id: None,
+            order_id_ex: None,
+            code: "AAPL".to_owned(),
+            name: String::new(),
+            qty: 1.0,
+            price: 1.0,
+            create_time: create_time.to_owned(),
+            counter_broker_id: None,
+            counter_broker_name: None,
+            sec_market: None,
+            create_timestamp,
+            update_timestamp: None,
+            status: None,
+            trd_market: None,
+            jp_acc_type: None,
+        }
+    }
+
+    #[test]
+    fn orders_projection_sorts_newest_updated_first_with_id_tiebreak() {
+        // Parity: go:452dea11:pkg/futu/exchange_business_boundary_test.go:92
+        // TestBalanceMapFromFundsAndBrokerOrderSortBoundaries (order sort keys)
+        // plus :285 `brokerOrderSnapshotsFromProto` ordering.
+        let orders = orders_projection(trade_proto::trd_get_order_list::S2c {
+            header: Default::default(),
+            order_list: vec![
+                order(11, "2026-06-20 09:30:00", "2026-06-20 13:35:00", None, None),
+                order(
+                    12,
+                    "2026-06-20T13:30:00Z",
+                    "2026-06-20T13:35:00Z",
+                    None,
+                    None,
+                ),
+                // Unparseable timestamps must sort last, not panic or win.
+                order(13, "not-a-time", "", None, None),
+                // Timestamp fields win over textual fallbacks, as in Go's
+                // `formatBrokerOrderTime`.
+                order(
+                    14,
+                    "2026-06-20T13:40:00Z",
+                    "2026-06-20T13:40:00Z",
+                    None,
+                    Some(1_781_962_800.0),
+                ),
+            ],
+        });
+        assert_eq!(
+            orders
+                .iter()
+                .map(|order| order.order_id)
+                .collect::<Vec<_>>(),
+            vec![14, 12, 11, 13],
+            "updatedAt desc, then broker order id desc, unparseable last"
+        );
+    }
+
+    #[test]
+    fn orders_projection_falls_back_to_submitted_at_and_applies_timestamp_fields() {
+        // Parity: go:452dea11:pkg/futu/exchange_trade_read.go:285 and
+        // trade_read_convert.go:176 `brokerOrderSortKey` submitted fallback.
+        let orders = orders_projection(trade_proto::trd_get_order_list::S2c {
+            header: Default::default(),
+            order_list: vec![
+                order(21, "2026-06-20 09:30:00", "", None, None),
+                order(22, "2026-06-20 09:31:00", "", None, None),
+                order(23, "2026-06-20 14:00:00", "", Some(1_781_964_000.0), None),
+            ],
+        });
+        assert_eq!(
+            orders
+                .iter()
+                .map(|order| order.order_id)
+                .collect::<Vec<_>>(),
+            vec![23, 22, 21]
+        );
+    }
+
+    #[test]
+    fn fills_projection_sorts_filled_at_desc_with_id_tiebreak() {
+        // Parity: go:452dea11:pkg/futu/exchange_business_boundary_test.go:92
+        // `brokerOrderFillSortKey` plus :306 fill ordering.
+        let fills = fills_projection(trade_proto::trd_get_order_fill_list::S2c {
+            header: Default::default(),
+            order_fill_list: vec![
+                fill(31, "2026-06-20T13:31:00Z", None),
+                fill(32, "2026-06-20T13:31:00Z", None),
+                fill(33, "2026-06-20T13:35:00Z", None),
+                fill(34, "", None),
+            ],
+        });
+        assert_eq!(
+            fills.iter().map(|fill| fill.fill_id).collect::<Vec<_>>(),
+            vec![33, 32, 31, 34]
+        );
+    }
 }

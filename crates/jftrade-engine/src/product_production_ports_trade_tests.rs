@@ -966,7 +966,10 @@ fn margin_ratios_reuse_a_recent_success_within_the_ttl() {
     let second = port
         .read("/api/v1/brokers/futu/margin-ratios", query)
         .expect("second margin ratios");
-    assert_eq!(first, second);
+    // The cache stores snapshots, not the whole response: `checkedAt` is the
+    // wall-clock time of each read (the Go baseline only asserts the cached
+    // result and call count), so compare the payload rather than the envelope.
+    assert_eq!(first["marginRatios"], second["marginRatios"]);
     assert_eq!(reader.calls.load(Ordering::SeqCst), 1);
 }
 
@@ -1103,6 +1106,190 @@ fn portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty
     assert_eq!(balances[0]["currency"], "HKD");
     assert_eq!(balances[0]["cashBalance"], 3.0);
     assert!(balances[0]["updatedAt"].as_str().is_some());
+}
+
+#[test]
+fn trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols() {
+    // Parity: go:452dea11:pkg/futu/exchange_business_boundary_test.go:349
+    // TestTradeSecurityInfoAndRuntimeMarketAuthorityBoundaries
+    // (`tradeSecurityInfoFromSymbol`). Go requires an explicit MARKET.CODE
+    // (dot or colon); Rust's margin-ratios query additionally accepts a bare
+    // code plus a `market` parameter, so this pins the prefixed forms and the
+    // rejections Go guarantees.
+    let cases = [
+        ("HK.00700", 1, "00700"),
+        ("US.AAPL", 11, "AAPL"),
+        ("SH.600519", 21, "600519"),
+        ("SZ.000001", 22, "000001"),
+        ("SG.D05", 31, "D05"),
+        ("JP.7203", 41, "7203"),
+        ("AU.BHP", 51, "BHP"),
+        ("MY.1155", 61, "1155"),
+        ("CA.SHOP", 71, "SHOP"),
+        ("US:AAPL", 11, "AAPL"),
+    ];
+    for (symbol, market, code) in cases {
+        let request = TradeRequest::parse(
+            "/api/v1/brokers/futu/margin-ratios",
+            &format!("accountId=42&symbol={symbol}"),
+        )
+        .expect("request");
+        let securities = request.securities().expect(symbol);
+        assert_eq!(securities.len(), 1, "symbol={symbol}");
+        assert_eq!(securities[0].market, market, "symbol={symbol}");
+        assert_eq!(securities[0].code, code, "symbol={symbol}");
+    }
+    for symbol in ["EU.SAP", "UNKNOWN.SAP", "HK."] {
+        let request = TradeRequest::parse(
+            "/api/v1/brokers/futu/margin-ratios",
+            &format!("accountId=42&symbol={symbol}"),
+        )
+        .expect("request");
+        assert!(request.securities().is_err(), "symbol={symbol:?}");
+    }
+}
+
+#[test]
+fn runtime_market_authority_covers_go_market_variants() {
+    // Parity: go:452dea11:pkg/futu/exchange_business_boundary_test.go:349
+    // runtimeMarkets map: fund/simulated/derivative variants collapse onto the
+    // stock authority, and unknown codes are skipped rather than surfaced.
+    for (code, authority) in [
+        (4, "HK"),
+        (113, "HK"),
+        (10, "HK"),
+        (123, "US"),
+        (11, "US"),
+        (3, "CN"),
+        (124, "SG"),
+        (12, "SG"),
+        (8, "AU"),
+        (126, "JP"),
+        (13, "JP"),
+        (125, "MY"),
+        (112, "CA"),
+        (7, "CRYPTO"),
+        (5, "FUTURES"),
+    ] {
+        assert_eq!(trade_market_authority(code), Some(authority), "code={code}");
+    }
+    assert_eq!(trade_market_authority(999_999), None);
+    assert_eq!(trade_market_authority(0), None);
+}
+
+#[test]
+fn historical_kline_error_surfaces_return_code_and_message() {
+    // Parity: go:452dea11:pkg/futu/exchange_business_boundary_test.go:349
+    // historicalKLineRequestError formatting (retType/errCode/retMsg).
+    let error = jftrade_integration_futu::HistoricalKlineError::Rejected {
+        ret_type: 1,
+        err_code: 42,
+        message: "session unsupported".to_owned(),
+    };
+    let message = error.to_string();
+    assert!(message.contains("1"), "message={message}");
+    assert!(message.contains("42"), "message={message}");
+    assert!(message.contains("session unsupported"), "message={message}");
+}
+
+#[test]
+fn portfolio_cash_balances_prefer_currency_rows_over_summary_fallback() {
+    // Parity: go:452dea11:pkg/futu/exchange_business_boundary_test.go:18
+    // TestBalanceMapFromBrokerFundsUsesCurrencyRowsBeforeAccountFallback and
+    // :46 TestBalanceMapFromBrokerFundsFallsBackToMarketCurrencyAndLockedCash.
+    // Go's `balanceMapFromBrokerFunds` returns the per-currency rows when any
+    // exist and only falls back to the market/summary currency otherwise; a
+    // funds payload whose currency enum is unknown must drop that row rather
+    // than emit a null-currency balance.
+    let resolved = ResolvedTradeRequest {
+        account_id: "42".to_owned(),
+        environment: "REAL".to_owned(),
+        market: "US".to_owned(),
+        header: trade_header(1, 42, 2),
+    };
+    let mut funds = FakeTradeRead
+        .read_funds(trade_header(1, 42, 2), None, None, None)
+        .expect("funds")
+        .funds;
+    // FakeTradeRead carries one HKD cash row plus a summary currency; the row
+    // must win and the USD market fallback must not be emitted.
+    let balances = portfolio_cash_balance_values("futu", &resolved, &funds);
+    assert_eq!(balances.len(), 1);
+    assert_eq!(balances[0]["currency"], "HKD");
+    assert_eq!(balances[0]["cashBalance"], 3.0);
+
+    // An unknown currency enum on the only row drops it and falls back to the
+    // funds summary currency, still without inventing a null-currency row.
+    funds.cash_info_list = vec![jftrade_integration_futu::TradeCashInfo {
+        currency: Some(999),
+        cash: Some(10.0),
+        available_balance: None,
+        net_cash_power: None,
+    }];
+    let balances = portfolio_cash_balance_values("futu", &resolved, &funds);
+    assert_eq!(balances.len(), 1);
+    assert_eq!(balances[0]["currency"], "HKD");
+    assert_eq!(balances[0]["cashBalance"], 3.0);
+}
+
+#[test]
+fn portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent() {
+    // Parity: go:452dea11:pkg/futu/trade_read_convert.go:38
+    // `balanceMapFromBrokerFunds` -> `defaultFundsCurrencyForMarket`. Go falls
+    // back to the market's default currency when the funds payload has no
+    // per-currency rows; Rust previously only fell back when `funds.currency`
+    // was present, so a US account with a currency-less funds payload produced
+    // an empty `balances` array and the portfolio route silently lost cash.
+    let funds = TradeFunds {
+        power: 1_000.0,
+        total_assets: 2_500.0,
+        cash: 2_500.0,
+        market_val: 0.0,
+        frozen_cash: 0.0,
+        debt_cash: 0.0,
+        avl_withdrawal_cash: 2_500.0,
+        currency: None,
+        available_funds: None,
+        unrealized_pl: None,
+        realized_pl: None,
+        risk_level: None,
+        initial_margin: None,
+        maintenance_margin: None,
+        cash_info_list: Vec::new(),
+        max_power_short: None,
+        net_cash_power: None,
+        long_mv: None,
+        short_mv: None,
+        pending_asset: None,
+        max_withdrawal: None,
+        risk_status: None,
+        margin_call_margin: None,
+        is_pdt: None,
+        pdt_seq: None,
+        beginning_dtbp: None,
+        remaining_dtbp: None,
+        dt_call_amount: None,
+        dt_status: None,
+        securities_assets: None,
+        fund_assets: None,
+        bond_assets: None,
+        market_info_list: Vec::new(),
+        crypto_mv: None,
+        exposure_level: None,
+        exposure_limit: None,
+        used_limit: None,
+        remaining_limit: None,
+    };
+    let resolved = ResolvedTradeRequest {
+        account_id: "42".to_owned(),
+        environment: "REAL".to_owned(),
+        market: "US".to_owned(),
+        header: trade_header(1, 42, 2),
+    };
+    let balances = portfolio_cash_balance_values("futu", &resolved, &funds);
+    assert_eq!(balances.len(), 1);
+    assert_eq!(balances[0]["currency"], "USD");
+    assert_eq!(balances[0]["cashBalance"], 2_500.0);
 }
 
 #[test]
@@ -2058,6 +2245,122 @@ fn generated_trade_enum_values_are_preserved() {
     assert_eq!(currency_label(Some(5)), Some("SGD"));
     assert_eq!(trade_side(3), "SELLSHORT");
     assert_eq!(trade_side(4), "BUYBACK");
+}
+
+#[test]
+fn market_and_currency_authority_tables_match_go_boundaries() {
+    // Parity: go:452dea11:pkg/futu/exchange_business_boundary_test.go:216
+    // TestBrokerOrderMarketAndCurrencyBoundaries.
+    //
+    // Go's `defaultFundsCurrencyForMarket` and `fundsCurrencyForMarket` tables
+    // plus the TrdMarket authority variants must stay aligned; Rust modeled the
+    // same tables through `market_label_from_code` + `currency_label`.
+    for (code, authority) in [
+        (1, "HK"),
+        (4, "HK"),
+        (10, "HK"),
+        (113, "HK"),
+        (2, "US"),
+        (11, "US"),
+        (17, "US"),
+        (123, "US"),
+        (3, "CN"),
+        (6, "SG"),
+        (12, "SG"),
+        (124, "SG"),
+        (8, "AU"),
+        (13, "JP"),
+        (15, "JP"),
+        (126, "JP"),
+        (111, "MY"),
+        (125, "MY"),
+        (112, "CA"),
+        (5, "FUTURES"),
+        (7, "CRYPTO"),
+    ] {
+        assert_eq!(trade_market_authority(code), Some(authority), "code={code}");
+    }
+    assert_eq!(trade_market_authority(31), None);
+    assert_eq!(trade_market_authority(999_999), None);
+    for (code, currency) in [
+        (Some(1), Some("HKD")),
+        (Some(2), Some("USD")),
+        (Some(3), Some("CNH")),
+        (Some(4), Some("JPY")),
+        (Some(5), Some("SGD")),
+        (Some(6), Some("AUD")),
+        (Some(7), Some("CAD")),
+        (Some(8), Some("MYR")),
+        (Some(9), Some("NZD")),
+        (Some(0), None),
+        (None, None),
+    ] {
+        assert_eq!(currency_label(code), currency, "code={code:?}");
+    }
+}
+
+#[test]
+fn broker_order_enum_labels_cover_trading_variants() {
+    // Parity: go:452dea11:pkg/futu/exchange_business_boundary_test.go:128 and
+    // :179 TestBrokerOrderMappingCoversOrderLifecycleEnums /
+    // TestBrokerOrderTypeAndTimeInForceMappingsCoverTradingVariants. Rust's
+    // projection is enum-code based, so map the same trading variants Go lists.
+    for (code, label) in [
+        (1, "BUY"),
+        (2, "SELL"),
+        (3, "SELLSHORT"),
+        (4, "BUYBACK"),
+    ] {
+        assert_eq!(trade_side(code), label, "side={code}");
+    }
+    for (code, label) in [
+        (1, "NORMAL"),
+        (2, "MARKET"),
+        (5, "ABSOLUTELIMIT"),
+        (6, "AUCTION"),
+        (7, "AUCTIONLIMIT"),
+        (8, "SPECIALLIMIT"),
+        (9, "SPECIALLIMIT_ALL"),
+        (10, "STOP"),
+        (11, "STOPLIMIT"),
+        (12, "MARKETIFTOUCHED"),
+        (13, "LIMITIFTOUCHED"),
+        (14, "TRAILINGSTOP"),
+        (15, "TRAILINGSTOPLIMIT"),
+    ] {
+        assert_eq!(order_type_label(code), label, "orderType={code}");
+    }
+    // GTT has no direct OpenD TimeInForce enum in Rust's code table; Go only
+    // round-trips the raw string "GTT" through the snapshot layer.
+    for (code, label) in [(0, "DAY"), (1, "GTC"), (2, "IOC"), (3, "GTD")] {
+        assert_eq!(time_in_force_label(code), label, "timeInForce={code}");
+    }
+}
+
+#[test]
+fn broker_order_status_labels_cover_lifecycle_enums() {
+    // Parity: go:452dea11:pkg/futu/exchange_business_boundary_test.go:128
+    // statusCases in TestBrokerOrderMappingCoversOrderLifecycleEnums.
+    for (code, label) in [
+        (0, "UNSUBMITTED"),
+        (1, "WAITINGSUBMIT"),
+        (2, "SUBMITTING"),
+        (3, "SUBMITFAILED"),
+        (4, "TIMEOUT"),
+        (5, "SUBMITTED"),
+        (10, "FILLED_PART"),
+        (11, "FILLED_ALL"),
+        (12, "CANCELLING_PART"),
+        (13, "CANCELLING_ALL"),
+        (14, "CANCELLED_PART"),
+        (15, "CANCELLED_ALL"),
+        (21, "FAILED"),
+        (22, "DISABLED"),
+        (23, "DELETED"),
+        (24, "FILLCANCELLED"),
+    ] {
+        assert_eq!(order_status_label(code), label, "status={code}");
+    }
 }
 
 #[test]

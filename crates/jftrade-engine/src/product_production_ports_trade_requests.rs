@@ -268,16 +268,20 @@ impl TradeRequest {
                     if value.is_empty() {
                         continue;
                     }
-                    let (market, code) = value
-                        .split_once('.')
-                        .unwrap_or((default_market.as_str(), value));
+                    // Parity: `go:452dea11:pkg/futu/exchange_trade_write.go:268`
+                    // `tradeSecurityInfoFromSymbol` accepts both `MARKET.CODE`
+                    // and `MARKET:CODE`. A colon separator must not be treated
+                    // as a bare code, which previously defaulted the market
+                    // and silently resolved `US:AAPL` to the request market.
+                    let qualified = value.split_once('.').or_else(|| value.split_once(':'));
+                    let (market, code) = qualified.unwrap_or((default_market.as_str(), value));
                     let market = market.trim().to_ascii_uppercase();
                     let code = code.trim().to_ascii_uppercase();
                     if code.is_empty() {
                         continue;
                     }
                     if let Some(expected) = explicit_market.as_deref()
-                        && value.contains('.')
+                        && qualified.is_some()
                         && market != expected
                         && !(expected == "CN" && matches!(market.as_str(), "SH" | "SZ"))
                     {

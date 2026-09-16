@@ -489,21 +489,30 @@ fn portfolio_cash_balance_values(
     let mut balances = funds
         .cash_info_list
         .iter()
-        .map(|cash| {
-            json!({
+        // Go's `brokerCurrencyBalanceSnapshots` drops cash rows whose currency
+        // enum is unknown instead of emitting a null-currency balance.
+        .filter_map(|cash| {
+            let currency = currency_label(cash.currency)?;
+            Some(json!({
                 "brokerId": broker_id,
                 "tradingEnvironment": resolved.environment,
                 "accountId": resolved.account_id,
-                "currency": currency_label(cash.currency),
+                "currency": currency,
                 "cashBalance": cash.cash,
                 "updatedAt": timestamp,
                 "createdAt": timestamp,
-            })
+            }))
         })
         .collect::<Vec<_>>();
-    if balances.is_empty()
-        && let Some(currency) = currency_label(funds.currency)
-    {
+    if balances.is_empty() {
+        // Parity: `go:452dea11:pkg/futu/trade_read_convert.go:38`
+        // `balanceMapFromBrokerFunds`: prefer the funds payload currency and
+        // otherwise fall back to the market's default currency
+        // (`defaultFundsCurrencyForMarket`). Only a completely unknown market
+        // with no funds currency would still yield no row.
+        let currency = currency_label(funds.currency)
+            .or_else(|| Some(default_funds_currency_for_market(&resolved.market)));
+        if let Some(currency) = currency {
         balances.push(json!({
             "brokerId": broker_id,
             "tradingEnvironment": resolved.environment,
@@ -513,8 +522,25 @@ fn portfolio_cash_balance_values(
             "updatedAt": timestamp,
             "createdAt": timestamp,
         }));
+        }
     }
     balances
+}
+
+/// Parity: `go:452dea11:pkg/futu/trade_read_convert.go:301`
+/// `defaultFundsCurrencyForMarket`. US/CN/SG/JP/MY/CA/AU map to their local
+/// currency; HK and every other market default to HKD.
+fn default_funds_currency_for_market(market: &str) -> &'static str {
+    match market.trim().to_ascii_uppercase().as_str() {
+        "US" => "USD",
+        "CN" => "CNH",
+        "SG" => "SGD",
+        "JP" => "JPY",
+        "MY" => "MYR",
+        "CA" => "CAD",
+        "AU" => "AUD",
+        _ => "HKD",
+    }
 }
 
 #[cfg(test)]

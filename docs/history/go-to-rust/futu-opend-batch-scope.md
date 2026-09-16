@@ -803,3 +803,88 @@ cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locke
 python3 scripts/compatibility/audit_test_parity.py   # keys OK, 0 invalid [x]
 git diff --check
 ```
+
+## 批次：`pkg/futu/exchange_business_boundary_test.go`（12 项）
+
+基线：`go:452dea11`。本批 8 项 `[x]`（`function_exact`）+ 4 项 `[~]`
+（boundary 3 / partial 1）。逐项复核后修复 **两个真实功能差异**，并把三处
+Go 遗留模型明确记录为架构边界。
+
+### 本批发现与修复
+
+1. **portfolio cash-balances 丢失 market 默认币种回落**（真实功能差异 → 已修复）
+   - 依据：`go:452dea11:pkg/futu/trade_read_convert.go:38`
+     `balanceMapFromBrokerFunds` → `defaultFundsCurrencyForMarket`（:301）。
+   - 差异：Go 在 funds 无 per-currency 行时按 market 默认币种回落
+     （US→USD、CN→CNH、SG→SGD、JP→JPY、MY→MYR、CA→CAD、AU→AUD，其余 HK→HKD）；
+     Rust `portfolio_cash_balance_values` 仅当 `funds.currency` 存在时才回落，
+     currency 缺失时直接返回空 `balances`，账户页现金行静默消失。
+   - 修复位置：`crates/jftrade-engine/src/product_production_ports_trade.rs`
+     新增 `default_funds_currency_for_market`，并按 Go 语义丢弃币种枚举未知的
+     cash 行（不再输出 null currency）。
+   - 回归：`portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent`、
+     `portfolio_cash_balances_prefer_currency_rows_over_summary_fallback`。
+2. **orders/fills 缺少 Go 的倒序排序**（真实功能差异 → 已修复）
+   - 依据：`go:452dea11:pkg/futu/exchange_trade_read.go:285/:306`
+     `brokerOrderSnapshotsFromProto` / `brokerOrderFillSnapshotsFromProto`
+     按 `brokerOrderSortKey`（UpdatedAt，回落 SubmittedAt；timestamp 字段优先）
+     与 `brokerOrderFillSortKey`（FilledAt）倒序，同值按 broker id 倒序。
+   - 差异：Rust `orders_projection` / `fills_projection` 直接透传 OpenD 顺序，
+     历史/当前订单与成交列表顺序依赖上游，不是契约。
+   - 修复位置：`crates/jftrade-integration-futu/src/trade_snapshots.rs`
+     （`order_sort_key`/`fill_sort_key`/`time_sort_key`/`parse_order_time`）。
+   - 回归：`orders_projection_sorts_newest_updated_first_with_id_tiebreak`、
+     `orders_projection_falls_back_to_submitted_at_and_applies_timestamp_fields`、
+     `fills_projection_sorts_filled_at_desc_with_id_tiebreak`。
+3. **`MARKET:CODE` 分隔符缺失**（真实功能差异 → 已修复）
+   - 依据：`go:452dea11:pkg/futu/exchange_trade_write.go:268`
+     `tradeSecurityInfoFromSymbol` 同时接受 `.` 与 `:`。
+   - 差异：Rust `securities()` 只识别 `.`，`US:AAPL` 被当作裸 code 并套用请求
+     market，导致市场静默错配。
+   - 修复位置：`crates/jftrade-engine/src/product_production_ports_trade_requests.rs`。
+   - 回归：`trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols`。
+
+### `[x]`（8 项 function_exact）
+
+| Go 测试 | Rust 证据 |
+| --- | --- |
+| `:18 TestBalanceMapFromBrokerFundsUsesCurrencyRowsBeforeAccountFallback` | `...trade_tests::portfolio_cash_balances_prefer_currency_rows_over_summary_fallback` |
+| `:46 TestBalanceMapFromBrokerFundsFallsBackToMarketCurrencyAndLockedCash` | `...::portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent` |
+| `:92 TestBalanceMapFromFundsAndBrokerOrderSortBoundaries` | `trade_snapshots::tests::orders_projection_sorts_newest_updated_first_with_id_tiebreak`（+ fill 排序测试） |
+| `:128 TestBrokerOrderMappingCoversOrderLifecycleEnums` | `...trade_tests::broker_order_status_labels_cover_lifecycle_enums` |
+| `:179 TestBrokerOrderTypeAndTimeInForceMappingsCoverTradingVariants` | `...::broker_order_enum_labels_cover_trading_variants` |
+| `:216 TestBrokerOrderMarketAndCurrencyBoundaries` | `...::market_and_currency_authority_tables_match_go_boundaries` |
+| `:277 TestExchangeLocalMarketAndOrderBookHandlerBoundaries` | `product_runtime_opend_listener.rs::tests::order_book_pushes_publish_depth_for_the_subscribed_instrument` |
+| `:349 TestTradeSecurityInfoAndRuntimeMarketAuthorityBoundaries` | `...::trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols` |
+
+### 边界与 partial（4 项 `[~]`）
+
+- `:326 TestExchangeInvalidateClientClearsReadyStateAndSubscriptions`（partial）：
+  Rust 无 `Exchange.invalidateClient`；由 `OpenDSessionCoordinator` 走 close/断线重建
+  generation 并重放 desired 订阅，已引用 generation fencing 测试作为等价证据。
+- `:433 TestKLineSessionRegistryResolvesExactRecordAndQuoteSamples`（boundary）：
+  Go 的 `klineSessions` exact-record 缓存不存在；Rust 由注入的 `QuoteSessionResolver`
+  （calendar）与投影层 session 字段解析，不再维护交易所内缓存。
+- `:461 TestKLineSessionSamplePruningAndWindowFallback`（boundary）：
+  Go 的 12h TTL / 256 上限 / ±interval 窗口回落无 Rust 等价缓存。
+- `:487 TestMergeStaticInfoIntoSecurityDetailsFillsMissingFieldsWithoutClobberingSnapshot`
+  （boundary）：Go 把 `GetStaticInfo` 合并进既有 `SecurityDetails` 且不覆盖非空字段；
+  Rust 直接构建 snapshot 投影，不存在合并层，避免复活遗留模型。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```
+
+### 收尾修正
+
+- `product_production_ports_trade_tests::margin_ratios_reuse_a_recent_success_within_the_ttl`
+  原先断言整个响应相等，但缓存只保存 margin ratio 快照，响应外壳的 `checkedAt`
+  是每次读取的墙钟毫秒值，跨毫秒即抖动失败（全量并发运行时命中）。Go 基线
+  `TestQueryBrokerMarginRatiosUsesCacheWithinTTL` 只断言缓存结果与 `Trd_GetMarginRatio`
+  调用次数，故改为比较 `marginRatios` 负载并保留调用次数断言。

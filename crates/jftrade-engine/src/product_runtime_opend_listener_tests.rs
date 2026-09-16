@@ -11,6 +11,7 @@ use jftrade_integration_futu::OpenDSessionEventListener;
 use jftrade_integration_futu::{
     BasicQuote, BasicQuotePush, OpenDSessionCoordinatorOutcome, QuotePush, Security,
 };
+use jftrade_integration_futu::{OrderBookLevel, OrderBookPush};
 
 use super::LiveHubOpenDEventListener;
 
@@ -55,6 +56,35 @@ fn hk(volume: Option<i64>, update_timestamp: Option<f64>) -> QuotePush {
     )
 }
 
+fn depth() -> QuotePush {
+    QuotePush::OrderBook(OrderBookPush {
+        security: Some(Security {
+            market: Some(1),
+            code: Some("00700".to_owned()),
+        }),
+        name: Some("Tencent".to_owned()),
+        asks: vec![OrderBookLevel {
+            price: Some(320.0),
+            volume: Some(100),
+            order_count: Some(1),
+            details: Vec::new(),
+            high_precision_volume: None,
+        }],
+        bids: vec![OrderBookLevel {
+            price: Some(319.0),
+            volume: Some(150),
+            order_count: Some(1),
+            details: Vec::new(),
+            high_precision_volume: None,
+        }],
+        server_receive_time_bid: Some("2025-01-01 10:00:00.000".to_owned()),
+        server_receive_time_bid_timestamp: None,
+        server_receive_time_ask: Some("2025-01-01 10:00:01.000".to_owned()),
+        server_receive_time_ask_timestamp: None,
+        order_book_type: None,
+    })
+}
+
 /// Builds a hub with one subscribed client, mirroring the websocket shell.
 fn subscribed(
     instruments: &[&str],
@@ -85,6 +115,47 @@ async fn next_event(connection: &mut LiveHubConnection) -> Option<serde_json::Va
 
 // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:188
 // TestStreamMarketTradeCarriesDeltaAndCumulativeVolume
+#[tokio::test]
+async fn order_book_pushes_publish_depth_for_the_subscribed_instrument() {
+    // Parity: go:452dea11:pkg/futu/exchange_business_boundary_test.go:277
+    // TestExchangeLocalMarketAndOrderBookHandlerBoundaries. Go registers a
+    // per-symbol order-book callback and notifies "HK.00700" exactly once;
+    // Rust publishes a market.depth envelope scoped to that instrument, and
+    // LiveHub delivers it only to subscribers of the same instrument.
+    let (_hub, listener, mut connection) = subscribed(&["HK.00700"]);
+    listener.on_event(&OpenDSessionCoordinatorOutcome::Push(depth()));
+    let event = next_event(&mut connection).await.expect("depth event");
+    assert_eq!(event["type"], "market.depth");
+    assert_eq!(event["entityId"], "HK.00700");
+    assert_eq!(event["payload"]["instrumentId"], "HK.00700");
+    assert_eq!(event["payload"]["depth"]["symbol"], "HK.00700");
+    assert_eq!(event["payload"]["depth"]["asks"][0]["price"], 320.0);
+    assert_eq!(event["payload"]["depth"]["bids"][0]["price"], 319.0);
+    assert_eq!(event["payload"]["depth"]["asks"][0]["volume"], 100.0);
+
+    // A push for an unsubscribed symbol must not leak to this connection.
+    listener.on_event(&OpenDSessionCoordinatorOutcome::Push(QuotePush::OrderBook(
+        OrderBookPush {
+            security: Some(Security {
+                market: Some(1),
+                code: Some("00005".to_owned()),
+            }),
+            name: None,
+            asks: Vec::new(),
+            bids: Vec::new(),
+            server_receive_time_bid: Some("2025-01-01 10:00:02.000".to_owned()),
+            server_receive_time_bid_timestamp: None,
+            server_receive_time_ask: None,
+            server_receive_time_ask_timestamp: None,
+            order_book_type: None,
+        },
+    )));
+    assert!(
+        next_event(&mut connection).await.is_none(),
+        "unsubscribed order-book pushes must not reach this connection"
+    );
+}
+
 #[tokio::test]
 async fn basic_quote_pushes_publish_delta_and_cumulative_volume() {
     let (_hub, listener, mut connection) = subscribed(&["HK.00700"]);
