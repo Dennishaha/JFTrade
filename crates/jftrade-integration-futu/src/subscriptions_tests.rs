@@ -3,6 +3,7 @@ use std::sync::Arc;
 use jftrade_marketdata::InstrumentRef;
 
 use super::*;
+use crate::{PROTO_UPDATE_BASIC_QOT, decode_frame, encode_frame};
 
 fn reference(channel: &str, interval: Option<&str>) -> InstrumentRef {
     InstrumentRef {
@@ -228,6 +229,47 @@ fn unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state() {
         reconciler.record_unsubscribe_failure(&subscription, now_ms, 1, Some("busy".to_owned())),
         5_000
     );
+}
+
+#[test]
+fn quote_push_ingestion_drops_malformed_and_stale_frames_without_registering_handlers() {
+    // Parity: go:452dea11:pkg/futu/opend/client_transport_boundaries_test.go:202 TestSubscribeNotifySkipsNilAndMalformedPush
+    //
+    // Go's SubscribeNotify ignores a nil handler and swallows a malformed
+    // notify payload. Rust has no callback registry; the equivalent boundary is
+    // that a malformed unsolicited frame is dropped by the lifecycle without
+    // producing a push or a stream failure, and a stale generation is rejected
+    // before decode.
+    let recorder = Arc::new(MarketDataRuntimeRecorder::default());
+    let mut lifecycle = OpenDSubscriptionLifecycle::new(Arc::clone(&recorder), 60_000);
+    let generation = lifecycle.generation();
+    lifecycle.reconcile_demand(
+        &[InstrumentRef {
+            channel: "SNAPSHOT".to_owned(),
+            market: "US".to_owned(),
+            symbol: "AAPL".to_owned(),
+            interval: None,
+        }],
+        0,
+    );
+
+    let malformed =
+        decode_frame(&encode_frame(PROTO_UPDATE_BASIC_QOT, 0, &[0xff]).expect("malformed frame"))
+            .expect("decode frame");
+    let now: jftrade_kernel::WireTimestamp = "2026-08-24T00:00:00Z".parse().expect("timestamp");
+    assert_eq!(
+        lifecycle
+            .ingest_quote_push(&malformed, now, generation)
+            .expect("malformed push is dropped, not an error"),
+        None
+    );
+    assert_eq!(
+        lifecycle
+            .ingest_quote_push(&malformed, now, generation + 1)
+            .expect("stale generation is rejected before decode"),
+        None
+    );
+    assert_eq!(recorder.snapshot().stream_failures, 0);
 }
 
 #[test]

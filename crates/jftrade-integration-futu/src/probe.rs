@@ -144,7 +144,7 @@ mod tests {
                 qot_logged_in: Some(true),
                 trade_logged_in: Some(false),
                 server_version: Some("10.9.6908".to_owned()),
-                program_status: Some("Ready".to_owned()),
+                program_status: Some("ProgramStatusType_Ready: all services ready".to_owned()),
                 program_timestamp: None,
                 markets: Vec::new(),
             }),
@@ -154,7 +154,10 @@ mod tests {
         assert_eq!(healthy.connectivity, "connected");
         assert_eq!(healthy.quote_logged_in, Some(true));
         assert_eq!(healthy.trade_logged_in, Some(false));
-        assert_eq!(healthy.program_status.as_deref(), Some("Ready"));
+        assert_eq!(
+            healthy.program_status.as_deref(),
+            Some("ProgramStatusType_Ready: all services ready")
+        );
         assert!(healthy.market_data_ready());
     }
 

@@ -286,3 +286,82 @@ node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(
   - stream 层的成交量差分（`nextTradeQuantity`：跨日基线、回退、负值、超大整数）
     与 `VolumeDelta`/`CumulativeVolume` 字段；
   - 当前未闭合 bucket 的 `closed=false` 与 `GetKL` 订阅前置的逐条断言。
+
+## 批次：OpenD client 传输边界、codec 帧守卫与 keep-alive
+
+本批覆盖 `pkg/futu/opend/client_transport_boundaries_test.go`（13 项）与
+`pkg/futu/codec/*`（6 项），共 19 项全部转为 `[x]` / `function_exact`。
+其中 3 处是真实功能差异修复，其余为缺失行为证据补齐。
+
+| Go 测试 | Rust 证据入口 | 状态 | 说明 |
+| --- | --- | --- | --- |
+| `codec/frame_test.go:8 TestEncodeDecodeRoundTrip` | `jftrade-integration-futu::frame::tests::encode_decode_round_trip_matches_opend_wire` | `[x]` | 44 字节头 + body 往返，protoID/serial/body 逐项断言。 |
+| `codec/frame_test.go:29 TestDecodeRejectsCorruptedBody` | `...::frame::tests::decode_rejects_corrupted_body_hash` | `[x]` | body 翻转 → `BadBodyHash`。 |
+| `codec/frame_test.go:39 TestDecodeRejectsBadMagic` | `...::frame::tests::decode_rejects_bad_magic` | `[x]` | magic 破坏 → `BadMagic`。 |
+| `codec/frame_test.go:49 TestDecodeRejectsShortFrame` | `...::frame::tests::decode_rejects_short_frame` | `[x]` | 短于 44 字节 → `TooShort`。 |
+| `codec/frame_test.go:56 TestDecodeRejectsLengthMismatch` | `...::frame::tests::decode_rejects_length_mismatch` | `[x]` | 截断 body → typed `LengthMismatch`。 |
+| `codec/frame_size_guards_test.go:9 TestFrameSizeGuardsCoverEncodeAndDecode` | `...::frame::tests::frame_size_guards_cover_encode_and_decode` | `[x]` | encode/decode 双向 32MiB 守卫，decode 在分配前拒绝。 |
+| `client_transport_boundaries_test.go:69 TestConnectSurfacesInvalidAddressAndClosedClient` | `...::managed_session_tests::closed_session_rejects_connect_like_rpcs_before_touching_the_transport` | `[x]` | 关闭会话拒绝 InitConnect/GetGlobalState 且不写 socket。 |
+| `client_transport_boundaries_test.go:107 TestClientCloseWaitsForReadWorkerAfterClosingTransport` | `...::managed_session_tests::close_shuts_down_the_transport_before_joining_the_reader` | `[x]` | 先 shutdown 再 join reader；peer 观察 EOF 后才返回。 |
+| `client_transport_boundaries_test.go:143 TestClientCloseDrainsPendingRequestsAfterBestEffortCloseFailure` | `...::managed_session_tests::close_drains_pending_requests_when_the_peer_closes` | `[x]` | pending RPC 收到 `Closed(PeerClosed)`，close 幂等。 |
+| `client_transport_boundaries_test.go:166 TestKeepAliveLoopHalvesLongIntervalsAndStopsForClosedClient` | `...::managed_session_tests::keep_alive_worker_sends_frames_and_stops_on_close` | `[x]` | **功能补齐**：Rust 新增 keep-alive worker；1004 帧发出、间隔离散折半、close 后停止。 |
+| `client_transport_boundaries_test.go:182 TestStartKeepAliveRejectsClosedClientWithoutOwningWorker` | `...::managed_session_tests::start_keep_alive_rejects_a_closed_session` | `[x]` | 已关闭会话不注册 worker。 |
+| `client_transport_boundaries_test.go:202 TestSubscribeNotifySkipsNilAndMalformedPush` | `...::subscriptions_tests::quote_push_ingestion_drops_malformed_and_stale_frames_without_registering_handlers` | `[x]` | malformed push 丢弃、无 stream failure；stale generation 在 decode 前拒绝。 |
+| `client_transport_boundaries_test.go:217 TestCallFrameRejectsMarshalAndOversizedPayloads` | `...::managed_session_tests::call_rejects_oversized_payload_before_touching_the_socket` | `[x]` | >32MiB payload 被 encode 守卫拒绝，未写 socket（Rust 无反射 marshal 失败路径，该半支保留为语言边界）。 |
+| `client_transport_boundaries_test.go:230 TestCallFrameReturnsWriteAndCloseFailures` | `...::managed_session_tests::call_reports_write_failure_and_closed_session_to_the_waiter` | `[x]` | 写失败/对端关闭/等待中 close 三种 waiter 结果。 |
+| `client_transport_boundaries_test.go:263 TestReadLoopClosesConnectionOnOversizedFrame` | `...::managed_session_tests::reader_closes_on_oversized_declared_body` | `[x]` | 超长声明 → `Closed(InvalidFrame(BodyTooLarge))`。 |
+| `client_transport_boundaries_test.go:290 TestReadLoopDiscardsInvalidFramesAndClosesOnTruncation` | `...::managed_session_tests::reader_discards_undecodable_frames_and_closes_on_truncation` | `[x]` | **功能修复**：坏 magic/hash 的完整帧丢弃继续（原先直接关会话），截断才 `PeerClosed`。 |
+| `client_transport_boundaries_test.go:315 TestDispatchDropsDuplicateResponseWhenPendingBufferIsFull` | `...::managed_session_tests::dispatch_drops_a_duplicate_response_when_the_pending_buffer_is_full` | `[x]` | 匹配 pending 先移除，重复帧降级为 unsolicited。 |
+| `client_transport_boundaries_test.go:327 TestSubscribeQuotesReportsTransportFailure` | `...::managed_session_tests::closed_session_reports_subscribe_transport_failure` | `[x]` | 关闭会话的 `PROTO_QOT_SUB` 返回 `Closed(Local)`。 |
+| `client_transport_boundaries_test.go:334 TestProgramStatusLabelIncludesServerDescription` | `...::health::tests::program_status_label_includes_server_description` | `[x]` | **功能修复**：programStatus 由短标签改为 Go 的 `ProgramStatusType_*` 枚举名 + trimmed 描述。 |
+
+### 本批发现与修复
+
+1. **keep-alive 完全缺失**（功能缺失 → 已修复）
+   - Go `pkg/futu/opend/client.go::StartKeepAlive` 从 `InitConnect.S2C.keepAliveInterval`
+     启动心跳，`>1s` 折半；Rust 此前没有该功能，长连接可能在 OpenD
+     侧仍接受 TCP 但实际无响应。
+   - 修复位置：`crates/jftrade-integration-futu/src/managed_session.rs`
+     （`start_keep_alive` / `run_keep_alive` / `keep_alive_tick`，含 `KeepAlive` 1004 proto），
+     接线在 `crates/jftrade-integration-futu/src/health.rs::connect_with_push_notifications`
+     （仅长连接角色启动，健康探测不启动），proto 注册在
+     `crates/jftrade-integration-futu/build.rs` 与 `src/trade_proto.rs::keep_alive`。
+   - 失败/超时心跳按 Go 语义终止会话，后续调用 fail-closed。
+
+2. **reader 对坏帧处理与 Go 不一致**（功能差异 → 已修复）
+   - Go `readLoop` 对 payload 长度为界、但 decode 失败的完整帧 `continue`；
+     Rust 原先一律关闭会话，导致一个坏帧断开整条行情连接。
+   - 修复：`managed_session.rs::run_reader` 仅对 `BadMagic`/`BadBodyHash` 丢弃继续，
+     I/O 失败与超长/截断仍关闭。
+
+3. **programStatus 标签与前端契约不一致**（功能差异 → 已修复）
+   - Go `programStatusLabel`/`ProgramStatusString` 返回 protobuf 枚举名
+     （`ProgramStatusType_Ready: <desc>`），Rust 之前返回 `"Ready"`；
+     前端 `FUTU_PROGRAM_STATUS_LABELS` 只匹配枚举名前缀，会退化为原文显示。
+   - 修复：`health.rs::program_status_type_label`；同步
+     `health::tests::tcp_probe_maps_login_global_state_and_market_readiness`、
+     `probe::tests::probe_from_global_state_enforces_minimum_version_and_maps_neutral_state`
+     的断言到 Go 期望值。
+
+4. **既有 flake 修复（非本批新增）**
+   - `health::tests::tcp_probe_reports_protocol_outcomes_without_a_real_opend`
+     的 "connection closes during init" 分支原先让服务端 accept 后立即 drop，
+     与客户端写入竞态，间歇性得到 `Transport` 而非断言的 `PeerClosed`。
+     夹具改为先读走 InitConnect 再关闭（与 Go `startProbeProtocolServer` 一致），
+     连续 6 次全量 lib 运行通过。
+
+未迁移边界（保留，不伪装等价）：
+
+- `TestCallFrameRejectsMarshalAndOversizedPayloads` 的 protobuf 反射 marshal
+  失败半支：Rust 编码路径没有可注入的失败 marshal，只保留 payload 大小守卫。
+- workspace 尚无 Rust 等价的 `Client.Subscribe(protoID, handler)` 回调注册表；
+  nil handler 语义由 lifecycle 的 push 解码边界承担。
+
+验证命令：
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib --locked --no-fail-fast
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(managed_session)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(frame)'
+python3 scripts/compatibility/audit_test_parity.py
+```

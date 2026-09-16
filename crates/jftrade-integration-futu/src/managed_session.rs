@@ -1,16 +1,21 @@
 use std::collections::BTreeMap;
 use std::io::{self, Write};
 use std::net::{Shutdown, SocketAddr, TcpStream};
+use std::sync::Condvar;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use prost::Message;
 use thiserror::Error;
 
+use crate::trade_proto::keep_alive::{
+    C2s as KeepAliveC2s, Request as KeepAliveRequest, Response as KeepAliveResponse,
+};
 use crate::transport::{TcpTransportError, read_framed_frame};
-use crate::{Frame, FrameError, encode_frame};
+use crate::{Frame, FrameError, PROTO_KEEP_ALIVE, encode_frame};
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum OpenDSessionCloseReason {
@@ -66,6 +71,9 @@ struct SessionState {
     events: mpsc::Sender<OpenDSessionEvent>,
     closed: AtomicBool,
     close_reason: Mutex<Option<OpenDSessionCloseReason>>,
+    closed_lock: Mutex<()>,
+    closed_signal: Condvar,
+    next_serial: AtomicU32,
 }
 
 /// Explicit-composition OpenD session with one socket reader.
@@ -79,7 +87,8 @@ pub struct OpenDManagedSession {
     request_timeout: Duration,
     events: Mutex<Receiver<OpenDSessionEvent>>,
     worker: Mutex<Option<JoinHandle<()>>>,
-    next_serial: AtomicU32,
+    keep_alive_worker: Mutex<Option<JoinHandle<()>>>,
+    keep_alive_started: AtomicBool,
 }
 
 impl OpenDManagedSession {
@@ -113,6 +122,9 @@ impl OpenDManagedSession {
             events: event_sender,
             closed: AtomicBool::new(false),
             close_reason: Mutex::new(None),
+            closed_lock: Mutex::new(()),
+            closed_signal: Condvar::new(),
+            next_serial: AtomicU32::new(0),
         });
         let reader_state = Arc::clone(&state);
         let worker = thread::Builder::new()
@@ -124,7 +136,8 @@ impl OpenDManagedSession {
             request_timeout: timeout,
             events: Mutex::new(event_receiver),
             worker: Mutex::new(Some(worker)),
-            next_serial: AtomicU32::new(0),
+            keep_alive_worker: Mutex::new(None),
+            keep_alive_started: AtomicBool::new(false),
         })
     }
 
@@ -160,36 +173,48 @@ impl OpenDManagedSession {
         protobuf_body: &[u8],
         timeout: Duration,
     ) -> Result<Vec<u8>, OpenDManagedSessionError> {
-        let serial = self.next_serial();
-        let packet = encode_frame(protocol, serial, protobuf_body)?;
-        let (sender, receiver) = mpsc::sync_channel(1);
-        self.register_pending(
-            serial,
-            PendingCall {
-                protocol,
-                response: sender,
-            },
-        )?;
-        if let Err(error) = self.write_packet(&packet) {
-            self.remove_pending(serial)?;
-            terminate(
-                &self.state,
-                OpenDSessionCloseReason::Transport(error.to_string()),
-            );
-            self.join_worker()?;
-            return Err(error);
+        call_state(&self.state, protocol, protobuf_body, timeout)
+    }
+
+    /// Sends Futu `KeepAlive` (1004) frames until the session closes.
+    ///
+    /// OpenD advertises the required interval in `InitConnect.S2C.keepAliveInterval`.
+    /// Missing heartbeats can leave a TCP session accepted but unresponsive
+    /// until OpenD restarts, so the long-lived market-data role starts this
+    /// worker from the handshake value. The first valid call owns the single
+    /// worker; later calls are ignored. Returns whether this call started it.
+    pub fn start_keep_alive(&self, interval: Duration) -> bool {
+        if interval.is_zero() {
+            return false;
         }
-        match receiver.recv_timeout(timeout) {
-            Ok(Ok(frame)) => Ok(frame.body),
-            Ok(Err(reason)) => Err(OpenDManagedSessionError::Closed(reason)),
-            Err(RecvTimeoutError::Timeout) => {
-                self.remove_pending(serial)?;
-                Err(OpenDManagedSessionError::RequestTimeout { protocol, serial })
-            }
-            Err(RecvTimeoutError::Disconnected) => Err(OpenDManagedSessionError::Closed(
-                self.current_close_reason()?,
-            )),
+        if self.state.closed.load(Ordering::Acquire) {
+            return false;
         }
+        if self.keep_alive_started.swap(true, Ordering::AcqRel) {
+            return false;
+        }
+        let state = Arc::clone(&self.state);
+        let request_timeout = self.request_timeout;
+        let Ok(handle) = thread::Builder::new()
+            .name(format!("jftrade-opend-keepalive-{}", state.generation))
+            .spawn(move || run_keep_alive(state, interval, request_timeout))
+        else {
+            self.keep_alive_started.store(false, Ordering::Release);
+            return false;
+        };
+        if let Ok(mut slot) = self.keep_alive_worker.lock() {
+            *slot = Some(handle);
+        }
+        if self.state.closed.load(Ordering::Acquire) {
+            // The session closed while the worker was being registered; join it
+            // here so a concurrent `close` that already returned cannot leak it.
+            let _ = self.join_keep_alive();
+        }
+        true
+    }
+
+    pub fn keep_alive_started(&self) -> bool {
+        self.keep_alive_started.load(Ordering::Acquire)
     }
 
     pub fn receive_event_timeout(
@@ -205,69 +230,25 @@ impl OpenDManagedSession {
     pub fn close(&self) -> Result<bool, OpenDManagedSessionError> {
         let closed = terminate(&self.state, OpenDSessionCloseReason::Local);
         self.join_worker()?;
+        self.join_keep_alive()?;
         Ok(closed)
-    }
-
-    fn next_serial(&self) -> u32 {
-        loop {
-            let current = self.next_serial.load(Ordering::Relaxed);
-            let next = current.wrapping_add(1).max(1);
-            if self
-                .next_serial
-                .compare_exchange_weak(current, next, Ordering::Relaxed, Ordering::Relaxed)
-                .is_ok()
-            {
-                return next;
-            }
-        }
-    }
-
-    fn register_pending(
-        &self,
-        serial: u32,
-        call: PendingCall,
-    ) -> Result<(), OpenDManagedSessionError> {
-        let mut pending = self
-            .state
-            .pending
-            .lock()
-            .map_err(|_| OpenDManagedSessionError::StateUnavailable)?;
-        if self.state.closed.load(Ordering::Acquire) {
-            return Err(OpenDManagedSessionError::Closed(
-                self.current_close_reason()?,
-            ));
-        }
-        pending.insert(serial, call);
-        Ok(())
-    }
-
-    fn remove_pending(&self, serial: u32) -> Result<(), OpenDManagedSessionError> {
-        self.state
-            .pending
-            .lock()
-            .map_err(|_| OpenDManagedSessionError::StateUnavailable)?
-            .remove(&serial);
-        Ok(())
-    }
-
-    fn write_packet(&self, packet: &[u8]) -> Result<(), OpenDManagedSessionError> {
-        self.state
-            .writer
-            .lock()
-            .map_err(|_| OpenDManagedSessionError::StateUnavailable)?
-            .write_all(packet)
-            .map_err(OpenDManagedSessionError::Io)
-    }
-
-    fn current_close_reason(&self) -> Result<OpenDSessionCloseReason, OpenDManagedSessionError> {
-        Ok(self
-            .close_reason()?
-            .unwrap_or(OpenDSessionCloseReason::PeerClosed))
     }
 
     fn join_worker(&self) -> Result<(), OpenDManagedSessionError> {
         let worker = self
             .worker
+            .lock()
+            .map_err(|_| OpenDManagedSessionError::StateUnavailable)?
+            .take();
+        match worker.map(JoinHandle::join) {
+            Some(Err(_)) => Err(OpenDManagedSessionError::WorkerPanicked),
+            _ => Ok(()),
+        }
+    }
+
+    fn join_keep_alive(&self) -> Result<(), OpenDManagedSessionError> {
+        let worker = self
+            .keep_alive_worker
             .lock()
             .map_err(|_| OpenDManagedSessionError::StateUnavailable)?
             .take();
@@ -288,12 +269,174 @@ fn run_reader(mut reader: TcpStream, state: Arc<SessionState>) {
     loop {
         match read_framed_frame(&mut reader) {
             Ok(frame) => dispatch_frame(&state, frame),
+            // Go's read loop skips frames that fail protobuf/wire validation
+            // after their declared length has been consumed, and only closes
+            // the session on I/O failures or unbounded length declarations.
+            Err(TcpTransportError::Frame(FrameError::BadMagic | FrameError::BadBodyHash)) => {
+                continue;
+            }
             Err(error) => {
                 terminate(&state, close_reason_from_read(error));
                 return;
             }
         }
     }
+}
+
+fn call_state(
+    state: &Arc<SessionState>,
+    protocol: u32,
+    protobuf_body: &[u8],
+    timeout: Duration,
+) -> Result<Vec<u8>, OpenDManagedSessionError> {
+    let serial = next_serial(state);
+    let packet = encode_frame(protocol, serial, protobuf_body)?;
+    let (sender, receiver) = mpsc::sync_channel(1);
+    register_pending(
+        state,
+        serial,
+        PendingCall {
+            protocol,
+            response: sender,
+        },
+    )?;
+    if let Err(error) = write_packet(state, &packet) {
+        remove_pending(state, serial)?;
+        terminate(state, OpenDSessionCloseReason::Transport(error.to_string()));
+        return Err(error);
+    }
+    match receiver.recv_timeout(timeout) {
+        Ok(Ok(frame)) => Ok(frame.body),
+        Ok(Err(reason)) => Err(OpenDManagedSessionError::Closed(reason)),
+        Err(RecvTimeoutError::Timeout) => {
+            remove_pending(state, serial)?;
+            Err(OpenDManagedSessionError::RequestTimeout { protocol, serial })
+        }
+        Err(RecvTimeoutError::Disconnected) => Err(OpenDManagedSessionError::Closed(
+            current_close_reason(state)?,
+        )),
+    }
+}
+
+fn next_serial(state: &SessionState) -> u32 {
+    loop {
+        let current = state.next_serial.load(Ordering::Relaxed);
+        let next = current.wrapping_add(1).max(1);
+        if state
+            .next_serial
+            .compare_exchange_weak(current, next, Ordering::Relaxed, Ordering::Relaxed)
+            .is_ok()
+        {
+            return next;
+        }
+    }
+}
+
+fn register_pending(
+    state: &SessionState,
+    serial: u32,
+    call: PendingCall,
+) -> Result<(), OpenDManagedSessionError> {
+    let mut pending = state
+        .pending
+        .lock()
+        .map_err(|_| OpenDManagedSessionError::StateUnavailable)?;
+    if state.closed.load(Ordering::Acquire) {
+        return Err(OpenDManagedSessionError::Closed(current_close_reason(
+            state,
+        )?));
+    }
+    pending.insert(serial, call);
+    Ok(())
+}
+
+fn remove_pending(state: &SessionState, serial: u32) -> Result<(), OpenDManagedSessionError> {
+    state
+        .pending
+        .lock()
+        .map_err(|_| OpenDManagedSessionError::StateUnavailable)?
+        .remove(&serial);
+    Ok(())
+}
+
+fn write_packet(state: &SessionState, packet: &[u8]) -> Result<(), OpenDManagedSessionError> {
+    state
+        .writer
+        .lock()
+        .map_err(|_| OpenDManagedSessionError::StateUnavailable)?
+        .write_all(packet)
+        .map_err(OpenDManagedSessionError::Io)
+}
+
+fn current_close_reason(
+    state: &SessionState,
+) -> Result<OpenDSessionCloseReason, OpenDManagedSessionError> {
+    Ok(lock_unpoisoned(&state.close_reason)
+        .clone()
+        .unwrap_or(OpenDSessionCloseReason::PeerClosed))
+}
+
+/// Mirrors Go `Client.keepAliveLoop`'s cadence: intervals longer than one
+/// second are halved so a missed heartbeat is detected within the interval.
+fn keep_alive_tick(interval: Duration) -> Duration {
+    if interval > Duration::from_secs(1) {
+        interval / 2
+    } else {
+        interval
+    }
+}
+
+fn run_keep_alive(state: Arc<SessionState>, interval: Duration, request_timeout: Duration) {
+    let tick = keep_alive_tick(interval);
+    loop {
+        if wait_for_close(&state, tick) {
+            return;
+        }
+        let timeout = if request_timeout.is_zero() || request_timeout > tick {
+            tick
+        } else {
+            request_timeout
+        };
+        let request = KeepAliveRequest {
+            c2s: KeepAliveC2s {
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .map(|elapsed| elapsed.as_secs() as i64)
+                    .unwrap_or_default(),
+            },
+        };
+        let body = request.encode_to_vec();
+        let failure = match call_state(&state, PROTO_KEEP_ALIVE, &body, timeout) {
+            Ok(raw) => match KeepAliveResponse::decode(raw.as_slice()) {
+                Ok(response) if response.ret_type == 0 => None,
+                Ok(response) => Some(format!(
+                    "OpenD keep-alive returned retType={}: {}",
+                    response.ret_type,
+                    response.ret_msg.unwrap_or_else(|| "no message".to_owned())
+                )),
+                Err(error) => Some(format!("OpenD keep-alive response decode failed: {error}")),
+            },
+            // A failed or timed-out keep-alive leaves the session unusable, so
+            // the worker terminates it exactly like Go's closeConn(true).
+            Err(error) => Some(error.to_string()),
+        };
+        if let Some(message) = failure {
+            terminate(&state, OpenDSessionCloseReason::Transport(message));
+            return;
+        }
+    }
+}
+
+fn wait_for_close(state: &SessionState, timeout: Duration) -> bool {
+    if state.closed.load(Ordering::Acquire) {
+        return true;
+    }
+    let guard = lock_unpoisoned(&state.closed_lock);
+    let (_guard, _) = state
+        .closed_signal
+        .wait_timeout_while(guard, timeout, |_| !state.closed.load(Ordering::Acquire))
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    state.closed.load(Ordering::Acquire)
 }
 
 fn dispatch_frame(state: &SessionState, frame: Frame) {
@@ -317,11 +460,15 @@ fn dispatch_frame(state: &SessionState, frame: Frame) {
 
 fn terminate(state: &SessionState, reason: OpenDSessionCloseReason) -> bool {
     let pending = {
+        // Hold the close gate while publishing the reason so a keep-alive
+        // worker parked in `wait_for_close` cannot miss the wake-up.
+        let _gate = lock_unpoisoned(&state.closed_lock);
         let mut pending = lock_unpoisoned(&state.pending);
         if state.closed.swap(true, Ordering::AcqRel) {
             return false;
         }
         *lock_unpoisoned(&state.close_reason) = Some(reason.clone());
+        state.closed_signal.notify_all();
         std::mem::take(&mut *pending)
     };
     let _ = lock_unpoisoned(&state.writer).shutdown(Shutdown::Both);
@@ -332,6 +479,7 @@ fn terminate(state: &SessionState, reason: OpenDSessionCloseReason) -> bool {
         generation: state.generation,
         reason,
     });
+    state.closed_signal.notify_all();
     true
 }
 

@@ -79,7 +79,7 @@ impl OpenDInitializedSession {
             config.timeout,
             generation,
         )?);
-        let conn_id = initialize_session(&session, config, false)?;
+        let conn_id = initialize_session(&session, config, false)?.conn_id;
         Ok(Self { session, conn_id })
     }
 
@@ -96,8 +96,18 @@ impl OpenDInitializedSession {
             config.timeout,
             generation,
         )?);
-        let conn_id = initialize_session(&session, config, true)?;
-        Ok(Self { session, conn_id })
+        let init = initialize_session(&session, config, true)?;
+        // Go starts the keep-alive worker from InitConnect.S2C.keepAliveInterval
+        // on the long-lived market-data session only (pkg/futu/exchange_client.go).
+        // A short-lived health probe must never own a heart-beat worker.
+        if init.keep_alive_interval_seconds > 0 {
+            let _ = session
+                .start_keep_alive(Duration::from_secs(init.keep_alive_interval_seconds as u64));
+        }
+        Ok(Self {
+            session,
+            conn_id: init.conn_id,
+        })
     }
 
     pub fn managed_session(&self) -> &OpenDManagedSession {
@@ -213,7 +223,7 @@ fn initialize_session(
     session: &OpenDManagedSession,
     config: &OpenDTcpProbeConfig,
     recv_notify: bool,
-) -> Result<u64, OpenDTcpProbeError> {
+) -> Result<InitConnectState, OpenDTcpProbeError> {
     let init_request = InitConnectRequest {
         c2s: Some(InitConnectC2s {
             client_ver: 101,
@@ -235,7 +245,15 @@ fn initialize_session(
     let state = init_response
         .s2c
         .ok_or(OpenDTcpProbeError::MissingInitState)?;
-    Ok(state.conn_id)
+    Ok(InitConnectState {
+        conn_id: state.conn_id,
+        keep_alive_interval_seconds: state.keep_alive_interval,
+    })
+}
+
+struct InitConnectState {
+    conn_id: u64,
+    keep_alive_interval_seconds: i32,
 }
 
 fn ensure_success(
@@ -279,21 +297,11 @@ fn program_status(status: Option<ProgramStatus>) -> String {
     let Some(status) = status else {
         return "Unavailable".to_owned();
     };
-    let label = match status.r#type {
-        1 => "Loaded",
-        2 => "Loging",
-        3 => "NeedPicVerifyCode",
-        4 => "NeedPhoneVerifyCode",
-        5 => "LoginFailed",
-        6 => "ForceUpdate",
-        7 => "NessaryDataPreparing",
-        8 => "NessaryDataMissing",
-        9 => "UnAgreeDisclaimer",
-        10 => "Ready",
-        11 => "ForceLogout",
-        12 => "DisclaimerPullFailed",
-        _ => "Unavailable",
-    };
+    // Parity: OpenD `ProgramStatusType.String()` in the Go client used the
+    // protobuf enum name (`ProgramStatusType_Ready`), and the console maps
+    // those names to localized labels. Returning a short label here silently
+    // broke the mapping.
+    let label = program_status_type_label(status.r#type);
     status
         .str_ext_desc
         .filter(|value| !value.trim().is_empty())
@@ -301,6 +309,25 @@ fn program_status(status: Option<ProgramStatus>) -> String {
             || label.to_owned(),
             |value| format!("{label}: {}", value.trim()),
         )
+}
+
+fn program_status_type_label(status_type: i32) -> &'static str {
+    match status_type {
+        0 => "ProgramStatusType_None",
+        1 => "ProgramStatusType_Loaded",
+        2 => "ProgramStatusType_Loging",
+        3 => "ProgramStatusType_NeedPicVerifyCode",
+        4 => "ProgramStatusType_NeedPhoneVerifyCode",
+        5 => "ProgramStatusType_LoginFailed",
+        6 => "ProgramStatusType_ForceUpdate",
+        7 => "ProgramStatusType_NessaryDataPreparing",
+        8 => "ProgramStatusType_NessaryDataMissing",
+        9 => "ProgramStatusType_UnAgreeDisclaimer",
+        10 => "ProgramStatusType_Ready",
+        11 => "ProgramStatusType_ForceLogout",
+        12 => "ProgramStatusType_DisclaimerPullFailed",
+        _ => "Unavailable",
+    }
 }
 
 #[derive(Clone, PartialEq, Message)]
@@ -337,6 +364,8 @@ struct InitConnectS2c {
     server_ver: i32,
     #[prost(uint64, tag = "3")]
     conn_id: u64,
+    #[prost(int32, tag = "5")]
+    keep_alive_interval: i32,
 }
 
 #[derive(Clone, PartialEq, Message)]
@@ -424,6 +453,7 @@ mod tests {
                 s2c: Some(InitConnectS2c {
                     server_ver: 1009,
                     conn_id: 7,
+                    keep_alive_interval: 30,
                 }),
             };
             write_response(&mut stream, &init_request, init_response.encode_to_vec());
@@ -461,7 +491,10 @@ mod tests {
         assert_eq!(probe.connectivity, "connected");
         assert_eq!(probe.status, "healthy");
         assert_eq!(probe.server_version.as_deref(), Some("10.9.7000"));
-        assert_eq!(probe.program_status.as_deref(), Some("Ready"));
+        assert_eq!(
+            probe.program_status.as_deref(),
+            Some("ProgramStatusType_Ready")
+        );
         assert_eq!(probe.quote_logged_in, Some(true));
         assert!(probe.market_data_ready());
         assert_eq!(probe.markets.len(), 4);
@@ -491,6 +524,7 @@ mod tests {
                     s2c: Some(InitConnectS2c {
                         server_ver: 1009,
                         conn_id: 17,
+                        keep_alive_interval: 30,
                     }),
                 }
                 .encode_to_vec(),
@@ -594,6 +628,7 @@ mod tests {
                     s2c: Some(InitConnectS2c {
                         server_ver: 1009,
                         conn_id: 7,
+                        keep_alive_interval: 30,
                     }),
                 }
                 .encode_to_vec(),
@@ -693,7 +728,13 @@ mod tests {
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
         let address = listener.local_addr().expect("address");
         let server = thread::spawn(move || {
-            let (stream, _) = listener.accept().expect("accept");
+            // Read the InitConnect request before closing, mirroring the Go
+            // protocol server. Dropping the socket before the client's write
+            // completes races a write failure (Transport) against the peer EOF
+            // (PeerClosed) this case asserts.
+            let (mut stream, _) = listener.accept().expect("accept");
+            let request = read_request(&mut stream);
+            assert_eq!(request.header.proto_id, PROTO_INIT_CONNECT);
             drop(stream);
         });
         let error = OpenDTcpProbe::probe(OpenDTcpProbeConfig::new(address, Duration::from_secs(1)))
@@ -749,6 +790,7 @@ mod tests {
                     s2c: Some(InitConnectS2c {
                         server_ver: 1009,
                         conn_id: 7,
+                        keep_alive_interval: 30,
                     }),
                 }
                 .encode_to_vec(),
@@ -781,6 +823,7 @@ mod tests {
                     s2c: Some(InitConnectS2c {
                         server_ver: 1009,
                         conn_id: 7,
+                        keep_alive_interval: 30,
                     }),
                 }
                 .encode_to_vec(),
@@ -813,20 +856,61 @@ mod tests {
     #[test]
     fn program_status_handles_missing_plain_and_described_status() {
         // Parity: go:452dea11:internal/integration/futu/probe_test.go:173 TestProgramStatusStringHandlesMissingPlainAndDescribedStatus
+        // Parity: go:452dea11:pkg/futu/opend/client_transport_boundaries_test.go:334 TestProgramStatusLabelIncludesServerDescription
         assert_eq!(program_status(None), "Unavailable");
         assert_eq!(
             program_status(Some(ProgramStatus {
                 r#type: 2,
                 str_ext_desc: None,
             })),
-            "Loging"
+            "ProgramStatusType_Loging"
         );
         assert_eq!(
             program_status(Some(ProgramStatus {
                 r#type: 2,
                 str_ext_desc: Some("waiting for credentials".to_owned()),
             })),
-            "Loging: waiting for credentials"
+            "ProgramStatusType_Loging: waiting for credentials"
+        );
+        assert_eq!(
+            program_status(Some(ProgramStatus {
+                r#type: 10,
+                str_ext_desc: Some("connected".to_owned()),
+            })),
+            "ProgramStatusType_Ready: connected"
+        );
+        assert_eq!(
+            program_status(Some(ProgramStatus {
+                r#type: 99,
+                str_ext_desc: None,
+            })),
+            "Unavailable"
+        );
+    }
+
+    #[test]
+    fn program_status_label_includes_server_description() {
+        // Parity: go:452dea11:pkg/futu/opend/client_transport_boundaries_test.go:334 TestProgramStatusLabelIncludesServerDescription
+        assert_eq!(
+            program_status(Some(ProgramStatus {
+                r#type: 10,
+                str_ext_desc: Some("connected".to_owned()),
+            })),
+            "ProgramStatusType_Ready: connected"
+        );
+        assert_eq!(
+            program_status(Some(ProgramStatus {
+                r#type: 10,
+                str_ext_desc: None,
+            })),
+            "ProgramStatusType_Ready"
+        );
+        assert_eq!(
+            program_status(Some(ProgramStatus {
+                r#type: 10,
+                str_ext_desc: Some("   ".to_owned()),
+            })),
+            "ProgramStatusType_Ready"
         );
     }
 }

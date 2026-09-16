@@ -98,15 +98,68 @@ mod tests {
     use super::*;
 
     #[test]
-    fn frame_round_trip_and_corruption_guards_match_opend_wire() {
+    fn encode_decode_round_trip_matches_opend_wire() {
+        // Parity: go:452dea11:pkg/futu/codec/frame_test.go:8 TestEncodeDecodeRoundTrip
         let packet = encode_frame(1001, 42, &[1, 2, 3, 4, 5]).expect("encode");
+        assert_eq!(packet.len(), HEADER_LEN + 5);
         let frame = decode_frame(&packet).expect("decode");
         assert_eq!(frame.header.proto_id, 1001);
         assert_eq!(frame.header.serial_no, 42);
         assert_eq!(frame.body, [1, 2, 3, 4, 5]);
+    }
 
-        let mut corrupted = packet;
-        *corrupted.last_mut().expect("body") ^= 0xff;
-        assert_eq!(decode_frame(&corrupted), Err(FrameError::BadBodyHash));
+    #[test]
+    fn decode_rejects_corrupted_body_hash() {
+        // Parity: go:452dea11:pkg/futu/codec/frame_test.go:29 TestDecodeRejectsCorruptedBody
+        let mut packet = encode_frame(2001, 1, b"hello").expect("encode");
+        *packet.last_mut().expect("body") ^= 0xff;
+        assert_eq!(decode_frame(&packet), Err(FrameError::BadBodyHash));
+    }
+
+    #[test]
+    fn decode_rejects_bad_magic() {
+        // Parity: go:452dea11:pkg/futu/codec/frame_test.go:39 TestDecodeRejectsBadMagic
+        let mut packet = encode_frame(2001, 1, &[0]).expect("encode");
+        packet[0] = b'X';
+        assert_eq!(decode_frame(&packet), Err(FrameError::BadMagic));
+    }
+
+    #[test]
+    fn decode_rejects_short_frame() {
+        // Parity: go:452dea11:pkg/futu/codec/frame_test.go:49 TestDecodeRejectsShortFrame
+        assert_eq!(decode_frame(&[1, 2, 3]), Err(FrameError::TooShort));
+    }
+
+    #[test]
+    fn decode_rejects_length_mismatch() {
+        // Parity: go:452dea11:pkg/futu/codec/frame_test.go:56 TestDecodeRejectsLengthMismatch
+        let packet = encode_frame(1, 1, &[1, 2, 3]).expect("encode");
+        assert_eq!(
+            decode_frame(&packet[..HEADER_LEN + 1]),
+            Err(FrameError::LengthMismatch {
+                declared: 3,
+                actual: 1,
+            })
+        );
+    }
+
+    #[test]
+    fn frame_size_guards_cover_encode_and_decode() {
+        // Parity: go:452dea11:pkg/futu/codec/frame_size_guards_test.go:9 TestFrameSizeGuardsCoverEncodeAndDecode
+        assert_eq!(
+            encode_frame(1, 1, &vec![0_u8; MAX_BODY_LEN + 1]),
+            Err(FrameError::BodyTooLarge)
+        );
+
+        // The same guard must reject an oversized declared body before the
+        // reader allocates a buffer for it.
+        let mut oversized_header = [0_u8; HEADER_LEN];
+        oversized_header[0] = b'F';
+        oversized_header[1] = b'T';
+        oversized_header[12..16].copy_from_slice(&(MAX_BODY_LEN as u32 + 1).to_le_bytes());
+        assert_eq!(
+            decode_frame(&oversized_header),
+            Err(FrameError::BodyTooLarge)
+        );
     }
 }

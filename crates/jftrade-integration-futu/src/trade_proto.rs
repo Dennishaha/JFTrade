@@ -749,6 +749,9 @@ pub mod trd_notify {
 pub mod notify {
     include!(concat!(env!("OUT_DIR"), "/notify.rs"));
 }
+pub mod keep_alive {
+    include!(concat!(env!("OUT_DIR"), "/keep_alive.rs"));
+}
 
 #[cfg(test)]
 #[path = "trade_proto_tests.rs"]

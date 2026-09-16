@@ -14674,7 +14674,7 @@
   "internal/integration/futu/probe_test.go:96:TestProbeOpenDMapsHealthyProtocolFixture": {
     "status": "[x]",
     "rust_entry": "crates/jftrade-integration-futu/src/health.rs::tcp_probe_maps_login_global_state_and_market_readiness",
-    "conclusion": "function_exact：健康协议 fixture 断言 connectivity=connected、status=healthy、serverVersion=10.9.7000、programStatus=Ready、quoteLoggedIn=true、marketDataReady=true、len(markets)==4，与 Go 的 healthy protocol probe 断言逐项一致（Go 的 server 版本号取自 testkit，Rust 用等价 framed fixture）。",
+    "conclusion": "function_exact：健康协议 fixture 断言 connectivity=connected、status=healthy、serverVersion=10.9.7000、markets==4、quoteLoggedIn=true、marketDataReady=true、programStatus=\"ProgramStatusType_Ready\"（Go 同字段）。本批修正了 Rust 早先只返回短标签 \"Ready\" 的行为差异，并同步该断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(tcp_probe_maps_login_global_state_and_market_readiness)'",
     "evidence_type": "function_exact"
   },
@@ -14688,14 +14688,14 @@
   "internal/integration/futu/probe_test.go:137:TestProbeFromGlobalStateEnforcesMinimumVersionAndMapsNeutralState": {
     "status": "[x]",
     "rust_entry": "crates/jftrade-integration-futu/src/probe.rs::probe_from_global_state_enforces_minimum_version_and_maps_neutral_state",
-    "conclusion": "function_exact：覆盖 Go 的三段断言：nil state→degraded+lastError；1008.6708→OPEND_VERSION_UNSUPPORTED+degraded+serverVersion=10.8.6708；健康状态→healthy/connected、quoteLoggedIn=true、tradeLoggedIn=false、programStatus=\"Ready\"、market_data_ready=true。markets 长度 4 由同 crate 的 framed fixture 测试 tcp_probe_maps_login_global_state_and_market_readiness 断言。",
+    "conclusion": "function_exact：覆盖 Go 三段断言：nil state→degraded+lastError；1008.6708→OPEND_VERSION_UNSUPPORTED+degraded+serverVersion=10.8.6708；健康状态→healthy/connected、quoteLoggedIn=true、tradeLoggedIn=false、programStatus=\"ProgramStatusType_Ready: all services ready\"、market_data_ready=true。markets 长度 4 由同 crate 的 framed fixture 测试 tcp_probe_maps_login_global_state_and_market_readiness 断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state)'",
     "evidence_type": "function_exact"
   },
   "internal/integration/futu/probe_test.go:173:TestProgramStatusStringHandlesMissingPlainAndDescribedStatus": {
     "status": "[x]",
     "rust_entry": "crates/jftrade-integration-futu/src/health.rs::program_status_handles_missing_plain_and_described_status",
-    "conclusion": "完整覆盖：Rust 测试逐项验证了 OpenD ProgramStatus 枚举包含/缺失、带描述与纯文本格式化转换，断言与 Go 完全等价",
+    "conclusion": "function_exact：Rust program_status 逐项验证 nil→\"Unavailable\"、enum-only→\"ProgramStatusType_Loging\"、带描述→\"ProgramStatusType_Loging: <desc>\"，与 Go ProgramStatusString 完全等价；同测试还覆盖未知枚举值→Unavailable。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(program_status_handles_missing_plain_and_described_status)'",
     "evidence_type": "function_exact"
   },
@@ -15855,46 +15855,46 @@
     "evidence_type": "missing"
   },
   "pkg/futu/codec/frame_size_guards_test.go:9:TestFrameSizeGuardsCoverEncodeAndDecode": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(codec)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/frame.rs::frame_size_guards_cover_encode_and_decode",
+    "conclusion": "function_exact：encode 拒绝 >32MiB body（BodyTooLarge），decode 在分配前拒绝声明 >32MiB 的头，两面均与 Go 的 MaxFrameBodyLen 守卫等价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(frame_size_guards_cover_encode_and_decode)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/codec/frame_test.go:8:TestEncodeDecodeRoundTrip": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(codec)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/frame.rs::encode_decode_round_trip_matches_opend_wire",
+    "conclusion": "function_exact：Rust 编码 44 字节头 + body，断言 packet 长度、protoID=1001、serial=42、body 逐字节一致，与 Go frame_test.go TestEncodeDecodeRoundTrip 的断言等价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(encode_decode_round_trip_matches_opend_wire)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/codec/frame_test.go:29:TestDecodeRejectsCorruptedBody": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(codec)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/frame.rs::decode_rejects_corrupted_body_hash",
+    "conclusion": "function_exact：翻转 body 末字节后 decode 返回 FrameError::BadBodyHash，对应 Go 的 ErrBadBodyHash 断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(decode_rejects_corrupted_body_hash)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/codec/frame_test.go:39:TestDecodeRejectsBadMagic": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(codec)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/frame.rs::decode_rejects_bad_magic",
+    "conclusion": "function_exact：把 magic 首字节改为 X 后 decode 返回 FrameError::BadMagic，对应 Go 的 ErrBadMagic 断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(decode_rejects_bad_magic)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/codec/frame_test.go:49:TestDecodeRejectsShortFrame": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(codec)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/frame.rs::decode_rejects_short_frame",
+    "conclusion": "function_exact：3 字节输入返回 FrameError::TooShort（44 字节头校验），对应 Go 的 ErrFrameTooShort。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(decode_rejects_short_frame)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/codec/frame_test.go:56:TestDecodeRejectsLengthMismatch": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(codec)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/frame.rs::decode_rejects_length_mismatch",
+    "conclusion": "function_exact：截断 body 后返回 LengthMismatch{declared:3,actual:1}，Go 同场景返回 length mismatch 错误（Rust 额外给出 typed 字段）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(decode_rejects_length_mismatch)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/exchange_business_boundary_test.go:18:TestBalanceMapFromBrokerFundsUsesCurrencyRowsBeforeAccountFallback": {
     "status": "[~]",
@@ -16751,95 +16751,95 @@
     "evidence_type": "missing"
   },
   "pkg/futu/opend/client_transport_boundaries_test.go:69:TestConnectSurfacesInvalidAddressAndClosedClient": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/managed_session_tests.rs::closed_session_rejects_connect_like_rpcs_before_touching_the_transport",
+    "conclusion": "function_exact（等价入口）：Go 用 ErrClosed 覆盖 Connect（非法地址/关闭后）语义；Rust 由 OpenDManagedSession::connect 返回 typed Io/Closed，关闭后的会话必须先拒绝新 RPC（PROTO_QOT_SUB 订阅与 PROTO_INIT_CONNECT 均为 Closed(Local)），不写 socket。typed 错误枚举是语言差异，行为断言等价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/opend/client_transport_boundaries_test.go:107:TestClientCloseWaitsForReadWorkerAfterClosingTransport": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/managed_session_tests.rs::close_shuts_down_the_transport_before_joining_the_reader",
+    "conclusion": "function_exact：reader 阻塞在 read_framed_frame 时 close 必须先 shutdown 再 join，测试用 peer 侧读到 EOF + close 返回后 is_closed 断言同一 ordering。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(close_shuts_down_the_transport_before_joining_the_reader)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/opend/client_transport_boundaries_test.go:143:TestClientCloseDrainsPendingRequestsAfterBestEffortCloseFailure": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/managed_session_tests.rs::close_drains_pending_requests_when_the_peer_closes",
+    "conclusion": "function_exact：pending RPC 在 peer close 时收到 typed Closed(PeerClosed) 而不是悬挂，close 幂等返回 false；等价于 Go 关闭所有 pending channel 的 drain 语义。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(close_drains_pending_requests_when_the_peer_closes)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/opend/client_transport_boundaries_test.go:166:TestKeepAliveLoopHalvesLongIntervalsAndStopsForClosedClient": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/managed_session_tests.rs::keep_alive_worker_sends_frames_and_stops_on_close",
+    "conclusion": "function_exact（含功能补齐）：Rust 新增 OpenDManagedSession::start_keep_alive（Go StartKeepAlive 缺失实现）。测试断言 1004 KeepAlive 帧真的发出、重复 start 不产生第二个 worker、close 后停止发送；keep_alive_tick 断言 >1s 间隔折半。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(keep_alive_worker_sends_frames_and_stops_on_close)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/opend/client_transport_boundaries_test.go:182:TestStartKeepAliveRejectsClosedClientWithoutOwningWorker": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/managed_session_tests.rs::start_keep_alive_rejects_a_closed_session",
+    "conclusion": "function_exact：已关闭会话 start_keep_alive 返回 false 且 keep_alive_started()==false，不注册 worker。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(start_keep_alive_rejects_a_closed_session)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/opend/client_transport_boundaries_test.go:202:TestSubscribeNotifySkipsNilAndMalformedPush": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::quote_push_ingestion_drops_malformed_and_stale_frames_without_registering_handlers",
+    "conclusion": "function_exact（等价入口）：Go 忽略 nil handler 且吞掉 malformed notify payload；Rust 无回调注册表，等价边界是 lifecycle 对 malformed unsolicited frame 返回 None 且不记 stream failure，stale generation 在 decode 前被拒。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(quote_push_ingestion_drops_malformed_and_stale_frames_without_registering_handlers)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/opend/client_transport_boundaries_test.go:217:TestCallFrameRejectsMarshalAndOversizedPayloads": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/managed_session_tests.rs::call_rejects_oversized_payload_before_touching_the_socket",
+    "conclusion": "function_exact（范围收窄）：Rust 无反射式 protobuf marshal 失败路径，故只覆盖可等价的一半——>32MiB payload 返回 typed Frame(BodyTooLarge) 且未写 socket（peer 收到的下一帧 body 是 valid 调用）。Go 的 marshal 失败分支保留为语言边界，未伪装等价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(call_rejects_oversized_payload_before_touching_the_socket)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/opend/client_transport_boundaries_test.go:230:TestCallFrameReturnsWriteAndCloseFailures": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/managed_session_tests.rs::call_reports_write_failure_and_closed_session_to_the_waiter",
+    "conclusion": "function_exact：写失败/对端关闭返回 typed Io 或 Closed(PeerClosed|Transport) 且不悬挂；等待中 close 使 waiter 得到 Closed(Local)。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(call_reports_write_failure_and_closed_session_to_the_waiter)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/opend/client_transport_boundaries_test.go:263:TestReadLoopClosesConnectionOnOversizedFrame": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/managed_session_tests.rs::reader_closes_on_oversized_declared_body",
+    "conclusion": "function_exact：声明 >32MiB body 的头使 pending 调用失败为 Closed(InvalidFrame(BodyTooLarge))，session 关闭且 peer 不再可写。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(reader_closes_on_oversized_declared_body)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/opend/client_transport_boundaries_test.go:290:TestReadLoopDiscardsInvalidFramesAndClosesOnTruncation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/managed_session_tests.rs::reader_discards_undecodable_frames_and_closes_on_truncation",
+    "conclusion": "function_exact（含功能修复）：Rust reader 原先对任何 decode 错误直接关闭会话；现在对齐 Go readLoop，对 bad-magic/bad-hash 的完整帧丢弃后继续，仅在 I/O 失败或截断时报 PeerClosed 关闭会话。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(reader_discards_undecodable_frames_and_closes_on_truncation)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/opend/client_transport_boundaries_test.go:315:TestDispatchDropsDuplicateResponseWhenPendingBufferIsFull": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/managed_session_tests.rs::dispatch_drops_a_duplicate_response_when_the_pending_buffer_is_full",
+    "conclusion": "function_exact：匹配的 pending 在投递前移除；重复的同 proto/serial 帧降级为 UnsolicitedFrame，reader 不阻塞。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(dispatch_drops_a_duplicate_response_when_the_pending_buffer_is_full)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/opend/client_transport_boundaries_test.go:327:TestSubscribeQuotesReportsTransportFailure": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/managed_session_tests.rs::closed_session_reports_subscribe_transport_failure",
+    "conclusion": "function_exact（等价入口）：Go SubscribeQuotes 在无连接时返回 ErrClosed；Rust 订阅执行路径经 managed session，关闭后 PROTO_QOT_SUB 调用返回 Closed(Local)。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(closed_session_reports_subscribe_transport_failure)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/opend/client_transport_boundaries_test.go:334:TestProgramStatusLabelIncludesServerDescription": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/health.rs::program_status_label_includes_server_description",
+    "conclusion": "function_exact（含功能修复）：Rust programStatus 原先输出短标签 \"Ready\"；已改为 Go 的 protobuf 枚举名 \"ProgramStatusType_Ready\"，并附带 trimmed 描述（空/纯空白描述不加冒号）。前端 FUTU_PROGRAM_STATUS_LABELS 依赖该前缀。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(program_status_label_includes_server_description)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/opend/market_read_boundaries_test.go:21:TestSubscribeQuotesEncodesAdvancedMarketDataOptions": {
     "status": "[~]",
