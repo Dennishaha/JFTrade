@@ -255,3 +255,34 @@ node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --loc
 - 已知 flake：`jftrade-integration-futu` 的
   `health::tests::tcp_probe_reports_protocol_outcomes_without_a_real_opend`
   在基线工作树同样失败（本地端口竞争），与本批改动无关，定向重跑通过。
+
+## 批次：历史 K 线分页、页大小与标签归一化
+
+| Go 测试 | Rust 证据入口 | 状态 |
+| --- | --- | --- |
+| `exchange_kline_test.go:291 TestQueryKLinesFollowsHistoryPaginationAndKeepsLatestLimit` | `jftrade-integration-futu::history::window_tests::history_window_follows_forward_pages_and_keeps_the_latest_limit` | `[x]`：跟随 nextReqKey 连续 3 页。 |
+| `exchange_kline_test.go:326 TestQueryKLinesAllowsMoreThanEightHistoryPages` | `...::history_window_allows_more_than_eight_pages` | `[x]`：9+1 页全部跟随。 |
+| `exchange_kline_test.go:356 TestQueryKLinesUsesLargerHistoryPageSizeThanRequestedLimit` | `...::history_window_uses_a_larger_upstream_page_size_than_the_limit` | `[x]`：2/500/5000 → 200/500/1000。 |
+| `exchange_kline_test.go:241 TestQueryKLinesNormalizesIntradayHistoryLabelToBucketStart` | `...::history_window_normalizes_intraday_history_label_to_bucket_start` | `[x]`：1m/5m/60m 标签位移到桶起点。 |
+| `exchange_kline_test.go:269 TestQueryKLinesKeepsDailyHistoryLabelAsBucketStart` | `...::history_window_keeps_daily_history_label_as_bucket_start` | `[x]`：日线标签保持桶起点。 |
+| `exchange_kline_test.go:385 TestQueryKLinesIncludesCurrentRealtimeBucketFromGetKL` | `jftrade-engine::...::candle_route_keeps_latest_history_after_all_forward_pages_and_current_bar` | `[~]`/partial：当前 bucket 合并已覆盖，订阅前置与 closed 标签细节未逐条断言。 |
+| `exchange_kline_test.go:428 TestStreamConnectEmitsBasicQotPushAsBBGOEvents` | `jftrade-integration-futu::quote_push_tests::decodes_basic_kline_and_order_book_pushes_with_go_field_semantics` | `[~]`/partial：push 解码已覆盖；Rust live 事件为 market-data.tick/orderbook envelope，成交量差分语义未实现。 |
+| `exchange_kline_test.go:479 TestStreamConnectRebuildsClosedCachedOpenDClient` | `jftrade-integration-futu::session_coordinator::tests::reconnect_replay_contains_only_subscriptions_and_resets_retry_state` | `[x]`：会话关闭后重建并只重放订阅（generation 递增）。 |
+
+验证命令：
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(history_window)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(quote_push)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(reconnect_replay_contains_only_subscriptions_and_resets_retry_state)'
+```
+
+### 说明
+
+- 本批为证据映射与边界确认：分页预算、页大小放大、标签归一化在 Rust 读取层
+  （`history.rs::query_window`、`kline_query.rs::adjust_kline_time`）已与 Go 行为一致，
+  新增 4 条测试把此前仅有实现、没有逐项证据的契约补齐。
+- 仍未实现/未迁移（保留在清单）：
+  - stream 层的成交量差分（`nextTradeQuantity`：跨日基线、回退、负值、超大整数）
+    与 `VolumeDelta`/`CumulativeVolume` 字段；
+  - 当前未闭合 bucket 的 `closed=false` 与 `GetKL` 订阅前置的逐条断言。

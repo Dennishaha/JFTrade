@@ -180,3 +180,100 @@ fn history_window_rejects_another_security_on_a_later_page() {
         Err(HistoricalKlineError::InvalidPagination)
     ));
 }
+
+/// Parity: pkg/futu/exchange_kline_test.go:291
+/// TestQueryKLinesFollowsHistoryPaginationAndKeepsLatestLimit
+///
+/// Go follows `nextReqKey` across pages and keeps only the newest `limit`
+/// bars. The bounded chart-history budget must not stop after a single page.
+#[test]
+fn history_window_follows_forward_pages_and_keeps_the_latest_limit() {
+    let reader = reader(vec![
+        Ok(page(&["10:00"], &[1])),
+        Ok(page(&["10:05"], &[2])),
+        Ok(page(&["10:10"], &[])),
+    ]);
+    let result = reader.query_window(&query()).expect("window");
+    assert_eq!(reader.requests.lock().unwrap().len(), 3);
+    let times = result
+        .klines
+        .iter()
+        .map(|kline| kline.time.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        times,
+        vec![
+            "2026-09-09 10:00:00",
+            "2026-09-09 10:05:00",
+            "2026-09-09 10:10:00"
+        ]
+    );
+}
+
+/// Parity: pkg/futu/exchange_kline_test.go:326
+/// TestQueryKLinesAllowsMoreThanEightHistoryPages
+///
+/// OpenD can paginate a valid intraday window into more than the legacy eight
+/// pages; the reader must keep following `nextReqKey` up to its budget.
+#[test]
+fn history_window_allows_more_than_eight_pages() {
+    let mut responses: Vec<_> = (1..=9).map(|n| Ok(page(&["13:18"], &[n]))).collect();
+    responses.push(Ok(page(&["13:19"], &[])));
+    let reader = reader(responses);
+    let result = reader.query_window(&query()).expect("nine pages");
+    assert_eq!(reader.requests.lock().unwrap().len(), 10);
+    assert_eq!(result.klines.len(), 2);
+}
+
+/// Parity: pkg/futu/exchange_kline_test.go:356
+/// TestQueryKLinesUsesLargerHistoryPageSizeThanRequestedLimit
+///
+/// A small requested limit must not shrink the upstream page size: Go enlarges
+/// the page to at least 200 bars and clamps at 1000.
+#[test]
+fn history_window_uses_a_larger_upstream_page_size_than_the_limit() {
+    for (requested, expected) in [(2, 200), (500, 500), (5000, 1000)] {
+        let reader = reader(vec![Ok(page(&["13:19"], &[]))]);
+        let mut request = query();
+        request.max_ack_kl_num = Some(requested);
+        let _ = reader.query_window(&request).expect("window");
+        assert_eq!(
+            reader.requests.lock().unwrap()[0].max_ack_kl_num,
+            Some(expected),
+            "requested limit {requested}"
+        );
+    }
+}
+
+/// Parity: pkg/futu/exchange_kline_test.go:241 / :269
+/// TestQueryKLinesNormalizesIntradayHistoryLabelToBucketStart /
+/// TestQueryKLinesKeepsDailyHistoryLabelAsBucketStart
+///
+/// OpenD reports the bucket *label*; intraday bars must be shifted back by one
+/// interval while daily bars keep the label as their open time. The adjustment
+/// happens in the Futu decode path, so the same rule is asserted here through
+/// `adjust_kline_time`.
+#[test]
+fn history_window_normalizes_intraday_history_label_to_bucket_start() {
+    assert_eq!(
+        crate::adjust_kline_time("2026-05-20 10:55:00", "1m"),
+        "2026-05-20 10:54:00"
+    );
+    assert_eq!(
+        crate::adjust_kline_time("2026-05-20 10:55:00", "5m"),
+        "2026-05-20 10:50:00"
+    );
+    assert_eq!(
+        crate::adjust_kline_time("2026-05-20 11:00:00", "60m"),
+        "2026-05-20 10:00:00"
+    );
+}
+
+#[test]
+fn history_window_keeps_daily_history_label_as_bucket_start() {
+    assert_eq!(
+        crate::adjust_kline_time("2026-05-20 00:00:00", "1d"),
+        "2026-05-20 00:00:00"
+    );
+    assert_eq!(crate::adjust_kline_time("2026-05-20", "1d"), "2026-05-20");
+}
