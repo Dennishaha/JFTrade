@@ -118,3 +118,58 @@ node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --l
 - 未迁移：Go 另有 tuple 宽度/别名匹配（`PINE_REQUEST_SECURITY_TUPLE_*`）、
   可执行 `ta.*` 白名单（`PINE_REQUEST_SECURITY_EXPRESSION_UNSUPPORTED`）与
   timeframe 单位白名单校验；Rust 当前没有等价 tuple 校验入口，保留在后续批次。
+
+## 批次：history 引用、broker boundary 与订单子集编译
+
+| Go 测试 | Rust 证据入口 | 状态 |
+| --- | --- | --- |
+| `parse_test.go:253 TestValidateScriptReportsUnsupportedHistoryReferences` | `jftrade-strategy::pine::history_reference_boundary_tests::validate_script_reports_unsupported_history_references` | `[x]`：函数结果 history 与 `close[501]` 两条诊断消息对齐，码为 `PINE_HISTORY_REF_UNSUPPORTED`。 |
+| `parse_test.go:464 TestValidateScriptReportsUnsupportedAdvancedOrders` | `jftrade-strategy::pine::advanced_order_diagnostic_tests::validate_script_reports_unsupported_advanced_orders` | `[x]`：trail + stop 混用返回 `PINE_ORDER_EXIT_TRAIL_BRACKET_UNSUPPORTED`。 |
+| `parse_test.go:488 TestAnalyzeScriptReportsV40BrokerBoundaryDiagnostics` | `jftrade-strategy::pine::advanced_order_diagnostic_tests::analyze_script_reports_v40_broker_boundary_diagnostics` | `[x]`：OCA×2、qty 冲突、close_all 非法参数、trail bracket、无触发器 exit 六个子用例码与行号对齐。 |
+| `parse_test.go:367 TestCompileCapturesStrategyExitSpecificMetadata` | `jftrade-strategy::pine::order_subset_compile_tests::compile_keeps_strategy_exit_named_metadata` | `[x]`：8 个 exit 元数据字段在 lowering 后逐项保留。 |
+| `parse_test.go:1044 TestHistoryReferencesIgnoreStringLiterals` | `jftrade-strategy::pine::history_reference_boundary_tests::history_references_ignore_string_literals` | `[x]`：字符串字面量中的 `close[1]` 不触发历史引用诊断。 |
+| `parse_test.go:286 / :317 / :348 / :390 / :432 / :448` | `jftrade-strategy::pine::order_subset_compile_tests::compile_accepts_strategy_order_subset_scripts` | `[~]`/partial：脚本可编译且 `strategy.*` 调用与参数保留；Go 的 typed `OrderStmt`/`ExitStmt`/`CancelStmt` 字段投影由 PineTS worker 与 backtest matcher 承担，不在 `jftrade-strategy` IR 中。 |
+
+验证命令：
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(history_reference)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(advanced_order_diagnostic_tests)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(order_subset_compile_tests)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked
+```
+
+### 发现并修复的真实功能差异
+
+- 复现 1：`if ta.sma(close, 20)[2] > close`。
+  修复前：Rust 静默接受调用结果上的历史引用。
+  预期（Go `historyDiagnosticMessage`）：`history references are supported only on
+  identifiers or object fields; assign the function result first`。
+- 复现 2：`if close[501] > close`。
+  修复前：Rust 静默接受超长 lookback。
+  预期（Go `maxHistoryLookback = 500`）：`history reference lookback 501 exceeds
+  JFTrade maximum 500`。
+- 修复位置：`crates/jftrade-strategy/src/pine/semantic.rs`
+  新增 `MAX_HISTORY_LOOKBACK` 与 `report_history_reference_diagnostics`，
+  在 `ExprKind::Index` 访问时按结构（而非 Go 的正则）判定。
+- 复现 3：`strategy.entry(..., oca_name="group")`、`strategy.close(..., qty=1,
+  qty_percent=50)`、`strategy.exit(..., stop=..., trail_points=...)`、
+  `strategy.exit("Exit", "Long")`、`strategy.close_all(foo=1)`。
+  修复前：Rust 只把诊断码写在 pinespec 规格文本里，实际不会抛出。
+  预期（Go `diagnosticCodeForCompileMessage` + `validateStrategyExitTriggers`）：
+  返回 `PINE_ORDER_OCA_UNSUPPORTED`、`PINE_ORDER_QTY_CONFLICT`、
+  `PINE_ORDER_EXIT_TRAIL_BRACKET_UNSUPPORTED`、
+  `PINE_ORDER_EXIT_ADVANCED_UNSUPPORTED` 与 `PINE_COMPILE_ERROR`。
+- 修复位置：`crates/jftrade-strategy/src/pine/semantic.rs::strategy_order_diagnostic`，
+  在 `visit_call` 中于 `request.security` 分支之前生效；具名参数沿用
+  `request_security_named_argument` 的 `name=value` 还原逻辑。
+- 边界保留：`strategy.cancel_all` 只在带参数时拒绝，与 Go 一致；OCA/partial
+  fill 本身仍属 out-of-scope，不进入可执行分数。
+
+### 未迁移项
+
+- Go 的 typed `ExitStmt`/`OrderStmt`/`CancelStmt` 字段投影（Direction、
+  QuantityMode、QuantityExpression、WhenExpression、Immediate、TrailPoints 等）
+  在 Rust 归属 PineTS worker（`workers/pineworker/src/pinetsOrderIntents.ts`）
+  与 `jftrade-integration-pine`/`jftrade-backtest`，不在 `jftrade-strategy` 的
+  lowered IR 中；本轮以 `partial` 记录，不在错误 crate 复制实现。

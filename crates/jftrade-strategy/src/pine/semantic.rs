@@ -140,6 +140,9 @@ struct SemanticContext<'a> {
     functions: BTreeSet<String>,
 }
 
+/// Go's maximum `series[n]` lookback (`pkg/strategy/pine/parse.go`).
+const MAX_HISTORY_LOOKBACK: u64 = 500;
+
 impl SemanticContext<'_> {
     fn visit_statement(&mut self, statement: &Statement) {
         match statement {
@@ -270,6 +273,41 @@ impl SemanticContext<'_> {
         }
     }
 
+    /// Parity: `pkg/strategy/pine/validate.go::historyDiagnosticMessage`.
+    ///
+    /// Go rejects a history reference whose receiver is a call result
+    /// (`ta.sma(close, 20)[2]`) and one whose lookback exceeds 500 bars. The
+    /// Rust parser keeps `series[n]` as a typed index expression, so the same
+    /// contract is detected structurally instead of by regex.
+    fn report_history_reference_diagnostics(
+        &mut self,
+        object: &Expr,
+        index: &Expr,
+        expression: &Expr,
+    ) {
+        let line = expression.range.start_line;
+        if matches!(object.kind, ExprKind::Call { .. }) {
+            self.summary.diagnostics.push(Diagnostic::error(
+                "PINE_HISTORY_REF_UNSUPPORTED",
+                "history references are supported only on identifiers or object fields; assign the function result first",
+                line,
+            ));
+            return;
+        }
+        if let ExprKind::Number { value } = &index.kind {
+            let lookback = value.trim().parse::<u64>().ok();
+            if let Some(lookback) = lookback.filter(|value| *value > MAX_HISTORY_LOOKBACK) {
+                self.summary.diagnostics.push(Diagnostic::error(
+                    "PINE_HISTORY_REF_UNSUPPORTED",
+                    format!(
+                        "history reference lookback {lookback} exceeds JFTrade maximum {MAX_HISTORY_LOOKBACK}"
+                    ),
+                    line,
+                ));
+            }
+        }
+    }
+
     fn visit_expr(&mut self, expression: &Expr) -> ValueType {
         match &expression.kind {
             ExprKind::Number { .. } => ValueType::Number,
@@ -287,6 +325,7 @@ impl SemanticContext<'_> {
             }
             ExprKind::Index { object, index } => {
                 self.visit_expr(index);
+                self.report_history_reference_diagnostics(object, index, expression);
                 self.visit_expr(object)
             }
             ExprKind::Unary { op, expression } => {
@@ -385,6 +424,12 @@ impl SemanticContext<'_> {
                 arguments: arguments.iter().map(ToString::to_string).collect(),
                 text: format_expr_call(callee, arguments),
             });
+            return ValueType::Unknown;
+        }
+        if lower.starts_with("strategy.")
+            && let Some(diagnostic) = strategy_order_diagnostic(&lower, arguments, range)
+        {
+            self.summary.diagnostics.push(diagnostic);
             return ValueType::Unknown;
         }
         if lower == "request.security" {
@@ -761,6 +806,91 @@ fn request_security_diagnostic(
         );
     }
     let _ = callee;
+    None
+}
+
+/// Parity: `pkg/strategy/pine/analysis.go::diagnosticCodeForCompileMessage`
+/// plus `strategy_call_helpers.go` trigger validation.
+///
+/// Go rejects order calls that use OCA arguments, mix `qty` with
+/// `qty_percent`, combine a trail with a stop/limit bracket, or ask for an
+/// exit without any trigger. Rust surfaces the same stable codes and keeps
+/// the messages that the Go analysis layer matches on.
+fn strategy_order_diagnostic(
+    callee: &str,
+    arguments: &[Expr],
+    range: SourceRange,
+) -> Option<Diagnostic> {
+    let mut names = Vec::new();
+    for argument in arguments {
+        let (name, value) = request_security_named_argument(argument);
+        if !name.is_empty() {
+            names.push((name.to_ascii_lowercase(), value));
+        }
+    }
+    let has = |target: &str| names.iter().any(|(name, _)| name == target);
+    if has("oca_name") || has("oca_type") {
+        return Some(Diagnostic::error(
+            "PINE_ORDER_OCA_UNSUPPORTED",
+            format!("{callee} OCA arguments are not supported by JFTrade"),
+            range.start_line,
+        ));
+    }
+    if callee == "strategy.close_all" {
+        for (name, _) in &names {
+            if !matches!(
+                name.as_str(),
+                "immediately" | "comment" | "alert_message" | "disable_alert"
+            ) {
+                return Some(Diagnostic::error(
+                    "PINE_COMPILE_ERROR",
+                    format!("strategy.close_all argument {name} is not supported by JFTrade"),
+                    range.start_line,
+                ));
+            }
+        }
+    }
+    if callee == "strategy.cancel_all" && !arguments.is_empty() {
+        return Some(Diagnostic::error(
+            "PINE_COMPILE_ERROR",
+            "strategy.cancel_all arguments are not supported by JFTrade yet",
+            range.start_line,
+        ));
+    }
+    if has("qty") && has("qty_percent") {
+        return Some(Diagnostic::error(
+            "PINE_ORDER_QTY_CONFLICT",
+            format!("{callee} supports qty or qty_percent, not both"),
+            range.start_line,
+        ));
+    }
+    if callee == "strategy.exit" {
+        let trail_points = has("trail_points");
+        let trail_price = has("trail_price");
+        let bracket = has("stop") || has("limit") || has("profit") || has("loss");
+        if trail_points && trail_price {
+            return Some(Diagnostic::error(
+                "PINE_ORDER_EXIT_TRAIL_BRACKET_UNSUPPORTED",
+                "strategy.exit accepts trail_points or trail_price, not both",
+                range.start_line,
+            ));
+        }
+        if (trail_points || trail_price) && bracket {
+            return Some(Diagnostic::error(
+                "PINE_ORDER_EXIT_TRAIL_BRACKET_UNSUPPORTED",
+                "strategy.exit trail with stop/limit is not supported by JFTrade yet",
+                range.start_line,
+            ));
+        }
+        let has_trigger = bracket || trail_points || trail_price;
+        if !has_trigger {
+            return Some(Diagnostic::error(
+                "PINE_ORDER_EXIT_ADVANCED_UNSUPPORTED",
+                "strategy.exit advanced exit semantics are not supported by JFTrade yet",
+                range.start_line,
+            ));
+        }
+    }
     None
 }
 

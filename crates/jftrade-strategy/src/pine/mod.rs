@@ -361,6 +361,289 @@ strategy.entry("Long", strategy.long, qty=5)"#;
 }
 
 #[cfg(test)]
+mod order_subset_compile_tests {
+    use super::lower::LoweredStatement;
+    use super::*;
+
+    fn action_calls(script: &str) -> Vec<(String, Vec<String>)> {
+        let compilation = compile(script);
+        assert!(
+            compilation.ok,
+            "diagnostics = {:?}",
+            compilation.diagnostics
+        );
+        let program = compilation.program.expect("lowered program");
+        program.hooks[0]
+            .statements
+            .iter()
+            .map(|statement| {
+                let LoweredStatement::Action {
+                    call, arguments, ..
+                } = statement
+                else {
+                    panic!("statement is not an action: {statement:?}");
+                };
+                (
+                    call.clone(),
+                    arguments
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect()
+    }
+
+    /// Parity: pkg/strategy/pine/parse_test.go:286, :317, :348, :367, :390,
+    /// :432, :448
+    ///
+    /// Go lowers these order calls into typed `OrderStmt`/`ExitStmt`/
+    /// `CancelStmt` projections. Rust keeps the verified call plus its
+    /// arguments as `LoweredStatement::Action` and defers the order semantics
+    /// to the PineTS worker and the deterministic backtest matcher, so the
+    /// shared contract asserted here is that every supported script compiles
+    /// and keeps its `strategy.*` calls with named arguments intact.
+    #[test]
+    fn compile_accepts_strategy_order_subset_scripts() {
+        for script in [
+            r#"//@version=6
+strategy("Exit", overlay=true)
+strategy.exit("Long stop", "Long", stop=close * (1 - 2 / 100), qty_percent=50)
+strategy.exit("Short profit", "Short", limit=close * (1 - 3 / 100), qty=5)
+strategy.exit("Bracket", from_entry="Long", stop=close - 2, limit=close + 3)
+strategy.exit("Long trail", "Long", trail_points=close * 4 / 100, trail_offset=close * 4 / 100)"#,
+            r#"//@version=6
+strategy("When", overlay=true)
+strategy.entry("Long", strategy.long, qty=1, when=close > open)
+strategy.order("Net short", strategy.short, qty=2, when=close < open)
+strategy.close("Long", when=ta.crossunder(close, open))
+strategy.exit("Exit", "Long", stop=close - 2, when=high > low)"#,
+            r#"//@version=6
+strategy("Exit points", overlay=true)
+strategy.exit("Points", "Long", profit=50, loss=25, qty_percent=50)"#,
+            r#"//@version=6
+strategy("Pending", overlay=true)
+strategy.entry("Breakout", strategy.long, stop=ta.highest(high, 20), qty=1)
+strategy.order("Net short", strategy.short, stop=low - 1, qty=5)
+strategy.close("Long", stop=99, limit=101, qty_percent=50)
+strategy.entry("StopLimit", strategy.long, stop=101, limit=99, qty=2)
+strategy.cancel("Breakout")
+strategy.cancel_all()"#,
+            r#"//@version=6
+strategy("Close all positional", overlay=true)
+strategy.close_all(true, "flat", "done", false)"#,
+            r#"//@version=6
+strategy("Close positional", overlay=true)
+strategy.close("Long", 2)"#,
+        ] {
+            let calls = action_calls(script);
+            assert!(!calls.is_empty(), "no actions lowered for {script}");
+            assert!(
+                calls.iter().all(|(call, _)| call.starts_with("strategy.")),
+                "unexpected calls: {calls:?}"
+            );
+        }
+    }
+
+    /// Parity: pkg/strategy/pine/parse_test.go:367
+    /// TestCompileCapturesStrategyExitSpecificMetadata
+    ///
+    /// Named exit metadata must survive lowering so the worker can project it.
+    #[test]
+    fn compile_keeps_strategy_exit_named_metadata() {
+        let calls = action_calls(
+            r#"//@version=6
+strategy("Exit metadata", overlay=true)
+strategy.exit("Bracket", "Long", stop=98, limit=105, comment="generic", comment_profit="tp", comment_loss="sl", alert_message="base", alert_profit="ap", alert_loss="al")
+strategy.exit("Trail", "Long", trail_points=10, trail_offset=5, comment="generic trail", comment_trailing="trail comment", alert_message="trail base", alert_trailing="trail alert")"#,
+        );
+        assert_eq!(calls.len(), 2, "calls = {calls:?}");
+        let normalize = |arguments: &[String]| arguments.join("|").replace(" Equal ", "=");
+        let joined = normalize(&calls[0].1);
+        for expected in [
+            r#"comment="generic""#,
+            r#"comment_profit="tp""#,
+            r#"comment_loss="sl""#,
+            r#"alert_message="base""#,
+            r#"alert_profit="ap""#,
+            r#"alert_loss="al""#,
+        ] {
+            assert!(
+                joined.contains(expected),
+                "bracket exit missing {expected}: {joined}"
+            );
+        }
+        let joined = normalize(&calls[1].1);
+        for expected in [
+            r#"comment_trailing="trail comment""#,
+            r#"alert_trailing="trail alert""#,
+        ] {
+            assert!(
+                joined.contains(expected),
+                "trailing exit missing {expected}: {joined}"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod advanced_order_diagnostic_tests {
+    use super::*;
+
+    /// Parity: pkg/strategy/pine/parse_test.go:464
+    /// TestValidateScriptReportsUnsupportedAdvancedOrders
+    #[test]
+    fn validate_script_reports_unsupported_advanced_orders() {
+        let source = r#"//@version=6
+strategy("Trail Stop", overlay=true)
+strategy.exit("Exit", "Long", stop=close - 2, trail_points=close * 4 / 100, trail_offset=close * 4 / 100)"#;
+        let compilation = compile(source);
+        assert!(!compilation.ok, "trail plus stop must be rejected");
+        let messages = compilation
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.message.clone())
+            .collect::<Vec<_>>()
+            .join(" | ");
+        assert!(
+            messages.contains("trail with stop/limit"),
+            "diagnostics = {messages:?}"
+        );
+        assert!(
+            compilation
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "PINE_ORDER_EXIT_TRAIL_BRACKET_UNSUPPORTED"),
+            "missing trail-bracket code"
+        );
+    }
+
+    /// Parity: pkg/strategy/pine/parse_test.go:488
+    /// TestAnalyzeScriptReportsV40BrokerBoundaryDiagnostics
+    ///
+    /// Go returns six broker-boundary diagnostics with stable codes on the
+    /// failing line; Rust mirrors the executable subset of that matrix.
+    #[test]
+    fn analyze_script_reports_v40_broker_boundary_diagnostics() {
+        for (body, code) in [
+            (
+                r#"strategy.entry("Long", strategy.long, qty=1, oca_name="group")"#,
+                "PINE_ORDER_OCA_UNSUPPORTED",
+            ),
+            (
+                r#"strategy.exit("Exit", "Long", stop=98, oca_name="group")"#,
+                "PINE_ORDER_OCA_UNSUPPORTED",
+            ),
+            (
+                r#"strategy.close("Long", qty=1, qty_percent=50)"#,
+                "PINE_ORDER_QTY_CONFLICT",
+            ),
+            (
+                r#"strategy.exit("Exit", "Long", stop=close - 2, trail_points=close * 4 / 100, trail_offset=close * 4 / 100)"#,
+                "PINE_ORDER_EXIT_TRAIL_BRACKET_UNSUPPORTED",
+            ),
+            (
+                r#"strategy.exit("Exit", "Long")"#,
+                "PINE_ORDER_EXIT_ADVANCED_UNSUPPORTED",
+            ),
+            (r#"strategy.close_all(foo=1)"#, "PINE_COMPILE_ERROR"),
+        ] {
+            let source =
+                format!("//@version=6\nstrategy(\"Broker boundary\", overlay=true)\n{body}");
+            let analysis = analyze_script(&source, AnalysisOptions::default());
+            assert!(!analysis.ok, "analysis must fail for {body}");
+            assert!(
+                analysis
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == code && diagnostic.line == 3),
+                "diagnostics for {body} = {:?}, want {code} on line 3",
+                analysis.diagnostics
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod history_reference_boundary_tests {
+    use super::lower::LoweredStatement;
+    use super::*;
+
+    /// Parity: pkg/strategy/pine/parse_test.go:253
+    /// TestValidateScriptReportsUnsupportedHistoryReferences
+    ///
+    /// Go rejects a call-result history reference with "assign the function
+    /// result first" and a lookback above 500 with "exceeds JFTrade maximum
+    /// 500"; Rust mirrors both through the semantic diagnostics.
+    #[test]
+    fn validate_script_reports_unsupported_history_references() {
+        for (body, wanted) in [
+            (
+                "if ta.sma(close, 20)[2] > close\n    strategy.entry(\"Long\", strategy.long, qty=1)",
+                "assign the function result first",
+            ),
+            (
+                "if close[501] > close\n    strategy.entry(\"Long\", strategy.long, qty=1)",
+                "exceeds JFTrade maximum 500",
+            ),
+        ] {
+            let source = format!("//@version=6\nstrategy(\"History\", overlay=true)\n{body}");
+            let compilation = compile(&source);
+            assert!(!compilation.ok, "compile must fail for {body}");
+            let messages = compilation
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.message.clone())
+                .collect::<Vec<_>>()
+                .join(" | ");
+            assert!(
+                messages.contains(wanted),
+                "diagnostics for {body} = {messages:?}, want {wanted}"
+            );
+            assert!(
+                compilation
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "PINE_HISTORY_REF_UNSUPPORTED"),
+                "missing PINE_HISTORY_REF_UNSUPPORTED for {body}"
+            );
+        }
+    }
+
+    /// Parity: pkg/strategy/pine/parse_test.go:1044
+    /// TestHistoryReferencesIgnoreStringLiterals
+    ///
+    /// A `close[1]` sequence inside a string literal is data, not a history
+    /// reference: Go lowers both assignments unchanged and so must Rust.
+    #[test]
+    fn history_references_ignore_string_literals() {
+        let script = r#"//@version=6
+strategy("Strings", overlay=true)
+label = "close[1]"
+deeper = "close[2]""#;
+        let compilation = compile(script);
+        assert!(
+            compilation.ok,
+            "diagnostics = {:?}",
+            compilation.diagnostics
+        );
+        let program = compilation.program.expect("lowered program");
+        let statements = &program.hooks[0].statements;
+        assert_eq!(statements.len(), 2, "statements = {statements:?}");
+        for (index, expected) in [(0usize, "\"close[1]\""), (1usize, "\"close[2]\"")] {
+            let LoweredStatement::Let { expression, .. } = &statements[index] else {
+                panic!("statement {index} is not a let: {:?}", statements[index]);
+            };
+            assert_eq!(
+                expression.to_string(),
+                expected,
+                "string literal {index} must be untouched"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
 mod request_security_tests {
     use super::*;
 
