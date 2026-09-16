@@ -494,3 +494,87 @@ cargo clippy -p jftrade-integration-futu --all-targets --locked
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+## 批次：`pkg/futu/stream_connection_quote_boundaries_test.go` 推送与成交量语义
+
+本批处理 stream 层 12 条测试，修掉 2 处真实功能缺口：Rust 直播流从未注册
+OpenD 推送，以及累计成交量从未换算成每笔增量。
+
+### 本批结论
+
+| Go 测试 | Rust 证据入口 | 状态 |
+| --- | --- | --- |
+| `stream_connection_quote_boundaries_test.go:22 TestStreamCloseCancelsAndJoinsOwnedWorkers` | `runtime_task::tests::runtime_task_updates_dynamic_demand_and_shuts_down_its_coordinator` | `[~]`/partial |
+| `:78 TestStreamConnectionAndSubscriptionBoundaries` | `subscription_executor::tests::executor_rejects_invalid_instrument_and_unsupported_interval` | `[~]`/partial |
+| `:115 TestStreamPushHandlersRejectInactiveMalformedAndEmptyQuotes` | `product_runtime_opend_listener_tests::basic_quote_pushes_drop_rows_without_a_usable_security_or_price` | `[x]` |
+| `:143 TestStreamConvertsCumulativeQuoteVolumeToIncrementalTradeQuantity` | `trade_volume::tests::first_sample_is_a_baseline_and_decreases_or_negatives_report_zero` | `[x]` |
+| `:174 TestStreamPreservesFractionalCumulativeVolumeDelta` | `trade_volume::tests::fractional_and_out_of_fixedpoint_counters_keep_their_exact_delta` | `[x]` |
+| `:188 TestStreamMarketTradeCarriesDeltaAndCumulativeVolume` | `product_runtime_opend_listener_tests::basic_quote_pushes_publish_delta_and_cumulative_volume` | `[x]` |
+| `:215 TestStreamMarketTradePreservesVolumeBeyondLegacyFixedpointRange` | `product_runtime_opend_listener_tests::basic_quote_pushes_keep_exact_volume_beyond_fixedpoint_range` | `[x]` |
+| `:239 TestStreamRejectsNegativeSnapshotVolume` | `tick_candles::tests::tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume` | `[~]`/partial |
+| `:255 TestBasicQuotePushSubscriptionErrorsAndIdempotency` | `subscription_executor::tests::basic_subscribe_registers_push_delivery_like_go_stream` | `[x]` |
+| `:292 TestOrderBookStreamConnectionBoundaries` | `subscription_executor::tests::hk_order_book_subscribe_requests_detail_and_registers_push` | `[~]`/partial |
+| `:317 TestStreamReconnectAndClientWatcherExitPaths` | `session_coordinator::tests::peer_close_advances_generation_replays_subscriptions_and_accepts_push` | `[~]`/partial |
+| `:369 TestStreamConnectReportsPhysicalSubscriptionFailures` | `subscription_executor::tests::executor_maps_qot_sub_rejection_without_reporting_success` | `[x]` |
+
+### 本批发现与修复
+
+- **BasicQot/盘口推送从未注册**（P0 功能缺口 → 已修复）
+  - Go 的 stream 层在订阅 Basic 行情时调用 `subscribeBasicQotPush`
+    （`IsRegOrUnRegPush=true`、`IsFirstPush=true`），盘口走
+    `ensureOrderBookPushSubscriptions`（`IsRegPush=true`）；不注册推送时
+    OpenD 不会下发 `Qot_UpdateBasicQot`(3005) / `Qot_UpdateOrderBook`(3013)，
+    而 `product_runtime_opend_listener` 却在消费这两种推送。
+  - Rust 的 `OpenDSubscriptionExecutor` 既拥有唯一 OpenD 会话、又承担 stream
+    角色，此前 Basic 传 `None`、盘口传 `Some(false)`，等于显式不注册。
+  - 修复位置：`crates/jftrade-integration-futu/src/subscription_executor.rs::qot_sub_request`。
+    Basic 订阅 → `Some(true)`+`isFirstPush=Some(true)`；Basic 退订 →
+    `Some(false)`；盘口订阅 → `Some(true)`（HK 同时带
+    `isSubOrderBookDetail=true`，对齐 Go 的 HK 分批）；K 线保持 `Some(false)`。
+  - 回归：`basic_subscribe_registers_push_delivery_like_go_stream`、
+    `basic_unsubscribe_unregisters_push_delivery_like_go`、
+    `hk_order_book_subscribe_requests_detail_and_registers_push`。
+- **累计成交量从未换算为每笔增量**（P0 功能缺口 → 已修复）
+  - Go `Stream.nextTradeQuantity` 用 `(symbol, tradingDay, session)` 记录上一笔
+    累计量，首样本/跨日/跨时段/计数回退/负值一律返回 0，其余返回精确差值，并在
+    `TickEventDTO.JSON` 里同时发布 `cumulativeVolume` 与 `volumeDelta`。
+    Rust 的 tick 一直 `volume_delta: None`，直播事件也只发
+    `volume`/`price`，前端 `marketDataRealtimeVolumeSequence` 拿不到增量。
+  - 修复位置：
+    - `crates/jftrade-marketdata/src/trade_volume.rs`（新增 `TradeVolumeTracker`，
+      基于 `DecimalText` 任意精度做差，避免 2^53 以上丢位）；
+    - `crates/jftrade-marketdata/src/cache.rs` 暴露 `trading_day_key` 作为
+      共享的交易日定义；
+    - `crates/jftrade-integration-futu/src/basic_quote_tick.rs` 新增
+      `quote_session_label`，让流与快照共用同一时段判定；
+    - `crates/jftrade-engine/src/product_runtime_opend_listener.rs` 按 Go
+      `TickEventDTO.JSON` 发布 `at`/`brokerId`/`source`/`cumulativeVolume`/
+      `volumeDelta` 与 `instrument`/`snapshot` 块，并复用 `cur_price == 0`
+      早退。
+    - `crates/jftrade-api/src/websocket.rs::event_instrument_id` 学会解析
+      `payload.instrument.instrumentId`，否则新 payload 会被订阅过滤丢弃。
+  - 回归：`trade_volume::tests::*`（4 条）与
+    `product_runtime_opend_listener_tests::*`（5 条）。
+
+### 边界保留（不迁移为等价测试）
+
+- `TestStreamCloseCancelsAndJoinsOwnedWorkers`：Rust 用
+  `OpenDSessionRuntime` 的 stop channel + `JoinHandle` 关闭并 join 工作线程，
+  不存在 Go 的 `Stream.workerWG`/`startWorker(generation)` 代际 worker 语义。
+- `TestStreamConnectionAndSubscriptionBoundaries` / `TestOrderBookStreamConnectionBoundaries`：
+  “不可用 OpenD”与“空订阅”报错在 Rust 由 provider runtime 注入与
+  `OpenDSessionCoordinator` 承担，用例分散，未合并成单条断言。
+- `TestStreamReconnectAndClientWatcherExitPaths`：Go 的 `ReconnectC` watcher
+  在 Rust 对应运行时任务的重连循环，取消语义通过 stop channel 表达。
+- `TestStreamRejectsNegativeSnapshotVolume`：负值已在 candle 与 tracker 层钳为
+  0；Go 额外要求“完全不产生事件”，Rust 目前仍会下发 `volumeDelta=0` 的 tick。
+
+验证命令：
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine -p jftrade-api -p jftrade-integration-futu --all-targets --locked --no-fail-fast
+cargo fmt --check
+cargo clippy -p jftrade-marketdata -p jftrade-engine -p jftrade-api -p jftrade-integration-futu --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```

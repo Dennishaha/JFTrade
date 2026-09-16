@@ -153,19 +153,33 @@ fn qot_sub_request(action: &ReconcileAction) -> Result<QotSubC2s, SubscriptionEx
         ReconcileAction::Unsubscribe { subscription } => (subscription, false),
     };
     let (market, code) = split_instrument(&subscription.instrument_id)?;
-    // Go distinguishes BasicQot push registration from the subscription call:
-    // plain subscribe omits `isRegOrUnRegPush` so an already-installed stream
-    // push registration is preserved, while K-line/order-book subscriptions
-    // explicitly disable server push (pkg/futu/exchange_basicqot.go,
-    // exchange_kline.go, exchange_orderbook.go).
-    let (sub_type, register_push) = match subscription.kind {
-        SubscriptionKind::Basic => (1, None),
+    // The coordinator owns the only OpenD session and is therefore the Rust
+    // equivalent of Go's stream layer, which registers push delivery for the
+    // live contract: `subscribeBasicQotPush` sends `IsRegOrUnRegPush=true` with
+    // `IsFirstPush=true` (pkg/futu/stream.go), and
+    // `ensureOrderBookPushSubscriptions` sends `IsRegPush=true`
+    // (pkg/futu/exchange_orderbook.go). K-line pushes stay disabled because Go
+    // reads candles through `Qot_RequestHistoryKL`/`Qot_GetKL`
+    // (pkg/futu/exchange_kline.go).
+    let (sub_type, register_push, first_push) = match subscription.kind {
+        SubscriptionKind::Basic if subscribe => (1, Some(true), Some(true)),
+        // Go's `UnsubscribeBasicQuote` both releases the subscription and
+        // unregisters its pushes (`setBasicQotSubscription(..., false, false)`).
+        SubscriptionKind::Basic => (1, Some(false), None),
         SubscriptionKind::Kline => (
             kline_sub_type(subscription.interval.as_deref())?,
             Some(false),
+            None,
         ),
-        SubscriptionKind::OrderBook => (2, None),
+        SubscriptionKind::OrderBook if subscribe => (2, Some(true), None),
+        // Go's `UnsubscribeOrderBook` unregisters order-book pushes as well.
+        SubscriptionKind::OrderBook => (2, Some(false), None),
     };
+    // HK order-book subscriptions may request SF detail; Go groups HK requests
+    // into its own batch and only sets the flag for that market
+    // (pkg/futu/exchange_orderbook.go::groupOrderBookRequestsForPush).
+    let order_book_detail =
+        (subscription.kind == SubscriptionKind::OrderBook && market == 1).then_some(true);
     Ok(QotSubC2s {
         security_list: vec![QotSecurity {
             market: Some(market),
@@ -175,10 +189,10 @@ fn qot_sub_request(action: &ReconcileAction) -> Result<QotSubC2s, SubscriptionEx
         is_sub_or_un_sub: Some(subscribe),
         is_reg_or_un_reg_push: register_push,
         reg_push_rehab_type_list: Vec::new(),
-        is_first_push: None,
+        is_first_push: first_push,
         // Go always sends isUnsubAll (defaulting to false) on Qot_Sub.
         is_unsub_all: Some(false),
-        is_sub_order_book_detail: None,
+        is_sub_order_book_detail: order_book_detail,
         extended_time: None,
         session: None,
     })
@@ -364,6 +378,73 @@ mod tests {
     }
 
     #[test]
+    fn basic_subscribe_registers_push_delivery_like_go_stream() {
+        // Parity: go:452dea11:pkg/futu/stream.go:352 subscribeBasicQotPush
+        // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:255
+        // TestBasicQuotePushSubscriptionErrorsAndIdempotency
+        //
+        // The Rust coordinator owns the only OpenD session, so its demand-driven
+        // Basic subscribe is the stream path: it must register push delivery,
+        // otherwise Qot_UpdateBasicQot never arrives and the live contract stays
+        // empty. Go sends IsRegOrUnRegPush=true with IsFirstPush=true here.
+        let request = qot_sub_request(&action(SubscriptionKind::Basic, "US.AAPL", None))
+            .expect("basic request");
+        assert_eq!(request.is_sub_or_un_sub, Some(true));
+        assert_eq!(
+            request.is_reg_or_un_reg_push,
+            Some(true),
+            "the live path must register push delivery"
+        );
+        assert_eq!(
+            request.is_first_push,
+            Some(true),
+            "Go asks for one initial push so the stream starts with data"
+        );
+    }
+
+    #[test]
+    fn basic_unsubscribe_unregisters_push_delivery_like_go() {
+        // Parity: go:452dea11:pkg/futu/exchange_basicqot.go:251
+        // UnsubscribeBasicQuote
+        let request = match action(SubscriptionKind::Basic, "US.AAPL", None) {
+            ReconcileAction::Subscribe { subscription } => {
+                qot_sub_request(&ReconcileAction::Unsubscribe { subscription })
+                    .expect("unsubscribe request")
+            }
+            _ => unreachable!(),
+        };
+        assert_eq!(request.is_sub_or_un_sub, Some(false));
+        assert_eq!(
+            request.is_reg_or_un_reg_push,
+            Some(false),
+            "releasing a Basic subscription must also unregister its pushes"
+        );
+    }
+
+    #[test]
+    fn hk_order_book_subscribe_requests_detail_and_registers_push() {
+        // Parity: go:452dea11:pkg/futu/exchange_orderbook.go:151
+        // ensureOrderBookPushSubscriptions (HK batch sets IsSubOrderBookDetail)
+        let hk = qot_sub_request(&action(SubscriptionKind::OrderBook, "HK.00700", None))
+            .expect("hk order book request");
+        assert_eq!(hk.sub_type_list, [2]);
+        assert_eq!(hk.is_reg_or_un_reg_push, Some(true));
+        assert_eq!(
+            hk.is_sub_order_book_detail,
+            Some(true),
+            "HK order-book push registration asks for SF detail"
+        );
+
+        let us = qot_sub_request(&action(SubscriptionKind::OrderBook, "US.AAPL", None))
+            .expect("us order book request");
+        assert_eq!(us.is_reg_or_un_reg_push, Some(true));
+        assert_eq!(
+            us.is_sub_order_book_detail, None,
+            "order-book detail is HK-only, matching Go's batch grouping"
+        );
+    }
+
+    #[test]
     fn qot_sub_mapping_matches_go_market_and_interval_values() {
         let request = match action(SubscriptionKind::Kline, "HK.00700", Some("1m")) {
             ReconcileAction::Subscribe { subscription } => {
@@ -381,7 +462,9 @@ mod tests {
             .expect("basic request");
         assert_eq!(basic.security_list[0].market, Some(11));
         assert_eq!(basic.sub_type_list, [1]);
-        assert_eq!(basic.is_reg_or_un_reg_push, None);
+        // The coordinator is the stream owner, so Basic subscribes register
+        // push delivery (`pkg/futu/stream.go::subscribeBasicQotPush`).
+        assert_eq!(basic.is_reg_or_un_reg_push, Some(true));
     }
 
     #[test]
@@ -424,14 +507,18 @@ mod tests {
         assert_eq!(c2s.extended_time, Some(true));
         assert_eq!(c2s.session, Some(1));
 
-        // The executor only emits options it can derive; unsupported optional
-        // fields must stay unset rather than being fabricated as false.
+        // The executor only emits options it can derive from the subscription
+        // kind; a Basic subscribe registers pushes with an initial push, while
+        // K-line-only options stay unset rather than being fabricated.
         let derived = super::qot_sub_request(&action(SubscriptionKind::Basic, "US.AAPL", None))
             .expect("basic request");
-        assert_eq!(derived.is_first_push, None);
+        assert_eq!(derived.is_first_push, Some(true));
         assert_eq!(derived.extended_time, None);
         assert_eq!(derived.session, None);
-        assert_eq!(derived.is_sub_order_book_detail, None);
+        assert_eq!(
+            derived.is_sub_order_book_detail, None,
+            "order-book detail is meaningless for a Basic subscribe"
+        );
         assert!(derived.reg_push_rehab_type_list.is_empty());
         assert_eq!(derived.is_unsub_all, Some(false));
     }

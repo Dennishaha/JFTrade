@@ -521,6 +521,13 @@ fn event_instrument_id(event: &Value) -> Option<String> {
     let candidate = event
         .pointer("/payload/instrumentId")
         .or_else(|| event.pointer("/payload/request/instrumentId"))
+        // Go's `market-data.tick` payload nests the identity in an
+        // `instrument` object (`internal/marketdata/responses.go`,
+        // `InstrumentDTO.JSON`), while the configured broker id arrives as
+        // `payload.brokerId`. Resolving the nested identity here keeps this
+        // hub's per-subscription filtering correct without reshaping a
+        // payload the console already consumes.
+        .or_else(|| event.pointer("/payload/instrument/instrumentId"))
         .or_else(|| event.pointer("/payload/instrument"))
         .or_else(|| event.pointer("/payload/symbol"))
         .and_then(Value::as_str)

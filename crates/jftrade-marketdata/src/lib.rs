@@ -10,8 +10,9 @@ mod router;
 mod runtime;
 mod snapshot_poll;
 mod tick_candles;
+mod trade_volume;
 
-pub use cache::{CacheLookup, TickCache};
+pub use cache::{CacheLookup, TickCache, trading_day_key};
 pub use catalog::{
     MarketCatalogError, MarketPrecision, MarketRule, NormalizedInstrument, TradingSessionWindow,
     cn_market_rule, default_markets, find_market_rule, hk_market_rule, infer_cn_prefix,
@@ -30,3 +31,4 @@ pub use snapshot_poll::{
     SnapshotPollExecutor, SnapshotPollOutcome, SnapshotPollPolicy, SnapshotPollSkipReason,
 };
 pub use tick_candles::{TickCandle, tick_candles};
+pub use trade_volume::TradeVolumeTracker;

@@ -1,11 +1,17 @@
 //! OpenD session event listener bridging quotes, depth, and reconnects to LiveHub.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::sync::Notify;
+
+use jftrade_marketdata::TradeVolumeTracker;
 
 pub(crate) struct LiveHubOpenDEventListener {
     live_hub: Arc<jftrade_api::LiveHub>,
     reconciliation_wake: Option<Arc<Notify>>,
+    /// Cumulative-volume baselines keyed per instrument. Go keeps the same
+    /// state on `Stream.tradeVolumes`; the listener is the only writer for the
+    /// live push path, so it owns the map rather than the LiveHub.
+    trade_volumes: Mutex<TradeVolumeTracker>,
 }
 
 impl std::fmt::Debug for LiveHubOpenDEventListener {
@@ -23,6 +29,7 @@ impl LiveHubOpenDEventListener {
         Self {
             live_hub,
             reconciliation_wake: Some(reconciliation_wake),
+            trade_volumes: Mutex::new(TradeVolumeTracker::new()),
         }
     }
 }
@@ -58,9 +65,14 @@ impl jftrade_integration_futu::OpenDSessionEventListener for LiveHubOpenDEventLi
                         if code.is_empty() {
                             continue;
                         };
-                        let Some(price) = quote.cur_price else {
+                        // Go's `emitBasicQotSnapshot` returns before emitting a
+                        // trade when `ticker.Last` is zero, and
+                        // `tickFromSnapshot` rejects a zero snapshot price, so a
+                        // quote without a traded price never reaches the live
+                        // contract.
+                        if quote.cur_price.is_none_or(|price| price == 0.0) {
                             continue;
-                        };
+                        }
                         let Some(at) = quote.update_time.as_deref() else {
                             continue;
                         };
@@ -69,29 +81,7 @@ impl jftrade_integration_futu::OpenDSessionEventListener for LiveHubOpenDEventLi
                             continue;
                         }
                         let instrument_id = format!("{market}.{code}");
-                        let payload = serde_json::json!({
-                            "type": "market-data.tick",
-                            "brokerId": "futu",
-                            "instrumentId": instrument_id,
-                            "price": price,
-                            "volume": quote.volume,
-                            "turnover": quote.turnover,
-                            "highPrice": quote.high_price,
-                            "lowPrice": quote.low_price,
-                            "openPrice": quote.open_price,
-                            "lastClosePrice": quote.last_close_price,
-                            "at": at,
-                            "provenance": "stream",
-                        });
-                        let envelope = serde_json::json!({
-                            "eventId": format!("market-data.tick|{instrument_id}|{at}"),
-                            "type": "market-data.tick",
-                            "source": "market-data",
-                            "entityId": instrument_id,
-                            "serverTime": at,
-                            "payload": payload,
-                        });
-                        self.live_hub.publish(envelope);
+                        self.publish_basic_quote_tick(market, &code, &instrument_id, at, quote);
                     }
                 }
                 jftrade_integration_futu::QuotePush::OrderBook(ob) => {
@@ -219,6 +209,81 @@ impl jftrade_integration_futu::OpenDSessionEventListener for LiveHubOpenDEventLi
 }
 
 impl LiveHubOpenDEventListener {
+    /// Publishes one BasicQot push as the Go `market-data.tick` trade payload.
+    ///
+    /// Go derives the per-event `volumeDelta` from the cumulative counter in
+    /// `Stream.nextTradeQuantity` and publishes both values explicitly
+    /// (`internal/marketdata/responses.go::TickEventDTO.JSON`). Keeping the
+    /// conversion here means the wire contract the frontend already consumes
+    /// (`cumulativeVolume`/`volumeDelta` plus the `instrument`/`snapshot`
+    /// blocks) is produced by the same owner that sees every push.
+    fn publish_basic_quote_tick(
+        &self,
+        market: &str,
+        code: &str,
+        instrument_id: &str,
+        at: &str,
+        quote: &jftrade_integration_futu::BasicQuote,
+    ) {
+        let Some(price) = quote.cur_price else {
+            return;
+        };
+        let observed_at_ms = quote
+            .update_timestamp
+            .filter(|value| value.is_finite() && *value > 0.0)
+            .map(|value| (value * 1_000.0).round() as i64)
+            .unwrap_or_else(|| time::OffsetDateTime::now_utc().unix_timestamp() * 1_000);
+        let session =
+            jftrade_integration_futu::quote_session_label(instrument_id, observed_at_ms, None);
+        let cumulative_volume = quote
+            .volume
+            .map(|value| value.to_string())
+            .and_then(|value| value.parse::<jftrade_kernel::DecimalText>().ok());
+        let volume_delta = match cumulative_volume.as_ref() {
+            Some(cumulative) => self
+                .trade_volumes
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .next_quantity(instrument_id, observed_at_ms, &session, cumulative),
+            None => "0"
+                .parse::<jftrade_kernel::DecimalText>()
+                .expect("zero is valid decimal text"),
+        };
+        let decimal_text = |value: f64| value.to_string();
+        let payload = serde_json::json!({
+            "type": "market-data.tick",
+            "at": at,
+            "brokerId": "futu",
+            "source": "futu",
+            "cumulativeVolume": cumulative_volume.as_ref().map(|value| value.as_str()),
+            "volumeDelta": volume_delta.as_str(),
+            "instrument": {
+                "market": market,
+                "symbol": code,
+                "instrumentId": instrument_id,
+            },
+            "snapshot": {
+                "price": decimal_text(price),
+                "volume": cumulative_volume.as_ref().map(|value| value.as_str()),
+                "turnover": quote.turnover.map(decimal_text),
+                "highPrice": quote.high_price.map(decimal_text),
+                "lowPrice": quote.low_price.map(decimal_text),
+                "openPrice": quote.open_price.map(decimal_text),
+                "lastClosePrice": quote.last_close_price.map(decimal_text),
+                "at": at,
+                "session": session,
+            },
+        });
+        self.live_hub.publish(serde_json::json!({
+            "eventId": format!("market-data.tick|{instrument_id}|{at}"),
+            "type": "market-data.tick",
+            "source": "market-data",
+            "entityId": instrument_id,
+            "serverTime": at,
+            "payload": payload,
+        }));
+    }
+
     fn publish_stale(&self, reason: &str, error: Option<&str>) {
         let at = current_utc_rfc3339();
         self.publish_runtime_event(

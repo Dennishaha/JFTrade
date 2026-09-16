@@ -168,6 +168,30 @@ fn session_context_with_resolver(
     observed_at_ms: i64,
     resolver: Option<&dyn QuoteSessionResolver>,
 ) -> Option<SessionContext> {
+    session_context_with_resolver_and_timestamp(instrument_id, observed_at_ms, resolver)
+}
+
+/// Resolves only the broker-neutral session label for one observation.
+///
+/// The streaming trade path needs the same session definition as the snapshot
+/// projection so a session change resets the cumulative-volume baseline; this
+/// wrapper keeps that decision in one place instead of re-deriving it in the
+/// composition root.
+pub fn quote_session_label(
+    instrument_id: &str,
+    observed_at_ms: i64,
+    resolver: Option<&dyn QuoteSessionResolver>,
+) -> String {
+    session_context_with_resolver_and_timestamp(instrument_id, observed_at_ms, resolver)
+        .map(|context| context.session)
+        .unwrap_or_else(|| "regular".to_owned())
+}
+
+fn session_context_with_resolver_and_timestamp(
+    instrument_id: &str,
+    observed_at_ms: i64,
+    resolver: Option<&dyn QuoteSessionResolver>,
+) -> Option<SessionContext> {
     let market = instrument_id.split_once('.')?.0.to_ascii_uppercase();
     let timezone_name = match market.as_str() {
         "US" => "America/New_York",

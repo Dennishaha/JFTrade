@@ -262,7 +262,12 @@ fn shares_trading_day(incoming: &Tick, latest: &Tick) -> bool {
         == trading_day_key(&latest.instrument_id, latest.observed_at_ms)
 }
 
-fn trading_day_key(instrument_id: &str, observed_at_ms: i64) -> Option<String> {
+/// Provider-neutral trading-day key for one instrument and instant.
+///
+/// Mirrors Go `market.TradingDayKey(symbol, at, true)`: the key is the
+/// exchange-local calendar day, with US extended-hours observations after
+/// 20:00 local time rolling into the next trading day.
+pub fn trading_day_key(instrument_id: &str, observed_at_ms: i64) -> Option<String> {
     let timestamp = Timestamp::from_millisecond(observed_at_ms).ok()?;
     let market = instrument_id
         .split_once('.')

@@ -74,7 +74,7 @@ mod transport;
 
 pub use basic_quote_query::{BasicQuoteQueryError, OpenDBasicQuoteExecutor};
 pub use basic_quote_tick::{
-    BasicQuoteTickError, basic_quote_ticks, basic_quote_ticks_with_resolver,
+    BasicQuoteTickError, basic_quote_ticks, basic_quote_ticks_with_resolver, quote_session_label,
 };
 pub use corporate_actions_query::{
     CorporateActionKind, FutuCorporateAction, FutuCorporateActionsQuery,
