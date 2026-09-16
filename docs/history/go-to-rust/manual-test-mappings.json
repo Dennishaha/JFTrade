@@ -28903,11 +28903,11 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(public_helper_guard)'"
   },
   "pkg/strategy/pine/parse_test.go:113:TestCompileAcceptsNativePineIndicatorPublicEntry": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::request_security_tests::compile_accepts_native_pine_indicator_public_entry",
+    "conclusion": "function_exact：ta.ema/ta.bb 与 request.security(syminfo.tickerid, \"D\", ta.sma(close, 20)) 组合脚本编译通过且无 request.security 诊断，对齐 Go 公共入口接受行为。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(request_security_tests)'"
   },
   "pkg/strategy/pine/parse_test.go:126:TestCompileUsesStrategyDefaultQuantityForEntryWithoutQty": {
     "status": "[x]",
@@ -28938,11 +28938,11 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(parse_metadata_tests) or test(parse_history_reference_tests)'"
   },
   "pkg/strategy/pine/parse_test.go:202:TestValidateScriptRejectsUnsupportedPineRuntimeFeature": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(pine)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::request_security_tests::validate_script_rejects_unsupported_pine_runtime_feature",
+    "conclusion": "function_exact：四个子用例对齐 Go 诊断码与消息（PINE_REQUEST_SECURITY_DYNAMIC_SYMBOL / SIDE_EFFECT / LOOKAHEAD / GAPS），诊断行号均为第 3 行。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(request_security_tests)'"
   },
   "pkg/strategy/pine/parse_test.go:232:TestCompileSupportsMultiBarHistoryReferences": {
     "status": "[x]",

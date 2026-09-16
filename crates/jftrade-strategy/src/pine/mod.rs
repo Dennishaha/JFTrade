@@ -361,6 +361,81 @@ strategy.entry("Long", strategy.long, qty=5)"#;
 }
 
 #[cfg(test)]
+mod request_security_tests {
+    use super::*;
+
+    /// Parity: pkg/strategy/pine/parse_test.go:113
+    /// TestCompileAcceptsNativePineIndicatorPublicEntry
+    ///
+    /// Go's public entry accepts a native indicator script that mixes
+    /// `ta.ema`/`ta.bb` with a `request.security(syminfo.tickerid, "D", ...)`
+    /// pure expression. Rust must not emit a request.security diagnostic for
+    /// that supported subset.
+    #[test]
+    fn compile_accepts_native_pine_indicator_public_entry() {
+        let script = r#"//@version=6
+strategy("native indicators", overlay=true)
+fast = ta.ema(close, 14)
+band = ta.bb(close, 20, 2)
+daily = request.security(syminfo.tickerid, "D", ta.sma(close, 20))
+if close > fast and close < band.upper and daily > 0
+    strategy.entry("Long", strategy.long, qty=1)"#;
+        let compilation = compile(script);
+        assert!(
+            compilation.ok,
+            "diagnostics = {:?}",
+            compilation.diagnostics
+        );
+    }
+
+    /// Parity: pkg/strategy/pine/parse_test.go:202
+    /// TestValidateScriptRejectsUnsupportedPineRuntimeFeature
+    ///
+    /// Go rejects four unsupported request.security forms with stable codes
+    /// and messages; Rust mirrors each rejection through the same pipeline.
+    #[test]
+    fn validate_script_rejects_unsupported_pine_runtime_feature() {
+        for (body, code, wanted) in [
+            (
+                r#"x = request.security("NASDAQ:AAPL", "D", close)"#,
+                "PINE_REQUEST_SECURITY_DYNAMIC_SYMBOL",
+                "request.security",
+            ),
+            (
+                r#"x = request.security(syminfo.tickerid, "D", alert("no side effects"))"#,
+                "PINE_REQUEST_SECURITY_SIDE_EFFECT",
+                "request.security",
+            ),
+            (
+                r#"x = request.security(syminfo.tickerid, "D", close, lookahead=barmerge.lookahead_on)"#,
+                "PINE_REQUEST_SECURITY_LOOKAHEAD",
+                "lookahead_on",
+            ),
+            (
+                r#"x = request.security(syminfo.tickerid, "D", close, gaps=barmerge.gaps_on)"#,
+                "PINE_REQUEST_SECURITY_GAPS",
+                "gaps_on",
+            ),
+        ] {
+            let source = format!("//@version=6\nstrategy(\"MTF\", overlay=true)\n{body}");
+            let compilation = compile(&source);
+            assert!(!compilation.ok, "compile must fail for {body}");
+            let diagnostic = compilation
+                .diagnostics
+                .first()
+                .unwrap_or_else(|| panic!("missing diagnostic for {body}"));
+            assert_eq!(diagnostic.code, code, "code for {body}");
+            assert_eq!(diagnostic.line, 3, "line for {body}");
+            assert!(
+                diagnostic.message.contains(wanted),
+                "message {:?} for {body} must mention {wanted}",
+                diagnostic.message
+            );
+        }
+    }
+}
+
+#[cfg(test)]
 mod parse_history_reference_tests {
     use super::lower::LoweredStatement;
     use super::*;

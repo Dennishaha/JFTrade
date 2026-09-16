@@ -83,3 +83,38 @@ fallback、catalog activity 空页，以及 catalog runtime 恢复的 2 条生�
 - 修复位置：`crates/jftrade-strategy/src/pine/lower.rs::lower_metadata`。
 - 回归：`compile_parses_backtest_strategy_metadata`。
 
+
+## 批次：request.security 语义校验对齐
+
+| Go 测试 | Rust 证据入口 | 状态 |
+| --- | --- | --- |
+| `pkg/strategy/pine/parse_test.go:113 TestCompileAcceptsNativePineIndicatorPublicEntry` | `jftrade-strategy::pine::request_security_tests::compile_accepts_native_pine_indicator_public_entry` | `[x]`：`ta.ema`/`ta.bb` 与 `request.security(syminfo.tickerid, "D", ta.sma(close, 20))` 组合脚本编译通过，无 request.security 诊断。 |
+| `pkg/strategy/pine/parse_test.go:202 TestValidateScriptRejectsUnsupportedPineRuntimeFeature` | `jftrade-strategy::pine::request_security_tests::validate_script_rejects_unsupported_pine_runtime_feature` | `[x]`：外部 symbol、`alert(...)` 副作用、`lookahead=barmerge.lookahead_on`、`gaps=barmerge.gaps_on` 四个子用例的诊断码、消息关键词与行号全部对齐。 |
+
+验证命令：
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(request_security_tests)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked
+```
+
+### 2026-09-16 变更说明
+
+- 复现：Rust 语义层原先完全不检查 `request.security(...)` 的 symbol、
+  timeframe、嵌套调用、merge 标志和表达式副作用；Go 的
+  `pkg/strategy/pine/validate.go::requestSecurityUnsupportedDiagnostic`
+  会按固定顺序返回六类稳定诊断码。
+- 修复位置：`crates/jftrade-strategy/src/pine/semantic.rs`
+  新增 `request_security_diagnostic` / `is_supported_request_security_ticker` /
+  `request_security_expression_has_side_effect` /
+  `request_security_named_argument`，并在 `visit_call` 中先于
+  `is_supported_call` 生效，避免 `request.security` 落入通用“不支持函数”分支。
+- 支持边界（沿 Go 语义）：symbol 仅接受 `syminfo.tickerid` 及
+  `ticker.heikinashi/standard/inherit(...)` 且参数中含 `syminfo.tickerid`；
+  timeframe 仅接受字符串字面量或标识符别名；表达式必须是纯表达式。
+- 具名参数解析：Rust 解析器把 `lookahead=barmerge.lookahead_on` 解析成
+  `ExprKind::Binary { op: Equal }`，`request_security_named_argument`
+  将其还原为 `name/value` 文本对，与 Go 的 `name=value` 文本检查等价。
+- 未迁移：Go 另有 tuple 宽度/别名匹配（`PINE_REQUEST_SECURITY_TUPLE_*`）、
+  可执行 `ta.*` 白名单（`PINE_REQUEST_SECURITY_EXPRESSION_UNSUPPORTED`）与
+  timeframe 单位白名单校验；Rust 当前没有等价 tuple 校验入口，保留在后续批次。

@@ -387,6 +387,13 @@ impl SemanticContext<'_> {
             });
             return ValueType::Unknown;
         }
+        if lower == "request.security" {
+            if let Some(diagnostic) = request_security_diagnostic(callee, arguments, range) {
+                self.summary.diagnostics.push(diagnostic);
+                return ValueType::Unknown;
+            }
+            return ValueType::Unknown;
+        }
         if is_supported_call(&lower) {
             return call_result_type(&lower);
         }
@@ -581,15 +588,15 @@ pub(crate) struct PublicHelperGuard {
 /// `pkg/strategy/pine/public_helper_guard.go`.
 pub(crate) fn public_helper_guard(callee: &str) -> Option<PublicHelperGuard> {
     let lower = callee.trim().to_ascii_lowercase();
-    if let Some(name) = lower.strip_prefix("ta.") {
-        if let Some(replacement) = ta_shortcut_replacement(name) {
-            return Some(PublicHelperGuard {
-                code: "PINE_PUBLIC_TA_SHORTCUT",
-                message: format!(
-                    "ta.{name}() is a JFTrade-only shortcut; use Pine v6 {replacement} instead"
-                ),
-            });
-        }
+    if let Some(name) = lower.strip_prefix("ta.")
+        && let Some(replacement) = ta_shortcut_replacement(name)
+    {
+        return Some(PublicHelperGuard {
+            code: "PINE_PUBLIC_TA_SHORTCUT",
+            message: format!(
+                "ta.{name}() is a JFTrade-only shortcut; use Pine v6 {replacement} instead"
+            ),
+        });
     }
     let replacement = internal_helper_replacement(&lower)?;
     Some(PublicHelperGuard {
@@ -671,5 +678,181 @@ fn internal_helper_replacement(name: &str) -> Option<&'static str> {
         "cross_over" => Some("ta.crossover"),
         "cross_under" => Some("ta.crossunder"),
         _ => None,
+    }
+}
+
+/// Validates one `request.security(...)` call against Go's supported subset.
+///
+/// Parity: `pkg/strategy/pine/validate.go::requestSecurityUnsupportedDiagnostic`.
+/// Go only allows a static current-symbol ticker, a static timeframe string,
+/// and a pure expression; lookahead/gaps merge flags, side effects, nested
+/// calls and dynamic symbols are rejected with stable diagnostic codes.
+fn request_security_diagnostic(
+    callee: &str,
+    arguments: &[Expr],
+    range: SourceRange,
+) -> Option<Diagnostic> {
+    let error = |code: &str, message: &str| {
+        Some(Diagnostic::error(
+            code,
+            message.to_owned(),
+            range.start_line,
+        ))
+    };
+    if arguments.len() < 3 {
+        return error(
+            "PINE_REQUEST_SECURITY_UNSUPPORTED",
+            "request.security() requires symbol, timeframe, and expression arguments",
+        );
+    }
+    for argument in arguments.iter().skip(3) {
+        let (name, value) = request_security_named_argument(argument);
+        let lower_name = name.to_ascii_lowercase();
+        let lower_value = value.to_ascii_lowercase();
+        if lower_name == "lookahead" && lower_value.contains("lookahead_on") {
+            return error(
+                "PINE_REQUEST_SECURITY_LOOKAHEAD",
+                "request.security() lookahead_on is not supported by JFTrade; use default lookahead_off",
+            );
+        }
+        if lower_name == "gaps" && lower_value.contains("gaps_on") {
+            return error(
+                "PINE_REQUEST_SECURITY_GAPS",
+                "request.security() gaps_on is not supported by JFTrade; use default gaps_off",
+            );
+        }
+        if lower_name == "calc_bars_count" {
+            return error(
+                "PINE_REQUEST_SECURITY_CALC_BARS_COUNT",
+                "request.security() calc_bars_count is not supported by JFTrade",
+            );
+        }
+    }
+    let symbol = arguments[0].to_string();
+    if !is_supported_request_security_ticker(&symbol) {
+        return error(
+            "PINE_REQUEST_SECURITY_DYNAMIC_SYMBOL",
+            "request.security() currently supports only syminfo.tickerid and static ticker.heikinashi/standard/inherit expressions rooted at it; dynamic or external symbols are not supported",
+        );
+    }
+    let timeframe = arguments[1].to_string();
+    if !timeframe.trim().starts_with('"') && !timeframe.trim().starts_with('\'') {
+        // Go accepts a string literal or an input.timeframe alias (an
+        // identifier); arbitrary expressions are dynamic timeframes.
+        let is_alias = matches!(&arguments[1].kind, ExprKind::Identifier { .. });
+        if !is_alias {
+            return error(
+                "PINE_REQUEST_SECURITY_DYNAMIC_TIMEFRAME",
+                "request.security() currently supports only static timeframe strings",
+            );
+        }
+    }
+    let expression = arguments[2].to_string().to_ascii_lowercase();
+    if expression.contains("request.security(") {
+        return error(
+            "PINE_REQUEST_SECURITY_NESTED",
+            "nested request.security() calls are not supported by JFTrade",
+        );
+    }
+    if request_security_expression_has_side_effect(&arguments[2]) {
+        return error(
+            "PINE_REQUEST_SECURITY_SIDE_EFFECT",
+            "request.security() expression must be pure; strategy, alert, visual, collection mutation, and reassignment side effects are not supported",
+        );
+    }
+    let _ = callee;
+    None
+}
+
+/// Named call arguments arrive from the expression parser as
+/// `identifier = value` binary expressions, matching Go's textual
+/// `name=value` merge-argument inspection.
+fn request_security_named_argument(argument: &Expr) -> (&str, String) {
+    match &argument.kind {
+        ExprKind::Binary {
+            left,
+            op: BinaryOp::Equal,
+            right,
+        } => match &left.kind {
+            ExprKind::Identifier { name } => (name.as_str(), right.to_string()),
+            _ => ("", argument.to_string()),
+        },
+        _ => ("", argument.to_string()),
+    }
+}
+
+/// Go accepts `syminfo.tickerid` plus the static
+/// `ticker.heikinashi(...)`, `ticker.standard(...)` and `ticker.inherit(...)`
+/// wrappers rooted at it. Anything else is a dynamic/external symbol.
+fn is_supported_request_security_ticker(symbol: &str) -> bool {
+    let normalized = symbol.trim().to_ascii_lowercase();
+    if normalized == "syminfo.tickerid" {
+        return true;
+    }
+    let Some(inner) = normalized
+        .strip_prefix("ticker.heikinashi(")
+        .or_else(|| normalized.strip_prefix("ticker.standard("))
+        .or_else(|| normalized.strip_prefix("ticker.inherit("))
+        .and_then(|value| value.strip_suffix(')'))
+    else {
+        return false;
+    };
+    inner
+        .split(',')
+        .any(|part| part.trim() == "syminfo.tickerid")
+}
+
+fn request_security_expression_has_side_effect(expression: &Expr) -> bool {
+    match &expression.kind {
+        ExprKind::Call { callee, arguments } => {
+            let lower = callee.to_ascii_lowercase();
+            if lower.starts_with("strategy.")
+                || matches!(
+                    lower.as_str(),
+                    "alert"
+                        | "alertcondition"
+                        | "plot"
+                        | "plotshape"
+                        | "plotchar"
+                        | "hline"
+                        | "bgcolor"
+                        | "barcolor"
+                        | "fill"
+                )
+                || lower.starts_with("array.")
+                || lower.starts_with("matrix.")
+                || lower.starts_with("map.")
+            {
+                return true;
+            }
+            arguments
+                .iter()
+                .any(request_security_expression_has_side_effect)
+        }
+        ExprKind::Binary { left, right, .. } => {
+            request_security_expression_has_side_effect(left)
+                || request_security_expression_has_side_effect(right)
+        }
+        ExprKind::Unary { expression, .. } => {
+            request_security_expression_has_side_effect(expression)
+        }
+        ExprKind::Ternary {
+            condition,
+            when_true,
+            when_false,
+        } => {
+            request_security_expression_has_side_effect(condition)
+                || request_security_expression_has_side_effect(when_true)
+                || request_security_expression_has_side_effect(when_false)
+        }
+        ExprKind::Index { object, index } => {
+            request_security_expression_has_side_effect(object)
+                || request_security_expression_has_side_effect(index)
+        }
+        ExprKind::Tuple { items } => items
+            .iter()
+            .any(request_security_expression_has_side_effect),
+        ExprKind::Member { object, .. } => request_security_expression_has_side_effect(object),
+        _ => false,
     }
 }
