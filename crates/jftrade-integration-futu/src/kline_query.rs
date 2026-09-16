@@ -634,4 +634,79 @@ mod tests {
         assert_eq!(decoded_frame.header.proto_id, PROTO_GET_KL);
         assert_eq!(decoded_frame.header.serial_no, 42);
     }
+
+    #[test]
+    fn declared_candle_periods_map_to_historical_and_realtime_types() {
+        // Parity: go:8a78fc78:pkg/futu/adapter_kline_pagination_test.go:66
+        // TestFutuDeclaredCandlePeriodsMapToHistoricalAndRealtimeTypes.
+        //
+        // Every declared candle period must be encodable for both the
+        // historical Qot_RequestHistoryKL path and the realtime Qot_Sub path;
+        // a period that maps historically but not for realtime would declare a
+        // capability the adapter cannot actually subscribe to.
+        let intraday = ["1m", "3m", "5m", "10m", "15m", "30m", "60m"];
+        for period in intraday {
+            assert!(
+                period_duration_seconds(period) > 0,
+                "historical duration mapping for {period}"
+            );
+            let kl_type = period_to_kl_type(period);
+            assert!(
+                (1..=15).contains(&kl_type) && kl_type != 0,
+                "historical mapping for {period} = {kl_type}"
+            );
+            let sub_type = crate::subscription_executor::kline_sub_type(Some(period))
+                .unwrap_or_else(|error| panic!("realtime mapping for {period}: {error}"));
+            assert!(
+                matches!(sub_type, 6..=21),
+                "realtime mapping for {period} = {sub_type}"
+            );
+        }
+        // Daily/weekly/monthly buckets are not duration-shifted, but they must
+        // still map to their exact KLType and realtime subtype.
+        for (period, expected_kl_type) in [("1d", 2), ("1w", 3), ("1mo", 4)] {
+            assert_eq!(
+                period_to_kl_type(period),
+                expected_kl_type,
+                "historical mapping for {period}"
+            );
+            assert!(
+                crate::subscription_executor::kline_sub_type(Some(period)).is_ok(),
+                "realtime mapping for {period}"
+            );
+        }
+        // Daily/monthly aliases the public catalog exposes stay consistent too.
+        for period in ["day", "week"] {
+            assert!(crate::subscription_executor::kline_sub_type(Some(period)).is_ok());
+        }
+        assert_eq!(period_to_kl_type("1mo"), 4);
+        assert_eq!(
+            crate::subscription_executor::kline_sub_type(Some("1mo")).expect("monthly"),
+            13
+        );
+    }
+
+    #[test]
+    fn candle_period_catalog_rejects_missing_and_unmappable_intervals() {
+        // Parity: go:8a78fc78:pkg/futu/adapter_kline_pagination_test.go:342
+        // TestFutuCandlePeriodCatalogSkipsMissingAndUnmappableIntervals.
+        //
+        // Go mutates its period→interval map and proves the catalog helper and
+        // interval lookup both stay fail-closed. Rust keeps the mapping in
+        // `period_to_kl_type`/`kline_sub_type`; unknown periods must be
+        // rejected by the realtime mapper instead of inheriting a default.
+        assert!(matches!(
+            crate::subscription_executor::kline_sub_type(Some("1m2")),
+            Err(crate::SubscriptionExecutorError::UnsupportedInterval(interval))
+                if interval == "1m2"
+        ));
+        assert!(matches!(
+            crate::subscription_executor::kline_sub_type(Some("bogus")),
+            Err(crate::SubscriptionExecutorError::UnsupportedInterval(_))
+        ));
+        // Historical encoding keeps the documented historical daily fallback,
+        // so the route validator (not this encoder) owns rejection; pin that
+        // split explicitly so a future change cannot silently accept "bogus".
+        assert_eq!(period_to_kl_type("bogus"), 2);
+    }
 }

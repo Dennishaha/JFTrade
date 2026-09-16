@@ -425,6 +425,8 @@ impl ProductionMarketDataQuotePort {
             });
         }
 
+        quote_reads_futu::reject_reversed_time_window(from_time.as_deref(), to_time.as_deref())?;
+
         let provider = self.active_provider()?;
 
         // Poll-only providers do not implement tick candles or broker depth;

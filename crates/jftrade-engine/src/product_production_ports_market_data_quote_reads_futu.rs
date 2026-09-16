@@ -40,6 +40,35 @@ pub(super) fn parse_futu_time_to_ts(raw: &str, tz: &jiff::tz::TimeZone) -> Optio
     None
 }
 
+/// Go's `queryBrokerKLines` rejects a reversed explicit window before touching
+/// the provider; without this the provider clamps the window and answers with
+/// unrelated candles, which hides the caller bug.
+pub(super) fn reject_reversed_time_window(
+    from_time: Option<&str>,
+    to_time: Option<&str>,
+) -> Result<(), crate::product::MarketDataQuoteReadSnapshotError> {
+    use crate::product::MarketDataQuoteReadSnapshotError;
+
+    let (Some(from), Some(to)) = (from_time, to_time) else {
+        return Ok(());
+    };
+    let (Ok(from_at), Ok(to_at)) = (
+        time::OffsetDateTime::parse(from, &time::format_description::well_known::Rfc3339),
+        time::OffsetDateTime::parse(to, &time::format_description::well_known::Rfc3339),
+    ) else {
+        return Ok(());
+    };
+    if from_at > to_at {
+        return Err(MarketDataQuoteReadSnapshotError::Failed {
+            status: 400,
+            code: "BAD_REQUEST".to_owned(),
+            message: "fromTime must be earlier than or equal to toTime".to_owned(),
+            retry_after_seconds: None,
+        });
+    }
+    Ok(())
+}
+
 pub(super) fn futu_kline_query_window(
     market: &str,
     period: &str,
@@ -149,5 +178,48 @@ mod tests {
         let (begin, end, _) = futu_kline_query_window("US", "1d", 1, None, None, None);
         assert!(!begin.is_empty());
         assert!(!end.is_empty());
+    }
+
+    #[test]
+    fn broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates() {
+        // Parity: go:8a78fc78:pkg/futu/adapter_kline_pagination_test.go:284
+        // TestBrokerKLinePaginationHelpersCoverSessionsBoundsAndListingDates.
+        //
+        // Identical bounds collapse to the documented lookback rather than
+        // producing a reversed window; an invalid from-time falls back the same
+        // way; listing-date parsing accepts both timestamp and date forms and
+        // returns None (Go falls back to 1900) for garbage.
+        let (begin, end, _) = futu_kline_query_window(
+            "HK",
+            "1d",
+            10,
+            Some("2026-07-18T00:00:00Z"),
+            Some("2026-07-18T00:00:00Z"),
+            None,
+        );
+        assert_eq!(end, "2026-07-18 08:00:00");
+        assert!(
+            begin < end,
+            "identical bounds must collapse to the lookback: {begin}..{end}"
+        );
+
+        let (fallback_begin, fallback_end, _) = futu_kline_query_window(
+            "HK",
+            "1m",
+            10,
+            Some("not-a-time"),
+            Some("2026-07-18T04:00:00Z"),
+            None,
+        );
+        assert_eq!(fallback_end, "2026-07-18 12:00:00");
+        assert!(fallback_begin < fallback_end);
+
+        let tz = jiff::tz::TimeZone::UTC;
+        assert_eq!(
+            parse_futu_time_to_ts("2004-06-16", &tz).map(|ts| ts.strftime("%Y-%m-%d").to_string()),
+            Some("2004-06-16".to_owned())
+        );
+        assert!(parse_futu_time_to_ts("not-a-date", &tz).is_none());
+        assert!(parse_futu_time_to_ts("2004-06-16 09:30:00", &tz).is_some());
     }
 }

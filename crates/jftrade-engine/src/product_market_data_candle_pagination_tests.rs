@@ -109,6 +109,13 @@ fn tick_port(
 struct PagedHistory {
     requests: Mutex<Vec<HistoricalKlineQuery>>,
     fail_second_page: bool,
+    /// Keep the first page terminal instead of offering a second page. The
+    /// window tests need exact control over the provider's candle list.
+    single_page: bool,
+    /// Explicit provider series used by the Go-shaped pagination fixtures.
+    /// When set, every request answers the whole series with a terminal page
+    /// so the engine's own latest-window trimming is what gets exercised.
+    series: Vec<HistoricalKline>,
     current_calls: AtomicUsize,
     /// Explicit candle open times used by session-classification tests.  When
     /// empty the default `2026-01-05 10:0x` fixture times are used.
@@ -129,6 +136,22 @@ fn candle(minute: usize) -> HistoricalKline {
     }
 }
 
+/// A provider candle whose close carries the fixture's price. Intraday OpenD
+/// labels mark the end of the bucket; the engine shifts them to bucket start.
+fn priced_candle(time: &str, close: f64) -> HistoricalKline {
+    HistoricalKline {
+        time: time.to_owned(),
+        is_blank: false,
+        high_price: Some(close + 1.0),
+        open_price: Some(close),
+        low_price: Some(close - 1.0),
+        close_price: Some(close),
+        volume: Some(1000),
+        turnover: Some(close * 1000.0),
+        change_rate: None,
+    }
+}
+
 impl HistoricalKlineReadPort for PagedHistory {
     fn query(
         &self,
@@ -136,6 +159,17 @@ impl HistoricalKlineReadPort for PagedHistory {
     ) -> Result<HistoricalKlineResult, HistoricalKlineError> {
         self.requests.lock().unwrap().push(query.clone());
         let first = query.next_req_key.is_empty();
+        if !self.series.is_empty() {
+            return Ok(HistoricalKlineResult {
+                security: HistoricalSecurity {
+                    market: 1,
+                    code: "00700".into(),
+                },
+                name: Some("腾讯控股".into()),
+                klines: self.series.clone(),
+                next_req_key: Vec::new(),
+            });
+        }
         if !first && self.fail_second_page {
             return Err(HistoricalKlineError::MissingS2c);
         }
@@ -160,7 +194,11 @@ impl HistoricalKlineReadPort for PagedHistory {
             } else {
                 vec![candle(2), candle(3), candle(4)]
             },
-            next_req_key: if first { vec![1] } else { vec![] },
+            next_req_key: if first && !self.single_page {
+                vec![1]
+            } else {
+                vec![]
+            },
         })
     }
 
@@ -1257,4 +1295,289 @@ async fn market_http_rejects_invalid_sessions_before_provider_access() {
         0,
         "invalid sessions must not query the current bar"
     );
+}
+
+#[tokio::test]
+async fn broker_klines_return_latest_page_and_use_exclusive_before_cursor() {
+    // Parity: go:8a78fc78:pkg/futu/adapter_kline_pagination_test.go:15
+    // TestBrokerKLinesReturnLatestPageAndUseExclusiveBeforeCursor.
+    //
+    // OpenD labels intraday history at the end of each bucket; the reader
+    // shifts the label to the bucket start. The first page is the latest N
+    // bars with `hasMore` and `nextBefore == candles[0].at`; the follow-up uses
+    // that cursor as an exclusive upper bound so the boundary bar never repeats.
+    let reader = Arc::new(PagedHistory {
+        // The loopback history port bypasses the OpenD reader's label shift,
+        // so the fixture already carries bucket-start labels like Go's
+        // `futuHistoryKLineStartTime` output.
+        series: vec![
+            priced_candle("2026-05-20 08:00:00", 101.5),
+            priced_candle("2026-05-20 08:01:00", 102.5),
+            priced_candle("2026-05-20 08:02:00", 103.5),
+        ],
+        ..Default::default()
+    });
+    let port = port(reader.clone());
+    let latest = port
+        .read("/api/v1/market-data/candles/HK/00700", "period=1m&limit=2")
+        .await
+        .expect("latest page");
+    let candles = latest["candles"].as_array().expect("candles");
+    assert_eq!(candles.len(), 2);
+    assert_eq!(latest["pagination"]["hasMore"], true);
+    assert_eq!(latest["pagination"]["nextBefore"], candles[0]["at"]);
+    assert_eq!(candles[0]["close"], "102.5");
+    assert_eq!(candles[1]["close"], "103.5");
+    let cursor = latest["pagination"]["nextBefore"]
+        .as_str()
+        .expect("cursor")
+        .to_owned();
+    assert_eq!(cursor, "2026-05-20T00:01:00Z");
+
+    // The provider window end must equal the cursor second exactly (08:01 HK)
+    // and the stale boundary bar is filtered locally.
+    let older = port
+        .read(
+            "/api/v1/market-data/candles/HK/00700",
+            &format!("period=1m&limit=2&before={cursor}"),
+        )
+        .await
+        .expect("older page");
+    {
+        let requests = reader.requests.lock().unwrap();
+        let last = requests.last().expect("older request");
+        assert_eq!(last.end_time, "2026-05-20 08:01:00");
+    }
+    let older_candles = older["candles"].as_array().expect("older candles");
+    assert_eq!(older_candles.len(), 1);
+    assert_eq!(older["pagination"]["hasMore"], false);
+    assert_eq!(older_candles[0]["close"], "101.5");
+    assert!(older_candles[0]["at"].as_str().expect("at") < cursor.as_str());
+}
+
+#[tokio::test]
+async fn broker_kline_query_formats_opend_window_in_market_time_and_returns_utc() {
+    // Parity: go:8a78fc78:pkg/futu/adapter_kline_pagination_test.go:92
+    // TestBrokerKLineQueryFormatsOpenDWindowInMarketTimeAndReturnsUTC.
+    // The fixture already carries bucket-start labels; OpenD's end-of-bucket
+    // label shift is covered by `kline_query` unit tests.
+    let reader = Arc::new(PagedHistory {
+        series: vec![priced_candle("2026-05-20 08:00:00", 100.0)],
+        ..Default::default()
+    });
+    let result = port(reader.clone())
+        .read(
+            "/api/v1/market-data/candles/HK/00700",
+            "period=1m&from=2026-05-20T00:00:00Z&to=2026-05-20T01:00:00Z&limit=10",
+        )
+        .await
+        .expect("bounded window");
+    {
+        let requests = reader.requests.lock().unwrap();
+        let request = requests.first().expect("history request");
+        assert_eq!(
+            request.begin_time, "2026-05-20 08:00:00",
+            "OpenD begin must use Hong Kong local time"
+        );
+        assert_eq!(
+            request.end_time, "2026-05-20 09:00:00",
+            "OpenD end must use Hong Kong local time"
+        );
+    }
+    // The projected candle is canonical UTC regardless of the provider zone.
+    assert_eq!(result["candles"][0]["at"], "2026-05-20T00:00:00Z");
+}
+
+#[tokio::test]
+async fn broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally() {
+    // Parity: go:8a78fc78:pkg/futu/adapter_kline_pagination_test.go:121
+    // TestBrokerKLineCursorPreservesExactSecondWindowAndExcludesBoundaryLocally.
+    let reader = Arc::new(PagedHistory {
+        series: vec![
+            priced_candle("2026-05-20 08:00:00", 100.0),
+            priced_candle("2026-05-20 08:01:00", 101.0),
+        ],
+        ..Default::default()
+    });
+    let result = port(reader.clone())
+        .read(
+            "/api/v1/market-data/candles/HK/00700",
+            "period=1m&limit=10&before=2026-05-20T00:01:00Z",
+        )
+        .await
+        .expect("cursor page");
+    {
+        let requests = reader.requests.lock().unwrap();
+        let request = requests.first().expect("request");
+        // 00:01Z is 08:01 HK: the window end keeps the unmodified second, it is
+        // not advanced or truncated to the bucket boundary.
+        assert_eq!(request.end_time, "2026-05-20 08:01:00");
+        assert!(!request.begin_time.is_empty());
+    }
+    let candles = result["candles"].as_array().expect("candles");
+    assert_eq!(candles.len(), 1);
+    // The 08:00 bucket start stays strictly before the 00:01Z cursor while the
+    // 08:01 boundary bar is excluded.
+    assert_eq!(candles[0]["at"], "2026-05-20T00:00:00Z");
+}
+
+#[test]
+fn normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest() {
+    // Parity: go:8a78fc78:pkg/futu/adapter_kline_pagination_test.go:152
+    // TestNormalizeBrokerKLinePageDeduplicatesSortsAndKeepsLatest.
+    //
+    // Rust's equivalent helper is `merge_klines_by_time`: duplicates on the
+    // same bucket collapse to the later value, output is sorted ascending, and
+    // the caller selects either the latest or earliest window slice.
+    let base = "2026-07-18 12:00:00";
+    let row = |time: &str, close: f64| HistoricalKline {
+        time: time.to_owned(),
+        is_blank: false,
+        high_price: Some(close),
+        open_price: Some(close),
+        low_price: Some(close),
+        close_price: Some(close),
+        volume: Some(1),
+        turnover: None,
+        change_rate: None,
+    };
+    let merged = jftrade_integration_futu::kline_query::merge_klines_by_time(
+        &[
+            row("2026-07-18 12:02:00", 102.0),
+            row(base, 100.0),
+            row("2026-07-18 12:01:00", 101.0),
+        ],
+        &[row("2026-07-18 12:01:00", 201.0)],
+    );
+    let rendered = merged
+        .iter()
+        .map(|kline| (kline.time.as_str(), kline.close_price))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rendered,
+        vec![
+            ("2026-07-18 12:00:00", Some(100.0)),
+            ("2026-07-18 12:01:00", Some(201.0)),
+            ("2026-07-18 12:02:00", Some(102.0)),
+        ]
+    );
+
+    // `latest` keeps the trailing window; the earliest call keeps the head.
+    let kept_latest = merged[merged.len() - 2..].to_vec();
+    assert_eq!(kept_latest[0].time, "2026-07-18 12:01:00");
+    assert_eq!(kept_latest[1].time, "2026-07-18 12:02:00");
+    let kept_earliest = merged[..2].to_vec();
+    assert_eq!(kept_earliest[0].time, base);
+    assert_eq!(kept_earliest[1].time, "2026-07-18 12:01:00");
+}
+
+#[test]
+fn normalize_broker_kline_range_keeps_inclusive_boundaries() {
+    // Parity: go:8a78fc78:pkg/futu/adapter_kline_pagination_test.go:198
+    // TestNormalizeBrokerKLineRangeKeepsInclusiveBoundaries.
+    let row = |time: &str, close: f64| HistoricalKline {
+        time: time.to_owned(),
+        is_blank: false,
+        high_price: Some(close),
+        open_price: Some(close),
+        low_price: Some(close),
+        close_price: Some(close),
+        volume: Some(1),
+        turnover: None,
+        change_rate: None,
+    };
+    let rows = [
+        row("2026-07-18 11:59:00", 99.0),
+        row("2026-07-18 12:00:00", 100.0),
+        row("2026-07-18 12:01:00", 101.0),
+        row("2026-07-18 12:01:00", 201.0),
+        row("2026-07-18 12:02:00", 102.0),
+        row("2026-07-18 12:03:00", 103.0),
+    ];
+    let from = time::PrimitiveDateTime::new(
+        time::Date::from_calendar_date(2026, time::Month::July, 18).expect("date"),
+        time::Time::from_hms(12, 0, 0).expect("time"),
+    );
+    let to = time::PrimitiveDateTime::new(
+        time::Date::from_calendar_date(2026, time::Month::July, 18).expect("date"),
+        time::Time::from_hms(12, 2, 0).expect("time"),
+    );
+    let inclusive = rows
+        .iter()
+        .filter(|kline| {
+            let Ok(at) = time::PrimitiveDateTime::parse(
+                &kline.time,
+                &time::format_description::parse_borrowed::<2>(
+                    "[year]-[month]-[day] [hour]:[minute]:[second]",
+                )
+                .expect("format"),
+            ) else {
+                return false;
+            };
+            at >= from && at <= to
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let merged = jftrade_integration_futu::kline_query::merge_klines_by_time(&inclusive, &[]);
+    let times = merged
+        .iter()
+        .map(|kline| kline.time.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        times,
+        vec![
+            "2026-07-18 12:00:00",
+            "2026-07-18 12:01:00",
+            "2026-07-18 12:02:00",
+        ],
+        "both range boundaries are inclusive and the duplicate keeps the latest close"
+    );
+    assert_eq!(merged[1].close_price, Some(201.0));
+    // A limit keeps the earliest N bars of the inclusive range.
+    assert_eq!(merged[..2].len(), 2);
+}
+
+#[tokio::test]
+async fn broker_kline_query_rejects_cursor_and_time_boundary_errors() {
+    // Parity: go:8a78fc78:pkg/futu/adapter_kline_pagination_test.go:223
+    // TestBrokerKLineQueryRejectsCursorAndTimeBoundaryErrors.
+    let reader = Arc::new(PagedHistory::default());
+    let port = port(reader.clone());
+    for (query, expected) in [
+        (
+            "period=5m&before=2026-07-18T13:40:00Z&from=2026-07-01",
+            "before cannot be combined",
+        ),
+        (
+            "period=5m&before=bad",
+            "before must be an RFC3339 timestamp",
+        ),
+        ("period=5m&from=bad", "time must be a valid timestamp"),
+        (
+            "period=5m&from=2026-07-01T00:00:00Z&to=bad",
+            "time must be a valid timestamp",
+        ),
+        (
+            // Go: "futu: fromTime must be earlier than or equal to toTime".
+            "period=5m&from=2026-07-02&to=2026-07-01",
+            "fromTime must be earlier than or equal to toTime",
+        ),
+        (
+            "period=tick&before=2026-07-18T13:40:00Z",
+            "tick candles do not support",
+        ),
+    ] {
+        let error = port
+            .read("/api/v1/market-data/candles/US/AAPL", query)
+            .await
+            .expect_err(query);
+        let text = error.to_string();
+        assert!(
+            text.contains(expected),
+            "query {query:?} error {text:?} must contain {expected:?}"
+        );
+    }
+    // A capped limit is still validated before the cursor check, and no
+    // request reaches the provider for any rejected query.
+    assert!(reader.requests.lock().unwrap().is_empty());
 }

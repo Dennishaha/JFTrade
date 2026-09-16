@@ -245,7 +245,7 @@ pub(crate) fn split_instrument(value: &str) -> Result<(i32, String), Subscriptio
     Ok((market, code.to_ascii_uppercase()))
 }
 
-fn kline_sub_type(interval: Option<&str>) -> Result<i32, SubscriptionExecutorError> {
+pub(crate) fn kline_sub_type(interval: Option<&str>) -> Result<i32, SubscriptionExecutorError> {
     let interval = interval.unwrap_or_default().trim().to_ascii_lowercase();
     let sub_type = match interval.as_str() {
         "1d" | "day" => 6,

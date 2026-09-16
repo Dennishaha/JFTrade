@@ -15183,67 +15183,67 @@
     "evidence_type": "missing"
   },
   "pkg/futu/adapter_kline_pagination_test.go:15:TestBrokerKLinesReturnLatestPageAndUseExclusiveBeforeCursor": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_pagination_tests::broker_klines_return_latest_page_and_use_exclusive_before_cursor",
+    "conclusion": "function_exact：limit=2 时返回最新两根（close 102.5/103.5），pagination.hasMore=true 且 nextBefore==candles[0].at；拿该 cursor 再读时 provider end_time 精确为 08:01 HK 秒值，边界 bar 被本地排除，剩余 1 根且 hasMore=false。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_kline_pagination_test.go:66:TestFutuDeclaredCandlePeriodsMapToHistoricalAndRealtimeTypes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/kline_query.rs::tests::declared_candle_periods_map_to_historical_and_realtime_types",
+    "conclusion": "function_exact：每个声明的 candle period 同时具备 Qot_RequestHistoryKL 的 KLType 映射与 Qot_Sub 的 subtype 映射（1m/3m/5m/10m/15m/30m/60m 有 duration，1d/1w/1mo 走 KLType 2/3/4 与 subtype 6/12/13），不存在只声明却无法订阅的周期。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_kline_pagination_test.go:92:TestBrokerKLineQueryFormatsOpenDWindowInMarketTimeAndReturnsUTC": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_pagination_tests::broker_kline_query_formats_opend_window_in_market_time_and_returns_utc",
+    "conclusion": "function_exact：from=00:00Z/to=01:00Z 在 HK 市场被格式化为 OpenD 本地窗口 08:00:00..09:00:00，返回的 candle at 为 UTC 00:00:00Z。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_kline_pagination_test.go:121:TestBrokerKLineCursorPreservesExactSecondWindowAndExcludesBoundaryLocally": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_pagination_tests::broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally",
+    "conclusion": "function_exact：before=2026-05-20T00:01:00Z 时 provider end_time 保持 08:01:00 精确秒（不推进也不截断），窗口起始非空；返回的 08:00 bucket 严格早于 cursor，08:01 边界 bar 被本地排除。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_kline_pagination_test.go:152:TestNormalizeBrokerKLinePageDeduplicatesSortsAndKeepsLatest": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_pagination_tests::normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest",
+    "conclusion": "function_exact：同 bucket 重复原始 K 线合并为后到值（201），输出按时间升序；截取尾部得到 latest 页（12:01/12:02），截取头部得到 earliest 页（12:00/12:01）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_kline_pagination_test.go:198:TestNormalizeBrokerKLineRangeKeepsInclusiveBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_pagination_tests::normalize_broker_kline_range_keeps_inclusive_boundaries",
+    "conclusion": "function_exact：from==12:00、to==12:02 两端都包含，重复的 12:01 保留最新 201；limit 截取后保留范围内最早的 2 根。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_kline_pagination_test.go:223:TestBrokerKLineQueryRejectsCursorAndTimeBoundaryErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_pagination_tests::broker_kline_query_rejects_cursor_and_time_boundary_errors",
+    "conclusion": "function_exact：before+from 组合、非法 before/from/to、from 晚于 to、tick+before 全部返回 400 且没有任何 provider 请求。真实修复：Rust 此前对 from 晚于 to 静默返回数据，Go 是 \"fromTime must be earlier than or equal to toTime\"；现已在 quote reads owner 前置校验。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_kline_pagination_test.go:284:TestBrokerKLinePaginationHelpersCoverSessionsBoundsAndListingDates": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_reads_futu.rs::tests::broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates",
+    "conclusion": "function_exact：相同 begin/end 收敛为文档化 lookback 而非反向窗口；非法 from 回落 lookback 且保持 begin<end；listing 解析同时接受 2004-06-16 日期与带时间形式，垃圾输入返回 None（Go 回落到 1900）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_kline_pagination_test.go:342:TestFutuCandlePeriodCatalogSkipsMissingAndUnmappableIntervals": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/kline_query.rs::tests::candle_period_catalog_rejects_missing_and_unmappable_intervals",
+    "conclusion": "function_exact：未知/缺失 period 在 realtime mapper 返回 UnsupportedInterval（保留原始 interval 文本），历史编码保留文档化的 daily 回落，二者边界被显式钉住。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_marketdata_search_test.go:12:TestFutuSearchMarketCodePreservesEveryStableDisplayMarket": {
     "status": "[~]",

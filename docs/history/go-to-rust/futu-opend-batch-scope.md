@@ -1123,3 +1123,58 @@ cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locke
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+## 批次：pkg/futu/adapter_kline_pagination_test.go（9 项）
+
+基线：`go:320084a5`。本批 9 项全部 `[x]`（`function_exact`）。
+
+### 功能差异与修复
+
+**反向时间窗口被静默接受**（P1，分页/取消相邻）。
+复现：`GET /api/v1/market-data/candles/HK/00700?period=5m&from=2026-07-02&to=2026-07-01`。
+预期（Go `queryBrokerKLines`）：`fromTime must be earlier than or equal to toTime`，400，且不触碰 provider。
+实际（修复前）：Rust 让窗口收敛成 lookback，返回了与请求无关的 K 线，掩盖调用方错误。
+修复位置：`crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs`
+（在 `before` 组合校验之后、provider 解析之前前置校验解析后的 `from`/`to`）。
+回归：`broker_kline_query_rejects_cursor_and_time_boundary_errors`。
+
+其余 8 项在 Rust 已有等价行为，本批补齐独立行为证据：分页 cursor 精确秒 +
+本地排他过滤、HK 市场时区窗口与 UTC 投影、latest/earliest 窗口选择与重复
+bucket 取最新、inclusive range、声明周期同时具备历史与实时映射、列表日期
+解析边界。
+
+### 行为映射
+
+| Go 测试 | Rust 入口 |
+| --- | --- |
+| `:15 TestBrokerKLinesReturnLatestPageAndUseExclusiveBeforeCursor` | `crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_pagination_tests::broker_klines_return_latest_page_and_use_exclusive_before_cursor` |
+| `:66 TestFutuDeclaredCandlePeriodsMapToHistoricalAndRealtimeTypes` | `crates/jftrade-integration-futu/src/kline_query.rs::tests::declared_candle_periods_map_to_historical_and_realtime_types` |
+| `:92 TestBrokerKLineQueryFormatsOpenDWindowInMarketTimeAndReturnsUTC` | `...candle_pagination_tests::broker_kline_query_formats_opend_window_in_market_time_and_returns_utc` |
+| `:121 TestBrokerKLineCursorPreservesExactSecondWindowAndExcludesBoundaryLocally` | `...candle_pagination_tests::broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally` |
+| `:152 TestNormalizeBrokerKLinePageDeduplicatesSortsAndKeepsLatest` | `...candle_pagination_tests::normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest` |
+| `:198 TestNormalizeBrokerKLineRangeKeepsInclusiveBoundaries` | `...candle_pagination_tests::normalize_broker_kline_range_keeps_inclusive_boundaries` |
+| `:223 TestBrokerKLineQueryRejectsCursorAndTimeBoundaryErrors` | `...candle_pagination_tests::broker_kline_query_rejects_cursor_and_time_boundary_errors` |
+| `:284 TestBrokerKLinePaginationHelpersCoverSessionsBoundsAndListingDates` | `crates/jftrade-engine/src/product_production_ports_market_data_quote_reads_futu.rs::tests::broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates` |
+| `:342 TestFutuCandlePeriodCatalogSkipsMissingAndUnmappableIntervals` | `crates/jftrade-integration-futu/src/kline_query.rs::tests::candle_period_catalog_rejects_missing_and_unmappable_intervals` |
+
+### 边界说明
+
+- Go 的 `normalizeBrokerKLinePage` 是 broker 层自由函数；Rust 的对应 owner 是
+  `jftrade_integration_futu::kline_query::merge_klines_by_time`（bucket 去重取后到值 +
+  升序），窗口截取由 `read_candles` 决定。测试按同一 owner 组合断言，未复制实现。
+- Go fixture 的 `testHistoryKLine` 由 OpenD 原始 label 经 `futuHistoryKLineStartTime`
+  转为 bucket start；Rust 的 loopback `HistoricalKlineReadPort` fixture 直接提供
+  已转换的 bucket start。OpenD 原始 label 的位移在
+  `kline_query::adjust_kline_time` 的单测中覆盖，本批不重复。
+- Go 支持 `Adjustment`（`split-only` 报错）；Rust 路由不接受该参数，该子项由
+  既有 API 校验测试覆盖，未在本批重复。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```
