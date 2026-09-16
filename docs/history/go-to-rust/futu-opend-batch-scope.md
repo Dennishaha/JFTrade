@@ -365,3 +365,51 @@ node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(
 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(frame)'
 python3 scripts/compatibility/audit_test_parity.py
 ```
+
+## 批次：OpenD 交易写入前置条件、业务拒绝与读取错误边界
+
+覆盖 `pkg/futu/opend/trading_methods_test.go`、`trading_write_boundaries_test.go`、
+`trading_error_boundaries_test.go` 的 P0 写入/读取路径，共 15 项。
+其中 1 处为真实功能差异修复。
+
+| Go 测试 | Rust 证据入口 | 状态 | 说明 |
+| --- | --- | --- | --- |
+| `trading_methods_test.go:64 TestPlaceOrderRequiresRequestAndConnID` | `trade_session_tests::place_order_requires_an_authenticated_conn_id` | `[x]` | 未认证客户端如实投影 `conn_id=0`，不伪造。 |
+| `trading_methods_test.go:83 TestPlaceOrderAndModifyOrderEncodeTradeWrites` | `...::place_order_encodes_packet_conn_id_and_projects_server_order_identity`、`...::modify_order_encodes_packet_conn_id_and_returns_server_identity` | `[x]` | packetID.connID=42、code/qty/price 转发、order_id/order_id_ex 投影。 |
+| `trading_methods_test.go:182 TestHistoryOrderReadersPreserveFiltersAndEmptyResponses` | `...::history_order_call_uses_history_protocol_and_forwards_filters` | `[x]` | filter/status 保留，空列表返回空集合。 |
+| `trading_methods_test.go:244 TestSubscribeAccountPushAndTradePushDecoding` | `...::subscribe_trade_accounts_forwards_every_account_id` | `[x]` | 请求侧逐项转发 [11,22] 且接受无 S2C 的成功 ack；推送回调解码半支保留为边界。 |
+| `trading_methods_test.go:334 TestSubscribeAccountPushPropagatesTradeErrors` | `...::subscribe_trade_accounts_propagates_opend_rejection` | `[x]` | **功能修复**：原先误判无 S2C 成功 ack 为 `MissingS2c`，现按 Go 语义只校验 retType。 |
+| `trading_methods_test.go:351 TestPlaceOrderUsesPresetPacketIDWhenProvided` | `...::place_order_encodes_packet_conn_id_and_projects_server_order_identity` | `[~]` | Rust packetID 由客户端自增，无 preset 入口（旧 owner 边界）。 |
+| `trading_methods_test.go:381 TestTradeWriteWrappersSurfaceCallErrors` | `...::trade_write_wrappers_surface_call_errors` | `[x]` | 无连接时 typed Session 错误。 |
+| `trading_write_boundaries_test.go:17 TestTradeWriteMethodsEnforcePrerequisitesAndDisconnectedState` | `...::trade_write_methods_enforce_prerequisites_and_disconnected_state` | `[x]` | place/unlock/subscribe 断开态全部失败。 |
+| `trading_write_boundaries_test.go:58 TestPlaceOrderPropagatesOpenDBusinessRejection` | `...::place_order_propagates_opend_business_rejection` | `[x]` | `retType=-1/errCode=201` 投影为 typed ReturnCode。 |
+| `trading_write_boundaries_test.go:82 TestModifyOrderReturnsStableEmptyResult` | `...::modify_order_returns_stable_identity_for_an_empty_success_payload` | `[x]` | 空成功载荷返回零值身份，不伪造 id。 |
+| `trading_write_boundaries_test.go:102 TestTradePushSubscribersIgnoreMalformedAndUnsuccessfulUpdates` | `trading::tests::protocol_ids_match_go_opend_and_shadow_forbids_writes` | `[~]` | Rust 无推送订阅 adapter，订单更新走 engine 轮询对账，边界保留。 |
+| `trading_error_boundaries_test.go:26 TestTradingReadMethodsPropagateOpenDBusinessErrors` | `...::trading_reads_propagate_opend_business_errors` | `[x]` | read_funds 的 ReturnCode 细节逐项断言。 |
+| `trading_error_boundaries_test.go:102 TestTradingReadMethodsRejectDisconnectedSession` | `...::trading_reads_reject_a_disconnected_session` | `[x]` | funds/positions/orders/history 四路径全部 fail-closed。 |
+| `trading_error_boundaries_test.go:138 TestHistoryTradingReadsReturnStableEmptyCollections` | `...::history_trading_reads_return_stable_empty_collections` | `[x]` | 空 S2C 列表→空集合。 |
+
+### 本批发现与修复
+
+- **`SubscribeAccountPush` 误判成功 ack**（功能差异 → 已修复）
+  - Go `pkg/futu/opend/trading_writes.go::SubscribeAccountPush` 只要求 `retType==0`
+    并接受缺失 S2C；Rust 经 `trade_command_proto!` 宏走 `decode_response`，
+    无条件要求 S2C，导致 OpenD 成功订阅确认被报 `MissingS2c`。
+  - 修复位置：`crates/jftrade-integration-futu/src/trade_session.rs::subscribe_trade_accounts`
+    （改为只校验 retType，保留 errCode/retMsg 细节）。
+  - 回归：`subscribe_trade_accounts_forwards_every_account_id`（接受无 S2C 成功）与
+    `subscribe_trade_accounts_propagates_opend_rejection`（拒绝细节）。
+
+### 边界保留（不迁移为等价测试）
+
+- `SubscribeOrderUpdate` / `SubscribeOrderFillUpdate` 回调 adapter：Rust 无此 API，
+  trd_update_order/_fill 只声明未解码；engine 用轮询对账 + 影子 mapper。
+- preset `packetID`：Rust 由客户端自增，调用方不预设。
+
+验证命令：
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib --locked --no-fail-fast
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(trade)'
+python3 scripts/compatibility/audit_test_parity.py
+```

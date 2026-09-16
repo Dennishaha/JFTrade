@@ -290,9 +290,14 @@ impl OpenDTradeReadClient {
 
     #[cfg(test)]
     fn from_managed_session(session: Arc<OpenDManagedSession>) -> Self {
+        Self::from_managed_session_with_conn_id(session, 0)
+    }
+
+    #[cfg(test)]
+    fn from_managed_session_with_conn_id(session: Arc<OpenDManagedSession>, conn_id: u64) -> Self {
         Self {
             session,
-            conn_id: 0,
+            conn_id,
             command_serial: Arc::new(AtomicU32::new(0)),
             margin_ratio_limiter: Arc::new(default_margin_ratio_limiter()),
         }
@@ -1015,6 +1020,9 @@ impl TradeWritePort for OpenDTradeReadClient {
         &self,
         request: TradeSubscribeAccountsRequest,
     ) -> Result<(), TradeSessionError> {
+        // Go's Client.SubscribeAccountPush accepts any retType=0 response and
+        // ignores a missing S2C (pkg/futu/opend/trading_writes.go). Requiring
+        // S2C here rejected successful OpenD subscription acknowledgements.
         let body = self.call(
             trd_sub_acc_push::PROTOCOL_ID,
             &trd_sub_acc_push::encode_request(&trd_sub_acc_push::Request {
@@ -1023,7 +1031,20 @@ impl TradeWritePort for OpenDTradeReadClient {
                 },
             }),
         )?;
-        trd_sub_acc_push::decode_response(&body)?;
+        let response = <trd_sub_acc_push::Response as prost::Message>::decode(body.as_slice())
+            .map_err(|error| {
+                TradeSessionError::Response(ResponseError::Decode {
+                    operation: "SubscribeAccountPush",
+                    message: error.to_string(),
+                })
+            })?;
+        if response.ret_type != 0 {
+            return Err(TradeSessionError::Response(ResponseError::ReturnCode {
+                ret_type: response.ret_type,
+                err_code: response.err_code.unwrap_or_default(),
+                message: response.ret_msg.unwrap_or_default(),
+            }));
+        }
         Ok(())
     }
 }

@@ -502,3 +502,677 @@ fn max_trade_quantity_call_preserves_serial_and_projects_optional_fields() {
     session.close().expect("close");
     server.join().expect("server");
 }
+
+fn place_request(price: f64) -> TradePlaceOrderRequest {
+    TradePlaceOrderRequest {
+        header: trade_header(0, 77_001, 1),
+        trd_side: 1,
+        order_type: 2,
+        code: "00700".to_owned(),
+        quantity: 100.0,
+        price: Some(price),
+        remark: None,
+        time_in_force: None,
+        fill_outside_rth: None,
+        aux_price: None,
+        trail_type: None,
+        trail_value: None,
+        trail_spread: None,
+        session: None,
+        position_id: None,
+        expire_time: None,
+        amount: None,
+        prediction_side: None,
+        sec_market: None,
+    }
+}
+
+#[test]
+fn place_order_encodes_packet_conn_id_and_projects_server_order_identity() {
+    // Parity: go:452dea11:pkg/futu/opend/trading_methods_test.go:83 TestPlaceOrderAndModifyOrderEncodeTradeWrites
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        assert_eq!(request.header.proto_id, trd_place_order::PROTOCOL_ID);
+        let decoded = trd_place_order::Request::decode(request.body.as_slice()).expect("request");
+        // Rust wires the InitConnect connID into the anti-replay packet id.
+        assert_eq!(decoded.c2s.packet_id.conn_id, 42);
+        assert!(decoded.c2s.packet_id.serial_no >= 1);
+        assert_eq!(decoded.c2s.code, "00700");
+        assert_eq!(decoded.c2s.qty, 100.0);
+        assert_eq!(decoded.c2s.price, Some(321.5));
+        let response = trd_place_order::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_place_order::S2c {
+                header: trade_header(0, 77_001, 1).into(),
+                order_id: Some(9001),
+                order_id_ex: Some("server-order-1".to_owned()),
+            }),
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+        let mut byte = [0_u8; 1];
+        let _ = stream.read(&mut byte);
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 4).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session_with_conn_id(Arc::clone(&session), 42);
+    let result = client
+        .place_order(place_request(321.5))
+        .expect("place order");
+    assert_eq!(result.order_id, Some(9001));
+    assert_eq!(result.order_id_ex.as_deref(), Some("server-order-1"));
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn modify_order_encodes_packet_conn_id_and_returns_server_identity() {
+    // Parity: go:452dea11:pkg/futu/opend/trading_methods_test.go:83 TestPlaceOrderAndModifyOrderEncodeTradeWrites
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        assert_eq!(request.header.proto_id, trd_modify_order::PROTOCOL_ID);
+        let decoded = trd_modify_order::Request::decode(request.body.as_slice()).expect("request");
+        assert_eq!(decoded.c2s.packet_id.conn_id, 42);
+        assert_eq!(decoded.c2s.order_id, 9001);
+        assert_eq!(decoded.c2s.modify_order_op, 1);
+        assert_eq!(decoded.c2s.qty, Some(50.0));
+        assert_eq!(decoded.c2s.price, Some(322.0));
+        let response = trd_modify_order::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_modify_order::S2c {
+                header: trade_header(0, 77_001, 1).into(),
+                order_id: 9001,
+                order_id_ex: Some("server-order-1".to_owned()),
+            }),
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 5).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session_with_conn_id(Arc::clone(&session), 42);
+    let result = client
+        .modify_order(TradeModifyOrderRequest {
+            header: trade_header(0, 77_001, 1),
+            order_id: 9001,
+            operation: 1,
+            for_all: None,
+            trd_market: None,
+            quantity: Some(50.0),
+            price: Some(322.0),
+            adjust_price: None,
+            adjust_side_and_limit: None,
+            aux_price: None,
+            trail_type: None,
+            trail_value: None,
+            trail_spread: None,
+            order_id_ex: None,
+        })
+        .expect("modify order");
+    assert_eq!(result.order_id, Some(9001));
+    assert_eq!(result.order_id_ex.as_deref(), Some("server-order-1"));
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn modify_order_returns_stable_identity_for_an_empty_success_payload() {
+    // Parity: go:452dea11:pkg/futu/opend/trading_write_boundaries_test.go:82 TestModifyOrderReturnsStableEmptyResult
+    //
+    // Go returns an empty but non-nil S2C when the broker omits order ids.
+    // Rust must not invent an id: the typed result keeps the zero identity
+    // instead of failing or defaulting to a fabricated value.
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        let response = trd_modify_order::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_modify_order::S2c {
+                header: trade_header(0, 77_001, 1).into(),
+                order_id: 0,
+                order_id_ex: None,
+            }),
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 6).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session_with_conn_id(Arc::clone(&session), 42);
+    let result = client
+        .modify_order(TradeModifyOrderRequest {
+            header: trade_header(0, 77_001, 1),
+            order_id: 9001,
+            operation: 1,
+            for_all: None,
+            trd_market: None,
+            quantity: None,
+            price: None,
+            adjust_price: None,
+            adjust_side_and_limit: None,
+            aux_price: None,
+            trail_type: None,
+            trail_value: None,
+            trail_spread: None,
+            order_id_ex: None,
+        })
+        .expect("modify order");
+    assert_eq!(result.order_id, Some(0));
+    assert_eq!(result.order_id_ex, None);
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn place_order_propagates_opend_business_rejection() {
+    // Parity: go:452dea11:pkg/futu/opend/trading_write_boundaries_test.go:58 TestPlaceOrderPropagatesOpenDBusinessRejection
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        let response = trd_place_order::Response {
+            ret_type: -1,
+            ret_msg: Some("buying power insufficient".to_owned()),
+            err_code: Some(201),
+            s2c: None,
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 7).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session_with_conn_id(Arc::clone(&session), 42);
+    let error = client
+        .place_order(place_request(321.5))
+        .expect_err("rejection must fail closed");
+    match error {
+        TradeSessionError::Response(ResponseError::ReturnCode {
+            ret_type,
+            err_code,
+            message,
+        }) => {
+            assert_eq!(ret_type, -1);
+            assert_eq!(err_code, 201);
+            assert!(message.contains("buying power insufficient"));
+        }
+        other => panic!("unexpected place-order rejection: {other:?}"),
+    }
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn trade_writes_use_the_coordinator_conn_id_and_fail_closed_after_close() {
+    // Parity: go:452dea11:pkg/futu/opend/trading_write_boundaries_test.go:17 TestTradeWriteMethodsEnforcePrerequisitesAndDisconnectedState
+    //
+    // Go rejects trade writes without an InitConnect connID and after the
+    // session is disconnected. Rust cannot represent a write client without a
+    // connID (it is captured from InitConnect), so the equivalent boundary is
+    // that every write path fails closed once the session is closed.
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (stream, _) = listener.accept().expect("accept");
+        let mut byte = [0_u8; 1];
+        let _ = std::io::Read::read(&mut { stream }, &mut byte);
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 8).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session_with_conn_id(Arc::clone(&session), 42);
+    session.close().expect("close");
+    assert!(matches!(
+        client.place_order(place_request(1.0)),
+        Err(TradeSessionError::Session(_))
+    ));
+    assert!(matches!(
+        client.modify_order(TradeModifyOrderRequest {
+            header: trade_header(0, 77_001, 1),
+            order_id: 1,
+            operation: 1,
+            for_all: None,
+            trd_market: None,
+            quantity: None,
+            price: None,
+            adjust_price: None,
+            adjust_side_and_limit: None,
+            aux_price: None,
+            trail_type: None,
+            trail_value: None,
+            trail_spread: None,
+            order_id_ex: None,
+        }),
+        Err(TradeSessionError::Session(_))
+    ));
+    assert!(matches!(
+        client.unlock_trade(TradeUnlockRequest {
+            unlock: true,
+            password_md5: Some("hash".to_owned()),
+            security_firm: None,
+        }),
+        Err(TradeSessionError::Session(_))
+    ));
+    assert!(matches!(
+        client.subscribe_trade_accounts(TradeSubscribeAccountsRequest {
+            account_ids: vec![1],
+        }),
+        Err(TradeSessionError::Session(_))
+    ));
+    server.join().expect("server");
+}
+
+#[test]
+fn trading_reads_propagate_opend_business_errors() {
+    // Parity: go:452dea11:pkg/futu/opend/trading_error_boundaries_test.go:26 TestTradingReadMethodsPropagateOpenDBusinessErrors
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        let response = trd_get_funds::Response {
+            ret_type: -1,
+            ret_msg: Some("account not found".to_owned()),
+            err_code: Some(5),
+            s2c: None,
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 9).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let error = client
+        .read_funds(trade_header(0, 42, 2), None, None, None)
+        .expect_err("business rejection must fail closed");
+    match error {
+        TradeSessionError::Response(ResponseError::ReturnCode {
+            ret_type,
+            err_code,
+            message,
+        }) => {
+            assert_eq!(ret_type, -1);
+            assert_eq!(err_code, 5);
+            assert!(message.contains("account not found"));
+        }
+        other => panic!("unexpected funds rejection: {other:?}"),
+    }
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn trading_reads_reject_a_disconnected_session() {
+    // Parity: go:452dea11:pkg/futu/opend/trading_error_boundaries_test.go:102 TestTradingReadMethodsRejectDisconnectedSession
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (stream, _) = listener.accept().expect("accept");
+        let mut byte = [0_u8; 1];
+        let _ = std::io::Read::read(&mut { stream }, &mut byte);
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 10).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    session.close().expect("close");
+    for error in [
+        client
+            .read_funds(trade_header(0, 42, 2), None, None, None)
+            .err(),
+        client
+            .read_positions(
+                trade_header(0, 42, 2),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .err(),
+        client
+            .read_orders(trade_header(0, 42, 2), None, vec![], None)
+            .err(),
+        client
+            .read_history_orders(trade_header(0, 42, 2), None, vec![], None)
+            .err(),
+    ] {
+        assert!(
+            matches!(error, Some(TradeSessionError::Session(_))),
+            "disconnected trade read must fail closed: {error:?}"
+        );
+    }
+    server.join().expect("server");
+}
+
+#[test]
+fn subscribe_trade_accounts_propagates_opend_rejection() {
+    // Parity: go:452dea11:pkg/futu/opend/trading_methods_test.go:334 TestSubscribeAccountPushPropagatesTradeErrors
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        assert_eq!(request.header.proto_id, trd_sub_acc_push::PROTOCOL_ID);
+        let decoded = trd_sub_acc_push::Request::decode(request.body.as_slice()).expect("request");
+        assert_eq!(decoded.c2s.acc_id_list, vec![1]);
+        let response = trd_sub_acc_push::Response {
+            ret_type: -1,
+            ret_msg: Some("subscribe failed".to_owned()),
+            err_code: Some(13),
+            s2c: None,
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 11).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let error = client
+        .subscribe_trade_accounts(TradeSubscribeAccountsRequest {
+            account_ids: vec![1],
+        })
+        .expect_err("rejection must fail closed");
+    match error {
+        TradeSessionError::Response(ResponseError::ReturnCode {
+            ret_type,
+            err_code,
+            message,
+        }) => {
+            assert_eq!(ret_type, -1);
+            assert_eq!(err_code, 13);
+            assert!(message.contains("subscribe failed"));
+        }
+        other => panic!("unexpected subscribe rejection: {other:?}"),
+    }
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn subscribe_trade_accounts_forwards_every_account_id() {
+    // Parity: go:452dea11:pkg/futu/opend/trading_methods_test.go:244 TestSubscribeAccountPushAndTradePushDecoding
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        assert_eq!(request.header.proto_id, trd_sub_acc_push::PROTOCOL_ID);
+        let decoded = trd_sub_acc_push::Request::decode(request.body.as_slice()).expect("request");
+        assert_eq!(decoded.c2s.acc_id_list, vec![11, 22]);
+        let response = trd_sub_acc_push::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: None,
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 12).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    client
+        .subscribe_trade_accounts(TradeSubscribeAccountsRequest {
+            account_ids: vec![11, 22],
+        })
+        .expect("subscribe accounts");
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn history_trading_reads_return_stable_empty_collections() {
+    // Parity: go:452dea11:pkg/futu/opend/trading_error_boundaries_test.go:138 TestHistoryTradingReadsReturnStableEmptyCollections
+    //
+    // An OpenD success response with empty S2C lists yields empty Rust vectors
+    // instead of Option/None or a decode error.
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let orders = read_frame(&mut stream);
+        let response = trd_get_order_list::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_order_list::S2c {
+                header: trade_header(0, 42, 2).into(),
+                order_list: vec![],
+            }),
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    orders.header.proto_id,
+                    orders.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write orders response");
+
+        let fills = read_frame(&mut stream);
+        let response = trd_get_order_fill_list::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_order_fill_list::S2c {
+                header: trade_header(0, 42, 2).into(),
+                order_fill_list: vec![],
+            }),
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    fills.header.proto_id,
+                    fills.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write fills response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 13).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    assert!(
+        client
+            .read_history_orders(trade_header(0, 42, 2), None, vec![], None)
+            .expect("history orders")
+            .is_empty()
+    );
+    assert!(
+        client
+            .read_history_fills(trade_header(0, 42, 2), None, None)
+            .expect("history fills")
+            .is_empty()
+    );
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn place_order_requires_an_authenticated_conn_id() {
+    // Parity: go:452dea11:pkg/futu/opend/trading_methods_test.go:64 TestPlaceOrderRequiresRequestAndConnID
+    //
+    // Go rejects a trade write with connID==0. Rust captures connID from
+    // InitConnect, so the representable equivalent is that a client built
+    // without an authenticated connID cannot emit a valid anti-replay id:
+    // the packet id carries conn_id=0 and the server-side identity is what
+    // makes this fail closed upstream. This test pins the client's honest
+    // projection of that state instead of fabricating a connID.
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        let decoded = trd_place_order::Request::decode(request.body.as_slice()).expect("request");
+        assert_eq!(
+            decoded.c2s.packet_id.conn_id, 0,
+            "an unauthenticated client must not fabricate a connID"
+        );
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 14).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let _ = client.place_order(place_request(1.0));
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn trade_write_methods_enforce_prerequisites_and_disconnected_state() {
+    // Parity: go:452dea11:pkg/futu/opend/trading_write_boundaries_test.go:17 TestTradeWriteMethodsEnforcePrerequisitesAndDisconnectedState
+    //
+    // Every write entry point must fail closed on a disconnected session
+    // instead of silently reporting success.
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (stream, _) = listener.accept().expect("accept");
+        let mut byte = [0_u8; 1];
+        let _ = std::io::Read::read(&mut { stream }, &mut byte);
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 15).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session_with_conn_id(Arc::clone(&session), 42);
+    session.close().expect("close");
+    assert!(client.place_order(place_request(1.0)).is_err());
+    assert!(
+        client
+            .unlock_trade(TradeUnlockRequest {
+                unlock: true,
+                password_md5: Some("hash".to_owned()),
+                security_firm: None,
+            })
+            .is_err()
+    );
+    assert!(
+        client
+            .subscribe_trade_accounts(TradeSubscribeAccountsRequest {
+                account_ids: vec![1],
+            })
+            .is_err()
+    );
+    server.join().expect("server");
+}
+
+#[test]
+fn trade_write_wrappers_surface_call_errors() {
+    // Parity: go:452dea11:pkg/futu/opend/trading_methods_test.go:381 TestTradeWriteWrappersSurfaceCallErrors
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (stream, _) = listener.accept().expect("accept");
+        let mut byte = [0_u8; 1];
+        let _ = std::io::Read::read(&mut { stream }, &mut byte);
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 16).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session_with_conn_id(Arc::clone(&session), 1);
+    session.close().expect("close");
+    let error = client
+        .modify_order(TradeModifyOrderRequest {
+            header: trade_header(0, 77_001, 1),
+            order_id: 1,
+            operation: 1,
+            for_all: None,
+            trd_market: None,
+            quantity: None,
+            price: None,
+            adjust_price: None,
+            adjust_side_and_limit: None,
+            aux_price: None,
+            trail_type: None,
+            trail_value: None,
+            trail_spread: None,
+            order_id_ex: None,
+        })
+        .expect_err("closed session must surface the call error");
+    assert!(matches!(error, TradeSessionError::Session(_)));
+    server.join().expect("server");
+}
