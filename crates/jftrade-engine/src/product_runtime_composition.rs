@@ -100,14 +100,7 @@ pub(crate) fn opend_provider_config(
         Ok(value) => value.parse::<u16>().map_err(|_| {
             ProductRuntimeError::Settings(format!("invalid JFTRADE_FUTU_OPEND_PORT: {value}"))
         })?,
-        Err(_) => futu_settings.as_ref().map_or(Ok(11111), |settings| {
-            u16::try_from(settings.api_port).map_err(|_| {
-                ProductRuntimeError::Settings(format!(
-                    "invalid futu open d api_port: {}",
-                    settings.api_port
-                ))
-            })
-        })?,
+        Err(_) => default_opend_port(futu_settings.as_ref())?,
     };
     let ip = host.parse::<IpAddr>().map_err(|_| {
         ProductRuntimeError::Settings(format!("invalid Futu OpenD host IP: {host}"))
@@ -126,6 +119,25 @@ pub(crate) fn opend_provider_config(
     );
     configuration.task.quota_refresh_enabled = true;
     Ok(configuration)
+}
+
+/// Returns the TCP API port for a missing or persisted OpenD integration.
+///
+/// Parity: `go:452dea11:pkg/futu/exchange.go:45` defines
+/// `DefaultOpenDAddr = "127.0.0.1:11110"`. Port `11111` is the separate
+/// OpenD WebSocket port and cannot answer the TCP API handshake, so the
+/// fallback must stay on `11110` whenever no integration is persisted.
+fn default_opend_port(
+    settings: Option<&jftrade_settings::FutuOpenDInstallSettings>,
+) -> Result<u16, ProductRuntimeError> {
+    settings.map_or(Ok(11_110), |settings| {
+        u16::try_from(settings.api_port).map_err(|_| {
+            ProductRuntimeError::Settings(format!(
+                "invalid futu open d api_port: {}",
+                settings.api_port
+            ))
+        })
+    })
 }
 
 pub(crate) type SharedOpenDProviderRuntime = Arc<Mutex<Option<OpenDProviderRuntime>>>;
@@ -170,6 +182,28 @@ impl PhysicalSubscriptionSnapshotPort for OpenDPhysicalSubscriptionAdapter {
 mod tests {
     use super::*;
     use jftrade_marketdata::PhysicalSubscriptionSnapshotPort;
+
+    #[test]
+    fn opend_provider_config_defaults_to_the_go_tcp_api_port() {
+        // Parity: go:452dea11:pkg/futu/exchange.go:45 DefaultOpenDAddr and
+        // pkg/futu/exchange_test.go:36 TestConstructorFallsBackToDefaultAddress.
+        // Without a persisted integration the fallback must be the TCP API
+        // port 11110, not the adjacent WebSocket port 11111.
+        assert_eq!(default_opend_port(None).expect("default port"), 11_110);
+        assert_eq!(
+            default_opend_port(Some(&jftrade_settings::FutuOpenDInstallSettings {
+                api_port: 12_345,
+                ..Default::default()
+            }))
+            .expect("persisted port"),
+            12_345
+        );
+        let invalid = default_opend_port(Some(&jftrade_settings::FutuOpenDInstallSettings {
+            api_port: -1,
+            ..Default::default()
+        }));
+        assert!(matches!(invalid, Err(ProductRuntimeError::Settings(_))));
+    }
 
     #[test]
     fn dynamic_opend_adapter_reports_no_snapshot_without_a_live_runtime() {

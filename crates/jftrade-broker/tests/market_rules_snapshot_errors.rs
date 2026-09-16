@@ -60,6 +60,29 @@ fn market_rules_match_trimmed_symbols_and_apply_overrides_in_order() {
 }
 
 #[test]
+fn broker_lot_size_initializes_minimum_and_step_quantity() {
+    // Parity: go:452dea11:pkg/futu/exchange_test.go:62
+    // TestEnsureMarketWithContextAppliesBrokerLotSize. Go copies the broker's
+    // lot size into both MinQuantity and StepSize when no explicit override is
+    // present; the Rust broker-neutral market rule must do the same.
+    let market = MarketQuantityConstraints {
+        symbol: "HK.00700".to_owned(),
+        min_quantity: fixed("1"),
+        step_size: fixed("1"),
+    };
+    let applied = apply_market_rule(
+        market,
+        &MarketRuleItem {
+            symbol: "HK.00700".to_owned(),
+            lot_size: Some(100),
+            ..MarketRuleItem::default()
+        },
+    );
+    assert_eq!(applied.min_quantity, fixed("100"));
+    assert_eq!(applied.step_size, fixed("100"));
+}
+
+#[test]
 fn market_rules_ignore_missing_non_positive_and_non_finite_constraints() {
     let market = MarketQuantityConstraints {
         symbol: "HK.00700".to_owned(),

@@ -89,7 +89,10 @@ fn projection_reader() -> Arc<FixtureTradeReader> {
     account.trd_market_auth_list = vec![2];
     Arc::new(FixtureTradeReader {
         accounts: vec![account],
-        active_orders: vec![order_snapshot(11, Some(5.0))],
+        // 5 = SUBMITTED: Go's QueryBrokerOrders filters terminal statuses out
+        // of the current-session projection, so the active fixture must be a
+        // working order; FILLED_ALL belongs to the history scope only.
+        active_orders: vec![order_snapshot(5, Some(5.0))],
         history_orders: vec![order_snapshot(10, Some(3.0))],
         active_fills: vec![fill("2026-08-31T01:00:00Z", 2.0, "active-fill")],
         history_fills: vec![fill("2026-08-31T02:00:00Z", 3.0, "history-fill")],
@@ -298,7 +301,7 @@ fn helper_market_data_providers_project_futu_broker_and_portfolio_routes() {
         let orders = broker
             .read("/api/v1/brokers/futu/orders", query)
             .expect("active order projection");
-        assert_eq!(orders["orders"][0]["status"], "FILLED_ALL");
+        assert_eq!(orders["orders"][0]["status"], "SUBMITTED");
         let history_orders = broker
             .read(
                 "/api/v1/brokers/futu/orders",

@@ -370,6 +370,16 @@ pub(super) fn order_status_label(value: i32) -> &'static str {
     }
 }
 
+/// Returns whether an OpenD order status is still working.
+///
+/// Parity: `go:452dea11:pkg/futu/trade_read_convert.go:160`
+/// `brokerOrderIsWorking`. Filled, cancelled, rejected, disabled and deleted
+/// orders are terminal; every other status (including unknown future values)
+/// stays visible as working.
+pub(super) fn active_order_status(value: i32) -> bool {
+    !matches!(value, 3 | 11 | 14 | 15 | 21 | 22 | 23 | 24)
+}
+
 pub(super) fn fill_status_label(value: i32) -> &'static str {
     match value {
         0 => "OK",

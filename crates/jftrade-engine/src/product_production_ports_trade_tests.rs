@@ -9,6 +9,7 @@ use jftrade_integration_futu::{
 use jftrade_marketdata::ProviderRouter;
 use jftrade_settings::{FutuIntegrationConfig, MarketDataProvider, MarketDataProviderRuntimePort};
 use std::time::{Duration, Instant};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use tempfile::tempdir;
 
 #[derive(Debug)]
@@ -198,6 +199,135 @@ impl TradeReadPort for FakeTradeRead {
         _: Option<bool>,
     ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
         Ok(Vec::new())
+    }
+}
+
+fn fixture_order(
+    _: TradeHeader,
+    order_id: u64,
+    status: i32,
+    fill_qty: f64,
+) -> TradeOrderSnapshot {
+    TradeOrderSnapshot {
+        trd_side: 1,
+        order_type: 1,
+        order_status: status,
+        order_id,
+        order_id_ex: format!("EXT-{order_id}"),
+        code: "HK.00700".to_owned(),
+        name: "Tencent".to_owned(),
+        qty: 100.0,
+        price: Some(320.0),
+        create_time: "2026-05-20 09:30:00".to_owned(),
+        update_time: "2026-05-20 09:31:00".to_owned(),
+        fill_qty: Some(fill_qty),
+        fill_avg_price: Some(319.5),
+        last_err_msg: None,
+        sec_market: Some(1),
+        create_timestamp: None,
+        update_timestamp: None,
+        remark: None,
+        trd_market: Some(1),
+        expire_time: None,
+        order_amount: None,
+        time_in_force: Some(1),
+        fill_outside_rth: None,
+        aux_price: None,
+        trail_type: None,
+        trail_value: None,
+        trail_spread: None,
+        currency: Some(1),
+        session: None,
+        jp_acc_type: None,
+        strategy_type: None,
+        combo_legs: Vec::new(),
+    }
+}
+
+/// Reader used only by the active-order filtering parity test. Keeping this
+/// separate from `FakeTradeRead` preserves the empty-order fixtures that other
+/// broker/portfolio projection tests rely on.
+#[derive(Debug)]
+struct OrderFixtureRead;
+
+impl TradeReadPort for OrderFixtureRead {
+    fn read_accounts(
+        &self,
+        user_id: u64,
+        category: Option<i32>,
+        general: Option<bool>,
+    ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_accounts(user_id, category, general)
+    }
+    fn read_funds(
+        &self,
+        header: TradeHeader,
+        refresh: Option<bool>,
+        currency: Option<i32>,
+        asset: Option<i32>,
+    ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+        FakeTradeRead.read_funds(header, refresh, currency, asset)
+    }
+    fn read_cash_flows(
+        &self,
+        header: TradeHeader,
+        clearing_date: String,
+        direction: Option<i32>,
+    ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_cash_flows(header, clearing_date, direction)
+    }
+    fn read_order_fees(
+        &self,
+        header: TradeHeader,
+        order_ids: Vec<String>,
+    ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_order_fees(header, order_ids)
+    }
+    fn read_margin_ratios(
+        &self,
+        header: TradeHeader,
+        securities: Vec<TradeSecurity>,
+    ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_margin_ratios(header, securities)
+    }
+    fn read_max_trade_quantity(
+        &self,
+        request: TradeMaxTradeQuantityRequest,
+    ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+        FakeTradeRead.read_max_trade_quantity(request)
+    }
+    fn read_positions(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        min: Option<f64>,
+        max: Option<f64>,
+        refresh: Option<bool>,
+        asset: Option<i32>,
+        currency: Option<i32>,
+        option_view: Option<bool>,
+    ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_positions(header, filter, min, max, refresh, asset, currency, option_view)
+    }
+    fn read_orders(
+        &self,
+        header: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Vec<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        Ok(vec![
+            fixture_order(header.clone(), 2001, 5, 25.0),
+            fixture_order(header, 2002, 11, 50.0),
+        ])
+    }
+    fn read_fills(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        refresh: Option<bool>,
+    ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_fills(header, filter, refresh)
     }
 }
 
@@ -440,6 +570,154 @@ fn helper_market_data_provider_keeps_futu_portfolio_reads_on_the_trade_session()
         .expect("helper market-data provider must not gate portfolio reads");
     assert_eq!(value["connectivity"], "connected");
     assert_eq!(value["balances"][0]["accountId"], "42");
+}
+
+#[test]
+fn broker_current_orders_hide_terminal_statuses_while_history_keeps_them() {
+    // Parity: go:452dea11:pkg/futu/exchange_test.go:367
+    // TestQueryOpenOrdersReturnsActiveOrders. Go's QueryOpenOrders filters the
+    // broker list through brokerOrderIsWorking(workingOnly=true); the Rust
+    // current-session route must drop FILLED_ALL while scope=history still
+    // returns it for reconciliation and the account history table.
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(OrderFixtureRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let current = port
+        .read("/api/v1/brokers/futu/orders", "accountId=42&market=HK")
+        .expect("current orders");
+    let current = current["orders"].as_array().expect("orders array");
+    assert_eq!(current.len(), 1, "terminal orders are not open orders");
+    assert_eq!(current[0]["brokerOrderId"], "2001");
+    assert_eq!(current[0]["status"], "SUBMITTED");
+    assert_eq!(current[0]["filledQuantity"], 25.0);
+
+    let history = port
+        .read(
+            "/api/v1/brokers/futu/orders",
+            "accountId=42&market=HK&scope=history",
+        )
+        .expect("history orders");
+    let history = history["orders"].as_array().expect("history orders array");
+    assert_eq!(history.len(), 2, "history scope keeps terminal orders");
+    assert_eq!(history[1]["brokerOrderId"], "2002");
+    assert_eq!(history[1]["status"], "FILLED_ALL");
+}
+
+#[test]
+fn margin_ratios_reuse_a_recent_success_within_the_ttl() {
+    // Parity: go:452dea11:pkg/futu/exchange_test.go:691
+    // TestQueryBrokerMarginRatiosUsesCacheWithinTTL. The second identical read
+    // must be served by the engine cache instead of issuing another OpenD
+    // Trd_GetMarginRatio call.
+    #[derive(Debug)]
+    struct CountingMarginRead {
+        calls: AtomicUsize,
+    }
+
+    impl TradeReadPort for CountingMarginRead {
+        fn read_accounts(
+            &self,
+            user_id: u64,
+            category: Option<i32>,
+            general: Option<bool>,
+        ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+            FakeTradeRead.read_accounts(user_id, category, general)
+        }
+        fn read_funds(
+            &self,
+            header: TradeHeader,
+            refresh: Option<bool>,
+            currency: Option<i32>,
+            asset: Option<i32>,
+        ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+            FakeTradeRead.read_funds(header, refresh, currency, asset)
+        }
+        fn read_cash_flows(
+            &self,
+            header: TradeHeader,
+            clearing_date: String,
+            direction: Option<i32>,
+        ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+            FakeTradeRead.read_cash_flows(header, clearing_date, direction)
+        }
+        fn read_order_fees(
+            &self,
+            header: TradeHeader,
+            order_ids: Vec<String>,
+        ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+            FakeTradeRead.read_order_fees(header, order_ids)
+        }
+        fn read_margin_ratios(
+            &self,
+            header: TradeHeader,
+            securities: Vec<TradeSecurity>,
+        ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            FakeTradeRead.read_margin_ratios(header, securities)
+        }
+        fn read_max_trade_quantity(
+            &self,
+            request: TradeMaxTradeQuantityRequest,
+        ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+            FakeTradeRead.read_max_trade_quantity(request)
+        }
+        fn read_positions(
+            &self,
+            header: TradeHeader,
+            filter: Option<TradeFilter>,
+            min: Option<f64>,
+            max: Option<f64>,
+            refresh: Option<bool>,
+            asset: Option<i32>,
+            currency: Option<i32>,
+            option_view: Option<bool>,
+        ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+            FakeTradeRead.read_positions(
+                header, filter, min, max, refresh, asset, currency, option_view,
+            )
+        }
+        fn read_orders(
+            &self,
+            header: TradeHeader,
+            filter: Option<TradeFilter>,
+            statuses: Vec<i32>,
+            refresh: Option<bool>,
+        ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+            FakeTradeRead.read_orders(header, filter, statuses, refresh)
+        }
+        fn read_fills(
+            &self,
+            header: TradeHeader,
+            filter: Option<TradeFilter>,
+            refresh: Option<bool>,
+        ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+            FakeTradeRead.read_fills(header, filter, refresh)
+        }
+    }
+
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    let reader = Arc::new(CountingMarginRead {
+        calls: AtomicUsize::new(0),
+    });
+    runtime.set(Some(Arc::clone(&reader) as Arc<dyn TradeReadPort>), Some(true));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let query = "accountId=42&market=US&symbol=US.AAPL";
+    let first = port
+        .read("/api/v1/brokers/futu/margin-ratios", query)
+        .expect("first margin ratios");
+    let second = port
+        .read("/api/v1/brokers/futu/margin-ratios", query)
+        .expect("second margin ratios");
+    assert_eq!(first, second);
+    assert_eq!(reader.calls.load(Ordering::SeqCst), 1);
 }
 
 #[test]

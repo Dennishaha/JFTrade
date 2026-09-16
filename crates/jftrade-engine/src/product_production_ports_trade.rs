@@ -50,8 +50,9 @@ pub(crate) use product_production_ports_trade_requests::{
 pub(crate) mod trade_projection;
 #[allow(unused_imports)]
 use trade_projection::{
-    account_value, canonical_time, cash_flow_direction_label, cash_flow_value, currency_label,
-    fill_status_label, fill_value, funds_value, map_broker_header_error,
+    account_value, active_order_status, canonical_time, cash_flow_direction_label,
+    cash_flow_value, currency_label, fill_status_label, fill_value, funds_value,
+    map_broker_header_error,
     map_portfolio_header_error, margin_ratio_value, market_label_from_code,
     max_trade_order_type_label, max_trade_quantity_value, non_empty, order_fee_value,
     order_status_label, order_type_label, order_value, position_value, qualify_symbol,
@@ -284,6 +285,20 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                     )
                 }
                 .map_err(session_error)?;
+                // Parity: go:452dea11:pkg/futu/exchange_trade_read.go:273
+                // brokerOrderSnapshotsFromProto(..., workingOnly=true) drops
+                // terminal orders from QueryOpenOrders/QueryBrokerOrders.
+                // OpenD's GetOrderList already returns the working set in the
+                // common case, but the Go contract still filters defensively;
+                // history reads intentionally do not apply this filter.
+                let orders = if history {
+                    orders
+                } else {
+                    orders
+                        .into_iter()
+                        .filter(|order| active_order_status(order.order_status))
+                        .collect()
+                };
                 Ok(
                     json!({"checkedAt": checked_at(), "connectivity": "connected", "orders": orders.into_iter().map(|v| order_value(&resolved, v)).collect::<Vec<_>>() }),
                 )

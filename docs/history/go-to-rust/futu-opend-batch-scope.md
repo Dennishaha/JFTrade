@@ -646,3 +646,89 @@ cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locke
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+---
+
+## 批次：`pkg/futu/exchange_test.go`（27 项）
+
+本批处理 `pkg/futu/exchange_test.go` 全部 27 个 Go 测试。结果：`[x]` 21 项、
+`[~]` 6 项（boundary 4、partial 2）。本批发现并修复两个真实功能差异。
+
+### 本批发现与修复
+
+1. **实时委托缺少“仅活动单”过滤**（功能差异 → 已修复）
+   - Go 依据：`pkg/futu/exchange_trade_read.go:273 brokerOrderSnapshotsFromProto(...,
+     workingOnly=true)`；控制台 `GET /brokers/{id}/orders`（CURRENT）经
+     `QueryOrders → QueryBrokerOrders` 只返回未终态委托。
+   - 修复位置：`crates/jftrade-engine/src/product_production_ports_trade.rs`
+     （CURRENT 分支过滤）+ `crates/jftrade-engine/src/trade_projection.rs::active_order_status`。
+   - 回归：`broker_current_orders_hide_terminal_statuses_while_history_keeps_them`
+     （CURRENT 丢弃 `FILLED_ALL`，`scope=history` 保留）。
+
+2. **默认 OpenD TCP 端口误用 WebSocket 端口**（功能差异 → 已修复）
+   - Go 依据：`pkg/futu/exchange.go:45 DefaultOpenDAddr = "127.0.0.1:11110"`。
+   - 修复位置：`crates/jftrade-engine/src/product_runtime_composition.rs`
+     （`11111 → 11_110`，提取 `default_opend_port`）。
+   - 回归：`opend_provider_config_defaults_to_the_go_tcp_api_port`
+     （默认 11110、已持久化端口优先、非法端口报错）。
+
+### 本批新增 Rust 证据（21 项 `[x]`）
+
+| Go 测试 | Rust 入口 |
+| --- | --- |
+| `:23 TestRegistration` | `provider.rs::tests::futu_descriptor_is_static_and_valid_without_connecting_to_opend` |
+| `:36 TestConstructorFallsBackToDefaultAddress` | `product_runtime_composition.rs::tests::opend_provider_config_defaults_to_the_go_tcp_api_port` |
+| `:47 TestQueryMarketsReturnsBootstrapMarket` | `catalog_tests.rs::bootstrap_market_rule_is_available_without_opend` |
+| `:62 TestEnsureMarketWithContextAppliesBrokerLotSize` | `market_rules_snapshot_errors.rs::broker_lot_size_initializes_minimum_and_step_quantity` |
+| `:125 TestInferMarketUsesMarketProfiles` | `catalog_tests.rs::inferred_market_profiles_match_go_market_rules` |
+| `:198 TestQueryTickerReusesSingleOpenDConnection` | `basic_quote_query.rs::tests::repeated_basic_quote_reads_reuse_one_opend_connection` |
+| `:265 TestDiscoverAccountsReusesSingleOpenDConnection` | `trade_session_tests.rs::repeated_account_reads_reuse_one_opend_connection` |
+| `:322 TestQueryAccountBalancesUsesOpenDFundsSnapshot` | `trade_session_tests.rs::funds_snapshot_projection_preserves_available_and_withdrawable_cash` |
+| `:367 TestQueryOpenOrdersReturnsActiveOrders` | `product_production_ports_trade_tests.rs::broker_current_orders_hide_terminal_statuses_while_history_keeps_them` |
+| `:452 TestQueryBrokerHistoryOrdersReturnsHistoricalOrders` | `trade_session_tests.rs::history_order_read_projects_external_id_and_filters_status` |
+| `:514 TestQueryBrokerHistoryOrderFillsReturnsHistoricalFills` | `trade_session_tests.rs::history_fill_read_projects_fill_identity` |
+| `:561 TestQueryBrokerOrderFeesReturnsFeeBreakdown` | `trade_session_tests.rs::order_fee_read_projects_amount_and_item_breakdown` |
+| `:609 TestQueryBrokerMarginRatiosReturnsMarginData` | `trade_session_tests.rs::margin_ratio_read_projects_permit_fee_and_tier_ratios` |
+| `:654 TestQueryBrokerMarginRatiosSkipsUnknownStock` | `trade_session_tests.rs::margin_ratio_read_retries_without_unknown_stock_and_keeps_known_rows` |
+| `:691 TestQueryBrokerMarginRatiosUsesCacheWithinTTL` | `product_production_ports_trade_tests.rs::margin_ratios_reuse_a_recent_success_within_the_ttl` |
+| `:729 TestQueryBrokerCashFlowsReturnsFlowSummary` | `trade_session_tests.rs::cash_flow_read_encodes_header_and_projects_neutral_snapshot` |
+| `:774 TestQueryBrokerMaxTradeQuantityReturnsSnapshot` | `trade_session_tests.rs::max_trade_quantity_read_projects_cash_and_margin_buying_power` |
+| `:834 TestSubmitOrderPlacesViaOpenD` | `product_production_ports_execution_preview_tests.rs::submit_order_uses_client_order_id_as_the_opend_remark` |
+| `:885 TestCancelOrdersUsesModifyOrderCancel` | `product_production_ports_execution_preview_tests.rs::cancel_order_uses_modify_order_cancel_operation` |
+| `:762`（历史/成交/费用/最大可买） | 见上表相应条目 |
+
+### 边界与 partial（6 项 `[~]`）
+
+- `:89 TestEnsureMarketWithContextFallsBackToSecuritySnapshotLotSize`（boundary）：
+  Rust 不暴露 GetStaticInfo→snapshot 两段式回退与 warning 列表。
+- `:114 TestEnsureMarketWithContextReturnsInferredMarketWhenStaticInfoUnavailable`（boundary）：
+  Rust provider 不可用时 fail-closed，不返回带错误的推断档案。
+- `:237 / :251 TestConnectRejectsOpenDBelowMinimumVersion/Build`（partial）：
+  Rust 在 health/ProviderRouter 投影层以 `OPEND_VERSION_UNSUPPORTED` 拒绝激活，
+  `OpenDInitializedSession::connect` 本身不抛版本异常。
+- `:927 TestEnsureSystemNotificationsBindsSystemPushHandler`（boundary）：
+  Rust 以 `connect_with_push_notifications` + `UnsolicitedFrame` 暴露推送，
+  没有 Go 式 `OnSystemNotify` 回调注册 API。
+- `:974 TestSubscribeTradeAccountPushReplaysOnReconnectedClient`（boundary）：
+  Rust 生产运行时没有 Go order-update push adapter；订单推送由对账 worker
+  取代（见 `2026-09-09-project-parity-audit.md` G02/G08）。
+
+### 说明
+
+- `TradeOrderSnapshot` 历史/实时读取在 Rust 侧统一走 `TradeReadPort`，
+  投影函数据此拆分出 7 个独立集成测试；`FakeTradeRead` 保持空订单夹具，
+  新增 `OrderFixtureRead` 专用于活动单过滤断言，避免污染既有
+  broker/portfolio 投影测试。
+- `product_production_ports_execution_preview_tests.rs` 新增
+  `RecordingTradeWriter`，用于同时验证下单 remark 与撤单 ModifyOrder 操作。
+- 引擎测试新增 `CountingMarginRead`，以调用计数证明 TTL 缓存命中。
+
+验证命令：
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine -p jftrade-marketdata -p jftrade-broker --all-targets --locked --no-fail-fast
+cargo fmt --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine -p jftrade-marketdata -p jftrade-broker --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```

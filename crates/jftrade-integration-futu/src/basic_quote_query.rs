@@ -756,6 +756,54 @@ mod tests {
     }
 
     #[test]
+    fn repeated_basic_quote_reads_reuse_one_opend_connection() {
+        // Parity: go:452dea11:pkg/futu/exchange_test.go:198
+        // TestQueryTickerReusesSingleOpenDConnection. The server accepts one
+        // TCP session and answers two GetBasicQot calls on it; a second accept
+        // would mean the ticker read rebuilt the transport per query.
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init = read_framed_frame(&mut stream).expect("init request");
+            respond(&mut stream, &init, vec![0x08, 0x00, 0x22, 0x00]);
+            for expected_price in [189.5_f64, 189.5_f64] {
+                let request = read_framed_frame(&mut stream).expect("query request");
+                assert_eq!(request.header.proto_id, crate::PROTO_GET_BASIC_QOT);
+                let mut current = quote();
+                current.cur_price = Some(expected_price);
+                respond(
+                    &mut stream,
+                    &request,
+                    Response {
+                        ret_type: Some(0),
+                        ret_msg: None,
+                        err_code: None,
+                        s2c: Some(ResponseS2c {
+                            quotes: vec![current],
+                        }),
+                    }
+                    .encode_to_vec(),
+                );
+            }
+        });
+
+        let config = OpenDTcpProbeConfig::new(address, Duration::from_secs(1));
+        let session =
+            OpenDInitializedSession::connect_with_push_notifications(&config, 1).expect("session");
+        let executor = OpenDBasicQuoteExecutor::new(session);
+        let lifecycle = lifecycle();
+        let first = executor
+            .query(&lifecycle, &["US.AAPL".to_owned()])
+            .expect("first quote");
+        let second = executor
+            .query(&lifecycle, &["US.AAPL".to_owned()])
+            .expect("second quote");
+        assert_eq!(first[0].cur_price, second[0].cur_price);
+        server.join().expect("server thread");
+    }
+
+    #[test]
     fn basic_quote_query_uses_the_collector_900ms_deadline_boundary() {
         assert_eq!(BASIC_QUOTE_QUERY_TIMEOUT, Duration::from_millis(900));
 

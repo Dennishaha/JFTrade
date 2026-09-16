@@ -1370,3 +1370,580 @@ fn unlock_trade_propagates_opend_rejection() {
     session.close().expect("close");
     server.join().expect("server");
 }
+
+#[test]
+fn funds_snapshot_projection_preserves_available_and_withdrawable_cash() {
+    // Parity: go:452dea11:pkg/futu/exchange_test.go:322
+    // TestQueryAccountBalancesUsesOpenDFundsSnapshot
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        assert_eq!(request.header.proto_id, trd_get_funds::PROTOCOL_ID);
+        let response = trd_get_funds::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_funds::S2c {
+                header: trade_header(1, 1001, 1).into(),
+                funds: Some(trd_common::Funds {
+                    cash: 10_000.0,
+                    frozen_cash: 800.0,
+                    avl_withdrawal_cash: 9_200.0,
+                    cash_info_list: vec![trd_common::AccCashInfo {
+                        currency: Some(1),
+                        cash: Some(10_000.0),
+                        available_balance: Some(9_200.0),
+                        net_cash_power: Some(15_000.0),
+                    }],
+                    ..Default::default()
+                }),
+            }),
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 21).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let funds = client
+        .read_funds(trade_header(1, 1001, 1), None, None, None)
+        .expect("funds snapshot");
+    assert_eq!(funds.funds.cash, 10_000.0);
+    assert_eq!(funds.funds.avl_withdrawal_cash, 9_200.0);
+    assert_eq!(
+        funds.funds.cash_info_list[0].available_balance,
+        Some(9_200.0)
+    );
+    assert_eq!(funds.funds.cash_info_list[0].net_cash_power, Some(15_000.0));
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn margin_ratio_read_projects_permit_fee_and_tier_ratios() {
+    // Parity: go:452dea11:pkg/futu/exchange_test.go:609
+    // TestQueryBrokerMarginRatiosReturnsMarginData
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        assert_eq!(request.header.proto_id, trd_get_margin_ratio::PROTOCOL_ID);
+        let response = trd_get_margin_ratio::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_margin_ratio::S2c {
+                header: trade_header(1, 1001, 1).into(),
+                margin_ratio_info_list: vec![trd_get_margin_ratio::MarginRatioInfo {
+                    security: crate::trade_proto::qot_common::Security {
+                        market: 1,
+                        code: "00700".to_owned(),
+                    },
+                    is_long_permit: Some(true),
+                    is_short_permit: Some(false),
+                    short_pool_remain: None,
+                    short_fee_rate: Some(1.25),
+                    alert_long_ratio: Some(0.3),
+                    alert_short_ratio: Some(0.4),
+                    im_long_ratio: Some(0.5),
+                    im_short_ratio: None,
+                    mcm_long_ratio: Some(0.6),
+                    mcm_short_ratio: None,
+                    mm_long_ratio: Some(0.7),
+                    mm_short_ratio: None,
+                }],
+            }),
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 22).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let ratios = client
+        .read_margin_ratios(
+            trade_header(1, 1001, 1),
+            vec![TradeSecurity {
+                market: 1,
+                code: "00700".to_owned(),
+            }],
+        )
+        .expect("margin ratios");
+    assert_eq!(ratios.len(), 1);
+    assert_eq!(ratios[0].symbol, "HK.00700");
+    assert_eq!(ratios[0].is_long_permit, Some(true));
+    assert_eq!(ratios[0].short_fee_rate, Some(1.25));
+    assert_eq!(ratios[0].initial_margin_long_ratio, Some(0.5));
+    assert_eq!(ratios[0].margin_call_long_ratio, Some(0.6));
+    assert_eq!(ratios[0].maintenance_long_ratio, Some(0.7));
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn margin_ratio_read_retries_without_unknown_stock_and_keeps_known_rows() {
+    // Parity: go:452dea11:pkg/futu/exchange_test.go:654
+    // TestQueryBrokerMarginRatiosSkipsUnknownStock
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let first = read_frame(&mut stream);
+        let decoded =
+            trd_get_margin_ratio::Request::decode(first.body.as_slice()).expect("request");
+        assert_eq!(decoded.c2s.security_list.len(), 2);
+        let rejected = trd_get_margin_ratio::Response {
+            ret_type: -1,
+            ret_msg: Some("unknown stock 07226".to_owned()),
+            err_code: Some(1),
+            s2c: None,
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    first.header.proto_id,
+                    first.header.serial_no,
+                    &rejected.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write rejection");
+
+        let second = read_frame(&mut stream);
+        let decoded =
+            trd_get_margin_ratio::Request::decode(second.body.as_slice()).expect("request");
+        assert_eq!(decoded.c2s.security_list.len(), 1);
+        assert_eq!(decoded.c2s.security_list[0].code, "00700");
+        let accepted = trd_get_margin_ratio::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_margin_ratio::S2c {
+                header: trade_header(1, 1001, 1).into(),
+                margin_ratio_info_list: vec![trd_get_margin_ratio::MarginRatioInfo {
+                    security: crate::trade_proto::qot_common::Security {
+                        market: 1,
+                        code: "00700".to_owned(),
+                    },
+                    is_long_permit: Some(true),
+                    is_short_permit: Some(false),
+                    ..Default::default()
+                }],
+            }),
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    second.header.proto_id,
+                    second.header.serial_no,
+                    &accepted.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write retry response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 23).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let ratios = client
+        .read_margin_ratios(
+            trade_header(1, 1001, 1),
+            vec![
+                TradeSecurity {
+                    market: 1,
+                    code: "00700".to_owned(),
+                },
+                TradeSecurity {
+                    market: 1,
+                    code: "07226".to_owned(),
+                },
+            ],
+        )
+        .expect("margin ratios after retry");
+    assert_eq!(ratios.len(), 1);
+    assert_eq!(ratios[0].symbol, "HK.00700");
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn history_order_read_projects_external_id_and_filters_status() {
+    // Parity: go:452dea11:pkg/futu/exchange_test.go:452
+    // TestQueryBrokerHistoryOrdersReturnsHistoricalOrders
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        assert_eq!(
+            request.header.proto_id,
+            TradeProtocol::GetHistoryOrderList.id()
+        );
+        let decoded =
+            trd_get_order_list::Request::decode(request.body.as_slice()).expect("request");
+        assert_eq!(decoded.c2s.filter_status_list, vec![11]);
+        assert_eq!(
+            decoded.c2s.filter_conditions.expect("filter").code_list,
+            vec!["HK.00700"]
+        );
+        let response = trd_get_order_list::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_order_list::S2c {
+                header: trade_header(0, 1001, 1).into(),
+                order_list: vec![
+                    trd_common::Order {
+                        order_id: 2001,
+                        order_id_ex: "EXT-2001".to_owned(),
+                        code: "HK.00700".to_owned(),
+                        name: "Tencent".to_owned(),
+                        trd_side: 1,
+                        order_type: 1,
+                        order_status: 11,
+                        qty: 100.0,
+                        price: Some(320.0),
+                        fill_qty: Some(100.0),
+                        fill_avg_price: Some(319.8),
+                        create_time: "2026-05-20 09:30:00".to_owned(),
+                        update_time: "2026-05-20 09:35:00".to_owned(),
+                        trd_market: Some(1),
+                        ..Default::default()
+                    },
+                    trd_common::Order {
+                        order_id: 2002,
+                        order_id_ex: "EXT-2002".to_owned(),
+                        code: "HK.00700".to_owned(),
+                        name: "Tencent".to_owned(),
+                        trd_side: 2,
+                        order_type: 1,
+                        order_status: 15,
+                        qty: 50.0,
+                        price: Some(330.0),
+                        create_time: "2026-05-19 09:30:00".to_owned(),
+                        update_time: "2026-05-19 09:32:00".to_owned(),
+                        trd_market: Some(1),
+                        ..Default::default()
+                    },
+                ],
+            }),
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 24).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let orders = client
+        .read_history_orders(
+            trade_header(0, 1001, 1),
+            Some(TradeFilter {
+                code_list: vec!["HK.00700".to_owned()],
+                ..TradeFilter::default()
+            }),
+            vec![11],
+            None,
+        )
+        .expect("history orders");
+    assert_eq!(orders.len(), 2);
+    assert_eq!(orders[0].order_id_ex, "EXT-2001");
+    assert_eq!(orders[0].order_status, 11);
+    assert_eq!(orders[1].order_status, 15);
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn history_fill_read_projects_fill_identity() {
+    // Parity: go:452dea11:pkg/futu/exchange_test.go:514
+    // TestQueryBrokerHistoryOrderFillsReturnsHistoricalFills
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        assert_eq!(
+            request.header.proto_id,
+            TradeProtocol::GetHistoryOrderFillList.id()
+        );
+        let decoded =
+            trd_get_order_fill_list::Request::decode(request.body.as_slice()).expect("request");
+        assert_eq!(
+            decoded
+                .c2s
+                .filter_conditions
+                .expect("filter")
+                .begin_time
+                .as_deref(),
+            Some("2026-05-20 00:00:00")
+        );
+        let response = trd_get_order_fill_list::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_order_fill_list::S2c {
+                header: trade_header(0, 1001, 1).into(),
+                order_fill_list: vec![trd_common::OrderFill {
+                    fill_id: 3001,
+                    fill_id_ex: "FILL-3001".to_owned(),
+                    order_id: Some(2001),
+                    order_id_ex: Some("EXT-2001".to_owned()),
+                    code: "HK.00700".to_owned(),
+                    name: "Tencent".to_owned(),
+                    trd_side: 1,
+                    qty: 100.0,
+                    price: 319.8,
+                    create_time: "2026-05-20 09:35:00".to_owned(),
+                    trd_market: Some(1),
+                    status: Some(0),
+                    ..Default::default()
+                }],
+            }),
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 25).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let fills = client
+        .read_history_fills(
+            trade_header(0, 1001, 1),
+            Some(TradeFilter {
+                code_list: vec!["HK.00700".to_owned()],
+                begin_time: Some("2026-05-20 00:00:00".to_owned()),
+                end_time: Some("2026-05-20 23:59:59".to_owned()),
+                ..TradeFilter::default()
+            }),
+            None,
+        )
+        .expect("history fills");
+    assert_eq!(fills.len(), 1);
+    assert_eq!(fills[0].fill_id, 3001);
+    assert_eq!(fills[0].fill_id_ex, "FILL-3001");
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn order_fee_read_projects_amount_and_item_breakdown() {
+    // Parity: go:452dea11:pkg/futu/exchange_test.go:561
+    // TestQueryBrokerOrderFeesReturnsFeeBreakdown
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        assert_eq!(request.header.proto_id, trd_get_order_fee::PROTOCOL_ID);
+        let response = trd_get_order_fee::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_order_fee::S2c {
+                header: trade_header(0, 1001, 1).into(),
+                order_fee_list: vec![trd_common::OrderFee {
+                    order_id_ex: "EXT-2001".to_owned(),
+                    fee_amount: Some(12.5),
+                    fee_list: vec![
+                        trd_common::OrderFeeItem {
+                            title: Some("BROKERAGE".to_owned()),
+                            value: Some(10.0),
+                        },
+                        trd_common::OrderFeeItem {
+                            title: Some("STAMP_DUTY".to_owned()),
+                            value: Some(2.5),
+                        },
+                    ],
+                }],
+            }),
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 26).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let fees = client
+        .read_order_fees(trade_header(0, 1001, 1), vec!["EXT-2001".to_owned()])
+        .expect("order fees");
+    assert_eq!(fees.len(), 1);
+    assert_eq!(fees[0].broker_order_id_ex, "EXT-2001");
+    assert_eq!(fees[0].fee_amount, Some(12.5));
+    assert_eq!(fees[0].fee_items.len(), 2);
+    assert_eq!(fees[0].fee_items[0].title, "BROKERAGE");
+    assert_eq!(fees[0].fee_items[1].value, 2.5);
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn max_trade_quantity_read_projects_cash_and_margin_buying_power() {
+    // Parity: go:452dea11:pkg/futu/exchange_test.go:774
+    // TestQueryBrokerMaxTradeQuantityReturnsSnapshot
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        assert_eq!(request.header.proto_id, trd_get_max_trd_qtys::PROTOCOL_ID);
+        let decoded =
+            trd_get_max_trd_qtys::Request::decode(request.body.as_slice()).expect("request");
+        assert_eq!(decoded.c2s.code, "00700");
+        assert_eq!(decoded.c2s.order_type, 1);
+        assert_eq!(decoded.c2s.price, 320.5);
+        let response = trd_get_max_trd_qtys::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_max_trd_qtys::S2c {
+                header: trade_header(1, 1001, 1).into(),
+                max_trd_qtys: Some(trd_common::MaxTrdQtys {
+                    max_cash_buy: 1_000.0,
+                    max_cash_and_margin_buy: Some(2_000.0),
+                    max_position_sell: 500.0,
+                    max_sell_short: Some(300.0),
+                    max_buy_back: Some(150.0),
+                    long_required_im: Some(10.0),
+                    short_required_im: Some(12.0),
+                    session: Some(0),
+                }),
+            }),
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 27).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let snapshot = client
+        .read_max_trade_quantity(TradeMaxTradeQuantityRequest {
+            header: trade_header(1, 1001, 1),
+            order_type: 1,
+            code: "00700".to_owned(),
+            price: 320.5,
+            order_id: None,
+            adjust_price: None,
+            adjust_side_and_limit: None,
+            sec_market: None,
+            order_id_ex: None,
+            session: None,
+            position_id: None,
+        })
+        .expect("max trade quantity");
+    assert_eq!(snapshot.max_cash_buy, 1_000.0);
+    assert_eq!(snapshot.max_cash_and_margin_buy, Some(2_000.0));
+    assert_eq!(snapshot.max_position_sell, 500.0);
+    assert_eq!(snapshot.max_sell_short, Some(300.0));
+    assert_eq!(snapshot.max_buy_back, Some(150.0));
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn repeated_account_reads_reuse_one_opend_connection() {
+    // Parity: go:452dea11:pkg/futu/exchange_test.go:265
+    // TestDiscoverAccountsReusesSingleOpenDConnection. The server accepts one
+    // TCP session and answers two Trd_GetAccList calls on it; a second accept
+    // would mean the Rust client rebuilt the transport between reads.
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        for expected_id in [1001_u64, 1001_u64] {
+            let request = read_frame(&mut stream);
+            assert_eq!(request.header.proto_id, trd_get_acc_list::PROTOCOL_ID);
+            let response = trd_get_acc_list::Response {
+                ret_type: 0,
+                ret_msg: None,
+                err_code: None,
+                s2c: Some(trd_get_acc_list::S2c {
+                    acc_list: vec![trd_common::TrdAcc {
+                        trd_env: 1,
+                        acc_id: expected_id,
+                        trd_market_auth_list: vec![1],
+                        ..Default::default()
+                    }],
+                }),
+            };
+            stream
+                .write_all(
+                    &encode_frame(
+                        request.header.proto_id,
+                        request.header.serial_no,
+                        &response.encode_to_vec(),
+                    )
+                    .expect("response"),
+                )
+                .expect("write response");
+        }
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 28).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    for _ in 0..2 {
+        let accounts = client.read_accounts(7, None, None).expect("accounts");
+        assert_eq!(accounts.len(), 1);
+        assert_eq!(accounts[0].acc_id, 1001);
+    }
+    session.close().expect("close");
+    server.join().expect("server");
+}

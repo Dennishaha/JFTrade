@@ -46,6 +46,59 @@ fn market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes() {
 }
 
 #[test]
+fn inferred_market_profiles_match_go_market_rules() {
+    // Parity: go:452dea11:pkg/futu/exchange_test.go:125 TestInferMarketUsesMarketProfiles
+    //
+    // Go's `inferMarket` derives the canonical symbol, quote currency, price
+    // precision and tick size from the market profile table. The Rust
+    // equivalent is the market-rule SSOT, and `CN.600519` must resolve to the
+    // exchange-qualified `SH` prefix.
+    for (symbol, want_symbol, want_quote, want_digits, want_tick) in [
+        ("US.AAPL", "US.AAPL", "USD", 2, Decimal::new(1, 2)),
+        ("HK.00700", "HK.00700", "HKD", 3, Decimal::new(1, 3)),
+        ("SH.600519", "SH.600519", "CNY", 2, Decimal::new(1, 2)),
+        ("SZ.000001", "SZ.000001", "CNY", 2, Decimal::new(1, 2)),
+        ("CNSH.600519", "SH.600519", "CNY", 2, Decimal::new(1, 2)),
+    ] {
+        let normalized = normalize_instrument(None, Some(symbol))
+            .unwrap_or_else(|error| panic!("{symbol}: {error}"));
+        assert_eq!(normalized.symbol, want_symbol, "{symbol}");
+        let rule = find_market_rule(&normalized.prefix).expect("market rule");
+        assert_eq!(rule.quote_currency, want_quote, "{symbol}");
+        assert_eq!(rule.precision.price, want_digits, "{symbol}");
+        assert_eq!(rule.tick_size, want_tick, "{symbol}");
+    }
+
+    // Rust infers the missing mainland exchange qualifier from the code
+    // (600519 → SH, 000001 → SZ) instead of rejecting `CN.` outright, which is
+    // a deliberate product-boundary improvement over Go's hard error.
+    assert_eq!(
+        normalize_instrument(None, Some("CN.600519"))
+            .expect("inferred mainland prefix")
+            .symbol,
+        "SH.600519"
+    );
+}
+
+#[test]
+fn bootstrap_market_rule_is_available_without_opend() {
+    // Parity: go:452dea11:pkg/futu/exchange_test.go:47
+    // TestQueryMarketsReturnsBootstrapMarket
+    //
+    // Go serves `HK.00700` from a static bootstrap table before any OpenD
+    // connection; Rust answers the same from the catalog SSOT, so no provider
+    // session is required to describe the market.
+    let rule = find_market_rule("HK").expect("bootstrap HK rule");
+    assert_eq!(rule.code, "HK");
+    assert_eq!(rule.quote_currency, "HKD");
+    assert_eq!(rule.tick_size, Decimal::new(1, 3));
+    assert!(
+        !rule.requires_exchange_prefix,
+        "HK.00700 is directly addressable without a child-market prefix"
+    );
+}
+
+#[test]
 fn market_rule_to_api_value_preserves_expected_schema() {
     let cn = cn_market_rule();
     let api_val = cn.to_api_value();
