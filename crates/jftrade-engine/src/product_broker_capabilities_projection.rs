@@ -638,3 +638,137 @@ pub(super) fn ui_surface_id(value: &str) -> String {
 fn now_utc_rfc3339() -> String {
     OffsetDateTime::now_utc().format(&Rfc3339).unwrap_or_else(|_| checked_at())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::{BTreeMap, BTreeSet};
+
+    /// Parity: go:452dea11:pkg/futu/adapter_advanced_test.go:92
+    /// TestEveryAllowlistedAdvancedProtocolMapsToCatalogFeature
+    ///
+    /// Go fails when an allowlisted OpenD protocol has no `CapabilityCatalog`
+    /// feature, or when the same protocol is claimed by two features. Rust
+    /// keeps one protocol table in the capability catalog, so the equivalent
+    /// invariant is that every feature exposes at least one operation, every
+    /// operation id is unique inside its feature, and no protocol key is
+    /// registered twice with different OpenD protocol ids.
+    ///
+    /// Go's "one protocol belongs to exactly one feature" rule cannot be
+    /// copied verbatim: Rust deliberately shares a protocol across features
+    /// where the wire call is identical but the caller contract differs
+    /// (`Qot_GetSecuritySnapshot` for `market.snapshot(s)`; the option-strategy
+    /// family for `derivatives.option_analysis` and `execution.combo_preview`;
+    /// `Trd_UpdateOrder(Fill)` pushes for single and combo placement).
+    #[test]
+    fn every_catalog_protocol_maps_to_a_feature_with_one_stable_id() {
+        let mut protocol_ids: BTreeMap<String, u32> = BTreeMap::new();
+        let mut shared: BTreeSet<String> = BTreeSet::new();
+        let mut features = 0_usize;
+        let mut protocols = 0_usize;
+        let mut verified_framed: BTreeSet<String> = BTreeSet::new();
+        for spec in FEATURE_SPECS {
+            features += 1;
+            let operations = operations::catalog_operations(spec.id, spec.method, spec.api, spec.ui, spec.tool);
+            assert!(
+                !operations.is_empty(),
+                "{} must expose at least one capability operation",
+                spec.id
+            );
+            let mut operation_ids = BTreeSet::new();
+            for operation in &operations {
+                let id = operation["id"].as_str().expect("operation id");
+                assert!(
+                    operation_ids.insert(id.to_owned()),
+                    "{} declares duplicate operation {id}",
+                    spec.id
+                );
+                let Some(list) = operation.get("protocols").and_then(Value::as_array) else {
+                    continue;
+                };
+                for entry in list {
+                    let key = entry["key"].as_str().expect("protocol key");
+                    let protocol_id = entry["id"].as_u64().expect("protocol id") as u32;
+                    assert_ne!(protocol_id, 0, "{key} has no OpenD protocol id");
+                    assert!(
+                        key.starts_with("Qot_") || key.starts_with("Trd_"),
+                        "{key} is not a namespaced OpenD protocol"
+                    );
+                    // A catalog protocol the Rust adapter can actually frame
+                    // must agree with the generated OpenD protocol id; a
+                    // typo here would otherwise silently describe a protocol
+                    // that the integration crate cannot send.
+                    if let Some(framed) =
+                        jftrade_integration_futu::trade_proto::framed_protocol_id(key)
+                    {
+                        assert_eq!(
+                            protocol_id, framed,
+                            "{key} catalog id disagrees with the generated protocol id"
+                        );
+                        verified_framed.insert(key.to_owned());
+                    }
+                    protocols += 1;
+                    match protocol_ids.get(key) {
+                        Some(existing) => {
+                            assert_eq!(
+                                *existing, protocol_id,
+                                "{key} is registered with two different OpenD ids"
+                            );
+                            shared.insert(key.to_owned());
+                        }
+                        None => {
+                            protocol_ids.insert(key.to_owned(), protocol_id);
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(features, FEATURE_SPECS.len());
+        // Guard the shape of the table: if a refactor drops protocol metadata
+        // the "every protocol maps to a feature" claim silently becomes vacuous.
+        assert_eq!(
+            protocols, 150,
+            "catalog protocol references shrank unexpectedly"
+        );
+        // The catalog and the framed integration layer must overlap: the ids
+        // are only verified for protocols the adapter can actually encode.
+        // The catalog and the framed integration layer must keep overlapping:
+        // ids are only cross-checked for protocols the adapter can encode.
+        // 63 of the 66 framed protocols are catalog entries; the three
+        // leftovers (`Qot_GetKl`, `Qot_GetRt`,
+        // `Qot_RequestHistoryEventContractKl`) are served by their own typed
+        // readers instead of the capability catalog.
+        assert_eq!(
+            verified_framed.len(),
+            63,
+            "catalog/generated protocol overlap changed"
+        );
+        assert_eq!(
+            protocol_ids.len(),
+            139,
+            "catalog distinct protocol keys changed"
+        );
+        // Ten protocol keys intentionally serve two features: the snapshot
+        // read for `market.snapshot(s)`, `Qot_GetStaticInfo` for
+        // `market.instrument_profile` and the `research.rankings/fund_catalog`
+        // operation, the option-strategy family for `derivatives.option_analysis`
+        // and `execution.combo_preview`, and the trade quantity/update protocols
+        // for single vs combo execution. Any other sharing is a catalog mistake.
+        assert_eq!(
+            shared,
+            BTreeSet::from([
+                "Qot_GetOptionStrategy".to_owned(),
+                "Qot_GetOptionStrategyAnalysis".to_owned(),
+                "Qot_GetOptionStrategySpread".to_owned(),
+                "Qot_GetSecuritySnapshot".to_owned(),
+                "Qot_GetStaticInfo".to_owned(),
+                "Trd_GetComboMaxTrdQtys".to_owned(),
+                "Trd_GetMaxTrdQtys".to_owned(),
+                "Trd_ModifyOrder".to_owned(),
+                "Trd_UpdateOrder".to_owned(),
+                "Trd_UpdateOrderFill".to_owned(),
+            ]),
+            "shared protocol set changed"
+        );
+    }
+}

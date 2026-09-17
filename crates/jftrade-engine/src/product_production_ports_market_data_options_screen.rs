@@ -73,11 +73,19 @@ fn parse_request(
     };
     let market_categories = parse_list(&query_map, "marketCategoryList", Some(default_category))?;
     let page_from = parse_optional_i32(&query_map, "pageFrom")?;
+    // Go's adapter clamps every requested page size into
+    // `[1, advancedPageSizeLimit(protocol)]` before it reaches OpenD
+    // (`Qot_OptionScreen` declares `pageCount`, cap 100). Keep that adapter
+    // bound here so a public `pageSize=1000` cannot widen the OpenD request
+    // beyond anything the Go baseline would have sent.
     let page_count = query_map
         .get_first("pageSize")
         .or_else(|| query_map.get_first("pageCount"))
         .map(|value| parse_i32(value, "pageSize"))
-        .transpose()?;
+        .transpose()?
+        .map(|value| {
+            jftrade_integration_futu::clamp_advanced_page_size("Qot_OptionScreen", value)
+        });
     let option_retrieve_list = parse_list(&query_map, "optionRetrieveList", None)?;
     let underlying_retrieve_list = parse_list(&query_map, "underlyingRetrieveList", None)?;
     Ok(jftrade_integration_futu::OptionScreenQuery {

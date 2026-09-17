@@ -15,13 +15,14 @@ use std::time::Duration;
 
 use jftrade_integration_futu::{
     Frame, OpenDPredictionMarketReader, OpenDSessionCoordinator, OpenDTcpProbeConfig,
-    PredictionMarketReadPort, decode_frame, encode_frame,
+    PredictionComboQuotePort, PredictionMarketReadPort, decode_frame, encode_frame,
 };
 use jftrade_marketdata::MarketDataRuntimeRecorder;
 use prost::Message;
 
 const INIT_CONNECT: u32 = 1001;
 const CATEGORY: u32 = 3434;
+const COMBO_RFQ: u32 = 3454;
 
 #[derive(Clone, PartialEq, Message)]
 struct InitResponse {
@@ -134,5 +135,56 @@ fn prediction_category_read_encodes_protocol_and_projects_entries() {
     assert_eq!(value["entries"][0]["category"], "SPORTS");
     assert_eq!(value["entries"][0]["categoryName"], "体育");
     assert_eq!(value["entries"][0]["tags"][0], "BASEBALL");
+    task.join().expect("server");
+}
+
+/// Parity: go:452dea11:pkg/futu/adapter_advanced_test.go:124
+/// TestAdvancedProtocolReplaySafetyDefaultsToNoReplay
+///
+/// `Qot_GetEventContractComboRfq` keeps its `Get` prefix but creates a
+/// short-lived quote, so Go routes it through `withClient` instead of
+/// `withRetryingClient`: when the first response outcome is unknown the request
+/// must never be duplicated. Rust's owner is the typed combo-quote port, which
+/// performs exactly one framed call; the server below fails the first request
+/// and would serve a second one if the port retried.
+#[test]
+fn combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure() {
+    use jftrade_integration_futu::trade_proto::qot_get_event_contract_combo_rfq as wire;
+
+    let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let observed = Arc::clone(&calls);
+    let (address, task) = server(move |stream, request| {
+        assert_eq!(request.header.proto_id, COMBO_RFQ);
+        let decoded = wire::Request::decode(request.body.as_slice()).expect("combo request");
+        let c2s = decoded.c2s;
+        assert_eq!(c2s.mvc, "mvc-1");
+        assert_eq!(c2s.combo_leg_list.len(), 2);
+        observed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        // Drop the session without a response: the RFQ outcome is unknown.
+        let _ = stream.shutdown(std::net::Shutdown::Both);
+    });
+    let reader = make_reader(address);
+    let error = reader
+        .quote(&serde_json::json!({
+            "mvc": "mvc-1",
+            "legs": [
+                {"instrumentId": "US.EC.A", "predictionSide": "YES", "side": "BUY", "ratio": 1},
+                {"instrumentId": "US.EC.B", "predictionSide": "NO", "side": "BUY", "ratio": 1},
+            ],
+        }))
+        .expect_err("unknown RFQ outcome must surface");
+    assert!(
+        matches!(
+            error,
+            jftrade_integration_futu::PredictionMarketReadError::Transport(_)
+                | jftrade_integration_futu::PredictionMarketReadError::Session(_)
+        ),
+        "unexpected combo RFQ error: {error:?}"
+    );
+    assert_eq!(
+        calls.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "the RFQ must be created exactly once"
+    );
     task.join().expect("server");
 }

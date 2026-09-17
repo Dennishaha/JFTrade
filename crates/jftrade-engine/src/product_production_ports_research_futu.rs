@@ -79,9 +79,13 @@ pub(super) fn read_institutions(
             "instrumentId market does not match market".to_owned(),
         ));
     }
+    // Go clamps every advanced page size into `[1, advancedPageSizeLimit]`
+    // before the RPC; the institution protocols declare `count`, so a public
+    // `pageSize=1000` must reach OpenD as 100 rather than widening the request.
     let count = parse_optional_i32(&query_map, "pageSize")?
         .or(parse_optional_i32(&query_map, "count")?)
-        .or(Some(20));
+        .or(Some(20))
+        .map(|value| jftrade_integration_futu::clamp_advanced_page_size("Qot_GetInstitutionList", value));
     let request = FutuInstitutionQuery {
         operation,
         market: market_code(&market).expect("validated institution market"),
@@ -134,7 +138,14 @@ pub(super) fn read_short_interest(
             )));
         }
     };
-    let limit = parse_optional_i32(&query_map, "pageSize")?.unwrap_or(50);
+    // `Qot_GetShortInterest` / `Qot_GetDailyShortVolume` declare `num`, capped
+    // at 100 by the adapter page-size limit.
+    let limit = parse_optional_i32(&query_map, "pageSize")?
+        .unwrap_or(50)
+        .max(1)
+        .min(jftrade_integration_futu::advanced_page_size_limit(
+            "Qot_GetShortInterest",
+        ));
     let request = FutuShortInterestQuery {
         market: market_code(&market).expect("validated short-interest market"),
         code,

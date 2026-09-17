@@ -1,5 +1,161 @@
 //! Generated Futu trade protobuf modules and strict response validation.
 
+/// Canonical OpenD protocol id for a framed request/response pair, resolved
+/// from the generated module that actually encodes it.
+///
+/// The capability catalog mirrors the same wire ids, so this lookup is the
+/// single place a test can prove "every catalog protocol maps to a framed
+/// OpenD protocol" instead of trusting a duplicated literal.
+pub fn framed_protocol_id(protocol: &str) -> Option<u32> {
+    match protocol {
+        "Qot_FilterCompetition" => Some(crate::trade_proto::qot_filter_competition::PROTOCOL_ID),
+        "Qot_GetArkActiveTransaction" => {
+            Some(crate::trade_proto::qot_get_ark_active_transaction::PROTOCOL_ID)
+        }
+        "Qot_GetArkFundHolding" => Some(crate::trade_proto::qot_get_ark_fund_holding::PROTOCOL_ID),
+        "Qot_GetArkStockDynamic" => {
+            Some(crate::trade_proto::qot_get_ark_stock_dynamic::PROTOCOL_ID)
+        }
+        "Qot_GetBroker" => Some(crate::trade_proto::qot_get_broker::PROTOCOL_ID),
+        "Qot_GetCapitalDistribution" => {
+            Some(crate::trade_proto::qot_get_capital_distribution::PROTOCOL_ID)
+        }
+        "Qot_GetCapitalFlow" => Some(crate::trade_proto::qot_get_capital_flow::PROTOCOL_ID),
+        "Qot_GetCompanyProfile" => Some(crate::trade_proto::qot_get_company_profile::PROTOCOL_ID),
+        "Qot_GetCorporateActionsBuybacks" => {
+            Some(crate::trade_proto::qot_get_corporate_actions_buybacks::PROTOCOL_ID)
+        }
+        "Qot_GetCorporateActionsDividends" => {
+            Some(crate::trade_proto::qot_get_corporate_actions_dividends::PROTOCOL_ID)
+        }
+        "Qot_GetCorporateActionsStockSplits" => {
+            Some(crate::trade_proto::qot_get_corporate_actions_stock_splits::PROTOCOL_ID)
+        }
+        "Qot_GetDailyShortVolume" => {
+            Some(crate::trade_proto::qot_get_daily_short_volume::PROTOCOL_ID)
+        }
+        "Qot_GetEarningsCalendar" => {
+            Some(crate::trade_proto::qot_get_earnings_calendar::PROTOCOL_ID)
+        }
+        "Qot_GetEventContract" => Some(crate::trade_proto::qot_get_event_contract::PROTOCOL_ID),
+        "Qot_GetEventContractCategory" => {
+            Some(crate::trade_proto::qot_get_event_contract_category::PROTOCOL_ID)
+        }
+        "Qot_GetEventContractComboList" => {
+            Some(crate::trade_proto::qot_get_event_contract_combo_list::PROTOCOL_ID)
+        }
+        "Qot_GetEventContractComboRfq" => {
+            Some(crate::trade_proto::qot_get_event_contract_combo_rfq::PROTOCOL_ID)
+        }
+        "Qot_GetEventContractEventList" => {
+            Some(crate::trade_proto::qot_get_event_contract_event_list::PROTOCOL_ID)
+        }
+        "Qot_GetEventContractKline" => {
+            Some(crate::trade_proto::qot_get_event_contract_kline::PROTOCOL_ID)
+        }
+        "Qot_GetEventContractMilestoneList" => {
+            Some(crate::trade_proto::qot_get_event_contract_milestone_list::PROTOCOL_ID)
+        }
+        "Qot_GetEventContractOrderBook" => {
+            Some(crate::trade_proto::qot_get_event_contract_order_book::PROTOCOL_ID)
+        }
+        "Qot_GetEventContractSeriesList" => {
+            Some(crate::trade_proto::qot_get_event_contract_series_list::PROTOCOL_ID)
+        }
+        "Qot_GetEventContractSnapshot" => {
+            Some(crate::trade_proto::qot_get_event_contract_snapshot::PROTOCOL_ID)
+        }
+        "Qot_GetEventContractTicker" => {
+            Some(crate::trade_proto::qot_get_event_contract_ticker::PROTOCOL_ID)
+        }
+        "Qot_GetFutureInfo" => Some(crate::trade_proto::qot_get_future_info::PROTOCOL_ID),
+        "Qot_GetIndicatorList" => Some(crate::trade_proto::qot_get_indicator_list::PROTOCOL_ID),
+        "Qot_GetInstitutionDistribution" => {
+            Some(crate::trade_proto::qot_get_institution_distribution::PROTOCOL_ID)
+        }
+        "Qot_GetInstitutionHoldingChange" => {
+            Some(crate::trade_proto::qot_get_institution_holding_change::PROTOCOL_ID)
+        }
+        "Qot_GetInstitutionHoldingList" => {
+            Some(crate::trade_proto::qot_get_institution_holding_list::PROTOCOL_ID)
+        }
+        "Qot_GetInstitutionList" => Some(crate::trade_proto::qot_get_institution_list::PROTOCOL_ID),
+        "Qot_GetInstitutionProfile" => {
+            Some(crate::trade_proto::qot_get_institution_profile::PROTOCOL_ID)
+        }
+        "Qot_GetKl" => Some(crate::trade_proto::qot_get_kl::PROTOCOL_ID),
+        "Qot_GetOptionChain" => Some(crate::trade_proto::qot_get_option_chain::PROTOCOL_ID),
+        "Qot_GetOptionEarningsScreener" => {
+            Some(crate::trade_proto::qot_get_option_earnings_screener::PROTOCOL_ID)
+        }
+        "Qot_GetOptionEvent" => Some(crate::trade_proto::qot_get_option_event::PROTOCOL_ID),
+        "Qot_GetOptionExerciseProbability" => {
+            Some(crate::trade_proto::qot_get_option_exercise_probability::PROTOCOL_ID)
+        }
+        "Qot_GetOptionExpirationDate" => {
+            Some(crate::trade_proto::qot_get_option_expiration_date::PROTOCOL_ID)
+        }
+        "Qot_GetOptionMarketStatistic" => {
+            Some(crate::trade_proto::qot_get_option_market_statistic::PROTOCOL_ID)
+        }
+        "Qot_GetOptionQuote" => Some(crate::trade_proto::qot_get_option_quote::PROTOCOL_ID),
+        "Qot_GetOptionRank" => Some(crate::trade_proto::qot_get_option_rank::PROTOCOL_ID),
+        "Qot_GetOptionSellerScreener" => {
+            Some(crate::trade_proto::qot_get_option_seller_screener::PROTOCOL_ID)
+        }
+        "Qot_GetOptionStrategy" => Some(crate::trade_proto::qot_get_option_strategy::PROTOCOL_ID),
+        "Qot_GetOptionStrategyAnalysis" => {
+            Some(crate::trade_proto::qot_get_option_strategy_analysis::PROTOCOL_ID)
+        }
+        "Qot_GetOptionStrategySpread" => {
+            Some(crate::trade_proto::qot_get_option_strategy_spread::PROTOCOL_ID)
+        }
+        "Qot_GetOptionUnderlyingHisStatistic" => {
+            Some(crate::trade_proto::qot_get_option_underlying_his_statistic::PROTOCOL_ID)
+        }
+        "Qot_GetOptionUnderlyingHisVolatility" => {
+            Some(crate::trade_proto::qot_get_option_underlying_his_volatility::PROTOCOL_ID)
+        }
+        "Qot_GetOptionUnderlyingOverview" => {
+            Some(crate::trade_proto::qot_get_option_underlying_overview::PROTOCOL_ID)
+        }
+        "Qot_GetOptionUnderlyingRank" => {
+            Some(crate::trade_proto::qot_get_option_underlying_rank::PROTOCOL_ID)
+        }
+        "Qot_GetOptionVolatility" => {
+            Some(crate::trade_proto::qot_get_option_volatility::PROTOCOL_ID)
+        }
+        "Qot_GetOptionZeroDteContract" => {
+            Some(crate::trade_proto::qot_get_option_zero_dte_contract::PROTOCOL_ID)
+        }
+        "Qot_GetOptionZeroDteScreener" => {
+            Some(crate::trade_proto::qot_get_option_zero_dte_screener::PROTOCOL_ID)
+        }
+        "Qot_GetOrderBook" => Some(crate::trade_proto::qot_get_order_book::PROTOCOL_ID),
+        "Qot_GetRt" => Some(crate::trade_proto::qot_get_rt::PROTOCOL_ID),
+        "Qot_GetSearchNews" => Some(crate::trade_proto::qot_get_search_news::PROTOCOL_ID),
+        "Qot_GetSearchQuote" => Some(crate::trade_proto::qot_get_search_quote::PROTOCOL_ID),
+        "Qot_GetShortInterest" => Some(crate::trade_proto::qot_get_short_interest::PROTOCOL_ID),
+        "Qot_GetStaticInfo" => Some(crate::trade_proto::qot_get_static_info::PROTOCOL_ID),
+        "Qot_GetTicker" => Some(crate::trade_proto::qot_get_ticker::PROTOCOL_ID),
+        "Qot_GetValuationDetail" => Some(crate::trade_proto::qot_get_valuation_detail::PROTOCOL_ID),
+        "Qot_OptionScreen" => Some(crate::trade_proto::qot_option_screen::PROTOCOL_ID),
+        "Qot_RequestHistoryEventContractKl" => {
+            Some(crate::trade_proto::qot_request_history_event_contract_kl::PROTOCOL_ID)
+        }
+        "Qot_RequestIndicatorCalc" => {
+            Some(crate::trade_proto::qot_request_indicator_calc::PROTOCOL_ID)
+        }
+        "Qot_StockScreen" => Some(crate::trade_proto::qot_stock_screen::PROTOCOL_ID),
+        "Qot_SubEventContract" => Some(crate::trade_proto::qot_sub_event_contract::PROTOCOL_ID),
+        "Trd_GetComboMaxTrdQtys" => {
+            Some(crate::trade_proto::trd_get_combo_max_trd_qtys::PROTOCOL_ID)
+        }
+        "Trd_GetMaxTrdQtys" => Some(crate::trade_proto::trd_get_max_trd_qtys::PROTOCOL_ID),
+        _ => None,
+    }
+}
+
 pub mod common {
     include!(concat!(env!("OUT_DIR"), "/common.rs"));
 }

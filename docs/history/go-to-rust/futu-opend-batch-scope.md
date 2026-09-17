@@ -1905,3 +1905,96 @@ pnpm run check:rust:architecture
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+## 批次：pkg/futu/adapter_advanced_test.go（6 项：3 项 [x]，3 项 partial）
+
+本批以 `go:452dea11:pkg/futu/adapter_advanced_test.go` 为行为基线，逐条核对
+`go:452dea11:pkg/futu/adapter_advanced.go`（`injectAdvancedPageSize` /
+`advancedPageSizeLimit` / `injectAdvancedCursor` / `injectAdvancedDefaults` /
+`advancedProtocolReplaySafe`）在 Rust 的归属，并补齐此前完全没有 owner 的两组语义。
+
+### 本批新增的 Rust owner（真实功能差异修复）
+
+1. **分页注入与协议上限**（此前 Rust 完全没有等价物）：
+   `crates/jftrade-integration-futu/src/research_params.rs` 新增
+   `advanced_page_size_limit`（`Qot_GetIndustrialChainList` = 50，其余 100）、
+   `advanced_page_size_field`（按 `count` → `pageCount` → `num` → `maxCount` →
+   `maxRetNum` 探针顺序，58 个协议的表由 `proto/futu/*.proto` 的 C2S 定义逐一生成并复核）、
+   `clamp_advanced_page_size` 与 `inject_advanced_page_size`（调用方已有值不被覆盖，
+   协议未声明分页字段时不注入 `count`）。
+
+   **真实修复**：`/api/v1/market-data/options/screens` 原先把 `pageSize` 直接透传
+   （`OptionScreenQuery::validate` 允许 1..=1000），Go 的 `injectAdvancedPageSize`
+   会先夹到 100 再写入 `pageCount`。已在
+   `crates/jftrade-engine/src/product_production_ports_market_data_options_screen.rs`
+   接入 `clamp_advanced_page_size("Qot_OptionScreen", …)`；同批把
+   `product_production_ports_research_futu.rs` 的 institution `count` 与
+   short-interest `num` 也改为按同一上限夹取。
+
+2. **重放安全默认拒绝**：新增 `advanced_protocol_replay_safe`，与 Go 完全一致——
+   `Qot_GetEventContractComboRfq` 保留 Get 前缀但会创建短生命周期报价，必须单次执行；
+   `Set*`/`Modify*` 与未知协议默认不重放；仅 `Get*`/`Request*`/`Filter*` 及
+   `OptionScreen`/`WarrantScreen`/`StockFilter`/`StockScreen`/`SubEventContract` 可重放。
+
+3. **作用域默认值与游标注入**：新增 `inject_advanced_defaults`
+   （仅当协议声明 `market`/`offset`/`pageFrom` 时注入；非法 market 只在调用方显式提供时报错）、
+   `advanced_cursor_field` / `inject_advanced_cursor`（`nextPage` → `page` → `nextKey`
+   探针顺序，调用方游标优先，空游标不写）、`advanced_has_field` /
+   `advanced_has_market_field`（33 个 `market`、8 个 `offset`、3 个 `pageFrom` 协议）。
+
+4. **协议 id 单一事实来源**：`crates/jftrade-integration-futu/src/trade_proto.rs`
+   新增 `framed_protocol_id`（66 个 framed 协议 → 生成模块 `PROTOCOL_ID`），
+   让能力目录的 id 可以被交叉校验，而不是只信任目录里的字面量。
+
+### 逐条结论
+
+| Go 测试 | 结论 | Rust 入口 |
+|---|---|---|
+| `:14 TestAdvancedFeatureDefaultsBuildStrictOpenDRequests` | `[~]` partial | `research_params_tests.rs::advanced_feature_defaults_build_strict_opend_requests` + `product_production_ports_market_data_options_tests.rs::option_screen_page_size_is_clamped_to_the_adapter_limit_before_the_reader` |
+| `:80 TestIndustrialChainListPageSizeRespectsOpenDLimit` | `[~]` partial | `research_params_tests.rs::advanced_page_size_respects_protocol_limits` |
+| `:92 TestEveryAllowlistedAdvancedProtocolMapsToCatalogFeature` | `[x]` function_exact | `product_broker_capabilities_projection.rs::tests::every_catalog_protocol_maps_to_a_feature_with_one_stable_id` |
+| `:124 TestAdvancedProtocolReplaySafetyDefaultsToNoReplay` | `[x]` function_exact | `research_params_tests.rs::advanced_protocol_replay_safety_defaults_to_no_replay` + `prediction_category_protocol.rs::combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure` |
+| `:150 TestEveryDefaultFeatureOperationBuildsGeneratedRequest` | `[~]` partial | `product_production_ports_research_tests.rs::futu_earnings_calendar_route_defaults_to_earnings_and_projects_event_identity` |
+| `:212 TestHighDividendStateRejectsMisleadingMainlandScope` | `[x]` function_exact | `research_params_tests.rs::high_dividend_state_is_hk_only` |
+
+### 保留的边界与未完成项（后续批次目标）
+
+- **Rust 功能缺失**：`Qot_GetWarrant`/`Qot_WarrantScreen`、`Qot_GetTopMoversRank`
+  等 rankings 协议、`Qot_GetMacroIndicatorList`、`Qot_GetIndustrialChainList/Detail/ByPlate`
+  在 Rust 尚无 typed reader。`/api/v1/market-data/warrants` 目前返回
+  `Futu warrants market-data reader is not ready`；Futu 的 rankings/industry 走
+  akshare helper 分支并以 capability 拒绝；Futu macro 走 helper 分支。参数层规则
+  （本批新增）已就位，补齐 reader 时可直接复用，故这 3 条 Go 测试保持 partial。
+- **架构差异（有意保留）**：Go 的 `defaultFeatureOperations` 全局表在 Rust 由各路由
+  显式拥有，未搬表以免出现第二个默认 operation owner；`defaultOperation(protocols)`
+  的“多操作取字典序最小”规则同样没有等价物（Rust 每个 feature 的默认 operation 是
+  显式的）。逐 feature 的默认请求证据留待后续批次。
+- **Go 允许协议属于两个 feature 的判定在 Rust 不成立**：Rust 有意让 10 个协议服务两个
+  feature（snapshot、staticInfo、option-strategy 家族、单腿/组合下单与查询协议），
+  测试用显式集合冻结该共享集合。
+- 未改动 `contracts/openapi/`、`proto/` 或冻结 fixture；wire 形状不变。
+
+### 回归可证性（临时探针，均已回滚）
+
+- 把 `advanced_page_size_limit("Qot_GetIndustrialChainList")` 改回 100 →
+  `advanced_page_size_respects_protocol_limits` 失败（`Number(100)` ≠ `Number(50)`）。
+- 移除 option screen 的 `clamp_advanced_page_size` → 引擎级
+  `option_screen_page_size_is_clamped_to_the_adapter_limit_before_the_reader` 失败，
+  实测记录到 `Some(1000)`，证明该测试捕获的是修复前的真实透传行为。
+- 把目录里 `Qot_GetStaticInfo` 的 id 改成 9999 →
+  `every_catalog_protocol_maps_to_a_feature_with_one_stable_id` 以
+  `catalog id disagrees with the generated protocol id` 失败。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+pnpm run check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```
+
+结果：1675 passed / 1 skipped；clippy 无告警；architecture 通过；
+parity 审计 Futu/OpenD 90.6%（本批 3 条 `[x]`、3 条 partial，总 `[x]` 436）。

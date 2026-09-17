@@ -1953,3 +1953,68 @@ fn zero_dte_contract_translation_rejects_each_invalid_boundary() {
         );
     }
 }
+
+/// Parity: go:452dea11:pkg/futu/adapter_advanced_test.go:14
+/// TestAdvancedFeatureDefaultsBuildStrictOpenDRequests /
+/// go:452dea11:pkg/futu/adapter_advanced_test.go:80
+/// TestIndustrialChainListPageSizeRespectsOpenDLimit
+///
+/// Go never forwards a public `pageSize` verbatim: `injectAdvancedPageSize`
+/// clamps it into `[1, advancedPageSizeLimit(protocol)]` and only writes the
+/// protocol's declared field. `Qot_OptionScreen` declares `pageCount`, so the
+/// public option-screen route must clamp `pageSize=1000` to 100 before the
+/// typed reader sees it, and the reader must still accept the clamped value.
+#[test]
+fn option_screen_page_size_is_clamped_to_the_adapter_limit_before_the_reader() {
+    let recorded = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    state.set_readiness(false, true, true);
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_option_screens(Some(Arc::new(RecordingOptionScreenReader {
+        recorded: Arc::clone(&recorded),
+    })));
+    let port = ProductionMarketDataOptionsPort {
+        active_provider_state: state,
+        trade_runtime: Some(runtime),
+    };
+    for (query, want) in [
+        ("market=US&operation=screen&pageSize=1000", Some(100)),
+        ("market=US&operation=screen&pageSize=0", Some(1)),
+        ("market=US&operation=screen&pageSize=25", Some(25)),
+    ] {
+        let value = port
+            .read("/api/v1/market-data/options/screens", query)
+            .unwrap_or_else(|error| panic!("{query}: {error:?}"));
+        assert_eq!(value["provider"]["featureId"], "derivatives.option_screen");
+        assert_eq!(
+            recorded.lock().expect("recorded").last().copied(),
+            Some(want),
+            "{query} must reach OpenD as the adapter-clamped page count"
+        );
+    }
+}
+
+#[derive(Debug)]
+struct RecordingOptionScreenReader {
+    recorded: Arc<std::sync::Mutex<Vec<Option<i32>>>>,
+}
+
+impl jftrade_integration_futu::OptionScreenReadPort for RecordingOptionScreenReader {
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::OptionScreenQuery,
+    ) -> Result<
+        jftrade_integration_futu::OptionScreenPage,
+        jftrade_integration_futu::OptionScreenQueryError,
+    > {
+        // The translated query is still encoded through the typed reader, so
+        // the OpenD request keeps the strict generated-message shape (the
+        // reader validates before framing).
+        self.recorded.lock().expect("record").push(query.page_count);
+        Ok(jftrade_integration_futu::OptionScreenPage {
+            last_page: true,
+            all_count: 0,
+            items: Vec::new(),
+        })
+    }
+}

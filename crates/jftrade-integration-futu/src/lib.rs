@@ -281,8 +281,11 @@ pub use research_normalization::{
     research_product_class, research_security_type,
 };
 pub use research_params::{
-    ResearchParamsError, ResearchQueryScope, bounded_research_enum,
-    inject_advanced_option_defaults, inject_advanced_protocol_defaults,
+    ResearchParamsError, ResearchQueryScope, advanced_cursor_field, advanced_has_field,
+    advanced_has_market_field, advanced_page_size_field, advanced_page_size_limit,
+    advanced_protocol_replay_safe, bounded_research_enum, clamp_advanced_page_size,
+    inject_advanced_cursor, inject_advanced_defaults, inject_advanced_option_defaults,
+    inject_advanced_page_size, inject_advanced_protocol_defaults,
     inject_advanced_research_defaults, research_number_parity, translate_heat_map_plate_type,
     translate_plate_set_type, translate_top_movers_direction,
 };

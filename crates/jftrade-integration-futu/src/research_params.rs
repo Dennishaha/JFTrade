@@ -121,6 +121,284 @@ fn macro_region(market: &str) -> i32 {
     }
 }
 
+/// Go `advancedPageSizeLimit`: the hard OpenD cap for a protocol's declared
+/// pagination field. `Qot_GetIndustrialChainList` rejects `count` outside
+/// `[1, 50]`; every other advanced protocol accepts up to 100.
+pub fn advanced_page_size_limit(protocol: &str) -> i32 {
+    match protocol {
+        "Qot_GetIndustrialChainList" => 50,
+        _ => 100,
+    }
+}
+
+/// Pagination field the protocol's C2S payload actually declares.
+///
+/// Go resolved this by reflecting over the registered protobuf descriptors
+/// (`opend.AdvancedC2SHasField`). Rust keeps the same probe order
+/// (`count`, `pageCount`, `num`, `maxCount`, `maxRetNum`) and records the
+/// answer for every protocol the capability catalog can send, so a request can
+/// never carry a field the generated message does not declare.
+pub fn advanced_page_size_field(protocol: &str) -> Option<&'static str> {
+    let field = match protocol {
+        "Qot_GetArkActiveTransaction"
+        | "Qot_GetArkFundHolding"
+        | "Qot_GetDividendCalendar"
+        | "Qot_GetDividendRank"
+        | "Qot_GetEarningsBeatRank"
+        | "Qot_GetEconomicCalendar"
+        | "Qot_GetEventContract"
+        | "Qot_GetEventContractComboList"
+        | "Qot_GetEventContractEventList"
+        | "Qot_GetEventContractMilestoneList"
+        | "Qot_GetEventContractTicker"
+        | "Qot_GetHeatMapData"
+        | "Qot_GetHighDividendSOERank"
+        | "Qot_GetHotList"
+        | "Qot_GetIndustrialChainList"
+        | "Qot_GetIndustrialPlateStock"
+        | "Qot_GetInstitutionHoldingChange"
+        | "Qot_GetInstitutionHoldingList"
+        | "Qot_GetInstitutionList"
+        | "Qot_GetOptionEarningsScreener"
+        | "Qot_GetOptionEvent"
+        | "Qot_GetOptionEventAlert"
+        | "Qot_GetOptionRank"
+        | "Qot_GetOptionUnderlyingRank"
+        | "Qot_GetOptionZeroDteScreener"
+        | "Qot_GetPeriodChangeRank"
+        | "Qot_GetRatingChange"
+        | "Qot_GetShortSellingRank"
+        | "Qot_GetTopMoversRank"
+        | "Qot_GetUSAfterHoursRank"
+        | "Qot_GetUSOvernightRank"
+        | "Qot_GetUSPreMarketRank" => "count",
+        "Qot_OptionScreen" | "Qot_StockScreen" | "Qot_WarrantScreen" => "pageCount",
+        "Qot_GetCompanyOperationalEfficiency"
+        | "Qot_GetCorporateActionsBuybacks"
+        | "Qot_GetCorporateActionsStockSplits"
+        | "Qot_GetDailyShortVolume"
+        | "Qot_GetEventContractOrderBook"
+        | "Qot_GetFinancialsStatements"
+        | "Qot_GetInsiderHolderList"
+        | "Qot_GetInsiderTradeList"
+        | "Qot_GetOrderBook"
+        | "Qot_GetResearchRatingSummary"
+        | "Qot_GetShareholdersHolderDetail"
+        | "Qot_GetShareholdersHoldingChanges"
+        | "Qot_GetShareholdersInstitutional"
+        | "Qot_GetShortInterest"
+        | "Qot_GetValuationPlateStockList"
+        | "Qot_GetWarrant"
+        | "Qot_RequestIndicatorCalc"
+        | "Qot_StockFilter" => "num",
+        "Qot_GetEventContractKline"
+        | "Qot_GetMacroIndicatorHistory"
+        | "Qot_GetSearchNews"
+        | "Qot_GetSearchQuote" => "maxCount",
+        "Qot_GetTicker" => "maxRetNum",
+        _ => return None,
+    };
+    Some(field)
+}
+
+/// Clamp a requested page size the way Go's `injectAdvancedPageSize` does:
+/// non-positive requests become `1` and oversized requests stop at the
+/// protocol limit. Unknown protocols keep the caller's value.
+pub fn clamp_advanced_page_size(protocol: &str, page_size: i32) -> i32 {
+    if advanced_page_size_field(protocol).is_none() {
+        return page_size;
+    }
+    page_size.max(1).min(advanced_page_size_limit(protocol))
+}
+
+/// Go `injectAdvancedPageSize`: clamp the caller's page size and write it to
+/// the protocol's declared pagination field. A caller that already supplied
+/// the field keeps ownership, and a protocol without such a field never
+/// receives one — `count` must not leak into strict OpenD validation.
+pub fn inject_advanced_page_size(params: &mut Map<String, Value>, protocol: &str, page_size: i32) {
+    let Some(field) = advanced_page_size_field(protocol) else {
+        return;
+    };
+    if params.get(field).is_some_and(|value| !value.is_null()) {
+        return;
+    }
+    params.insert(
+        field.to_owned(),
+        Value::from(clamp_advanced_page_size(protocol, page_size)),
+    );
+}
+
+/// Cursor field the protocol's C2S payload declares, using Go's probe order
+/// (`nextPage`, `page`, `nextKey`).
+pub fn advanced_cursor_field(protocol: &str) -> Option<&'static str> {
+    let field = match protocol {
+        "Qot_GetEconomicCalendar"
+        | "Qot_GetEventContract"
+        | "Qot_GetEventContractComboList"
+        | "Qot_GetEventContractEventList"
+        | "Qot_GetEventContractMilestoneList" => "nextPage",
+        "Qot_GetArkActiveTransaction"
+        | "Qot_GetArkFundHolding"
+        | "Qot_GetHeatMapData"
+        | "Qot_GetIndustrialChainList"
+        | "Qot_GetIndustrialPlateStock"
+        | "Qot_GetInstitutionHoldingChange"
+        | "Qot_GetInstitutionHoldingList"
+        | "Qot_GetInstitutionList"
+        | "Qot_GetOptionEarningsScreener"
+        | "Qot_GetOptionEvent"
+        | "Qot_GetOptionEventAlert"
+        | "Qot_GetOptionRank"
+        | "Qot_GetOptionUnderlyingRank"
+        | "Qot_GetOptionZeroDteScreener"
+        | "Qot_GetRatingChange" => "page",
+        "Qot_GetCompanyOperationalEfficiency"
+        | "Qot_GetCorporateActionsBuybacks"
+        | "Qot_GetCorporateActionsStockSplits"
+        | "Qot_GetDailyShortVolume"
+        | "Qot_GetFinancialsStatements"
+        | "Qot_GetInsiderHolderList"
+        | "Qot_GetInsiderTradeList"
+        | "Qot_GetResearchRatingSummary"
+        | "Qot_GetShareholdersHolderDetail"
+        | "Qot_GetShareholdersHoldingChanges"
+        | "Qot_GetShareholdersInstitutional"
+        | "Qot_GetShortInterest"
+        | "Qot_GetValuationPlateStockList" => "nextKey",
+        _ => return None,
+    };
+    Some(field)
+}
+
+/// Go `injectAdvancedCursor`: write the cursor into the protocol's declared
+/// cursor field, leaving a caller-owned value untouched. A protocol that
+/// declares no cursor field simply does not paginate on the wire.
+pub fn inject_advanced_cursor(params: &mut Map<String, Value>, protocol: &str, cursor: &str) {
+    let Some(field) = advanced_cursor_field(protocol) else {
+        return;
+    };
+    if cursor.trim().is_empty() || params.get(field).is_some_and(|value| !value.is_null()) {
+        return;
+    }
+    params.insert(field.to_owned(), Value::from(cursor.trim()));
+}
+
+/// Go `injectAdvancedDefaults`: scope defaults shared by every advanced
+/// protocol. `market` is translated from the public market label, `offset` and
+/// `pageFrom` start at zero when the protocol declares them, and the
+/// protocol-specific rules are applied on top.
+pub fn inject_advanced_defaults(
+    params: &mut Map<String, Value>,
+    protocol: &str,
+    scope: &ResearchQueryScope,
+) -> Result<(), ResearchParamsError> {
+    if advanced_has_market_field(protocol) && params.get("market").is_none_or(Value::is_null) {
+        // Go translates the public market label and only surfaces the lookup
+        // failure when the caller supplied one; an empty scope keeps the
+        // historic unknown-market code instead of failing the request.
+        let market = match market_code(&scope.market) {
+            Some(market) => market,
+            None if scope.market.trim().is_empty() => 0,
+            None => {
+                return Err(invalid(format!(
+                    "futu: unsupported market {:?}",
+                    scope.market.trim()
+                )));
+            }
+        };
+        params.insert("market".to_owned(), Value::from(market));
+    }
+    if advanced_has_field(protocol, "offset") && params.get("offset").is_none_or(Value::is_null) {
+        params.insert("offset".to_owned(), Value::from(0));
+    }
+    if advanced_has_field(protocol, "pageFrom") && params.get("pageFrom").is_none_or(Value::is_null)
+    {
+        params.insert("pageFrom".to_owned(), Value::from(0));
+    }
+    inject_advanced_protocol_defaults(params, protocol, scope)
+}
+
+/// Protocols whose C2S payload declares a `market` field, so the public market
+/// label can be translated into the OpenD market code.
+pub fn advanced_has_market_field(protocol: &str) -> bool {
+    advanced_has_field(protocol, "market")
+}
+
+/// Whether the protocol's C2S payload declares `field`. Go reflected over the
+/// registered descriptors; Rust records the fields the catalog can send.
+pub fn advanced_has_field(protocol: &str, field: &str) -> bool {
+    match field {
+        "market" => matches!(
+            protocol,
+            "Qot_GetDividendCalendar"
+                | "Qot_GetDividendRank"
+                | "Qot_GetEarningsBeatRank"
+                | "Qot_GetEarningsCalendar"
+                | "Qot_GetHeatMapData"
+                | "Qot_GetHotList"
+                | "Qot_GetIndustrialChainList"
+                | "Qot_GetInstitutionDistribution"
+                | "Qot_GetInstitutionHoldingChange"
+                | "Qot_GetInstitutionHoldingList"
+                | "Qot_GetInstitutionList"
+                | "Qot_GetInstitutionProfile"
+                | "Qot_GetIpoList"
+                | "Qot_GetPeriodChangeRank"
+                | "Qot_GetPlateSet"
+                | "Qot_GetPriceReminder"
+                | "Qot_GetRatingChange"
+                | "Qot_GetRiseFallDistribution"
+                | "Qot_GetShortSellingRank"
+                | "Qot_GetStaticInfo"
+                | "Qot_GetTopMoversRank"
+                | "Qot_RequestTradeDate"
+                | "Qot_StockFilter"
+        ),
+        "offset" => matches!(
+            protocol,
+            "Qot_GetHighDividendSOERank"
+                | "Qot_GetHotList"
+                | "Qot_GetPeriodChangeRank"
+                | "Qot_GetShortSellingRank"
+                | "Qot_GetTopMoversRank"
+                | "Qot_GetUSAfterHoursRank"
+                | "Qot_GetUSOvernightRank"
+                | "Qot_GetUSPreMarketRank"
+        ),
+        "pageFrom" => matches!(
+            protocol,
+            "Qot_OptionScreen" | "Qot_StockScreen" | "Qot_WarrantScreen"
+        ),
+        _ => false,
+    }
+}
+
+/// Go `advancedProtocolReplaySafe` defaults to *no* automatic replay.
+///
+/// Only read protocols on the allowlist may be retried after a reconnect.
+/// `Qot_GetEventContractComboRfq` keeps its `Get` prefix but creates a
+/// short-lived quote, so duplicating it when the first outcome is unknown is
+/// unsafe; alerts, reminders and watchlist writes stay single-attempt too.
+pub fn advanced_protocol_replay_safe(protocol: &str) -> bool {
+    if protocol == "Qot_GetEventContractComboRfq" {
+        return false;
+    }
+    if protocol.starts_with("Qot_Get")
+        || protocol.starts_with("Qot_Request")
+        || protocol.starts_with("Qot_Filter")
+    {
+        return true;
+    }
+    matches!(
+        protocol,
+        "Qot_OptionScreen"
+            | "Qot_WarrantScreen"
+            | "Qot_StockFilter"
+            | "Qot_StockScreen"
+            | "Qot_SubEventContract"
+    )
+}
+
 /// Go `translateTopMoversDirection`: empty means "no filter", `up`/`down`
 /// map to `sortDir`, everything else is rejected.
 pub fn translate_top_movers_direction(
