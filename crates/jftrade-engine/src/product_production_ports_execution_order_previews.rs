@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 use super::execution_order_hash::preview_request_hash;
 use super::execution_order_helpers::{parse_product_rule_request, product_rule_rejection};
 use super::execution_order_parse::{
-    ParsedCombo, ParsedOrder, market_label, order_type_label, parse_combo, parse_order,
+    ParsedCombo, ParsedOrder, order_type_label, parse_combo, parse_order,
     parse_order_type, parse_session, quote_market_label, sec_market, side_label, trade_market,
 };
 use super::*;
@@ -321,11 +321,16 @@ impl ProductionExecutionPort {
                 .iter()
                 .any(|item| (item.spread - requested).abs() <= 1e-8)
             {
+                // Go's adapter carries `ILLEGAL_OPTION_SPREAD` only as an
+                // internal `deniedProductRule` reason code; the service turns
+                // the decision into `requestErrorf(reason)` and the route emits
+                // 400 BAD_REQUEST. Publishing the private code would change the
+                // public error envelope, so the reason stays in the message.
                 return Err(failed(
                     400,
-                    "ILLEGAL_OPTION_SPREAD",
+                    "BAD_REQUEST",
                     format!(
-                        "spread {requested:.6} is not legal for the selected strategy and expiry"
+                        "spread {requested} is not legal for the selected strategy and expiry"
                     ),
                 ));
             }
@@ -357,9 +362,12 @@ impl ProductionExecutionPort {
             .iter()
             .any(|item| same_option_strategy_legs(&item.multi_legs, &legs))
         {
+            // Same reason-code/transport split as the spread branch: Go reports
+            // `ILLEGAL_OPTION_COMBINATION` internally and the wire sees a 400
+            // BAD_REQUEST carrying the same explanation.
             return Err(failed(
                 400,
-                "ILLEGAL_OPTION_COMBINATION",
+                "BAD_REQUEST",
                 "the selected contracts are not a legal OpenD option strategy for the requested expiries",
             ));
         }
@@ -510,13 +518,29 @@ impl ProductionExecutionPort {
         for (key, value) in [
             ("bid", snapshot.bid1),
             ("ask", snapshot.ask1),
-            ("maxProfit", snapshot.max_profit),
-            ("maxLoss", snapshot.max_loss),
             ("probability", snapshot.prob_of_profit),
             ("delta", snapshot.delta),
             ("theta", snapshot.theta),
         ] {
             if let Some(value) = value {
+                analysis.insert(key.to_owned(), json!(value));
+            }
+        }
+        // Go's `optionComboBound` collapses OpenD's 9_999_999 payoff sentinel
+        // into the `maxProfitUnlimited`/`maxLossUnlimited` flags and returns a
+        // nil bound. Publishing the placeholder as a finite value would make
+        // the console render a bogus 9,999,999 profit instead of "无限", so the
+        // sentinel must not survive into either field.
+        for (key, unlimited_key, value) in [
+            ("maxProfit", "maxProfitUnlimited", snapshot.max_profit),
+            ("maxLoss", "maxLossUnlimited", snapshot.max_loss),
+        ] {
+            let Some(value) = value else {
+                continue;
+            };
+            if value >= OPTION_COMBO_UNLIMITED_BOUND {
+                analysis.insert(unlimited_key.to_owned(), json!(true));
+            } else {
                 analysis.insert(key.to_owned(), json!(value));
             }
         }
@@ -605,6 +629,11 @@ impl ProductionExecutionPort {
             .map_err(map_trade_error)
     }
 }
+
+/// OpenD reports an unbounded option payoff as this placeholder. Go's
+/// `pkg/futu/adapter_combo.go::optionComboBound` treats any value at or above it
+/// as `maxProfitUnlimited`/`maxLossUnlimited` and drops the number itself.
+const OPTION_COMBO_UNLIMITED_BOUND: f64 = 9_999_999.0;
 
 fn required_text(payload: &Value, key: &str) -> Result<String, ExecutionWritePortError> {
     payload

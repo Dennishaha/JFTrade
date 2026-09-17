@@ -2834,3 +2834,73 @@ python3 scripts/compatibility/audit_test_parity.py
 ```
 
 结果：1799 passed / 1 skipped；审计 OK: 495 function_exact。
+
+## 批次：pkg/futu/adapter_combo_transport_test.go（4 项）
+
+### 结果：4 `[x]`
+
+| Go 测试 | 行号 | 状态 | Rust 证据 |
+| :--- | :--- | :--- | :--- |
+| `TestFutuOptionComboPreviewLegalityAndTransportFailures` | 16 | `[x]` | `product_production_ports_execution_preview_tests.rs::option_combo_preview_rejects_invalid_legality_and_hidden_transport_failures` |
+| `TestFutuOptionComboNonSpreadOpenDLegalityBranches` | 80 | `[x]` | `product_production_ports_execution_preview_tests.rs::option_combo_preview_validates_non_spread_legality_against_opend_strategies` |
+| `TestFutuOptionComboPreviewNormalizesAllAccountImpacts` | 149 | `[x]` | `product_production_ports_execution_preview_tests.rs::option_combo_preview_normalizes_every_account_impact_and_unlimited_bounds` |
+| `TestFutuComboPlaceValidatedLegAccountAndTransportFailures` | 199 | `[x]` | `product_production_ports_execution_preview_tests.rs::combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures` |
+
+### 本批修复的功能差异（3 项，均为真实缺口）
+
+1. **无界盈亏哨兵被当成有限值下发**
+   Go `pkg/futu/adapter_combo.go::optionComboBound` 把 OpenD 的 `9999999` 折叠成
+   `maxProfitUnlimited`/`maxLossUnlimited` 并返回 nil 边界。Rust 的
+   `option_combo_analysis` 直接把 `maxProfit`/`maxLoss` 原样写入，于是预览里出现
+   `maxProfit: 9999999`，而冻结契约 `broker.OptionComboAnalysis`
+   （`docs/swagger/swagger.json`）与 `OptionComboRiskStrip.vue` 依赖
+   `maxProfitUnlimited` 渲染「无限」。修复：新增
+   `OPTION_COMBO_UNLIMITED_BOUND = 9_999_999.0`，达到阈值即写
+   `*Unlimited=true` 并**不再**下发哨兵数值。
+2. **私有 ReasonCode 泄漏到公开 wire**
+   Go 的 `ILLEGAL_OPTION_SPREAD` / `ILLEGAL_OPTION_COMBINATION` 只是
+   `deniedProductRule` 的内部 `ReasonCode`；`PreviewExecutionCombo` 把它包成
+   `requestErrorf(reason)`，`executionCommandError` 再映射为 400 `BAD_REQUEST`
+   （见冻结 fixture `tests/fixtures/compatibility/api-transport/execution-write.json`
+   中 `combo-preview-mixed-legs` 等用例：`code` 一律 `BAD_REQUEST`）。Rust 之前把
+   这两个私有码直接写进错误信封，属于公开契约偏差。修复：两处分支改回
+   `400 BAD_REQUEST`，原因文本保留在 message。
+3. **未限定的 underlying 被静默替换成请求市场**
+   Go `futuSecurityFromSymbol` → `market.ParseInstrument` 对无市场前缀的符号返回
+   `market is required when symbol has no market prefix`；Rust 的
+   `underlying_security` 却在 `rsplit_once('.')` 失败时用
+   `market_label(header.trd_market)` 兜底，使 `"BAD"` 变成 `US.BAD` 并**成功返回
+   allowed=true 预览**（本次实测复现）。修复：缺少 `MARKET.CODE` 形态直接 400；
+   随之删除仅剩该兜底在用的 `product_production_ports_execution_order_markets.rs::market_label`
+   （消除 dead_code 警告）。
+
+### 回归可证性（临时探针，均已回滚）
+
+- 撤销无界翻译（恢复 `maxProfit`/`maxLoss` 直写）→
+  `option_combo_preview_normalizes_every_account_impact_and_unlimited_bounds` 失败。
+- 把 spread 分支改回 `ILLEGAL_OPTION_SPREAD` →
+  `option_combo_preview_rejects_invalid_legality_and_hidden_transport_failures` 失败：
+  `illegal spread error = Failed { status: 400, code: "ILLEGAL_OPTION_SPREAD", ... }`。
+- 恢复 `"BAD"` → 请求市场兜底 →
+  `option_combo_preview_rejects_invalid_legality_and_hidden_transport_failures` 失败：
+  `an invalid underlying must fail closed: Object {..., "allowed": Bool(true), ...}`。
+
+### 边界保留结论（非缺口）
+
+- Go 用 `OptionStrategyType` 枚举值（`vertical→4`、`straddle→6` 等）决定走
+  spread 还是 strategy 分支，Rust 用 payload 的 `optionStrategy` 字符串做同一分流；
+  两条路径的 RPC（3258 vs 3256）与比对语义一致，属实现形态差异。
+- Go 在 `Qot_GetOptionStrategy` 解析失败时报错早退，Rust 由 typed reader 在
+  `OptionStrategyQueryError` 层拒绝；本批以 `InvalidResponse` 模拟 drop 分支，
+  证明错误不会被吞成 `allowed=true`。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu -p jftrade-marketdata --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+cargo clippy -p jftrade-engine -p jftrade-integration-futu -p jftrade-marketdata --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：1803 passed / 1 skipped；审计 OK: 499 function_exact。

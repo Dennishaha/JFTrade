@@ -8,15 +8,19 @@ pub(super) fn underlying_security(
         .get("underlyingInstrumentId")
         .and_then(Value::as_str)
         .unwrap_or(&parsed.order.symbol);
-    let (market, code) = instrument.trim().rsplit_once('.').map_or_else(
-        || {
-            (
-                market_label(parsed.order.header.trd_market),
-                instrument.trim().to_owned(),
-            )
-        },
-        |(market, code)| (market.to_owned(), code.to_owned()),
-    );
+    // Go resolves the owner through `futuSecurityFromSymbol(intent.UnderlyingID)`
+    // → `market.ParseInstrument`, which rejects a symbol without a market prefix
+    // ("market is required when symbol has no market prefix"). The order header
+    // market must not be substituted here: doing so would let `BAD` become
+    // `US.BAD` and preview an option strategy for a security the caller never
+    // named.
+    let Some((market, code)) = instrument.trim().rsplit_once('.') else {
+        return Err(failed(
+            400,
+            "BAD_REQUEST",
+            "option combo underlying must be in MARKET.CODE form",
+        ));
+    };
     let market = match market.trim().to_ascii_uppercase().as_str() {
         "US" => 11,
         "HK" => 1,

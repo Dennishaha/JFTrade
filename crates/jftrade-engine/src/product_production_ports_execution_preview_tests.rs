@@ -1122,6 +1122,684 @@ fn option_combo_preview_place_and_cancel_keep_server_identity() {
     drop(modified);
 }
 
+/// Parity: go:452dea11:pkg/futu/adapter_combo_transport_test.go:149
+/// TestFutuOptionComboPreviewNormalizesAllAccountImpacts.
+///
+/// Go's loopback fixture answers `Trd_GetComboMaxTrdQtys` with six distinct
+/// account-impact fields and an analysis whose `MaxProfit=9_999_999` is the
+/// OpenD sentinel for an unbounded payoff. The public contract
+/// (`broker.OptionComboAnalysis`, frozen in `docs/swagger/swagger.json`) carries
+/// `maxProfitUnlimited`/`maxLossUnlimited`, and the console renders them as
+/// "无限". Rust therefore has to translate the sentinel into the boolean flag
+/// *and* drop the placeholder number: Go's `optionComboBound` returns
+/// `(nil, true)` once the value reaches 9_999_999, so a preview that reported
+/// both `maxProfit: 9999999` and `maxProfitUnlimited: true` would leak the
+/// sentinel and let the console show a bogus finite profit.
+#[test]
+fn option_combo_preview_normalizes_every_account_impact_and_unlimited_bounds() {
+    /// Reader that answers the Go fixture's six-field combo buying power and an
+    /// analysis with an unlimited max profit and a finite max loss.
+    #[derive(Debug)]
+    struct ComboImpactReader;
+
+    impl TradeReadPort for ComboImpactReader {
+        fn read_accounts(
+            &self,
+            _: u64,
+            _: Option<i32>,
+            _: Option<bool>,
+        ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+            unsupported()
+        }
+
+        fn read_funds(
+            &self,
+            _: TradeHeader,
+            _: Option<bool>,
+            _: Option<i32>,
+            _: Option<i32>,
+        ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+            unsupported()
+        }
+
+        fn read_cash_flows(
+            &self,
+            _: TradeHeader,
+            _: String,
+            _: Option<i32>,
+        ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+            unsupported()
+        }
+
+        fn read_order_fees(
+            &self,
+            _: TradeHeader,
+            _: Vec<String>,
+        ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+            unsupported()
+        }
+
+        fn read_margin_ratios(
+            &self,
+            _: TradeHeader,
+            _: Vec<TradeSecurity>,
+        ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+            unsupported()
+        }
+
+        fn read_max_trade_quantity(
+            &self,
+            _: TradeMaxTradeQuantityRequest,
+        ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+            unsupported()
+        }
+
+        fn read_combo_max_trade_quantity(
+            &self,
+            request: TradeComboMaxTradeQuantityRequest,
+        ) -> Result<TradeComboMaxTradeQuantitySnapshot, TradeSessionError> {
+            Ok(TradeComboMaxTradeQuantitySnapshot {
+                header: request.header,
+                nlv_change: Some(101.0),
+                initial_margin_change: Some(12.0),
+                maintenance_margin_change: Some(8.0),
+                option_buy_power: Some(500.0),
+                max_withdraw_change: Some(-20.0),
+                buying_power_decrease: Some(30.0),
+            })
+        }
+
+        fn read_positions(
+            &self,
+            _: TradeHeader,
+            _: Option<TradeFilter>,
+            _: Option<f64>,
+            _: Option<f64>,
+            _: Option<bool>,
+            _: Option<i32>,
+            _: Option<i32>,
+            _: Option<bool>,
+        ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+            unsupported()
+        }
+
+        fn read_orders(
+            &self,
+            _: TradeHeader,
+            _: Option<TradeFilter>,
+            _: Vec<i32>,
+            _: Option<bool>,
+        ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+            unsupported()
+        }
+
+        fn read_fills(
+            &self,
+            _: TradeHeader,
+            _: Option<TradeFilter>,
+            _: Option<bool>,
+        ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+            unsupported()
+        }
+    }
+
+    /// Analysis reader returning Go's sentinel profit and a real loss bound.
+    #[derive(Debug)]
+    struct UnlimitedAnalysisReader;
+
+    impl jftrade_integration_futu::OptionStrategyAnalysisReadPort for UnlimitedAnalysisReader {
+        fn query(
+            &self,
+            _: &jftrade_integration_futu::OptionStrategyAnalysisQuery,
+        ) -> Result<
+            jftrade_integration_futu::OptionStrategyAnalysisSnapshot,
+            jftrade_integration_futu::OptionStrategyAnalysisQueryError,
+        > {
+            Ok(jftrade_integration_futu::OptionStrategyAnalysisSnapshot {
+                code: "AAPL260717C/P200".to_owned(),
+                name: "AAPL vertical".to_owned(),
+                option_strategy: 4,
+                bid1: Some(1.1),
+                ask1: Some(1.3),
+                max_profit: Some(9_999_999.0),
+                max_loss: Some(250.0),
+                breakeven_points: Vec::new(),
+                prob_of_profit: None,
+                delta: None,
+                theta: None,
+            })
+        }
+    }
+
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_option_strategy_spread(Some(Arc::new(OptionSpreadFixture)));
+    runtime.set_option_strategy_analysis(Some(Arc::new(UnlimitedAnalysisReader)));
+    runtime.set(
+        Some(Arc::new(ComboImpactReader) as Arc<dyn TradeReadPort>),
+        Some(true),
+    );
+    let (store, directory) = execution_store();
+    let _ = directory.keep();
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    // `ensure_futu_runtime` gates every combo read on OpenD readiness, so the
+    // fixture has to publish the same ready state the lifecycle owner would.
+    state.set_readiness(false, true, false);
+    let port = ProductionExecutionPort {
+        store,
+        active_provider_state: state,
+        trade_logged_in: Some(true),
+        trade_read_port: None,
+        trade_write_port: None,
+        trade_runtime: Some(Arc::clone(&runtime)),
+        cancel_inflight: Arc::new(std::sync::Mutex::new(std::collections::BTreeSet::new())),
+        risk_coordinator: None,
+        default_trading_environment: None,
+        notification_projector: None,
+    };
+
+    let payload = json!({
+        "accountId": "1001",
+        "brokerId": "futu",
+        "market": "US",
+        "tradingEnvironment": "SIMULATE",
+        "clientOrderId": "combo-impacts",
+        "orderKind": "option_combo",
+        "productClass": "option",
+        "underlyingInstrumentId": "US.AAPL",
+        "optionStrategy": "vertical",
+        "nearExpiry": "2026-07-17",
+        "spread": 10.0,
+        "legs": [
+            {"instrumentId": "US.AAPL260717C00200000", "productClass": "option", "side": "BUY", "ratio": 1},
+            {"instrumentId": "US.AAPL260717C00210000", "productClass": "option", "side": "SELL", "ratio": 1}
+        ]
+    });
+    let preview = port.combo_preview(&payload).expect("combo preview");
+
+    let impact = &preview["accountImpact"];
+    for (field, expected) in [
+        ("nlvChange", 101.0),
+        ("initialMarginChange", 12.0),
+        ("maintenanceMarginChange", 8.0),
+        ("optionBuyingPower", 500.0),
+        ("maxWithdrawalChange", -20.0),
+        ("buyingPowerDecrease", 30.0),
+    ] {
+        assert_eq!(
+            impact[field].as_f64(),
+            Some(expected),
+            "accountImpact.{field} must be normalized: {preview}"
+        );
+    }
+    assert_eq!(
+        preview["buyingPowerImpact"].as_f64(),
+        Some(30.0),
+        "the legacy buyingPowerImpact mirrors buyingPowerDecrease: {preview}"
+    );
+
+    let analysis = &preview["optionAnalysis"];
+    assert_eq!(analysis["strategy"], "vertical");
+    assert_eq!(
+        analysis["maxProfitUnlimited"], true,
+        "the OpenD 9999999 sentinel must surface as an unlimited bound: {preview}"
+    );
+    assert!(
+        analysis.get("maxProfit").is_none_or(Value::is_null),
+        "the sentinel placeholder must not be published as a finite profit: {preview}"
+    );
+    assert_eq!(
+        analysis["maxLoss"].as_f64(),
+        Some(250.0),
+        "a real loss bound stays finite: {preview}"
+    );
+    assert!(
+        analysis["maxLossUnlimited"].as_bool() != Some(true),
+        "a finite loss must not be reported as unlimited: {preview}"
+    );
+}
+
+/// Builds the option-combo fixture the Go legality/transport cases drive. The
+/// account is a simulated HK cash account whose OpenD market authorization is
+/// US, the spread list contains exactly `10.0`, and both legs are US options.
+fn option_combo_fixture_payload() -> Value {
+    json!({
+        "accountId": "1001",
+        "brokerId": "futu",
+        "market": "US",
+        "tradingEnvironment": "SIMULATE",
+        "clientOrderId": "combo-transport",
+        "orderKind": "option_combo",
+        "productClass": "option",
+        "underlyingInstrumentId": "US.AAPL",
+        "optionStrategy": "vertical",
+        "nearExpiry": "2026-07-17",
+        "spread": 10.0,
+        "legs": [
+            {"instrumentId": "US.AAPL260717C00200000", "productClass": "option", "side": "BUY", "ratio": 1, "quantity": 2},
+            {"instrumentId": "US.AAPL260717C00210000", "productClass": "option", "side": "SELL", "ratio": 1, "quantity": 2}
+        ]
+    })
+}
+
+/// Spread reader whose legality answer is scripted per test. `None` models the
+/// Go loopback server dropping the `Qot_GetOptionStrategySpread` (3258) response.
+#[derive(Debug)]
+struct ScriptedSpreadReader {
+    items: Mutex<Option<Vec<f64>>>,
+    fail: bool,
+}
+
+impl ScriptedSpreadReader {
+    fn with_spreads(spreads: impl IntoIterator<Item = f64>) -> Self {
+        Self {
+            items: Mutex::new(Some(spreads.into_iter().collect())),
+            fail: false,
+        }
+    }
+}
+
+impl jftrade_integration_futu::OptionStrategySpreadReadPort for ScriptedSpreadReader {
+    fn query(
+        &self,
+        _: &jftrade_integration_futu::OptionStrategySpreadQuery,
+    ) -> Result<
+        jftrade_integration_futu::OptionStrategySpreadSnapshot,
+        jftrade_integration_futu::OptionStrategySpreadQueryError,
+    > {
+        if self.fail {
+            // A dropped 3258 response surfaces as a session/transport failure;
+            // model it with the closest typed variant the reader exposes.
+            return Err(
+                jftrade_integration_futu::OptionStrategySpreadQueryError::InvalidResponse(
+                    "Qot_GetOptionStrategySpread response was dropped".to_owned(),
+                ),
+            );
+        }
+        Ok(jftrade_integration_futu::OptionStrategySpreadSnapshot {
+            items: self
+                .items
+                .lock()
+                .expect("scripted spreads")
+                .clone()
+                .expect("scripted spreads")
+                .into_iter()
+                .map(
+                    |spread| jftrade_integration_futu::OptionStrategySpreadItem { spread },
+                )
+                .collect(),
+        })
+    }
+}
+
+/// Non-spread strategy reader modelling `Qot_GetOptionStrategy` (3256).
+#[derive(Debug)]
+struct ScriptedStrategyReader {
+    legs: Mutex<Option<Vec<jftrade_integration_futu::OptionStrategyLeg>>>,
+    fail: bool,
+}
+
+impl jftrade_integration_futu::OptionStrategyReadPort for ScriptedStrategyReader {
+    fn query(
+        &self,
+        _: &jftrade_integration_futu::OptionStrategyQuery,
+    ) -> Result<
+        jftrade_integration_futu::OptionStrategySnapshot,
+        jftrade_integration_futu::OptionStrategyQueryError,
+    > {
+        if self.fail {
+            return Err(jftrade_integration_futu::OptionStrategyQueryError::InvalidResponse(
+                "Qot_GetOptionStrategy response was dropped".to_owned(),
+            ));
+        }
+        // Go's fixture answers `S2C.StrategyList` with a single entry whose
+        // `MultiLegs` is the whole requested combination, so the snapshot has
+        // exactly one item carrying every scripted leg.
+        let multi_legs = self
+            .legs
+            .lock()
+            .expect("scripted legs")
+            .clone()
+            .expect("scripted legs");
+        Ok(jftrade_integration_futu::OptionStrategySnapshot {
+            items: vec![jftrade_integration_futu::OptionStrategyItem {
+                code: "combo".to_owned(),
+                name: "combo".to_owned(),
+                option_strategy: 6,
+                stock_owner: jftrade_integration_futu::OptionStrategySecurity {
+                    market: "US".to_owned(),
+                    code: "AAPL".to_owned(),
+                    quote_market: "US".to_owned(),
+                    trade_market: "US".to_owned(),
+                    instrument_id: "US.AAPL".to_owned(),
+                },
+                multi_legs,
+            }],
+        })
+    }
+}
+
+/// Builds a combo preview port for a scripted spread/strategy legality pair.
+fn option_combo_port(
+    spread: Arc<dyn jftrade_integration_futu::OptionStrategySpreadReadPort>,
+    strategy: Arc<dyn jftrade_integration_futu::OptionStrategyReadPort>,
+) -> ProductionExecutionPort {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_option_strategy_spread(Some(spread));
+    runtime.set_option_strategy(Some(strategy));
+    runtime.set_option_strategy_analysis(Some(Arc::new(OptionAnalysisFixture)));
+    runtime.set(
+        Some(Arc::new(ComboPreviewTradeReader::default()) as Arc<dyn TradeReadPort>),
+        Some(true),
+    );
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, false);
+    let (store, directory) = execution_store();
+    let _ = directory.keep();
+    ProductionExecutionPort {
+        store,
+        active_provider_state: state,
+        trade_logged_in: Some(true),
+        trade_read_port: None,
+        trade_write_port: None,
+        trade_runtime: Some(runtime),
+        cancel_inflight: Arc::new(std::sync::Mutex::new(std::collections::BTreeSet::new())),
+        risk_coordinator: None,
+        default_trading_environment: None,
+        notification_projector: None,
+    }
+}
+
+/// Parity: go:452dea11:pkg/futu/adapter_combo_transport_test.go:16
+/// TestFutuOptionComboPreviewLegalityAndTransportFailures.
+///
+/// Go drives one loopback server through the combo preview: malformed legs and
+/// an unparsable underlying fail before any RPC, a missing/illegal spread is a
+/// business rejection, an unknown account fails resolution, and a dropped
+/// spread/max-quantity/analysis response must surface as an error instead of a
+/// manufactured `{allowed:true}` preview.
+#[test]
+fn option_combo_preview_rejects_invalid_legality_and_hidden_transport_failures() {
+    let port = || {
+        option_combo_port(
+            Arc::new(ScriptedSpreadReader::with_spreads([10.0])),
+            Arc::new(ScriptedStrategyReader {
+                legs: Mutex::new(Some(Vec::new())),
+                fail: false,
+            }),
+        )
+    };
+
+    // Invalid leg symbol: `US.BAD` cannot be split into a supported market, so
+    // the intent is rejected before any OpenD call.
+    let mut bad_leg = option_combo_fixture_payload();
+    bad_leg["legs"][0]["instrumentId"] = json!("BAD");
+    let error = port()
+        .combo_preview(&bad_leg)
+        .expect_err("an invalid combo leg symbol must fail closed");
+    assert!(
+        matches!(
+            &error,
+            ExecutionWritePortError::Failed { status: 400, code, .. } if code == "BAD_REQUEST"
+        ),
+        "invalid leg symbol error = {error:?}"
+    );
+
+    // Invalid side: Go's `normalizeExecutionSide` accepts BUY/SELL only.
+    let mut bad_side = option_combo_fixture_payload();
+    bad_side["legs"][0]["side"] = json!("HOLD");
+    let error = port()
+        .combo_preview(&bad_side)
+        .expect_err("an invalid combo leg side must fail closed");
+    assert!(
+        matches!(
+            &error,
+            ExecutionWritePortError::Failed { status: 400, code, .. } if code == "BAD_REQUEST"
+        ),
+        "invalid leg side error = {error:?}"
+    );
+
+    // Invalid underlying: `futuSecurityFromSymbol` fails on an unqualified id.
+    let mut bad_owner = option_combo_fixture_payload();
+    bad_owner["underlyingInstrumentId"] = json!("BAD");
+    let error = port()
+        .combo_preview(&bad_owner)
+        .expect_err("an invalid underlying must fail closed");
+    assert!(
+        matches!(
+            &error,
+            ExecutionWritePortError::Failed { status: 400, code, .. } if code == "BAD_REQUEST"
+        ),
+        "invalid underlying error = {error:?}"
+    );
+
+    // Missing spread: vertical requires a positive spread. Go reports the
+    // business reason; the wire contract for every combo rejection is a 400
+    // BAD_REQUEST request error, so the status/code pair is what must match.
+    let mut no_spread = option_combo_fixture_payload();
+    no_spread.as_object_mut().expect("object").remove("spread");
+    let error = port()
+        .combo_preview(&no_spread)
+        .expect_err("a strategy that requires a spread must reject its absence");
+    assert!(
+        matches!(
+            &error,
+            ExecutionWritePortError::Failed { status: 400, code, .. } if code == "BAD_REQUEST"
+        ),
+        "missing spread error = {error:?}"
+    );
+
+    // Illegal spread: 5.0 is absent from the OpenD spread list, which Go
+    // rejects with ILLEGAL_OPTION_SPREAD and must never turn into a preview.
+    let mut illegal = option_combo_fixture_payload();
+    illegal["spread"] = json!(5.0);
+    let error = port()
+        .combo_preview(&illegal)
+        .expect_err("a spread outside the OpenD list must fail closed");
+    assert!(
+        matches!(
+            &error,
+            ExecutionWritePortError::Failed { status: 400, code, .. } if code == "BAD_REQUEST"
+        ),
+        "illegal spread error = {error:?}"
+    );
+
+    // Dropped 3258 response: the legality read fails and the transport error
+    // must be surfaced instead of being swallowed into an allowed preview.
+    let dropped = option_combo_port(
+        Arc::new(ScriptedSpreadReader {
+            items: Mutex::new(Some(vec![10.0])),
+            fail: true,
+        }),
+        Arc::new(ScriptedStrategyReader {
+            legs: Mutex::new(Some(Vec::new())),
+            fail: false,
+        }),
+    );
+    dropped
+        .combo_preview(&option_combo_fixture_payload())
+        .expect_err("a dropped spread-legality response must not be hidden");
+}
+
+/// Parity: go:452dea11:pkg/futu/adapter_combo_transport_test.go:80
+/// TestFutuOptionComboNonSpreadOpenDLegalityBranches.
+///
+/// A `straddle` has no spread, so Go validates the selected contracts through
+/// `Qot_GetOptionStrategy` (3256): a `strategyList` without the requested legs
+/// yields ILLEGAL_OPTION_COMBINATION, a matching `multiLegs` entry is accepted,
+/// and a dropped 3256 response propagates as an error.
+#[test]
+fn option_combo_preview_validates_non_spread_legality_against_opend_strategies() {
+    let leg = |code: &str, side: i32| jftrade_integration_futu::OptionStrategyLeg {
+        security: jftrade_integration_futu::OptionStrategySecurity {
+            market: "US".to_owned(),
+            code: code.to_owned(),
+            quote_market: "US".to_owned(),
+            trade_market: "US".to_owned(),
+            instrument_id: format!("US.{code}"),
+        },
+        side: Some(side),
+        qty_ratio: Some(1.0),
+        position_id: None,
+        pred_side: None,
+    };
+    // The Go fixture answers `StrategyList` with `MultiLegs: legs`, i.e. the
+    // exact two-leg combination the caller requested.
+    let matching_legs = || {
+        vec![
+            leg("AAPL260717C00200000", 1),
+            leg("AAPL260717C00210000", 2),
+        ]
+    };
+
+    let payload = || {
+        let mut value = option_combo_fixture_payload();
+        value["optionStrategy"] = json!("straddle");
+        value.as_object_mut().expect("object").remove("spread");
+        value
+    };
+
+    // An empty strategy list cannot contain the requested combination.
+    let mismatch = option_combo_port(
+        Arc::new(ScriptedSpreadReader::with_spreads([10.0])),
+        Arc::new(ScriptedStrategyReader {
+            legs: Mutex::new(Some(Vec::new())),
+            fail: false,
+        }),
+    );
+    let error = mismatch
+        .combo_preview(&payload())
+        .expect_err("an unmatched strategy list must fail closed");
+    // Go reports the business reason through `deniedProductRule`, which the
+    // route maps to a 400 request error, so the status is the contract that
+    // must hold; the reason text has to stay actionable.
+    match &error {
+        ExecutionWritePortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(*status, 400, "unmatched combination status: {error:?}");
+            assert!(
+                matches!(code.as_str(), "BAD_REQUEST" | "ILLEGAL_OPTION_COMBINATION"),
+                "unmatched combination code = {code:?}"
+            );
+            assert!(
+                message.to_ascii_lowercase().contains("legal")
+                    || message.to_ascii_lowercase().contains("combination"),
+                "unmatched combination message = {message:?}"
+            );
+        }
+        other => panic!("unmatched combination error = {other:?}"),
+    }
+
+    // Matching legs: Go returns a nil result, i.e. the preview may continue.
+    let matching = option_combo_port(
+        Arc::new(ScriptedSpreadReader::with_spreads([10.0])),
+        Arc::new(ScriptedStrategyReader {
+            legs: Mutex::new(Some(matching_legs())),
+            fail: false,
+        }),
+    );
+    matching
+        .combo_preview(&payload())
+        .expect("matching strategy legs must allow the non-spread preview");
+
+    // Dropped 3256 response must surface as an error.
+    let dropped = option_combo_port(
+        Arc::new(ScriptedSpreadReader::with_spreads([10.0])),
+        Arc::new(ScriptedStrategyReader {
+            legs: Mutex::new(Some(Vec::new())),
+            fail: true,
+        }),
+    );
+    dropped
+        .combo_preview(&payload())
+        .expect_err("a dropped strategy response must not be hidden");
+}
+
+/// Parity: go:452dea11:pkg/futu/adapter_combo_transport_test.go:199
+/// TestFutuComboPlaceValidatedLegAccountAndTransportFailures.
+///
+/// The place route reuses the same intent validation: an invalid leg side, a
+/// missing account, a dropped `Trd_PlaceComboOrder` response, a mixed product
+/// class and a zero leg ratio must all fail. Go checks the mixed/zero-ratio legs
+/// through `validateComboIntent`, which runs before any submission.
+#[test]
+fn combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures() {
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let port = combo_place_port(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
+
+    // Invalid leg side fails during intent parsing.
+    let mut bad_side = option_combo_fixture_payload();
+    bad_side["legs"][0]["side"] = json!("HOLD");
+    bad_side["previewId"] = json!("preview-x");
+    let error = port
+        .place_combo(&bad_side)
+        .expect_err("placing an invalid combo side must fail");
+    assert!(
+        matches!(
+            &error,
+            ExecutionWritePortError::Failed { status: 400, code, .. } if code == "BAD_REQUEST"
+        ),
+        "invalid side place error = {error:?}"
+    );
+
+    // Missing account is rejected while resolving the trade account.
+    let mut missing_account = option_combo_fixture_payload();
+    missing_account["previewId"] = json!("preview-x");
+    missing_account["accountId"] = json!("missing");
+    let error = port
+        .place_combo(&missing_account)
+        .expect_err("placing a combo with a missing account must fail");
+    assert!(
+        matches!(
+            &error,
+            ExecutionWritePortError::Failed { status: 400, code, .. } if code == "BAD_REQUEST"
+        ),
+        "missing account place error = {error:?}"
+    );
+
+    // Fully formed mixed-product and zero-ratio intents are rejected by the
+    // combination validator before submission.
+    for (label, mutate) in [
+        (
+            "mixed product class",
+            Box::new(|value: &mut Value| {
+                value["legs"][1]["productClass"] = json!("future");
+            }) as Box<dyn Fn(&mut Value)>,
+        ),
+        (
+            "zero ratio",
+            Box::new(|value: &mut Value| {
+                value["legs"][1]["ratio"] = json!(0);
+            }) as Box<dyn Fn(&mut Value)>,
+        ),
+    ] {
+        let mut payload = option_combo_fixture_payload();
+        mutate(&mut payload);
+        payload["previewId"] = json!("preview-x");
+        let error = port
+            .place_combo(&payload)
+            .expect_err(&format!("{label} combo must fail validation"));
+        assert!(
+            matches!(
+                &error,
+                ExecutionWritePortError::Failed { status: 400, code, .. } if code == "BAD_REQUEST"
+            ),
+            "{label} error = {error:?}"
+        );
+    }
+    assert_eq!(
+        writer.placed_combo.lock().expect("placed combos").len(),
+        0,
+        "an invalid combo intent must never reach OpenD"
+    );
+}
+
 /// Write fixture that always fails at the OpenD transport boundary, counting
 /// how many times the adapter attempted the mutation.
 #[derive(Debug, Default)]
@@ -1181,6 +1859,37 @@ impl TradeWritePort for DisconnectingTradeWriter {
 }
 
 /// Builds a port whose only write dependency is the supplied failing writer.
+/// Port whose writer is a scripted combo writer. The combo place route only
+/// needs the mutation boundary: intent validation and account resolution run
+/// before any submission, so the writer must never be reached by invalid
+/// intents.
+fn combo_place_port(writer: Arc<dyn TradeWritePort>) -> ProductionExecutionPort {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    // `writer()` and `reader()` both prefer the runtime snapshot whenever a
+    // trade runtime is installed, so the logged-in session and the scripted
+    // writer have to be published through that same owner.
+    runtime.set(None, Some(true));
+    runtime.set_writer(Some(Arc::clone(&writer)));
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, false);
+    let (store, directory) = execution_store();
+    let _ = directory.keep();
+    ProductionExecutionPort {
+        store,
+        active_provider_state: state,
+        trade_logged_in: Some(true),
+        trade_read_port: None,
+        trade_write_port: Some(writer),
+        trade_runtime: Some(runtime),
+        cancel_inflight: Arc::new(std::sync::Mutex::new(std::collections::BTreeSet::new())),
+        risk_coordinator: None,
+        default_trading_environment: None,
+        notification_projector: None,
+    }
+}
+
 fn write_port_with_writer(writer: Arc<dyn TradeWritePort>) -> ProductionExecutionPort {
     let state = Arc::new(ActiveProviderState::new(Some(
         jftrade_settings::MarketDataProvider::Futu,

@@ -51,14 +51,3 @@ pub(crate) fn sec_market(trd_market: i32) -> i32 {
         _ => 0,
     }
 }
-
-pub(crate) fn market_label(value: i32) -> String {
-    match value {
-        1 => "HK",
-        2 => "US",
-        3 => "CN",
-        6 => "SG",
-        _ => "UNKNOWN",
-    }
-    .to_owned()
-}

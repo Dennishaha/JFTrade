@@ -11,7 +11,7 @@ use jftrade_store_sqlite::StoredExecutionOrder;
 mod markets;
 
 pub(super) use markets::{
-    market_label, quote_market, quote_market_label, sec_market, trade_market,
+    quote_market, quote_market_label, sec_market, trade_market,
 };
 
 #[derive(Clone, Debug)]
