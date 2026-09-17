@@ -2085,6 +2085,70 @@ fn broker_capabilities_keep_warrants_hk_only_and_futures_discoverable_in_hk_us()
 }
 
 #[test]
+fn broker_capabilities_login_gate_uses_the_opend_connect_status_push() {
+    // Parity: go:pkg/futu/adapter_capability_runtime_test.go:85
+    // TestFutuCapabilityConnectionAccountAndEntitlementDecisions (login half).
+    // Go downgrades a connected socket to OPEND_NOT_LOGGED_IN for the required
+    // session and keeps the push authoritative until the next generation.
+    use jftrade_integration_futu::{OpenDQuoteRightsOwner, QuoteRightField};
+    use std::sync::Arc as StdArc;
+
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    runtime.set_market_microstructure(Some(Arc::new(FakeMarketMicrostructureReader)));
+    let owner = StdArc::new(OpenDQuoteRightsOwner::new());
+    runtime
+        .quote_rights
+        .set_acquisition(StdArc::clone(&owner), 1);
+    owner.store_connect_status(1, false, true, std::time::SystemTime::now());
+
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    state.set_readiness(false, true, true);
+    let port = ProductionBrokerPort {
+        active_provider_state: state,
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(Arc::clone(&runtime)),
+    };
+    let read = port
+        .read("/api/v1/brokers/capabilities", "")
+        .expect("read capabilities");
+    let item = read["runtime"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["featureId"] == "market.depth" && item["market"] == "US")
+        .expect("depth capability");
+    assert_eq!(item["evaluation"]["connection"]["code"], "OPEND_NOT_LOGGED_IN");
+
+    // A trade-only capability only needs the trade session, which is logged in.
+    let trade = port
+        .read("/api/v1/brokers/capabilities", "")
+        .expect("trade capabilities");
+    let item = trade["runtime"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["featureId"] == "execution.order_place" && item["market"] == "US")
+        .expect("order place capability");
+    assert_ne!(item["evaluation"]["connection"]["code"], "OPEND_NOT_LOGGED_IN");
+
+    // The entitlement push for the same generation is what makes a read
+    // capability's quote right available.
+    owner.store_quote_right(
+        1,
+        jftrade_integration_futu::QuoteRightSnapshot {
+            hk_qot_right: 3,
+            us_qot_right: 3,
+            cn_qot_right: 3,
+            ..Default::default()
+        },
+        std::time::SystemTime::now(),
+    );
+    assert_eq!(owner.right_value(QuoteRightField::Us), Some(3));
+}
+
+#[test]
 fn broker_capabilities_stay_degraded_until_a_generation_verifies_quote_rights() {
     // Parity: go:pkg/futu/adapter_capabilities.go ensureQuoteRights /
     // evaluateQuoteCapability. A connected socket alone never proves an
@@ -2117,8 +2181,11 @@ fn broker_capabilities_stay_degraded_until_a_generation_verifies_quote_rights() 
         "QUOTE_RIGHT_UNVERIFIED"
     );
 
-    runtime.quote_rights.set_generation(1);
     let generation = 1;
+    runtime.quote_rights.set_acquisition(
+        std::sync::Arc::new(jftrade_integration_futu::OpenDQuoteRightsOwner::new()),
+        generation,
+    );
     runtime.quote_rights.store_snapshot(
         generation,
         jftrade_integration_futu::QuoteRightSnapshot {

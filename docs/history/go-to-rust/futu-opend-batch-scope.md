@@ -1604,3 +1604,80 @@ pnpm run check:rust:architecture
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+## 批次：`pkg/futu/adapter_capability_runtime_test.go`（7 项，含 1 项 partial）
+
+### 本批结论
+
+P0/P1 高风险：连接世代 fencing、quote-right 单飞加载、失败缓存与重连刷新、legacy
+`GetUserInfo` 不推断细分权限。7 项中 6 项 `[x]` function_exact，1 项 `[~]` partial。
+
+### 本批发现与修复
+
+1. **能力权限 owner 在生产路径没有写入方（P0 权限/公开 API）**
+   - 差异：`quote_rights.rs` 早已实现世代 fencing 状态机，但生产组合从未写入它——
+     OpenD `Notify`（协议 1003）推送没有解码入口，`GetUserInfo` 也没有 wire 读取，
+     因此 `/api/v1/brokers/capabilities` 的 read 能力永远停在
+     `QUOTE_RIGHT_UNVERIFIED`，而 Go 会在连接建立后加载一次并随推送更新。
+   - 修复位置：新增 `crates/jftrade-integration-futu/src/open_d_quote_rights.rs`
+     作为唯一 owner——`query_quote_rights` 拉取 `GetUserInfo`（fenced 到代际，
+     RPC 前后各校验一次）、`OpenDQuoteRightsOwner` 持有状态/代际/单飞锁与失败缓存、
+     `ingest_notification` 处理 `ConnStatus`/`QotRight` 推送。
+   - 回归测试：
+     `open_d_quote_rights::tests::entitlement_query_runs_once_per_connection`
+     （20 并发仅 1 次 GetUserInfo）、
+     `...::entitlement_failure_is_cached_and_refreshed_after_reconnect`、
+     `...::cached_failure_expires_at_the_retry_interval`、
+     `...::stale_snapshot_is_not_reused_for_a_new_generation`、
+     `...::stale_notifications_and_failure_writes_are_fenced`、
+     `...::user_info_conversion_does_not_infer_detailed_entitlements`、
+     `...::notification_keeps_state_fenced_and_revision_observable`。
+
+2. **通知推送未接入会话事件泵（P1）**
+   - 差异：`OpenDSessionEventPump` 把非行情帧直接交给 `decode_quote_push`，协议
+     1003 系统通知被静默丢弃，`ConnStatus` 登录态与 `QotRight` 权限无法到达 owner。
+   - 修复位置：`session_event_pump.rs` 新增 `OpenDCapabilityNotificationSink`
+     与 1003 分支（先于 quote push 解码）；`session_coordinator.rs` 增加
+     `set_capability_sink` 并把 sink 传入 pump；`lib.rs` 导出
+     `decode_capability_notification` 与 `PROTO_NOTIFY = 1003`。
+
+3. **连接登录态未进入能力判定（P1）**
+   - 差异：投影只按 socket/lib 就绪判定 connection，Go 会在 quote/trade 会话未登录时
+     降级为 `OPEND_NOT_LOGGED_IN`（read 看 quote，交易看 trade），并使用 OpenD 观测时间。
+   - 修复位置：`product_broker_capabilities_projection.rs` 的 `evaluation()` 读取
+     `runtime.quote_rights.connect_status(read_access)`，并新增 RFC3339 时间格式化。
+   - 回归测试：
+     `product_production_ports_trade_tests.rs::broker_capabilities_login_gate_uses_the_opend_connect_status_push`。
+
+4. **engine 侧 owner 缺少生产安装入口（P0 唯一写入所有权）**
+   - 差异：engine 的 `QuoteRightsOwner` 只持有状态、无写入方；只有测试能塞值。
+   - 修复位置：`product_trade_runtime_quote_rights.rs` 改为持有 activation 时创建的
+     `OpenDQuoteRightsOwner` 句柄；新增
+     `product_trade_runtime_quote_rights_projection.rs`（`install_quote_rights_owner` /
+     `refresh_quote_rights` free impl，保持生产文件 ≤800 行）；
+     `product_runtime_provider_activation.rs::activate_quote_rights` 在 provider 激活时
+     安装 sink、发布代际并做首次拉取；`product_runtime_start.rs` 同样在启动路径接线。
+
+### 边界说明
+
+- Go `TestFutuCapabilityQuoteRightProductsAndStates` 的逐产品字段选择矩阵
+  （prediction/option/future/index、SH/SZ 回落 CN）由 `QuoteRightField` 承载并通过
+  `user_info_conversion_does_not_infer_detailed_entitlements` 断言的 SH/SZ/US option 分支
+  部分覆盖，仍保留 `[~]` partial；其余产品字段的逐条断言待后续批次补齐。
+- Go `context.Canceled`/`DeadlineExceeded` 文本过滤在 Rust 无对应实现：Rust 在
+  `query_quote_rights` 用代际校验与 typed error 表达同一失败语义，因此不迁移文本分类器。
+- `GetUserInfo` 的 `flag` 字段 Rust 传 `None`（OpenD 默认返回全部信息），与 Go 的
+  `GetQuoteRights` 行为一致；请求体由 `proto/futu/GetUserInfo.proto` 生成。
+- 本批次未改动 `contracts/openapi/openapi.json`、`proto/` 或冻结 fixture：capability wire
+  形状不变，仅补上实际写入方与登录态判定。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast   # 1636 passed, 1 skipped
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+pnpm run check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```

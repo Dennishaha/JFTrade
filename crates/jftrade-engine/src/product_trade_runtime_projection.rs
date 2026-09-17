@@ -782,6 +782,12 @@ pub(crate) mod product_trade_runtime_prediction_state;
 #[path = "product_trade_runtime_quote_rights.rs"]
 pub(crate) mod product_trade_runtime_quote_rights;
 
+/// Quote-rights composition seams. The acquisition owner itself lives in
+/// `product_trade_runtime_quote_rights`; these helpers keep the projection
+/// file inside the bounded production-file budget.
+#[path = "product_trade_runtime_quote_rights_projection.rs"]
+mod product_trade_runtime_quote_rights_projection;
+
 #[path = "product_trade_runtime_broker_routes.rs"]
 mod product_trade_runtime_broker_routes;
 

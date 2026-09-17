@@ -190,6 +190,7 @@ pub(super) fn provider_activation(
                     let provider = OpenDProviderRuntime::start(configuration)
                         .map_err(|error| error.to_string())?;
                     let trade_logged_in = provider.trade_logged_in();
+                    activate_quote_rights(&trade_runtime_for_activation, &provider);
                     let coordinator_handle = provider.coordinator();
                     let client = {
                         let coordinator = coordinator_handle.lock().map_err(|_| {
@@ -440,6 +441,50 @@ pub(super) fn provider_activation(
         }
         Ok(())
     }))
+}
+
+/// Wires the OpenD capability owner into the authenticated session.
+///
+/// Go's `NewBrokerAdapter` registers `SubscribeNotify` and
+/// `EnsureSystemNotifications`, so connect-status and entitlement pushes reach
+/// the adapter's fenced state, and `ensureQuoteRights` loads `GetUserInfo`
+/// once per connection. Do the same here: install the generation-fenced sink
+/// on the coordinator, publish the initial generation, then attempt the first
+/// entitlement refresh. A failed refresh is not fatal — the capability
+/// projection reports `QUOTE_RIGHT_QUERY_FAILED`/`QUOTE_RIGHT_UNVERIFIED` and
+/// the owner retries after the Go retry interval.
+fn activate_quote_rights(
+    trade_runtime: &Arc<SharedTradeReadRuntime>,
+    provider: &OpenDProviderRuntime,
+) {
+    use jftrade_integration_futu::{OpenDCapabilityNotificationSink, OpenDQuoteRightsOwner};
+
+    #[derive(Debug)]
+    struct OwnerSink(Arc<OpenDQuoteRightsOwner>);
+
+    impl OpenDCapabilityNotificationSink for OwnerSink {
+        fn ingest_capability_notification(
+            &self,
+            generation: u64,
+            response: &jftrade_integration_futu::trade_proto::notify::Response,
+        ) {
+            self.0
+                .ingest_notification(generation, response, std::time::SystemTime::now());
+        }
+    }
+
+    let owner = Arc::new(OpenDQuoteRightsOwner::new());
+    let coordinator = provider.coordinator();
+    let generation = {
+        let mut guard = coordinator
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let generation = guard.generation();
+        guard.set_capability_sink(Arc::new(OwnerSink(Arc::clone(&owner))));
+        generation
+    };
+    trade_runtime.install_quote_rights_owner(owner, generation);
+    let _ = trade_runtime.refresh_quote_rights(&coordinator);
 }
 
 pub(crate) fn install_security_catalog_readers(

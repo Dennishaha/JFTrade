@@ -349,10 +349,20 @@ fn evaluation(
     let connection_ready = provider.provider.is_some()
         && provider.opend_ready
         && runtime.snapshot().client.is_some();
-    let connection = if connection_ready {
-        check("available", "OPEND_CONNECTED", "OpenD session is connected.", &now)
-    } else {
+    let connection = if !connection_ready {
         check("unavailable", "OPEND_CONNECTION_UNAVAILABLE", "OpenD session is unavailable.", &now)
+    } else if let Some(status) = runtime.quote_rights.connect_status(spec.access == "read") {
+        // Go `EvaluateCapability` downgrades a connected socket when the
+        // required quote/trade session is not logged in, and reports the
+        // OpenD-observed timestamp instead of the projection clock.
+        check(
+            "unavailable",
+            "OPEND_NOT_LOGGED_IN",
+            "OpenD is connected but the required quote or trade session is not logged in.",
+            &timestamp_rfc3339(status),
+        )
+    } else {
+        check("available", "OPEND_CONNECTED", "OpenD session is connected.", &now)
     };
     let account = if spec.access == "read" {
         check("available", "NOT_REQUIRED", "This runtime dimension is not required.", &now)
@@ -458,6 +468,17 @@ fn quote_right_state(
 
 fn check(state: &str, code: &str, reason: &str, checked_at: &str) -> Value {
     json!({"state": state, "code": code, "reason": reason, "checkedAt": checked_at})
+}
+
+fn timestamp_rfc3339(at: std::time::SystemTime) -> String {
+    let now = time::OffsetDateTime::now_utc();
+    time::OffsetDateTime::from(at)
+        .format(&Rfc3339)
+        .unwrap_or_else(|_| checked_at_of(now))
+}
+
+fn checked_at_of(now: time::OffsetDateTime) -> String {
+    now.format(&Rfc3339).unwrap_or_else(|_| String::new())
 }
 
 fn feature_runtime_available(id: &str, provider: &ProviderRuntimeSnapshot, runtime: &SharedTradeReadRuntime) -> bool {

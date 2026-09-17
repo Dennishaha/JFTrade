@@ -40,6 +40,61 @@ pub struct QuoteRightSnapshot {
 }
 
 impl QuoteRightSnapshot {
+    /// Go `quoteRightsFromUserInfo`: convert the GetUserInfo legacy shape into
+    /// the QotRight snapshot without inferring detailed entitlements. A field
+    /// that OpenD did not report stays `None`, so a legacy-only HK/CN field can
+    /// never authorize SH/SZ or the US option product.
+    pub fn from_user_info(info: &crate::trade_proto::get_user_info::S2c) -> Option<Self> {
+        fn has_any(info: &crate::trade_proto::get_user_info::S2c) -> bool {
+            info.hk_qot_right.is_some()
+                || info.us_qot_right.is_some()
+                || info.cn_qot_right.is_some()
+                || info.sh_qot_right.is_some()
+                || info.sz_qot_right.is_some()
+                || info.hk_option_qot_right.is_some()
+                || info.has_us_option_qot_right.is_some()
+                || info.us_option_qot_right.is_some()
+                || info.hk_future_qot_right.is_some()
+                || info.us_future_qot_right.is_some()
+                || info.us_index_qot_right.is_some()
+                || info.us_otc_qot_right.is_some()
+                || info.us_cme_future_qot_right.is_some()
+                || info.us_cbot_future_qot_right.is_some()
+                || info.us_nymex_future_qot_right.is_some()
+                || info.us_comex_future_qot_right.is_some()
+                || info.us_cboe_future_qot_right.is_some()
+                || info.sg_future_qot_right.is_some()
+                || info.jp_future_qot_right.is_some()
+                || info.cc_qot_right.is_some()
+                || info.sg_stock_qot_right.is_some()
+                || info.my_stock_qot_right.is_some()
+                || info.jp_stock_qot_right.is_some()
+                || info.ec_qot_right.is_some()
+        }
+        if !has_any(info) {
+            return None;
+        }
+        Some(Self {
+            hk_qot_right: info.hk_qot_right.unwrap_or(0),
+            us_qot_right: info.us_qot_right.unwrap_or(0),
+            cn_qot_right: info.cn_qot_right.unwrap_or(0),
+            hk_option_qot_right: info.hk_option_qot_right,
+            has_us_option_qot_right: info.has_us_option_qot_right.unwrap_or(false),
+            us_option_qot_right: info.us_option_qot_right,
+            us_index_qot_right: info.us_index_qot_right,
+            hk_future_qot_right: info.hk_future_qot_right,
+            us_future_qot_right: info.us_future_qot_right,
+            us_cme_future_qot_right: info.us_cme_future_qot_right,
+            us_cbot_future_qot_right: info.us_cbot_future_qot_right,
+            us_nymex_future_qot_right: info.us_nymex_future_qot_right,
+            us_comex_future_qot_right: info.us_comex_future_qot_right,
+            us_cboe_future_qot_right: info.us_cboe_future_qot_right,
+            sh_qot_right: info.sh_qot_right,
+            sz_qot_right: info.sz_qot_right,
+            ec_qot_right: info.ec_qot_right,
+        })
+    }
+
     /// Test/composition helper; OpenD wire decoding is the only other writer.
     pub fn from_notification(rights: &QotRight) -> Self {
         Self {

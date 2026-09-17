@@ -96,6 +96,7 @@ fn main() {
         "../../proto/futu/Trd_UpdateOrder.proto",
         "../../proto/futu/Trd_UpdateOrderFill.proto",
         "../../proto/futu/Trd_Notify.proto",
+        "../../proto/futu/GetUserInfo.proto",
         "../../proto/futu/KeepAlive.proto",
     ];
     for proto in protos {

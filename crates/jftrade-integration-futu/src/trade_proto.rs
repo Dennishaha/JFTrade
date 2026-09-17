@@ -756,6 +756,9 @@ pub mod notify {
 pub mod keep_alive {
     include!(concat!(env!("OUT_DIR"), "/keep_alive.rs"));
 }
+pub mod get_user_info {
+    include!(concat!(env!("OUT_DIR"), "/get_user_info.rs"));
+}
 
 #[cfg(test)]
 #[path = "trade_proto_tests.rs"]

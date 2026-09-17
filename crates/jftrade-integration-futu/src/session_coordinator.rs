@@ -67,6 +67,7 @@ pub struct OpenDSessionCoordinator {
     session: Option<OpenDInitializedSession>,
     pending_reconnect: Option<PendingReconnect>,
     session_resolver: Option<Arc<dyn QuoteSessionResolver>>,
+    capability_sink: Option<Arc<dyn crate::OpenDCapabilityNotificationSink>>,
     closed: bool,
 }
 
@@ -111,6 +112,7 @@ impl OpenDSessionCoordinator {
             session: Some(session),
             pending_reconnect: None,
             session_resolver: None,
+            capability_sink: None,
             closed: false,
         };
         if let Err(error) = coordinator.execute_actions(&actions, now_ms) {
@@ -270,7 +272,8 @@ impl OpenDSessionCoordinator {
             let (generation, reason) = self.attempt_reconnect(now_unix_millis(now)?)?;
             return Ok(OpenDSessionCoordinatorOutcome::Reconnected { generation, reason });
         }
-        let pump = OpenDSessionEventPump::new(session.clone());
+        let pump = OpenDSessionEventPump::new(session.clone())
+            .with_capability_sink(self.capability_sink.clone());
         match pump.poll_once(&self.lifecycle, now, timeout)? {
             OpenDSessionPumpOutcome::ReconnectRequired { reason, .. } => {
                 self.begin_reconnect(reason)?;
@@ -292,6 +295,13 @@ impl OpenDSessionCoordinator {
 
     pub fn lifecycle(&self) -> &OpenDSubscriptionLifecycle {
         &self.lifecycle
+    }
+
+    /// Installs the generation-fenced capability notification sink. The
+    /// coordinator stays the owner of the authenticated session; the sink only
+    /// observes `ConnStatus`/`QotRight` pushes for the active generation.
+    pub fn set_capability_sink(&mut self, sink: Arc<dyn crate::OpenDCapabilityNotificationSink>) {
+        self.capability_sink = Some(sink);
     }
 
     pub fn session_clone(&self) -> Result<OpenDInitializedSession, OpenDSessionCoordinatorError> {

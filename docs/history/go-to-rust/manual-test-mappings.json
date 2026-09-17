@@ -14987,53 +14987,53 @@
     "evidence_type": "missing"
   },
   "pkg/futu/adapter_capability_runtime_test.go:18:TestFutuCapabilityNotificationsAndRuntimeAggregation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/open_d_quote_rights_tests.rs::open_d_quote_rights::tests::notification_keeps_state_fenced_and_revision_observable",
+    "conclusion": "function_exact：通知克隆不可被调用方后续修改、connect status 世代/登录态写入、右侧权限在owner内可读；聚合与 constructors 由 projection 侧既有测试（broker_capabilities_*）承接。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_capability_runtime_test.go:85:TestFutuCapabilityConnectionAccountAndEntitlementDecisions": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_capabilities_login_gate_uses_the_opend_connect_status_push",
+    "conclusion": "function_exact：read 能力在 quote 未登录时降级为 OPEND_NOT_LOGGED_IN，trade 能力只看 trade 登录；未配置/连接不可用分支由 broker_capabilities_quote_right_unverified_when_opend_disconnected 与 preserve_catalog 测试承接。账户上下文/环境/市场不匹配与 PREDICTION_ACCOUNT_INELIGIBLE 判定见 product_broker_capabilities_projection.rs，Go 的 EvaluateCapability 聚合细节保留为 partial（见该文件说明）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_capability_runtime_test.go:202:TestFutuCapabilityQuoteRightProductsAndStates": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/quote_rights_tests.rs::quote_rights::tests::product_states_match_go_quote_right_table",
+    "conclusion": "partial：Level1/2/SF/Level3/Bmp/No/Unknown 状态表与 maximumQuoteRight 已有真实断言；Go 的逐产品字段选择矩阵（prediction/option/future/index 与 fallback）在 Rust 由 QuoteRightField + product 投影承接，尚未逐条断言，保留 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast",
+    "evidence_type": "partial"
   },
   "pkg/futu/adapter_capability_runtime_test.go:265:TestFutuCapabilityLoadsQuoteRightsOncePerConnection": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/open_d_quote_rights_tests.rs::open_d_quote_rights::tests::entitlement_query_runs_once_per_connection",
+    "conclusion": "function_exact（含P0并发修复）：20 个并发能力读取共享一次 GetUserInfo；修复前 owner 无单飞复检，会重复拉取。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_capability_runtime_test.go:313:TestFutuCapabilityCachesQuoteRightFailuresAndRefreshesAfterReconnect": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/open_d_quote_rights_tests.rs::open_d_quote_rights::tests::entitlement_failure_is_cached_and_refreshed_after_reconnect",
+    "conclusion": "function_exact：同一世代失败只查询一次并缓存在 3s 重试窗口内；generation 变化后缓存失效、用新世代重新拉取；分离的缓存过期断言见 cached_failure_expires_at_the_retry_interval。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_capability_runtime_test.go:366:TestQuoteRightsFromUserInfoDoesNotInferDetailedRights": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/open_d_quote_rights_tests.rs::open_d_quote_rights::tests::user_info_conversion_does_not_infer_detailed_entitlements",
+    "conclusion": "function_exact：空 S2C 返回 None；legacy CN 只填 cn，不推断 SH/SZ/USOption；hasUSOption 只影响可用性提示，不产生 level；US index 保留。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_capability_runtime_test.go:405:TestFutuCapabilityRejectsStaleNotificationsAndFailureWrites": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/open_d_quote_rights_tests.rs::open_d_quote_rights::tests::stale_notifications_and_failure_writes_are_fenced",
+    "conclusion": "function_exact（含P0世代fencing）：stale QotRight 推送被拒绝、同世代通知消解在途查询失败、断连世代保持 unverified。参数化 cancellation/deadline 不过滤（Rust 无 Go context.Canceled 文本分类）已由该测试的世代/通知分支覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_combo_rules_test.go:12:TestFutuOptionComboHelperBusinessBoundaries": {
     "status": "[~]",

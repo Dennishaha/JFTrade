@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::sync::mpsc::RecvTimeoutError;
 use std::time::Duration;
 
@@ -8,6 +9,17 @@ use crate::{
     OpenDInitializedSession, OpenDSessionCloseReason, OpenDSessionEvent,
     OpenDSubscriptionLifecycle, QuotePush, QuotePushDecodeError,
 };
+
+/// Generation-fenced sink for OpenD system notifications. The composition root
+/// installs the capability owner so a `ConnStatus`/`QotRight` push reaches the
+/// same single writer that the `GetUserInfo` refresh uses.
+pub trait OpenDCapabilityNotificationSink: Send + Sync + std::fmt::Debug {
+    fn ingest_capability_notification(
+        &self,
+        generation: u64,
+        response: &crate::trade_proto::notify::Response,
+    );
+}
 
 /// Result of one bounded read from the managed OpenD event channel.
 #[derive(Clone, Debug, PartialEq)]
@@ -37,11 +49,26 @@ pub enum OpenDSessionPumpError {
 #[derive(Clone)]
 pub struct OpenDSessionEventPump {
     session: OpenDInitializedSession,
+    capability_sink: Option<Arc<dyn OpenDCapabilityNotificationSink>>,
 }
 
 impl OpenDSessionEventPump {
     pub fn new(session: OpenDInitializedSession) -> Self {
-        Self { session }
+        Self {
+            session,
+            capability_sink: None,
+        }
+    }
+
+    /// Installs the generation-fenced capability sink that consumes
+    /// `Notify.proto` (protocol 1003) pushes before the quote-push decoder
+    /// rejects them.
+    pub fn with_capability_sink(
+        mut self,
+        sink: Option<Arc<dyn OpenDCapabilityNotificationSink>>,
+    ) -> Self {
+        self.capability_sink = sink;
+        self
     }
 
     pub fn poll_once(
@@ -55,7 +82,9 @@ impl OpenDSessionEventPump {
             .managed_session()
             .receive_event_timeout(timeout)
         {
-            Ok(event) => Self::dispatch_event(lifecycle, &event, now),
+            Ok(event) => {
+                Self::dispatch_event(lifecycle, &event, now, self.capability_sink.as_deref())
+            }
             Err(RecvTimeoutError::Timeout) => Ok(OpenDSessionPumpOutcome::Idle),
             Err(RecvTimeoutError::Disconnected) => {
                 Err(OpenDSessionPumpError::EventChannelDisconnected)
@@ -67,8 +96,20 @@ impl OpenDSessionEventPump {
         lifecycle: &OpenDSubscriptionLifecycle,
         event: &OpenDSessionEvent,
         now: WireTimestamp,
+        capability_sink: Option<&dyn OpenDCapabilityNotificationSink>,
     ) -> Result<OpenDSessionPumpOutcome, OpenDSessionPumpError> {
         match event {
+            OpenDSessionEvent::UnsolicitedFrame { generation, frame }
+                if frame.header.proto_id == crate::PROTO_NOTIFY =>
+            {
+                if let (Some(sink), Some(response)) = (
+                    capability_sink,
+                    crate::decode_capability_notification(frame),
+                ) {
+                    sink.ingest_capability_notification(*generation, &response);
+                }
+                Ok(OpenDSessionPumpOutcome::Dropped)
+            }
             OpenDSessionEvent::UnsolicitedFrame { .. } => lifecycle
                 .ingest_session_event(event, now)
                 .map(|push| {
@@ -202,7 +243,7 @@ mod tests {
             .expect("decoded frame"),
         };
         assert_eq!(
-            OpenDSessionEventPump::dispatch_event(&lifecycle, &stale, now)
+            OpenDSessionEventPump::dispatch_event(&lifecycle, &stale, now, None)
                 .expect("stale malformed push"),
             OpenDSessionPumpOutcome::Dropped
         );
@@ -212,7 +253,8 @@ mod tests {
             reason: OpenDSessionCloseReason::Local,
         };
         assert_eq!(
-            OpenDSessionEventPump::dispatch_event(&lifecycle, &local, now).expect("local close"),
+            OpenDSessionEventPump::dispatch_event(&lifecycle, &local, now, None)
+                .expect("local close"),
             OpenDSessionPumpOutcome::Dropped
         );
         assert_eq!(recorder.snapshot().stream_failures, 0);
@@ -223,8 +265,13 @@ mod tests {
             reason: OpenDSessionCloseReason::PeerClosed,
         };
         assert_eq!(
-            OpenDSessionEventPump::dispatch_event(&lifecycle, &peer_after_lifecycle_close, now)
-                .expect("closed lifecycle"),
+            OpenDSessionEventPump::dispatch_event(
+                &lifecycle,
+                &peer_after_lifecycle_close,
+                now,
+                None
+            )
+            .expect("closed lifecycle"),
             OpenDSessionPumpOutcome::Dropped
         );
         assert_eq!(recorder.snapshot().stream_failures, 0);

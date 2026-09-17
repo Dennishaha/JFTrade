@@ -18,6 +18,7 @@ mod managed_session;
 mod market_microstructure_query;
 mod news_query;
 pub mod notification;
+mod open_d_quote_rights;
 mod option_chain_query;
 mod option_contract_rank_query;
 mod option_earnings_screener_query;
@@ -134,6 +135,10 @@ pub use market_microstructure_query::{
 pub use news_query::{
     FutuNewsEntry, FutuNewsQuery, FutuNewsQueryError, FutuNewsReadPort, FutuNewsResult,
     OpenDNewsReader,
+};
+pub use open_d_quote_rights::{
+    OpenDQuoteRightsError, OpenDQuoteRightsOwner, decode_capability_notification,
+    query_quote_rights,
 };
 pub use option_chain_query::{
     OpenDOptionChainReader, OptionChainDataFilter, OptionChainDate, OptionChainItem,
@@ -291,7 +296,8 @@ pub use session_coordinator::{
     OpenDSessionCoordinator, OpenDSessionCoordinatorError, OpenDSessionCoordinatorOutcome,
 };
 pub use session_event_pump::{
-    OpenDSessionEventPump, OpenDSessionPumpError, OpenDSessionPumpOutcome,
+    OpenDCapabilityNotificationSink, OpenDSessionEventPump, OpenDSessionPumpError,
+    OpenDSessionPumpOutcome,
 };
 pub use session_resolver::{
     QuoteSessionContext, QuoteSessionResolver, QuoteSessionWindow, fallback_snapshot_session,
@@ -350,6 +356,7 @@ pub use valuation_detail_query::{
 
 pub const PROTO_INIT_CONNECT: u32 = 1001;
 pub const PROTO_GET_GLOBAL_STATE: u32 = 1002;
+pub const PROTO_NOTIFY: u32 = 1003;
 pub const PROTO_KEEP_ALIVE: u32 = 1004;
 /// OpenD user-info read. Declared so the protocol-id table can be asserted
 /// against Go (`pkg/futu/opend/protocol_ids_test.go`); the product path reads
