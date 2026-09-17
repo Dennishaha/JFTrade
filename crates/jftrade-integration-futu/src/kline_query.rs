@@ -57,6 +57,8 @@ pub enum CurrentKlineError {
     },
     #[error("OpenD Qot_GetKL response missing s2c")]
     MissingS2c,
+    #[error("invalid OpenD Qot_GetKL query: {0}")]
+    InvalidQuery(String),
 }
 
 pub trait CurrentKlineReadPort: Send + Sync + std::fmt::Debug {
@@ -66,36 +68,45 @@ pub trait CurrentKlineReadPort: Send + Sync + std::fmt::Debug {
     ) -> Result<CurrentKlineResult, CurrentKlineError>;
 }
 
-pub fn period_to_kl_type(period: &str) -> i32 {
+/// Go `futuKLTypeFromIntervalString` (pkg/futu/adapter_new_methods.go:105).
+///
+/// Go special-cases month before lower-casing because
+/// `strings.ToLower("1M") == "1m"` (1-minute), and returns an error for an
+/// unknown interval. Rust keeps the same table and propagates the error instead
+/// of silently encoding a daily bar (`KLType_1Day`) for a typo such as `1mn`.
+pub fn period_to_kl_type_checked(period: &str) -> Result<i32, CurrentKlineError> {
     let trimmed = period.trim();
-    // Parity: go:452dea11:pkg/futu/adapter_new_methods.go:105
-    // `futuKLTypeFromIntervalString`. Go special-cases month before
-    // lower-casing because `strings.ToLower("1M") == "1m"` (1-minute).
     if matches!(trimmed, "1M" | "month" | "monthly") {
-        return 4;
+        return Ok(4);
     }
     match trimmed.to_ascii_lowercase().as_str() {
-        "1m" | "1min" => 1,
-        "1d" | "day" | "daily" => 2,
-        "1w" | "week" | "weekly" => 3,
-        "1q" | "quarter" => 11,
-        "1y" | "year" | "yearly" => 5,
-        "3m" | "3min" => 10,
-        "5m" | "5min" => 6,
-        "10m" | "10min" => 12,
-        "15m" | "15min" => 7,
-        "30m" | "30min" => 8,
-        "60m" | "60min" | "1h" | "1hour" => 9,
-        "120m" | "120min" | "2h" => 13,
-        "180m" | "180min" | "3h" => 14,
-        "240m" | "240min" | "4h" => 15,
-        "1mo" => 4,
-        // Go returns an error for an unknown period. The Rust caller already
-        // validates the period through `period_duration_seconds`/route
-        // validation before encoding, so the fallback keeps the historical
-        // daily default instead of changing the public encoder signature.
-        _ => 2,
+        "1m" | "1min" => Ok(1),
+        "3m" | "3min" => Ok(10),
+        "5m" | "5min" => Ok(6),
+        "10m" | "10min" => Ok(12),
+        "15m" | "15min" => Ok(7),
+        "30m" | "30min" => Ok(8),
+        "60m" | "60min" | "1h" | "1hour" => Ok(9),
+        "120m" | "120min" | "2h" => Ok(13),
+        "180m" | "180min" | "3h" => Ok(14),
+        "240m" | "240min" | "4h" => Ok(15),
+        "1d" | "day" | "daily" => Ok(2),
+        "1w" | "week" | "weekly" => Ok(3),
+        "1q" | "quarter" => Ok(11),
+        "1y" | "year" | "yearly" => Ok(5),
+        "1mo" => Ok(4),
+        _ => Err(CurrentKlineError::InvalidQuery(format!(
+            "futu: unsupported kline period {period:?}"
+        ))),
     }
+}
+
+/// Infallible convenience used by catalog/subscription callers whose period
+/// comes from the validated public catalog. Unknown values are a caller bug and
+/// collapse to `0` (unspecified KLType) so they cannot masquerade as a daily
+/// bar; encoding paths must use [`period_to_kl_type_checked`].
+pub fn period_to_kl_type(period: &str) -> i32 {
+    period_to_kl_type_checked(period).unwrap_or(0)
 }
 
 pub fn period_duration_seconds(period: &str) -> i64 {
@@ -194,11 +205,12 @@ pub fn merge_klines_by_time(
     map.into_values().collect()
 }
 
-pub fn encode_get_kl_request(query: &CurrentKlineQuery) -> Vec<u8> {
-    wire::Request {
+pub fn encode_get_kl_request(query: &CurrentKlineQuery) -> Result<Vec<u8>, CurrentKlineError> {
+    let kl_type = period_to_kl_type_checked(&query.period)?;
+    Ok(wire::Request {
         c2s: wire::C2s {
             rehab_type: query.adjustment,
-            kl_type: period_to_kl_type(&query.period),
+            kl_type,
             security: crate::trade_proto::qot_common::Security {
                 market: query.market,
                 code: query.symbol.clone(),
@@ -207,7 +219,7 @@ pub fn encode_get_kl_request(query: &CurrentKlineQuery) -> Vec<u8> {
             header: None,
         },
     }
-    .encode_to_vec()
+    .encode_to_vec())
 }
 
 pub fn decode_get_kl_response(
@@ -270,7 +282,7 @@ pub fn query_current_klines(
     query: &CurrentKlineQuery,
     timeout: Duration,
 ) -> Result<CurrentKlineResult, CurrentKlineError> {
-    let body = encode_get_kl_request(query);
+    let body = encode_get_kl_request(query)?;
     let bytes = session
         .managed_session()
         .call_with_timeout(PROTO_GET_KL, &body, timeout)?;
@@ -284,7 +296,7 @@ mod tests {
     #[test]
     fn test_get_kl_request_encoding() {
         let query = CurrentKlineQuery::new(1, "00700", "1m");
-        let bytes = encode_get_kl_request(&query);
+        let bytes = encode_get_kl_request(&query).expect("encode request");
         let decoded = wire::Request::decode(bytes.as_slice()).expect("decode request");
         assert_eq!(decoded.c2s.rehab_type, 1);
         assert_eq!(decoded.c2s.kl_type, 1); // 1m -> 1
@@ -335,9 +347,34 @@ mod tests {
         ] {
             assert_eq!(period_to_kl_type(period), expected, "period={period}");
         }
-        // Go errors on an unknown period; Rust keeps the historical daily
-        // fallback because the route layer validates periods before encoding.
-        assert_eq!(period_to_kl_type("invalid"), 2);
+        // Go errors on an unknown period; Rust must reject instead of
+        // silently encoding `KLType_1Day` (2) for an unknown interval.
+        assert!(matches!(
+            period_to_kl_type_checked("invalid"),
+            Err(CurrentKlineError::InvalidQuery(message)) if message.contains("invalid")
+        ));
+        assert!(encode_get_kl_request(&CurrentKlineQuery::new(1, "00700", "invalid")).is_err());
+    }
+
+    #[test]
+    fn unsupported_interval_is_rejected_instead_of_encoding_a_daily_candle() {
+        // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:228
+        // TestFutuKLTypeFromIntervalStringInvalid. Go returns
+        // `futu: unsupported kline period "invalid"`; Rust must not fall back
+        // to KLType 2 (daily) and must fail the encode call itself.
+        let error = period_to_kl_type_checked("invalid").expect_err("unsupported interval");
+        assert!(matches!(
+            error,
+            CurrentKlineError::InvalidQuery(message)
+                if message.contains("unsupported kline period") && message.contains("invalid")
+        ));
+        let query = CurrentKlineQuery::new(1, "00700", "invalid");
+        assert!(matches!(
+            encode_get_kl_request(&query),
+            Err(CurrentKlineError::InvalidQuery(_))
+        ));
+        // The infallible catalog helper cannot claim a daily bar either.
+        assert_eq!(period_to_kl_type("invalid"), 0);
     }
 
     #[test]
@@ -696,7 +733,7 @@ mod tests {
     #[test]
     fn test_wire_frame_roundtrip() {
         let query = CurrentKlineQuery::new(1, "00700", "5m");
-        let req_bytes = encode_get_kl_request(&query);
+        let req_bytes = encode_get_kl_request(&query).expect("encode request");
         let frame = crate::encode_frame(PROTO_GET_KL, 42, &req_bytes).expect("encode frame");
         let decoded_frame = crate::decode_frame(&frame).expect("decode frame");
         assert_eq!(decoded_frame.header.proto_id, PROTO_GET_KL);
@@ -772,9 +809,11 @@ mod tests {
             crate::subscription_executor::kline_sub_type(Some("bogus")),
             Err(crate::SubscriptionExecutorError::UnsupportedInterval(_))
         ));
-        // Historical encoding keeps the documented historical daily fallback,
-        // so the route validator (not this encoder) owns rejection; pin that
-        // split explicitly so a future change cannot silently accept "bogus".
-        assert_eq!(period_to_kl_type("bogus"), 2);
+        // Historical encoding is also fail closed: a future change must not
+        // silently accept "bogus" as a daily candle.
+        assert!(matches!(
+            period_to_kl_type_checked("bogus"),
+            Err(CurrentKlineError::InvalidQuery(_))
+        ));
     }
 }

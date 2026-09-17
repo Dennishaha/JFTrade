@@ -399,6 +399,31 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn normalized_instruments_rejects_invalid_symbol_before_encoding() {
+        // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:156
+        // TestSecuritiesFromSymbolsInvalid. Go's `securitiesFromSymbols`
+        // fails the whole list on the first symbol without a resolvable
+        // MARKET.CODE pair; Rust rejects it as `InvalidInstrument` before any
+        // Qot_GetBasicQot request is encoded.
+        assert!(matches!(
+            normalized_instruments(&["INVALID".to_owned()]),
+            Err(BasicQuoteQueryError::InvalidInstrument(instrument)) if instrument == "INVALID"
+        ));
+        assert!(matches!(
+            normalized_instruments(&["US.AAPL".to_owned(), "INVALID".to_owned()]),
+            Err(BasicQuoteQueryError::InvalidInstrument(_))
+        ));
+    }
+
+    #[test]
+    fn normalized_instruments_accepts_empty_symbol_list() {
+        // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:163
+        // TestSecuritiesFromSymbolsEmpty. The converter returns an empty list
+        // without an error; the query layer owns the later EmptyRequest check.
+        assert!(normalized_instruments(&[]).expect("empty list").is_empty());
+    }
+
     fn multi_instrument_lifecycle() -> OpenDSubscriptionLifecycle {
         let recorder = Arc::new(MarketDataRuntimeRecorder::default());
         let mut lifecycle = OpenDSubscriptionLifecycle::new(recorder, 60_000);

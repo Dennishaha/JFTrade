@@ -2117,3 +2117,81 @@ pnpm run check:quick
 结果：1681 passed / 1 skipped；fmt/clippy/architecture 通过；parity 审计 Futu/OpenD 91.2%，
 总 `[x]` 444 / 4451，全局 49.4%。本批 8 项：5 `[x]`、2 partial/boundary 收敛为更精确结论、
 1 边界保留。
+
+---
+
+## 批次：`pkg/futu/adapter_new_methods_test.go`（22 项，口径纠正）
+
+此前小结曾把本文件写成“8 项”，实际该文件含 **22 个 `Test*`**；本次按行号全量逐项复核，
+纠正统计口径并补齐差异。
+
+### 结果：17 `[x]` / 5 `[~]`
+
+| Go 测试 | 行号 | 状态 | 证据 / 结论 |
+|---|---:|---|---|
+| `TestConvertFundsSnapshotFullMarginFields` | :14 | `[x]` | engine funds 投影全 margin/PDT/exposure 字段 |
+| `TestConvertFundsSnapshotNilMarginFields` | :78 | `[x]` | 缺省 margin 保持 null，currencyBalances 空数组 |
+| `TestConvertFundsSnapshotNilInput` | :103 | `[~]` boundary | Rust 无 nil 指针输入；缺失 S2C 归一 `Funds::default()` |
+| `TestConvertFundsSnapshotCurrencyBalances` | :112 | `[x]` | 2 币种 + 2 市场资产投影 |
+| `TestSecuritiesFromSymbols` | :140 | `[x]` | 规范化 MARKET.CODE（trim/大写/去重） |
+| `TestSecuritiesFromSymbolsInvalid` | :156 | `[x]` | 新增 `normalized_instruments_rejects_invalid_symbol_before_encoding` |
+| `TestSecuritiesFromSymbolsEmpty` | :163 | `[x]` | 新增 `normalized_instruments_accepts_empty_symbol_list` |
+| `TestSecuritySymbol` | :175 | `[x]` | market/code → HK.00700 |
+| `TestSecuritySymbolNil` | :182 | `[x]` | 缺失/未知 market → None |
+| `TestFutuKLTypeFromIntervalStringAll` | :191 | `[x]` | 全别名表 KLType 编码 |
+| `TestFutuKLTypeFromIntervalStringInvalid` | :228 | `[x]` | 新增 `unsupported_interval_is_rejected_instead_of_encoding_a_daily_candle` |
+| `TestInt64AsFloat64Ptr` | :237 | `[~]` boundary | Rust 保留 i64，无指针 helper |
+| `TestInt64AsFloat64PtrNil` | :248 | `[~]` boundary | Option 表达缺失，nil 分支不存在 |
+| `TestBrokerFundsSnapshotFromProtoFullMargin` | :257 | `[x]` | 真实 fake OpenD 解码全 margin 字段 |
+| `TestBrokerFundsSnapshotFromProtoNilFunds` | :344 | `[x]` | 缺失 S2C/funds → 零值快照 |
+| `TestBrokerFundsSnapshotRoundTripNoMargin` | :358 | `[~]` partial | `TradeFunds.debt_cash` 非可选 f64，缺省会投影成 0 |
+| `TestOrderBookLevelFromPb` | :431 | `[x]` | level 全字段投影 |
+| `TestOrderBookLevelFromPbNil` | :465 | `[x]` | 空输入返回空 levels |
+| `TestOrderBookLevelFromPbEmptyDetails` | :475 | `[x]` | 无 detail_list 不注入空数组 |
+| `TestOrderBookSnapshotFromOpendResult` | :492 | `[x]` | depth 名称/时间/买卖盘全投影 |
+| `TestOrderBookSnapshotFromOpendResultNil` | :552 | `[~]` boundary | Rust 缺失 S2C fail closed，不静默空成功 |
+| `TestOrderBookSnapshotFromOpendResultEmptyResult` | :559 | `[x]` | 空 S2C 列表 → 空 bids/asks |
+
+### 真实功能修复 ①：未知 K 线周期不再静默降级为日线
+
+- Go `futuKLTypeFromIntervalString`（`pkg/futu/adapter_new_methods.go:105`）对未知周期返回 error。
+- Rust 旧实现 `period_to_kl_type` 的 `_ => 2` 会把 `"invalid"` 静默编码成
+  `KLType_1Day`，返回错误数据而调用方无感知。
+- 修复：新增 `period_to_kl_type_checked`（唯一的别名表 owner），返回
+  `CurrentKlineError::InvalidQuery`；`encode_get_kl_request` 改为
+  `Result<Vec<u8>, CurrentKlineError>`，`query_current_klines` 在发包前 fail closed。
+- `period_to_kl_type` 保留为目录/订阅用的 infallible 视图，未知值返回 `0`
+  （unspecified），不再伪装成日线。
+- 新增回归 `kline_query::tests::unsupported_interval_is_rejected_instead_of_encoding_a_daily_candle`，
+  同时断言 helper 错误消息与编码路径错误。
+
+### 真实功能差异 ②：`TradeFunds.debt_cash` 丢失缺失语义
+
+- Go 的 `BrokerFundsSnapshot.DebtCash` 是 `*float64`，proto 未给 `debtCash`
+  时为 nil，`convertFundsSnapshot` 透传 nil。
+- Rust `TradeFunds.debt_cash` 是非可选 `f64`（proto2 `required double debtCash = 6`
+  解码为零值），投影后 `summary.debtCash` 会变成 `0.0`，与 Go 的 `null` 不一致。
+- 修复位置：`crates/jftrade-integration-futu/src/trade_snapshots.rs`
+  （`TradeFunds::from(trd_common::Funds)` / `debt_cash` 可选性）；
+  回归要求：SIMULATE/无 margin 账户断言 `summary.debtCash` 为 JSON null。
+- 本轮只记录差异与修复位置，不改 proto 解码契约，避免与并发批次冲突。
+
+### 回归可证性（临时探针，已回滚）
+
+- 把 `period_to_kl_type_checked` 的未知分支改回 `Ok(2)` →
+  `period_to_kl_type_matches_go_interval_aliases` 与
+  `candle_period_catalog_rejects_missing_and_unmappable_intervals` 立即失败，
+  证明新增断言确实锁住 fail-closed 行为。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+pnpm run check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：`jftrade-integration-futu` 464 passed / 1 skipped；`jftrade-engine`
+1220 passed / 0 skipped；fmt 通过；parity 审计 0 条非法 `-p` crate、
+0 条 `[x]` 缺 `function_exact`。本批 **17 `[x]` / 5 `[~]`**。

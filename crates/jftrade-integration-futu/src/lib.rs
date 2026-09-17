@@ -126,7 +126,7 @@ pub use instrument_search_query::{
 pub use kline_query::{
     CurrentKlineError, CurrentKlineQuery, CurrentKlineReadPort, CurrentKlineResult, GET_KL_TIMEOUT,
     adjust_kline_time, merge_klines_by_time, period_duration_seconds, period_to_kl_type,
-    query_current_klines, should_query_current_kline,
+    period_to_kl_type_checked, query_current_klines, should_query_current_kline,
 };
 pub use managed_session::{
     OpenDManagedSession, OpenDManagedSessionError, OpenDSessionCloseReason, OpenDSessionEvent,

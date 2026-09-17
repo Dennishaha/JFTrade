@@ -15291,7 +15291,7 @@
     "status": "[~]",
     "rust_entry": "不适用：Rust 无 nil 指针输入",
     "conclusion": "boundary：Go 的 convertFundsSnapshot(nil) 返回 nil；Rust 的 TradeFundsSnapshot 是拥有所有权的强类型值，不存在 nil 输入路径。decoder 对缺失 S2C/funds 归一到 Funds::default()，由 trade_proto_tests::funds_missing_s2c_normalizes_to_an_empty_snapshot 覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(funds_missing_s2c_normalizes_to_an_empty_snapshot)'",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(funds_missing_s2c_normalizes_to_an_empty_snapshot)'",
     "evidence_type": "boundary"
   },
   "pkg/futu/adapter_new_methods_test.go:112:TestConvertFundsSnapshotCurrencyBalances": {
@@ -15309,18 +15309,18 @@
     "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_new_methods_test.go:156:TestSecuritiesFromSymbolsInvalid": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_query.rs::tests::normalized_instruments_trims_uppercases_dedupes_and_rejects_invalid",
-    "conclusion": "partial：Rust 在执行订阅/查询前以 InvalidInstrument 拒绝非法输入，但入口是 normalized_instruments，不存在 Go 的 securitiesFromSymbols proto builder；同一 Rust 测试已覆盖 INVALID 分支。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(normalized_instruments_trims_uppercases_dedupes_and_rejects_invalid)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_query.rs::tests::normalized_instruments_rejects_invalid_symbol_before_encoding",
+    "conclusion": "function_exact：Go 的 securitiesFromSymbols 对 \"INVALID\" 返回错误；Rust normalized_instruments 以 InvalidInstrument 拒绝并保留原始符号，且列表任意位置出现非法符号都整体失败，不会编码请求。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(normalized_instruments_rejects_invalid_symbol_before_encoding)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_new_methods_test.go:163:TestSecuritiesFromSymbolsEmpty": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_query.rs::tests::normalized_instruments_trims_uppercases_dedupes_and_rejects_invalid",
-    "conclusion": "partial：Rust 对空输入返回空规范列表；与 Go 返回空 securities 一致，但随后 BasicQuote 查询层会以 EmptyRequest 拒绝空请求，因此不复用 Go 的 proto builder 断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(normalized_instruments_trims_uppercases_dedupes_and_rejects_invalid)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_query.rs::tests::normalized_instruments_accepts_empty_symbol_list",
+    "conclusion": "function_exact：Go 空符号列表返回空 securities 且无错误；Rust normalized_instruments(&[]) 返回空 Vec 且无错误，后续 EmptyRequest 由 prepare_request 单独负责。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(normalized_instruments_accepts_empty_symbol_list)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_new_methods_test.go:175:TestSecuritySymbol": {
     "status": "[x]",
@@ -15344,24 +15344,24 @@
     "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_new_methods_test.go:228:TestFutuKLTypeFromIntervalStringInvalid": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-futu/src/kline_query.rs::tests::period_to_kl_type_matches_go_interval_aliases",
-    "conclusion": "partial（真实差异已收敛）：Go 对 unknown period 返回 error；Rust period_to_kl_type 保留历史 daily 兜底（同为 2），非法周期在 route 层由 normalize_candle_period 拒绝。同一 Rust 测试末尾显式断言该差异未被误当等价。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(period_to_kl_type_matches_go_interval_aliases)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/kline_query.rs::tests::unsupported_interval_is_rejected_instead_of_encoding_a_daily_candle",
+    "conclusion": "function_exact：Go futuKLTypeFromIntervalString 对未知周期返回 error；Rust 新增 period_to_kl_type_checked 返回 InvalidQuery，编码路径 encode_get_kl_request 同步 fail closed，不再把 \"invalid\" 静默编码为日线 KLType=2。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(unsupported_interval_is_rejected_instead_of_encoding_a_daily_candle)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_new_methods_test.go:237:TestInt64AsFloat64Ptr": {
     "status": "[~]",
-    "rust_entry": "不适用：Rust 无 int64→float64 指针 helper",
-    "conclusion": "boundary：Go 用 *int64 辅助转换；Rust 在 TradeCashInfo 等 DTO 中以 Option<f64> 强类型保存，等价转换由 From<trd_common::Funds> 编译期完成，无需运行期 helper。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(funds_read_maps_full_margin_pdt_and_exposure_proto_fields)'",
+    "rust_entry": "不适用：Rust i64 直接映射，无指针 helper",
+    "conclusion": "boundary：Go int64AsFloat64Ptr 是 *int64→*float64 的指针 helper，仅用于把 OpenD 成交量塞进 bbgotypes 浮点字段；Rust 在 basic_quote_tick.rs 把 required int64 成交量保留为 i64（DecimalText/字符串路径），不做有损 f64 指针转换，因此没有独立 helper 可测。与之相关的精度边界由 high_precision_volume_never_loses_required_int64_precision 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(high_precision_volume_never_loses_required_int64_precision)'",
     "evidence_type": "boundary"
   },
   "pkg/futu/adapter_new_methods_test.go:248:TestInt64AsFloat64PtrNil": {
     "status": "[~]",
-    "rust_entry": "不适用：Rust 无 int64→float64 指针 helper",
-    "conclusion": "boundary：nil→nil 语义由 Option 类型承载，不存在单独的空指针 helper 分支。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(funds_read_maps_full_margin_pdt_and_exposure_proto_fields)'",
+    "rust_entry": "不适用：Rust i64 直接映射，无指针 helper",
+    "conclusion": "boundary：Go nil 输入返回 nil；Rust 生产路径用 Option<i64>/Option<DecimalText> 表达缺失，没有 *int64→*float64 转换，nil 分支在 Rust 类型系统中不存在。精度与缺失边界由 high_precision_volume_never_loses_required_int64_precision 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(high_precision_volume_never_loses_required_int64_precision)'",
     "evidence_type": "boundary"
   },
   "pkg/futu/adapter_new_methods_test.go:257:TestBrokerFundsSnapshotFromProtoFullMargin": {
@@ -15381,8 +15381,8 @@
   "pkg/futu/adapter_new_methods_test.go:358:TestBrokerFundsSnapshotRoundTripNoMargin": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::funds_projection_keeps_missing_margin_fields_absent",
-    "conclusion": "partial：Rust 无 Go 的 FundsSnapshot→BrokerFundsSnapshot 双结构 round-trip；已覆盖同样语义——无 margin 数据时 debt/isPdt/exposure 保持 null，purchasingPower 仍投影。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(funds_projection_keeps_missing_margin_fields_absent)'",
+    "conclusion": "partial：Go 的双结构 round-trip 依赖 *float64，缺 margin 时 debtCash/isPdt 为 nil；Rust TradeFunds.debt_cash 是 proto2 required 的非可选 f64，缺失字段解码为零值并在投影中输出 0，loans/isPdt 语义未完全对齐。当前 Rust 测试只证明 isPdt/exposureLevel 为 null 与 purchasingPower 仍投影。修复位置：crates/jftrade-integration-futu/src/trade_snapshots.rs 的 TradeFunds.debt_cash 需与可选性对齐，回归需断言无 margin 数据的 SIMULATE 账户 debtCash 为 null。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(funds_projection_keeps_missing_margin_fields_absent)'",
     "evidence_type": "partial"
   },
   "pkg/futu/adapter_new_methods_test.go:431:TestOrderBookLevelFromPb": {
@@ -15417,7 +15417,7 @@
     "status": "[~]",
     "rust_entry": "不适用：Rust 在缺失 S2C 时 fail closed",
     "conclusion": "boundary：Go nil opend result 返回 nil snapshot；Rust 生产路径不会把缺失 S2C 当空成功，depth() 以 decode_missing(Qot_GetOrderBook, s2c) 失败，防止假成功。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(depth_read_returns_empty_arrays_for_empty_s2c_lists)'",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(depth_read_returns_empty_arrays_for_empty_s2c_lists)'",
     "evidence_type": "boundary"
   },
   "pkg/futu/adapter_new_methods_test.go:559:TestOrderBookSnapshotFromOpendResultEmptyResult": {
