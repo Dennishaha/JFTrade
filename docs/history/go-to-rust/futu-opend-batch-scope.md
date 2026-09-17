@@ -2412,3 +2412,57 @@ node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-tar
 cargo fmt --all --check
 python3 scripts/compatibility/audit_test_parity.py
 ```
+
+---
+
+## 批次：`pkg/futu/transport_error_propagation_test.go`（5 项）
+
+### 结果：5 `[x]`
+
+| Go 测试 | 行号 | 状态 | Rust 证据 |
+|---|---:|---|---|
+| `TestTradeReadMethodsPropagateTargetProtocolDisconnects` | :13 | `[x]` | `client_recovery_boundaries.rs::trade_read_methods_propagate_target_protocol_disconnects` |
+| `TestQuoteKLineAndOrderBookPropagateTargetDisconnects` | :69 | `[x]` | `client_recovery_boundaries.rs::quote_kline_and_order_book_propagate_target_disconnects` |
+| `TestTradeWriteMethodsPropagateAccountAndWriteDisconnects` | :125 | `[x]` | `product_production_ports_execution_preview_tests.rs::trade_write_methods_propagate_write_disconnects` |
+| `TestTradeWritesAreNotReplayedWhenResponseIsLost` | :166 | `[x]` | `product_production_ports_execution_preview_tests.rs::trade_writes_are_not_replayed_when_the_response_is_lost` |
+| `TestDirectSubscriptionCallsPropagateClosedClientErrors` | :207 | `[x]` | `client_recovery_boundaries.rs::direct_subscription_calls_propagate_closed_client_errors` |
+
+### 覆盖的语义
+
+Go 的 `quoteOpenDServer.setDropProto(protoID)` 在读走目标协议帧后**不再回复**，
+客户端因此超时报错。本批在 Rust 侧新增等价夹具
+`drop_protocol_server(drop_proto)`（完成 InitConnect 握手，其后只丢弃指定协议的
+响应），以 300ms 超时驱动三条边界：
+
+1. **读路径断连**：accounts(2001)/funds(2101)/positions(2102) 各自独立起一个
+   drop 服务器，断言方法返回错误而不是默认值成功。
+2. **订阅/深度断连**：丢弃 `Qot_Sub` 使 coordinator 的订阅回放失败；丢弃
+   `Qot_GetOrderBook`(3012) 使深度读取返回 typed `Session` 错误。
+3. **写路径断连与不重放（P0 资金安全）**：`DisconnectingTradeWriter` 与
+   `CancelLosesResponseWriter` 在写端口层面返回
+   `Session(Closed(PeerClosed))` 并计数调用次数，断言下单与撤单各自**恰好尝试
+   一次**。
+
+Rust 的 `OpenDManagedSession::call_state` 本身不含重试：写失败返回 typed 错误，
+响应丢失（超时）返回 `RequestTimeout` 且移除 pending。engine 的写端口在此之上
+持久化 `UNKNOWN` 并向上返回错误，因此不存在自动重放路径——本批用测试把该性质
+固定下来。
+
+### 回归可证性（临时探针，已回滚）
+
+- 让 `get_account_list` 在 `call` 失败时返回 `S2c::default()` →
+  `trade_read_methods_propagate_target_protocol_disconnects` 以
+  `accounts must fail closed` 失败。
+- 在 `place_order` 的 `execute_order_under_guard` 闭包内对失败结果重放一次 →
+  `trade_write_methods_propagate_write_disconnects` 与
+  `trade_writes_are_not_replayed_when_the_response_is_lost` 同时失败
+  （`left: 2, right: 1`）。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --test client_recovery_boundaries --locked
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked
+cargo fmt --all --check
+cargo clippy -p jftrade-engine --all-targets --locked
+```

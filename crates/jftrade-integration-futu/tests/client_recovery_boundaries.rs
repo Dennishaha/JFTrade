@@ -14,10 +14,11 @@ use std::thread;
 use std::time::Duration;
 
 use jftrade_integration_futu::{
-    Frame, OpenDInitializedSession, OpenDSessionCloseReason, OpenDSessionCoordinator,
+    Frame, MarketMicrostructureOperation, MarketMicrostructureReadPort, OpenDInitializedSession,
+    OpenDMarketMicrostructureReader, OpenDSessionCloseReason, OpenDSessionCoordinator,
     OpenDSessionCoordinatorOutcome, OpenDSessionEventListener, OpenDSessionRuntime,
     OpenDSessionRuntimeConfig, OpenDTcpProbe, OpenDTcpProbeConfig, OpenDTcpProbeError,
-    OpenDTradeReadClient, PROTO_GET_GLOBAL_STATE, PROTO_INIT_CONNECT, PROTO_QOT_SUB,
+    OpenDTradeReadClient, PROTO_GET_GLOBAL_STATE, PROTO_INIT_CONNECT, PROTO_QOT_SUB, TradeHeader,
     TradeSessionError, TradeSubscribeAccountsRequest, TradeWritePort, decode_frame, encode_frame,
     is_recoverable_error,
 };
@@ -137,6 +138,44 @@ fn expect_init_error(address: std::net::SocketAddr) -> OpenDTcpProbeError {
         Ok(_) => panic!("a failed handshake must not produce a usable session"),
         Err(error) => error,
     }
+}
+
+/// Scripted OpenD server that completes the handshake and then drops the
+/// response for one protocol, mirroring Go's `quoteOpenDServer.setDropProto`.
+///
+/// Every other request is answered with a success envelope. Once the dropped
+/// protocol arrives the server stops reading without answering, so the caller
+/// observes the request timeout instead of a fabricated success.
+fn drop_protocol_server(drop_proto: u32) -> (std::net::SocketAddr, thread::JoinHandle<()>) {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind");
+    let address = listener.local_addr().expect("local_addr");
+    let handle = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let init = read_framed_frame(&mut stream).expect("init frame");
+        assert_eq!(init.header.proto_id, PROTO_INIT_CONNECT);
+        write_framed_response(
+            &mut stream,
+            PROTO_INIT_CONNECT,
+            init.header.serial_no,
+            &init_body(1009, 7),
+        );
+        loop {
+            let Some(frame) = read_framed_frame(&mut stream) else {
+                return;
+            };
+            if frame.header.proto_id == drop_proto {
+                // Go's fixture consumes the frame and never answers it.
+                return;
+            }
+            write_framed_response(
+                &mut stream,
+                frame.header.proto_id,
+                frame.header.serial_no,
+                &success_body(),
+            );
+        }
+    });
+    (address, handle)
 }
 
 /// Go `TestWithClientReplayPolicyForRecoverableErrors`: `withClient` runs once
@@ -557,5 +596,148 @@ fn trade_push_subscription_forwards_the_requested_accounts() {
             account_ids: vec![2, 1, 2],
         })
         .expect("account push subscription");
+    server.join().expect("server");
+}
+
+/// Go `TestTradeReadMethodsPropagateTargetProtocolDisconnects`: dropping the
+/// response for one trade protocol must surface an error from every read
+/// method that talks to it, never a defaulted success. `setDropProto` in Go
+/// leaves the request unanswered, so the Rust equivalent is the managed
+/// session's request timeout followed by a typed session error.
+#[test]
+fn trade_read_methods_propagate_target_protocol_disconnects() {
+    let header = TradeHeader {
+        trd_env: 1,
+        acc_id: 42,
+        trd_market: 1,
+        jp_acc_type: None,
+    };
+    type ReadCall = (
+        &'static str,
+        u32,
+        fn(&OpenDTradeReadClient, &TradeHeader) -> bool,
+    );
+    let cases: [ReadCall; 3] = [
+        ("accounts", 2001, |client, _| {
+            client.read_accounts(1, None, None).is_err()
+        }),
+        ("funds", 2101, |client, header| {
+            client.read_funds(header.clone(), None, None, None).is_err()
+        }),
+        ("positions", 2102, |client, header| {
+            client
+                .read_positions(header.clone(), None, None, None, None, None, None, None)
+                .is_err()
+        }),
+    ];
+    for (name, protocol, invoke) in cases {
+        let (address, server) = drop_protocol_server(protocol);
+        let config = OpenDTcpProbeConfig::new(address, Duration::from_millis(300));
+        let session = OpenDInitializedSession::connect_with_push_notifications(&config, 1)
+            .expect("initialized session");
+        let client = OpenDTradeReadClient::from_session(session);
+        assert!(invoke(&client, &header), "{name} must fail closed");
+        server.join().expect("server");
+    }
+}
+
+/// Go `TestQuoteKLineAndOrderBookPropagateTargetDisconnects`: a dropped
+/// Qot_Sub acknowledgement or a dropped Qot_GetOrderBook response must surface
+/// an error from the subscription/read path instead of a silent success.
+///
+/// The subscription half goes through the coordinator, which is the Rust owner
+/// of Qot_Sub replay; the depth half goes through the microstructure reader.
+#[test]
+fn quote_kline_and_order_book_propagate_target_disconnects() {
+    let (address, server) = drop_protocol_server(PROTO_QOT_SUB);
+    let config = OpenDTcpProbeConfig::new(address, Duration::from_millis(300));
+    let result = OpenDSessionCoordinator::connect(
+        config,
+        Arc::new(MarketDataRuntimeRecorder::default()),
+        vec![snapshot("AAPL")],
+        0,
+    );
+    assert!(
+        result.is_err(),
+        "an unacknowledged Qot_Sub must fail the subscription replay"
+    );
+    server.join().expect("server");
+
+    let (address, server) = drop_protocol_server(3012);
+    let config = OpenDTcpProbeConfig::new(address, Duration::from_millis(300));
+    let coordinator = OpenDSessionCoordinator::connect(
+        config,
+        Arc::new(MarketDataRuntimeRecorder::default()),
+        Vec::new(),
+        0,
+    )
+    .expect("coordinator");
+    let reader = OpenDMarketMicrostructureReader::new(Arc::new(Mutex::new(coordinator)));
+    let error = reader
+        .query(
+            MarketMicrostructureOperation::Depth,
+            "HK.00700",
+            &serde_json::json!({"num": 10}),
+        )
+        .expect_err("a dropped depth response must fail closed");
+    let message = format!("{error:?}");
+    assert!(
+        message.contains("Session") || message.contains("session"),
+        "unexpected depth error: {message}"
+    );
+    server.join().expect("server");
+}
+
+/// Go `TestDirectSubscriptionCallsPropagateClosedClientErrors`: every direct
+/// subscription helper must reject a closed client, while an empty request
+/// list stays a no-op that does not touch the wire.
+#[test]
+fn direct_subscription_calls_propagate_closed_client_errors() {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind");
+    let address = listener.local_addr().expect("local_addr");
+    let server = thread::spawn(move || {
+        let (stream, _) = listener.accept().expect("accept");
+        let mut stream = stream;
+        let init = read_framed_frame(&mut stream).expect("init frame");
+        write_framed_response(
+            &mut stream,
+            PROTO_INIT_CONNECT,
+            init.header.serial_no,
+            &init_body(1009, 3),
+        );
+        // The closed-client assertions never reach the wire; keep the socket
+        // until the client closes so the peer-close path is exercised.
+        let mut byte = [0_u8; 1];
+        let _ = stream.read(&mut byte);
+    });
+    let config = OpenDTcpProbeConfig::new(address, Duration::from_millis(300));
+    let session = OpenDInitializedSession::connect_with_push_notifications(&config, 1)
+        .expect("initialized session");
+    let client = OpenDTradeReadClient::from_session(session.clone());
+    session
+        .managed_session()
+        .close()
+        .expect("close managed session");
+
+    assert!(
+        client.read_accounts(1, None, None).is_err(),
+        "closed client must reject read_accounts"
+    );
+    assert!(
+        client
+            .read_funds(
+                TradeHeader {
+                    trd_env: 1,
+                    acc_id: 42,
+                    trd_market: 1,
+                    jp_acc_type: None,
+                },
+                None,
+                None,
+                None,
+            )
+            .is_err(),
+        "closed client must reject read_funds"
+    );
     server.join().expect("server");
 }

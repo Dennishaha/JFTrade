@@ -1121,3 +1121,243 @@ fn option_combo_preview_place_and_cancel_keep_server_identity() {
     assert_eq!(modified[0].operation, 2, "cancel uses Trd_ModifyOrder");
     drop(modified);
 }
+
+/// Write fixture that always fails at the OpenD transport boundary, counting
+/// how many times the adapter attempted the mutation.
+#[derive(Debug, Default)]
+struct DisconnectingTradeWriter {
+    placed: Mutex<usize>,
+    modified: Mutex<usize>,
+}
+
+impl DisconnectingTradeWriter {
+    fn placed_calls(&self) -> usize {
+        *self.placed.lock().expect("placed calls")
+    }
+}
+
+fn disconnecting_error() -> TradeSessionError {
+    TradeSessionError::Session(
+        jftrade_integration_futu::OpenDManagedSessionError::Closed(
+            jftrade_integration_futu::OpenDSessionCloseReason::PeerClosed,
+        ),
+    )
+}
+
+impl TradeWritePort for DisconnectingTradeWriter {
+    fn place_order(
+        &self,
+        _: TradePlaceOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+        *self.placed.lock().expect("placed calls") += 1;
+        Err(disconnecting_error())
+    }
+
+    fn place_combo_order(
+        &self,
+        _: TradePlaceComboOrderRequest,
+    ) -> Result<TradePlaceComboOrderResult, TradeSessionError> {
+        Err(disconnecting_error())
+    }
+
+    fn modify_order(
+        &self,
+        _: TradeModifyOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+        *self.modified.lock().expect("modified calls") += 1;
+        Err(disconnecting_error())
+    }
+
+    fn unlock_trade(&self, _: TradeUnlockRequest) -> Result<(), TradeSessionError> {
+        Err(disconnecting_error())
+    }
+
+    fn subscribe_trade_accounts(
+        &self,
+        _: TradeSubscribeAccountsRequest,
+    ) -> Result<(), TradeSessionError> {
+        Err(disconnecting_error())
+    }
+}
+
+/// Builds a port whose only write dependency is the supplied failing writer.
+fn write_port_with_writer(writer: Arc<dyn TradeWritePort>) -> ProductionExecutionPort {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, false);
+    let (store, directory) = execution_store();
+    let _ = directory.keep();
+    ProductionExecutionPort {
+        store,
+        active_provider_state: state,
+        trade_logged_in: Some(true),
+        trade_read_port: None,
+        trade_write_port: Some(writer),
+        trade_runtime: None,
+        cancel_inflight: Arc::new(std::sync::Mutex::new(std::collections::BTreeSet::new())),
+        risk_coordinator: None,
+        default_trading_environment: None,
+        notification_projector: None,
+    }
+}
+
+/// Write fixture whose placement succeeds but whose cancel loses its response,
+/// counting how many modify attempts the adapter made.
+#[derive(Debug, Default)]
+struct CancelLosesResponseWriter {
+    modified: Mutex<usize>,
+}
+
+impl CancelLosesResponseWriter {
+    fn modified_calls(&self) -> usize {
+        *self.modified.lock().expect("modified calls")
+    }
+}
+
+impl TradeWritePort for CancelLosesResponseWriter {
+    fn place_order(
+        &self,
+        request: TradePlaceOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+        Ok(TradePlaceOrderResult {
+            header: request.header,
+            order_id: Some(9001),
+            order_id_ex: Some("EXT-9001".to_owned()),
+        })
+    }
+
+    fn place_combo_order(
+        &self,
+        _: TradePlaceComboOrderRequest,
+    ) -> Result<TradePlaceComboOrderResult, TradeSessionError> {
+        Err(disconnecting_error())
+    }
+
+    fn modify_order(
+        &self,
+        _: TradeModifyOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+        *self.modified.lock().expect("modified calls") += 1;
+        Err(disconnecting_error())
+    }
+
+    fn unlock_trade(&self, _: TradeUnlockRequest) -> Result<(), TradeSessionError> {
+        Err(disconnecting_error())
+    }
+
+    fn subscribe_trade_accounts(
+        &self,
+        _: TradeSubscribeAccountsRequest,
+    ) -> Result<(), TradeSessionError> {
+        Err(disconnecting_error())
+    }
+}
+
+/// Go `TestTradeWriteMethodsPropagateAccountAndWriteDisconnects`: a write whose
+/// OpenD transport is gone must surface an error to the caller and must not
+/// fabricate a submitted order. The Rust owner is the execution write port,
+/// which persists UNKNOWN and returns the upstream failure.
+#[test]
+fn trade_write_methods_propagate_write_disconnects() {
+    let writer = Arc::new(DisconnectingTradeWriter::default());
+    let port = write_port_with_writer(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
+    let payload = json!({
+        "accountId": "42",
+        "brokerId": "futu",
+        "market": "HK",
+        "tradingEnvironment": "SIMULATE",
+        "clientOrderId": "disconnect-write",
+        "symbol": "HK.00700",
+        "orderKind": "single",
+        "productClass": "equity",
+        "instrument": {"instrumentId": "HK.00700", "tradeMarket": "HK"},
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "quantity": 100.0,
+        "price": 320.5,
+        "timeInForce": "GTC"
+    });
+    let error = port
+        .place_order(&payload)
+        .expect_err("a disconnected write must fail closed");
+    let message = format!("{error:?}");
+    assert!(
+        message.contains("Session") || message.contains("session"),
+        "unexpected write error: {message}"
+    );
+    assert_eq!(
+        writer.placed_calls(),
+        1,
+        "a failed submission must be attempted exactly once"
+    );
+}
+
+/// Go `TestTradeWritesAreNotReplayedWhenResponseIsLost`: when an accepted
+/// request loses its response, the write must fail closed and must never be
+/// replayed, because a second submission could double-fill the account.
+#[test]
+fn trade_writes_are_not_replayed_when_the_response_is_lost() {
+    let writer = Arc::new(DisconnectingTradeWriter::default());
+    let port = write_port_with_writer(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
+    let payload = json!({
+        "accountId": "42",
+        "brokerId": "futu",
+        "market": "HK",
+        "tradingEnvironment": "SIMULATE",
+        "clientOrderId": "lost-response-place",
+        "symbol": "HK.00700",
+        "orderKind": "single",
+        "productClass": "equity",
+        "instrument": {"instrumentId": "HK.00700", "tradeMarket": "HK"},
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "quantity": 100.0,
+        "price": 320.5,
+        "timeInForce": "GTC"
+    });
+    port.place_order(&payload)
+        .expect_err("a lost response must fail closed");
+    assert_eq!(
+        writer.placed_calls(),
+        1,
+        "place order must not be replayed after a lost response"
+    );
+
+    // Cancel path: the placement succeeds, the cancel loses its response. The
+    // modify RPC must be attempted exactly once and never replayed.
+    let cancel_writer = Arc::new(CancelLosesResponseWriter::default());
+    let cancel_port =
+        write_port_with_writer(Arc::clone(&cancel_writer) as Arc<dyn TradeWritePort>);
+    let cancel_payload = json!({
+        "accountId": "42",
+        "brokerId": "futu",
+        "market": "HK",
+        "tradingEnvironment": "SIMULATE",
+        "clientOrderId": "lost-response-cancel",
+        "symbol": "HK.00700",
+        "orderKind": "single",
+        "productClass": "equity",
+        "instrument": {"instrumentId": "HK.00700", "tradeMarket": "HK"},
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "quantity": 100.0,
+        "price": 320.5,
+        "timeInForce": "GTC"
+    });
+    let placed = cancel_port
+        .place_order(&cancel_payload)
+        .expect("the placement itself succeeds");
+    let internal_id = placed["internalOrderId"]
+        .as_str()
+        .expect("internal order id")
+        .to_owned();
+    cancel_port
+        .cancel_order(&internal_id)
+        .expect_err("a lost cancel response must fail closed");
+    assert_eq!(
+        cancel_writer.modified_calls(),
+        1,
+        "modify order must not be replayed after a lost response"
+    );
+}

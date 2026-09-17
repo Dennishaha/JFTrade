@@ -18018,39 +18018,39 @@
     "evidence_type": "missing"
   },
   "pkg/futu/transport_error_propagation_test.go:13:TestTradeReadMethodsPropagateTargetProtocolDisconnects": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/tests/client_recovery_boundaries.rs::trade_read_methods_propagate_target_protocol_disconnects",
+    "conclusion": "function_exact：Go 用 setDropProto 丢弃目标协议的响应，要求 accounts/funds/positions 等每条读方法都返回错误而非默认值成功。Rust 侧新增脚本化 OpenD 服务器 drop_protocol_server（完成握手后读走目标协议帧且不回复，等价 setDropProto），参数化覆盖 accounts(2001)/funds(2101)/positions(2102) 三条读路径，断言全部 fail closed；探针（已回滚）：让 get_account_list 在 call 失败时返回 S2c::default() → accounts must fail closed 断言失败。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --test client_recovery_boundaries --locked -E 'test(trade_read_methods_propagate_target_protocol_disconnects)'"
   },
   "pkg/futu/transport_error_propagation_test.go:69:TestQuoteKLineAndOrderBookPropagateTargetDisconnects": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/tests/client_recovery_boundaries.rs::quote_kline_and_order_book_propagate_target_disconnects",
+    "conclusion": "function_exact：Go 断言 Qot_Sub 被丢弃时订阅路径报错、Qot_GetOrderBook 被丢弃时深度读取报错。Rust 的 Qot_Sub owner 是 OpenDSessionCoordinator 的订阅回放（drop Qot_Sub → coordinator connect 失败），深度读取 owner 是 OpenDMarketMicrostructureReader（drop 3012 → typed Session 错误），两者都以 300ms 超时驱动同一 loopback 脚本服务器。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --test client_recovery_boundaries --locked -E 'test(quote_kline_and_order_book_propagate_target_disconnects)'"
   },
   "pkg/futu/transport_error_propagation_test.go:125:TestTradeWriteMethodsPropagateAccountAndWriteDisconnects": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::trade_write_methods_propagate_write_disconnects",
+    "conclusion": "function_exact：Go 断言账户解析失败与 Trd_PlaceOrder/Trd_ModifyOrder 传输断开时写方法都返回错误。Rust 侧新增 DisconnectingTradeWriter 夹具（wrap 层返回 Session(Closed(PeerClosed)) 并计数），place_order 必须以 typed Session 错误 fail closed，且写入恰好尝试一次。探针（已回滚）：在 place_order 的 guard 内对失败结果重放一次 → left:2 / right:1 断言失败。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(trade_write_methods_propagate_write_disconnects)'"
   },
   "pkg/futu/transport_error_propagation_test.go:166:TestTradeWritesAreNotReplayedWhenResponseIsLost": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::trade_writes_are_not_replayed_when_the_response_is_lost",
+    "conclusion": "function_exact（P0 资金安全）：Go 断言已接受的写请求丢失响应后必须报错且调用次数恰为 1（place=1、cancel=1），绝不允许自动重放。Rust 侧 place 路径用 DisconnectingTradeWriter 断言 placed_calls==1；cancel 路径用 CancelLosesResponseWriter（下单成功、Trd_ModifyOrder 丢失响应）断言 modified_calls==1。探针（已回滚）：在写 guard 内对失败结果重放 → 两个测试同时失败。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(trade_writes_are_not_replayed_when_the_response_is_lost)'"
   },
   "pkg/futu/transport_error_propagation_test.go:207:TestDirectSubscriptionCallsPropagateClosedClientErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/tests/client_recovery_boundaries.rs::direct_subscription_calls_propagate_closed_client_errors",
+    "conclusion": "function_exact：Go 断言 closed client 上每个直接订阅 helper（basic qot、K 线、order book、order book push）都报错，而空请求列表保持 no-op 成功。Rust 侧订阅统一走 managed session，关闭后 session.call 在触网前返回 Closed(Local)；新增测试关闭 managed session 后断言读/订阅路径全部报错，空集合路径不触发 RPC。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --test client_recovery_boundaries --locked -E 'test(direct_subscription_calls_propagate_closed_client_errors)'"
   },
   "pkg/futu/watchlist_reader_boundaries_test.go:14:TestWatchlistGroupReaderCoversSecondCacheAndFailures": {
     "status": "[~]",
