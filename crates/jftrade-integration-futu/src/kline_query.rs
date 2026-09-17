@@ -562,6 +562,74 @@ mod tests {
         assert!(should_query_current_kline("1m", "2026-09-07 11:00:00", now));
     }
 
+    /// Parity: pkg/futu/exchange_mapping_boundaries_test.go:19
+    /// TestFutuKLineIntervalMappingsCoverSupportedAndUnsupportedValues.
+    ///
+    /// Go asserts the full interval table for *both* the historical KLType
+    /// mapping and the realtime subscription SubType mapping, then proves the
+    /// unsupported `2m` interval fails closed on each. A period that maps
+    /// historically but not for realtime would advertise a capability the
+    /// adapter cannot subscribe to.
+    #[test]
+    fn candle_interval_mappings_cover_supported_and_unsupported_values() {
+        for (period, kl_type) in [
+            ("1m", 1),
+            ("3m", 10),
+            ("5m", 6),
+            ("15m", 7),
+            ("30m", 8),
+            ("1h", 9),
+            ("1d", 2),
+            ("1w", 3),
+            ("1mo", 4),
+        ] {
+            assert_eq!(period_to_kl_type(period), kl_type, "KLType for {period}");
+        }
+        for (period, sub_type) in [
+            ("1m", 11),
+            ("3m", 17),
+            ("5m", 7),
+            ("15m", 8),
+            ("30m", 9),
+            ("1h", 10),
+            ("1d", 6),
+            ("1w", 12),
+            ("1mo", 13),
+        ] {
+            assert_eq!(
+                crate::subscription_executor::kline_sub_type(Some(period))
+                    .unwrap_or_else(|error| panic!("SubType for {period}: {error}")),
+                sub_type,
+                "SubType for {period}"
+            );
+        }
+        // String-only aliases Go resolves for the historical mapping.
+        for (period, kl_type) in [
+            ("1min", 1),
+            ("10min", 12),
+            ("2h", 13),
+            ("3h", 14),
+            ("240m", 15),
+            ("daily", 2),
+            ("weekly", 3),
+            ("1M", 4),
+            ("quarter", 11),
+            ("yearly", 5),
+        ] {
+            assert_eq!(period_to_kl_type(period), kl_type, "KLType alias {period}");
+        }
+        // Unsupported intervals reject on the realtime mapper instead of
+        // inheriting the historical daily fallback.
+        assert!(
+            crate::subscription_executor::kline_sub_type(Some("2m")).is_err(),
+            "unsupported subscription interval must fail closed"
+        );
+        assert!(
+            crate::subscription_executor::kline_sub_type(Some("13m")).is_err(),
+            "unsupported subscription interval must fail closed"
+        );
+    }
+
     #[test]
     fn test_merge_klines_by_time() {
         let hist = vec![

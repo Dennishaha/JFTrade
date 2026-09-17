@@ -2,6 +2,66 @@ use super::execution_order_hash::preview_request_hash;
 use super::execution_order_parse::{parse_combo, parse_order};
 use serde_json::{Value, json};
 
+/// Go hands the normalized order type to the Futu adapter, which resolves it
+/// through `trdOrderTypeFromBBGOOrderType` onto OpenD's `Trd_Common.OrderType`
+/// enum (`Normal=1`, `Market=2`, `AbsoluteLimit=5`, `Auction=6`,
+/// `AuctionLimit=7`, `Stop=10`, `StopLimit=11`, `MarketifTouched=12`,
+/// `LimitifTouched=13`). The parsed code is sent verbatim as
+/// `Trd_PlaceOrder.orderType`, so it must already speak the wire enum rather
+/// than a private numbering.
+#[test]
+fn parsed_order_type_matches_the_opend_wire_enum() {
+    let cases = [
+        ("LIMIT", 1),
+        ("NORMAL", 1),
+        ("MARKET", 2),
+        ("ABSOLUTE_LIMIT", 5),
+        ("AUCTION", 6),
+        ("AUCTION_LIMIT", 7),
+        ("STOP", 10),
+        ("STOP_MARKET", 10),
+        ("STOP_LIMIT", 11),
+    ];
+    for (raw, expected) in cases {
+        let payload = json!({
+            "accountId": "1001",
+            "market": "US",
+            "symbol": "AAPL",
+            "side": "BUY",
+            "orderType": raw,
+            "quantity": 1,
+            "price": 100,
+            "stopPrice": 99,
+            "clientOrderId": "wire-order-type",
+        });
+        let parsed = parse_order(&payload)
+            .unwrap_or_else(|error| panic!("parse_order({raw}) failed: {error}"));
+        assert_eq!(parsed.order_type, expected, "wire orderType for {raw}");
+        assert_eq!(
+            parsed.to_trade_request().order_type,
+            expected,
+            "Trd_PlaceOrder.orderType for {raw}"
+        );
+    }
+    // Go's `normalizeExecutionOrderType` accepts LIMIT/MARKET/STOP/STOP_LIMIT
+    // only, so BBGO-only aliases stay rejected on the execution route.
+    for raw in ["ICEBERG", "LIMIT_MAKER", "TAKE_PROFIT", "TRAILING_STOP_MARKET"] {
+        let unsupported = json!({
+            "accountId": "1001",
+            "market": "US",
+            "symbol": "AAPL",
+            "side": "BUY",
+            "orderType": raw,
+            "quantity": 1,
+            "price": 100,
+            "stopPrice": 99,
+            "clientOrderId": "wire-order-type",
+        });
+        let error = parse_order(&unsupported).expect_err(raw);
+        assert!(error.contains("unsupported orderType"), "{raw} error = {error:?}");
+    }
+}
+
 fn single_order_payload() -> Value {
     json!({
         "accountId": "1001",
@@ -328,7 +388,7 @@ fn test_normalize_execution_order_supports_stop_and_market_orders() {
         "stopPrice": 97.5,
     });
     let stop_order = parse_order(&stop).expect("stop order");
-    assert_eq!(stop_order.order_type, 3); // STOP
+    assert_eq!(stop_order.order_type, 10); // OpenD Stop
     assert_eq!(stop_order.stop_price, Some(97.5));
 
     let market = json!({
@@ -340,7 +400,7 @@ fn test_normalize_execution_order_supports_stop_and_market_orders() {
         "quantity": 100,
     });
     let market_order = parse_order(&market).expect("market order");
-    assert_eq!(market_order.order_type, 2); // MARKET
+    assert_eq!(market_order.order_type, 2); // OpenD Market
     assert_eq!(market_order.market, "HK");
     assert_eq!(market_order.session, None);
 }

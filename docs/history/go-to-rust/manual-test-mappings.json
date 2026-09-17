@@ -16093,53 +16093,53 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(reconnect_replay_contains_only_subscriptions_and_resets_retry_state)'"
   },
   "pkg/futu/exchange_mapping_boundaries_test.go:19:TestFutuKLineIntervalMappingsCoverSupportedAndUnsupportedValues": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/kline_query.rs::tests::candle_interval_mappings_cover_supported_and_unsupported_values",
+    "conclusion": "function_exact：Go 的 interval 表（1m/3m/5m/15m/30m/1h/1d/1w/1mo → KLType 与 SubType）在 Rust 由 `period_to_kl_type` + `subscription_executor::kline_sub_type` 共同承担，逐项断言 KLType/SubType 两套编码；`1min/10min/2h/3h/240m/daily/weekly/1M/quarter/yearly` 别名与 Go 全表一致；`2m`/`13m` 在 realtime mapper 上 fail-closed（Go 的 unsupported 分支）。历史 KLType 保留 daily 兜底由 route 层 `normalize_candle_period` 负责，与本条断言不冲突。另新增 `resolve_historical_kline_page_size` 作为 Go `resolveHistoricalKLinePageSize` 的唯一 owner，并断言 `limit<=0 → 0`（不下发 MaxAckKLNum）、`<200 → 200`、`>1000 → 1000`。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(candle_interval_mappings_cover_supported_and_unsupported_values)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/exchange_mapping_boundaries_test.go:85:TestFutuKLineQueryWindowAndPreflightValidation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/history_window_tests.rs::historical_page_size_preserves_the_unset_non_positive_budget",
+    "conclusion": "function_exact（含功能修复）：分页页大小语义由新增的 `resolve_historical_kline_page_size` 承接 Go `resolveHistoricalKLinePageSize`，断言 0/-1→0、1/50/199→200、500→500、1000/1001/5000→1000；`limit<=0` 必须返回 0 让调用方省略 `MaxAckKLNum`。窗口侧由 engine `futu_kline_query_window` 现有两条断言继续覆盖显式窗口与非法 begin 回落，`should_query_current_kline` 覆盖 fresh/old end。`QueryKLines`/`QueryAllKLines` 的预检拒绝（BAD symbol、`2m` 非法 interval）在 Rust 由 route 层 symbol/period 校验与 `executor_rejects_invalid_instrument_and_unsupported_interval` 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(historical_page_size_preserves_the_unset_non_positive_budget)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/exchange_mapping_boundaries_test.go:127:TestFutuHistoricalKLineSessionFallbacksAndETHClassification": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/history_session_plan.rs::tests::fallback_requires_the_same_route_and_an_unsupported_marker",
+    "conclusion": "function_exact：Go 的 `shouldFallbackHistoricalKLineSplit` 三分支（同 session+支持性文本才回落、普通 error 不回落、不同 session 不回落）由 `should_fallback_to_all` 逐条断言，并额外覆盖 `Subscription quota exceeded` 与 unsegmented plan。ETF/ETH 归属分类的 owner 在 Rust 是 exchange-calendar 的 `calendar_session_for_route` + `plan.resolve_market_session`（engine `product_route_session_helper.rs`）：`MarketSession` 无 Go 的 `Unknown` 变体，零值时间在 Rust 侧由 route 校验拒绝而不是分类为 Unknown，该细化差异记入边界说明。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(fallback_requires_the_same_route_and_an_unsupported_marker)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/exchange_mapping_boundaries_test.go:158:TestFutuTradeEnumMappingsCoverBrokerAndBBGOBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::parsed_order_type_matches_the_opend_wire_enum",
+    "conclusion": "function_exact（含交易安全修复）：Go 的 `trdOrderTypeFromBBGOOrderType` 把中性 order type 映射到 OpenD `Trd_Common.OrderType`（Normal=1/Market=2/AbsoluteLimit=5/Auction=6/AuctionLimit=7/Stop=10/StopLimit=11/MarketifTouched=12/LimitifTouched=13），Rust `parse_order_type` 过去返回私有编号（STOP=3、STOP_LIMIT=4）并直接写入 `Trd_PlaceOrder.orderType`，会向 OpenD 下发错误订单类型（止损单被当成未知/错误枚举），属 P0 交易安全缺陷。修复后 `parse_order_type` 只接受 Go `normalizeExecutionOrderType` 允许的 LIMIT/MARKET/STOP/STOP_LIMIT（加 NORMAL/STOP_MARKET/ABSOLUTE_LIMIT/AUCTION/AUCTION_LIMIT 既有别名），价格门限改用 wire 常量；`order_type_label` 同步为同一组 wire→中性标签，使 `Trd_GetMaxTrdQtys` 与 broker 快照回写（`matches_safe_attributes`、reconciliation recovery）保持同一套词汇。side 映射（BUY/SELL，HOLD 拒绝）与 TimeInForce（\"\"/GTC→1、DAY→0、IOC→2、FOK 拒绝）保持既有断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(parsed_order_type_matches_the_opend_wire_enum)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/exchange_mapping_boundaries_test.go:237:TestFutuReadHelperMappingsAndPushSnapshots": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::generated_trade_enum_values_are_preserved",
+    "conclusion": "partial：`sessionValue`/`cashFlowDirectionValue`/order-enum 字符串投影在 Rust 由 `parse_session`、`TradeRequest::cash_flow_direction`、`cash_flow_direction_label`、`order_status_label` 与 `generated_trade_enum_values_are_preserved` 覆盖（RTH→1、非法 session 拒绝、in→IN、blank/未知→None、unknown enum 不序列化）。`isMarginRatioRateLimitedError` 的**文本分类器**在 Rust 无对应实现：Rust 只在 `trade_session.rs` 用 governor 限流并在 `product_trade_margin_route.rs` 把 `TradeSessionError::RateLimited` 降级为 24h 缓存回落，因此 Go 的四条中英文关键字（频率太高 / too high+request / 每30秒最多10次 / rate limit）在 Rust 属边界保留而非移植：Rust 的限流是本地前置的，不依赖解析 OpenD 错误文本。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(generated_trade_enum_values_are_preserved)'",
+    "evidence_type": "partial"
   },
   "pkg/futu/exchange_mapping_boundaries_test.go:316:TestFutuMarketAndSecuritySymbolBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/security_snapshot_query.rs::tests::market_code_and_label_supports_all_standard_markets",
+    "conclusion": "function_exact：HK/US/SH/SZ 市场码与标签双向映射由 `market_code`/`market_label` 断言，未知市场返回 None；`split_instrument` 断言 nil/空 code 与非法代码拒绝并把 `\" aapl \"` 归一化为 `US.AAPL`；`inferMarket` 的 HKD 兜底与正 tick 由 `jftrade-marketdata` `catalog_tests.rs` 的 `hk.tick == 0.001` / 报价币种断言承接。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(market_code_and_label_supports_all_standard_markets)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/exchange_mapping_boundaries_test.go:353:TestFutuOrderBookSubscriptionRequestExtraction": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscription_executor.rs::tests::order_book_replay_deduplicates_already_active_subscriptions",
+    "conclusion": "function_exact：Go 的 `orderBookRequestsFromSubscriptions` 按大小写不敏感 canonical symbol 去重、保留 `US.AAPL`/`HK.00700`、忽略 KLine channel、非法 symbol 报错。Rust 把同一契约拆在 reconciler/registry：`desired_subscriptions` 通过 BTreeSet 对同一 canonical instrument 去重，KLINE 家族独立（`order_book_reconciler_isolates_quote_and_kline_families`），非法 symbol 由 `qot_sub_request` 返回 `InvalidInstrument`，重复订阅不产生第二次 OpenD 调用。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(order_book_replay_deduplicates_already_active_subscriptions)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/exchange_orderbook_test.go:20:TestSubscribeOrderBookRequestConstruction": {
     "status": "[x]",

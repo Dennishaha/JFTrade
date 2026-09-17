@@ -48,6 +48,26 @@ pub struct HistoricalKlineResult {
     pub next_req_key: Vec<u8>,
 }
 
+/// OpenD `Qot_RequestHistoryKL` page size for a requested candle limit.
+///
+/// Parity: `pkg/futu/exchange_kline.go::resolveHistoricalKLinePageSize`. Go
+/// enlarges a small limit to 200, clamps anything above 1000, and returns 0 for
+/// a non-positive limit so the caller leaves `MaxAckKLNum` unset and keeps
+/// OpenD's own default. Collapsing that third case to 200 would silently
+/// change the wire request.
+pub fn resolve_historical_kline_page_size(limit: i32) -> i32 {
+    if limit <= 0 {
+        return 0;
+    }
+    if limit > 1000 {
+        return 1000;
+    }
+    if limit < 200 {
+        return 200;
+    }
+    limit
+}
+
 pub trait HistoricalKlineReadPort: Send + Sync + std::fmt::Debug {
     fn query(
         &self,

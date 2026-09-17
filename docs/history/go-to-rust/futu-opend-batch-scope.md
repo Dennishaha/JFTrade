@@ -1528,3 +1528,79 @@ pnpm run check:rust:architecture
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+## 批次：pkg/futu/exchange_mapping_boundaries_test.go（7 项）
+
+基线：`go:452dea11:pkg/futu/exchange_mapping_boundaries_test.go`。该文件把 Go 的中性枚举、
+符号与订阅契约打到 Futu wire 值上，其中 :158 暴露了一个真实的 P0 交易安全缺陷。
+
+### 真实功能缺陷（P0：下单枚举写错 OpenD 协议）
+
+1. **`Trd_PlaceOrder.orderType` 使用了私有编号（P0，交易安全）**
+   - 差异：Go 的 `trdOrderTypeFromBBGOOrderType`（`pkg/futu/exchange_trade_write.go:324`）把中性订单类型映射到
+     OpenD `Trd_Common.OrderType` 的 `Normal=1`、`Market=2`、`Stop=10`、`StopLimit=11`、
+     `MarketifTouched=12`、`LimitifTouched=13`。Rust `parse_order_type`
+     （`crates/jftrade-engine/src/product_production_ports_execution_order_parse.rs`）返回私有编号
+     `STOP=3`/`STOP_LIMIT=4`，而 `ParsedOrder::to_trade_request()` 把这个值原封不动交给
+     `trd_place_order::C2s.order_type`（`crates/jftrade-integration-futu/src/trade_session.rs::place_order_command`）。
+   - 影响：止损单以 OpenD 未定义的 `3` 下发，`STOP_LIMIT` 被当成 `AbsoluteLimit`；同一错误编号还会经
+     `order_type_label` 写进 execution ledger 的 `order_type`，而该字段随后被
+     `product_production_ports_execution_reconciliation_recovery.rs::matches_safe_attributes`
+     与 `execution_reconciliation_discovery.rs` 用来与 broker 快照比对，因此止损单的恢复/对账会静默失配，
+     恢复路径可能把已提交的订单判为"非候选"或错误地保留错误类型。
+   - 复现条件：POST `/api/v1/executions`（或 preview）携带 `orderType: "STOP"` / `"STOP_LIMIT"`；
+     观察 `Trd_PlaceOrder.orderType` 得到 `3`/`4`（Go 为 `10`/`11`）。
+   - 修复：`parse_order_type` 改为只接受 Go `normalizeExecutionOrderType` 允许的
+     `LIMIT`/`MARKET`/`STOP`/`STOP_LIMIT`（保留既有 `NORMAL`/`STOP_MARKET`/`ABSOLUTE_LIMIT`/`AUCTION`/
+     `AUCTION_LIMIT` 别名）并返回新增的 `ORDER_TYPE_*` wire 常量；价格门限改用 wire 常量比较，
+     `fillOutsideRTH` 的适用集合同步为 `Normal|StopLimit`（对齐 Go `supportsFillOutsideRTH`）；
+     `order_type_label` 改为同一组 wire→中性标签（`10→STOP`、`11→STOP_LIMIT`、`12→TAKE_PROFIT_MARKET`、
+     `13→TAKE_PROFIT`、`14/15→TRAILING_*`），保证写入 ledger 与恢复路径的是中性词汇。
+   - 回归：`product_production_ports_execution_order_validation_tests.rs::parsed_order_type_matches_the_opend_wire_enum`
+     （同时断言 `parse_order().order_type` 与 `to_trade_request().order_type`，并断言 ICEBERG 等不在 Go 支持集合内的
+     别名仍被拒绝）；既有 `test_normalize_execution_order_supports_stop_and_market_orders` 的
+     `stop_order.order_type` 由错误的 `3` 修正为 `10`。
+
+### 辅助能力补齐（P1：分页页大小唯一 owner）
+
+2. **`resolveHistoricalKLinePageSize` 在 Rust 无独立 owner（P1，分页）**
+   - 差异：Go 的 `resolveHistoricalKLinePageSize(limit)` 对 `limit<=0` 返回 `0`（调用方因此省略
+     `MaxAckKLNum`，保住 OpenD 默认），`<200` 抬到 200，`>1000` 夹到 1000。Rust 只在
+     `history.rs::query_window` 内联 `unwrap_or(1000).clamp(200,1000)`，`limit<=0` 这一 wire 语义无法被单独验证。
+   - 修复：新增 `jftrade-integration-futu::resolve_historical_kline_page_size` 作为唯一 owner 并从 lib 导出；
+     `query_window` 的既有预算保持不变（路由层在此之前已把 `<=0` 归一化为 200）。
+   - 回归：`history_window_tests.rs::historical_page_size_preserves_the_unset_non_positive_budget`。
+
+### 行为映射
+
+| Go 测试 | Rust 入口 | 状态与结论 |
+| --- | --- | --- |
+| :19 TestFutuKLineIntervalMappingsCoverSupportedAndUnsupportedValues | kline_query.rs::tests::candle_interval_mappings_cover_supported_and_unsupported_values | `[x]` function_exact：interval 表在 Rust 拆为 `period_to_kl_type`（KLType）与 `kline_sub_type`（SubType）两套断言，别名全表一致，`2m`/`13m` fail-closed |
+| :85 TestFutuKLineQueryWindowAndPreflightValidation | history_window_tests.rs::historical_page_size_preserves_the_unset_non_positive_budget | `[x]` function_exact（含功能补齐）：页大小 owner 覆盖 `<=0 → 0`；窗口/`shouldQueryCurrentKLine`/预检拒绝由既有 `futu_kline_query_window`、`test_should_query_current_kline`、`executor_rejects_invalid_instrument_and_unsupported_interval` 覆盖 |
+| :127 TestFutuHistoricalKLineSessionFallbacksAndETHClassification | history_session_plan.rs::tests::fallback_requires_the_same_route_and_an_unsupported_marker | `[x]` function_exact：回落三分支逐条断言；ETH 归属分类 owner 为 calendar `calendar_session_for_route` + `resolve_market_session`（`Unknown` 语义差异见边界说明） |
+| :158 TestFutuTradeEnumMappingsCoverBrokerAndBBGOBoundaries | product_production_ports_execution_order_validation_tests.rs::parsed_order_type_matches_the_opend_wire_enum | `[x]` function_exact（含 P0 修复）：wire 枚举 1/2/5/6/7/10/11 对齐 Go；side 与 TimeInForce 断言不变 |
+| :237 TestFutuReadHelperMappingsAndPushSnapshots | product_production_ports_trade_tests.rs::generated_trade_enum_values_are_preserved | `[~]` partial：session/cash-flow/enum 投影等价；`isMarginRatioRateLimitedError` 文本分类器属边界保留（Rust 用本地 governor 前置限流 + RateLimited 缓存回落，不解析 OpenD 错误文本） |
+| :316 TestFutuMarketAndSecuritySymbolBoundaries | security_snapshot_query.rs::tests::market_code_and_label_supports_all_standard_markets | `[x]` function_exact：HK/US/SH/SZ 双向映射、未知市场 None、`split_instrument` 归一化与拒绝；`inferMarket` 的 HKD 兜底与正 tick 由 `jftrade-marketdata` catalog 断言承接 |
+| :353 TestFutuOrderBookSubscriptionRequestExtraction | subscription_executor.rs::tests::order_book_replay_deduplicates_already_active_subscriptions | `[x]` function_exact：canonical 去重、KLine 家族独立、非法 symbol 返回 `InvalidInstrument`、重复订阅不产生第二次 RPC |
+
+### 边界说明
+
+- `isMarginRatioRateLimitedError`（:237）在 Rust 无对应文本分类器，且不应移植：Rust 的限流是
+  `trade_session.rs` 中 governor 的前置配额判定，超限直接产生 `TradeSessionError::RateLimited`，
+  `product_trade_margin_route.rs` 再降级为缓存回落。Go 需要解析中英文错误文本，是因为它只能事后识别服务端限流。
+- `MarketSession`（:127）没有 Go 的 `Unknown` 变体：零值/缺失时间在 Rust 由 route 校验拒绝，
+  ETH 的 pre/after 归属由 exchange-calendar 的时钟分类给出，路由会话（RTH/OVERNIGHT）覆盖时钟分类。
+- 本批次未改动 `contracts/openapi/openapi.json`、`proto/` 或冻结 fixture：`orderType` 在契约中是自由字符串，
+  `tests/fixtures/compatibility/api-transport/execution-write.json` 只使用 `LIMIT`，因此无生成物变化。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine -E 'test(execution)' --all-targets --locked --no-fail-fast   # 178 passed
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast   # 1628 passed, 1 skipped
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+pnpm run check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```

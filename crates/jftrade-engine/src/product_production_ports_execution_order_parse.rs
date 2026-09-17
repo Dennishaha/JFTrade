@@ -279,13 +279,16 @@ pub(super) fn parse_order_with_defaults(
             .unwrap_or("LIMIT"),
     )?;
     if !has_legs {
-        if order_type == 1 && price.is_none() {
+        // Order types carry the OpenD `Trd_Common.OrderType` wire values, so
+        // the price gates must compare against those codes (Stop=10,
+        // StopLimit=11) rather than a private numbering.
+        if order_type == ORDER_TYPE_NORMAL && price.is_none() {
             return Err("order type LIMIT requires price".to_owned());
         }
-        if matches!(order_type, 3) && stop_price.is_none() {
+        if order_type == ORDER_TYPE_STOP && stop_price.is_none() {
             return Err("order type STOP requires stopPrice".to_owned());
         }
-        if matches!(order_type, 4) && (price.is_none() || stop_price.is_none()) {
+        if order_type == ORDER_TYPE_STOP_LIMIT && (price.is_none() || stop_price.is_none()) {
             return Err("order type STOP_LIMIT requires price and stopPrice".to_owned());
         }
     }
@@ -337,7 +340,9 @@ pub(super) fn parse_order_with_defaults(
         .get("fillOutsideRTH")
         .and_then(Value::as_bool)
         .or_else(|| {
-            if matches!(order_type, 1 | 4) {
+            // Go's `supportsFillOutsideRTH` covers LIMIT/LIMIT_MAKER (Normal)
+            // and STOP_LIMIT (StopLimit) only.
+            if matches!(order_type, ORDER_TYPE_NORMAL | ORDER_TYPE_STOP_LIMIT) {
                 session.map(|value| value != 1)
             } else {
                 None
@@ -736,15 +741,30 @@ fn parse_side(value: &str) -> Result<i32, String> {
     }
 }
 
+/// OpenD `Trd_Common.OrderType` wire values used by the execution write path.
+///
+/// These codes are sent verbatim as `Trd_PlaceOrder.orderType` /
+/// `Trd_GetMaxTrdQtys.orderType`, so the parser must not invent a private
+/// numbering: Go maps the neutral order types through
+/// `trdOrderTypeFromBBGOOrderType` (`Normal=1`, `Market=2`, `Stop=10`,
+/// `StopLimit=11`, `MarketifTouched=12`, `LimitifTouched=13`).
+pub(super) const ORDER_TYPE_NORMAL: i32 = 1;
+pub(super) const ORDER_TYPE_MARKET: i32 = 2;
+pub(super) const ORDER_TYPE_ABSOLUTE_LIMIT: i32 = 5;
+pub(super) const ORDER_TYPE_AUCTION: i32 = 6;
+pub(super) const ORDER_TYPE_AUCTION_LIMIT: i32 = 7;
+pub(super) const ORDER_TYPE_STOP: i32 = 10;
+pub(super) const ORDER_TYPE_STOP_LIMIT: i32 = 11;
+
 pub(super) fn parse_order_type(value: &str) -> Result<i32, String> {
     match value.trim().to_ascii_uppercase().as_str() {
-        "LIMIT" | "NORMAL" => Ok(1),
-        "MARKET" => Ok(2),
-        "STOP" | "STOP_MARKET" => Ok(3),
-        "STOP_LIMIT" => Ok(4),
-        "ABSOLUTE_LIMIT" => Ok(5),
-        "AUCTION" => Ok(6),
-        "AUCTION_LIMIT" => Ok(7),
+        "LIMIT" | "NORMAL" => Ok(ORDER_TYPE_NORMAL),
+        "MARKET" => Ok(ORDER_TYPE_MARKET),
+        "STOP" | "STOP_MARKET" => Ok(ORDER_TYPE_STOP),
+        "STOP_LIMIT" => Ok(ORDER_TYPE_STOP_LIMIT),
+        "ABSOLUTE_LIMIT" => Ok(ORDER_TYPE_ABSOLUTE_LIMIT),
+        "AUCTION" => Ok(ORDER_TYPE_AUCTION),
+        "AUCTION_LIMIT" => Ok(ORDER_TYPE_AUCTION_LIMIT),
         _ => Err(format!("unsupported orderType {value:?}")),
     }
 }

@@ -167,6 +167,31 @@ fn history_window_sorts_single_pages_and_clamps_provider_page_sizes() {
     }
 }
 
+/// Parity: pkg/futu/exchange_mapping_boundaries_test.go:85
+/// TestFutuKLineQueryWindowAndPreflightValidation (page-size boundary).
+///
+/// Go's `resolveHistoricalKLinePageSize` returns 0 for a non-positive limit so
+/// the caller leaves `MaxAckKLNum` unset, enlarges anything below 200, and
+/// clamps the tail at 1000. The 0 case is a real wire difference, not a
+/// rounding detail: 200 would force a page size OpenD did not ask for.
+#[test]
+fn historical_page_size_preserves_the_unset_non_positive_budget() {
+    for (limit, expected) in [(0, 0), (-1, 0), (1, 200), (50, 200), (199, 200), (200, 200)] {
+        assert_eq!(
+            crate::resolve_historical_kline_page_size(limit),
+            expected,
+            "page size for limit {limit}"
+        );
+    }
+    for (limit, expected) in [(500, 500), (1000, 1000), (1001, 1000), (5000, 1000)] {
+        assert_eq!(
+            crate::resolve_historical_kline_page_size(limit),
+            expected,
+            "page size for limit {limit}"
+        );
+    }
+}
+
 #[test]
 fn history_window_preserves_real_market_breaks_and_updates_duplicate_bars() {
     let mut last = page(&["12:00", "13:00"], &[]);
