@@ -2195,3 +2195,47 @@ python3 scripts/compatibility/audit_test_parity.py
 结果：`jftrade-integration-futu` 464 passed / 1 skipped；`jftrade-engine`
 1220 passed / 0 skipped；fmt 通过；parity 审计 0 条非法 `-p` crate、
 0 条 `[x]` 缺 `function_exact`。本批 **17 `[x]` / 5 `[~]`**。
+
+---
+
+## 批次：`pkg/futu/exchange_test.go`（27 项）
+
+该文件实际含 **27 个 `Test*`**（此前代办目标写的 6 项为域名级误计）。逐行复核后：
+
+### 结果：23 `[x]` / 4 `[~]`（本批从 2 个 boundary/partial 收敛）
+
+新收敛为 `function_exact`：
+
+| Go 测试 | 行号 | Rust 证据 |
+|---|---:|---|
+| `TestEnsureMarketWithContextFallsBackToSecuritySnapshotLotSize` | :89 | `market_rules_query.rs::tests::market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error` |
+| `TestConnectRejectsOpenDBelowMinimumVersion` | :237 | `tests/client_recovery_boundaries.rs::below_minimum_version_fails_session_initialization` |
+
+`:89` 之前被记为 `[~] boundary`，属于基线口径过时：Rust 的 `OpenDMarketRulesReader::query`
+已实现与 Go 相同的 `Qot_GetStaticInfo → Qot_GetSecuritySnapshot` 两段式回退，并有测试
+断言两者各调用一次、`lot_size=100`、warning 同时含 `QuerySecuritySnapshot fallback`
+与主错误文本。
+
+`:237` 的 Go 语义是 InitConnect 只报 `serverVer` 时低版本直接失败；Rust
+`connect_with_push_notifications` 在同一位置执行 `version_supported_without_build`
+并返回 `OpenDTcpProbeError::UnsupportedVersion`（消息含检测到的版本），属同一 owner 与
+同一失败语义。
+
+### 保留边界 / 部分覆盖（4 项，均补上真实入口与命令）
+
+| Go 测试 | 行号 | 状态 | Rust 入口与结论 |
+|---|---:|---|---|
+| `TestEnsureMarketWithContextReturnsInferredMarketWhenStaticInfoUnavailable` | :114 | `[~]` boundary | `product_market_data_catalog_read_tests.rs::market_data_catalog_read_routes_fail_closed_when_snapshot_port_is_unavailable`；Rust 产品契约在 catalog 不可用时 fail-closed `MARKET_DATA_CATALOG_UNAVAILABLE`，不构造“带错误的推断市场” |
+| `TestConnectRejectsOpenDBelowMinimumBuild` | :251 | `[~]` partial | `health.rs::tests::minimum_version_validation_matches_go_boundaries`；Rust `version_supported(1009,6808)=false` 只在 health 投影为 degraded+OPEND_VERSION_UNSUPPORTED，会话初始化不因 build 号抛错，差异在拒绝边界 |
+| `TestEnsureSystemNotificationsBindsSystemPushHandler` | :927 | `[~]` boundary | `tests/futu_notifications_parity.rs::test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories`；Rust 无 Go 式 `OnSystemNotify` 回调 API，改用 `UnsolicitedFrame` + 中性通知投影 |
+| `TestSubscribeTradeAccountPushReplaysOnReconnectedClient` | :974 | `[~]` boundary | `trade_session_tests.rs::subscribe_trade_accounts_forwards_every_account_id`；Rust 只保留协议编码，账户推送生命周期由对账 worker 取代，无 Go 式 push 订阅 owner |
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：定向 5 项全部通过；parity 审计 0 条非法 `-p` crate、0 条 `[x]` 缺
+`function_exact`；Futu/OpenD 91.8%；总 `[x]` 449 / 4451。本批 **23 `[x]` / 4 `[~]`**。
