@@ -402,7 +402,13 @@ impl OpenDTradeReadClient {
             trd_get_margin_ratio::PROTOCOL_ID,
             &trd_get_margin_ratio::encode_request(&request),
         )?;
-        Ok(trd_get_margin_ratio::decode_response(&body)?)
+        trd_get_margin_ratio::decode_response(&body).map_err(|error| {
+            if margin_ratio_rate_limited_error(&error) {
+                TradeSessionError::RateLimited
+            } else {
+                TradeSessionError::Response(error)
+            }
+        })
     }
 
     pub(crate) fn get_max_trade_qtys(
@@ -772,23 +778,48 @@ impl OpenDTradeReadClient {
 }
 
 fn unknown_security_code(error: &TradeSessionError) -> Option<String> {
-    let message = error.to_string();
-    let lower = message.to_ascii_lowercase();
-    for marker in ["unknown stock", "unknown security", "未知股票"] {
-        let Some(index) = lower.find(&marker.to_ascii_lowercase()) else {
+    let message = error.to_string().to_lowercase();
+    // Marker order matches Go's `extractUnknownStockCode`: the first marker that
+    // appears decides the outcome, and a marker without a usable code token
+    // ends the search instead of falling through to the next one.
+    for marker in ["未知股票", "unknown stock", "unknown security"] {
+        let Some(index) = message.find(marker) else {
             continue;
         };
-        let tail = message[index + marker.len()..]
-            .trim_matches(|c: char| c.is_whitespace() || c == ':' || c == '"');
-        let code = tail
-            .split_whitespace()
-            .next()?
-            .trim_matches(|c: char| c == ',' || c == ';' || c == '"');
-        if !code.is_empty() {
-            return Some(code.to_owned());
+        let tail = message[index + marker.len()..].trim_start();
+        let field = tail.split_whitespace().next()?;
+        let code = field
+            .trim_matches(|c: char| {
+                matches!(
+                    c,
+                    '"' | '\'' | '.' | ',' | ';' | ':' | '(' | ')' | '[' | ']' | '{' | '}'
+                )
+            })
+            .trim()
+            .to_uppercase();
+        if code.is_empty() {
+            return None;
         }
+        return Some(code);
     }
     None
+}
+
+/// Server-side margin-ratio throttling, mirroring Go's
+/// `isMarginRatioRateLimitedError` (`pkg/futu/exchange_trade_margin.go`).
+///
+/// The client-side governor already maps its own quota onto
+/// [`TradeSessionError::RateLimited`], but OpenD also rejects the call itself
+/// once the account exceeds the documented "10 calls / 30 seconds" window. Go
+/// falls back to the recent margin-ratio cache on either shape, so both must
+/// reach the same typed variant instead of being treated as a generic
+/// business rejection.
+fn margin_ratio_rate_limited_error(error: &ResponseError) -> bool {
+    let lower = error.to_string().to_lowercase();
+    lower.contains("频率太高")
+        || (lower.contains("too high") && lower.contains("request"))
+        || lower.contains("每30秒最多10次")
+        || lower.contains("rate limit")
 }
 
 /// Builds the common trade header used by funds, positions, orders and fills.

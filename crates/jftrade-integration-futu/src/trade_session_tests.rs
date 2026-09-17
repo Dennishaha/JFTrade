@@ -1748,6 +1748,251 @@ fn margin_ratio_read_projects_permit_fee_and_tier_ratios() {
 }
 
 #[test]
+fn margin_ratio_server_throttling_maps_to_the_typed_rate_limit() {
+    // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:13
+    // (`isMarginRatioRateLimitedError`) and :86
+    // TestBrokerMarginRatioFallsBackToRecentCacheAndSurfacesInputFailures.
+    //
+    // Go classifies the *server's* rejection text, not only the local governor,
+    // so a throttled account still reaches the recent-cache fallback. The
+    // engine only consults that fallback for `TradeSessionError::RateLimited`,
+    // which makes this mapping load-bearing rather than cosmetic.
+    let throttled = [
+        "rate limit: too high request frequency",
+        "频率太高",
+        "每30秒最多10次",
+    ];
+    for message in throttled {
+        let error = ResponseError::ReturnCode {
+            ret_type: -1,
+            err_code: 9,
+            message: message.to_owned(),
+        };
+        assert!(
+            margin_ratio_rate_limited_error(&error),
+            "server throttling must be classified: {message}"
+        );
+    }
+    for message in [
+        "unknown stock 00700",
+        "broker service unavailable",
+        "too high price",
+        "request rejected",
+    ] {
+        let error = ResponseError::ReturnCode {
+            ret_type: -1,
+            err_code: 10,
+            message: message.to_owned(),
+        };
+        assert!(
+            !margin_ratio_rate_limited_error(&error),
+            "a non-throttling rejection must not become a rate limit: {message}"
+        );
+    }
+}
+
+#[test]
+fn margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant() {
+    // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:86.
+    // The scripted OpenD answers `Ret_GetMarginRatio` with the same rate-limit
+    // text Go classifies, so the read must surface `RateLimited` (and therefore
+    // become eligible for the engine's recent-cache fallback) instead of a
+    // generic response error.
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &trd_get_margin_ratio::Response {
+                        ret_type: -1,
+                        ret_msg: Some("rate limit: too high request frequency".to_owned()),
+                        err_code: Some(9),
+                        s2c: None,
+                    }
+                    .encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write throttled response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 25).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let error = client
+        .read_margin_ratios(
+            trade_header(1, 1001, 1),
+            vec![TradeSecurity {
+                market: 1,
+                code: "00700".to_owned(),
+            }],
+        )
+        .expect_err("a throttled read must not report success");
+    assert!(
+        matches!(error, TradeSessionError::RateLimited),
+        "expected the typed rate limit, got {error:?}"
+    );
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn margin_ratio_unknown_stock_code_extraction_matches_go_boundaries() {
+    // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:13
+    // TestMarginRatioRecoveryAndErrorClassificationBoundaries (the
+    // `extractUnknownStockCode` table) and :150
+    // TestMarginRatioUncachedRecoveryAndConversionBoundaries.
+    //
+    // Go trims the first field after the marker with the cut-set
+    // `"'.,;:()[]{}` and upper-cases the result, so `unknown security 'aapl',`
+    // yields AAPL and `未知股票 (00700)` yields 00700. A marker with no code
+    // token at all is not classified.
+    let cases = [
+        (None::<&str>, None::<&str>),
+        (Some("other broker error"), None),
+        (Some("unknown stock"), None),
+        (Some("unknown stock   "), None),
+        // Go returns `ok=false` here: the trimmed token is empty.
+        (Some("unknown security \"\""), None),
+        (Some("unknown stock 00700;"), Some("00700")),
+        (Some("未知股票 '00700',"), Some("00700")),
+        (Some("unknown security 'aapl',"), Some("AAPL")),
+        (Some("unknown security (00700)"), Some("00700")),
+        (Some("未知股票 (00700)"), Some("00700")),
+        (Some("OpenD: unknown stock AAPL"), Some("AAPL")),
+    ];
+    for (message, expected) in cases {
+        let error = message.map(|message| {
+            TradeSessionError::Response(ResponseError::ReturnCode {
+                ret_type: -1,
+                err_code: 1,
+                message: message.to_owned(),
+            })
+        });
+        match (error.as_ref(), expected) {
+            (Some(error), Some(expected)) => {
+                assert_eq!(
+                    unknown_security_code(error).as_deref(),
+                    Some(expected),
+                    "message={message:?}"
+                );
+            }
+            (Some(error), None) => {
+                assert_eq!(
+                    unknown_security_code(error),
+                    None,
+                    "message={message:?} must not classify a code"
+                );
+            }
+            (None, None) => {
+                // `nil` must not classify: the helper only runs on a live
+                // error, matching Go's nil guard.
+            }
+            (None, Some(_)) => unreachable!("nil error cannot have an expected code"),
+        }
+    }
+}
+
+#[test]
+fn margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms() {
+    // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:13
+    // (the `marginRatioInfoListWithUnknownStockRecovery` empty + recovery
+    // assertions) and the `removeUnknownMarginSecurity(nil, ...)` boundary
+    // from :150.
+    //
+    // Go removes the security whose code matches the extracted code
+    // case-insensitively, and drops nil entries while doing so. A marker whose
+    // code never matches the request must surface the original broker error
+    // instead of looping forever.
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let first = read_frame(&mut stream);
+        let decoded =
+            trd_get_margin_ratio::Request::decode(first.body.as_slice()).expect("request");
+        assert_eq!(decoded.c2s.security_list.len(), 2);
+        stream
+            .write_all(
+                &encode_frame(
+                    first.header.proto_id,
+                    first.header.serial_no,
+                    &trd_get_margin_ratio::Response {
+                        ret_type: -1,
+                        ret_msg: Some("未知股票 (07226)".to_owned()),
+                        err_code: Some(1),
+                        s2c: None,
+                    }
+                    .encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write rejection");
+
+        let second = read_frame(&mut stream);
+        let decoded =
+            trd_get_margin_ratio::Request::decode(second.body.as_slice()).expect("request");
+        assert_eq!(decoded.c2s.security_list.len(), 1);
+        assert_eq!(decoded.c2s.security_list[0].code, "00700");
+        stream
+            .write_all(
+                &encode_frame(
+                    second.header.proto_id,
+                    second.header.serial_no,
+                    &trd_get_margin_ratio::Response {
+                        ret_type: 0,
+                        ret_msg: None,
+                        err_code: None,
+                        s2c: Some(trd_get_margin_ratio::S2c {
+                            header: trade_header(1, 1001, 1).into(),
+                            margin_ratio_info_list: vec![trd_get_margin_ratio::MarginRatioInfo {
+                                security: crate::trade_proto::qot_common::Security {
+                                    market: 1,
+                                    code: "00700".to_owned(),
+                                },
+                                is_long_permit: Some(true),
+                                is_short_permit: None,
+                                ..Default::default()
+                            }],
+                        }),
+                    }
+                    .encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write retry response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 24).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let ratios = client
+        .read_margin_ratios(
+            trade_header(1, 1001, 1),
+            vec![
+                TradeSecurity {
+                    market: 1,
+                    code: "00700".to_owned(),
+                },
+                TradeSecurity {
+                    market: 1,
+                    code: "07226".to_owned(),
+                },
+            ],
+        )
+        .expect("margin ratios after parenthesised code recovery");
+    assert_eq!(ratios.len(), 1);
+    assert_eq!(ratios[0].symbol, "HK.00700");
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
 fn margin_ratio_read_retries_without_unknown_stock_and_keeps_known_rows() {
     // Parity: go:452dea11:pkg/futu/exchange_test.go:654
     // TestQueryBrokerMarginRatiosSkipsUnknownStock

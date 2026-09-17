@@ -17948,39 +17948,39 @@
     "evidence_type": "missing"
   },
   "pkg/futu/trade_margin_ratio_boundaries_test.go:13:TestMarginRatioRecoveryAndErrorClassificationBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/trade_session_tests.rs::margin_ratio_unknown_stock_code_extraction_matches_go_boundaries + crates/jftrade-integration-futu/src/trade_session_tests.rs::margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms + crates/jftrade-integration-futu/src/trade_session_tests.rs::margin_ratio_server_throttling_maps_to_the_typed_rate_limit + crates/jftrade-integration-futu/src/trade_session_tests.rs::margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant",
+    "conclusion": "function_exact（含真实功能修复）：Go 断言三件独立的事——(a) nil 错误不被 unknown-stock/rate-limit 分类，`unknown stock`/`未知股票` 被分类，`rate limit: too high request frequency`/`频率太高` 被分类；(b) `extractUnknownStockCode` 的 6 行表（nil、无关错误、`unknown stock`（无 code）、`unknown security \"\"` 返回 ok=false、`unknown security 'aapl',`→AAPL、`未知股票 (00700)`→00700）；(c) 空 securities 返回空、未知股票恢复后只保留 00700。修复前 Rust 的 `unknown_security_code` 只用 `trim_matches` 去掉极少数标点，`'aapl',`/`(00700)` 这类被 cut-set 包裹的 code 提取不出（`未知股票 (00700)` 会退化成 `(00700)` 或直接匹配失败），且服务端限流文本不会映射成 `TradeSessionError::RateLimited`，导致 engine 的近期缓存回退永不触发。修复后 `unknown_security_code` 按 Go 的 marker 顺序与 `\"'.,;:()[]{}\"` cut-set 先截断再大写（首个 marker 无可用 token 即停止搜索、不再回退到下一个 marker）；`get_margin_ratio` 对 `ResponseError` 文本做 `margin_ratio_rate_limited_error` 分类并提升为 `RateLimited`。wire 级测试用脚本化 OpenD 返回 `Ret_GetMarginRatio` 限流文本，证明真的到达该 typed variant。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(margin_ratio_unknown_stock) | test(margin_ratio_server_throttling) | test(margin_ratio_wire_throttling)'"
   },
   "pkg/futu/trade_margin_ratio_boundaries_test.go:62:TestMarginRatioCacheReturnsDefensiveFreshSnapshots": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_trade_margin_cache.rs::tests::cache_returns_cloned_snapshots_only_within_requested_age + crates/jftrade-engine/src/product_production_ports_trade_tests.rs::margin_ratio_cache_returns_defensive_clones_and_ignores_empty_keys",
+    "conclusion": "function_exact：Go 断言空 key 不命中、过期条目不命中、`setMarginRatioCache` 后修改调用方切片不影响缓存、读取返回副本（改读取结果不影响再次读取）。Rust 的单一 owner 是 `MarginRatioCache::get/put/put_at`：`cache_returns_cloned_snapshots_only_within_requested_age` 覆盖空 key、超 TTL 未命中与克隆隔离；新增的 engine 级测试从 runtime 端口（`margin_ratio_cache_get`/`margin_ratio_cache_put`）走同一路径，分别断言调用方写入后改切片不回灌、每次读取得到独立副本、以及过期条目在请求的 max age 之外不命中。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(margin_ratio_cache)'"
   },
   "pkg/futu/trade_margin_ratio_boundaries_test.go:86:TestBrokerMarginRatioFallsBackToRecentCacheAndSurfacesInputFailures": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::margin_ratios_fall_back_to_recent_cache_only_for_rate_limit_errors + crates/jftrade-engine/src/product_production_ports_trade_tests.rs::margin_ratios_surface_invalid_symbol_and_missing_account_input_failures + crates/jftrade-engine/src/product_production_ports_trade_tests.rs::margin_ratios_use_recent_cache_only_for_rate_limit_errors",
+    "conclusion": "function_exact：Go 断言四件事——过期缓存 + 服务端限流（errCode 9）仍回退成功；非 unknown-stock 错误（errCode 10）透传；非法符号 `BAD` 报错；无账户报错。Rust 侧：`margin_ratios_fall_back_to_recent_cache_only_for_rate_limit_errors` 先用真实读取填充缓存，再把条目回拨到「超出 30s 直读 TTL、仍在 120s fallback 窗口内」，随后注入限流错误断言仍返回缓存的 US.AAPL，并断言通用业务拒绝（broker service unavailable）不被当作限流而降级。`margin_ratios_surface_invalid_symbol_and_missing_account_input_failures` 覆盖不支持市场（`EU.SAP`）在触网前被拒、账户候选为空时报 input failure、以及无缓存时通用错误必须上抛而非返回空结果。第三项断言过期超过 fallback 窗口时限流错误改回 `Unavailable`，闭合「回退只在窗口内生效」。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(margin_ratios_fall_back_to_recent_cache) | test(margin_ratios_surface_invalid_symbol) | test(margin_ratios_use_recent_cache)'"
   },
   "pkg/futu/trade_margin_ratio_boundaries_test.go:124:TestBasicQuoteQueriesHandleEmptyDuplicateAndInvalidRequests": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_query.rs::tests::normalized_instruments_accepts_empty_symbol_list + crates/jftrade-integration-futu/src/basic_quote_query.rs::tests::basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty + crates/jftrade-integration-futu/src/basic_quote_query.rs::tests::basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent + crates/jftrade-integration-futu/src/basic_quote_tick.rs::tests::maps_normalized_requested_rows_and_keeps_the_last_duplicate + crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::tick_candles_report_an_empty_page_when_the_ticker_returns_no_sample + crates/jftrade-engine/src/product_production_ports_trade_tests.rs::margin_ratio_empty_requests_and_duplicate_symbols_match_go",
+    "conclusion": "function_exact（含边界说明）：Go 用同一条 BasicQot 通道断言「空 symbols 返回空、BAD 报错、重复/带空白符号去重为 1、OpenD 空响应时 QueryTicker/QueryQuoteSnapshot 报错」。Rust 按层拆成三个 owner，已逐条对上：(a) 符号解析/去重——`normalized_instruments_accepts_empty_symbol_list`（空列表成功返回空、由 query 层单独负责 EmptyRequest）、`normalized_instruments_trims_uppercases_dedupes_and_rejects_invalid`（trim+大写+去重、非法符号整体失败）、`basic_quote_tick.rs::maps_normalized_requested_rows_and_keeps_the_last_duplicate`（重复保留最后一行、非法/零价行丢弃）；(b) 空响应——Go 的 `opend.Client.GetBasicQot` 对缺 S2C 返回 empty/nil，Rust `basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent` 固定同一行为，`basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty` 再断言「s2c 存在但 quotes 为空」与「缺 s2c」都是空列表、「s2c 存在但行不可用」是 `IncompleteResponse`；(c) 「查询符号在返回中缺失时报错」在 Rust 落在 tick-candle 读 owner：`tick_candles_report_an_empty_page_when_the_ticker_returns_no_sample` 断言 `(nil, nil)` 语义（成功、不 ingest、空页），`tick_candles_surface_the_ticker_error_when_no_candle_is_retained` 断言配套的 fail-closed 分支。保留边界：Go 测试里的 `basicQotForSymbol`（map 查不到即报错）没有同构 Rust 函数——Rust 的 ticker 读按 instrument 单查并返回 `Option<Tick>`，缺失即 `Ok(None)`，由 candle 读决定是否算错误，因此该子断言映射为上述「空页 + fail-closed」两条。margin-ratios 一侧的同类断言（空 symbols 报错、重复符号折叠为 1 次 provider 读取）由新增的 `margin_ratio_empty_requests_and_duplicate_symbols_match_go` 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked -E 'test(normalized_instruments) | test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) | test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) | test(tick_candles_report_an_empty_page_when_the_ticker_returns_no_sample) | test(tick_candles_surface_the_ticker_error_when_no_candle_is_retained) | test(margin_ratio_empty_requests)'"
   },
   "pkg/futu/trade_margin_ratio_boundaries_test.go:150:TestMarginRatioUncachedRecoveryAndConversionBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::margin_ratios_surface_invalid_symbol_and_missing_account_input_failures + crates/jftrade-integration-futu/src/trade_session_tests.rs::margin_ratio_unknown_stock_code_extraction_matches_go_boundaries + crates/jftrade-integration-futu/src/trade_snapshots.rs::tests::margin_ratio_projection_sorts_by_symbol_and_reports_market_labels + crates/jftrade-engine/src/product_production_ports_trade_tests.rs::margin_ratio_empty_requests_and_duplicate_symbols_match_go",
+    "conclusion": "function_exact：Go 断言「无缓存 + 通用错误透传；`unknown stock`(无 code) 报错；`unknown stock MISSING` 不匹配即报错；`brokerMarginRatioSnapshotsFromProto` 跳过 nil 行并按 symbol 排序成 HK.00700, US.AAPL；`removeUnknownMarginSecurity` 能处理 nil security；cache key 非空」。Rust 逐条对上：无缓存通用错误与无 code 的 unknown-stock 都由 engine `margin_ratios_surface_invalid_symbol_and_missing_account_input_failures` 与 integration `margin_ratio_unknown_stock_code_extraction_matches_go_boundaries`（`unknown stock`/`unknown stock MISSING` 均返回 None）共同固定；排序与跨市场 label 由 `margin_ratio_projection_sorts_by_symbol_and_reports_market_labels` 覆盖——provider 乱序返回 US、未知 market、HK，投影后按 symbol 升序得到 `[\"\", \"HK.00700\", \"US.AAPL\"]`，并断言 market label 与 fee 字段归属正确（Go 的 nil 行在 Rust 的 protobuf 投影中不存在，等价的不可用行是未知 market）。Go 的「`unknown stock MISSING` 不匹配即报错」在 Rust 由 `read_margin_ratios` 的 `remaining.retain` 无移除即回传原错误实现，回归由 `margin_ratio_read_retries_without_unknown_stock_and_keeps_known_rows`（匹配成功路径）与新增的 `margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms`（`未知股票 (07226)` 带括号 code 的恢复路径）共同固定；`removeUnknownMarginSecurity` 的 nil-security 语义在 Rust 中不存在（`Vec<TradeSecurity>` 无 nil 元素），因此该子断言属边界保留，等价保证由 cache key 非空 + 重复符号折叠为单次读取的 `margin_ratio_empty_requests_and_duplicate_symbols_match_go` 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked -E 'test(margin_ratios_surface_invalid_symbol) | test(margin_ratio_unknown_stock) | test(margin_ratio_projection_sorts_by_symbol) | test(margin_ratio_empty_requests) | test(margin_ratio_read_retries_without_unknown_stock)'"
   },
   "pkg/futu/trade_proto_business_test.go:14:TestBrokerFundsSnapshotFromProtoPreservesCurrencyAndMarketBreakdowns": {
     "status": "[~]",

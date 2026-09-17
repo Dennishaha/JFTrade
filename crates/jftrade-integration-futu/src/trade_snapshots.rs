@@ -856,6 +856,8 @@ fn parse_order_time(value: &str) -> Option<(i64, i64)> {
 mod tests {
     use super::*;
     use crate::trade_proto::trd_common::{Order, OrderFill};
+    use crate::trade_proto::trd_get_margin_ratio;
+    use crate::trade_session::trade_header;
 
     /// Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:403
     /// `brokerPositionSnapshotFromProto` / `brokerOrderSnapshotFromProto`.
@@ -1125,6 +1127,61 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![23, 22, 21]
         );
+    }
+
+    #[test]
+    fn margin_ratio_projection_sorts_by_symbol_and_reports_market_labels() {
+        // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:150
+        // (`brokerMarginRatioSnapshotsFromProto`). Go skips nil rows, maps each
+        // row's security through `futuSymbolFromSecurity` (falling back to an
+        // empty symbol when the market is unknown) and sorts the result by
+        // symbol, so a HK row and a US row come back ordered even when the
+        // provider returned them the other way around. Go's nil-row analogue in
+        // Rust is a row with an unknown market, which yields no symbol.
+        let ratios = margin_ratios_projection(trade_proto::trd_get_margin_ratio::S2c {
+            header: trade_header(1, 1001, 1).into(),
+            margin_ratio_info_list: vec![
+                trd_get_margin_ratio::MarginRatioInfo {
+                    security: crate::trade_proto::qot_common::Security {
+                        market: 11,
+                        code: "aapl".to_owned(),
+                    },
+                    is_long_permit: Some(true),
+                    is_short_permit: None,
+                    short_fee_rate: Some(1.25),
+                    ..Default::default()
+                },
+                trd_get_margin_ratio::MarginRatioInfo {
+                    security: crate::trade_proto::qot_common::Security {
+                        market: 999,
+                        code: "BAD".to_owned(),
+                    },
+                    ..Default::default()
+                },
+                trd_get_margin_ratio::MarginRatioInfo {
+                    security: crate::trade_proto::qot_common::Security {
+                        market: 1,
+                        code: " 00700 ".to_owned(),
+                    },
+                    is_long_permit: Some(false),
+                    ..Default::default()
+                },
+            ],
+        });
+        assert_eq!(
+            ratios
+                .iter()
+                .map(|ratio| ratio.symbol.as_str())
+                .collect::<Vec<_>>(),
+            vec!["", "HK.00700", "US.AAPL"],
+            "rows sort by symbol and keep an unusable market distinguishable"
+        );
+        let tencent = &ratios[1];
+        assert_eq!(tencent.market, "HK");
+        assert_eq!(tencent.is_long_permit, Some(false));
+        let apple = &ratios[2];
+        assert_eq!(apple.market, "US");
+        assert_eq!(apple.short_fee_rate, Some(1.25));
     }
 
     #[test]

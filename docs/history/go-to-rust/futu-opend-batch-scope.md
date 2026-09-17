@@ -2592,3 +2592,88 @@ cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locke
 ```
 
 结果：1716 passed / 1 skipped。
+
+## 批次：pkg/futu/trade_margin_ratio_boundaries_test.go（5 项）
+
+### 结果：5 `[x]`
+
+| Go 测试 | 行号 | 状态 | Rust 证据 |
+|---|---|---|---|
+| `TestMarginRatioRecoveryAndErrorClassificationBoundaries` | :13 | `[x]` | `trade_session_tests.rs::margin_ratio_unknown_stock_code_extraction_matches_go_boundaries` + `margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms` + `margin_ratio_server_throttling_maps_to_the_typed_rate_limit` + `margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant` |
+| `TestMarginRatioCacheReturnsDefensiveFreshSnapshots` | :62 | `[x]` | `product_trade_margin_cache.rs::tests::cache_returns_cloned_snapshots_only_within_requested_age` + `product_production_ports_trade_tests.rs::margin_ratio_cache_returns_defensive_clones_and_ignores_empty_keys` |
+| `TestBrokerMarginRatioFallsBackToRecentCacheAndSurfacesInputFailures` | :86 | `[x]` | `product_production_ports_trade_tests.rs::margin_ratios_fall_back_to_recent_cache_only_for_rate_limit_errors` + `margin_ratios_surface_invalid_symbol_and_missing_account_input_failures` + `margin_ratios_use_recent_cache_only_for_rate_limit_errors` |
+| `TestBasicQuoteQueriesHandleEmptyDuplicateAndInvalidRequests` | :124 | `[x]` | `basic_quote_query.rs::tests::normalized_instruments_accepts_empty_symbol_list` + `basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty` + `basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent` + `basic_quote_tick.rs::tests::maps_normalized_requested_rows_and_keeps_the_last_duplicate` + `product_market_data_candle_pagination_tests.rs::tick_candles_report_an_empty_page_when_the_ticker_returns_no_sample` + `product_production_ports_trade_tests.rs::margin_ratio_empty_requests_and_duplicate_symbols_match_go` |
+| `TestMarginRatioUncachedRecoveryAndConversionBoundaries` | :150 | `[x]` | `product_production_ports_trade_tests.rs::margin_ratios_surface_invalid_symbol_and_missing_account_input_failures` + `trade_session_tests.rs::margin_ratio_unknown_stock_code_extraction_matches_go_boundaries` + `trade_snapshots.rs::tests::margin_ratio_projection_sorts_by_symbol_and_reports_market_labels` + `product_production_ports_trade_tests.rs::margin_ratio_empty_requests_and_duplicate_symbols_match_go` |
+
+### 真实功能缺失修复
+
+1. `unknown_security_code` 的 code 提取不符合 Go 的 `extractUnknownStockCode`
+   （`pkg/futu/exchange_trade_margin.go`）：
+
+   - Go 按 marker 顺序 `未知股票` → `unknown stock` → `unknown security` 查找，
+     取 marker 后第一个空白分隔 token，用 cut-set `"'.,;:()[]{}` 截断后大写；
+     **首个 marker 存在但没有可用 token 时直接返回 `ok=false`**，不再尝试下一个 marker。
+   - 修复前 Rust 只用 `trim_matches` 去掉 `:`/`"`/`,`/`;`/`"` 等少量字符，
+     `未知股票 (00700)` 提取出 `(00700)`、`unknown stock 00700;` 提取出 `00700;`，
+     导致 `remaining.retain` 永远匹配不到，未知股票恢复循环直接回传原错误。
+   - 修复后按 Go 的 marker 顺序 + cut-set + 大写实现，并在首个 marker 无 token 时返回 `None`。
+2. 服务端限流文本未映射为 `TradeSessionError::RateLimited`
+   （`isMarginRatioRateLimitedError`）：
+
+   - Go 除了本地 governor，还分类**服务端**拒绝文本
+     （`频率太高` / `too high request frequency` / `每30秒最多10次` / `rate limit`），
+     engine 的「30s 直读 TTL + 120s fallback 窗口」缓存回退只在 `RateLimited` 上生效。
+   - 修复前 `get_margin_ratio` 把服务端限流一律当成普通 `ResponseError`，
+     于是 OpenD 真的限流时回退永不触发，读直接失败。
+   - 修复后新增单一 owner `margin_ratio_rate_limited_error`，`get_margin_ratio` 在解码
+     失败时分类并提升为 `RateLimited`。
+
+### 覆盖补强（新增回归）
+
+- engine：`margin_ratio_cache_returns_defensive_clones_and_ignores_empty_keys`、
+  `margin_ratios_fall_back_to_recent_cache_only_for_rate_limit_errors`、
+  `margin_ratios_surface_invalid_symbol_and_missing_account_input_failures`、
+  `margin_ratio_empty_requests_and_duplicate_symbols_match_go`；
+  新增 `RecordingMarginRead` 夹具记录每次 provider 读取的 security 数，
+  证明「两个拼法」折叠成一次请求且随后命中缓存。
+- integration：`margin_ratio_unknown_stock_code_extraction_matches_go_boundaries`（10 行表）、
+  `margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms`（wire 级
+  `未知股票 (07226)` 恢复）、`margin_ratio_server_throttling_maps_to_the_typed_rate_limit`（7 行文本表）、
+  `margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant`（脚本化 OpenD wire 级限流）、
+  `margin_ratio_projection_sorts_by_symbol_and_reports_market_labels`。
+- 所有联网夹具都在 `server.join()` 前显式 `drop(reader)`/`session.close()`，避免服务端等待对端关闭而挂起。
+
+### 保留边界
+
+- Go 的 `removeUnknownMarginSecurity` 需要处理 `nil *qotcommonpb.Security`。Rust 的
+  `read_margin_ratios` 接收 `Vec<TradeSecurity>`（值类型，无 nil 元素），该子断言没有同构 owner；
+  等价保证是「cache key 非空 + 重复符号折叠为单次 provider 读取」，
+  由 `margin_ratio_empty_requests_and_duplicate_symbols_match_go` 固定。
+- Go 的 `basicQotForSymbol`（返回 map 中查不到请求符号即报错）没有同构 Rust 函数：
+  Rust 的 ticker 读按 instrument 单查并返回 `Option<Tick>`，缺失即 `Ok(None)`，
+  由 tick-candle 读 owner 决定语义，映射为
+  `tick_candles_report_an_empty_page_when_the_ticker_returns_no_sample`（空页）
+  与 `tick_candles_surface_the_ticker_error_when_no_candle_is_retained`（无缓存时 fail closed）。
+- Go 的 `brokerMarginRatioSnapshotsFromProto` 跳过 nil 行。Rust 的 protobuf 投影
+  （`margin_ratios_projection`）没有 nil 行可跳过，等价的不可用行是未知 market（投影出空 symbol），
+  已在 `margin_ratio_projection_sorts_by_symbol_and_reports_market_labels` 中固定。
+
+### 回归可证性（临时探针，已回滚）
+
+1. 把 `unknown_security_code` 恢复为旧的宽松 `trim_matches` 实现 →
+   `margin_ratio_unknown_stock_code_extraction_matches_go_boundaries` 失败
+   （`message=Some("unknown stock 00700;")`，`left: Some("00700;")` vs `right: Some("00700")`），
+   且 `margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms` 失败
+   （`Response(ReturnCode { ret_type: -1, err_code: 1, message: "未知股票 (07226)" })`）。
+2. 把 `get_margin_ratio` 恢复为 `Ok(decode_response(&body)?)` →
+   `margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant` 失败
+   （`expected the typed rate limit, got Response(ReturnCode { ret_type: -1, err_code: 9, message: "rate limit: too high request frequency" })`）。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+```

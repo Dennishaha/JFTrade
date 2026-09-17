@@ -1,4 +1,5 @@
 use super::*;
+use super::product_trade_margin_cache::MARGIN_RATIO_CACHE_TTL;
 use jftrade_api::LiveHub;
 use jftrade_integration_futu::{
     ResponseError, TradeAccountSnapshot, TradeCashFlowSnapshot, TradeFillSnapshot, TradeFunds,
@@ -1891,6 +1892,371 @@ fn margin_ratios_use_recent_cache_only_for_rate_limit_errors() {
     assert!(
         matches!(non_rate, Err(BrokerReadSnapshotError::Unavailable(message)) if message.contains("broker service unavailable"))
     );
+}
+
+/// Minimal snapshot fixture for the margin-ratio cache assertions.
+fn margin_ratio_snapshot(symbol: &str) -> TradeMarginRatioSnapshot {
+    let (market, acc_id, trd_market) = match symbol.split_once('.') {
+        Some(("HK", _)) => ("HK", 42_u64, 1_i32),
+        Some(("US", _)) => ("US", 42, 2),
+        _ => ("HK", 42, 1),
+    };
+    TradeMarginRatioSnapshot {
+        header: trade_header(1, acc_id, trd_market),
+        market: market.to_owned(),
+        symbol: symbol.to_owned(),
+        is_long_permit: None,
+        is_short_permit: None,
+        short_pool_remain: None,
+        short_fee_rate: None,
+        alert_long_ratio: None,
+        alert_short_ratio: None,
+        initial_margin_long_ratio: None,
+        initial_margin_short_ratio: None,
+        margin_call_long_ratio: None,
+        margin_call_short_ratio: None,
+        maintenance_long_ratio: None,
+        maintenance_short_ratio: None,
+    }
+}
+
+/// Records how many securities each provider margin-ratio read requested, so a
+/// test can prove duplicate/whitespace spellings collapse before the wire.
+#[derive(Debug, Default)]
+struct RecordingMarginRead {
+    securities_seen: std::sync::Mutex<Vec<usize>>,
+}
+
+impl TradeReadPort for RecordingMarginRead {
+    fn read_accounts(
+        &self,
+        user_id: u64,
+        category: Option<i32>,
+        general: Option<bool>,
+    ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_accounts(user_id, category, general)
+    }
+    fn read_funds(
+        &self,
+        header: TradeHeader,
+        refresh: Option<bool>,
+        currency: Option<i32>,
+        asset: Option<i32>,
+    ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+        FakeTradeRead.read_funds(header, refresh, currency, asset)
+    }
+    fn read_cash_flows(
+        &self,
+        header: TradeHeader,
+        clearing_date: String,
+        direction: Option<i32>,
+    ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_cash_flows(header, clearing_date, direction)
+    }
+    fn read_order_fees(
+        &self,
+        header: TradeHeader,
+        order_ids: Vec<String>,
+    ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_order_fees(header, order_ids)
+    }
+    fn read_margin_ratios(
+        &self,
+        _: TradeHeader,
+        securities: Vec<TradeSecurity>,
+    ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+        self.securities_seen
+            .lock()
+            .unwrap()
+            .push(securities.len());
+        Ok(securities
+            .iter()
+            .map(|security| {
+                let market = match security.market {
+                    1 => "HK",
+                    2 => "US",
+                    _ => "HK",
+                };
+                margin_ratio_snapshot(&format!("{market}.{}", security.code))
+            })
+            .collect())
+    }
+    fn read_max_trade_quantity(
+        &self,
+        request: TradeMaxTradeQuantityRequest,
+    ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+        FakeTradeRead.read_max_trade_quantity(request)
+    }
+    fn read_positions(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        min: Option<f64>,
+        max: Option<f64>,
+        refresh: Option<bool>,
+        asset: Option<i32>,
+        currency: Option<i32>,
+        option_view: Option<bool>,
+    ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_positions(
+            header, filter, min, max, refresh, asset, currency, option_view,
+        )
+    }
+    fn read_orders(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        statuses: Vec<i32>,
+        refresh: Option<bool>,
+    ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_orders(header, filter, statuses, refresh)
+    }
+    fn read_fills(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        refresh: Option<bool>,
+    ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_fills(header, filter, refresh)
+    }
+}
+
+#[test]
+fn margin_ratio_cache_returns_defensive_clones_and_ignores_empty_keys() {
+    // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:62
+    // TestMarginRatioCacheReturnsDefensiveFreshSnapshots. Go asserts an empty
+    // key never hits, an entry older than the requested max age misses, the
+    // writer's slice is copied on `setMarginRatioCache`, and every reader gets
+    // its own copy.
+    let runtime = SharedTradeReadRuntime::default();
+    assert!(
+        runtime
+            .margin_ratio_cache_get("", MARGIN_RATIO_CACHE_TTL)
+            .is_none(),
+        "empty cache key must not hit"
+    );
+    runtime.margin_ratio_cache.put_at(
+        "stale".to_owned(),
+        Vec::new(),
+        Instant::now() - Duration::from_secs(61),
+    );
+    assert!(
+        runtime
+            .margin_ratio_cache_get("stale", MARGIN_RATIO_CACHE_TTL)
+            .is_none(),
+        "an entry older than the requested max age must miss"
+    );
+
+    let mut snapshots = vec![margin_ratio_snapshot("HK.00700")];
+    runtime.margin_ratio_cache_put("fresh".to_owned(), snapshots.clone());
+    // Mutating the caller's slice after the write must not reach the cache.
+    snapshots[0].symbol = "MUTATED-CALLER".to_owned();
+    let cached = runtime
+        .margin_ratio_cache_get("fresh", MARGIN_RATIO_CACHE_TTL)
+        .expect("fresh entry");
+    assert_eq!(cached.len(), 1);
+    assert_eq!(cached[0].symbol, "HK.00700");
+
+    // Mutating a read result must not leak into the next reader.
+    let mut first = runtime
+        .margin_ratio_cache_get("fresh", MARGIN_RATIO_CACHE_TTL)
+        .expect("fresh entry");
+    first[0].symbol = "MUTATED-READ".to_owned();
+    let again = runtime
+        .margin_ratio_cache_get("fresh", MARGIN_RATIO_CACHE_TTL)
+        .expect("fresh entry");
+    assert_eq!(again[0].symbol, "HK.00700");
+}
+
+#[test]
+fn margin_ratios_fall_back_to_recent_cache_only_for_rate_limit_errors() {
+    // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:86
+    // TestBrokerMarginRatioFallsBackToRecentCacheAndSurfacesInputFailures.
+    //
+    // Go seeds an expired entry, then asserts a server-side rate-limit
+    // rejection still answers from the fallback window, while any other
+    // business rejection is surfaced unchanged. The second half of the Go-side case
+    // covers the invalid-symbol and missing-account inputs; those live in the
+    // request-validation tests below.
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(
+        Some(Arc::new(FakeTradeRead)),
+        Some(true),
+    );
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(Arc::clone(&runtime)),
+    };
+    let query = "accountId=42&market=US&symbol=US.AAPL";
+    port.read("/api/v1/brokers/futu/margin-ratios", query)
+        .expect("prime the cache with one successful read");
+
+    // Expired for the direct TTL but still inside the fallback window.
+    runtime.margin_ratio_cache.put_at(
+        "42|REAL|US|US.AAPL".to_owned(),
+        vec![margin_ratio_snapshot("US.AAPL")],
+        Instant::now() - MARGIN_RATIO_CACHE_TTL - Duration::from_secs(1),
+    );
+    runtime.set(
+        Some(Arc::new(ErrorTradeRead {
+            message: "rate limit exceeded",
+        })),
+        Some(true),
+    );
+    let fallback = port
+        .read("/api/v1/brokers/futu/margin-ratios", query)
+        .expect("a rate-limited read must answer from the fallback window");
+    assert_eq!(fallback["marginRatios"][0]["symbol"], "US.AAPL");
+
+    // A generic server rejection is not rate limiting: surface it.
+    runtime.set(
+        Some(Arc::new(ErrorTradeRead {
+            message: "broker service unavailable",
+        })),
+        Some(true),
+    );
+    let surfaced = port.read("/api/v1/brokers/futu/margin-ratios", query);
+    assert!(
+        matches!(surfaced, Err(BrokerReadSnapshotError::Unavailable(message)) if message.contains("broker service unavailable"))
+    );
+}
+
+#[test]
+fn margin_ratios_surface_invalid_symbol_and_missing_account_input_failures() {
+    // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:86
+    // (its `BAD`-symbol and nil-account assertions) and :150
+    // TestMarginRatioUncachedRecoveryAndConversionBoundaries (the uncached
+    // generic-error passthrough).
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(Arc::clone(&runtime)),
+    };
+
+    // An unsupported market must be rejected before any provider read. Go
+    // reaches the same state through `NormalizeSymbols`, which fails the whole
+    // request on a prefix it cannot resolve.
+    let invalid = port.read(
+        "/api/v1/brokers/futu/margin-ratios",
+        "accountId=42&market=HK&symbol=EU.SAP",
+    );
+    assert!(
+        matches!(invalid, Err(BrokerReadSnapshotError::Invalid(_))),
+        "an unsupported market must be rejected before the provider read"
+    );
+
+    // No account can satisfy the requested environment/market.
+    runtime.set(
+        Some(Arc::new(AccountsFixtureRead { accounts: Vec::new() })),
+        Some(true),
+    );
+    let missing = port.read(
+        "/api/v1/brokers/futu/margin-ratios",
+        "accountId=42&market=HK&symbol=HK.00001",
+    );
+    // Go only requires an error here; Rust reports the empty candidate list as
+    // an invalid request rather than fabricating a header.
+    assert!(
+        matches!(&missing, Err(BrokerReadSnapshotError::Invalid(message)) if message.contains("Futu trading account")),
+        "a missing account must be reported as an input failure: {missing:?}"
+    );
+
+    // An uncached generic rejection must surface instead of answering empty.
+    runtime.set(
+        Some(Arc::new(ErrorTradeRead {
+            message: "broker unavailable",
+        })),
+        Some(true),
+    );
+    let uncached = port.read(
+        "/api/v1/brokers/futu/margin-ratios",
+        "accountId=42&market=US&symbol=US.MSFT",
+    );
+    assert!(
+        matches!(uncached, Err(BrokerReadSnapshotError::Unavailable(message)) if message.contains("broker unavailable")),
+        "an uncached generic error must surface"
+    );
+}
+
+#[test]
+fn margin_ratio_empty_requests_and_duplicate_symbols_match_go() {
+    // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:124
+    // TestBasicQuoteQueriesHandleEmptyDuplicateAndInvalidRequests (the
+    // empty/duplicate/invalid request assertions) and :150's cache-key check.
+    //
+    // The Go-side fixture drives `QueryTickers`/`QueryTicker`; the Rust owner for the
+    // same request-shaping rules is the shared `TradeRequest::securities`
+    // parser plus `margin_ratio_cache_key`, so the assertions are pinned here.
+    let empty = TradeRequest::parse(
+        "/api/v1/brokers/futu/margin-ratios",
+        "accountId=42&market=US",
+    )
+    .expect("request");
+    assert!(
+        matches!(empty.securities(), Err(message) if message.contains("symbol")),
+        "an empty symbol list is an input failure"
+    );
+
+    // A bare code is qualified with the request market, exactly like Go's
+    // `NormalizeSymbols(marketCode, symbols)`. Go's *exchange*-level
+    // `QueryBrokerMarginRatios` rejects an unqualified symbol, but its HTTP
+    // route defaults the market first; Rust keeps that route-level contract and
+    // never lets an unqualified symbol reach OpenD.
+    let bare = TradeRequest::parse(
+        "/api/v1/brokers/futu/margin-ratios",
+        "accountId=42&market=HK&symbol=BAD",
+    )
+    .expect("request");
+    let qualified = bare.securities().expect("bare code is qualified by market");
+    assert_eq!(qualified.len(), 1);
+    assert_eq!(qualified[0].market, 1, "HK market code");
+    assert_eq!(qualified[0].code, "BAD");
+
+    // Duplicate and whitespace-padded symbols collapse to one security.
+    let duplicates = TradeRequest::parse(
+        "/api/v1/brokers/futu/margin-ratios",
+        "accountId=42&market=HK&symbol=HK.00700&symbol=%20hk.00700%20",
+    )
+    .expect("request");
+    let securities = duplicates.securities().expect("duplicate symbols");
+    assert_eq!(securities.len(), 1);
+    assert_eq!(securities[0].code, "00700");
+
+    // Driving the route proves the duplicate list is collapsed into a single
+    // provider request: Go asserts the same "1 request for 2 spellings" rule,
+    // and its closing check only requires the derived cache key to be usable.
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    let reader = Arc::new(RecordingMarginRead::default());
+    runtime.set(Some(reader.clone()), Some(true));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(Arc::clone(&runtime)),
+    };
+    port.read(
+        "/api/v1/brokers/futu/margin-ratios",
+        "accountId=42&market=HK&symbol=HK.00700&symbol=%20hk.00700%20",
+    )
+    .expect("duplicate symbols are collapsed into one security");
+    assert_eq!(
+        reader.securities_seen.lock().unwrap().as_slice(),
+        &[1_usize],
+        "the provider must be asked for exactly one security"
+    );
+    // The read is cached under that derived key, so an identical second read
+    // must not touch the provider again.
+    port.read(
+        "/api/v1/brokers/futu/margin-ratios",
+        "accountId=42&market=HK&symbol=HK.00700&symbol=%20hk.00700%20",
+    )
+    .expect("cached duplicate-symbol read");
+    assert_eq!(reader.securities_seen.lock().unwrap().as_slice(), &[1_usize]);
 }
 
 #[test]
