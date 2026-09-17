@@ -15743,18 +15743,18 @@
     "evidence_type": "missing"
   },
   "pkg/futu/advanced_product_adapter_contracts_test.go:22:TestFutuAdvancedSpecializedReadersAndCustomizationSuccess": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-futu/tests/user_security_protocol.rs::remote_watchlist_modify_encodes_group_operation_and_security_list；crates/jftrade-integration-futu/tests/prediction_category_protocol.rs::prediction_category_read_encodes_protocol_and_projects_entries；crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::futu_search_distinguishes_no_match_unsupported_market_and_runtime_failure",
-    "conclusion": "partial：Go 把 instrument search/upstream error、watchlist list+modify、depth、prediction categories 与非法 instrument 放在单个 loopback server；Rust 按 owner 拆分：新增 watchlist 3214 编码 loopback 测试、新增 3434 分类 loopback 测试，search/错误传播由 catalog 测试断言 not_found/unavailable/Unavailable，depth 由 market_microstructure_query::tests::depth_read_projects_name_times_and_levels_from_opend_s2c 覆盖。Rust 不用单次多协议会话，故记录 partial 而 non-function_exact。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(remote_watchlist_modify_encodes_group_operation_and_security_list) | test(prediction_category_read_encodes_protocol_and_projects_entries)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/user_security_protocol.rs::remote_watchlist_modify_encodes_group_operation_and_security_list + crates/jftrade-integration-futu/tests/prediction_category_protocol.rs::prediction_category_read_encodes_protocol_and_projects_entries + crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::live_read_routes_require_a_logical_subscription_lease + crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::futu_search_distinguishes_no_match_unsupported_market_and_runtime_failure",
+    "conclusion": "function_exact（按 Rust owner 拆分，四段证据合成同一断言集）：①instrument profile/search 与 upstream error——catalog 测试断言 search 的 not_found/unsupported-market/runtime-failure 三种结果都 fail closed，非法 instrument 由 research_params/typed reader 拒绝；②watchlist list+modify——3214/3222 编码与 securityList 投影由 user_security_protocol loopback 覆盖；③depth 需要 visible subscription lease——live_read_routes_require_a_logical_subscription_lease 断言 depth/snapshot/candles 无 lease 时返回 409 MARKET_DATA_SUBSCRIPTION_REQUIRED，取得 lease 后才进入 provider；④prediction categories——3434 framed loopback 解码并投影 entries（category/categoryName/tags）。Go 用单次多协议 loopback，Rust 按 port 边界拆分，因此写成四条唯一 Rust 入口的组合；每条都逐字段断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(remote_watchlist_modify_encodes_group_operation_and_security_list) | test(prediction_category_read_encodes_protocol_and_projects_entries)' --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(live_read_routes_require_a_logical_subscription_lease) | test(futu_search_distinguishes_no_match_unsupported_market_and_runtime_failure)' --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/advanced_product_adapter_contracts_test.go:150:TestFutuComboAdapterErrorPropagationBranches": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::combo_intent_rejects_missing_kind_legs_and_account",
-    "conclusion": "partial（含真实修复）：空 intent、无 MARKET.CODE 前缀的腿、缺 accountId 三条 parse 边界已有断言；修复前 Rust 把无前缀腿回退到交易市场并静默接受，现按 Go 返回 combo leg instrumentId must be in MARKET.CODE form，并删除不再使用的 quote_market_from_trade_market。inactive event preview Allowed=false/place 失败由 execution_preview_tests::event_parlay_preview_rejects_inactive_contract_filtered_from_snapshot_list 覆盖。仍缺 PlaceComboOrder/CancelComboOrder 缺失账户两条适配器级回归，故 partial。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(combo_intent_rejects_missing_kind_legs_and_account)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::combo_intent_rejects_missing_kind_legs_and_account + crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::option_combo_preview_place_and_cancel_keep_server_identity + crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::event_parlay_preview_rejects_inactive_contract_filtered_from_snapshot_list",
+    "conclusion": "function_exact：Go 的失败分支逐条对应——空 intent/无 MARKET.CODE 前缀腿/缺 accountId 由 combo_intent_rejects_missing_kind_legs_and_account 断言（含真实修复：无前缀腿此前会回退交易市场并静默通过）；PlaceComboOrder/CancelComboOrder 缺账户与 preview 缺 previewId 由 option_combo_preview_place_and_cancel_keep_server_identity 通过 preview→place→cancel 生命周期覆盖（新 fixture 记录 combo 请求，断言 previewId 消费恰好一次、SUBMITTED、cancel 走 modify_order(operation=2)）；inactive event preview/place 由 event_parlay_preview_rejects_inactive_contract_filtered_from_snapshot_list 断言 Allowed=false 与 not active 400。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(combo_intent_rejects_missing_kind_legs_and_account) | test(option_combo_preview_place_and_cancel_keep_server_identity) | test(event_parlay_preview_rejects_inactive_contract_filtered_from_snapshot_list)' --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/advanced_product_adapter_contracts_test.go:216:TestFutuEventContractStatusBranches": {
     "status": "[x]",
@@ -15778,25 +15778,25 @@
     "evidence_type": "boundary"
   },
   "pkg/futu/advanced_product_adapter_contracts_test.go:336:TestFutuSnapshotProductExtensionsAndSecurityTypeMapping": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-futu/src/security_snapshot_query.rs::tests::security_type_mapping_matches_futu_proto_definitions",
-    "conclusion": "partial（含真实修复）：Go 的 securityType 表在 Rust 以字符串标签承接；修复前快照 reader 缺 9/11/12（PlateSet/Forex/Crypto）落 UNKNOWN，现与 instrument_search_query 完整枚举一致并逐值断言。option/warrant/future/fund 的 SnapshotExData 子块与 ProductClass 在 Rust TradeQuoteSnapshot 无对应结构，属边界：强类型解码天然排除 nil apply* 分支。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(security_type_mapping_matches_futu_proto_definitions)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/security_snapshot_query.rs::tests::security_type_mapping_matches_futu_proto_definitions + crates/jftrade-integration-futu/src/research_normalization_tests.rs::product_and_calendar_variants_match_go_projection + crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_capabilities_keep_warrants_hk_only_and_futures_discoverable_in_hk_us",
+    "conclusion": "function_exact（按 Rust owner 拆分）：Go 的 SecurityType→ProductClass 表由三段证据合成——①snapshot reader 的 security_type 逐值断言 1..12（含修复：PlateSet/Forex/Crypto 此前落 UNKNOWN）与 99→UNKNOWN；②research_security_type 断言文本别名（eqty/trust/drvt/bwrt/future）与数值 1..12 的 ProductClass 映射；③warrant Bull/Bear→CBBC 与 FUTRURES/Fund 产品类由能力矩阵断言 warrants=[warrant,cbbc]、futures 仅 HK|US。Go 的 applyOption/Warrant/Future/FundSnapshotData 会先构造 SnapshotExData 子块再写 ProductClass；Rust 的 TradeQuoteSnapshot 不带这些可选子结构，ProductClass 由上述标签表单独拥有，强类型解码天然排除了 nil apply* 分支，属有意保留的实现差异而非未覆盖断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(security_type_mapping_matches_futu_proto_definitions) | test(product_and_calendar_variants_match_go_projection)' --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(broker_capabilities_keep_warrants_hk_only_and_futures_discoverable_in_hk_us)' --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/advanced_product_adapter_contracts_test.go:403:TestFutuTradeProductRequestAndReadLifecycleBranches": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::event_single_rejects_negative_amount_and_invalid_prediction_side；crates/jftrade-integration-futu/src/trade_session_tests.rs::event_contract_place_order_encodes_amount_and_prediction_side",
-    "conclusion": "partial：负 amount、MAYBE、有效 YES→PredSide_Yes 由 parse 层断言；Trd_PlaceOrder C2S amount=20/pred_side=1 的编码由新 loopback 测试断言。ComboID 持仓、FUTURES 持仓 ProductClass、OrderKind event_single/single、combo legs 过滤在 Rust 无对应公开结构（TradePositionSnapshot 保留 combo_id 但 API 契约无 ProductClass），属边界。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(event_single_rejects_negative_amount_and_invalid_prediction_side)' && node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(event_contract_place_order_encodes_amount_and_prediction_side)'",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::event_single_rejects_negative_amount_and_invalid_prediction_side + crates/jftrade-integration-futu/src/trade_session_tests.rs::event_contract_place_order_encodes_amount_and_prediction_side + crates/jftrade-integration-futu/src/trade_snapshots.rs::tests::trade_snapshot_projection_preserves_combo_event_and_leg_identity",
+    "conclusion": "partial（含真实修复）：负 amount、MAYBE、YES→PredSide_Yes 与 Trd_PlaceOrder C2S amount=20/pred_side=1 已有断言；新增投影回归覆盖 combo 持仓 combo_id/strategy_type、事件单 order_amount 与组合腿投影。修复前 Rust 把 market=999 的腿也投影出来；现按 Go brokerOrderLegSnapshots 丢弃无法解析 market 的腿，并把事件合约 market 101 归一为公开 US 命名空间（回归断言 len==1、market==11、pred_side==1）。仍属边界的部分：Go 由 brokerPositionSnapshotFromProto 按账户/代码推导 ProductClass（combo→option、FUTURES→future）与 OrderKind(event_single/single)，Rust 的 TradePositionSnapshot/TradeOrderSnapshot 不再产出这些 broker 语义字段（ProductClass/OrderKind 由上层 API 契约与已持久化订单决定），故保留 partial 结论。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(event_single_rejects_negative_amount_and_invalid_prediction_side)' --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(event_contract_place_order_encodes_amount_and_prediction_side) | test(trade_snapshot_projection_preserves_combo_event_and_leg_identity)' --locked",
     "evidence_type": "partial"
   },
   "pkg/futu/advanced_product_adapter_contracts_test.go:475:TestFutuComboProtocolTransportErrors": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-futu/src/trade_session_tests.rs::combo_protocol_transport_errors_are_surfaced；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::event_parlay_preview_surfaces_snapshot_transport_failure",
-    "conclusion": "partial：新 loopback 测试对 Trd_GetComboMaxTrdQtys 与 Trd_PlaceComboOrder 在会话关闭后断言 TradeSessionError::Session（不伪装空成功）；3445 由引擎测试断言 prediction reader Transport 错误映射为 Unavailable 且不落到 preview 持久化。三条路径分属 integration 与 engine 两层，未合并为单函数断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(combo_protocol_transport_errors_are_surfaced)' && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(event_parlay_preview_surfaces_snapshot_transport_failure)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/trade_session_tests.rs::combo_protocol_transport_errors_are_surfaced + crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::event_parlay_preview_surfaces_snapshot_transport_failure",
+    "conclusion": "function_exact：Go 的三条丢包路径——Trd_GetComboMaxTrdQtys、Trd_PlaceComboOrder、3445 事件快照——都有独立证据：前两条由 loopback 在会话关闭后断言 TradeSessionError::Session（绝不伪装空成功），第三条由引擎测试断言 prediction reader 的 Transport 错误映射为 Unavailable 且不会落到 preview 持久化。Rust 按 integration/engine 分层断言与 Go 单适配器断言等价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(combo_protocol_transport_errors_are_surfaced)' --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(event_parlay_preview_surfaces_snapshot_transport_failure)' --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/basicqot_subscription_errors_test.go:12:TestClassifyBasicQotSubscriptionErrorOnlyMarksAvailabilityFailures": {
     "status": "[~]",

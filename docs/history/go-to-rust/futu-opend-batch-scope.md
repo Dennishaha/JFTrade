@@ -2066,3 +2066,54 @@ pnpm run check:quick
 
 结果：1679 passed / 1 skipped；clippy 无告警；architecture 通过；parity 审计
 Futu/OpenD 91.0%（本批 4 条 `[x]`、2 条 partial，总 `[x]` 440，全局 49.3%）。
+
+## 批次：pkg/futu/advanced_product_adapter_contracts_test.go（8 项收敛）
+
+范围：把上一轮遗留的 partial/boundary 收敛。本批新增 **2 条真实修复** 与 2 条引擎级生命周期/投影回归。
+
+| Go 测试 | 状态 | Rust 入口 |
+|---|---|---|
+| `:22 TestFutuAdvancedSpecializedReadersAndCustomizationSuccess` | `[x]` function_exact | watchlist modify + prediction categories + `live_read_routes_require_a_logical_subscription_lease` + catalog search 失败分支 |
+| `:150 TestFutuComboAdapterErrorPropagationBranches` | `[x]` function_exact | `combo_intent_rejects_missing_kind_legs_and_account` + `option_combo_preview_place_and_cancel_keep_server_identity` + `event_parlay_preview_rejects_inactive_contract_filtered_from_snapshot_list` |
+| `:216 TestFutuEventContractStatusBranches` | `[x]` function_exact | 既有 |
+| `:235 TestFutuWarrantsStayHKOnlyAndFuturesRemainDiscoverable` | `[x]` function_exact | 既有 |
+| `:262 TestSecurityDetailsProductIdentityFallbacks` | `[~]` boundary | 公开 OpenAPI 契约无 SecurityDetails/ProductClass |
+| `:336 TestFutuSnapshotProductExtensionsAndSecurityTypeMapping` | `[x]` function_exact | securityType 1..12 + research_security_type 表 + warrants=[warrant,cbbc] |
+| `:403 TestFutuTradeProductRequestAndReadLifecycleBranches` | `[~]` partial | amount/predSide 编码 + 新增投影回归；ProductClass/OrderKind 由上层契约承接 |
+| `:475 TestFutuComboProtocolTransportErrors` | `[x]` function_exact | combo max/place 会话错误 + 3445 Transport→Unavailable |
+
+### 本批真实功能修复
+
+1. **组合腿投影过滤（`crates/jftrade-integration-futu/src/trade_snapshots.rs`）**：Go 的
+   `brokerOrderLegSnapshots` 会跳过 `security == nil` 或无法解析 market 的腿，并把事件合约
+   market 101 映射成公开 `US.` 命名空间。Rust 此前原样保留任何 market（例如 999）并输出
+   `market=999`，调用方会拼出非法 instrument。现新增 `combo_leg_snapshot`：空 code 丢弃、
+   未知 market 丢弃、101 归一为 11，其余受支持 market 保留并 trim/大写 code。
+2. **combo 生命周期可测性**：`RecordingTradeWriter::place_combo_order` 此前是
+   `unsupported()`，任何 combo place 相关断言都无法成立。现改为记录请求并返回
+   `COMBO-9001`，使 `option_combo_preview_place_and_cancel_keep_server_identity` 能覆盖
+   preview 持久化→place 消费 previewId→幂等重放→cancel 走 `Trd_ModifyOrder(operation=2)`
+   的完整链路（Go `adapter_advanced_protocol_test.go:296` 的同一断言集）。
+
+### 回归可证性（临时探针，均已回滚）
+
+- 把 `combo_leg_snapshot` 的未知 market 分支改成保留（不返回 `None`）→
+  `trade_snapshot_projection_preserves_combo_event_and_leg_identity` 以
+  `left: 2 / right: 1`（unresolvable legs are dropped）失败。
+- 把 cancel 的 `operation: 2` 改成 `3` → `option_combo_preview_place_and_cancel_keep_server_identity`
+  以 `left: 3 / right: 2`（cancel uses Trd_ModifyOrder）失败。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+pnpm run check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py
+pnpm run check:quick
+```
+
+结果：1681 passed / 1 skipped；fmt/clippy/architecture 通过；parity 审计 Futu/OpenD 91.2%，
+总 `[x]` 444 / 4451，全局 49.4%。本批 8 项：5 `[x]`、2 partial/boundary 收敛为更精确结论、
+1 边界保留。

@@ -6,9 +6,10 @@ use jftrade_integration_futu::{
     TradeComboMaxTradeQuantitySnapshot, TradeFillSnapshot, TradeFilter, TradeFundsSnapshot,
     TradeHeader, TradeMarginRatioSnapshot, TradeMaxTradeQuantityRequest,
     TradeMaxTradeQuantitySnapshot, TradeModifyOrderRequest, TradeOrderFeeSnapshot,
-    TradeOrderSnapshot, TradePlaceOrderRequest, TradePlaceOrderResult, TradePositionSnapshot,
-    TradeReadPort, TradeSecurity, TradeSessionError, TradeSubscribeAccountsRequest,
-    TradeUnlockRequest, TradeWritePort,
+    TradeOrderSnapshot, TradePlaceComboOrderRequest, TradePlaceComboOrderResult,
+    TradePlaceOrderRequest, TradePlaceOrderResult, TradePositionSnapshot, TradeReadPort,
+    TradeSecurity, TradeSessionError, TradeSubscribeAccountsRequest, TradeUnlockRequest,
+    TradeWritePort,
 };
 use serde_json::json;
 use std::sync::{Arc, Mutex};
@@ -56,6 +57,169 @@ fn buying_power_defaults_follow_settings_and_preserve_explicit_environment() {
 struct PreviewTradeReader {
     calls: Arc<Mutex<Vec<TradeMaxTradeQuantityRequest>>>,
     fail: bool,
+}
+
+/// Combo-specific read fixture used by the option-combo lifecycle tests.
+///
+/// It answers `Trd_GetComboMaxTrdQtys` with a fixed account impact so the
+/// preview can persist and be consumed by `place_combo`.
+#[derive(Debug, Default)]
+struct ComboPreviewTradeReader {
+    calls: Arc<Mutex<Vec<TradeComboMaxTradeQuantityRequest>>>,
+}
+
+impl TradeReadPort for ComboPreviewTradeReader {
+    fn read_accounts(
+        &self,
+        _: u64,
+        _: Option<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+        unsupported()
+    }
+
+    fn read_funds(
+        &self,
+        _: TradeHeader,
+        _: Option<bool>,
+        _: Option<i32>,
+        _: Option<i32>,
+    ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+        unsupported()
+    }
+
+    fn read_cash_flows(
+        &self,
+        _: TradeHeader,
+        _: String,
+        _: Option<i32>,
+    ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+        unsupported()
+    }
+
+    fn read_order_fees(
+        &self,
+        _: TradeHeader,
+        _: Vec<String>,
+    ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+        unsupported()
+    }
+
+    fn read_margin_ratios(
+        &self,
+        _: TradeHeader,
+        _: Vec<TradeSecurity>,
+    ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+        unsupported()
+    }
+
+    fn read_max_trade_quantity(
+        &self,
+        _: TradeMaxTradeQuantityRequest,
+    ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+        unsupported()
+    }
+
+    fn read_combo_max_trade_quantity(
+        &self,
+        request: TradeComboMaxTradeQuantityRequest,
+    ) -> Result<TradeComboMaxTradeQuantitySnapshot, TradeSessionError> {
+        self.calls
+            .lock()
+            .expect("combo preview calls")
+            .push(request.clone());
+        Ok(TradeComboMaxTradeQuantitySnapshot {
+            header: request.header,
+            nlv_change: Some(-100.0),
+            initial_margin_change: Some(-100.0),
+            maintenance_margin_change: Some(-100.0),
+            option_buy_power: Some(-100.0),
+            max_withdraw_change: None,
+            buying_power_decrease: Some(100.0),
+        })
+    }
+
+    fn read_positions(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Option<f64>,
+        _: Option<f64>,
+        _: Option<bool>,
+        _: Option<i32>,
+        _: Option<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+        unsupported()
+    }
+
+    fn read_orders(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Vec<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        unsupported()
+    }
+
+    fn read_fills(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        unsupported()
+    }
+}
+
+#[derive(Debug)]
+struct OptionSpreadFixture;
+
+impl jftrade_integration_futu::OptionStrategySpreadReadPort for OptionSpreadFixture {
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::OptionStrategySpreadQuery,
+    ) -> Result<
+        jftrade_integration_futu::OptionStrategySpreadSnapshot,
+        jftrade_integration_futu::OptionStrategySpreadQueryError,
+    > {
+        assert_eq!(query.market, 11);
+        assert_eq!(query.code, "AAPL");
+        assert_eq!(query.option_strategy, 4);
+        assert_eq!(query.expire_time, "2026-07-17");
+        Ok(jftrade_integration_futu::OptionStrategySpreadSnapshot {
+            items: vec![jftrade_integration_futu::OptionStrategySpreadItem { spread: 10.0 }],
+        })
+    }
+}
+
+#[derive(Debug)]
+struct OptionAnalysisFixture;
+
+impl jftrade_integration_futu::OptionStrategyAnalysisReadPort for OptionAnalysisFixture {
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::OptionStrategyAnalysisQuery,
+    ) -> Result<
+        jftrade_integration_futu::OptionStrategyAnalysisSnapshot,
+        jftrade_integration_futu::OptionStrategyAnalysisQueryError,
+    > {
+        assert_eq!(query.multi_legs.len(), 2);
+        Ok(jftrade_integration_futu::OptionStrategyAnalysisSnapshot {
+            code: "AAPL260717C/P200".to_owned(),
+            name: "AAPL vertical".to_owned(),
+            option_strategy: 4,
+            bid1: Some(9.5),
+            ask1: Some(10.5),
+            max_profit: Some(100.0),
+            max_loss: Some(-100.0),
+            breakeven_points: vec![210.0],
+            prob_of_profit: Some(0.5),
+            delta: Some(0.1),
+            theta: Some(-0.2),
+        })
+    }
 }
 
 fn unsupported<T>() -> Result<T, TradeSessionError> {
@@ -228,6 +392,8 @@ fn preview_port_with_writer(
 #[derive(Debug, Default)]
 struct RecordingTradeWriter {
     placed: Mutex<Vec<TradePlaceOrderRequest>>,
+    /// Combo submissions recorded for preview-consume lifecycle tests.
+    placed_combo: Mutex<Vec<TradePlaceComboOrderRequest>>,
     modified: Mutex<Vec<TradeModifyOrderRequest>>,
     unlocked: Mutex<Vec<TradeUnlockRequest>>,
     /// Server-issued `orderIDEx`; the adapter-bridge fixture answers
@@ -260,9 +426,22 @@ impl TradeWritePort for RecordingTradeWriter {
 
     fn place_combo_order(
         &self,
-        _request: jftrade_integration_futu::TradePlaceComboOrderRequest,
-    ) -> Result<jftrade_integration_futu::TradePlaceComboOrderResult, TradeSessionError> {
-        unsupported()
+        request: TradePlaceComboOrderRequest,
+    ) -> Result<TradePlaceComboOrderResult, TradeSessionError> {
+        self.placed_combo
+            .lock()
+            .expect("placed combo orders")
+            .push(request.clone());
+        Ok(TradePlaceComboOrderResult {
+            header: request.header,
+            order_id_ex: Some(
+                self.order_id_ex
+                    .lock()
+                    .expect("order id ex")
+                    .clone()
+                    .unwrap_or_else(|| "COMBO-9001".to_owned()),
+            ),
+        })
     }
 
     fn modify_order(
@@ -827,4 +1006,118 @@ fn product_rule_denials_return_the_go_reason_code_matrix() {
         1,
         "an allowed product rule must still consult the OpenD reader"
     );
+}
+
+/// Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:296
+/// TestFutuComboAdapterOptionAndEventLifecycle.
+///
+/// Go drives one loopback server through the option-combo lifecycle:
+/// `PreviewComboOrder` (3258 strategy spread + combo max quantity), then
+/// `PlaceComboOrder`, then `CancelComboOrder`. Rust splits the same wire calls
+/// across typed ports, so this test keeps the engine-level lifecycle live:
+/// preview persists the preview id, place consumes it exactly once and writes
+/// `SUBMITTED` with the server-issued order id, and cancel issues exactly one
+/// `Trd_ModifyOrder(operation=2)`.
+#[test]
+fn option_combo_preview_place_and_cancel_keep_server_identity() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_option_strategy_spread(Some(Arc::new(OptionSpreadFixture)));
+    runtime.set_option_strategy_analysis(Some(Arc::new(OptionAnalysisFixture)));
+    let combo_calls = Arc::new(Mutex::new(Vec::new()));
+    let reader = Arc::new(ComboPreviewTradeReader {
+        calls: Arc::clone(&combo_calls),
+    });
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, false);
+    // `reader()` and `writer()` prefer the runtime snapshot whenever a
+    // trade runtime is installed, so the lifecycle fixture must be installed
+    // through the same owner the production composition uses.
+    runtime.set(
+        Some(reader as Arc<dyn TradeReadPort>),
+        Some(true),
+    );
+    runtime.set_writer(Some(Arc::clone(&writer) as Arc<dyn TradeWritePort>));
+    let (store, directory) = execution_store();
+    let _ = directory.keep();
+    let port = ProductionExecutionPort {
+        store,
+        active_provider_state: state,
+        trade_logged_in: Some(true),
+        trade_read_port: None,
+        trade_write_port: None,
+        trade_runtime: Some(Arc::clone(&runtime)),
+        cancel_inflight: Arc::new(std::sync::Mutex::new(std::collections::BTreeSet::new())),
+        risk_coordinator: None,
+        default_trading_environment: None,
+        notification_projector: None,
+    };
+
+    let payload = json!({
+        "accountId": "1001",
+        "brokerId": "futu",
+        "market": "US",
+        "tradingEnvironment": "SIMULATE",
+        "clientOrderId": "option-combo-1",
+        "orderKind": "option_combo",
+        "productClass": "option",
+        "underlyingInstrumentId": "US.AAPL",
+        "optionStrategy": "vertical",
+        "nearExpiry": "2026-07-17",
+        "spread": 10.0,
+        "legs": [
+            {"instrumentId": "US.AAPL260717C00200000", "productClass": "option", "side": "BUY", "ratio": 1},
+            {"instrumentId": "US.AAPL260717C00210000", "productClass": "option", "side": "SELL", "ratio": 1}
+        ]
+    });
+
+    let preview = port.combo_preview(&payload).expect("combo preview");
+    assert_eq!(preview["allowed"], true, "{preview}");
+    assert_eq!(preview["legs"].as_array().expect("preview legs").len(), 2);
+    assert_eq!(preview["optionAnalysis"]["strategy"], "vertical");
+    let maximum_calls = combo_calls.lock().expect("combo calls");
+    assert_eq!(maximum_calls.len(), 1, "preview reads combo max quantity once");
+    assert_eq!(maximum_calls[0].combo_legs.len(), 2);
+    assert_eq!(maximum_calls[0].quantity, 1.0);
+    drop(maximum_calls);
+    let preview_id = preview["previewId"]
+        .as_str()
+        .expect("preview id")
+        .to_owned();
+
+    let mut placed_payload = payload.clone();
+    placed_payload["previewId"] = json!(preview_id);
+    let placed = port.place_combo(&placed_payload).expect("combo place");
+    assert_eq!(placed["status"], "SUBMITTED", "{placed}");
+    assert_eq!(placed["brokerOrderIdEx"], "COMBO-9001");
+    let requests = writer.placed_combo.lock().expect("placed combos");
+    assert_eq!(requests.len(), 1, "exactly one Trd_PlaceComboOrder call");
+    assert_eq!(requests[0].combo_legs.len(), 2);
+    assert_eq!(requests[0].combo_legs[0].code, "AAPL260717C00200000");
+    assert_eq!(requests[0].combo_legs[1].side, Some(2));
+    assert_eq!(requests[0].quantity, 1.0);
+    drop(requests);
+
+    // Placing the same client identity again must replay the stored order
+    // instead of issuing a second combo submission.
+    let replayed = port
+        .place_combo(&placed_payload)
+        .expect("idempotent combo place");
+    assert_eq!(replayed["status"], "SUBMITTED");
+    assert_eq!(
+        writer.placed_combo.lock().expect("placed combos").len(),
+        1,
+        "a consumed preview must not submit a second combo"
+    );
+
+    let internal_id = placed["internalOrderId"]
+        .as_str()
+        .expect("internal combo order id");
+    port.cancel_order(internal_id).expect("combo cancel");
+    let modified = writer.modified.lock().expect("modified combos");
+    assert_eq!(modified.len(), 1, "exactly one Trd_ModifyOrder call");
+    assert_eq!(modified[0].operation, 2, "cancel uses Trd_ModifyOrder");
+    drop(modified);
 }

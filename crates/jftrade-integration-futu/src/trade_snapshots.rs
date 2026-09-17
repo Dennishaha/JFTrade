@@ -511,17 +511,43 @@ impl From<trd_common::Order> for TradeOrderSnapshot {
             combo_legs: value
                 .combo_legs
                 .into_iter()
-                .map(|leg| TradeComboLeg {
-                    market: leg.security.market,
-                    code: leg.security.code,
-                    side: leg.side,
-                    qty_ratio: leg.qty_ratio,
-                    position_id: leg.position_id,
-                    pred_side: leg.pred_side,
-                })
+                .filter_map(combo_leg_snapshot)
                 .collect(),
         }
     }
+}
+
+/// Go `brokerOrderLegSnapshots`: keep only legs whose security resolves to a
+/// supported Futu market, mapping the dedicated event-contract market (101)
+/// onto the public `US.` namespace. A leg with an unknown market is dropped
+/// rather than projected as a bogus instrument.
+fn combo_leg_snapshot(leg: crate::trade_proto::qot_common::ComboLeg) -> Option<TradeComboLeg> {
+    let market = leg.security.market;
+    let code = leg.security.code.trim().to_ascii_uppercase();
+    if code.is_empty() {
+        return None;
+    }
+    if market == 101 {
+        return Some(TradeComboLeg {
+            market: 11,
+            code,
+            side: leg.side,
+            qty_ratio: leg.qty_ratio,
+            position_id: leg.position_id,
+            pred_side: leg.pred_side,
+        });
+    }
+    if !matches!(market, 1 | 11 | 21 | 22 | 31 | 41 | 51 | 61 | 71) {
+        return None;
+    }
+    Some(TradeComboLeg {
+        market,
+        code,
+        side: leg.side,
+        qty_ratio: leg.qty_ratio,
+        position_id: leg.position_id,
+        pred_side: leg.pred_side,
+    })
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -830,6 +856,150 @@ fn parse_order_time(value: &str) -> Option<(i64, i64)> {
 mod tests {
     use super::*;
     use crate::trade_proto::trd_common::{Order, OrderFill};
+
+    /// Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:403
+    /// `brokerPositionSnapshotFromProto` / `brokerOrderSnapshotFromProto`.
+    ///
+    /// Go asserts that a combo position keeps its `ComboID`, that a position on
+    /// the FUTURES trade market projects as a future, that an order carrying an
+    /// `orderAmount` is classified as an event-contract single order, and that
+    /// combo legs keep only resolvable securities. Rust keeps those fields on
+    /// `TradePositionSnapshot` / `TradeOrderSnapshot`, so the neutral protobuf
+    /// projection is the authoritative owner for the same assertions.
+    #[test]
+    fn trade_snapshot_projection_preserves_combo_event_and_leg_identity() {
+        let combo_position = TradePositionSnapshot::from(trade_proto::trd_common::Position {
+            position_id: 7,
+            position_side: 1,
+            code: "OPTION-COMBO".to_owned(),
+            name: String::new(),
+            qty: 1.0,
+            can_sell_qty: 1.0,
+            price: 1.0,
+            cost_price: None,
+            val: 1.0,
+            pl_val: 0.0,
+            pl_ratio: None,
+            sec_market: None,
+            td_pl_val: None,
+            td_trd_val: None,
+            td_buy_val: None,
+            td_buy_qty: None,
+            td_sell_val: None,
+            td_sell_qty: None,
+            unrealized_pl: None,
+            realized_pl: None,
+            currency: None,
+            trd_market: None,
+            diluted_cost_price: None,
+            average_cost_price: None,
+            average_pl_ratio: None,
+            combo_id: Some(99),
+            strategy_type: Some(4),
+            position_type: None,
+            acc_id: None,
+            jp_acc_type: None,
+            payout_if_win: None,
+        });
+        assert_eq!(combo_position.combo_id, Some(99));
+        assert_eq!(combo_position.strategy_type, Some(4));
+
+        let futures_position = TradePositionSnapshot::from(trade_proto::trd_common::Position {
+            code: "ES".to_owned(),
+            trd_market: Some(1),
+            ..combo_position_source()
+        });
+        assert_eq!(futures_position.code, "ES");
+        assert_eq!(futures_position.trd_market, Some(1));
+
+        let event_order = TradeOrderSnapshot::from(trade_proto::trd_common::Order {
+            code: "EVENT".to_owned(),
+            order_amount: Some(20.0),
+            ..order(
+                1,
+                "2026-06-20T13:30:00Z",
+                "2026-06-20T13:30:00Z",
+                None,
+                None,
+            )
+        });
+        assert_eq!(event_order.order_amount, Some(20.0));
+
+        let legs = TradeOrderSnapshot::from(trade_proto::trd_common::Order {
+            qty: 1.0,
+            combo_legs: vec![
+                trade_proto::qot_common::ComboLeg {
+                    security: trade_proto::qot_common::Security {
+                        market: 999,
+                        code: "BAD".to_owned(),
+                    },
+                    side: None,
+                    qty_ratio: None,
+                    position_id: None,
+                    pred_side: None,
+                },
+                trade_proto::qot_common::ComboLeg {
+                    security: trade_proto::qot_common::Security {
+                        market: 101,
+                        code: "EVENT".to_owned(),
+                    },
+                    side: Some(1),
+                    qty_ratio: Some(1.0),
+                    position_id: None,
+                    pred_side: Some(1),
+                },
+            ],
+            ..order(
+                2,
+                "2026-06-20T13:31:00Z",
+                "2026-06-20T13:31:00Z",
+                None,
+                None,
+            )
+        });
+        // Go drops the unresolvable market-999 leg and projects the
+        // event-contract leg (101) into the public US namespace.
+        assert_eq!(legs.combo_legs.len(), 1, "unresolvable legs are dropped");
+        assert_eq!(legs.combo_legs[0].market, 11);
+        assert_eq!(legs.combo_legs[0].code, "EVENT");
+        assert_eq!(legs.combo_legs[0].pred_side, Some(1));
+    }
+
+    fn combo_position_source() -> trade_proto::trd_common::Position {
+        trade_proto::trd_common::Position {
+            position_id: 8,
+            position_side: 1,
+            code: String::new(),
+            name: String::new(),
+            qty: 1.0,
+            can_sell_qty: 1.0,
+            price: 1.0,
+            cost_price: None,
+            val: 1.0,
+            pl_val: 0.0,
+            pl_ratio: None,
+            sec_market: None,
+            td_pl_val: None,
+            td_trd_val: None,
+            td_buy_val: None,
+            td_buy_qty: None,
+            td_sell_val: None,
+            td_sell_qty: None,
+            unrealized_pl: None,
+            realized_pl: None,
+            currency: None,
+            trd_market: None,
+            diluted_cost_price: None,
+            average_cost_price: None,
+            average_pl_ratio: None,
+            combo_id: None,
+            strategy_type: None,
+            position_type: None,
+            acc_id: None,
+            jp_acc_type: None,
+            payout_if_win: None,
+        }
+    }
 
     fn order(
         id: u64,
