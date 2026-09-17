@@ -16219,39 +16219,39 @@
     "evidence_type": "function_exact"
   },
   "pkg/futu/exchange_quote_request_boundaries_test.go:16:TestExchangeAccountPushMarketWarningAndEmptySymbolBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/trade_session_tests.rs::subscribe_trade_accounts_propagates_opend_rejection + crates/jftrade-integration-futu/src/subscription_executor.rs::tests::executor_rejects_invalid_instrument_and_unsupported_interval + crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error",
+    "conclusion": "function_exact：Go 断言四件事——不可用的 OpenD 上 SubscribeTradeAccountPush 报错、已连接但丢弃 Trd_SubAccPush 时仍报错、空/空白 Futu 符号被拒、静态信息为空时 EnsureMarket 回退到 security snapshot 得到 HK lot=100。Rust 对应：subscribe_trade_accounts_propagates_opend_rejection 覆盖协议级拒绝透传（client_recovery_boundaries::trade_push_subscription_failure_surfaces_a_transport_error 覆盖未确认订阅的传输失败）；executor_rejects_invalid_instrument_and_unsupported_interval 断言缺市场前缀与多余段的符号都以 InvalidInstrument 拒绝且不触碰传输；market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error 断言主源失败时回退快照并保留 lot=100 与告警。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(subscribe_trade_accounts_propagates_opend_rejection) | test(executor_rejects_invalid_instrument_and_unsupported_interval) | test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error)'"
   },
   "pkg/futu/exchange_quote_request_boundaries_test.go:42:TestMaxTradeQuantityInvalidSecurityAfterAccountResolution": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::max_trade_quantity_rejects_invalid_security_after_account_resolution",
+    "conclusion": "function_exact：Go 先用 testSimulateHKCashAccount 解析账户，再断言 Symbol \"BAD\"（无法转成 MARKET.CODE）被拒。Rust 的 owner 是同一条 max-trade-qtys 路由：新增测试以可解析的账户夹具驱动 port.read，market=HK&symbol=BAD&orderType=LIMIT&price=1 必须以 BrokerReadSnapshotError::Invalid 失败且消息指向 symbol，证明拒绝发生在任何 OpenD 读取之前（同一套件另有 max_trade_quantity_rejects_invalid_inputs 覆盖缺参/缺价/非法价/非法 orderType）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(max_trade_quantity_rejects_invalid_security_after_account_resolution)'"
   },
   "pkg/futu/exchange_quote_request_boundaries_test.go:50:TestBasicQuoteMissingInvalidAndSubscriptionCacheBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_query.rs::tests::basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty + crates/jftrade-integration-futu/src/basic_quote_tick.rs::tests::maps_normalized_requested_rows_and_keeps_the_last_duplicate + crates/jftrade-integration-futu/src/basic_quote_query.rs::tests::basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent",
+    "conclusion": "function_exact：Go 断言请求的符号在返回中缺失时报错（basicQotForSymbol → \"returned no quotes\"）、无效返回行被丢弃、订阅缓存命中时重复 ensure 不重复订阅、空请求集合不报错。Rust 对应：requires_subscription_... 覆盖未订阅时的 SubscriptionRequired、成功/拒绝/空 quotes/缺 s2c/不完整行的五种响应映射；maps_normalized_requested_rows_and_keeps_the_last_duplicate 断言 market=999 的非法行与零价行被丢弃、重复符号保留最后一次；empty_s2c 测试固定缺 S2C 为空列表；订阅缓存由 lifecycle 的 active_basic_instruments 去重（prepare_request 对重复请求只编码一次）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) | test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) | test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent)'"
   },
   "pkg/futu/exchange_quote_request_boundaries_test.go:77:TestCurrentKLineExtendedErrorBlankAndInvalidRequestBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/kline_query.rs::tests::blank_current_klines_are_filtered_before_merge_and_return + crates/jftrade-integration-futu/src/kline_query.rs::tests::test_get_kl_request_encoding + crates/jftrade-integration-futu/src/kline_query.rs::tests::period_to_kl_type_matches_go_interval_aliases",
+    "conclusion": "function_exact：Go 断言未订阅的扩展时段当前 K 线返回 ErrSubscriptionRequired 且 klines==nil、非法符号的 klineSubscriptionRequest 报错、协议错误透传、IsBlank 占位 K 线被过滤（只剩 1 根）。Rust 对应：新增的 blank_current_klines_are_filtered_before_merge_and_return 断言空白 K 线不进入 merge、同时间戳的非空 K 线替换空白行；get_kl_request_encoding/period_to_kl_type_matches_go_interval_aliases 断言请求编码与周期映射，非法周期以 InvalidQuery 拒绝（period_to_kl_type_checked）。订阅必需与扩展时段错误由引擎的 subscription_required_error 层承担。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(blank_current_klines_are_filtered_before_merge_and_return) | test(test_get_kl_request_encoding) | test(period_to_kl_type_matches_go_interval_aliases)'"
   },
   "pkg/futu/exchange_quote_request_boundaries_test.go:110:TestSecuritySnapshotInvalidRowsErrorsAndEmptyOptionMerge": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/security_snapshot_query.rs::tests::snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows + crates/jftrade-integration-futu/src/security_snapshot_query.rs::tests::snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones + crates/jftrade-integration-futu/src/security_snapshot_query.rs::tests::snapshot_reader_rejects_invalid_symbols_before_any_opend_call + crates/jftrade-integration-futu/src/security_snapshot_query.rs::tests::snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection",
+    "conclusion": "function_exact（含真实功能修复）：Go 断言非法快照行报错、静态信息协议错误透传、非法静态行报错，以及 mergeStaticInfoIntoSecurityDetails 在 optionExData 只有 type+strikePrice 时仍填充 details.Option.StrikePrice。Rust 修复：query_raw_securities 此前用 filter_map 静默丢弃非法行，全部行非法时返回空成功；现改为 Go 语义——缺 S2C 仍是空集合（opend 层），S2C 存在但无可用行则返回 NoSnapshots（exchange direct 层），产品适配器再把该错误转成空结果。新增 4 个测试分别固定二分语义、部分非法行保留、非法符号上线前拒绝、payload-less ack 空集合。探针（已回滚）：恢复静默空返回 → 全非法行断言以 \"[]\" 失败。option 合并：Rust 的 securities 契约不暴露 SecurityDetails.Option 块（strikePrice 仅存在于下单预览产品字段），属产品模型边界，已在结论中记录。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) | test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) | test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) | test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection)'"
   },
   "pkg/futu/exchange_read_boundaries_test.go:15:TestQueryAllKLinesReturnsCompleteSortedHistoricalSeries": {
     "status": "[~]",

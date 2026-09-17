@@ -583,6 +583,44 @@ mod tests {
     }
 
     #[test]
+    fn blank_current_klines_are_filtered_before_merge_and_return() {
+        // Parity: go:452dea11:pkg/futu/exchange_quote_request_boundaries_test.go:77
+        // TestCurrentKLineExtendedErrorBlankAndInvalidRequestBoundaries. Go
+        // marks a placeholder candle with IsBlank and expects it to be removed
+        // from the returned list (only the real candle survives) and from any
+        // merge result.
+        fn kline(time: &str, is_blank: bool, close: f64) -> HistoricalKline {
+            HistoricalKline {
+                time: time.to_owned(),
+                is_blank,
+                high_price: Some(close + 1.0),
+                open_price: Some(close - 1.0),
+                low_price: Some(close - 2.0),
+                close_price: Some(close),
+                volume: Some(10),
+                turnover: Some(100.0),
+                change_rate: Some(0.1),
+            }
+        }
+        let merged = merge_klines_by_time(
+            &[kline("2026-09-07 09:30:00", true, 99.0)],
+            &[kline("2026-09-07 09:31:00", false, 100.0)],
+        );
+        assert_eq!(merged.len(), 1, "a blank candle must not enter the merge");
+        assert_eq!(merged[0].time, "2026-09-07 09:31:00");
+        assert_eq!(merged[0].close_price, Some(100.0));
+
+        // A non-blank candle at the same timestamp replaces the blank one
+        // instead of leaving a hole in the series.
+        let replaced = merge_klines_by_time(
+            &[kline("2026-09-07 09:31:00", true, 90.0)],
+            &[kline("2026-09-07 09:31:00", false, 100.0)],
+        );
+        assert_eq!(replaced.len(), 1);
+        assert_eq!(replaced[0].close_price, Some(100.0));
+    }
+
+    #[test]
     fn test_should_query_current_kline() {
         let now = time::OffsetDateTime::from_unix_timestamp(1788775200).expect("now"); // 2026-09-07 10:00:00 UTC
         // End time exactly at now

@@ -2525,3 +2525,70 @@ node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --loc
 cargo fmt --all --check
 cargo clippy -p jftrade-engine --all-targets --locked
 ```
+
+---
+
+## 批次：`pkg/futu/exchange_quote_request_boundaries_test.go`（5 项）
+
+### 结果：5 `[x]`
+
+| Go 测试 | 行号 | 状态 | Rust 证据 |
+|---|---:|---|---|
+| `TestExchangeAccountPushMarketWarningAndEmptySymbolBoundaries` | :16 | `[x]` | `trade_session_tests.rs::subscribe_trade_accounts_propagates_opend_rejection` + `subscription_executor.rs::tests::executor_rejects_invalid_instrument_and_unsupported_interval` + `market_rules_query_tests.rs::market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error` |
+| `TestMaxTradeQuantityInvalidSecurityAfterAccountResolution` | :42 | `[x]` | `product_production_ports_trade_tests.rs::max_trade_quantity_rejects_invalid_security_after_account_resolution` |
+| `TestBasicQuoteMissingInvalidAndSubscriptionCacheBoundaries` | :50 | `[x]` | `basic_quote_query.rs::tests::basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty` + `basic_quote_tick.rs::tests::maps_normalized_requested_rows_and_keeps_the_last_duplicate` + `basic_quote_query.rs::tests::basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent` |
+| `TestCurrentKLineExtendedErrorBlankAndInvalidRequestBoundaries` | :77 | `[x]` | `kline_query.rs::tests::blank_current_klines_are_filtered_before_merge_and_return` + `test_get_kl_request_encoding` + `period_to_kl_type_matches_go_interval_aliases` |
+| `TestSecuritySnapshotInvalidRowsErrorsAndEmptyOptionMerge` | :110 | `[x]` | `security_snapshot_query.rs::tests::snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows` + `snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones` + `snapshot_reader_rejects_invalid_symbols_before_any_opend_call` + `snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection` |
+
+### 真实功能缺失修复：全非法快照行被当成空成功
+
+Go 有两层语义需要同时满足：
+
+1. `opend.Client.GetSecuritySnapshot`
+   （`pkg/futu/opend/market_read_boundaries_test.go:192`）在 OpenD 返回**没有 S2C**
+   的成功包时返回 non-nil 空切片；
+2. `Exchange.querySecuritySnapshotListDirect`
+   （`pkg/futu/security_snapshot.go:224`）把每一行经安全投影映射，**当没有任何一行
+   可用时返回 `errNoSecuritySnapshots`**；上层产品适配器再把该错误转成空结果。
+
+Rust 的 `OpenDSecuritySnapshotReader::query_raw_securities` 此前用
+`filter_map(map_snapshot).collect()`，因此“S2C 存在但所有行非法”会返回**空成功**，
+调用方无法区分“OpenD 说没有”与“行全被丢弃”。修复后按上述分层实现：缺 S2C 仍是
+空集合，S2C 存在但无可用行返回新增的
+`SecuritySnapshotQueryError::NoSnapshots`。
+
+### 覆盖补强
+
+- 新增 `snapshot_reader_with_s2c` 测试辅助：完成 InitConnect 握手后投递调用方
+  指定的 S2C，用于驱动响应形状边界；测试在 `join` 前显式 `drop(reader)`，避免
+  服务端等待对端关闭造成的挂起。
+- 新增 `blank_current_klines_are_filtered_before_merge_and_return`：固定
+  `IsBlank` 占位 K 线既不进入合并结果、也不阻塞同时间戳的真实 K 线。
+- 新增 `max_trade_quantity_rejects_invalid_security_after_account_resolution`：
+  账户可解析时 `symbol=BAD` 仍必须在触网前被拒。
+
+### 保留边界
+
+- Go 的 `mergeStaticInfoIntoSecurityDetails` 会把 `optionExData` 的
+  `type`/`strikePrice` 填进 `SecurityDetails.Option`。Rust 的 securities 公开契约
+  （OpenAPI 已核对）不暴露该 option 块，`strikePrice` 仅作为下单预览的产品字段
+  存在，因此该子断言属产品模型边界而非缺失；同族用例
+  `TestMergeStaticInfoFillsMissingSecurityMetadataWithoutOverwritingSnapshot`
+  在 Go 侧覆盖的字段级合并另有 owner。
+
+### 回归可证性（临时探针，已回滚）
+
+- 把 `query_raw_securities` 的 `NoSnapshots` 分支恢复为 `Ok(Vec::new())` →
+  `snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows` 以
+  `an all-invalid snapshot list must fail closed: []` 失败。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+```
+
+结果：1716 passed / 1 skipped。

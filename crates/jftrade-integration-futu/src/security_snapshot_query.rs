@@ -68,15 +68,31 @@ impl OpenDSecuritySnapshotReader {
                     .unwrap_or_else(|| "OpenD GetSecuritySnapshot failed".to_owned()),
             });
         }
-        Ok(response
-            .s2c
-            .map(|s2c| {
-                s2c.snapshot_list
-                    .into_iter()
-                    .filter_map(map_snapshot)
-                    .collect()
-            })
-            .unwrap_or_default())
+        // Two Go layers share this reader.
+        //
+        // `opend.Client.GetSecuritySnapshot` returns a non-nil empty slice when
+        // OpenD answers without an S2C payload (go:pkg/futu/opend/
+        // market_read_boundaries_test.go:192), so a payload-less ack stays an
+        // empty collection here.
+        //
+        // `Exchange.querySecuritySnapshotListDirect` maps every returned row
+        // through the security projection and reports `errNoSecuritySnapshots`
+        // when no row survives (go:pkg/futu/exchange_quote_request_boundaries_
+        // test.go:110 drives an invalid row). A present S2C whose rows are all
+        // unmappable must therefore fail closed instead of looking like a
+        // successful empty read.
+        let Some(s2c) = response.s2c else {
+            return Ok(Vec::new());
+        };
+        let snapshots = s2c
+            .snapshot_list
+            .into_iter()
+            .filter_map(map_snapshot)
+            .collect::<Vec<_>>();
+        if snapshots.is_empty() {
+            return Err(SecuritySnapshotQueryError::NoSnapshots);
+        }
+        Ok(snapshots)
     }
 
     pub fn query(
@@ -211,6 +227,8 @@ pub enum SecuritySnapshotQueryError {
         err_code: i32,
         message: String,
     },
+    #[error("opend GetSecuritySnapshot returned no snapshots")]
+    NoSnapshots,
 }
 
 impl From<OpenDManagedSessionError> for SecuritySnapshotQueryError {
@@ -569,6 +587,241 @@ mod tests {
             .expect("snapshot query");
         assert_eq!(snapshots[0].bid_price.expect("bid").to_string(), "1.7");
         assert_eq!(snapshots[0].ask_price.expect("ask").to_string(), "1.9");
+        server.join().expect("server");
+    }
+
+    /// Serves one Qot_GetSecuritySnapshot request with a caller-supplied S2C
+    /// so response-shape boundaries can be driven exactly.
+    fn snapshot_reader_with_s2c(
+        s2c: Option<wire::S2c>,
+    ) -> (OpenDSecuritySnapshotReader, std::thread::JoinHandle<()>) {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind");
+        let address = listener.local_addr().expect("address");
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init = read_frame(&mut stream);
+            stream
+                .write_all(
+                    &encode_frame(
+                        init.header.proto_id,
+                        init.header.serial_no,
+                        &InitResponse {
+                            ret_type: Some(0),
+                            s2c: Some(InitState {
+                                server_ver: 1009,
+                                conn_id: 7,
+                            }),
+                        }
+                        .encode_to_vec(),
+                    )
+                    .expect("init frame"),
+                )
+                .expect("init response");
+            let request = read_frame(&mut stream);
+            assert_eq!(request.header.proto_id, PROTO_GET_SECURITY_SNAPSHOT);
+            let response = wire::Response {
+                ret_type: 0,
+                ret_msg: None,
+                err_code: None,
+                s2c,
+            };
+            stream
+                .write_all(
+                    &encode_frame(
+                        request.header.proto_id,
+                        request.header.serial_no,
+                        &response.encode_to_vec(),
+                    )
+                    .expect("response frame"),
+                )
+                .expect("response");
+            let mut byte = [0_u8; 1];
+            let _ = stream.read(&mut byte);
+        });
+        let coordinator = Arc::new(Mutex::new(
+            OpenDSessionCoordinator::connect(
+                OpenDTcpProbeConfig::new(address, Duration::from_secs(1)),
+                Arc::new(jftrade_marketdata::MarketDataRuntimeRecorder::default()),
+                Vec::new(),
+                0,
+            )
+            .expect("coordinator"),
+        ));
+        (OpenDSecuritySnapshotReader::new(coordinator), server)
+    }
+
+    fn snapshot_basic(market: i32, code: &str) -> wire::SnapshotBasicData {
+        wire::SnapshotBasicData {
+            security: Security {
+                market,
+                code: code.to_owned(),
+            },
+            name: Some("Tencent".to_owned()),
+            r#type: 3,
+            is_suspend: false,
+            list_time: "2004".to_owned(),
+            lot_size: 100,
+            price_spread: 0.2,
+            update_time: "10:00:00".to_owned(),
+            high_price: 2.0,
+            open_price: 1.0,
+            low_price: 0.5,
+            last_close_price: 1.5,
+            cur_price: 1.8,
+            volume: 10,
+            turnover: 18.0,
+            turnover_rate: 0.1,
+            list_timestamp: None,
+            update_timestamp: None,
+            ask_price: Some(1.9),
+            bid_price: Some(1.7),
+            ask_vol: None,
+            bid_vol: None,
+            enable_margin: None,
+            mortgage_ratio: None,
+            long_margin_initial_ratio: None,
+            enable_short_sell: None,
+            short_sell_rate: None,
+            short_available_volume: None,
+            short_margin_initial_ratio: None,
+            amplitude: None,
+            avg_price: None,
+            bid_ask_ratio: None,
+            volume_ratio: None,
+            highest52_weeks_price: None,
+            lowest52_weeks_price: None,
+            highest_history_price: None,
+            lowest_history_price: None,
+            pre_market: None,
+            after_market: None,
+            sec_status: Some(3),
+            close_price5_minute: None,
+            overnight: None,
+            hp_volume: None,
+            hp_ask_vol: None,
+            hp_bid_vol: None,
+        }
+    }
+
+    #[test]
+    fn snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows() {
+        // Parity: go:452dea11:pkg/futu/exchange_quote_request_boundaries_test.go:110
+        // TestSecuritySnapshotInvalidRowsErrorsAndEmptyOptionMerge. Go's
+        // `querySecuritySnapshotListDirect` fails with errNoSecuritySnapshots
+        // when every returned row is unusable, so an invalid row must surface
+        // an error rather than an empty success.
+        let invalid = wire::Snapshot {
+            basic: snapshot_basic(-1, "BAD"),
+            ..Default::default()
+        };
+        let (reader, server) = snapshot_reader_with_s2c(Some(wire::S2c {
+            snapshot_list: vec![invalid.clone(), invalid],
+        }));
+        let error = reader
+            .query_batch(&["HK.00700".to_owned()])
+            .expect_err("an all-invalid snapshot list must fail closed");
+        assert!(
+            matches!(error, SecuritySnapshotQueryError::NoSnapshots),
+            "unexpected snapshot error: {error:?}"
+        );
+        drop(reader);
+        server.join().expect("server");
+    }
+
+    #[test]
+    fn snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection() {
+        // Parity: go:452dea11:pkg/futu/opend/market_read_boundaries_test.go:192
+        // TestSecurityInfoMethodsReturnEmptyCollectionsForEmptyOpenDResults.
+        // The OpenD client layer returns a non-nil empty slice when OpenD
+        // answers without S2C; only a present-but-useless S2C is an error.
+        let (reader, server) = snapshot_reader_with_s2c(None);
+        let snapshots = reader
+            .query(&["HK.00700".to_owned()])
+            .expect("a payload-less ack is an empty collection");
+        assert!(snapshots.is_empty());
+        drop(reader);
+        server.join().expect("server");
+    }
+
+    #[test]
+    fn snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones() {
+        // Parity: go:452dea11:pkg/futu/exchange_quote_request_boundaries_test.go:110
+        // Go skips an unmappable row but keeps the valid rows beside it, so a
+        // partially invalid response stays a successful read.
+        let invalid = wire::Snapshot {
+            basic: snapshot_basic(-1, "BAD"),
+            ..Default::default()
+        };
+        let valid = wire::Snapshot {
+            basic: snapshot_basic(1, "00700"),
+            ..Default::default()
+        };
+        let (reader, server) = snapshot_reader_with_s2c(Some(wire::S2c {
+            snapshot_list: vec![invalid, valid],
+        }));
+        let snapshots = reader
+            .query(&["HK.00700".to_owned()])
+            .expect("valid rows survive an invalid sibling");
+        assert_eq!(snapshots.len(), 1);
+        assert_eq!(snapshots[0].symbol.as_deref(), Some("HK.00700"));
+        drop(reader);
+        server.join().expect("server");
+    }
+
+    #[test]
+    fn snapshot_reader_rejects_invalid_symbols_before_any_opend_call() {
+        // Parity: go:452dea11:pkg/futu/exchange_quote_request_boundaries_test.go:110
+        // and go:pkg/futu/security_query_test.go:25: an invalid symbol fails
+        // before the OpenD call instead of being silently dropped. The scripted
+        // server only completes the InitConnect handshake, so a rejected symbol
+        // provably never reaches the wire.
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind");
+        let address = listener.local_addr().expect("address");
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init = read_frame(&mut stream);
+            stream
+                .write_all(
+                    &encode_frame(
+                        init.header.proto_id,
+                        init.header.serial_no,
+                        &InitResponse {
+                            ret_type: Some(0),
+                            s2c: Some(InitState {
+                                server_ver: 1009,
+                                conn_id: 7,
+                            }),
+                        }
+                        .encode_to_vec(),
+                    )
+                    .expect("init frame"),
+                )
+                .expect("init response");
+            // A rejected symbol must never produce a 3203 request; the read
+            // below observes the client closing the session without one.
+            let mut byte = [0_u8; 1];
+            let _ = stream.read(&mut byte);
+        });
+        let coordinator = Arc::new(Mutex::new(
+            OpenDSessionCoordinator::connect(
+                OpenDTcpProbeConfig::new(address, Duration::from_secs(1)),
+                Arc::new(jftrade_marketdata::MarketDataRuntimeRecorder::default()),
+                Vec::new(),
+                0,
+            )
+            .expect("coordinator"),
+        ));
+        let reader = OpenDSecuritySnapshotReader::new(coordinator);
+        let error = reader
+            .query_batch(&["bad-symbol".to_owned()])
+            .expect_err("invalid symbol must fail before the wire");
+        assert!(
+            matches!(error, SecuritySnapshotQueryError::InvalidInstrument(_)),
+            "unexpected invalid-symbol error: {error:?}"
+        );
+        // Empty input stays an empty result without touching OpenD.
+        assert!(reader.query(&[]).expect("empty query").is_empty());
+        drop(reader);
         server.join().expect("server");
     }
 

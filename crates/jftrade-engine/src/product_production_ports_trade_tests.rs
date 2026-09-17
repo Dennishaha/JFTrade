@@ -3471,3 +3471,29 @@ fn trd_market_codes_follow_go_normalized_mapping() {
         3
     );
 }
+
+#[test]
+fn max_trade_quantity_rejects_invalid_security_after_account_resolution() {
+    // Parity: go:452dea11:pkg/futu/exchange_quote_request_boundaries_test.go:42
+    // TestMaxTradeQuantityInvalidSecurityAfterAccountResolution. Go resolves
+    // the trading account first and then rejects `Symbol: "BAD"` because it
+    // cannot be turned into a MARKET.CODE security. The rejection must happen
+    // before any OpenD read, so the port needs a resolved account but no live
+    // runtime.
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let error = port
+        .read(
+            "/api/v1/brokers/futu/max-trade-qtys",
+            "accountId=42&market=HK&symbol=BAD&orderType=LIMIT&price=1",
+        )
+        .expect_err("an unqualified symbol must be rejected");
+    assert!(
+        matches!(error, BrokerReadSnapshotError::Invalid(ref message) if message.contains("symbol")),
+        "expected an invalid-symbol rejection, got {error:?}"
+    );
+}
