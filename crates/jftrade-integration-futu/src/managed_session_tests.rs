@@ -12,6 +12,99 @@ use crate::{PROTO_UPDATE_BASIC_QOT, decode_frame};
 
 const TIMEOUT: Duration = Duration::from_secs(1);
 
+/// Records every observed OpenD RPC so the Go `Client.Call` observability
+/// correlation can be asserted without the API transport crate.
+#[derive(Debug, Default)]
+struct RecordingOpenDCallObserver {
+    records: std::sync::Mutex<Vec<jftrade_kernel::OpenDCallRecord>>,
+}
+
+impl jftrade_kernel::OpenDCallObserver for RecordingOpenDCallObserver {
+    fn record_open_d_call(&self, record: &jftrade_kernel::OpenDCallRecord) {
+        self.records.lock().expect("records").push(record.clone());
+    }
+}
+
+#[test]
+fn call_failure_records_request_correlation_against_the_observer() {
+    // Parity: go:452dea11:pkg/futu/opend/client_test.go:77
+    // TestCallFailureRecordsRequestCorrelation.
+    //
+    // Go's `Client.Call` always calls `observability.RecordOpenDCall` with
+    // `proto_<id>`, the surrounding request ID and the failure text. A closed
+    // Rust session must report the same correlation instead of dropping the
+    // failure at the transport boundary.
+    let observer = Arc::new(RecordingOpenDCallObserver::default());
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("listener address");
+    let server = thread::spawn(move || {
+        let (stream, _) = listener.accept().expect("accept");
+        wait_for_peer_close(stream);
+    });
+    let session = OpenDManagedSession::connect(address, TIMEOUT, 51)
+        .expect("session")
+        .with_observer(Arc::clone(&observer) as jftrade_kernel::SharedOpenDCallObserver)
+        .with_request_id("request-opend-1");
+    assert!(session.close().expect("close"));
+    let error = session
+        .call(crate::PROTO_INIT_CONNECT, b"request")
+        .expect_err("closed session must reject the call");
+    assert!(matches!(error, OpenDManagedSessionError::Closed(_)));
+    server.join().expect("server thread");
+
+    let records = observer.records.lock().expect("records");
+    assert_eq!(
+        records.len(),
+        1,
+        "closed call must be observed exactly once"
+    );
+    assert_eq!(records[0].operation, "proto_1001");
+    assert_eq!(records[0].request_id, "request-opend-1");
+    assert!(
+        records[0]
+            .error
+            .as_deref()
+            .is_some_and(|error| !error.is_empty()),
+        "failed call must carry the failure text: {records:?}"
+    );
+}
+
+#[test]
+fn probe_config_observer_receives_pushed_call_outcomes() {
+    // Parity: go:452dea11:pkg/futu/opend/client_test.go:77 —
+    // the composition-root side of the same contract. A session created from a
+    // config carrying the observer must report the InitConnect handshake RPC
+    // with the configured request ID, covering both success and failure text.
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("listener address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_framed_frame(&mut stream).expect("init request");
+        write_frame(
+            &mut stream,
+            request.header.proto_id,
+            request.header.serial_no,
+            &[],
+        );
+        wait_for_peer_close(stream);
+    });
+    let observer = Arc::new(RecordingOpenDCallObserver::default());
+    let config = crate::OpenDTcpProbeConfig::new(address, TIMEOUT)
+        .with_open_d_call_observer(Arc::clone(&observer) as jftrade_kernel::SharedOpenDCallObserver)
+        .with_request_id("request-opend-config");
+    drop(crate::OpenDInitializedSession::connect_with_push_notifications(&config, 53));
+    server.join().expect("server thread");
+
+    let records = observer.records.lock().expect("records");
+    assert_eq!(records.len(), 1, "handshake RPC must be observed once");
+    assert_eq!(records[0].operation, "proto_1001");
+    assert_eq!(records[0].request_id, "request-opend-config");
+    assert!(
+        records[0].error.is_none(),
+        "the transport call itself succeeded; protocol decoding is owned by the caller"
+    );
+}
+
 #[test]
 fn rpc_waiter_survives_unsolicited_push_before_response() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");

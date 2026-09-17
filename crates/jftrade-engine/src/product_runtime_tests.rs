@@ -885,6 +885,40 @@ async fn test_helper_health_failure_dynamically_downgrades_provider_readiness() 
     handle.shutdown().await.expect("shutdown");
 }
 
+/// The composition root must wire the OpenD call observer into the same
+/// transport metrics the API projects, matching Go's context-carried
+/// `observability.RecordOpenDCall`.
+#[tokio::test]
+async fn product_runtime_records_opend_calls_in_transport_metrics() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let recorder = ShutdownEventRecorder::new();
+    let (config, _servers) = build_test_runtime_config(&temp_dir, recorder, None, false).await;
+
+    let handle = start_product_runtime(config)
+        .await
+        .expect("start product runtime");
+    let token = "a".repeat(32);
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[("Authorization", format!("Bearer {token}").as_str())],
+    )
+    .await;
+    assert_eq!(status, 200, "system status response: {response}");
+    let open_d = &response["data"]["observability"]["requests"]["openD"];
+    assert!(
+        open_d["totalCalls"].as_u64().is_some_and(|calls| calls > 0),
+        "the composition root must observe OpenD RPCs: {response}"
+    );
+    assert_eq!(
+        open_d["failedCalls"], 0,
+        "the mock OpenD handshake succeeds, so observed calls are successes: {response}"
+    );
+    handle.shutdown().await.expect("shutdown");
+}
+
 /// The Pine health monitor is the shared production readiness source: a real
 /// failed HealthCheck downgrades both Pine-backed route bindings and the
 /// execution port, while a later healthy probe restores them.  Stopping the

@@ -32,7 +32,7 @@ pub(crate) async fn start_product_with_runtime_state(
     config: ProductConfig,
     runtime: Arc<ProductRuntimeState>,
 ) -> Result<ProductHandle, ProductError> {
-    let prepared = prepare_product_with_runtime_state(config, runtime).await?;
+    let prepared = prepare_product_with_runtime_state(config, runtime, None).await?;
     expose_prepared_product(prepared)
 }
 
@@ -61,6 +61,7 @@ pub(crate) fn expose_prepared_product(
 pub(crate) async fn prepare_product_with_runtime_state(
     mut config: ProductConfig,
     runtime: Arc<ProductRuntimeState>,
+    transport_metrics: Option<Arc<TransportMetrics>>,
 ) -> Result<PreparedProduct, ProductError> {
     if config.production {
         product_data_management::initialize_production_databases(config.settings_path())
@@ -85,7 +86,7 @@ pub(crate) async fn prepare_product_with_runtime_state(
         }
         .map_err(ProductError::Settings)?,
     );
-    let metrics = Arc::new(TransportMetrics::default());
+    let metrics = transport_metrics.unwrap_or_else(|| Arc::new(TransportMetrics::default()));
     let interface_settings = settings_store
         .load_interface_settings()
         .map_err(ProductError::Settings)?;

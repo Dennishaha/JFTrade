@@ -73,6 +73,19 @@ pub async fn start_product_runtime(
         )
         .map_err(ProductError::Storage)?;
     }
+    // The transport metrics instance is created before the OpenD provider is
+    // started so every OpenD RPC can be correlated with the API request that
+    // triggered it, matching Go's context-carried observability recorder. The
+    // same instance is handed back to `prepare_product_with_runtime_state` so
+    // there is exactly one observability writer.
+    let transport_metrics = Arc::new(jftrade_api::TransportMetrics::default());
+    if let Some(provider) = config.market_data_opend_provider.as_mut() {
+        provider.opend = provider.opend.clone().with_open_d_call_observer(
+            crate::product::product_opend_call_observer::TransportMetricsOpenDCallObserver::shared(
+                Arc::clone(&transport_metrics),
+            ),
+        );
+    }
     let live_hub = config
         .product
         .live_hub
@@ -709,14 +722,19 @@ pub async fn start_product_runtime(
     // recovered by the supervisor's reverse-order rollback below, which must
     // release the provider/OpenD/helper/Pine resources and the port bundle so
     // every WriterLease can be re-acquired afterwards.
-    let prepared =
-        match prepare_product_with_runtime_state(config.product, Arc::clone(&state)).await {
-            Ok(prepared) => prepared,
-            Err(error) => {
-                let _ = supervisor.execute_shutdown().await;
-                return Err(error.into());
-            }
-        };
+    let prepared = match prepare_product_with_runtime_state(
+        config.product,
+        Arc::clone(&state),
+        Some(Arc::clone(&transport_metrics)),
+    )
+    .await
+    {
+        Ok(prepared) => prepared,
+        Err(error) => {
+            let _ = supervisor.execute_shutdown().await;
+            return Err(error.into());
+        }
+    };
 
     if let Some(resolver) = runtime_calendar_resolver.as_ref()
         && let Some(calendar_manager) = prepared.handle.production_calendar_manager()

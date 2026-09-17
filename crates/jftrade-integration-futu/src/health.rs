@@ -9,6 +9,7 @@ use crate::{
     MINIMUM_OPEND_VERSION, OpenDManagedSession, OpenDManagedSessionError, OpenDProbe,
     PROTO_GET_GLOBAL_STATE, PROTO_INIT_CONNECT, TcpTransportError, TransportError, WireGlobalState,
 };
+use jftrade_kernel::SharedOpenDCallObserver;
 use jftrade_marketdata::{HealthStatus, ProviderReadiness};
 
 const RET_TYPE_SUCCEED: i32 = 0;
@@ -22,6 +23,13 @@ pub struct OpenDTcpProbeConfig {
     pub timeout: Duration,
     pub client_id: String,
     pub programming_language: String,
+    /// Composition-root observability sink for failed OpenD RPC correlation.
+    ///
+    /// Go's client reads the recorder from the caller's context; the Rust
+    /// transport has no ambient context, so the sink and request ID are
+    /// configured on the session factory instead.
+    observer: Option<SharedOpenDCallObserver>,
+    request_id: String,
 }
 
 impl OpenDTcpProbeConfig {
@@ -31,7 +39,22 @@ impl OpenDTcpProbeConfig {
             timeout,
             client_id: "jftrade-rust".to_owned(),
             programming_language: "Rust".to_owned(),
+            observer: None,
+            request_id: String::new(),
         }
+    }
+
+    /// Installs the observability sink used by every session this config
+    /// creates.
+    pub fn with_open_d_call_observer(mut self, observer: SharedOpenDCallObserver) -> Self {
+        self.observer = Some(observer);
+        self
+    }
+
+    /// Sets the request correlation ID reported with observed calls.
+    pub fn with_request_id(mut self, request_id: impl Into<String>) -> Self {
+        self.request_id = request_id.into();
+        self
     }
 }
 
@@ -85,11 +108,11 @@ impl OpenDInitializedSession {
         config: &OpenDTcpProbeConfig,
         generation: u64,
     ) -> Result<Self, OpenDTcpProbeError> {
-        let session = Arc::new(OpenDManagedSession::connect(
-            config.address,
-            config.timeout,
-            generation,
-        )?);
+        let session = Arc::new(
+            OpenDManagedSession::connect(config.address, config.timeout, generation)?
+                .with_observer_opt(config.observer.clone())
+                .with_request_id(config.request_id.clone()),
+        );
         let conn_id = initialize_session(&session, config, false)?.conn_id;
         Ok(Self { session, conn_id })
     }
@@ -102,11 +125,11 @@ impl OpenDInitializedSession {
         config: &OpenDTcpProbeConfig,
         generation: u64,
     ) -> Result<Self, OpenDTcpProbeError> {
-        let session = Arc::new(OpenDManagedSession::connect(
-            config.address,
-            config.timeout,
-            generation,
-        )?);
+        let session = Arc::new(
+            OpenDManagedSession::connect(config.address, config.timeout, generation)?
+                .with_observer_opt(config.observer.clone())
+                .with_request_id(config.request_id.clone()),
+        );
         let init = initialize_session(&session, config, true)?;
         // Go starts the keep-alive worker from InitConnect.S2C.keepAliveInterval
         // on the long-lived market-data session only (pkg/futu/exchange_client.go).

@@ -42,6 +42,161 @@ def _is_known_cargo_package(name: str) -> bool:
         return os.path.isdir(os.path.join("crates", name))
     return any(package.get("name") == name for package in packages)
 
+
+# Matches a ``#[test]`` / ``#[tokio::test]`` attribute followed by the test
+# function name. Attributes, ``// Parity:`` comments, and blank lines may sit
+# between the attribute and ``fn``; without allowing them the resolver misses
+# the common ``#[test]`` + anchor-comment + ``fn`` layout used across this
+# workspace.
+_RUST_TEST_FN = re.compile(
+    r'#\[(?:tokio::)?test\]'
+    r'(?:(?:\s*#\[[^\]]*\])|(?:\s*//[^\n]*)|(?:\s*\n\s*))*'
+    r'\s*(?:pub(?:\([^)]*\))?\s+)?'
+    r'(?:async\s+)?fn\s+([A-Za-z0-9_]+)'
+)
+
+# ``#[path = "x_tests.rs"] mod tests;`` lives in the owner file, so a reference
+# like ``owner.rs::tests::some_case`` only resolves after following the
+# redirect into the real test file.
+_RUST_PATH_REDIRECT = re.compile(
+    r'#\[path\s*=\s*"([^"]+)"\]\s*(?:#\[[^\]]*\]\s*)*mod\s+([A-Za-z0-9_]+)\s*;'
+)
+
+_RUST_REF = re.compile(r'([A-Za-z0-9_\-/\.]+\.rs)::([A-Za-z0-9_:]+)')
+
+# Some rows name the test by crate path instead of by source file, for example
+# ``jftrade-desktop::desktop_contracts::some_case``. The trailing segment is
+# still a test function name, so the same existence check applies.
+_CRATE_QUALIFIED_REF = re.compile(r'\b(jftrade-[a-z0-9-]+)::([A-Za-z0-9_:]+)')
+
+
+def _workspace_rust_files() -> list:
+    """Return every Rust source file a parity reference may point at."""
+    files = []
+    for pattern in ("crates/**/*.rs", "apps/desktop/src-tauri/**/*.rs"):
+        files.extend(glob.glob(pattern, recursive=True))
+    return [os.path.normpath(path) for path in files]
+
+
+def _rust_test_index() -> tuple:
+    """Index test functions and ``#[path]`` redirects for the whole workspace.
+
+    Returns ``(tests_by_file, redirects)`` where ``tests_by_file`` maps a
+    normalized path to the set of ``#[test]`` function names defined in it, and
+    ``redirects`` maps ``(owner_path, module_name)`` to the included file.
+    """
+    tests_by_file = {}
+    for path in _workspace_rust_files():
+        with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+            tests_by_file[path] = set(_RUST_TEST_FN.findall(handle.read()))
+
+    redirects = {}
+    for path in tests_by_file:
+        with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+            content = handle.read()
+        for target, module in _RUST_PATH_REDIRECT.findall(content):
+            included = os.path.normpath(os.path.join(os.path.dirname(path), target))
+            redirects[(path, module)] = included
+    return tests_by_file, redirects
+
+
+def _resolve_rust_test_reference(tests_by_file, redirects, path, module_path) -> bool:
+    """Return True when a reference names a real ``#[test]`` function.
+
+    ``path`` is the file named in the mapping and ``module_path`` is the
+    ``mod::submod::case`` suffix. The module chain is followed through
+    ``#[path]`` redirects, then the same-directory ``<stem>_tests.rs`` and
+    ``<stem>/tests.rs`` conventions are tried, because the audit records the
+    owner file while the test itself lives in the sibling module.
+    """
+    path = os.path.normpath(path)
+    if path not in tests_by_file:
+        return False
+
+    parts = module_path.split("::")
+    function = parts[-1]
+    modules = parts[:-1]
+
+    candidates = [path]
+    current = path
+    for module in modules:
+        included = redirects.get((current, module))
+        if included is None:
+            break
+        current = included
+        candidates.append(current)
+
+    stem = os.path.splitext(path)[0]
+    for sibling in (stem + "_tests.rs", os.path.join(stem, "tests.rs")):
+        candidate = os.path.normpath(sibling)
+        if candidate in tests_by_file:
+            candidates.append(candidate)
+
+    return any(function in tests_by_file.get(candidate, ()) for candidate in candidates)
+
+
+def unresolved_parity_references(manual_details: dict) -> tuple:
+    """Find mapping rows whose Rust entries name no real test function.
+
+    Reference integrity is enforced where it carries a guarantee and reported
+    where it does not:
+
+    * ``function_exact`` is an approval. It must name at least one Rust test
+      that exists in the workspace, otherwise the audit fails.
+    * ``partial`` is an acknowledged gap. An unresolvable reference is a stale
+      citation worth surfacing, but it never fails the audit.
+    * ``boundary``/``missing`` rows describe the absence of a mapping and are
+      not reference-checked.
+
+    A row may cite production symbols as context next to the test that proves
+    the behavior, so a row passes when *any* of its ``file::fn`` or
+    ``crate::mod::fn`` references resolves to a real ``#[test]``.
+
+    Returns ``(broken_approvals, stale_references)``, each a list of
+    ``(mapping_key, reference_detail)`` tuples.
+    """
+    tests_by_file, redirects = _rust_test_index()
+    known_test_names = set()
+    for names in tests_by_file.values():
+        known_test_names |= names
+
+    broken_approvals = []
+    stale_references = []
+    for key, item in manual_details.items():
+        evidence = item.get("evidence_type")
+        if evidence not in {"function_exact", "partial"}:
+            continue
+
+        entry = item.get("rust_entry", "")
+        file_references = _RUST_REF.findall(entry)
+        crate_references = _CRATE_QUALIFIED_REF.findall(entry)
+
+        if not file_references and not crate_references:
+            # Only approvals must name a runnable test; a partial row may
+            # describe an acknowledged gap in prose.
+            if evidence == "function_exact":
+                broken_approvals.append((key, "未引用任何 .rs::测试 或 crate::测试"))
+            continue
+
+        resolves = any(
+            _resolve_rust_test_reference(tests_by_file, redirects, path, module)
+            for path, module in file_references
+        ) or any(
+            module_path.split("::")[-1] in known_test_names
+            for _, module_path in crate_references
+        )
+        if resolves:
+            continue
+
+        detail = "; ".join(
+            [f"{path}::{module}" for path, module in file_references]
+            + [f"{crate}::{module}" for crate, module in crate_references]
+        )
+        bucket = broken_approvals if evidence == "function_exact" else stale_references
+        bucket.append((key, detail))
+    return broken_approvals, stale_references
+
+
 DOMAIN_MAPPING = [
     # (domain_key, domain_label, go_path_prefixes, rust_crates_or_paths)
     (
@@ -335,6 +490,23 @@ def main():
         )
     ]
     print(f"WARNING: {len(invalid_commands)} mappings reference nonexistent -p crates")
+    # Reference integrity: an approval must point at a test that exists today,
+    # otherwise a rename or deletion silently keeps it marked as covered.
+    broken_approvals, stale_references = unresolved_parity_references(manual_details)
+    if stale_references:
+        print(
+            f"WARNING: {len(stale_references)} partial mappings cite no resolvable Rust test "
+            "(acknowledged gaps, not failures)"
+        )
+    if broken_approvals:
+        listing = "\n".join(f"  - {key}\n      {detail}" for key, detail in broken_approvals)
+        raise ValueError(
+            "[x]/function_exact mappings must cite a Rust test that exists in the "
+            f"workspace; {len(broken_approvals)} reference(s) do not resolve:\n{listing}"
+        )
+    approved = sum(1 for item in mapping_values if item.get("evidence_type") == "function_exact")
+    print(f"OK: {approved} function_exact mappings cite existing workspace tests")
+
     exact_entries = [item.get("rust_entry") for item in mapping_values if item.get("status") == "[x]"]
     duplicate_entries = len(exact_entries) - len(set(exact_entries))
     if duplicate_entries:

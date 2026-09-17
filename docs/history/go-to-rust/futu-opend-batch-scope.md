@@ -2239,3 +2239,63 @@ python3 scripts/compatibility/audit_test_parity.py
 
 结果：定向 5 项全部通过；parity 审计 0 条非法 `-p` crate、0 条 `[x]` 缺
 `function_exact`；Futu/OpenD 91.8%；总 `[x]` 449 / 4451。本批 **23 `[x]` / 4 `[~]`**。
+
+---
+
+## 批次：`pkg/futu/opend/client_test.go`（7 项，全部 `missing` → `[x]`）
+
+该文件此前 7 条全部是领域级 `missing`。逐行复核后全部收敛为 `function_exact`：
+
+| Go 测试 | 行号 | Rust 证据 |
+|---|---:|---|
+| `TestCallFailureRecordsRequestCorrelation` | :77 | 新增传输层 observer + 生产组合接线 |
+| `TestStartKeepAliveIgnoresNonPositiveIntervalsWithoutConsumingStart` | :104 | `managed_session_tests.rs::start_keep_alive_ignores_non_positive_intervals` |
+| `TestCallRoundTrip` | :181 | `concurrent_rpc_responses_are_routed_by_protocol_and_serial` |
+| `TestRequestTimeout` | :206 | `response_after_request_timeout_is_not_delivered_to_a_stale_waiter` |
+| `TestKeepAliveFailureClosesClient` | :243 | `keep_alive_failure_closes_the_session` |
+| `TestSubscribeNotifyReceivesSystemPush` | :280 | `health.rs::tests::initialized_probe_and_subscription_rpc_share_one_managed_reader` |
+| `TestCallIgnoresMismatchedProtoOnSameSerial` | :405 | `same_serial_with_wrong_protocol_is_unsolicited_until_exact_response_arrives` |
+
+### 真实功能缺失修复：OpenD 调用未记录 observability correlation
+
+Go `Client.Call`（`pkg/futu/opend/client.go:283`）每次都调用
+`observability.RecordOpenDCall(ctx, proto_<id>, latency, err)`，把失败与上下文里的
+`RequestID`、`Source=opend`、`Importance=high` 关联起来，并在
+`/api/v1/system/status` 上投影为 `observability.requests.openD`。
+
+Rust 侧此前 `TransportMetrics::record_open_d_call` **没有任何生产调用方**：OpenD 传输层
+不知道 observability，API 层的 `openD.totalCalls` 永远是 0。修复分三层：
+
+1. `crates/jftrade-kernel/src/open_d_observer.rs`（新增）：`OpenDCallObserver` port +
+   `OpenDCallRecord { operation, request_id, error }` + no-op 实现。放在 kernel 是因为
+   `jftrade-integration-futu` 不能依赖 `jftrade-api`，而两者都已依赖 kernel。
+2. `crates/jftrade-integration-futu`：`OpenDManagedSession` 持有可选 observer，
+   `call_with_timeout` 在每次 RPC 结束后上报 `proto_<id>`、请求关联 ID 与错误文本；
+   `OpenDTcpProbeConfig::with_open_d_call_observer/with_request_id` 让组合根注入。
+3. `crates/jftrade-engine`：`start_product_runtime` 在启动 OpenD provider 之前创建唯一的
+   `TransportMetrics`，注入 `provider.opend`，并把同一实例传给
+   `prepare_product_with_runtime_state`，保证只有一个 observability writer。
+   `crates/jftrade-engine/src/product_opend_call_observer.rs` 提供 composition-root 适配器，
+   把 port 记录转写进既有的 `TransportMetrics::record_open_d_call`。
+   适配器放在 engine 而非 api，是因为架构门禁禁止 `jftrade-api` 依赖
+   `jftrade-kernel`（首版实现放 api 时 `check:rust:architecture` 直接失败，已按门禁归位）。
+
+### 回归可证性（临时探针，已回滚）
+
+- 移除 `OpenDManagedSession::call_with_timeout` 的 observer 上报 →
+  `call_failure_records_request_correlation_against_the_observer` 以
+  `left: 0, right: 1` 失败。
+- 移除 `start_product_runtime` 中 `provider.opend` 的 observer 注入 →
+  `product_runtime_records_opend_calls_in_transport_metrics` 在
+  `totalCalls > 0` 断言处失败，证明端到端接线不是靠 API 层伪造。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel -p jftrade-integration-futu -p jftrade-api -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：1752 passed / 1 skipped；fmt 通过；parity 审计 0 条非法 `-p` crate、
+0 条 `[x]` 缺 `function_exact`；Futu/OpenD 92.2%；总 `[x]` 456 / 4451。

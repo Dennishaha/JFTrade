@@ -573,6 +573,8 @@ include!("product_config_ports.rs");
 
 include!("product_server_types.rs");
 include!("product_server_runtime.rs");
+#[path = "product_opend_call_observer.rs"]
+pub(crate) mod product_opend_call_observer;
 include!("product_server.rs");
 include!("product_handle.rs");
 

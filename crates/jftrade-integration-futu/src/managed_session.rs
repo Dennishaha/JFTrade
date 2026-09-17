@@ -16,6 +16,7 @@ use crate::trade_proto::keep_alive::{
 };
 use crate::transport::{TcpTransportError, read_framed_frame};
 use crate::{Frame, FrameError, PROTO_KEEP_ALIVE, encode_frame};
+use jftrade_kernel::{OpenDCallRecord, SharedOpenDCallObserver};
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum OpenDSessionCloseReason {
@@ -89,6 +90,8 @@ pub struct OpenDManagedSession {
     worker: Mutex<Option<JoinHandle<()>>>,
     keep_alive_worker: Mutex<Option<JoinHandle<()>>>,
     keep_alive_started: AtomicBool,
+    observer: Option<SharedOpenDCallObserver>,
+    request_id: String,
 }
 
 impl OpenDManagedSession {
@@ -100,6 +103,31 @@ impl OpenDManagedSession {
         let stream =
             TcpStream::connect_timeout(&address, timeout).map_err(OpenDManagedSessionError::Io)?;
         Self::from_stream(stream, timeout, generation)
+    }
+
+    /// Attaches the composition-root observability sink used to correlate
+    /// failed OpenD RPCs, mirroring Go `Client.Call` calling
+    /// `observability.RecordOpenDCall` with the surrounding request ID.
+    pub fn with_observer(mut self, observer: SharedOpenDCallObserver) -> Self {
+        self.observer = Some(observer);
+        self
+    }
+
+    /// Attaches an optional observer; `None` keeps the transport silent.
+    pub fn with_observer_opt(mut self, observer: Option<SharedOpenDCallObserver>) -> Self {
+        self.observer = observer;
+        self
+    }
+
+    /// Sets the request correlation ID reported with every observed call.
+    ///
+    /// Go reads this from the caller's context (`observability.FieldsFromContext`).
+    /// Rust's OpenD port traits do not carry a request context, so a
+    /// request-scoped session sets it explicitly; long-lived background
+    /// sessions leave it empty.
+    pub fn with_request_id(mut self, request_id: impl Into<String>) -> Self {
+        self.request_id = request_id.into();
+        self
     }
 
     pub fn from_stream(
@@ -138,6 +166,8 @@ impl OpenDManagedSession {
             worker: Mutex::new(Some(worker)),
             keep_alive_worker: Mutex::new(None),
             keep_alive_started: AtomicBool::new(false),
+            observer: None,
+            request_id: String::new(),
         })
     }
 
@@ -173,7 +203,15 @@ impl OpenDManagedSession {
         protobuf_body: &[u8],
         timeout: Duration,
     ) -> Result<Vec<u8>, OpenDManagedSessionError> {
-        call_state(&self.state, protocol, protobuf_body, timeout)
+        let result = call_state(&self.state, protocol, protobuf_body, timeout);
+        if let Some(observer) = &self.observer {
+            observer.record_open_d_call(&OpenDCallRecord {
+                operation: format!("proto_{protocol}"),
+                request_id: self.request_id.clone(),
+                error: result.as_ref().err().map(ToString::to_string),
+            });
+        }
+        result
     }
 
     /// Sends Futu `KeepAlive` (1004) frames until the session closes.
