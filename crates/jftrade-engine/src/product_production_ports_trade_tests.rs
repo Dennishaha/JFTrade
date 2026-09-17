@@ -3053,6 +3053,58 @@ fn invalid_history_time_is_rejected_before_opend_call() {
 }
 
 #[test]
+fn broker_adapter_forwards_unavailable_opend_errors_on_every_read_route() {
+    // Parity: go:452dea11:pkg/futu/adapter_failure_boundaries_test.go:19
+    // TestBrokerAdapterForwardsUnavailableOpenDErrors. Go drives the whole
+    // broker adapter surface against an OpenD address that refuses connections
+    // and requires every read to return an error instead of a zero-value
+    // success. Rust's equivalent owner is the single fail-closed readiness
+    // gate; this pins that gate across every read route Go exercised plus the
+    // two account-scoped variants.
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: Some(false),
+        trade_runtime: None,
+    };
+    for (path, query) in [
+        ("/api/v1/brokers/futu/accounts", "accountId=42&market=US"),
+        ("/api/v1/brokers/futu/funds", "accountId=42&market=US"),
+        ("/api/v1/brokers/futu/positions", "accountId=42&market=US"),
+        ("/api/v1/brokers/futu/orders", "accountId=42&market=US"),
+        ("/api/v1/brokers/futu/orders", "accountId=42&market=US&scope=HISTORY"),
+        ("/api/v1/brokers/futu/fills", "accountId=42&market=US"),
+        ("/api/v1/brokers/futu/fills", "accountId=42&market=US&scope=HISTORY"),
+        (
+            "/api/v1/brokers/futu/order-fees",
+            "accountId=42&market=US&orderIdEx=o-1",
+        ),
+        (
+            "/api/v1/brokers/futu/margin-ratios",
+            "accountId=42&market=US&symbols=US.AAPL",
+        ),
+        (
+            "/api/v1/brokers/futu/cash-flows",
+            "accountId=42&market=US&clearingDate=2026-08-21",
+        ),
+        (
+            "/api/v1/brokers/futu/max-trade-qtys",
+            "accountId=42&market=US&symbol=US.AAPL",
+        ),
+        ("/api/v1/brokers/futu/securities", "accountId=42&market=US"),
+    ] {
+        let error = port
+            .read(path, query)
+            .expect_err(&format!("{path} must fail while OpenD is unavailable"));
+        let message = format!("{error:?}");
+        assert!(
+            message.contains("Unavailable") || message.contains("unavailable"),
+            "{path} error must stay an upstream failure, got {message}"
+        );
+    }
+}
+
+#[test]
 fn test_service_broker_write_operations_propagate_upstream_failures() {
     // Parity: internal/trading/broker_boundaries_test.go:116 TestServiceBrokerWriteOperationsPropagateUpstreamFailures
     // Port when provider is not ready

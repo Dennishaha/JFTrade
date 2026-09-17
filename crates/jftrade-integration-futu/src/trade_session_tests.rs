@@ -580,6 +580,108 @@ fn place_order_encodes_packet_conn_id_and_projects_server_order_identity() {
 }
 
 #[test]
+fn place_order_rounds_us_prices_to_the_venue_tick_before_encoding() {
+    // Parity: go:452dea11:pkg/futu/exchange_trade_price_test.go:25 and
+    // go:452dea11:pkg/futu/exchange_trade_write.go:177
+    // TestNormalizeSubmitOrderPrice / placeOrderRequestFromSubmitOrder. The
+    // write path must round US prices to the venue tick before encoding
+    // Trd_PlaceOrder: cents at or above one dollar, $0.0001 below it. Each price
+    // is normalized against its own value, HK keeps the caller's price, and a
+    // zero price must not become a wire field.
+    struct PriceCase {
+        sec_market: i32,
+        price: Option<f64>,
+        aux: Option<f64>,
+        expected_price: Option<f64>,
+        expected_aux: Option<f64>,
+    }
+    let cases = [
+        // sec_market, requested price, requested aux, expected price, expected aux
+        PriceCase {
+            sec_market: 2,
+            price: Some(123.456),
+            aux: Some(12.3456),
+            expected_price: Some(123.46),
+            expected_aux: Some(12.35),
+        },
+        PriceCase {
+            sec_market: 2,
+            price: Some(0.12345),
+            aux: Some(0.99994),
+            expected_price: Some(0.1235),
+            expected_aux: Some(0.9999),
+        },
+        PriceCase {
+            sec_market: 1,
+            price: Some(320.123),
+            aux: Some(12.3456),
+            expected_price: Some(320.123),
+            expected_aux: Some(12.3456),
+        },
+        PriceCase {
+            sec_market: 2,
+            price: Some(0.0),
+            aux: Some(12.3456),
+            expected_price: None,
+            expected_aux: Some(12.35),
+        },
+    ];
+    for case in cases {
+        let sec_market = case.sec_market;
+        let price = case.price;
+        let aux = case.aux;
+        let expected_price = case.expected_price;
+        let expected_aux = case.expected_aux;
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let requested_price = price;
+        let requested_aux = aux;
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let request = read_frame(&mut stream);
+            let decoded =
+                trd_place_order::Request::decode(request.body.as_slice()).expect("request");
+            assert_eq!(decoded.c2s.price, expected_price, "wire price");
+            assert_eq!(decoded.c2s.aux_price, expected_aux, "wire aux price");
+            let response = trd_place_order::Response {
+                ret_type: 0,
+                ret_msg: None,
+                err_code: None,
+                s2c: Some(trd_place_order::S2c {
+                    header: trade_header(0, 77_001, 1).into(),
+                    order_id: Some(9001),
+                    order_id_ex: None,
+                }),
+            };
+            stream
+                .write_all(
+                    &encode_frame(
+                        request.header.proto_id,
+                        request.header.serial_no,
+                        &response.encode_to_vec(),
+                    )
+                    .expect("response"),
+                )
+                .expect("write response");
+            let mut byte = [0_u8; 1];
+            let _ = stream.read(&mut byte);
+        });
+        let session = Arc::new(
+            OpenDManagedSession::connect(address, Duration::from_millis(500), 4).expect("session"),
+        );
+        let client =
+            OpenDTradeReadClient::from_managed_session_with_conn_id(Arc::clone(&session), 42);
+        let mut request = place_request(requested_price.unwrap_or_default());
+        request.price = requested_price;
+        request.aux_price = requested_aux;
+        request.sec_market = Some(sec_market);
+        client.place_order(request).expect("place order");
+        session.close().expect("close");
+        server.join().expect("server");
+    }
+}
+
+#[test]
 fn event_contract_place_order_encodes_amount_and_prediction_side() {
     // Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:403
     // TestFutuTradeProductRequestAndReadLifecycleBranches. Go's

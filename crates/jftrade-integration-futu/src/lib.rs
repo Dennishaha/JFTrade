@@ -63,6 +63,7 @@ mod subscription_executor;
 mod subscriptions;
 mod technical_indicator_query;
 mod ticker_query;
+mod trade_price;
 mod valuation_detail_query;
 mod watchlist_reader;
 // The generated module is crate-internal; generated messages must not leak to
@@ -340,6 +341,10 @@ pub use technical_indicator_query::{
     TechnicalIndicatorResult,
 };
 pub use ticker_query::{OpenDTickerQuoteReader, TickerQuoteError, TickerQuoteReadPort};
+pub use trade_price::{
+    count_step_decimals, normalize_submit_order_price, round_price_to_step, step_rounded_unit,
+    submit_order_price_step,
+};
 pub use trade_proto::ResponseError;
 pub use trade_session::{
     OpenDTradeReadClient, TradeModifyOrderRequest, TradePlaceComboOrderRequest,

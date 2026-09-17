@@ -2299,3 +2299,64 @@ python3 scripts/compatibility/audit_test_parity.py
 
 结果：1752 passed / 1 skipped；fmt 通过；parity 审计 0 条非法 `-p` crate、
 0 条 `[x]` 缺 `function_exact`；Futu/OpenD 92.2%；总 `[x]` 456 / 4451。
+
+---
+
+## 批次：`pkg/futu/adapter_failure_boundaries_test.go`（5 项）
+
+### 结果：4 `[x]` / 1 `[~]` boundary
+
+| Go 测试 | 行号 | 状态 | Rust 证据 |
+|---|---:|---|---|
+| `TestBrokerAdapterForwardsUnavailableOpenDErrors` | :19 | `[x]` | 新增 `broker_adapter_forwards_unavailable_opend_errors_on_every_read_route` |
+| `TestAdapterSubscriptionParsingErrorsAreReturned` | :64 | `[x]` | `subscription_executor.rs::tests::executor_rejects_invalid_instrument_and_unsupported_interval` |
+| `TestAdapterAndDecimalConversionBoundaries` | :77 | `[x]` | `trade_price` + `basic_quote_tick` + `security projection` 组合证据 |
+| `TestKLineSessionAndPriceHelperBoundaries` | :115 | `[x]` | `history_session_plan` + `kline_query` + `trade_price` 组合证据 |
+| `TestCanceledContextIsPreservedByUnavailableAdapter` | :165 | `[~]` boundary | Rust 端口无 ctx；等价保证是“不可用即失败” |
+
+### 真实功能缺失修复：下单价格未按交易所 tick 归一化
+
+Go `exchange_trade_write.go:177` 在编码 `Trd_PlaceOrder` 前调用
+`normalizeSubmitOrderPrice`：US 市价 ≥1 用 0.01、<1 用 0.0001，其他市场保持原价，
+非正价格不上送；结果再经 `fixedpoint.NewFromFloat` 量化到 8 位小数。Rust 的
+`place_order_command` 此前把 `request.price`/`aux_price` 原样编码，等于把未对齐 tick
+的价格直接发给 OpenD（可能被拒或错价成交）。
+
+修复：新增 `crates/jftrade-integration-futu/src/trade_price.rs`（Go
+`exchange_trade_price.go` 的 owner），提供 `submit_order_price_step`、
+`round_price_to_step`、`step_rounded_unit`、`count_step_decimals`、
+`normalize_submit_order_price`；`place_order_command` 对 price/aux_price 应用归一化并
+过滤非正值，改单路径保持不变（与 Go 一致）。`quantize_eight_decimals` 复现
+`fixedpoint.NewFromFloat` 的量化，避免 `123.456 → 123.46000000000001` 的二进制漂移
+进入 protobuf double 字段。
+
+### 覆盖面补强
+
+`:19` 的 Go 测试用拒连 OpenD 驱动整个 broker adapter 面。Rust 的对应 owner 是
+`ProductionBrokerPort` 的统一 fail-closed readiness 门，因此新增参数化测试遍历 12 条读
+路径（accounts/funds/positions/orders/orders-history/fills/fills-history/order-fees/
+margin-ratios/cash-flows/max-trade-qtys/securities）逐条断言返回 `Unavailable` 类错误
+而非零值成功；history 变体使用 Rust 的 `scope=HISTORY` 路由约定。
+
+### 回归可证性（临时探针，已回滚）
+
+- 移除 `place_order_command` 中的价格归一化（保留原价直传）→
+  `place_order_rounds_us_prices_to_the_venue_tick_before_encoding` 在 wire price 断言处失败
+  （探针同时暴露 `Session(Closed(PeerClosed))`，因为断言先于响应写回触发）。
+
+### 保留边界
+
+`:165` 的 Go 断言依赖 `context.Context`。Rust 端口是同步 `Result` 且不含取消 token，
+没有可传播的 ctx；同一失败保证（不可用 OpenD 绝不返回成功）已由 `:19` 那条参数化测试
+覆盖，取消/超时语义由写端口的 `Canceled`/`Timeout` 变体与 runtime deadline 承担。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：1693 passed / 1 skipped；fmt 通过；parity 审计 460 条 `function_exact` 全部解析到
+真实测试、0 重复、0 非法 `-p` crate；Futu/OpenD 93.1%；总 `[x]` 460 / 4451。

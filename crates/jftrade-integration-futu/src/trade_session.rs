@@ -721,6 +721,18 @@ impl OpenDTradeReadClient {
         &self,
         request: TradePlaceOrderRequest,
     ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+        // Go `exchange_trade_write.go` normalizes the submit and stop price to
+        // the venue tick before encoding `Trd_PlaceOrder`; a non-positive or
+        // absent price stays absent rather than becoming a zero field.
+        let sec_market = request.sec_market.unwrap_or_default();
+        let price = request
+            .price
+            .map(|price| crate::trade_price::normalize_submit_order_price(sec_market, price))
+            .filter(|price| *price > 0.0);
+        let aux_price = request
+            .aux_price
+            .map(|price| crate::trade_price::normalize_submit_order_price(sec_market, price))
+            .filter(|price| *price > 0.0);
         let body = self.call(
             trd_place_order::PROTOCOL_ID,
             &trd_place_order::encode_request(&trd_place_order::Request {
@@ -731,14 +743,14 @@ impl OpenDTradeReadClient {
                     order_type: request.order_type,
                     code: request.code,
                     qty: request.quantity,
-                    price: request.price,
+                    price,
                     adjust_price: None,
                     adjust_side_and_limit: None,
                     sec_market: request.sec_market,
                     remark: request.remark,
                     time_in_force: request.time_in_force,
                     fill_outside_rth: request.fill_outside_rth,
-                    aux_price: request.aux_price,
+                    aux_price,
                     trail_type: request.trail_type,
                     trail_value: request.trail_value,
                     trail_spread: request.trail_spread,
