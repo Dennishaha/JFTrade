@@ -164,16 +164,8 @@ impl super::ProductionBrokerPort {
         } else {
             Some(3)
         };
-        let adjustment = match request.query.get_first("adjustment").unwrap_or("forward") {
-            "none" => 0,
-            "backward" => 2,
-            "forward" | "" => 1,
-            other => {
-                return Err(super::BrokerReadSnapshotError::Invalid(format!(
-                    "invalid candle adjustment {other:?}"
-                )));
-            }
-        };
+        let adjustment = broker_kline_adjustment_from_query(request.query.get_first("adjustment"))
+            .map_err(super::BrokerReadSnapshotError::Invalid)?;
         let mut historical = HistoricalKlineResult {
             security: jftrade_integration_futu::HistoricalSecurity {
                 market: market_code,
@@ -246,5 +238,54 @@ impl super::ProductionBrokerPort {
             "connectivity": "connected",
             "klines": historical_snapshot(request, &historical, period, extended_hours, &sessions, requested_limit),
         }))
+    }
+}
+
+
+/// Go `brokerKLineRehabType`: translate the broker-neutral candle adjustment
+/// label into `Qot_Common.RehabType`.
+///
+/// `forward` (and the Go zero value, which the route spells as a missing
+/// parameter) maps to `RehabType_Forward`, `none` to `RehabType_None` and
+/// `backward` to `RehabType_Backward`. Every other label is rejected before any
+/// OpenD request is built, so an unsupported adjustment can never silently
+/// return unadjusted candles.
+pub(in crate::product::product_production_ports::product_production_ports_trade) fn broker_kline_adjustment(
+    label: &str,
+) -> Result<i32, String> {
+    match label.trim() {
+        "none" => Ok(0),
+        "backward" => Ok(2),
+        "forward" | "" => Ok(1),
+        other => Err(format!("invalid candle adjustment {other:?}")),
+    }
+}
+
+fn broker_kline_adjustment_from_query(value: Option<&str>) -> Result<i32, String> {
+    broker_kline_adjustment(value.unwrap_or("forward"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Parity: go:452dea11:pkg/futu/adapter_advanced_protocol_test.go:128
+    /// TestBrokerKLineAdjustmentMapping.
+    #[test]
+    fn candle_adjustment_maps_to_the_opend_rehab_enum() {
+        for (label, want) in [("", 1), ("forward", 1), ("none", 0), ("backward", 2)] {
+            assert_eq!(
+                broker_kline_adjustment(label),
+                Ok(want),
+                "adjustment {label:?}"
+            );
+        }
+        // A route without the parameter keeps Go's forward default.
+        assert_eq!(broker_kline_adjustment_from_query(None), Ok(1));
+        assert_eq!(broker_kline_adjustment_from_query(Some("none")), Ok(0));
+        for label in ["split-adjusted", "forward-adjusted", "rehab", "1"] {
+            let error = broker_kline_adjustment(label).expect_err("unsupported adjustment");
+            assert_eq!(error, format!("invalid candle adjustment {label:?}"));
+        }
     }
 }

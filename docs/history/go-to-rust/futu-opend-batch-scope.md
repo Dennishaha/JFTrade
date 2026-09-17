@@ -1998,3 +1998,71 @@ git diff --check
 
 结果：1675 passed / 1 skipped；clippy 无告警；architecture 通过；
 parity 审计 Futu/OpenD 90.6%（本批 3 条 `[x]`、3 条 partial，总 `[x]` 436）。
+
+## 批次：pkg/futu/adapter_advanced_protocol_test.go（6 项）
+
+范围：`pkg/futu/adapter_advanced_protocol_test.go` 的 6 条 `Test*`，逐条对照 Go
+实现（`adapter_advanced.go`、`adapter_advanced_defaults.go`、`adapter_advanced_helpers.go`、
+`adapter_advanced_normalization.go`、`adapter_combo.go`、`adapter_prediction_stream.go`）核对
+Rust owner。
+
+| Go 测试 | 状态 | Rust 入口 |
+|---|---|---|
+| `:15 TestFutuAdvancedAdapterReaderSurfaceAndPredictionSubscriptions` | `[x]` function_exact | `prediction_category_protocol.rs::prediction_subscriptions_replay_after_reconnect_and_clear_on_unsubscribe` |
+| `:128 TestBrokerKLineAdjustmentMapping` | `[x]` function_exact | `product_trade_runtime_broker_routes.rs::tests::candle_adjustment_maps_to_the_opend_rehab_enum` |
+| `:149 TestFutuAdvancedAdapterProtocolValidationDefaultsAndPayloadHelpers` | `[~]` partial | `research_params_tests.rs::advanced_scope_defaults_and_cursor_injection_follow_the_protocol_payload + advanced_feature_defaults_build_strict_opend_requests` |
+| `:296 TestFutuComboAdapterOptionAndEventLifecycle` | `[~]` partial | `product_production_ports_execution_order_validation_tests.rs::combo_intent_rejects_missing_kind_legs_and_account + product_production_ports_execution_preview_tests.rs::event_parlay_preview_rejects_inactive_contract_filtered_from_snapshot_list` |
+| `:365 TestFutuComboAdapterProductRulesAndValidationFailures` | `[x]` function_exact | `product_production_ports_execution_preview_tests.rs::product_rule_denials_return_the_go_reason_code_matrix` |
+| `:471 TestFutuAdvancedProtocolTransportFailureIsReturned` | `[x]` function_exact | `prediction_category_protocol.rs::prediction_category_transport_failure_is_returned_and_never_retried` |
+
+### 本批真实功能修复
+
+1. **预测订阅 generation 重放（P1 断线重连）**：Go 的 `predictionSubscriptions` +
+   `ensurePredictionPushHandlers` 会在拿到新 client 时重放全部活跃事件合约订阅。
+   Rust 此前只有单次 `Qot_SubEventContract` 调用，重连后租约静默丢失。现在
+   `crates/jftrade-integration-futu/src/prediction.rs` 的 `OpenDPredictionMarketReader`
+   持有 `prediction|sorted-types → dataTypes` 重放表，按 `coordinator.generation()` fencing：
+   新 generation 的第一次调用先重放全部活跃订阅再发调用方请求；退订按 contract 前缀清除；
+   重放失败不标记 attached，下一次调用重试而不是丢流。
+2. **K 线复权映射收口**：把路由内联的 adjustment 匹配抽成
+   `product_trade_runtime_broker_routes.rs::broker_kline_adjustment`，与 Go
+   `brokerKLineRehabType` 一一对应（`""`/`forward`→1、`none`→0、`backward`→2）。
+3. **产品规则拒绝码矩阵**：`product_rule_denials_return_the_go_reason_code_matrix`
+   固化 8 条拒绝码，并用 reader 调用计数证明放行请求仍会到达 OpenD reader。
+
+### 保留的边界与未完成项（后续批次目标）
+
+- **`:149` 功能缺失**：`injectFeatureInstrument`（`protocolInstrumentField` 表、
+  `securityList`/`ownerList`/`multi_legs` 赋值、非法 instrument 报错、已存在字段不覆盖）、
+  `payloadEntries` 多列表选择、`featureResultFromPayload` 的 `nextPage`/`snapshotList` 丢弃
+  `warning`/`quoteExpiresAt`、`normalizeOpenDMap`/`normalizeOpenDEnum`、
+  `numberValue`/`stringValue`/`cloneMap`/`structMap` 在 Rust 已无同名生产入口（职责移交给
+  强类型 `trade_proto` DTO 与 `research_normalization.rs`），因此记为 partial 而不是造假测试。
+- **`:296` 缺口**：option combo `preview → place → cancel` 与 event parlay
+  `place → cancel` 尚无引擎级端到端断言；Rust 的 `RecordingTradeWriter::place_combo_order`
+  目前是 `unsupported()` fixture。生产路径已存在（`combo_preview` 校验策略合法性 +
+  `read_combo_max_trade_quantity`；`place_combo` 走 preview 检查、
+  `reserve_order_with_preview_checked`、`persist_external_success`；cancel 走
+  `modify_order(operation=2)`）。**下次目标**：为 engine fixture 增加 combo writer 记录，
+  按 3258/3445 wire 断言 preview/place/cancel 各一次、`SUBMITTED` 状态与 legs 数量。
+
+### 回归可证性（临时探针，均已回滚）
+
+- 移除 `replay_if_generation_changed` 的 generation 比较（`state.attached` 即返回）→
+  `prediction_subscriptions_replay_after_reconnect_and_clear_on_unsubscribe` 以
+  `left: 3434 / right: 3455` 失败，证明该测试真实守护重连重放。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+pnpm run check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+pnpm run check:quick
+```
+
+结果：1679 passed / 1 skipped；clippy 无告警；architecture 通过；parity 审计
+Futu/OpenD 91.0%（本批 4 条 `[x]`、2 条 partial，总 `[x]` 440，全局 49.3%）。

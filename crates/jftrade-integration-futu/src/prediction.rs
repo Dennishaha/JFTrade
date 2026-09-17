@@ -65,6 +65,24 @@ pub trait PredictionComboQuotePort: Send + Sync + std::fmt::Debug {
 #[derive(Clone)]
 pub struct OpenDPredictionMarketReader {
     coordinator: Arc<Mutex<OpenDSessionCoordinator>>,
+    /// Generation-fenced prediction push demand.
+    ///
+    /// Go keeps the active `predictionSubscriptions` map on the adapter and
+    /// replays it whenever `ensurePredictionPushHandlers` attaches handlers to
+    /// a new client. Rust keeps the same demand next to the reader that owns
+    /// the OpenD session, so a reconnect re-subscribes every leased stream
+    /// before the next call is served.
+    replay: Arc<Mutex<PredictionReplayState>>,
+}
+
+/// Active prediction subscriptions keyed by canonical contract code.
+#[derive(Debug, Default)]
+struct PredictionReplayState {
+    generation: u64,
+    attached: bool,
+    /// Go's `instrument|sorted-types` key -> subscribed data types, so two
+    /// different type sets on one contract are replayed independently.
+    subscriptions: BTreeMap<String, Vec<String>>,
 }
 
 impl std::fmt::Debug for OpenDPredictionMarketReader {
@@ -77,7 +95,10 @@ impl std::fmt::Debug for OpenDPredictionMarketReader {
 
 impl OpenDPredictionMarketReader {
     pub fn new(coordinator: Arc<Mutex<OpenDSessionCoordinator>>) -> Self {
-        Self { coordinator }
+        Self {
+            coordinator,
+            replay: Arc::new(Mutex::new(PredictionReplayState::default())),
+        }
     }
 
     fn call(
@@ -89,16 +110,66 @@ impl OpenDPredictionMarketReader {
         let coordinator = self.coordinator.lock().map_err(|_| {
             PredictionMarketReadError::Session("coordinator lock poisoned".to_owned())
         })?;
-        let session = coordinator
-            .session()
-            .map_err(|error| PredictionMarketReadError::Session(error.to_string()))?;
-        // Keep the operation in one place for all decoders while allowing
-        // protocol-specific response types below.
-        let _ = operation;
-        session
-            .managed_session()
-            .call(protocol, &body)
-            .map_err(|error| PredictionMarketReadError::Transport(error.to_string()))
+        self.replay_if_generation_changed(&coordinator)?;
+        call_on_session(&coordinator, protocol, operation, body)
+    }
+
+    /// Replay every active prediction subscription once per session
+    /// generation.
+    ///
+    /// Go's `ensurePredictionPushHandlers` reattaches push handlers and
+    /// replays `predictionSubscriptions` whenever the exchange hands out a new
+    /// client. Rust's coordinator owns the session generation instead of a
+    /// client pointer, so the same demand is fenced on `generation()`: the
+    /// first call on a new session re-subscribes every active contract before
+    /// the caller's own request is sent. A failed replay leaves the state
+    /// unattached so the next call retries it rather than silently losing a
+    /// stream.
+    fn replay_if_generation_changed(
+        &self,
+        coordinator: &OpenDSessionCoordinator,
+    ) -> Result<(), PredictionMarketReadError> {
+        let generation = coordinator.generation();
+        let pending = {
+            let state = self.replay.lock().map_err(|_| {
+                PredictionMarketReadError::Session("prediction replay lock poisoned".to_owned())
+            })?;
+            if state.attached && state.generation == generation {
+                return Ok(());
+            }
+            state
+                .subscriptions
+                .iter()
+                .map(|(key, data_types)| (key.clone(), data_types.clone()))
+                .collect::<Vec<_>>()
+        };
+        for (key, data_types) in &pending {
+            let code = key
+                .split_once('|')
+                .map(|(code, _)| code)
+                .unwrap_or(key.as_str());
+            let body = prediction_subscription_body(code, data_types, true)?;
+            let response = call_on_session(coordinator, 3455, "Qot_SubEventContract", body)?;
+            use crate::trade_proto::qot_sub_event_contract::Response;
+            let response = Response::decode(response.as_slice()).map_err(|error| {
+                PredictionMarketReadError::Decode {
+                    operation: "Qot_SubEventContract",
+                    message: error.to_string(),
+                }
+            })?;
+            ensure_ok(
+                "Qot_SubEventContract",
+                response.ret_type,
+                response.err_code,
+                response.ret_msg.as_deref(),
+            )?;
+        }
+        let mut state = self.replay.lock().map_err(|_| {
+            PredictionMarketReadError::Session("prediction replay lock poisoned".to_owned())
+        })?;
+        state.generation = generation;
+        state.attached = true;
+        Ok(())
     }
 
     fn call_response<R: Message + Default>(
@@ -151,6 +222,69 @@ impl PredictionMarketSubscriptionPort for OpenDPredictionMarketReader {
     fn unsubscribe(&self, code: &str) -> Result<Value, PredictionMarketReadError> {
         self.update_subscription(code, &[], false)
     }
+}
+
+/// Send one already-encoded request on the coordinator's active session.
+fn call_on_session(
+    coordinator: &OpenDSessionCoordinator,
+    protocol: u32,
+    operation: &'static str,
+    body: Vec<u8>,
+) -> Result<Vec<u8>, PredictionMarketReadError> {
+    let session = coordinator
+        .session()
+        .map_err(|error| PredictionMarketReadError::Session(error.to_string()))?;
+    // Keep the operation in one place for all decoders while allowing
+    // protocol-specific response types below.
+    let _ = operation;
+    session
+        .managed_session()
+        .call(protocol, &body)
+        .map_err(|error| PredictionMarketReadError::Transport(error.to_string()))
+}
+
+/// Encode `Qot_SubEventContract` exactly the way Go's
+/// `predictionSubscriptionParams` does, including the K-line source list.
+fn prediction_subscription_body(
+    code_value: &str,
+    data_types: &[String],
+    subscribe: bool,
+) -> Result<Vec<u8>, PredictionMarketReadError> {
+    use crate::trade_proto::qot_sub_event_contract::{C2s, Request};
+    let contract = code(Some(code_value), "code")?;
+    let mut types = Vec::new();
+    let mut kline_sources = Vec::new();
+    for data_type in data_types {
+        match data_type.trim().to_ascii_uppercase().as_str() {
+            "ORDER_BOOK" => types.push(2),
+            "KLINE" => {
+                types.push(11);
+                kline_sources.push(1);
+            }
+            "TICKER" | "TICKS" => types.push(4),
+            value => {
+                return Err(invalid(&format!(
+                    "unsupported event contract subscription type {value:?}"
+                )));
+            }
+        }
+    }
+    if subscribe && types.is_empty() {
+        return Err(invalid("dataTypes must not be empty"));
+    }
+    Ok(Request {
+        c2s: C2s {
+            security_list: vec![security(&contract)],
+            sub_type_list: types,
+            is_sub_or_un_sub: subscribe,
+            is_reg_or_un_reg_push: Some(subscribe),
+            is_first_push: Some(subscribe),
+            is_unsub_all: None,
+            kline_source: kline_sources,
+            header: None,
+        },
+    }
+    .encode_to_vec())
 }
 
 impl PredictionComboQuotePort for OpenDPredictionMarketReader {
@@ -886,51 +1020,55 @@ impl OpenDPredictionMarketReader {
         data_types: &[String],
         subscribe: bool,
     ) -> Result<Value, PredictionMarketReadError> {
-        use crate::trade_proto::qot_sub_event_contract::{C2s, Request, Response};
+        use crate::trade_proto::qot_sub_event_contract::Response;
         let contract = code(Some(code_value), "code")?;
-        let mut types = Vec::new();
-        for data_type in data_types {
-            match data_type.trim().to_ascii_uppercase().as_str() {
-                "ORDER_BOOK" => types.push(2),
-                "KLINE" => types.push(11),
-                "TICKER" | "TICKS" => types.push(4),
-                value => {
-                    return Err(invalid(&format!(
-                        "unsupported event contract subscription type {value:?}"
-                    )));
-                }
-            }
-        }
-        if subscribe && types.is_empty() {
-            return Err(invalid("dataTypes must not be empty"));
-        }
-        let response = self.call_response::<Response>(
-            3455,
-            "Qot_SubEventContract",
-            Request {
-                c2s: C2s {
-                    security_list: vec![security(&contract)],
-                    sub_type_list: types,
-                    is_sub_or_un_sub: subscribe,
-                    is_reg_or_un_reg_push: Some(subscribe),
-                    is_first_push: Some(subscribe),
-                    is_unsub_all: None,
-                    kline_source: Vec::new(),
-                    header: None,
-                },
-            }
-            .encode_to_vec(),
-        )?;
+        let body = prediction_subscription_body(&contract, data_types, subscribe)?;
+        let response = self.call_response::<Response>(3455, "Qot_SubEventContract", body)?;
         ensure_ok(
             "Qot_SubEventContract",
             response.ret_type,
             response.err_code,
             response.ret_msg.as_deref(),
         )?;
+        {
+            let mut state = self.replay.lock().map_err(|_| {
+                PredictionMarketReadError::Session("prediction replay lock poisoned".to_owned())
+            })?;
+            if subscribe {
+                state.subscriptions.insert(
+                    prediction_subscription_key(&contract, data_types),
+                    canonical_data_types(data_types),
+                );
+            } else {
+                let prefix = format!("{}|", contract.to_ascii_uppercase());
+                state
+                    .subscriptions
+                    .retain(|key, _| !key.starts_with(&prefix));
+            }
+        }
         Ok(
             json!({"instrumentId": format!("US.{contract}"), "dataTypes": data_types, "subscribed": subscribe}),
         )
     }
+}
+
+/// Data types as they will be replayed: trimmed and upper-cased, preserving
+/// caller order and duplicates exactly like Go copies the original slice.
+fn canonical_data_types(data_types: &[String]) -> Vec<String> {
+    data_types
+        .iter()
+        .map(|value| value.trim().to_ascii_uppercase())
+        .collect()
+}
+
+/// Go `predictionSubscriptionKey`: canonical instrument plus sorted data types.
+fn prediction_subscription_key(contract: &str, data_types: &[String]) -> String {
+    let mut values = data_types
+        .iter()
+        .map(|value| value.trim().to_ascii_uppercase())
+        .collect::<Vec<_>>();
+    values.sort();
+    format!("{}|{}", contract.to_ascii_uppercase(), values.join(","))
 }
 
 fn parse_status(value: &str) -> Option<i32> {

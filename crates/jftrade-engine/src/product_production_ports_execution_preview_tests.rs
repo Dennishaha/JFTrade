@@ -676,3 +676,155 @@ fn broker_adapter_place_and_cancel_keep_server_order_identity_and_submitted_stat
     assert_eq!(modified[0].order_id, 9001);
     assert_eq!(modified[0].order_id_ex.as_deref(), Some("FT-9001"));
 }
+
+#[test]
+fn product_rule_denials_return_the_go_reason_code_matrix() {
+    // Parity: go:452dea11:pkg/futu/adapter_advanced_protocol_test.go:365
+    // TestFutuComboAdapterProductRulesAndValidationFailures. Go's
+    // ValidateProductOrder returns an allowed=false result with a stable
+    // reason code instead of an error, so the public order-preview route can
+    // surface the denial. Rust owns that decision in `product_rule_rejection`
+    // and only reaches the reader after the request passes it.
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, true);
+    let port = preview_port(
+        state,
+        Some(Arc::new(PreviewTradeReader {
+            calls: Arc::new(Mutex::new(Vec::new())),
+            fail: false,
+        })),
+        Some(true),
+    );
+
+    let base = |overrides: Value| {
+        let mut payload = buying_power_payload();
+        let object = payload.as_object_mut().expect("object");
+        for (key, value) in overrides.as_object().expect("object").clone() {
+            object.insert(key, value);
+        }
+        payload
+    };
+
+    let cases = [
+        (
+            "event single without an event-contract instrument",
+            base(json!({
+                "orderKind": "event_single",
+                "productClass": "equity",
+                "instrument": {"instrumentId": "US.AAPL", "productClass": "equity", "tradeMarket": "US"}
+            })),
+            "PRODUCT_MISMATCH",
+        ),
+        (
+            "event contract outside the US market",
+            base(json!({
+                "orderKind": "event_single",
+                "market": "HK",
+                "productClass": "event_contract",
+                "amount": 20.0,
+                "price": 0.6,
+                "instrument": {"instrumentId": "HK.EVENT", "productClass": "event_contract", "tradeMarket": "HK"}
+            })),
+            "MARKET_MISMATCH",
+        ),
+        (
+            "non-positive event amount",
+            base(json!({
+                "orderKind": "event_single",
+                "productClass": "event_contract",
+                "amount": 0.0,
+                "price": 0.6,
+                "instrument": {"instrumentId": "US.EVENT", "productClass": "event_contract", "tradeMarket": "US"}
+            })),
+            "INVALID_AMOUNT",
+        ),
+        (
+            "event price outside 0.01..0.99",
+            base(json!({
+                "orderKind": "event_single",
+                "productClass": "event_contract",
+                "amount": 20.0,
+                "price": 1.5,
+                "instrument": {"instrumentId": "US.EVENT", "productClass": "event_contract", "tradeMarket": "US"}
+            })),
+            "INVALID_PRICE",
+        ),
+        (
+            "non-limit event order",
+            base(json!({
+                "orderKind": "event_single",
+                "productClass": "event_contract",
+                "amount": 20.0,
+                "price": 0.6,
+                "orderType": "MARKET",
+                "instrument": {"instrumentId": "US.EVENT", "productClass": "event_contract", "tradeMarket": "US"}
+            })),
+            "INVALID_ORDER_TYPE",
+        ),
+        (
+            "fractional derivative quantity",
+            base(json!({
+                "quantity": 1.5,
+                "instrument": {"instrumentId": "US.AAPL260918C00100000", "productClass": "option", "tradeMarket": "US"}
+            })),
+            "INVALID_CONTRACT_QUANTITY",
+        ),
+        (
+            "missing derivative quantity",
+            base(json!({
+                "quantity": null,
+                "instrument": {"instrumentId": "US.AAPL260918C00100000", "productClass": "option", "tradeMarket": "US"}
+            })),
+            "INVALID_CONTRACT_QUANTITY",
+        ),
+        (
+            "option order with an extended-hours session",
+            base(json!({
+                "session": "RTH",
+                "instrument": {"instrumentId": "US.AAPL260918C00100000", "productClass": "option", "tradeMarket": "US"}
+            })),
+            "INVALID_SESSION",
+        ),
+    ];
+    for (name, payload, want) in cases {
+        let value = port
+            .buying_power_preview(&payload)
+            .unwrap_or_else(|error| panic!("{name}: {error:?}"));
+        assert_eq!(value["allowed"], false, "{name}");
+        assert_eq!(value["reasonCode"], want, "{name}: {value}");
+        assert!(
+            value["reason"]
+                .as_str()
+                .is_some_and(|reason| !reason.trim().is_empty()),
+            "{name}: {value}"
+        );
+    }
+
+    // An ordinary equity query is not a product-rule denial: it must reach the
+    // broker-owned max-trade-quantity read instead of short-circuiting on the
+    // local rule. The recorded call is the evidence that the reader answered.
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, true);
+    let port = preview_port(
+        state,
+        Some(Arc::new(PreviewTradeReader {
+            calls: Arc::clone(&calls),
+            fail: false,
+        })),
+        Some(true),
+    );
+    let allowed = port
+        .buying_power_preview(&buying_power_payload())
+        .expect("ordinary buying power");
+    assert_eq!(allowed["allowed"], true, "{allowed}");
+    assert_eq!(
+        calls.lock().expect("preview calls").len(),
+        1,
+        "an allowed product rule must still consult the OpenD reader"
+    );
+}
