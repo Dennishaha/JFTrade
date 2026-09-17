@@ -85,6 +85,13 @@ impl OpenDMarketMicrostructureReader {
             .managed_session()
             .call(protocol, &body)
             .map_err(|error| MarketMicrostructureError::Session(error.to_string()))?;
+        // prost cannot observe proto2 `required` presence, so enforce the same
+        // `RequiredNotSet` contract Go's `proto.Unmarshal` applies before the
+        // depth projection can publish defaulted levels.
+        if protocol == crate::trade_proto::qot_get_order_book::PROTOCOL_ID {
+            crate::order_book_wire::validate_order_book_response(bytes.as_slice())
+                .map_err(|message| MarketMicrostructureError::Decode { operation, message })?;
+        }
         R::decode(bytes.as_slice()).map_err(|error| MarketMicrostructureError::Decode {
             operation,
             message: error.to_string(),
@@ -716,6 +723,12 @@ mod tests {
     fn depth_reader_with_response(
         response: crate::trade_proto::qot_get_order_book::Response,
     ) -> OpenDMarketMicrostructureReader {
+        depth_reader_with_body(response.encode_to_vec())
+    }
+
+    /// Serves one Qot_GetOrderBook request with a raw response body so
+    /// wire-level payloads reach the decoder exactly as OpenD sends them.
+    fn depth_reader_with_body(body: Vec<u8>) -> OpenDMarketMicrostructureReader {
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
         let address = listener.local_addr().expect("address");
         std::thread::spawn(move || {
@@ -750,12 +763,8 @@ mod tests {
             assert_eq!(decoded.c2s.security.code, "AAPL");
             stream
                 .write_all(
-                    &crate::encode_frame(
-                        request.header.proto_id,
-                        request.header.serial_no,
-                        &response.encode_to_vec(),
-                    )
-                    .expect("response frame"),
+                    &crate::encode_frame(request.header.proto_id, request.header.serial_no, &body)
+                        .expect("response frame"),
                 )
                 .expect("response");
         });
@@ -804,6 +813,277 @@ mod tests {
             oreder_count: order_count,
             detail_list: Vec::new(),
             hp_volume: None,
+        }
+    }
+
+    fn wire_varint(mut value: u64) -> Vec<u8> {
+        let mut out = Vec::new();
+        loop {
+            let byte = (value & 0x7f) as u8;
+            value >>= 7;
+            if value == 0 {
+                out.push(byte);
+                return out;
+            }
+            out.push(byte | 0x80);
+        }
+    }
+
+    fn wire_key(field: u32, wire_type: u8) -> Vec<u8> {
+        wire_varint((u64::from(field) << 3) | u64::from(wire_type))
+    }
+
+    fn wire_varint_field(field: u32, value: u64) -> Vec<u8> {
+        let mut out = wire_key(field, 0);
+        out.extend(wire_varint(value));
+        out
+    }
+
+    fn wire_bytes_field(field: u32, payload: &[u8]) -> Vec<u8> {
+        let mut out = wire_key(field, 2);
+        out.extend(wire_varint(payload.len() as u64));
+        out.extend_from_slice(payload);
+        out
+    }
+
+    fn order_book_success_prefix() -> Vec<u8> {
+        wire_varint_field(1, 0)
+    }
+
+    fn order_book_response_with_s2c(s2c: &[u8]) -> Vec<u8> {
+        let mut body = order_book_success_prefix();
+        body.extend(wire_bytes_field(4, s2c));
+        body
+    }
+
+    fn depth_read_raw(body: Vec<u8>) -> Result<Value, MarketMicrostructureError> {
+        depth_reader_with_body(body).query(
+            MarketMicrostructureOperation::Depth,
+            "US.AAPL",
+            &json!({"num": 10}),
+        )
+    }
+
+    #[test]
+    fn depth_read_rejects_a_closed_session_before_any_projection() {
+        // Parity: go:452dea11:pkg/futu/opend/orderbook_boundaries_test.go:14
+        // TestGetOrderBookRejectsDisconnectedSession. Go returns ErrClosed when
+        // the client has no live connection; the Rust owner is the coordinator
+        // session gate, which must reject the read instead of manufacturing an
+        // empty success.
+        let reader = depth_reader_with_response(depth_response(None, Vec::new(), Vec::new()));
+        reader
+            .coordinator
+            .lock()
+            .expect("coordinator lock")
+            .close()
+            .expect("close coordinator");
+        let error = reader
+            .query(
+                MarketMicrostructureOperation::Depth,
+                "US.AAPL",
+                &json!({"num": 10}),
+            )
+            .expect_err("closed session must reject the depth read");
+        assert!(
+            matches!(error, MarketMicrostructureError::Session(ref message) if message.contains("closed")),
+            "closed session must surface as a typed session error, got {error}"
+        );
+    }
+
+    #[test]
+    fn depth_read_rejects_malformed_top_level_wire_fields() {
+        // Parity: go:452dea11:pkg/futu/opend/orderbook_boundaries_test.go:22
+        // TestParseOrderBookResponseRejectsMalformedTopLevelFields. Go's hand
+        // written protowire parser rejects a truncated tag, a wrong wire type
+        // on retType/retMsg/errCode/s2c, a truncated varint or bytes field, a
+        // malformed s2c tag and a truncated unknown field. prost is the Rust
+        // decoder owner, so the same bodies must surface as Decode errors
+        // instead of a defaulted depth result.
+        let ret_type_wrong_wire_type = wire_bytes_field(1, &[]);
+        let ret_type_truncated_varint = {
+            let mut body = wire_key(1, 0);
+            body.push(0x80);
+            body
+        };
+        let ret_msg_wrong_wire_type = wire_varint_field(2, 0);
+        let ret_msg_truncated_bytes = {
+            let mut body = wire_key(2, 2);
+            body.push(0x80);
+            body
+        };
+        let err_code_wrong_wire_type = wire_bytes_field(3, &[]);
+        let err_code_truncated_varint = {
+            let mut body = wire_key(3, 0);
+            body.push(0x80);
+            body
+        };
+        let s2c_wrong_wire_type = {
+            let mut body = order_book_success_prefix();
+            body.extend(wire_varint_field(4, 0));
+            body
+        };
+        let s2c_malformed_tag = order_book_response_with_s2c(&[0x80]);
+        let unknown_field_truncated = {
+            let mut body = order_book_success_prefix();
+            body.extend(wire_key(9, 2));
+            body.push(0x80);
+            body
+        };
+        let cases: [(&str, Vec<u8>); 10] = [
+            ("truncated tag", vec![0x80]),
+            ("retType wrong wire type", ret_type_wrong_wire_type),
+            ("retType truncated varint", ret_type_truncated_varint),
+            ("retMsg wrong wire type", ret_msg_wrong_wire_type),
+            ("retMsg truncated bytes", ret_msg_truncated_bytes),
+            ("errCode wrong wire type", err_code_wrong_wire_type),
+            ("errCode truncated varint", err_code_truncated_varint),
+            ("s2c wrong wire type", s2c_wrong_wire_type),
+            ("s2c malformed tag", s2c_malformed_tag),
+            ("unknown field truncated", unknown_field_truncated),
+        ];
+        for (name, body) in cases {
+            let error = depth_read_raw(body).expect_err(name);
+            assert!(
+                matches!(error, MarketMicrostructureError::Decode { .. }),
+                "{name} must surface as a typed Decode error, got {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn depth_read_rejects_malformed_s2c_wire_fields() {
+        // Parity: go:452dea11:pkg/futu/opend/orderbook_boundaries_test.go:50
+        // TestParseOrderBookResponseRejectsMalformedS2CFields. Every typed S2C
+        // field (security, ask, bid, receive times and name) must reject a
+        // wrong wire type or truncated payload, and a truncated unknown S2C
+        // field must not be silently dropped.
+        let invalid_message = wire_bytes_field(1, &[0x80]);
+        let cases: [(&str, Vec<u8>); 16] = [
+            ("security wrong wire type", wire_varint_field(1, 0)),
+            ("security truncated bytes", {
+                let mut body = wire_key(1, 2);
+                body.push(0x80);
+                body
+            }),
+            (
+                "security malformed message",
+                wire_bytes_field(1, &invalid_message),
+            ),
+            ("ask wrong wire type", wire_varint_field(2, 0)),
+            ("ask truncated bytes", {
+                let mut body = wire_key(2, 2);
+                body.push(0x80);
+                body
+            }),
+            ("ask malformed level", wire_bytes_field(2, &invalid_message)),
+            ("bid wrong wire type", wire_varint_field(3, 0)),
+            ("bid truncated bytes", {
+                let mut body = wire_key(3, 2);
+                body.push(0x80);
+                body
+            }),
+            ("bid malformed level", wire_bytes_field(3, &invalid_message)),
+            ("bid receive time wrong wire type", wire_varint_field(4, 0)),
+            ("bid receive time truncated", {
+                let mut body = wire_key(4, 2);
+                body.push(0x80);
+                body
+            }),
+            ("ask receive time wrong wire type", wire_varint_field(6, 0)),
+            ("ask receive time truncated", {
+                let mut body = wire_key(6, 2);
+                body.push(0x80);
+                body
+            }),
+            ("name wrong wire type", wire_varint_field(8, 0)),
+            ("name truncated", {
+                let mut body = wire_key(8, 2);
+                body.push(0x80);
+                body
+            }),
+            ("unknown field truncated", {
+                let mut body = wire_key(9, 2);
+                body.push(0x80);
+                body
+            }),
+        ];
+        for (name, s2c) in cases {
+            let error = depth_read_raw(order_book_response_with_s2c(&s2c)).expect_err(name);
+            assert!(
+                matches!(error, MarketMicrostructureError::Decode { .. }),
+                "{name} must surface as a typed Decode error, got {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn depth_read_skips_valid_unknown_fields_and_keeps_known_projection() {
+        // Parity: go:452dea11:pkg/futu/opend/orderbook_boundaries_test.go:85
+        // TestParseOrderBookResponseSkipsValidUnknownFields. Valid unknown
+        // fields at both the S2C and response level must be skipped without
+        // disturbing the known projection: name is kept and the empty ask/bid
+        // lists stay empty.
+        let mut s2c = wire_varint_field(9, 7);
+        s2c.extend(wire_bytes_field(8, b"Tencent"));
+        let mut body = order_book_response_with_s2c(&s2c);
+        body.extend({
+            let mut unknown = wire_key(10, 5);
+            unknown.extend_from_slice(&9_u32.to_le_bytes());
+            unknown
+        });
+        let value = depth_read_raw(body).expect("valid unknown fields are skipped");
+        assert_eq!(value["depth"]["name"], "Tencent");
+        assert_eq!(value["depth"]["asks"], json!([]));
+        assert_eq!(value["depth"]["bids"], json!([]));
+    }
+
+    #[test]
+    fn depth_read_accepts_a_wire_level_ask_payload_with_required_fields() {
+        // Parity: go:452dea11:pkg/futu/opend/orderbook_boundaries_test.go:101
+        // TestParseOrderBookLevelAcceptsValidRequiredFields. A level carrying
+        // price/volume/orderCount must project into the neutral depth payload
+        // without loss; the Rust decoder reads the same proto2 wire layout.
+        let mut ask = Vec::new();
+        ask.extend(wire_key(1, 1));
+        ask.extend_from_slice(&320.5_f64.to_le_bytes());
+        ask.extend(wire_varint_field(2, 200));
+        ask.extend(wire_varint_field(3, 3));
+        let s2c = wire_bytes_field(2, &ask);
+        let value = depth_read_raw(order_book_response_with_s2c(&s2c)).expect("valid level");
+        assert_eq!(value["depth"]["asks"][0]["price"], 320.5);
+        assert_eq!(value["depth"]["asks"][0]["volume"], 200.0);
+        assert_eq!(value["depth"]["asks"][0]["orderCount"], 3);
+    }
+
+    #[test]
+    fn depth_read_rejects_levels_missing_proto2_required_fields() {
+        // Parity: go:452dea11:pkg/futu/opend/orderbook.go:97 (parseOrderBookLevel)
+        // and go:pkg/futu/opend/orderbook_boundaries_test.go:50. Go decodes each
+        // nested level with `proto.Unmarshal`, which fails with RequiredNotSet
+        // when price/volume/orderCount are absent. prost cannot observe proto2
+        // presence, so without an explicit wire check an empty level would be
+        // published as a fake {price: 0, volume: 0, orderCount: 0} row.
+        let cases: [(&str, Vec<u8>); 4] = [
+            ("empty level", wire_bytes_field(2, &[])),
+            ("price only", wire_bytes_field(2, &wire_key(1, 1))),
+            (
+                "missing order count",
+                wire_bytes_field(2, &{
+                    let mut level = wire_key(1, 1);
+                    level.extend_from_slice(&320.5_f64.to_le_bytes());
+                    level.extend(wire_varint_field(2, 200));
+                    level
+                }),
+            ),
+            ("empty security", wire_bytes_field(1, &[])),
+        ];
+        for (name, s2c) in cases {
+            let error = depth_read_raw(order_book_response_with_s2c(&s2c)).expect_err(name);
+            assert!(
+                matches!(error, MarketMicrostructureError::Decode { .. }),
+                "{name} must fail closed on a missing proto2 required field, got {error}"
+            );
         }
     }
 

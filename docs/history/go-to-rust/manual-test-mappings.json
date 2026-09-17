@@ -17059,39 +17059,39 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(qot_sub_unsub_all_matches_go_all_flag_encoding)'"
   },
   "pkg/futu/opend/orderbook_boundaries_test.go:14:TestGetOrderBookRejectsDisconnectedSession": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/market_microstructure_query.rs::tests::depth_read_rejects_a_closed_session_before_any_projection",
+    "conclusion": "function_exact：Go 在无活跃连接时 GetOrderBook 返回 ErrClosed，绝不以空结果成功。Rust 的 owner 是 coordinator 的会话门：close 之后 session() 返回 Closed，depth 读取映射为 typed Session 错误而非空 depth。新增测试先关闭 coordinator 再读取，断言 Session 错误且消息含 closed。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(depth_read_rejects_a_closed_session_before_any_projection)'"
   },
   "pkg/futu/opend/orderbook_boundaries_test.go:22:TestParseOrderBookResponseRejectsMalformedTopLevelFields": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/market_microstructure_query.rs::tests::depth_read_rejects_malformed_top_level_wire_fields",
+    "conclusion": "function_exact：Go 逐项拒绝截断 tag、retType/retMsg/errCode/s2c 的错误 wire type、截断 varint/bytes、畸形 s2c tag 与截断未知字段。Rust 的解析 owner 是 prost（wire 校验由 order_book_wire 前置扫描），新增用例以完全相同的 10 组原始线格式 body 驱动 depth 读取，断言每组都以 typed Decode 失败，不返回默认 depth。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(depth_read_rejects_malformed_top_level_wire_fields)'"
   },
   "pkg/futu/opend/orderbook_boundaries_test.go:50:TestParseOrderBookResponseRejectsMalformedS2CFields": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/market_microstructure_query.rs::tests::depth_read_rejects_malformed_s2c_wire_fields",
+    "conclusion": "function_exact：Go 对 S2C 的 security/ask/bid/收时间/name 逐字段拒绝错误 wire type 与截断 payload，并拒绝截断的未知 S2C 字段。Rust 侧同一 16 组原始线格式 payload 全部映射为 Decode 错误；未知 S2C 字段截断不再被静默丢弃。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(depth_read_rejects_malformed_s2c_wire_fields)'"
   },
   "pkg/futu/opend/orderbook_boundaries_test.go:85:TestParseOrderBookResponseSkipsValidUnknownFields": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/market_microstructure_query.rs::tests::depth_read_skips_valid_unknown_fields_and_keeps_known_projection",
+    "conclusion": "function_exact：Go 断言合法未知字段（S2C 内 field 9 varint 与响应级 field 10 fixed32）被跳过且不影响已知投影：Name=Tencent、Security 缺失、ask/bid 为空。Rust 以同一线格式验证 name 保留、ask/bid 保持空数组。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(depth_read_skips_valid_unknown_fields_and_keeps_known_projection)'"
   },
   "pkg/futu/opend/orderbook_boundaries_test.go:101:TestParseOrderBookLevelAcceptsValidRequiredFields": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/market_microstructure_query.rs::tests::depth_read_accepts_a_wire_level_ask_payload_with_required_fields + crates/jftrade-integration-futu/src/market_microstructure_query.rs::tests::depth_read_rejects_levels_missing_proto2_required_fields",
+    "conclusion": "function_exact：Go 的 parseOrderBookLevel 用 proto.Unmarshal 接受带 required price/volume/orederCount 的档位，并对缺失 required 的档位返回 RequiredNotSet。Rust 以线格式 payload 断言合法档位投影为 320.5/200/3；并新增 order_book_wire 前置校验复现 RequiredNotSet 语义——修复前空 level 会被 prost 静默填成 {price:0,volume:0,orderCount:0} 的虚假成功（已用探针确认并回滚）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(depth_read_accepts_a_wire_level_ask_payload_with_required_fields) | test(depth_read_rejects_levels_missing_proto2_required_fields)'"
   },
   "pkg/futu/opend/orderbook_test.go:13:TestParseOrderBookResponseCurrentOpenDWireLayout": {
     "status": "[~]",

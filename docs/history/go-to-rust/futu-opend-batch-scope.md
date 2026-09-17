@@ -2360,3 +2360,55 @@ python3 scripts/compatibility/audit_test_parity.py
 
 结果：1693 passed / 1 skipped；fmt 通过；parity 审计 460 条 `function_exact` 全部解析到
 真实测试、0 重复、0 非法 `-p` crate；Futu/OpenD 93.1%；总 `[x]` 460 / 4451。
+
+---
+
+## 批次：`pkg/futu/opend/orderbook_boundaries_test.go`（5 项）
+
+### 结果：5 `[x]`
+
+| Go 测试 | 行号 | 状态 | Rust 证据 |
+|---|---:|---|---|
+| `TestGetOrderBookRejectsDisconnectedSession` | :14 | `[x]` | `market_microstructure_query.rs::tests::depth_read_rejects_a_closed_session_before_any_projection` |
+| `TestParseOrderBookResponseRejectsMalformedTopLevelFields` | :22 | `[x]` | `depth_read_rejects_malformed_top_level_wire_fields`（10 组原始线格式） |
+| `TestParseOrderBookResponseRejectsMalformedS2CFields` | :50 | `[x]` | `depth_read_rejects_malformed_s2c_wire_fields`（16 组原始线格式） |
+| `TestParseOrderBookResponseSkipsValidUnknownFields` | :85 | `[x]` | `depth_read_skips_valid_unknown_fields_and_keeps_known_projection` |
+| `TestParseOrderBookLevelAcceptsValidRequiredFields` | :101 | `[x]` | `depth_read_accepts_a_wire_level_ask_payload_with_required_fields` + `depth_read_rejects_levels_missing_proto2_required_fields` |
+
+### 真实功能缺失修复：缺失 proto2 `required` 的摆盘档位被伪造成零值成功
+
+Go `pkg/futu/opend/orderbook.go` 用 `proto.Unmarshal` 解码每层
+`Qot_Common.OrderBook` 与 `Qot_Common.Security`，缺失 proto2 `required`
+字段（`OrderBook.price/volume/orederCount`、`Security.market/code`）会返回
+`RequiredNotSet` 错误。Rust 侧由 prost 解码，而 prost 无法观察 proto2
+presence：探针确认一个空 level 会被投影成
+`{"price":0.0,"volume":0.0,"orderCount":0}` 的**虚假深度档位**并以成功返回。
+
+修复：新增 `crates/jftrade-integration-futu/src/order_book_wire.rs`（wire 层
+required 校验 owner，提供 `require_fields`、`validate_order_book_s2c`、
+`validate_order_book_response`），并在
+`OpenDMarketMicrostructureReader::call` 中于 prost 解码前对
+`Qot_GetOrderBook` 调用 `validate_order_book_response`，把失败映射为
+`MarketMicrostructureError::Decode`。同时新增 `depth_reader_with_body`
+测试辅助，使测试可以直接投递原始线格式 body。
+
+### 回归可证性（临时探针，已回滚）
+
+- 移除 `call` 中的 `validate_order_book_response` 调用 →
+  `depth_read_rejects_levels_missing_proto2_required_fields` 失败，报错文本显示
+  空 level 被成功投影为 `{"orderCount":0,"price":0.0,"volume":0.0}`。
+
+### 保留边界
+
+- Go 的手写 `protowire` 消费器与 Rust 的 prost 解码器是不同实现，因此与
+  Go 错误消息文本一一对应不可行；本批映射的是行为等价：每一类畸形
+  payload 都必须以 typed `Decode` 失败，合法未知字段必须被跳过，已知
+  投影必须保留。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked
+cargo fmt --all --check
+python3 scripts/compatibility/audit_test_parity.py
+```

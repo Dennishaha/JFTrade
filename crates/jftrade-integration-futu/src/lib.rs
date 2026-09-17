@@ -40,6 +40,7 @@ mod option_underlying_rank_query;
 mod option_volatility_query;
 mod option_zero_dte_contract_query;
 mod option_zero_dte_screener_query;
+mod order_book_wire;
 mod prediction;
 mod probe;
 mod provider;
