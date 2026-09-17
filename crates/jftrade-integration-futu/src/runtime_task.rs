@@ -565,6 +565,147 @@ mod tests {
         server.join().expect("server");
     }
 
+    /// Listener that parks the runtime worker inside its first `on_event`
+    /// callback until the test releases it.
+    #[derive(Debug)]
+    struct BlockingListener {
+        entered: Mutex<Option<mpsc::Sender<()>>>,
+        release: Mutex<mpsc::Receiver<()>>,
+        parked: std::sync::atomic::AtomicBool,
+    }
+
+    impl OpenDSessionEventListener for BlockingListener {
+        fn on_event(&self, _outcome: &OpenDSessionCoordinatorOutcome) {
+            if self.parked.swap(true, std::sync::atomic::Ordering::SeqCst) {
+                return;
+            }
+            if let Some(entered) = self.entered.lock().expect("entered sender").take() {
+                let _ = entered.send(());
+            }
+            let release = self.release.lock().expect("release receiver");
+            let _ = release.recv_timeout(Duration::from_secs(10));
+        }
+
+        fn on_error(&self, _error: &str) {}
+    }
+
+    #[test]
+    fn runtime_shutdown_cancels_then_joins_its_worker() {
+        // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:22
+        // TestStreamCloseCancelsAndJoinsOwnedWorkers.
+        //
+        // Go's `Stream.Close` cancels the stream context and must not return
+        // until the worker it owns has exited, even when that worker is wedged
+        // in a callback. Rust's `OpenDSessionRuntime` owns one worker thread and
+        // joins it before closing the coordinator, so the same contract is
+        // observable: shutdown cannot return while the worker is still parked
+        // inside a listener callback, and it must return once the worker is
+        // released. A second shutdown reports `Stopped` instead of double
+        // closing.
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init = crate::transport::read_framed_frame(&mut stream).expect("init");
+            let body = InitResponse {
+                ret_type: Some(0),
+                s2c: Some(InitState {
+                    server_ver: 1009,
+                    conn_id: 3,
+                }),
+            }
+            .encode_to_vec();
+            stream
+                .write_all(
+                    &crate::encode_frame(PROTO_INIT_CONNECT, init.header.serial_no, &body)
+                        .expect("response frame"),
+                )
+                .expect("write response");
+            // Keep the socket open until the client closes: the worker must
+            // exit on the stop signal, not because the peer went away.
+            let mut byte = [0_u8; 1];
+            let _ = stream.read(&mut byte);
+        });
+
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let recorder = Arc::new(jftrade_marketdata::MarketDataRuntimeRecorder::default());
+        let coordinator = Arc::new(Mutex::new(
+            OpenDSessionCoordinator::connect(
+                OpenDTcpProbeConfig::new(address, Duration::from_secs(1)),
+                Arc::clone(&recorder),
+                vec![],
+                0,
+            )
+            .expect("coordinator"),
+        ));
+        let runtime = OpenDSessionRuntime::start(
+            Arc::clone(&coordinator),
+            OpenDSessionRuntimeConfig {
+                poll_interval: Duration::from_millis(5),
+                event_timeout: Duration::from_millis(5),
+                event_listener: Some(Arc::new(BlockingListener {
+                    entered: Mutex::new(Some(entered_tx)),
+                    release: Mutex::new(release_rx),
+                    parked: std::sync::atomic::AtomicBool::new(false),
+                })),
+                ..OpenDSessionRuntimeConfig::default()
+            },
+        )
+        .expect("runtime task");
+        let status = Arc::clone(&runtime.status);
+
+        // The worker is now parked inside `on_event`, which the runtime only
+        // invokes after releasing the coordinator lock.
+        entered_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("the worker must reach the listener");
+        let (done_tx, done_rx) = mpsc::channel();
+        let mut runtime = runtime;
+        let shutdown = std::thread::spawn(move || {
+            let result = runtime.shutdown();
+            let _ = done_tx.send(result.is_ok());
+        });
+        assert!(
+            done_rx.recv_timeout(Duration::from_millis(100)).is_err(),
+            "shutdown returned while its worker was still parked in a callback"
+        );
+
+        // Releasing the worker lets the join complete.
+        release_tx.send(()).expect("release the worker");
+        assert!(
+            done_rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("shutdown must finish after the worker exits"),
+            "shutdown must succeed"
+        );
+        shutdown.join().expect("shutdown thread");
+
+        // Once shutdown has joined, no further iteration can be observed.
+        let after_join = status
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .iterations;
+        std::thread::sleep(Duration::from_millis(30));
+        assert_eq!(
+            status
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .iterations,
+            after_join,
+            "a joined worker must stop advancing its iteration counter"
+        );
+        assert!(
+            !coordinator
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .close()
+                .expect("idempotent close"),
+            "shutdown must have closed the coordinator"
+        );
+        server.join().expect("server");
+    }
+
     #[test]
     fn provider_router_task_uses_router_demand_and_cache_without_a_second_owner() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");

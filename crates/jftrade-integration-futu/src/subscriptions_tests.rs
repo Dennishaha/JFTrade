@@ -789,6 +789,94 @@ fn desired_physical_subscriptions_reject_incomplete_refs_and_normalize_symbols()
 }
 
 #[test]
+fn basic_quote_requests_extract_only_the_basic_channel_like_go() {
+    // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:78
+    // TestStreamConnectionAndSubscriptionBoundaries.
+    //
+    // Go calls `basicQotRequestsFromSubscriptions` over three subscriptions:
+    // Fixture entries: {KLine, "BAD"}, {MarketTrade, "HK.00700"},
+    // {BookTicker, "hk.00700"}.
+    // It expects exactly **one** request (the MarketTrade one) with no error:
+    // the KLine entry carries an unparsable symbol and the BookTicker entry
+    // belongs to the separate order-book family, so neither contributes a
+    // BasicQot request.
+    let desired = [
+        // Go's fixture carries no market for this entry, so the symbol has no
+        // resolvable `MARKET.CODE` pair and the reference cannot normalize.
+        InstrumentRef {
+            channel: "KLINE".to_owned(),
+            market: String::new(),
+            symbol: "BAD".to_owned(),
+            interval: Some("1m".to_owned()),
+        },
+        InstrumentRef {
+            channel: "TICK".to_owned(),
+            market: "HK".to_owned(),
+            symbol: "HK.00700".to_owned(),
+            interval: None,
+        },
+        InstrumentRef {
+            channel: "ORDER_BOOK".to_owned(),
+            market: "HK".to_owned(),
+            symbol: "hk.00700".to_owned(),
+            interval: None,
+        },
+    ];
+    let plan = desired_subscriptions(&desired);
+    let basic = plan
+        .physical
+        .iter()
+        .filter(|subscription| subscription.kind == SubscriptionKind::Basic)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        basic.len(),
+        1,
+        "only the MarketTrade channel contributes a BasicQot request: {plan:?}"
+    );
+    assert_eq!(basic[0].instrument_id, "HK.00700");
+
+    // The unparsable KLine entry is dropped rather than encoded with an empty
+    // market, and the order-book entry stays in its own family, so the two
+    // HK.00700 spellings produce exactly one BasicQot request plus one
+    // order-book subscription.
+    assert_eq!(plan.physical.len(), 2, "{plan:?}");
+    let orders = plan
+        .physical
+        .iter()
+        .filter(|subscription| subscription.kind == SubscriptionKind::OrderBook)
+        .count();
+    assert_eq!(orders, 1);
+    assert!(
+        !plan
+            .physical
+            .iter()
+            .any(|subscription| subscription.instrument_id.contains("BAD")),
+        "the unparsable symbol must not reach any request: {plan:?}"
+    );
+
+    // A list whose only entry is unparsable produces no BasicQot request at
+    // all, which is the state Go's `connectOpenDBasicQot` rejects.
+    let invalid_only = [InstrumentRef {
+        channel: "TICK".to_owned(),
+        market: String::new(),
+        symbol: "BAD".to_owned(),
+        interval: None,
+    }];
+    let plan = desired_subscriptions(&invalid_only);
+    assert_eq!(plan.logical_count, 0);
+    assert!(
+        plan.physical
+            .iter()
+            .all(|subscription| subscription.kind != SubscriptionKind::Basic),
+        "an unparsable symbol must never reach a BasicQot request"
+    );
+
+    // The unparsable symbol is rejected at normalization time, so the failure
+    // is observable instead of silently subscribing an empty market.
+    assert!(invalid_only[0].clone().normalize().is_err());
+}
+
+#[test]
 fn provider_switch_defers_physical_release_until_opend_eligible() {
     // Parity: go:452dea11:internal/integration/futu/subscription_reconciler_test.go:394 TestSubscriptionReconcilerProviderSwitchDefersPhysicalReleaseUntilOpenDEligible
     let desired = [
@@ -1198,6 +1286,76 @@ fn released_never_established_records_are_dropped_without_fallback_leakage() {
     assert!(snapshot.entries.is_empty());
     assert_eq!(snapshot.fallback_count, 0);
     assert!(!reconciler.has_fallback_subscriptions());
+}
+
+#[test]
+fn order_book_connect_boundaries_reject_empty_invalid_and_unavailable_demand() {
+    // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:292
+    // TestOrderBookStreamConnectionBoundaries.
+    //
+    // Go's `connectOpenDOrderBook` walks four branches: an empty subscription
+    // list fails with "no order book subscriptions", an unparsable symbol fails
+    // while extracting requests, a valid HK order book subscribes with the SF
+    // detail flag and accepts a push, and an unreachable OpenD fails the
+    // session. Rust spreads those owners over the subscription plan, the
+    // lifecycle and the coordinator, so this test pins the decision points
+    // together; the HK detail flag and the push envelope keep their own
+    // function-level evidence.
+    let hk_lease = InstrumentRef {
+        channel: "ORDER_BOOK".to_owned(),
+        market: "HK".to_owned(),
+        symbol: "00700".to_owned(),
+        interval: None,
+    };
+
+    // Empty demand: no order-book request exists at all, which is the state
+    // Go rejects with "no order book subscriptions".
+    let recorder = Arc::new(jftrade_marketdata::MarketDataRuntimeRecorder::default());
+    let mut lifecycle = OpenDSubscriptionLifecycle::new(recorder, 0);
+    assert!(
+        lifecycle.reconcile_demand(&[], 0).is_empty(),
+        "empty demand must not produce an order-book connect"
+    );
+    let empty = desired_subscriptions(&[]);
+    assert!(empty.physical.is_empty(), "{empty:?}");
+
+    // Unparsable symbol: dropped instead of being encoded with an empty market.
+    let invalid = desired_subscriptions(&[InstrumentRef {
+        channel: "ORDER_BOOK".to_owned(),
+        market: String::new(),
+        symbol: "BAD".to_owned(),
+        interval: None,
+    }]);
+    assert!(
+        invalid.physical.is_empty(),
+        "an unparsable order-book symbol must be dropped: {invalid:?}"
+    );
+
+    // Valid HK order book: the plan yields exactly the order-book family for
+    // that instrument, and the lifecycle only asks OpenD after demand exists.
+    let valid = desired_subscriptions(std::slice::from_ref(&hk_lease));
+    assert_eq!(valid.physical.len(), 1, "{valid:?}");
+    assert_eq!(valid.physical[0].kind, SubscriptionKind::OrderBook);
+    assert_eq!(valid.physical[0].instrument_id, "HK.00700");
+    let actions = lifecycle.reconcile_demand(std::slice::from_ref(&hk_lease), 0);
+    assert_eq!(actions.len(), 1, "{actions:?}");
+    assert_eq!(actions[0].key(), "ORDER_BOOK:HK.00700");
+
+    // Unreachable OpenD: the connect must fail closed instead of handing out a
+    // half-open order-book session.
+    let unavailable = crate::OpenDSessionCoordinator::connect(
+        crate::OpenDTcpProbeConfig::new(
+            "127.0.0.1:1".parse().expect("addr"),
+            std::time::Duration::from_millis(30),
+        ),
+        Arc::new(jftrade_marketdata::MarketDataRuntimeRecorder::default()),
+        vec![hk_lease],
+        0,
+    );
+    assert!(
+        unavailable.is_err(),
+        "an unavailable OpenD endpoint must not yield an order-book session"
+    );
 }
 
 #[test]

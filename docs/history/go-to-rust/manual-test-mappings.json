@@ -17675,18 +17675,18 @@
     "evidence_type": "missing"
   },
   "pkg/futu/stream_connection_quote_boundaries_test.go:22:TestStreamCloseCancelsAndJoinsOwnedWorkers": {
-    "status": "[~]",
-    "evidence_type": "partial",
-    "rust_entry": "crates/jftrade-integration-futu/src/runtime_task.rs::tests::runtime_task_updates_dynamic_demand_and_shuts_down_its_coordinator",
-    "conclusion": "partial：Go 的 Stream 是自持 worker 的关闭/join 边界。Rust 的 OpenDSessionRuntime 用 stop channel + JoinHandle 关闭并 join 工作线程（该测试覆盖 shutdown 后 coordinator 关闭与 task 退出）；但 Go 的 “disconnect 回调内 Connect 必须得到 ErrClosed” 与 1s 内 cancel/20ms 内不提前返回的时序断言没有逐条对应，属结构性差异而非功能缺失。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(runtime_task_updates_dynamic_demand_and_shuts_down_its_coordinator)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/runtime_task.rs::tests::runtime_shutdown_cancels_then_joins_its_worker",
+    "conclusion": "function_exact：Rust 的 OpenDSessionRuntime 是唯一持有 worker JoinHandle 的 owner。测试让 worker 停在 event_listener 回调内部（runtime 只在释放 coordinator 锁后回调），此时 shutdown 必须在 100ms 内不返回，释放回调后才完成 join；join 后 iterations 不再增长，且 coordinator 已被 close（再次 close 返回 false）。对应 Go 的「Close 必须等自持 worker 退出」与「disconnect 回调内的 Connect 得到 ErrClosed」两条时序契约：Rust 侧 Close 之后任何 coordinator 操作都返回 OpenDSessionCoordinatorError::Closed，由 coordinator_close_is_terminal_and_prevents_orphaned_reconnect 固定。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/stream_connection_quote_boundaries_test.go:78:TestStreamConnectionAndSubscriptionBoundaries": {
-    "status": "[~]",
-    "evidence_type": "partial",
-    "rust_entry": "crates/jftrade-integration-futu/src/subscription_executor.rs::tests::executor_rejects_invalid_instrument_and_unsupported_interval",
-    "conclusion": "partial：非法标的/区间在请求构造阶段即失败（Rust 的边界在订阅计划与 executor 校验）。Go 还覆盖“空订阅 Connect 可重复调用”和 dead OpenD 连接错误；Rust 对应行为分散在 coordinator/provider runtime，未逐条合并断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(executor_rejects_invalid_instrument_and_unsupported_interval)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::basic_quote_requests_extract_only_the_basic_channel_like_go + crates/jftrade-integration-futu/src/session_coordinator.rs::tests::empty_demand_sessions_connect_repeatedly_without_subscription_traffic",
+    "conclusion": "function_exact：三个分支各自落位。(1) 请求提取：KLine/BAD 与 BookTicker/hk.00700 不产生 BasicQot，只有 MarketTrade 产生唯一请求，只有非法项时报错——basic_quote_requests_extract_only_the_basic_channel_like_go。(2) 空订阅 Connect 可重复：空 demand 只做握手、不发任何 Qot_Sub，第二次 connect 仍成功且 generation 不回退，close 幂等——empty_demand_sessions_connect_repeatedly_without_subscription_traffic（loopback fixture 在握手后若再收到任何帧即 panic）。(3) 不可用 OpenD：coordinator connect 必须失败，由本批新增的 order_book_connect_boundaries_reject_empty_invalid_and_unavailable_demand 与 failed_connection_does_not_advance_the_established_session_generation 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/stream_connection_quote_boundaries_test.go:115:TestStreamPushHandlersRejectInactiveMalformedAndEmptyQuotes": {
     "status": "[x]",
@@ -17724,11 +17724,11 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(basic_quote_pushes_keep_exact_volume_beyond_fixedpoint_range)'"
   },
   "pkg/futu/stream_connection_quote_boundaries_test.go:239:TestStreamRejectsNegativeSnapshotVolume": {
-    "status": "[~]",
-    "evidence_type": "partial",
-    "rust_entry": "crates/jftrade-marketdata/src/tick_candles.rs::tests::tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume",
-    "conclusion": "partial：负成交量被钳为 0（tick candle 与 tracker 均拒绝负计数）。Go 的 TestStreamRejectsNegativeSnapshotVolume 断言“不产生任何 market trade 事件”，Rust 的流路径对负累计量产出 delta=0 的 tick（与 nextTradeQuantity 一致）但未断言完全不下发事件；事件级负值抑制仍在 Go 的 emitBasicQotSnapshot 早退分支，Rust 无对应早退。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::negative_cumulative_volume_publishes_no_trade_event",
+    "conclusion": "function_exact：修复了真实缺口。Rust 此前对负累计量仍下发 delta=0 的 tick；Go 的 emitBasicQotSnapshot 在负累计量时直接 return，既不发任何 trade 事件也不污染 baseline。现由 jftrade-marketdata::TradeVolumeTracker::is_negative_cumulative 判定、LiveHubOpenDEventListener::publish_basic_quote_tick 在消费 tracker 之前 early return。测试断言 50ms 内无事件，且随后 1000→1015 得到 delta=15，证明 rejected sample 没有消费 baseline。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/stream_connection_quote_boundaries_test.go:255:TestBasicQuotePushSubscriptionErrorsAndIdempotency": {
     "status": "[x]",
@@ -17738,18 +17738,18 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(basic_subscribe_registers_push_delivery_like_go_stream)'"
   },
   "pkg/futu/stream_connection_quote_boundaries_test.go:292:TestOrderBookStreamConnectionBoundaries": {
-    "status": "[~]",
-    "evidence_type": "partial",
-    "rust_entry": "crates/jftrade-integration-futu/src/subscription_executor.rs::tests::hk_order_book_subscribe_requests_detail_and_registers_push",
-    "conclusion": "partial：HK 盘口订阅带 isSubOrderBookDetail=true 且注册推送（对齐 Go 的 HK 分批），US 不带 detail。Go 另覆盖“空/非法订阅报错”与不可用 OpenD 连接错误，这部分在 Rust 由 provider runtime 注入失败处理，未逐条断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(hk_order_book_subscribe_requests_detail_and_registers_push)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::order_book_connect_boundaries_reject_empty_invalid_and_unavailable_demand + crates/jftrade-integration-futu/src/subscription_executor.rs::tests::hk_order_book_subscribe_requests_detail_and_registers_push + crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::order_book_pushes_publish_depth_for_the_subscribed_instrument",
+    "conclusion": "function_exact：四个分支逐条落位。(1) 空订阅 → 计划为空且 lifecycle 不产生任何 order-book 动作；(2) 非法符号 BAD → 计划直接丢弃而不是编码成空 market 的请求；(3) 合法 HK 00700 → 计划恰好一条 ORDER_BOOK，detail 标志由 hk_order_book_subscribe_requests_detail_and_registers_push 固定，推送落地由 engine 的 order_book_pushes_publish_depth_for_the_subscribed_instrument 固定；(4) 不可达 OpenD（127.0.0.1:1，30ms）→ coordinator connect 必须失败。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/stream_connection_quote_boundaries_test.go:317:TestStreamReconnectAndClientWatcherExitPaths": {
-    "status": "[~]",
-    "evidence_type": "partial",
-    "rust_entry": "crates/jftrade-integration-futu/src/session_coordinator.rs::tests::peer_close_advances_generation_replays_subscriptions_and_accepts_push",
-    "conclusion": "partial：对端关闭→generation 前进→重放订阅→接受推送已覆盖；Go 的 canceled context / 已关闭 client 触发 ReconnectC 的 watcher 退出路径在 Rust 由 OpenDSessionRuntime 的 stop/reconnect 循环承担，未逐条断言 notify 语义。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(peer_close_advances_generation_replays_subscriptions_and_accepts_push)'"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::provider_reconnect_publishes_resync_events_and_wakes_reconciliation + crates/jftrade-integration-futu/src/session_coordinator.rs::tests::coordinator_close_is_terminal_and_prevents_orphaned_reconnect + crates/jftrade-integration-futu/tests/client_recovery_boundaries.rs::closed_ready_session_is_replaced_on_peer_close + crates/jftrade-integration-futu/src/runtime_task.rs::tests::runtime_shutdown_cancels_then_joins_its_worker",
+    "conclusion": "function_exact：Go 的 ReconnectC→OnConnect 语义由 OpenDSessionCoordinatorOutcome::Reconnected 承载：provider_reconnect_publishes_resync_events_and_wakes_reconciliation 断言 recon reconnect outcome 会 notify reconciliation wake 并发布 market-data.resync + console.refresh（scope=market-data），同时普通断线只发 market-data.stale 而不伪装成重连——这此前是唯一完全没有 Rust 测试的 listener 分支。已关闭客户端触发重连由 closed_ready_session_is_replaced_on_peer_close（peer close → generation 2 + 重放订阅）覆盖；canceled/已关闭路径不得产生 orphaned reconnect 由 coordinator_close_is_terminal_and_prevents_orphaned_reconnect 覆盖；reconnect loop 停止并由 owner join 由 runtime_shutdown_cancels_then_joins_its_worker 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/stream_connection_quote_boundaries_test.go:369:TestStreamConnectReportsPhysicalSubscriptionFailures": {
     "status": "[x]",

@@ -294,6 +294,48 @@ async fn basic_quote_pushes_without_a_volume_counter_report_zero_delta() {
     assert!(event["payload"]["snapshot"]["volume"].is_null());
 }
 
+// Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:239
+// TestStreamRejectsNegativeSnapshotVolume
+//
+// Go's `emitBasicQotSnapshot` returns before `EmitMarketTrade` when the
+// cumulative counter is negative, so the trade-event count stays zero. The
+// book-ticker update is published first and is not part of that count, so the
+// assertion is specifically "no `market-data.tick` event".
+#[tokio::test]
+async fn negative_cumulative_volume_publishes_no_trade_event() {
+    let (_hub, listener, mut connection) = subscribed(&["HK.00700"]);
+    listener.on_event(&OpenDSessionCoordinatorOutcome::Push(hk(
+        Some(-1),
+        Some(1_784_518_800.0),
+    )));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(50), connection.recv())
+            .await
+            .is_err(),
+        "a negative cumulative counter must not publish a trade event"
+    );
+
+    // The rejected sample must also leave the retained baseline untouched, so
+    // the next valid sample still measures from the last accepted counter.
+    listener.on_event(&OpenDSessionCoordinatorOutcome::Push(hk(
+        Some(1_000),
+        Some(1_784_518_801.0),
+    )));
+    let baseline = next_event(&mut connection).await.expect("baseline tick");
+    assert_eq!(baseline["payload"]["volumeDelta"], "0");
+
+    listener.on_event(&OpenDSessionCoordinatorOutcome::Push(hk(
+        Some(1_015),
+        Some(1_784_518_802.0),
+    )));
+    let delta = next_event(&mut connection).await.expect("delta tick");
+    assert_eq!(
+        delta["payload"]["volumeDelta"], "15",
+        "the negative sample must not consume the baseline"
+    );
+    assert_eq!(delta["payload"]["cumulativeVolume"], "1015");
+}
+
 // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:115
 // TestStreamPushHandlersRejectInactiveMalformedAndEmptyQuotes
 #[tokio::test]
@@ -322,6 +364,55 @@ async fn basic_quote_pushes_drop_rows_without_a_usable_security_or_price() {
             .is_err(),
         "unusable rows must not reach the live hub"
     );
+}
+
+// Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:317
+// TestStreamReconnectAndClientWatcherExitPaths.
+//
+// Go's `reconnectLoop` reacts to `ReconnectC` by re-running `OnConnect`, while
+// `watchClientLoop` raises `ReconnectC` when the watched client dies. The Rust
+// counterpart of `OnConnect` is the coordinator's `Reconnected` outcome held by
+// the composition-owned listener: it must wake reconciliation and publish the
+// resync events the console already consumes, and it must do so only for a
+// genuine reconnect.
+#[tokio::test]
+async fn provider_reconnect_publishes_resync_events_and_wakes_reconciliation() {
+    let hub = Arc::new(LiveHub::new(16));
+    let reconciliation_wake = Arc::new(tokio::sync::Notify::new());
+    let listener = LiveHubOpenDEventListener::with_reconciliation_wake(
+        Arc::clone(&hub),
+        Arc::clone(&reconciliation_wake),
+    );
+    let mut connection = hub.connect();
+    connection.set_subscription("futu", &["HK.00700".to_owned()]);
+
+    listener.on_event(&OpenDSessionCoordinatorOutcome::Reconnected {
+        generation: 2,
+        reason: jftrade_integration_futu::OpenDSessionCloseReason::PeerClosed,
+    });
+
+    let resync = next_event(&mut connection).await.expect("resync event");
+    assert_eq!(resync["type"], "market-data.resync");
+    assert_eq!(resync["entityId"], "futu");
+    assert_eq!(resync["payload"]["reason"], "provider_reconnected");
+    assert_eq!(resync["payload"]["action"], "refresh");
+    let refresh = next_event(&mut connection).await.expect("refresh event");
+    assert_eq!(refresh["type"], "console.refresh");
+    assert_eq!(refresh["payload"]["scope"], "market-data");
+
+    // Go's reconnect handler also re-arms reconciliation; the wake must be
+    // observable without blocking, which `notify_one` guarantees by storing a
+    // permit when no waiter is parked yet.
+    tokio::time::timeout(Duration::from_millis(100), reconciliation_wake.notified())
+        .await
+        .expect("reconnect must wake reconciliation");
+
+    // A plain disconnect is a different outcome: it publishes `stale` and must
+    // not pretend a reconnect happened.
+    listener.on_event(&OpenDSessionCoordinatorOutcome::Dropped);
+    let stale = next_event(&mut connection).await.expect("stale event");
+    assert_eq!(stale["type"], "market-data.stale");
+    assert_eq!(stale["payload"]["reason"], "provider_disconnected");
 }
 
 #[tokio::test]

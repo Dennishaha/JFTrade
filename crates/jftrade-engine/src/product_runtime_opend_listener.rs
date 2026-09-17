@@ -254,6 +254,17 @@ impl LiveHubOpenDEventListener {
             .volume
             .map(|value| value.to_string())
             .and_then(|value| value.parse::<jftrade_kernel::DecimalText>().ok());
+        // Go's `emitBasicQotSnapshot` returns before `EmitMarketTrade` when the
+        // cumulative counter is negative, so no trade event is published at
+        // all. Reproducing that requires checking the counter before the
+        // tracker consumes it: a rejected sample must also leave the retained
+        // baseline untouched.
+        if cumulative_volume
+            .as_ref()
+            .is_some_and(jftrade_marketdata::TradeVolumeTracker::is_negative_cumulative)
+        {
+            return;
+        }
         let volume_delta = match cumulative_volume.as_ref() {
             Some(cumulative) => self
                 .trade_volumes

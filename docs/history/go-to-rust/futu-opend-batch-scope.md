@@ -2756,3 +2756,81 @@ cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locke
 ```
 
 结果：`jftrade-integration-futu` 498 passed / 1 skipped。
+
+## 批次：pkg/futu/stream_connection_quote_boundaries_test.go（12 项）
+
+### 结果：12 `[x]`
+
+| Go 测试 | 行号 | 状态 | Rust 证据 |
+| :--- | :--- | :--- | :--- |
+| `TestStreamCloseCancelsAndJoinsOwnedWorkers` | 22 | `[x]` | `runtime_task.rs::tests::runtime_shutdown_cancels_then_joins_its_worker` |
+| `TestStreamConnectionAndSubscriptionBoundaries` | 78 | `[x]` | `subscriptions_tests.rs::basic_quote_requests_extract_only_the_basic_channel_like_go` + `session_coordinator.rs::tests::empty_demand_sessions_connect_repeatedly_without_subscription_traffic` |
+| `TestStreamPushHandlersRejectInactiveMalformedAndEmptyQuotes` | 115 | `[x]` | `product_runtime_opend_listener_tests.rs::basic_quote_pushes_drop_rows_without_a_usable_security_or_price` |
+| `TestStreamConvertsCumulativeQuoteVolumeToIncrementalTradeQuantity` | 143 | `[x]` | `trade_volume.rs::tests::first_sample_is_a_baseline_and_decreases_or_negatives_reset_the_baseline` |
+| `TestStreamPreservesFractionalCumulativeVolumeDelta` | 174 | `[x]` | `trade_volume.rs::tests::fractional_and_out_of_fixedpoint_counters_keep_their_exact_delta` |
+| `TestStreamMarketTradeCarriesDeltaAndCumulativeVolume` | 188 | `[x]` | `product_runtime_opend_listener_tests.rs::basic_quote_pushes_publish_delta_and_cumulative_volume` |
+| `TestStreamMarketTradePreservesVolumeBeyondLegacyFixedpointRange` | 215 | `[x]` | `product_runtime_opend_listener_tests.rs::basic_quote_pushes_keep_exact_volume_beyond_fixedpoint_range` |
+| `TestStreamRejectsNegativeSnapshotVolume` | 239 | `[x]` | `product_runtime_opend_listener_tests.rs::negative_cumulative_volume_publishes_no_trade_event` |
+| `TestBasicQuotePushSubscriptionErrorsAndIdempotency` | 255 | `[x]` | `subscription_executor.rs::tests::basic_subscribe_registers_push_delivery_like_go_stream` |
+| `TestOrderBookStreamConnectionBoundaries` | 292 | `[x]` | `subscriptions_tests.rs::order_book_connect_boundaries_reject_empty_invalid_and_unavailable_demand` + `subscription_executor.rs::tests::hk_order_book_subscribe_requests_detail_and_registers_push` + `product_runtime_opend_listener_tests.rs::order_book_pushes_publish_depth_for_the_subscribed_instrument` |
+| `TestStreamReconnectAndClientWatcherExitPaths` | 317 | `[x]` | `product_runtime_opend_listener_tests.rs::provider_reconnect_publishes_resync_events_and_wakes_reconciliation` + `session_coordinator.rs::tests::coordinator_close_is_terminal_and_prevents_orphaned_reconnect` + `client_recovery_boundaries.rs::closed_ready_session_is_replaced_on_peer_close` |
+| `TestStreamConnectReportsPhysicalSubscriptionFailures` | 369 | `[x]` | `subscription_executor.rs::tests::executor_maps_qot_sub_rejection_without_replaying_first_attempt` |
+
+### 本批修复的功能差异（2 项，均为真实缺口）
+
+1. **`TestStreamRejectsNegativeSnapshotVolume`（行 239）**
+   修复前：Rust 的 `publish_basic_quote_tick` 对负累计量仍会下发
+   `volumeDelta="0"` 的 `market-data.tick`。Go 的 `emitBasicQotSnapshot`
+   在负累计量时**直接 return**，既不发任何 trade 事件，也不把该样本写进
+   `tradeVolumes` baseline。
+   修复：新增 `jftrade_marketdata::TradeVolumeTracker::is_negative_cumulative`，
+   在 `LiveHubOpenDEventListener::publish_basic_quote_tick` 里**消费 tracker 之前**
+   早退，保证被拒绝的样本不污染 baseline。
+2. **`TestStreamReconnectAndClientWatcherExitPaths`（行 317）**
+   修复前：reconnect 分支（`OpenDSessionCoordinatorOutcome::Reconnected`）
+   是 listener 里唯一**完全没有 Rust 测试**的分支——`market-data.resync`、
+   `console.refresh` 与 reconciliation wake 都无人固定，去掉 `notify_one()`
+   时全套测试仍然全绿。
+   修复：新增 `provider_reconnect_publishes_resync_events_and_wakes_reconciliation`，
+   固定「重连 → notify wake + resync/refresh 事件」与「普通断线只发 stale、
+   不伪装重连」两条不可互换的语义。
+
+### 边界保留结论（非缺口）
+
+- `TestStreamConnectionAndSubscriptionBoundaries` 中 Go 的
+  `basicQotRequestsFromSubscriptions` 是**函数级返回错误**；Rust 的等价 owner 是
+  `desired_subscriptions` + `InstrumentRef::normalize`，非法项被丢弃而不是让整次
+  调用失败——这是 Rust 的分层差异（校验在 `marketdata` 的规范化层，订阅计划不再
+  产生「部分失败」的中间态），已由 `desired_physical_subscriptions_reject_incomplete_refs_and_normalize_symbols`
+  固定为「丢弃而非编码」，不迁移 Go 的 error 返回值形态。
+- `TestStreamCloseCancelsAndJoinsOwnedWorkers` 里 Go 的
+  「disconnect 回调内 `Connect()` 返回 `opend.ErrClosed`」在 Rust 由
+  `OpenDSessionCoordinatorError::Closed` 承载，由
+  `coordinator_close_is_terminal_and_prevents_orphaned_reconnect` 覆盖；
+  worker 必须在**自持回调里被 join** 这一时序契约由
+  `runtime_shutdown_cancels_then_joins_its_worker` 用阻塞 listener 直接证明
+  （shutdown 在 worker 停在回调内部时 100ms 内不得返回）。
+
+### 回归可证性（临时探针，均已回滚）
+
+- 删除 `Reconnected` 分支里的 `wake.notify_one()` →
+  `provider_reconnect_publishes_resync_events_and_wakes_reconciliation` 失败：
+  `reconnect must wake reconciliation: Elapsed(())`。
+- 把 `OpenDSessionRuntime::shutdown` 的 `worker.join()` 换成 `drop(worker)` →
+  `runtime_shutdown_cancels_then_joins_its_worker` 失败：
+  `shutdown returned while its worker was still parked in a callback`。
+- 把 `desired_subscriptions` 的 `let Ok(reference) = raw.clone().normalize() else { continue }`
+  改成 `unwrap_or_else(|_| raw.clone())` →
+  `order_book_connect_boundaries_reject_empty_invalid_and_unavailable_demand` 失败：
+  `an unparsable order-book symbol must be dropped: ... key: "ORDER_BOOK:.BAD"`。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine -p jftrade-marketdata --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine -p jftrade-marketdata --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：1799 passed / 1 skipped；审计 OK: 495 function_exact。

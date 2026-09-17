@@ -48,6 +48,17 @@ impl TradeVolumeTracker {
         Self::default()
     }
 
+    /// True when a cumulative counter is negative, which Go's
+    /// `emitBasicQotSnapshot` treats as "publish no market trade at all"
+    /// rather than "publish a delta of zero".
+    ///
+    /// The distinction is load-bearing: a negative counter still emits the
+    /// book-ticker update, but suppresses the trade event entirely, so a
+    /// consumer counting trade events must see none.
+    pub fn is_negative_cumulative(cumulative: &DecimalText) -> bool {
+        parsed(cumulative).is_sign_negative()
+    }
+
     /// Returns the per-event quantity for one cumulative volume sample.
     ///
     /// `session` is the already-resolved broker-neutral session label

@@ -889,6 +889,86 @@ mod tests {
     }
 
     #[test]
+    fn empty_demand_sessions_connect_repeatedly_without_subscription_traffic() {
+        // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:78
+        // TestStreamConnectionAndSubscriptionBoundaries.
+        //
+        // Go connects a stream with no subscriptions twice ("first" and
+        // "replacement" connect) and expects both to succeed without issuing a
+        // Qot_Sub, then closes cleanly. Rust's coordinator is the session owner,
+        // so the same contract is: an empty desired set performs the handshake
+        // only, a second coordinator replaces it without inheriting state, and
+        // `close` releases the socket.
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            for connection in 0..2 {
+                let (mut stream, _) = listener.accept().expect("accept");
+                let init = read_framed_frame(&mut stream).expect("init request");
+                assert_eq!(init.header.proto_id, PROTO_INIT_CONNECT);
+                write_response(
+                    &mut stream,
+                    PROTO_INIT_CONNECT,
+                    init.header.serial_no,
+                    InitResponse {
+                        ret_type: Some(0),
+                        s2c: Some(InitState {
+                            server_ver: 1009,
+                            conn_id: connection + 1,
+                        }),
+                    }
+                    .encode_to_vec(),
+                );
+                // Any further frame would be an unexpected subscription: an
+                // empty demand set must not send one.
+                if let Ok(frame) = read_framed_frame(&mut stream) {
+                    panic!(
+                        "empty-demand session sent unexpected protocol {}",
+                        frame.header.proto_id
+                    );
+                }
+            }
+        });
+
+        let recorder = Arc::new(MarketDataRuntimeRecorder::default());
+        let mut first = OpenDSessionCoordinator::connect(
+            OpenDTcpProbeConfig::new(address, Duration::from_secs(1)),
+            Arc::clone(&recorder),
+            Vec::new(),
+            0,
+        )
+        .expect("first empty-demand connect");
+        // No subscription work means the lifecycle never advances the
+        // generation: an empty demand set is a pure handshake.
+        let empty_generation = first.generation();
+        assert!(first.physical_snapshot().is_some());
+        assert!(first.close().expect("first close"));
+
+        let mut replacement = OpenDSessionCoordinator::connect(
+            OpenDTcpProbeConfig::new(address, Duration::from_secs(1)),
+            recorder,
+            Vec::new(),
+            1_000,
+        )
+        .expect("replacement connect must be repeatable");
+        assert!(
+            replacement.physical_snapshot().is_some(),
+            "the replacement session must be a usable coordinator"
+        );
+        assert!(
+            replacement.generation() >= empty_generation,
+            "the replacement generation must not rewind: {empty_generation} -> {}",
+            replacement.generation()
+        );
+        assert!(replacement.close().expect("replacement close"));
+        assert!(
+            !replacement.close().expect("second close"),
+            "close must stay idempotent"
+        );
+        server.join().expect("server");
+    }
+
+    #[test]
     fn coordinator_close_is_terminal_and_prevents_orphaned_reconnect() {
         // Parity: go:8a78fc78:pkg/futu/subscription_lifecycle_test.go:194
         // TestExchangeCloseIsTerminalAndPreventsOrphanedReconnect.
