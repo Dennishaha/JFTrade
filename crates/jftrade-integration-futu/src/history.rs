@@ -112,8 +112,6 @@ pub enum HistoricalKlineError {
         err_code: i32,
         message: String,
     },
-    #[error("OpenD Qot_RequestHistoryKL response missing s2c")]
-    MissingS2c,
 }
 
 /// Read-only adapter over the coordinator's authenticated managed OpenD session.
@@ -173,7 +171,17 @@ impl HistoricalKlineReadPort for OpenDHistoricalKlineReader {
                     .unwrap_or_else(|| "OpenD historical K-line request failed".to_owned()),
             });
         }
-        let s2c = response.s2c.ok_or(HistoricalKlineError::MissingS2c)?;
+        // Go `pkg/futu/opend/kline.go::RequestHistoryKL`: a successful ack with
+        // no S2C means "no bars in range", not a transport failure. The
+        // request identity is echoed so callers can still key the empty page.
+        let Some(s2c) = response.s2c else {
+            return Ok(HistoricalKlineResult {
+                security: query_security(query),
+                name: None,
+                klines: Vec::new(),
+                next_req_key: Vec::new(),
+            });
+        };
         Ok(HistoricalKlineResult {
             security: s2c
                 .security

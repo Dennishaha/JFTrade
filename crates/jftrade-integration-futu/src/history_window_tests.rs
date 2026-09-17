@@ -115,11 +115,19 @@ fn history_window_rejects_cursor_cycles_without_returning_partial_history() {
 fn history_window_propagates_later_page_failures() {
     let reader = reader(vec![
         Ok(page(&["13:18"], &[1])),
-        Err(HistoricalKlineError::MissingS2c),
+        Err(HistoricalKlineError::Rejected {
+            ret_type: -2,
+            err_code: 429,
+            message: "history rate limited".to_owned(),
+        }),
     ]);
     assert!(matches!(
         reader.query_window(&query()),
-        Err(HistoricalKlineError::MissingS2c)
+        Err(HistoricalKlineError::Rejected {
+            ret_type: -2,
+            err_code: 429,
+            ..
+        })
     ));
 }
 

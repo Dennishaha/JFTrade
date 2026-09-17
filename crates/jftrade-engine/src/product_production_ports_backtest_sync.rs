@@ -564,9 +564,7 @@ fn futu_error_retryable(error: &HistoricalKlineError) -> bool {
     match error {
         HistoricalKlineError::Session(_) => true,
         HistoricalKlineError::Rejected { err_code, .. } => matches!(err_code, 408 | 425 | 429 | 500..),
-        HistoricalKlineError::Decode(_)
-        | HistoricalKlineError::MissingS2c
-        | HistoricalKlineError::InvalidPagination => false,
+        HistoricalKlineError::Decode(_) | HistoricalKlineError::InvalidPagination => false,
     }
 }
 

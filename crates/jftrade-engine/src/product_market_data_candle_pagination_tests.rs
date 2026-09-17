@@ -171,7 +171,11 @@ impl HistoricalKlineReadPort for PagedHistory {
             });
         }
         if !first && self.fail_second_page {
-            return Err(HistoricalKlineError::MissingS2c);
+            return Err(HistoricalKlineError::Rejected {
+                ret_type: -2,
+                err_code: 429,
+                message: "history rate limited".to_owned(),
+            });
         }
         Ok(HistoricalKlineResult {
             security: HistoricalSecurity {

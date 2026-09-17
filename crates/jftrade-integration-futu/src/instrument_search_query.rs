@@ -254,10 +254,12 @@ fn decode_lookup(body: &[u8]) -> Result<Vec<InstrumentSearchEntry>, InstrumentSe
             message: response.ret_msg.unwrap_or_default(),
         });
     }
-    response
-        .s2c
-        .ok_or(InstrumentSearchError::MissingField("s2c"))?
-        .static_info_list
+    // Go's GetStaticInfo answers a missing S2C with a non-nil empty slice
+    // (`pkg/futu/opend/security_info.go`), so an empty ack is not a failure.
+    let Some(s2c) = response.s2c else {
+        return Ok(Vec::new());
+    };
+    s2c.static_info_list
         .into_iter()
         .map(|entry| {
             let basic = entry.basic;

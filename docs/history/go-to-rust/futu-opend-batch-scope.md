@@ -1431,3 +1431,48 @@ pnpm run check:rust:architecture
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+## 批次：pkg/futu/opend/market_read_boundaries_test.go（7 项）
+
+状态：7 项全部 `[x]` function_exact。本批转入 OpenD 低层读写边界，新增 socket 级回归（真实 framing + 脚本化 OpenD 服务器），并修复两处“成功但缺 S2C 被当作错误”的语义偏差。
+
+### 真实功能差异与修复
+
+1. **Qot_RequestHistoryKL 缺 S2C 被误判为错误（P1 公开读取路径）**
+   - 差异：Go `pkg/futu/opend/kline.go::RequestHistoryKL` 在 `retType==0` 且无 S2C 时返回空结果（`HistoryKLineResult{}`）。Rust `crates/jftrade-integration-futu/src/history.rs` 返回 `HistoricalKlineError::MissingS2c`，使“区间内无数据”被上层当成传输失败并触发重试。
+   - 复现条件：OpenD 对 3103 回 `retType=0` 且无 s2c；预期空页（保留请求 identity、无 name/klines/nextReqKey），旧实现报错。
+   - 修复：`history.rs` 改为返回带 `query_security` 的空 `HistoricalKlineResult`，并移除不再产生的 `MissingS2c` 变体；`history_window_tests`、`product_market_data_candle_pagination_tests`、`product_production_ports_backtest_sync::futu_error_retryable` 同步改为真实重试型错误（429）。
+   - 回归：`crates/jftrade-integration-futu/tests/market_read_boundaries.rs::history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result`。
+
+2. **Qot_GetStaticInfo 缺 S2C 被误判为错误（P1 公开读取路径）**
+   - 差异：Go `security_info.go::GetStaticInfo` 对缺 S2C 返回非 nil 空切片；Rust `instrument_search_query.rs::decode_lookup` 报 `MissingField("s2c")`。
+   - 修复：改为返回 `Ok(Vec::new())`；`Qot_GetSecuritySnapshot` 的同类语义本已正确（`unwrap_or_default`）。
+   - 回归：同批 socket 测试 `security_info_methods_return_empty_collections_for_a_payload_less_ack`。
+
+### 行为映射
+
+| Go 测试 | Rust 入口 | 状态与结论 |
+| --- | --- | --- |
+| :21 TestSubscribeQuotesEncodesAdvancedMarketDataOptions | tests/market_read_boundaries.rs::quote_subscribe_encodes_advanced_market_data_options_on_the_wire | `[x]` function_exact：Qot_Sub 高级字段（push/first/unsubAll/extendedTime/SESSION_ALL/orderBookDetail）|
+| :77 TestRequestHistoryKLEncodesOptionalFieldsAndHandlesEmptyResult | tests/market_read_boundaries.rs::history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result | `[x]` function_exact：可选字段上线 + 空页语义（本轮修复）|
+| :129 TestMarketReadMethodsPropagateOpenDBusinessErrors | tests/market_read_boundaries.rs::market_read_business_errors_keep_opend_return_details | `[x]` function_exact：4 条业务错误保留 retType/errCode/retMsg |
+| :192 TestSecurityInfoMethodsReturnEmptyCollectionsForEmptyOpenDResults | tests/market_read_boundaries.rs::security_info_methods_return_empty_collections_for_a_payload_less_ack | `[x]` function_exact：static info / snapshot 空集合（本轮修复 static info）|
+| :212 TestGetKLReturnsEmptyResultWhenOpenDOmitsS2C | tests/market_read_boundaries.rs::get_kl_returns_empty_result_when_opend_omits_s2c | `[x]` function_exact：socket 级 3006 空结果；`kline_query.rs::tests::get_kl_missing_s2c_returns_an_empty_result` 保留给 new_methods_test.go:768 |
+| :232 TestMarketReadMethodsRejectDisconnectedSession | tests/market_read_boundaries.rs::market_read_methods_reject_a_disconnected_session | `[x]` function_exact：未连接/已关闭 coordinator 失败关闭 |
+| :284 TestMarketPushSubscribersIgnoreMalformedAndUnsuccessfulUpdates | tests/market_read_boundaries.rs::stale_or_malformed_push_updates_never_reach_the_lifecycle | `[x]` function_exact：拒绝推送丢弃、malformed typed error、空更新不产生 push |
+
+### 边界说明
+
+- Go 的 `QuoteSubRequest` 是通用低层 API，允许调用方任意组合 `RegPushRehabTypes` 等字段；Rust 按 demand/kind 生成 Qot_Sub，不暴露 rehab 列表，因此该字段以“Rust 按 kind 固定语义”断言，未强行迁移通用参数面。
+- `:232` 的 BasicQot 分支由 `basic_quote_query` 既有 Session/SubscriptionRequired 测试覆盖，不在本文件重复造测试。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast   # 1615 passed
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+pnpm run check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```
