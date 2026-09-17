@@ -743,6 +743,385 @@ fn funds_projection_preserves_currency_and_market_asset_arrays() {
     assert_eq!(assets[1]["assets"], 200_000.0);
 }
 
+/// Reader carrying Go's two-row position fixture from
+/// `pkg/futu/adapter_bridge_test.go:191`. Tencent exercises the diluted-cost
+/// branch; NVIDIA carries only legacy fields so the fallback stays observable.
+#[derive(Debug)]
+struct PositionFixtureRead;
+
+impl TradeReadPort for PositionFixtureRead {
+    fn read_accounts(
+        &self,
+        user_id: u64,
+        category: Option<i32>,
+        general: Option<bool>,
+    ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_accounts(user_id, category, general)
+    }
+    fn read_funds(
+        &self,
+        header: TradeHeader,
+        refresh: Option<bool>,
+        currency: Option<i32>,
+        asset: Option<i32>,
+    ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+        FakeTradeRead.read_funds(header, refresh, currency, asset)
+    }
+    fn read_cash_flows(
+        &self,
+        header: TradeHeader,
+        clearing_date: String,
+        direction: Option<i32>,
+    ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_cash_flows(header, clearing_date, direction)
+    }
+    fn read_order_fees(
+        &self,
+        header: TradeHeader,
+        order_ids: Vec<String>,
+    ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_order_fees(header, order_ids)
+    }
+    fn read_margin_ratios(
+        &self,
+        header: TradeHeader,
+        securities: Vec<TradeSecurity>,
+    ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_margin_ratios(header, securities)
+    }
+    fn read_max_trade_quantity(
+        &self,
+        request: TradeMaxTradeQuantityRequest,
+    ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+        FakeTradeRead.read_max_trade_quantity(request)
+    }
+    fn read_positions(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Option<f64>,
+        _: Option<f64>,
+        _: Option<bool>,
+        _: Option<i32>,
+        _: Option<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+        Ok(vec![
+            TradePositionSnapshot {
+                position_id: 1,
+                position_side: 1,
+                code: "HK.00700".to_owned(),
+                name: "Tencent".to_owned(),
+                qty: 100.0,
+                can_sell_qty: 80.0,
+                price: 320.0,
+                cost_price: Some(299.5),
+                val: 32_000.0,
+                pl_val: 1_800.0,
+                pl_ratio: Some(0.11),
+                sec_market: Some(1),
+                trd_market: Some(1),
+                diluted_cost_price: Some(300.5),
+                average_cost_price: Some(299.5),
+                average_pl_ratio: Some(0.12),
+                td_pl_val: None,
+                td_trd_val: None,
+                td_buy_val: None,
+                td_buy_qty: None,
+                td_sell_val: None,
+                td_sell_qty: None,
+                unrealized_pl: Some(1_950.0),
+                realized_pl: Some(120.0),
+                currency: Some(1),
+                acc_id: Some(42),
+                combo_id: None,
+                strategy_type: None,
+                position_type: None,
+                jp_acc_type: None,
+                payout_if_win: None,
+            },
+            TradePositionSnapshot {
+                position_id: 2,
+                position_side: 1,
+                code: "US.NVDA".to_owned(),
+                name: "NVIDIA".to_owned(),
+                qty: 10.0,
+                can_sell_qty: 10.0,
+                price: 130.0,
+                cost_price: Some(101.25),
+                val: 1_300.0,
+                pl_val: 9.5,
+                pl_ratio: Some(0.06),
+                sec_market: Some(11),
+                trd_market: Some(2),
+                average_cost_price: Some(100.25),
+                diluted_cost_price: None,
+                average_pl_ratio: None,
+                td_pl_val: None,
+                td_trd_val: None,
+                td_buy_val: None,
+                td_buy_qty: None,
+                td_sell_val: None,
+                td_sell_qty: None,
+                unrealized_pl: None,
+                realized_pl: None,
+                currency: Some(2),
+                acc_id: Some(42),
+                combo_id: None,
+                strategy_type: None,
+                position_type: None,
+                jp_acc_type: None,
+                payout_if_win: None,
+            },
+        ])
+    }
+    fn read_orders(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Vec<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        Ok(Vec::new())
+    }
+    fn read_fills(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        Ok(Vec::new())
+    }
+}
+
+#[test]
+fn position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback() {
+    // Parity: go:452dea11:pkg/futu/adapter_bridge_test.go:191
+    // TestBrokerAdapterMarketDataReaderTradingSnapshots. Go's
+    // `brokerPositionSnapshotFromProto` resolves each pair through
+    // `preferredFloat64Ptr`: `dilutedCostPrice` wins over `costPrice`,
+    // `unrealizedPL` wins over `plVal`, and `averagePlRatio` wins over
+    // `plRatio`; both rows must survive the neutral trade read.
+    let (store, _directory) = execution_store();
+    let port = ProductionPortfolioPort {
+        active_provider_state: ready_state(),
+        _execution_store: store,
+        trade_read_port: Some(Arc::new(PositionFixtureRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let value = port
+        .read(
+            "/api/v1/portfolio/futu/positions",
+            "accountId=42&tradingEnvironment=REAL&market=HK",
+        )
+        .expect("positions");
+    let positions = value["positions"].as_array().expect("positions array");
+    assert_eq!(positions.len(), 2);
+    assert_eq!(positions[0]["symbol"], "HK.00700");
+    assert_eq!(positions[0]["costPrice"], 300.5);
+    assert_eq!(positions[0]["averageCostPrice"], 299.5);
+    assert_eq!(positions[0]["unrealizedPnl"], 1_950.0);
+    assert_eq!(positions[0]["pnlRatio"], 0.12);
+    assert_eq!(positions[0]["currency"], "HKD");
+    // The NVIDIA row carries no diluted cost / unrealized PL / average ratio,
+    // so the legacy per-position fields must be used instead of null.
+    assert_eq!(positions[1]["symbol"], "US.NVDA");
+    assert_eq!(positions[1]["costPrice"], 101.25);
+    assert_eq!(positions[1]["unrealizedPnl"], 9.5);
+    assert_eq!(positions[1]["pnlRatio"], 0.06);
+    assert_eq!(positions[1]["currency"], "USD");
+}
+
+/// Reader carrying Go's account-analytics fixture from
+/// `pkg/futu/adapter_bridge_test.go:465`: an order-fee breakdown, a margin
+/// ratio with a short-fee tier, one dividend cash flow and the max-trade-qty
+/// buying-power row.
+#[derive(Debug)]
+struct AccountAnalyticsRead;
+
+impl TradeReadPort for AccountAnalyticsRead {
+    fn read_accounts(
+        &self,
+        user_id: u64,
+        category: Option<i32>,
+        general: Option<bool>,
+    ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_accounts(user_id, category, general)
+    }
+    fn read_funds(
+        &self,
+        header: TradeHeader,
+        refresh: Option<bool>,
+        currency: Option<i32>,
+        asset: Option<i32>,
+    ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+        FakeTradeRead.read_funds(header, refresh, currency, asset)
+    }
+    fn read_cash_flows(
+        &self,
+        header: TradeHeader,
+        _: String,
+        _: Option<i32>,
+    ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+        Ok(vec![TradeCashFlowSnapshot {
+            header,
+            clearing_date: Some("2026-05-20".to_owned()),
+            settlement_date: Some("2026-05-21".to_owned()),
+            currency: Some(1),
+            cash_flow_type: Some("DIVIDEND".to_owned()),
+            cash_flow_direction: Some(1),
+            cash_flow_amount: Some(88.8),
+            cash_flow_remark: Some("cash-flow-test".to_owned()),
+            cash_flow_id: Some(5001),
+            create_time: None,
+        }])
+    }
+    fn read_order_fees(
+        &self,
+        header: TradeHeader,
+        _: Vec<String>,
+    ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+        Ok(vec![TradeOrderFeeSnapshot {
+            header,
+            broker_order_id_ex: "EXT-2001".to_owned(),
+            fee_amount: Some(12.5),
+            fee_items: vec![
+                jftrade_integration_futu::TradeOrderFeeItemSnapshot {
+                    title: "BROKERAGE".to_owned(),
+                    value: 10.0,
+                },
+                jftrade_integration_futu::TradeOrderFeeItemSnapshot {
+                    title: "STAMP_DUTY".to_owned(),
+                    value: 2.5,
+                },
+            ],
+        }])
+    }
+    fn read_margin_ratios(
+        &self,
+        header: TradeHeader,
+        _: Vec<TradeSecurity>,
+    ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+        Ok(vec![TradeMarginRatioSnapshot {
+            header,
+            market: "HK".to_owned(),
+            symbol: "HK.00700".to_owned(),
+            is_long_permit: Some(true),
+            is_short_permit: Some(false),
+            short_pool_remain: None,
+            short_fee_rate: Some(1.25),
+            alert_long_ratio: Some(0.3),
+            alert_short_ratio: Some(0.4),
+            initial_margin_long_ratio: Some(0.5),
+            initial_margin_short_ratio: None,
+            margin_call_long_ratio: Some(0.6),
+            margin_call_short_ratio: None,
+            maintenance_long_ratio: Some(0.7),
+            maintenance_short_ratio: None,
+        }])
+    }
+    fn read_max_trade_quantity(
+        &self,
+        request: TradeMaxTradeQuantityRequest,
+    ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+        Ok(TradeMaxTradeQuantitySnapshot {
+            header: request.header,
+            code: request.code,
+            order_type: request.order_type,
+            price: request.price,
+            max_cash_buy: 1_000.0,
+            max_cash_and_margin_buy: Some(2_000.0),
+            max_position_sell: 500.0,
+            max_sell_short: Some(300.0),
+            max_buy_back: Some(150.0),
+            long_required_im: Some(10.0),
+            short_required_im: Some(12.0),
+            session: Some(1),
+        })
+    }
+    fn read_positions(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Option<f64>,
+        _: Option<f64>,
+        _: Option<bool>,
+        _: Option<i32>,
+        _: Option<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+        Ok(Vec::new())
+    }
+    fn read_orders(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Vec<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        Ok(Vec::new())
+    }
+    fn read_fills(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        Ok(Vec::new())
+    }
+}
+
+#[test]
+fn broker_account_analytics_project_fees_margin_cash_flow_and_buying_power() {
+    // Parity: go:452dea11:pkg/futu/adapter_bridge_test.go:465
+    // TestBrokerAdapterMarketDataReaderAccountAnalytics. The adapter must
+    // surface the OpenD analytics rows unchanged: a 12.5 order fee with two
+    // breakdown items, a 1.25 short-fee tier, a 88.8 IN dividend cash flow and
+    // the cash/margin buying power with its RTH session label.
+    let broker = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(AccountAnalyticsRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let fees = broker
+        .read(
+            "/api/v1/brokers/futu/order-fees",
+            "accountId=42&tradingEnvironment=REAL&market=HK&orderIdEx=EXT-2001",
+        )
+        .expect("order fees");
+    assert_eq!(fees["fees"][0]["feeAmount"], 12.5);
+    assert_eq!(fees["fees"][0]["feeItems"].as_array().map(Vec::len), Some(2));
+    let margin = broker
+        .read(
+            "/api/v1/brokers/futu/margin-ratios",
+            "accountId=42&tradingEnvironment=REAL&market=HK&symbol=HK.00700",
+        )
+        .expect("margin ratios");
+    assert_eq!(margin["marginRatios"][0]["symbol"], "HK.00700");
+    assert_eq!(margin["marginRatios"][0]["shortFeeRate"], 1.25);
+
+    let flows = broker
+        .read(
+            "/api/v1/brokers/futu/cash-flows",
+            "accountId=42&tradingEnvironment=REAL&market=HK&clearingDate=2026-05-20&direction=IN",
+        )
+        .expect("cash flows");
+    assert_eq!(flows["cashFlows"][0]["cashFlowDirection"], "IN");
+    assert_eq!(flows["cashFlows"][0]["cashFlowAmount"], 88.8);
+
+    let max_qty = broker
+        .read(
+            "/api/v1/brokers/futu/max-trade-qtys",
+            "accountId=42&tradingEnvironment=REAL&market=HK&symbol=HK.00700&orderType=LIMIT&price=320.5",
+        )
+        .expect("max trade quantity");
+    assert_eq!(max_qty["maxTradeQuantity"]["maxCashBuy"], 1_000.0);
+    assert_eq!(max_qty["maxTradeQuantity"]["maxCashAndMarginBuy"], 2_000.0);
+    assert_eq!(max_qty["maxTradeQuantity"]["session"], "RTH");
+}
+
 #[test]
 fn helper_market_data_provider_keeps_futu_trade_reads_on_the_trade_session() {
     let runtime = ready_trade_runtime();

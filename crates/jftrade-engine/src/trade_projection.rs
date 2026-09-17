@@ -178,7 +178,17 @@ pub(crate) fn position_value(
     request: &ResolvedTradeRequest,
     value: jftrade_integration_futu::TradePositionSnapshot,
 ) -> Value {
-    json!({"accountId": request.account_id, "tradingEnvironment": request.environment, "market": request.market, "symbol": qualify_symbol(&request.market, &value.code), "symbolName": non_empty(&value.name), "quantity": value.qty, "sellableQuantity": value.can_sell_qty, "lastPrice": value.price, "costPrice": value.cost_price, "averageCostPrice": value.average_cost_price, "marketValue": value.val, "unrealizedPnl": value.unrealized_pl, "realizedPnl": value.realized_pl, "pnlRatio": value.pl_ratio, "currency": currency_label(value.currency)})
+    // Parity: `go:452dea11:pkg/futu/trade_read_proto.go:146`
+    // `brokerPositionSnapshotFromProto` reads each preferred/fallback pair
+    // through `preferredFloat64Ptr`, so OpenD's account-level dilution and
+    // average-cost fields win over the legacy per-position values:
+    // `dilutedCostPrice` > `costPrice`, `unrealizedPL` > `plVal`, and
+    // `averagePlRatio` > `plRatio`.  Projecting only the fallback side drops
+    // the authoritative security-account cost basis and PnL the console reads.
+    let cost_price = value.diluted_cost_price.or(value.cost_price);
+    let unrealized_pnl = value.unrealized_pl.or(Some(value.pl_val));
+    let pnl_ratio = value.average_pl_ratio.or(value.pl_ratio);
+    json!({"accountId": request.account_id, "tradingEnvironment": request.environment, "market": request.market, "symbol": qualify_symbol(&request.market, &value.code), "symbolName": non_empty(&value.name), "quantity": value.qty, "sellableQuantity": value.can_sell_qty, "lastPrice": value.price, "costPrice": cost_price, "averageCostPrice": value.average_cost_price, "marketValue": value.val, "unrealizedPnl": unrealized_pnl, "realizedPnl": value.realized_pl, "pnlRatio": pnl_ratio, "currency": currency_label(value.currency)})
 }
 
 pub(super) fn order_value(

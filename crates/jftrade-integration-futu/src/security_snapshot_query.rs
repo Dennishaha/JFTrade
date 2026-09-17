@@ -263,7 +263,7 @@ fn optional_decimal(value: Option<f64>) -> Option<DecimalText> {
         .filter(|v| v.is_finite())
         .and_then(|v| DecimalText::from_str(&v.to_string()).ok())
 }
-fn market_code(value: &str) -> Option<i32> {
+pub(crate) fn market_code(value: &str) -> Option<i32> {
     match value.trim().to_ascii_uppercase().as_str() {
         "HK" => Some(1),
         "US" => Some(11),
@@ -277,7 +277,7 @@ fn market_code(value: &str) -> Option<i32> {
         _ => None,
     }
 }
-fn market_label(value: i32) -> Option<&'static str> {
+pub(crate) fn market_label(value: i32) -> Option<&'static str> {
     match value {
         1 => Some("HK"),
         11 => Some("US"),

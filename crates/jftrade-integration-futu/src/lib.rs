@@ -16,6 +16,7 @@ mod instrument_search_query;
 pub mod kline_query;
 mod managed_session;
 mod market_microstructure_query;
+mod market_rules_query;
 mod news_query;
 pub mod notification;
 mod open_d_quote_rights;
@@ -131,6 +132,10 @@ pub use managed_session::{
 pub use market_microstructure_query::{
     MarketMicrostructureError, MarketMicrostructureOperation, MarketMicrostructureReadPort,
     OpenDMarketMicrostructureReader,
+};
+pub use market_rules_query::{
+    MarketRuleSnapshot, MarketRulesQueryError, MarketRulesReadPort, OpenDMarketRulesReader,
+    OpenDSecurityInfoReader, SecurityInfoItem, SecurityInfoReadPort,
 };
 pub use news_query::{
     FutuNewsEntry, FutuNewsQuery, FutuNewsQueryError, FutuNewsReadPort, FutuNewsResult,

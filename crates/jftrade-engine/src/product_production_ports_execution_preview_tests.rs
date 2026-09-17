@@ -13,6 +13,11 @@ use jftrade_integration_futu::{
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 
+use crate::product::product_brokers_write_port::{
+    BrokersWriteContext, BrokersWriteInput, BrokersWriteOperation, BrokersWritePort,
+    BrokersWriteQuery,
+};
+
 /// Prediction-market read fixture keyed by the requested event-contract code.
 ///
 /// `OpenDPredictionMarketReader::snapshot` returns every snapshot row that
@@ -224,6 +229,11 @@ fn preview_port_with_writer(
 struct RecordingTradeWriter {
     placed: Mutex<Vec<TradePlaceOrderRequest>>,
     modified: Mutex<Vec<TradeModifyOrderRequest>>,
+    unlocked: Mutex<Vec<TradeUnlockRequest>>,
+    /// Server-issued `orderIDEx`; the adapter-bridge fixture answers
+    /// `FT-9001`, while the default keeps the older preview tests on
+    /// `EXT-9001`.
+    order_id_ex: Mutex<Option<String>>,
 }
 
 impl TradeWritePort for RecordingTradeWriter {
@@ -238,7 +248,13 @@ impl TradeWritePort for RecordingTradeWriter {
         Ok(TradePlaceOrderResult {
             header: request.header,
             order_id: Some(9001),
-            order_id_ex: Some("EXT-9001".to_owned()),
+            order_id_ex: Some(
+                self.order_id_ex
+                    .lock()
+                    .expect("order id ex")
+                    .clone()
+                    .unwrap_or_else(|| "EXT-9001".to_owned()),
+            ),
         })
     }
 
@@ -264,7 +280,11 @@ impl TradeWritePort for RecordingTradeWriter {
         })
     }
 
-    fn unlock_trade(&self, _request: TradeUnlockRequest) -> Result<(), TradeSessionError> {
+    fn unlock_trade(&self, request: TradeUnlockRequest) -> Result<(), TradeSessionError> {
+        self.unlocked
+            .lock()
+            .expect("unlocked trades")
+            .push(request);
         Ok(())
     }
 
@@ -568,4 +588,91 @@ fn cancel_order_uses_modify_order_cancel_operation() {
     assert_eq!(modified[0].order_id, 9001);
     // OpenD's ModifyOrderOp_Cancel enum value is 2.
     assert_eq!(modified[0].operation, 2);
+}
+
+#[test]
+fn broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend() {
+    // Parity: go:452dea11:pkg/futu/adapter_bridge_test.go:709
+    // TestBrokerAdapterUnlockTradeBridge. The adapter's UnlockTrade forwards
+    // unlock=true and the caller's password MD5 to Trd_UnlockTrade once.
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, false);
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let port = preview_port_with_writer(state, None, Some(true), Some(Arc::clone(&writer)));
+    let result = BrokersWritePort::mutate(
+        &port,
+        &BrokersWriteInput {
+            operation: BrokersWriteOperation::Unlock,
+            query: BrokersWriteQuery {
+                broker_id: "futu".to_owned(),
+                account_id: "42".to_owned(),
+                trading_environment: "REAL".to_owned(),
+                market: "HK".to_owned(),
+            },
+            payload: json!({"unlock": true, "passwordMd5": "dummy-md5"}),
+            context: BrokersWriteContext::Normal,
+        },
+    )
+    .expect("unlock route");
+    assert_eq!(result["unlocked"], true);
+    let unlocked = writer.unlocked.lock().expect("unlocked trades");
+    assert_eq!(unlocked.len(), 1);
+    assert!(unlocked[0].unlock);
+    assert_eq!(unlocked[0].password_md5.as_deref(), Some("dummy-md5"));
+    // The bridge test's caller sends no security firm, so it must stay unset
+    // rather than being defaulted by the route.
+    assert_eq!(unlocked[0].security_firm, None);
+}
+
+#[test]
+fn broker_adapter_place_and_cancel_keep_server_order_identity_and_submitted_status() {
+    // Parity: go:452dea11:pkg/futu/adapter_bridge_test.go:19
+    // TestBrokerAdapterDiscoverAccountsAndTradingBridge. Go's adapter places a
+    // limit order, projects the server's numeric and extended order ids with
+    // Status=SUBMITTED, forwards the client order id as the OpenD remark, then
+    // cancels through the same bridge with exactly one write call each.
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, false);
+    let writer = Arc::new(RecordingTradeWriter::default());
+    *writer.order_id_ex.lock().expect("order id ex") = Some("FT-9001".to_owned());
+    let port = preview_port_with_writer(state, None, Some(true), Some(Arc::clone(&writer)));
+    let payload = json!({
+        "accountId": "42",
+        "brokerId": "futu",
+        "market": "HK",
+        "tradingEnvironment": "SIMULATE",
+        "clientOrderId": "adapter-order-9001",
+        "symbol": "HK.00700",
+        "orderKind": "single",
+        "productClass": "equity",
+        "instrument": {"instrumentId": "HK.00700", "tradeMarket": "HK"},
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "quantity": 100.0,
+        "price": 320.5,
+        "timeInForce": "GTC"
+    });
+    let placed = port.place_order(&payload).expect("place order");
+    assert_eq!(placed["brokerOrderId"], "9001");
+    assert_eq!(placed["brokerOrderIdEx"], "FT-9001");
+    assert_eq!(placed["status"], "SUBMITTED");
+    let internal_id = placed["internalOrderId"]
+        .as_str()
+        .expect("internal order id")
+        .to_owned();
+    {
+        let requests = writer.placed.lock().expect("placed orders");
+        assert_eq!(requests.len(), 1, "exactly one Trd_PlaceOrder call");
+        assert_eq!(requests[0].code, "00700");
+        assert_eq!(requests[0].remark.as_deref(), Some("adapter-order-9001"));
+    }
+    port.cancel_order(&internal_id).expect("cancel order");
+    let modified = writer.modified.lock().expect("modified orders");
+    assert_eq!(modified.len(), 1, "exactly one Trd_ModifyOrder call");
+    assert_eq!(modified[0].order_id, 9001);
+    assert_eq!(modified[0].order_id_ex.as_deref(), Some("FT-9001"));
 }

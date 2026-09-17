@@ -1681,3 +1681,85 @@ pnpm run check:rust:architecture
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+## 批次：pkg/futu/adapter_bridge_test.go（7 项，含 1 项 partial）
+
+本批以 `go:452dea11:pkg/futu/adapter_bridge_test.go` 全量 7 条为基线，逐条核对 Rust 现有实现，
+补齐了 3 处真实功能缺口（市场规则读取端口、持仓 preferred 成本/PnL 语义、账户分析读贯通断言），
+其余 3 条复用既有回归入口。映射同步写入
+`docs/history/go-to-rust/manual-test-mappings.json`。
+
+### 逐项结果
+
+| Go 测试 | 状态 | Rust 证据 |
+| --- | --- | --- |
+| `:19 TestBrokerAdapterDiscoverAccountsAndTradingBridge` | `[x]` | `product_production_ports_execution_preview_tests.rs::broker_adapter_place_and_cancel_keep_server_order_identity_and_submitted_status` |
+| `:124 TestBrokerAdapterQueryMarketRulesUsesSecurityInfoLotSize` | `[x]` | `market_rules_query_tests.rs::market_rules_use_security_info_lot_size_without_warnings` |
+| `:155 TestBrokerAdapterQueryMarketRulesFallsBackToSecuritySnapshotLotSize` | `[x]` | `market_rules_query_tests.rs::market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error` |
+| `:191 TestBrokerAdapterMarketDataReaderTradingSnapshots` | `[x]` | `product_production_ports_trade_tests.rs::position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback` |
+| `:465 TestBrokerAdapterMarketDataReaderAccountAnalytics` | `[x]` | `product_production_ports_trade_tests.rs::broker_account_analytics_project_fees_margin_cash_flow_and_buying_power` |
+| `:608 TestBrokerAdapterQuoteKLinesSubscriptionsAndValidation` | `[~]` | 订阅幂等/非法输入拒绝/K 线窗口/409 lease 四组既有入口；reader 级错误字符串不迁移，保留 partial |
+| `:709 TestBrokerAdapterUnlockTradeBridge` | `[x]` | `product_production_ports_execution_preview_tests.rs::broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend` |
+
+### 修复的功能差异
+
+1. **QueryMarketRules 端口缺失（P1，`[x]`）**
+   - 差异：Go 的 `futuAdapter.QueryMarketRules`（`pkg/futu/adapter_marketdata_reader.go:634`）以
+     `Qot_GetStaticInfo`（3202）的 `lotSize` 为主、`Qot_GetSecuritySnapshot`（3203）为回退，并把
+     回退原因写入 warning；Rust 侧此前只有 `jftrade-broker` 的 `apply_market_rule` pure 函数和
+     `MarketRuleItem` 类型，没有任何 OpenD 读取端口，也没有 lot 过滤与 warning 语义。
+   - 修复位置：新增 `crates/jftrade-integration-futu/src/market_rules_query.rs`——
+     `MarketRulesReadPort` 契约、`OpenDSecurityInfoReader`（3202 编码/解码，含 `PROTO_GET_STATIC_INFO`
+     常量与 5s 超时）、`OpenDMarketRulesReader`（主读命中即返回；失败或无可用 lot 时回退快照并
+     追加 `futu market rules loaded from QuerySecuritySnapshot fallback because <reason>`），
+     以及 `market_rules_from_static_info` / `market_rules_from_snapshots` 的空白符号与非正 lot 过滤。
+     组合入口通过 `with_ports` 注入两个读端口，便于回归测试。
+   - 回归测试：`market_rules_query_tests.rs` 新增 8 条（主路径无 warning 且快照 0 次调用、回退路径
+     1 次主读 + 1 次快照 + warning 含主失败文本、空符号先行拒绝且不触达 provider、非法行过滤、
+     双源空结果 `NoRules`、仅快照失败保留原文、双源失败合并、快照行过滤）。
+
+2. **持仓 preferred 成本/PnL 语义缺失（P0，`[x]`）**
+   - 差异：Go `brokerPositionSnapshotFromProto`（`pkg/futu/trade_read_proto.go:146`）用
+     `preferredFloat64Ptr` 解析 `dilutedCostPrice > costPrice`、`unrealizedPL > plVal`、
+     `averagePlRatio > plRatio`；Rust `position_value` 只投影回退字段，`unrealized_pl` 与
+     `average_pl_ratio` 完全未使用，证券账户的权威成本/PnL 在 `/api/v1/portfolio/{brokerId}/positions`
+     上会丢失。
+   - 修复位置：`crates/jftrade-engine/src/trade_projection.rs::position_value` 改为优先取
+     `diluted_cost_price`/`unrealized_pl`/`average_pl_ratio`，缺失时回退旧字段。
+   - 回归测试：`product_production_ports_trade_tests.rs::position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback`
+     使用 Go 同款两行 fixture（腾讯走 diluted 分支、NVIDIA 走回退分支）并逐字段断言。
+
+3. **账户分析读缺少贯通断言（P1，`[x]`）**
+   - 差异：Go 在同一 adapter 上串起 fees/margin/cash-flow/max-qty 四类读；Rust 各字段有投影
+     实现但缺少同源 fixture 的一次贯通断言。
+   - 回归测试：`broker_account_analytics_project_fees_margin_cash_flow_and_buying_power` 断言
+     `feeAmount=12.5` + 2 条 FeeItems、`shortFeeRate=1.25`、`cashFlowDirection=IN` + `88.8`、
+     `maxCashBuy=1000` / `maxCashAndMarginBuy=2000` / `session=RTH`。
+
+4. **下单/撤单与解锁写路径（P0，`[x]`）**
+   - `broker_adapter_place_and_cancel_keep_server_order_identity_and_submitted_status`：断言
+     `brokerOrderId=9001`、`brokerOrderIdEx=FT-9001`、`status=SUBMITTED`、clientOrderId 作为
+     OpenD remark，以及 cancel 恰好一次 `Trd_ModifyOrder`（`order_id_ex` 透传）。
+   - `broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend`：断言 unlock 路由恰好一次
+     `Trd_UnlockTrade`，透传 `unlock=true` / `passwordMd5`，未提供 `securityFirm` 时保持 `None`。
+
+### 边界说明
+
+- `:608` 的 5 条 reader 级错误字符串（`futu: QueryQuote requires at least one symbol` 等）不迁移：
+  Rust 在 market-data 路由层用 400 `BAD_REQUEST` / 409 `MARKET_DATA_SUBSCRIPTION_REQUIRED`
+  表达同一无效输入与缺失 lease 语义，复制 reader 字符串会与既有 route 契约重复。
+- 账户投影中的 `brokerId` 由 `/api/v1/brokers/{brokerId}/runtime` 路由承载，Rust 的账户对象
+  按 OpenAPI `trading.BrokerRuntimeAccount` 不再重复输出该字段。
+- 本批未改动 `contracts/openapi/openapi.json`、`proto/` 或冻结 fixture；新增读取端口复用既有
+  3202/3203 协议与 `SecuritySnapshotReadPort`，wire 形状不变。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast   # 1648 passed, 1 skipped
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+pnpm run check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py   # 2164 Rust tests, Futu 域 86.1%
+git diff --check
+```
