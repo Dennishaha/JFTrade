@@ -2006,28 +2006,31 @@ fn broker_capabilities_microstructure_and_research_runtime_ready() {
             .iter()
             .find(|item| item["featureId"] == feature_id)
             .unwrap_or_else(|| panic!("missing feature {feature_id}"));
-        assert_eq!(item["evaluation"]["state"], "available");
-        assert_eq!(item["evaluation"]["code"], "RUNTIME_READY");
-        assert_eq!(item["evaluation"]["quoteRight"]["state"], "available");
-        assert_eq!(item["evaluation"]["quoteRight"]["code"], "QUOTE_RIGHT_AVAILABLE");
-        assert_eq!(item["capability"]["state"], "available");
-        assert_eq!(item["capability"]["reasonCode"], "RUNTIME_READY");
+        assert_eq!(item["evaluation"]["quoteRight"]["state"], "degraded");
+        assert_eq!(
+            item["evaluation"]["quoteRight"]["code"],
+            "QUOTE_RIGHT_UNVERIFIED"
+        );
+        assert_eq!(item["evaluation"]["state"], "degraded");
+        assert_eq!(item["evaluation"]["code"], "RUNTIME_STATUS_PARTIAL");
+        assert_eq!(item["capability"]["state"], "degraded");
+        assert_eq!(item["capability"]["reasonCode"], "RUNTIME_STATUS_PARTIAL");
     }
 
     let warrants = runtime_items
         .iter()
         .find(|item| item["featureId"] == "derivatives.warrants")
         .expect("derivatives.warrants");
-    assert_eq!(warrants["evaluation"]["state"], "available");
-    assert_eq!(warrants["evaluation"]["code"], "RUNTIME_READY");
+    assert_eq!(warrants["evaluation"]["state"], "degraded");
+    assert_eq!(warrants["evaluation"]["code"], "RUNTIME_STATUS_PARTIAL");
 
     for research_id in ["research.valuation", "research.financials", "research.instrument"] {
         let item = runtime_items
             .iter()
             .find(|item| item["featureId"] == research_id)
             .unwrap_or_else(|| panic!("missing research {research_id}"));
-        assert_eq!(item["evaluation"]["state"], "available");
-        assert_eq!(item["evaluation"]["code"], "RUNTIME_READY");
+        assert_eq!(item["evaluation"]["state"], "degraded");
+        assert_eq!(item["evaluation"]["code"], "RUNTIME_STATUS_PARTIAL");
     }
 }
 
@@ -2079,6 +2082,75 @@ fn broker_capabilities_keep_warrants_hk_only_and_futures_discoverable_in_hk_us()
             "{market} futures capability"
         );
     }
+}
+
+#[test]
+fn broker_capabilities_stay_degraded_until_a_generation_verifies_quote_rights() {
+    // Parity: go:pkg/futu/adapter_capabilities.go ensureQuoteRights /
+    // evaluateQuoteCapability. A connected socket alone never proves an
+    // entitlement: the verify state must be degraded and only a snapshot
+    // stored for the active generation may flip it to available.
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    runtime.set_market_microstructure(Some(Arc::new(FakeMarketMicrostructureReader)));
+
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    state.set_readiness(false, true, true);
+    let port = ProductionBrokerPort {
+        active_provider_state: state,
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(Arc::clone(&runtime)),
+    };
+    let value = port
+        .read("/api/v1/brokers/capabilities", "")
+        .expect("read capabilities");
+    let depth = value["runtime"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["featureId"] == "market.depth")
+        .unwrap();
+    assert_eq!(depth["evaluation"]["quoteRight"]["state"], "degraded");
+    assert_eq!(
+        depth["evaluation"]["quoteRight"]["code"],
+        "QUOTE_RIGHT_UNVERIFIED"
+    );
+
+    runtime.quote_rights.set_generation(1);
+    let generation = 1;
+    runtime.quote_rights.store_snapshot(
+        generation,
+        jftrade_integration_futu::QuoteRightSnapshot {
+            hk_qot_right: 3,
+            us_qot_right: 3,
+            cn_qot_right: 3,
+            ..Default::default()
+        },
+        std::time::SystemTime::now(),
+    );
+    let value = port
+        .read("/api/v1/brokers/capabilities", "")
+        .expect("read capabilities");
+    let depth = value["runtime"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["featureId"] == "market.depth")
+        .unwrap();
+    assert_eq!(depth["evaluation"]["quoteRight"]["state"], "available");
+    assert_eq!(
+        depth["evaluation"]["quoteRight"]["code"],
+        "QUOTE_RIGHT_AVAILABLE"
+    );
+
+    // A stale snapshot for another generation must not be trusted again.
+    let stale =
+        jftrade_integration_futu::QuoteRightsState::new();
+    assert_eq!(
+        stale.state_for_generation(generation + 1, 3),
+        jftrade_integration_futu::QuoteRightState::Unverified
+    );
 }
 
 #[test]

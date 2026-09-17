@@ -43,7 +43,10 @@ mod probe;
 mod provider;
 mod provider_runtime;
 mod quote_push;
+mod quote_rights;
 mod research_institutions_query;
+mod research_normalization;
+mod research_params;
 mod research_short_interest_query;
 mod runtime_task;
 mod security_snapshot_query;
@@ -243,11 +246,28 @@ pub use quote_push::{
     BasicQuote, BasicQuotePush, Kline, KlinePush, OrderBookDetail, OrderBookLevel, OrderBookPush,
     PreAfterMarketData, QuotePush, QuotePushDecodeError, Security, decode_quote_push,
 };
+pub use quote_rights::{
+    ConnectStatusSnapshot, QUOTE_RIGHTS_FAILURE_RETRY_INTERVAL, QuoteRightField,
+    QuoteRightSnapshot, QuoteRightState, QuoteRightsError, QuoteRightsFetchOutcome,
+    QuoteRightsState,
+};
 pub use research_institutions_query::{
     FutuInstitutionEntry, FutuInstitutionOperation, FutuInstitutionQuery,
     FutuInstitutionQueryError, FutuInstitutionReadPort, FutuInstitutionResult,
     FutuInstitutionSecurity, FutuInstitutionSecurityQuery, FutuInstitutionSummary,
     OpenDInstitutionReader,
+};
+pub use research_normalization::{
+    LocalResearchPage, apply_research_local_pagination, flatten_research_ipo,
+    is_research_normalization_protocol, normalize_research_calendar_fields,
+    normalize_research_institution_fields, normalize_research_protocol_payload,
+    research_product_class, research_security_type,
+};
+pub use research_params::{
+    ResearchParamsError, ResearchQueryScope, bounded_research_enum,
+    inject_advanced_option_defaults, inject_advanced_protocol_defaults,
+    inject_advanced_research_defaults, research_number_parity, translate_heat_map_plate_type,
+    translate_plate_set_type, translate_top_movers_direction,
 };
 pub use research_short_interest_query::{
     FutuShortInterestItem, FutuShortInterestQuery, FutuShortInterestQueryError,

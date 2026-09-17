@@ -281,7 +281,7 @@ fn runtime_statuses(
                 }
                 let capability = feature_capability(spec, market, static_state(spec.id));
                 let available = feature_runtime_available(spec.id, provider, runtime);
-                let evaluation = evaluation(spec, provider, runtime, available);
+                let evaluation = evaluation(spec, market, provider, runtime, available);
                 let mut evaluated_capability = capability;
                 evaluated_capability["state"] = evaluation["state"].clone();
                 evaluated_capability["reasonCode"] = evaluation["code"].clone();
@@ -340,6 +340,7 @@ fn feature_capability(spec: &FeatureSpec, market: &str, state: &'static str) -> 
 
 fn evaluation(
     spec: &FeatureSpec,
+    market: &str,
     provider: &ProviderRuntimeSnapshot,
     runtime: &SharedTradeReadRuntime,
     available: bool,
@@ -363,10 +364,33 @@ fn evaluation(
     let quote = if spec.access == "read" {
         if !available {
             check("unavailable", "CAPABILITY_UNAVAILABLE", "The concrete reader for this capability is unavailable.", &now)
-        } else if connection_ready {
-            check("available", "QUOTE_RIGHT_AVAILABLE", "OpenD quote entitlement is verified for this session.", &now)
         } else {
-            check("degraded", "QUOTE_RIGHT_UNVERIFIED", "OpenD quote entitlement has not been verified for this session.", &now)
+            // The entitlement verdict comes from the generation-fenced
+            // quote-rights owner. A connected socket alone never proves an
+            // entitlement, so an unverified generation stays degraded.
+            let state = quote_right_state(spec.id, market, provider, runtime);
+            match state {
+                jftrade_integration_futu::QuoteRightState::Available => check(
+                    "available",
+                    state.code(),
+                    "OpenD quote entitlement is verified for this session.",
+                    &now,
+                ),
+                jftrade_integration_futu::QuoteRightState::PollingOnly
+                | jftrade_integration_futu::QuoteRightState::Unverified
+                | jftrade_integration_futu::QuoteRightState::Unknown => check(
+                    "degraded",
+                    state.code(),
+                    "OpenD quote entitlement has not been verified for this session.",
+                    &now,
+                ),
+                jftrade_integration_futu::QuoteRightState::Denied => check(
+                    "unavailable",
+                    state.code(),
+                    "The selected OpenD session has no quote entitlement for this product.",
+                    &now,
+                ),
+            }
         }
     } else {
         check("available", "NOT_REQUIRED", "This runtime dimension is not required.", &now)
@@ -389,6 +413,47 @@ fn evaluation(
         "quoteRight": quote,
         "checkedAt": now,
     })
+}
+
+/// Product/market-specific entitlement lookup, mirroring Go
+/// `quoteRightForCapability`. The projection keeps the same per-market and
+/// per-product fields so a verified HK entitlement cannot authorize a US read.
+fn quote_right_state(
+    feature_id: &str,
+    market: &str,
+    provider: &ProviderRuntimeSnapshot,
+    runtime: &SharedTradeReadRuntime,
+) -> jftrade_integration_futu::QuoteRightState {
+    use jftrade_integration_futu::QuoteRightField;
+    let _ = provider;
+    let field = if feature_id.starts_with("prediction.") {
+        QuoteRightField::EventContract
+    } else if feature_id.contains("option") {
+        if market.eq_ignore_ascii_case("HK") {
+            QuoteRightField::HkOption
+        } else {
+            QuoteRightField::UsOption
+        }
+    } else if feature_id == "derivatives.futures" {
+        if market.eq_ignore_ascii_case("HK") {
+            QuoteRightField::HkFuture
+        } else {
+            QuoteRightField::UsFuture
+        }
+    } else if market.eq_ignore_ascii_case("HK") {
+        QuoteRightField::Hk
+    } else if market.eq_ignore_ascii_case("SH") {
+        QuoteRightField::Sh
+    } else if market.eq_ignore_ascii_case("SZ") {
+        QuoteRightField::Sz
+    } else {
+        QuoteRightField::Us
+    };
+    runtime.quote_rights.right_value(field)
+        .map_or(
+            jftrade_integration_futu::QuoteRightState::Unverified,
+            jftrade_integration_futu::QuoteRightState::from_right,
+        )
 }
 
 fn check(state: &str, code: &str, reason: &str, checked_at: &str) -> Value {

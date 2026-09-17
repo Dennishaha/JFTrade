@@ -1378,3 +1378,56 @@ pnpm run check:rust:architecture
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+## 批次：pkg/futu/adapter_research_normalization_boundaries_test.go（8 项）
+
+状态：8 项全部 `[x]` function_exact。该批次补齐了 Rust 缺失的 research 参数注入、payload 归一化和 quote-rights generation fencing 三个 owner，此前 Rust 侧完全没有对应实现。
+
+### 真实功能差异与修复
+
+1. **research 参数注入缺失（P1，公开 API 范围）**
+   - 差异：Go `injectAdvancedProtocolDefaults`（`pkg/futu/adapter_advanced_defaults.go`）负责把公开 query 翻译为严格 OpenD C2S 参数：plateType→plateSetType、direction→sortDir、market→marketList、institutionId→int32、instrumentId→news keyword、secType=4 等。Rust 只有 typed port 校验，没有该翻译层，公开 query 可绕过 market/枚举/数值边界。
+   - 修复：新增 `crates/jftrade-integration-futu/src/research_params.rs`，导出 `inject_advanced_research_defaults`、`inject_advanced_option_defaults`、`inject_advanced_protocol_defaults`、`translate_top_movers_direction`、`translate_heat_map_plate_type`、`translate_plate_set_type`、`bounded_research_enum`、`research_number_parity`、`ResearchQueryScope`。
+   - 回归：`crates/jftrade-integration-futu/src/research_params_tests.rs` 4 个测试。
+
+2. **research payload 归一化与本地分页缺失（P1）**
+   - 差异：Go `normalizeResearchProtocolPayload` / `applyResearchLocalPagination` 为 rankings/calendar/institution 行补 instrumentId、symbol、name、productClass、changeRate、price、marketValue、dividendYield、calendarType、eventTimestamp 等 canonical 字段，并对 PlateSet/PlateSecurity/StaticInfo 做 `local:N` 本地分页。Rust 路由只透传 typed reader 结果。
+   - 修复：新增 `crates/jftrade-integration-futu/src/research_normalization.rs`，导出 `normalize_research_protocol_payload`、`research_security_type`、`research_product_class`、`flatten_research_ipo`、`normalize_research_calendar_fields`、`normalize_research_institution_fields`、`apply_research_local_pagination`、`LocalResearchPage`。
+   - 回归：`crates/jftrade-integration-futu/src/research_normalization_tests.rs` 4 个测试。
+
+3. **quote-rights 状态机缺失导致能力矩阵谎报可用（P0 公开 API/权限安全）**
+   - 差异：Go 维护 connect status、quote-rights snapshot、revision 与可重试失败缓存，并按 OpenD connection generation fencing；stale 通知不得覆盖新 generation，notification 可清除同 generation 失败，late query 不得覆盖 notification。Rust 原先仅用 `connection_ready` 直接输出 `QUOTE_RIGHT_AVAILABLE`，Socket 连接即被当作权限已验证。
+   - 修复：
+     - 新增 `crates/jftrade-integration-futu/src/quote_rights.rs`（`QuoteRightsState`、`QuoteRightField`、`QuoteRightSnapshot`、`QuoteRightState`、`QuoteRightsFetchOutcome`、3s `QUOTE_RIGHTS_FAILURE_RETRY_INTERVAL`）。
+     - 新增 `crates/jftrade-engine/src/product_trade_runtime_quote_rights.rs` 作为唯一 owner，并在 `product_trade_runtime_projection.rs` 暴露；`product_broker_capabilities_projection.rs` 改为按 market/product 读取已验证权限，未验证固定输出 degraded `QUOTE_RIGHT_UNVERIFIED`。
+     - 复现条件：`/api/v1/brokers/capabilities` 在 OpenD 已连接但未收到 QotRight 推送时，旧实现返回 `QUOTE_RIGHT_AVAILABLE`/`RUNTIME_READY`；预期为 degraded `QUOTE_RIGHT_UNVERIFIED`/`RUNTIME_STATUS_PARTIAL`，只有 active generation 的已验证快照才可 available。
+   - 回归：`crates/jftrade-integration-futu/src/quote_rights_tests.rs` 6 个测试；`crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_capabilities_stay_degraded_until_a_generation_verifies_quote_rights`，并同步修正原先断言“连接即可用”的 `broker_capabilities_microstructure_and_research_runtime_ready`。
+
+### 行为映射
+
+| Go 测试 | Rust 入口 | 状态与结论 |
+| --- | --- | --- |
+| :16 TestAdvancedResearchDefaultsRejectIncompleteQueries | research_params_tests.rs::advanced_research_defaults_reject_incomplete_queries | `[x]` function_exact：7 条缺失/非法参数逐条拒绝 |
+| :54 TestAdvancedResearchDefaultsTranslatePublicInputs | research_params_tests.rs::advanced_research_defaults_translate_public_inputs | `[x]` function_exact：plate/economic/institution/news/unknown 翻译 |
+| :96 TestAdvancedResearchEnumTranslations | research_params_tests.rs::advanced_research_enum_translations_match_go_bounds | `[x]` function_exact：top movers/heatmap/plateSet/boundedResearchEnum 边界 |
+| :178 TestResearchNormalizationCoversAlternateWireShapes | research_normalization_tests.rs::alternate_wire_shapes_keep_scalars_and_add_aliases | `[x]` function_exact：scalar 保留、字段别名、越界游标 |
+| :208 TestResearchNormalizationCoversProductAndCalendarVariants | research_normalization_tests.rs::product_and_calendar_variants_match_go_projection | `[x]` function_exact：securityType/productClass/IPO/calendar/institution |
+| :284 TestResearchNumberAcceptsSupportedScalarTypes | research_params_tests.rs::research_number_accepts_go_supported_scalar_types | `[x]` function_exact：标量与 " 1 " 文本接受、bool 拒绝 |
+| :306 TestQuoteRightsRefreshStateEdges | quote_rights_tests.rs::notification_resolution_wins_over_inflight_query_result | `[x]` function_exact：stale generation fencing、notification 优先、fresh store |
+| :368 TestQuoteRightsFailureAndExchangeGenerationEdges | quote_rights_tests.rs::fetch_failure_outcomes_follow_generation_and_notification_state | `[x]` function_exact：失败缓存/重试、generation 0 未验证、投影 fail-closed |
+
+### 边界说明
+
+- `Qot_GetOptionChain` 日期、`Qot_GetOptionMarketStatistic`、warrant/macro 默认值随参数注入 owner 一并实现，但本批次未新增独立断言；后续 option/macro 批次按各自 Go 测试补齐。
+- quote-rights 的 OpenD 通知写入与 activation generation 接线仍需在 live OpenD 场景验证（`JFTRADE_FUTU_LIVE_TEST=1`），本批次以状态机与投影回归为主。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast   # 1609 passed
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+pnpm run check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```

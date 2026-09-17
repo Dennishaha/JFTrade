@@ -15596,60 +15596,60 @@
     "evidence_type": "missing"
   },
   "pkg/futu/adapter_research_normalization_boundaries_test.go:16:TestAdvancedResearchDefaultsRejectIncompleteQueries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/research_params_tests.rs::advanced_research_defaults_reject_incomplete_queries",
+    "conclusion": "function_exact：7 条缺失/非法参数（plate market、plate members instrument、fund catalog market、economic date/market、dividend date、fractional institutionId）逐条拒绝，错误文本保留 Go 子串；新增 crates/jftrade-integration-futu/src/research_params.rs::inject_advanced_research_defaults / inject_advanced_option_defaults 作为唯一参数注入 owner。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(advanced_research_defaults_reject_incomplete_queries)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_research_normalization_boundaries_test.go:54:TestAdvancedResearchDefaultsTranslatePublicInputs": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/research_params_tests.rs::advanced_research_defaults_translate_public_inputs",
+    "conclusion": "function_exact：plateType(region)→plateSetType=2、economic marketList=[HK 1]、institutionId 7.0→int32(7)、news 由 US.AAPL 归一 keyword=AAPL、未知 protocol 放行，均有断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(advanced_research_defaults_translate_public_inputs)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_research_normalization_boundaries_test.go:96:TestAdvancedResearchEnumTranslations": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/research_params_tests.rs::advanced_research_enum_translations_match_go_bounds",
+    "conclusion": "function_exact：top movers（空/up/down、unsupported 报错）、heatmap（0..=2 与 industry/concept/theme、3/unsupported 报错）、plateSet（all/industry/region/concept、0..=3、NaN/空/unsupported 报错）与 boundedResearchEnum(1.5) 拒绝全部覆盖；另补 high_dividend HK-only 守卫。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(advanced_research_enum_translations_match_go_bounds)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_research_normalization_boundaries_test.go:178:TestResearchNormalizationCoversAlternateWireShapes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/research_normalization_tests.rs::alternate_wire_shapes_keep_scalars_and_add_aliases",
+    "conclusion": "function_exact：list 中 scalar 原样保留、marketVal→marketValue、dividendYieldTTM→dividendYield；local:99 越界游标返回空页、Total=2、无 next cursor。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(alternate_wire_shapes_keep_scalars_and_add_aliases)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_research_normalization_boundaries_test.go:208:TestResearchNormalizationCoversProductAndCalendarVariants": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/research_normalization_tests.rs::product_and_calendar_variants_match_go_projection",
+    "conclusion": "function_exact：researchSecurityType（eqty/trust/drvt/bwrt/future 文本与 int 1 数值表，struct 不支持→None）、researchProductClass（staticInfo→fund、显式 OPTION→option）、flattenResearchIPO（listPrice/ipoPrice/ipoPriceMin-Max/issueSize/listTime 回退）、earnings/dividend calendarType、institution positionValueChange/positionCountChange 别名。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(product_and_calendar_variants_match_go_projection)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_research_normalization_boundaries_test.go:284:TestResearchNumberAcceptsSupportedScalarTypes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/research_params_tests.rs::research_number_accepts_go_supported_scalar_types",
+    "conclusion": "function_exact：float/int/uint 标量与 \" 1 \" 文本接受（bool 拒绝）；搭配 bounded_research_enum 的整数断言共同覆盖 Go researchNumber 语义。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(research_number_accepts_go_supported_scalar_types)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_research_normalization_boundaries_test.go:306:TestQuoteRightsRefreshStateEdges": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/quote_rights_tests.rs::notification_resolution_wins_over_inflight_query_result",
+    "conclusion": "function_exact：stale ConnStatus/QotRight generation(3 vs 2/4) 不覆盖、notification 清除同 generation failure、query 结果不得覆盖已落地的 notification、fresh generation 接受并清缓存；配套 stale_connect_and_quote_right_notifications_cannot_replace_newer_generation 与 fresh_generation_query_result_is_accepted 覆盖同测试其余分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(notification_resolution_wins_over_inflight_query_result)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_research_normalization_boundaries_test.go:368:TestQuoteRightsFailureAndExchangeGenerationEdges": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/quote_rights_tests.rs::fetch_failure_outcomes_follow_generation_and_notification_state",
+    "conclusion": "function_exact：generation mismatch→RefreshRequired、notification 已解决→ResolvedByNotification、无 notification→Failed+3s 失败缓存、缓存过期后可重试、generation=0 永不 verified；engine 侧 broker_capabilities_stay_degraded_until_a_generation_verifies_quote_rights 验证投影不再把“已连接”当作“已验证”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(fetch_failure_outcomes_follow_generation_and_notification_state)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_stock_screen_test.go:15:TestTranslateResearchScreenParamsBuildsStrictStockScreenRequest": {
     "status": "[x]",

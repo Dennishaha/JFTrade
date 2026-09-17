@@ -66,6 +66,8 @@ pub(crate) struct SharedTradeReadRuntime {
     trade_writer: Arc<RwLock<Option<Arc<dyn TradeWritePort>>>>,
     pub(crate) margin_ratio_cache: MarginRatioCache,
     connection: Arc<RwLock<Option<TradeRuntimeConnection>>>,
+    /// One owner for OpenD connect status + generation-fenced quote rights.
+    pub(crate) quote_rights: product_trade_runtime_quote_rights::QuoteRightsOwner,
     live_hub: Arc<RwLock<Option<Arc<LiveHub>>>>,
     live_connection_limit: Arc<RwLock<Option<usize>>>,
     market_data_router: Arc<RwLock<Option<Arc<Mutex<ProviderRouter>>>>>,
@@ -148,6 +150,9 @@ pub(crate) struct TradeRuntimeConnection {
     pub(crate) use_encryption: bool,
 }
 type TradeRuntimeState = Option<(Arc<dyn TradeReadPort>, bool)>;
+pub(crate) use product_trade_runtime_prediction_state::{
+    PredictionSubscriptionLease, PredictionSubscriptionState,
+};
 type OptionUnderlyingHisVolatilityPort = Arc<dyn OptionUnderlyingHisVolatilityReadPort>;
 type OptionMarketStatisticPort = Arc<dyn OptionMarketStatisticReadPort>;
 type OptionUnderlyingHisStatisticPort = Arc<dyn OptionUnderlyingHisStatisticReadPort>;
@@ -155,27 +160,6 @@ type OptionStrategySpreadPort = Arc<dyn OptionStrategySpreadReadPort>;
 type OptionStrategyPort = Arc<dyn OptionStrategyReadPort>;
 type OptionStrategyAnalysisPort = Arc<dyn OptionStrategyAnalysisReadPort>;
 
-#[derive(Default)]
-struct PredictionSubscriptionState {
-    counts: std::collections::BTreeMap<String, usize>,
-    leases: std::collections::BTreeMap<String, PredictionSubscriptionLease>,
-    sequence: u64,
-}
-
-struct PredictionSubscriptionLease {
-    key: String,
-    code: String,
-    _data_types: Vec<String>,
-}
-
-impl PredictionSubscriptionState {
-    #[allow(dead_code)]
-    fn clear(&mut self) {
-        self.counts.clear();
-        self.leases.clear();
-        self.sequence = 0;
-    }
-}
 impl std::fmt::Debug for SharedTradeReadRuntime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SharedTradeReadRuntime")
@@ -791,6 +775,12 @@ fn lookup_tick_snapshot(
             )
     }
 }
+
+#[path = "product_trade_runtime_prediction_state.rs"]
+pub(crate) mod product_trade_runtime_prediction_state;
+
+#[path = "product_trade_runtime_quote_rights.rs"]
+pub(crate) mod product_trade_runtime_quote_rights;
 
 #[path = "product_trade_runtime_broker_routes.rs"]
 mod product_trade_runtime_broker_routes;
