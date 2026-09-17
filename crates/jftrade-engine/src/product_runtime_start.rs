@@ -145,21 +145,7 @@ pub async fn start_product_runtime(
                     &trade_runtime,
                     &runtime.coordinator(),
                 );
-                let customization_reader = Arc::new(
-                    jftrade_integration_futu::FutuRemoteWatchlistReader::new(runtime.coordinator()),
-                );
-                let alert_reader = Arc::new(jftrade_integration_futu::FutuAlertQuery {
-                    coordinator: runtime.coordinator(),
-                });
-                let alert_writer = Arc::new(jftrade_integration_futu::FutuAlertWrite {
-                    coordinator: runtime.coordinator(),
-                });
-                trade_runtime.set_customization_readers(
-                    Some(customization_reader.clone()),
-                    Some(alert_reader.clone()),
-                );
-                trade_runtime
-                    .set_customization_writers(Some(customization_reader), Some(alert_writer));
+                start_helpers::install_customization_ports(&trade_runtime, &runtime.coordinator());
                 trade_runtime.set_news_reader(Some(Arc::new(
                     jftrade_integration_futu::OpenDNewsReader::new(runtime.coordinator()),
                 )));
@@ -354,18 +340,7 @@ pub async fn start_product_runtime(
         trade_runtime.set_writer(config.product.trade_write_port.clone());
     }
     if let Some(coordinator) = market_data_opend.as_ref() {
-        let customization_reader = Arc::new(
-            jftrade_integration_futu::FutuRemoteWatchlistReader::new(Arc::clone(coordinator)),
-        );
-        let alert_reader = Arc::new(jftrade_integration_futu::FutuAlertQuery {
-            coordinator: Arc::clone(coordinator),
-        });
-        let alert_writer = Arc::new(jftrade_integration_futu::FutuAlertWrite {
-            coordinator: Arc::clone(coordinator),
-        });
-        trade_runtime
-            .set_customization_readers(Some(customization_reader.clone()), Some(alert_reader));
-        trade_runtime.set_customization_writers(Some(customization_reader), Some(alert_writer));
+        start_helpers::install_customization_ports(&trade_runtime, coordinator);
         product_runtime_provider_activation::install_security_catalog_readers(
             &trade_runtime,
             coordinator,

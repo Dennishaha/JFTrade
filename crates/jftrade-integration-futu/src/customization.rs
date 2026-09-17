@@ -123,17 +123,26 @@ impl RemoteWatchlistReadPort for FutuRemoteWatchlistReader {
             .map(|s| {
                 s.static_info_list
                     .into_iter()
-                    .map(|entry| {
+                    .filter_map(|entry| {
                         let basic = entry.basic;
                         let security = basic.security;
-                        json!({
-                            "instrumentId": instrument_id(security.market, &security.code),
+                        // Go's `convertFutuWatchlistSecurities` drops any member
+                        // whose canonical `MARKET.CODE` cannot be built, then
+                        // keeps the canonical id and the broker's own aliases as
+                        // *separate* fields. Collapsing them into one field made
+                        // the two aliases indistinguishable.
+                        let instrument_id =
+                            watchlist_member_instrument_id(security.market, &security.code)?;
+                        Some(json!({
+                            "instrumentId": instrument_id,
                             "market": market_label(security.market),
                             "symbol": security.code,
                             "name": basic.name,
                             "lotSize": basic.lot_size,
-                            "securityType": basic.sec_type,
-                        })
+                            "securityType": security_type_label(basic.sec_type),
+                            "brokerCode": security.code,
+                            "brokerSecurityId": basic.id.to_string(),
+                        }))
                     })
                     .collect()
             })
@@ -428,6 +437,48 @@ fn parse_market(value: &str) -> Option<i32> {
 }
 fn instrument_id(market: i32, code: &str) -> String {
     format!("{}.{}", market_label(market), code)
+}
+/// Go `futuSymbolFromSecurity`: trim + upper-case the broker code and reject
+/// markets OpenD cannot address, so the canonical watchlist member id is only
+/// produced for markets Go accepts.
+fn watchlist_member_instrument_id(market: i32, code: &str) -> Option<String> {
+    let market = match market {
+        1 => "HK",
+        11 => "US",
+        21 => "SH",
+        22 => "SZ",
+        31 => "SG",
+        41 => "JP",
+        51 => "AU",
+        61 => "MY",
+        71 => "CA",
+        _ => return None,
+    };
+    let code = code.trim().to_ascii_uppercase();
+    if code.is_empty() {
+        return None;
+    }
+    Some(format!("{market}.{code}"))
+}
+
+/// Go `enumName(value, qotcommonpb.SecurityType_name)` strips the leading
+/// `SecurityType_` prefix; the snapshot reader keeps the same label table.
+fn security_type_label(value: i32) -> &'static str {
+    match value {
+        1 => "Bond",
+        2 => "Bwrt",
+        3 => "Eqty",
+        4 => "Trust",
+        5 => "Warrant",
+        6 => "Index",
+        7 => "Plate",
+        8 => "Drvt",
+        9 => "PlateSet",
+        10 => "Future",
+        11 => "Forex",
+        12 => "Crypto",
+        _ => "",
+    }
 }
 
 fn parse_i32(value: &Value) -> Option<i32> {

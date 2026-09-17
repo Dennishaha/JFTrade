@@ -63,6 +63,7 @@ mod subscriptions;
 mod technical_indicator_query;
 mod ticker_query;
 mod valuation_detail_query;
+mod watchlist_reader;
 // The generated module is crate-internal; generated messages must not leak to
 // engine consumers.  Generated code is intentionally exempt from local lint
 // rules because its field/enum names are dictated by the OpenD schema.
@@ -357,6 +358,10 @@ pub use valuation_detail_query::{
     ValuationDetailProfitGrowthItem, ValuationDetailQuery, ValuationDetailQueryError,
     ValuationDetailReadPort, ValuationDetailSecurity, ValuationDetailSnapshot,
     ValuationDetailTrend,
+};
+pub use watchlist_reader::{
+    CachedRemoteWatchlistReader, WATCHLIST_CACHE_TTL, WATCHLIST_READ_LIMIT, WATCHLIST_READ_WINDOW,
+    WatchlistClock, WatchlistReadGate, convert_groups, convert_members, normalize_group_name,
 };
 
 pub const PROTO_INIT_CONNECT: u32 = 1001;

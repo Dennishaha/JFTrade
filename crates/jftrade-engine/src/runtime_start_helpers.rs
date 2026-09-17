@@ -68,3 +68,29 @@ pub(super) fn production_provider_status(
         (false, false) => ProductionRuntimeStatus::Degraded,
     }
 }
+
+/// Installs the customization (remote watchlist + price/option alerts) ports.
+///
+/// Reads go through [`CachedRemoteWatchlistReader`], which owns Go's 30s TTL
+/// cache, the 10-call/30s OpenD read gate and duplicate-group ambiguity;
+/// writes stay on the raw adapter so the cache and quota guard can never mask
+/// a mutation.
+pub(super) fn install_customization_ports(
+    trade_runtime: &Arc<crate::product::product_production_ports::SharedTradeReadRuntime>,
+    coordinator: &Arc<Mutex<OpenDSessionCoordinator>>,
+) {
+    let customization_reader = Arc::new(
+        jftrade_integration_futu::CachedRemoteWatchlistReader::new(Arc::clone(coordinator)),
+    );
+    let customization_writer = Arc::new(jftrade_integration_futu::FutuRemoteWatchlistReader::new(
+        Arc::clone(coordinator),
+    ));
+    let alert_reader = Arc::new(jftrade_integration_futu::FutuAlertQuery {
+        coordinator: Arc::clone(coordinator),
+    });
+    let alert_writer = Arc::new(jftrade_integration_futu::FutuAlertWrite {
+        coordinator: Arc::clone(coordinator),
+    });
+    trade_runtime.set_customization_readers(Some(customization_reader), Some(alert_reader));
+    trade_runtime.set_customization_writers(Some(customization_writer), Some(alert_writer));
+}

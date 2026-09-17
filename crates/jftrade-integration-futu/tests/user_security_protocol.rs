@@ -348,6 +348,79 @@ fn members_encode_a_trimmed_group_name_and_project_static_info() {
     task.join().expect("server");
 }
 
+// Parity: go:452dea11:pkg/futu/watchlist_reader_test.go:89
+// TestConvertFutuWatchlistSecuritiesPreservesCanonicalIDAndBrokerAlias and
+// go:452dea11:internal/watchlist/futu/source_test.go:83
+// TestRemoteMembersKeepBrokerCodeAndSecurityIDAsSeparateAliases.
+//
+// The canonical `JP.7203` id and the broker's own code/security id must stay
+// three distinct values: Rust used to project only `instrumentId` plus the raw
+// broker code, so `brokerSecurityId` was never emitted at all.
+#[test]
+fn members_keep_canonical_id_and_broker_aliases_distinct() {
+    let (address, task) = server(|stream, members, _next| {
+        assert_eq!(members.header.proto_id, PROTO_GET_USER_SECURITY);
+        write_response(
+            stream,
+            members.header.proto_id,
+            members.header.serial_no,
+            SecurityResponse {
+                ret_type: Some(0),
+                ret_msg: None,
+                err_code: None,
+                s2c: Some(SecurityS2c {
+                    static_info_list: vec![
+                        SecurityStaticInfo {
+                            basic: Some(SecurityStaticBasic {
+                                security: Some(WireSecurity {
+                                    market: 41,
+                                    code: "7203".to_owned(),
+                                }),
+                                id: Some(123456),
+                                lot_size: Some(100),
+                                sec_type: Some(3),
+                                name: Some("Toyota".to_owned()),
+                            }),
+                        },
+                        // Unsupported market: Go drops the row instead of
+                        // emitting an empty `".BAD"` instrument id.
+                        SecurityStaticInfo {
+                            basic: Some(SecurityStaticBasic {
+                                security: Some(WireSecurity {
+                                    market: -1,
+                                    code: "BAD".to_owned(),
+                                }),
+                                id: Some(1),
+                                lot_size: Some(1),
+                                sec_type: Some(0),
+                                name: Some("Bad".to_owned()),
+                            }),
+                        },
+                    ],
+                }),
+            }
+            .encode_to_vec(),
+        );
+    });
+    let coordinator = make_coordinator(address, Duration::from_secs(1));
+    let reader = FutuRemoteWatchlistReader::new(Arc::clone(&coordinator));
+    let members = reader.members("Long Term").expect("members");
+    assert_eq!(
+        members.len(),
+        1,
+        "unsupported markets must be dropped: {members:?}"
+    );
+    assert_eq!(members[0]["instrumentId"], "JP.7203");
+    assert_eq!(members[0]["brokerCode"], "7203");
+    assert_eq!(members[0]["brokerSecurityId"], "123456");
+    assert_ne!(members[0]["brokerCode"], members[0]["brokerSecurityId"]);
+    // Go labels the wire enum through `enumName`; `SecurityType_Eqty` becomes
+    // the suffix `Eqty` rather than the raw int or the prefixed constant.
+    assert_eq!(members[0]["securityType"], "Eqty");
+    close(&coordinator);
+    task.join().expect("server");
+}
+
 // Parity: go:452dea11:pkg/futu/opend/user_security_test.go:103
 // TestUserSecurityMethodsPropagateBusinessErrorsAndEmptyResults
 #[test]

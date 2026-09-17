@@ -1763,3 +1763,68 @@ pnpm run check:rust:architecture
 python3 scripts/compatibility/audit_test_parity.py   # 2164 Rust tests, Futu 域 86.1%
 git diff --check
 ```
+
+## 批次：pkg/futu/watchlist_reader_test.go（6 项，含 1 项顺带修复）＋ internal/watchlist/futu/source_test.go 别名项
+
+行为基线：`go:452dea11:pkg/futu/watchlist_reader_test.go`（205 行，6 项）、
+`go:452dea11:pkg/futu/watchlist_reader.go`（354 行）、
+`go:452dea11:internal/watchlist/futu/source_test.go:83`。
+本批把 Go 的 `futuWatchlistReader` 语义（30s TTL 缓存、10 次/30s 滚动配额门、规范化重名歧义、
+canonical id 与 broker 别名分离）落到 Rust 的
+`crates/jftrade-integration-futu/src/watchlist_reader.rs`，并在生产装配中拆开读写 owner。
+
+### 逐项结果
+
+1. `:14 TestFutuWatchlistReadGateEnforcesTenCallsPerRollingThirtySeconds` → `[x]`
+   `crates/jftrade-integration-futu/src/watchlist_reader_tests.rs::tests::watchlist_read_gate_enforces_ten_calls_per_rolling_thirty_seconds`
+   Rust `WatchlistReadGate::allow` 复刻 Go 的 `!call.After(cutoff)` 边界：前 10 次允许、t=29s 拒绝、
+   t=30s 放行。
+2. `:30 TestFutuWatchlistReaderCacheUsesTTLAndReturnsCopies` → `[x]`
+   `watchlist_reader_cache_uses_ttl_and_returns_copies` + `watchlist_reader_cache_expires_at_the_ttl_boundary`
+   调用方改写返回值后缓存命中仍返回深拷贝；`now < expiresAt` 才命中，`+30s` 边界即 miss。
+3. `:72 TestConvertFutuWatchlistGroupsMarksEveryNormalizedDuplicateAmbiguous` → `[x]`
+   `watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous`：
+   trim+lower 归一化重名**全部** ambiguous=true，system 组 type=system。
+4. `:89 TestConvertFutuWatchlistSecuritiesPreservesCanonicalIDAndBrokerAlias` → `[x]`（**含真实修复**）
+   `crates/jftrade-integration-futu/tests/user_security_protocol.rs::members_keep_canonical_id_and_broker_aliases_distinct`
+   差异：Rust 3213 投影只输出 `instrumentId` + 原始整型 `securityType`，**完全缺失**
+   `brokerCode`/`brokerSecurityId`；非法 market 还会投影成 `".BAD"`。
+   修复位置：`crates/jftrade-integration-futu/src/customization.rs`
+   （`watchlist_member_instrument_id` 复刻 `futuSymbolFromSecurity` 的 trim+upper 与市场白名单，
+   `security_type_label` 复刻 `enumName(SecurityType_name)` 去前缀）。
+   回归：新增 framed OpenD 测试断言 `JP.7203`/`7203`/`123456`/`Eqty` 且别名互不相同、非法行被丢弃；
+   无修复时该测试失败（已用 stash 验证）。
+5. `:113 TestFutuWatchlistFreshReadBypassesAndReplacesGroupAndMemberCaches` → `[x]`
+   `watchlist_fresh_read_bypasses_and_replaces_group_and_member_caches`：计数 1→1（缓存）→2/2（fresh）
+   →2/2（fresh 后复用新缓存）。
+6. `:164 TestFutuWatchlistFreshMemberReadRechecksRemoteAmbiguity` → `[x]`
+   `watchlist_fresh_member_read_rechecks_remote_ambiguity`：fresh 先重查 3222，重名即报 ambiguous
+   且**不发起** 3213（member 计数保持 1）。
+
+顺带条目 `internal/watchlist/futu/source_test.go:83
+TestRemoteMembersKeepBrokerCodeAndSecurityIDAsSeparateAliases` → `[~] partial`：
+Rust 已断言三个 id 互不相同，但该 Go 测试针对 `internal/watchlist` 的 `RemoteMember.securityId`
+投影层，Rust 无同层类型，故保留 partial 而不冒充 function_exact。
+
+### 边界说明
+
+- Rust 读取走 `CachedRemoteWatchlistReader`（缓存+配额门+歧义），写入仍走裸
+  `FutuRemoteWatchlistReader`；`product_runtime_start.rs` 通过
+  `set_customization_readers` / `set_customization_writers` 分离两个 owner，避免缓存门被写路径绕过。
+- 未改动 `contracts/openapi/`、`proto/` 或冻结 fixture：3213/3222 协议与既有 wire 形状不变，
+  成员条目仅补齐 Go 已输出的 `brokerCode`/`brokerSecurityId` 并把 `securityType` 从整型改为 Go 的标签。
+- 已知未闭环：`ProductionRemoteWatchlistPort::read` 仍把 reader 的 `Invalid`（空白组名、未知/歧义组）
+  统一映射为 503 `WATCHLIST_UNAVAILABLE`，而 Go 的 `writeError` 对 `ErrValidation`/`ErrNotFound`/
+  `ErrAmbiguousRemoteGroup` 分别返回 400/404/409。该差异属 API transport 层，需连同 OpenAPI 与
+  route ledger 一起处理，本批不擅自变更既有 502/503 契约。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+pnpm run check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```
