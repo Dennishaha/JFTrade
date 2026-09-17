@@ -735,7 +735,7 @@ fn test_fallback_establishment_recovery_and_count_semantics() {
                         &mut stream3,
                         jftrade_integration_futu::PROTO_GET_BASIC_QOT,
                         frame.header.serial_no,
-                        &[0x08, 0x00, 0x22, 0x00],
+                        &[0x08, 0x00, 0x22, 0x03, 0x08, 0xf1, 0x07],
                     );
                 }
                 _ => {}

@@ -6,12 +6,15 @@ use prost::Message;
 use thiserror::Error;
 
 use crate::{
-    OpenDManagedSession, OpenDManagedSessionError, OpenDProbe, PROTO_GET_GLOBAL_STATE,
-    PROTO_INIT_CONNECT, TcpTransportError, TransportError, WireGlobalState,
+    MINIMUM_OPEND_VERSION, OpenDManagedSession, OpenDManagedSessionError, OpenDProbe,
+    PROTO_GET_GLOBAL_STATE, PROTO_INIT_CONNECT, TcpTransportError, TransportError, WireGlobalState,
 };
 use jftrade_marketdata::{HealthStatus, ProviderReadiness};
 
 const RET_TYPE_SUCCEED: i32 = 0;
+
+/// `minimumOpenDServerVer` from `pkg/futu/opend/version.go`.
+const MINIMUM_OPEND_SERVER_VER: i32 = 1009;
 
 #[derive(Clone, Debug)]
 pub struct OpenDTcpProbeConfig {
@@ -57,6 +60,14 @@ pub enum OpenDTcpProbeError {
     MissingInitState,
     #[error("OpenD GetGlobalState response omitted S2C state")]
     MissingGlobalState,
+    /// Go `opend.ValidateMinimumVersion` rejects an OpenD build older than the
+    /// protobuf contract this repository targets. InitConnect only exposes
+    /// `serverVer`, so the guard runs without a build number.
+    #[error(
+        "OpenD 版本 {server_version} 低于最低支持版本 {min}, 请升级 OpenD 后重试",
+        min = MINIMUM_OPEND_VERSION
+    )]
+    UnsupportedVersion { server_version: String },
 }
 
 pub struct OpenDTcpProbe;
@@ -244,6 +255,15 @@ fn initialize_session(
     let state = init_response
         .s2c
         .ok_or(OpenDTcpProbeError::MissingInitState)?;
+    // Go's `validateInitConnectResponse` runs the minimum-version check with a
+    // nil build number before the session is used: InitConnect only reports
+    // `serverVer`, so an older minor line must fail session initialization
+    // immediately instead of being discovered later by the health probe.
+    if !version_supported_without_build(state.server_ver) {
+        return Err(OpenDTcpProbeError::UnsupportedVersion {
+            server_version: format_version(state.server_ver, 0),
+        });
+    }
     Ok(InitConnectState {
         conn_id: state.conn_id,
         keep_alive_interval_seconds: state.keep_alive_interval,
@@ -288,9 +308,16 @@ fn format_version(server_ver: i32, build_no: i32) -> String {
 /// older minor regardless of build number. Keeping this beside
 /// `format_version` means the probe and the version test share one rule.
 fn version_supported(server_ver: i32, build_no: i32) -> bool {
-    let minimum: i32 = 1009;
+    let minimum: i32 = MINIMUM_OPEND_SERVER_VER;
     let minimum_build: i32 = 6908;
     server_ver > minimum || (server_ver == minimum && build_no >= minimum_build)
+}
+
+/// Minimum-version guard for the InitConnect handshake, which has no build
+/// number yet. Go's `ValidateMinimumVersion(serverVer, nil)` accepts any build
+/// on the minimum minor line and rejects every older minor.
+fn version_supported_without_build(server_ver: i32) -> bool {
+    server_ver >= MINIMUM_OPEND_SERVER_VER
 }
 
 fn format_timestamp(seconds: i64) -> String {

@@ -154,6 +154,7 @@ pub(crate) fn project(
                     | jftrade_integration_futu::OpenDTcpProbeError::Decode { .. }
                     | jftrade_integration_futu::OpenDTcpProbeError::MissingInitState
                     | jftrade_integration_futu::OpenDTcpProbeError::MissingGlobalState
+                    | jftrade_integration_futu::OpenDTcpProbeError::UnsupportedVersion { .. }
                     | jftrade_integration_futu::OpenDTcpProbeError::Session(
                         jftrade_integration_futu::OpenDManagedSessionError::Closed(_)
                     )

@@ -39,6 +39,8 @@ struct InitResponse {
 
 #[derive(Clone, PartialEq, Message)]
 struct InitState {
+    #[prost(int32, tag = "1")]
+    server_ver: i32,
     #[prost(uint64, tag = "3")]
     conn_id: u64,
 }
@@ -317,7 +319,10 @@ where
             init.header.serial_no,
             InitResponse {
                 ret_type: Some(0),
-                s2c: Some(InitState { conn_id: 7 }),
+                s2c: Some(InitState {
+                    server_ver: 1009,
+                    conn_id: 7,
+                }),
             }
             .encode_to_vec(),
         );
@@ -663,7 +668,10 @@ fn short_interest_reader_uses_new_generation_after_peer_close() {
             init.header.serial_no,
             InitResponse {
                 ret_type: Some(0),
-                s2c: Some(InitState { conn_id: 1 }),
+                s2c: Some(InitState {
+                    server_ver: 1009,
+                    conn_id: 1,
+                }),
             }
             .encode_to_vec(),
         );
@@ -680,7 +688,10 @@ fn short_interest_reader_uses_new_generation_after_peer_close() {
             init.header.serial_no,
             InitResponse {
                 ret_type: Some(0),
-                s2c: Some(InitState { conn_id: 2 }),
+                s2c: Some(InitState {
+                    server_ver: 1009,
+                    conn_id: 2,
+                }),
             }
             .encode_to_vec(),
         );

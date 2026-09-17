@@ -318,6 +318,7 @@ fn run_task(context: RuntimeTaskContext) {
     let mut reconnect_failures = 0u32;
     let mut reconnect_not_before = None;
     let mut quota_refresh_pending = config.quota_refresh_enabled;
+    let mut published_outcome = None;
     while stop_rx.recv_timeout(poll_interval).is_err() {
         if let Some(not_before) = reconnect_not_before
             && std::time::Instant::now() < not_before
@@ -354,15 +355,18 @@ fn run_task(context: RuntimeTaskContext) {
         if iteration_error.is_none() {
             match coordinator.poll_once(now, event_timeout) {
                 Ok(outcome) => {
-                    if let Some(listener) = config.event_listener.as_ref() {
-                        listener.on_event(&outcome);
-                    }
                     if let OpenDSessionCoordinatorOutcome::Reconnected { .. } = outcome {
                         let mut state = status.lock().unwrap_or_else(|error| error.into_inner());
                         state.reconnects = state.reconnects.saturating_add(1);
                         reconnect_failures = 0;
                         quota_refresh_pending = config.quota_refresh_enabled;
                     }
+                    // The listener runs after `drop(coordinator)` below. Go's
+                    // notification handlers may read connection state
+                    // (`exchange.ConnectionGeneration()`) while a reconnect is
+                    // in flight, so dispatching under the coordinator lock
+                    // would deadlock a handler that calls back in.
+                    published_outcome = Some(outcome);
                 }
                 Err(error) => iteration_error = Some(error.to_string()),
             }
@@ -387,6 +391,11 @@ fn run_task(context: RuntimeTaskContext) {
             }
         }
         drop(coordinator);
+        if let Some(outcome) = published_outcome.take()
+            && let Some(listener) = config.event_listener.as_ref()
+        {
+            listener.on_event(&outcome);
+        }
         if let Some(error) = iteration_error.as_deref()
             && let Some(listener) = config.event_listener.as_ref()
         {

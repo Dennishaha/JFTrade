@@ -44,6 +44,7 @@ mod provider;
 mod provider_runtime;
 mod quote_push;
 mod quote_rights;
+mod recoverable_error;
 mod research_institutions_query;
 mod research_normalization;
 mod research_params;
@@ -250,6 +251,9 @@ pub use quote_rights::{
     ConnectStatusSnapshot, QUOTE_RIGHTS_FAILURE_RETRY_INTERVAL, QuoteRightField,
     QuoteRightSnapshot, QuoteRightState, QuoteRightsError, QuoteRightsFetchOutcome,
     QuoteRightsState,
+};
+pub use recoverable_error::{
+    OpenDRecoverableKind, classify_recoverable, classify_recoverable_io, is_recoverable_error,
 };
 pub use research_institutions_query::{
     FutuInstitutionEntry, FutuInstitutionOperation, FutuInstitutionQuery,

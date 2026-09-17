@@ -136,7 +136,7 @@ mod tests {
             let response = encode_frame(
                 PROTO_INIT_CONNECT,
                 init.header.serial_no,
-                &[0x08, 0x00, 0x22, 0x00],
+                &[0x08, 0x00, 0x22, 0x03, 0x08, 0xf1, 0x07],
             )
             .expect("init response");
             stream.write_all(&response).expect("write init response");
@@ -240,7 +240,7 @@ mod tests {
             let response = encode_frame(
                 PROTO_INIT_CONNECT,
                 init.header.serial_no,
-                &[0x08, 0x00, 0x22, 0x00],
+                &[0x08, 0x00, 0x22, 0x03, 0x08, 0xf1, 0x07],
             )
             .expect("init response");
             stream.write_all(&response).expect("write init response");

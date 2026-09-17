@@ -1476,3 +1476,55 @@ pnpm run check:rust:architecture
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+## 批次：pkg/futu/client_exchange_recovery_boundaries_test.go（7 项）
+
+状态：4 项 `[x]` function_exact，3 项 `[~]`（partial / 边界保留）。该批次把 OpenD 客户端的错误分类、重连替换、通知发布与交易推送订阅四条边界补齐为 socket 级回归，并修复了三处真实缺陷：重连通知自锁、InitConnect 不校验最低版本、以及 recoverable 分类在多个读端口各自为政。
+
+### 真实功能差异与修复
+
+1. **重连期间发布通知会自锁（P1，重连/并发）**
+   - 差异：Go 的 `TestReconnectDoesNotDeadlockWithInFlightNotification` 让 system-notify handler 在重连进行中调用 `exchange.ConnectionGeneration()`，要求重连与 handler 都不阻塞。Rust `runtime_task.rs::run_task` 在持有 coordinator `Mutex` 时调用 `OpenDSessionEventListener::on_event`，任何回读 coordinator（engine 的 `LiveHubOpenDEventListener` 就带 reconciliation wake 路径）的 listener 都会在同一线程自锁，重连永远无法完成。
+   - 复现条件：`OpenDSessionRuntime` 配 event listener，其 `on_event` 调 `coordinator.lock()...generation()`；peer close 后运行状态下 `status().reconnects` 长时间为 0。
+   - 修复：把事件发布移到 `drop(coordinator)` 之后（用 `published_outcome` 暂存本轮 outcome）；`on_error` 保持原有顺序。
+   - 回归：`crates/jftrade-integration-futu/tests/client_recovery_boundaries.rs::reconnect_completes_while_a_notification_listener_reads_coordinator_state`（listener 内回读 generation，断言收到 generation 2）。
+
+2. **InitConnect 未校验最低 OpenD 版本（P1，会话建立）**
+   - 差异：Go 的 `validateInitConnectResponse` 在 InitConnect 阶段就用 `ValidateMinimumVersion(serverVer, nil)` 拒绝旧版本，因此 `TestOldOpenDVersionFailsSessionInitialization` 的 `Connect()` 直接失败。Rust 原先只在 health probe 的 GetGlobalState 阶段比较 `serverVer/serverBuildNo`，InitConnect 报 10.8 仍会建立可用会话，行情/交易路径可继续使用不受支持的协议面。
+   - 复现条件：脚本化 OpenD 对 InitConnect 回 `retType=0, S2C.serverVer=1008`；旧实现 `connect_with_push_notifications` 返回 Ok。
+   - 修复：新增 `health.rs::version_supported_without_build` 与 typed 变体 `OpenDTcpProbeError::UnsupportedVersion { server_version }`（消息带检测到的版本与 `MINIMUM_OPEND_VERSION`）；`initialize_session` 在返回前校验。`crates/jftrade-engine/src/product_production_ports_open_d_snapshot.rs` 将该变体并入 degraded 协议失败分支（升级引导而非重启）。
+   - 回归：`client_recovery_boundaries.rs::below_minimum_version_fails_session_initialization`；同时修正多份缺失 `serverVer` 的测试 fixture（Go 的 `quoteOpenDServer` 始终上报 1009），避免 fixture 与真实 OpenD 行为不一致。
+
+3. **recoverable 分类分散在多处（P1，重放策略唯一 owner）**
+   - 差异：Go 用单一 `isRecoverableOpenDErr` 决定 `withClient`/`withRetryingClient` 是否重放。Rust 的 `basic_quote_query::is_recoverable_session_error` 自成一类判断，新增读端口极易写出更宽或更窄的重放策略。
+   - 修复：新增 `crates/jftrade-integration-futu/src/recoverable_error.rs`（`OpenDRecoverableKind`、`classify_recoverable`、`classify_recoverable_io`、`is_recoverable_error`）作为唯一 owner，分类同时覆盖 Go 的 `opend: client closed` / `opend: request timed out` 哨兵文本；`is_recoverable_session_error` 改为委托该 owner。
+   - 回归：`recoverable_error_tests.rs` 2 个测试 + 本批 socket 测试的 peer-close 重放断言。
+
+### 行为映射
+
+| Go 测试 | Rust 入口 | 状态与结论 |
+| --- | --- | --- |
+| :19 TestWithClientReplayPolicyForRecoverableErrors | tests/client_recovery_boundaries.rs::recoverable_error_policy_gates_replay_safe_reads | `[x]` function_exact（含功能修复）：分类表 + peer close 后 generation 2 的订阅重放 |
+| :56 TestExchangeReconnectsClosedReadyClientAndCoversHandlerBoundaries | tests/client_recovery_boundaries.rs::closed_ready_session_is_replaced_on_peer_close | `[x]` function_exact（收窄到会话替换）：ready 会话关闭后替换为 generation 2 且可用 |
+| :107 TestReconnectDoesNotDeadlockWithInFlightNotification | tests/client_recovery_boundaries.rs::reconnect_completes_while_a_notification_listener_reads_coordinator_state | `[x]` function_exact（含功能修复）：listener 在重连中回读 generation 不再自锁 |
+| :198 TestTradeAccountPushNormalizationSubscriptionAndFactoryEnvironment | tests/client_recovery_boundaries.rs::trade_push_subscription_forwards_the_requested_accounts | `[~]` partial：Trd_SubAccPush 转发与成功 ack 等价；排序去重/幂等/重连重放与 bbgo env-prefix 工厂属旧 owner，边界保留 |
+| :249 TestOldOpenDVersionFailsSessionInitialization | tests/client_recovery_boundaries.rs::below_minimum_version_fails_session_initialization | `[x]` function_exact（含功能修复）：InitConnect 阶段拒绝旧版本 |
+| :260 TestInitResponseAndSessionTransportFailures | tests/client_recovery_boundaries.rs::init_response_and_session_transport_failures_stay_typed | `[x]` function_exact：retType 拒绝、缺 S2C、InitConnect/GetGlobalState 断线全部 typed |
+| :282 TestReconnectTradePushFailureAndTradeHandlerBinding | tests/client_recovery_boundaries.rs::trade_push_subscription_failure_surfaces_a_transport_error | `[~]` partial：未 ack 的 2008 失败关闭；order/fill 推送绑定由 engine 轮询对账 owner 承担，边界保留 |
+
+### 边界说明
+
+- Rust 没有 Wails/bbgo exchange 工厂层：OpenD 地址来自 settings 的 `host`/`apiPort`，`NewWithEnvVarPrefix` 的 env 前缀回退在本仓库无对应入口，因此 :198 的工厂环境分支记录为边界而非移植。
+- Rust 不注册 `OnSystemNotify`/`OnOrderBookUpdate`/`OnOrderUpdate`/`OnOrderFillUpdate` handler map；系统通知经 `notification.rs` 的中性分类，订单状态由 engine 的轮询对账与 push worker 拥有，handler 绑定语义不迁移。
+- `OpenDTcpProbeError::UnsupportedVersion` 是新增公开变体；engine 健康投影已同步，live OpenD 的旧版本拒绝仍需在 `JFTRADE_FUTU_LIVE_TEST=1` 场景复核。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast   # 1625 passed, 1 skipped
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+pnpm run check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```

@@ -254,12 +254,21 @@ fn query_session(
 }
 
 fn is_recoverable_session_error(error: &BasicQuoteQueryError) -> bool {
-    matches!(
-        error,
-        BasicQuoteQueryError::Session(OpenDManagedSessionError::Closed(_))
-            | BasicQuoteQueryError::Session(OpenDManagedSessionError::Io(_))
-            | BasicQuoteQueryError::Session(OpenDManagedSessionError::RequestTimeout { .. })
-    )
+    // One classification owner: `recoverable_error` mirrors Go's
+    // `isRecoverableOpenDErr` so a new read port cannot invent a narrower or
+    // wider replay policy than the one the compatibility checklist freezes.
+    let BasicQuoteQueryError::Session(session) = error else {
+        return false;
+    };
+    match session {
+        OpenDManagedSessionError::Closed(_) => true,
+        OpenDManagedSessionError::RequestTimeout { .. } => true,
+        OpenDManagedSessionError::Io(io) => {
+            crate::classify_recoverable_io(io).is_some()
+                || crate::is_recoverable_error(Some(&io.to_string()))
+        }
+        _ => false,
+    }
 }
 
 fn normalized_instruments(instruments: &[String]) -> Result<Vec<String>, BasicQuoteQueryError> {
@@ -467,7 +476,11 @@ mod tests {
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("accept");
             let init = read_framed_frame(&mut stream).expect("init request");
-            respond(&mut stream, &init, vec![0x08, 0x00, 0x22, 0x00]);
+            respond(
+                &mut stream,
+                &init,
+                vec![0x08, 0x00, 0x22, 0x03, 0x08, 0xf1, 0x07],
+            );
 
             let success = read_framed_frame(&mut stream).expect("success request");
             assert_request(&success);
@@ -606,7 +619,11 @@ mod tests {
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("accept");
             let init = read_framed_frame(&mut stream).expect("init request");
-            respond(&mut stream, &init, vec![0x08, 0x00, 0x22, 0x00]);
+            respond(
+                &mut stream,
+                &init,
+                vec![0x08, 0x00, 0x22, 0x03, 0x08, 0xf1, 0x07],
+            );
             let empty = read_framed_frame(&mut stream).expect("nil s2c request");
             respond(
                 &mut stream,
@@ -644,7 +661,11 @@ mod tests {
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("accept");
             let init = read_framed_frame(&mut stream).expect("init request");
-            respond(&mut stream, &init, vec![0x08, 0x00, 0x22, 0x00]);
+            respond(
+                &mut stream,
+                &init,
+                vec![0x08, 0x00, 0x22, 0x03, 0x08, 0xf1, 0x07],
+            );
             let request = read_framed_frame(&mut stream).expect("query request");
             assert_eq!(request.header.proto_id, crate::PROTO_GET_BASIC_QOT);
             let decoded = BasicQuoteRequest::decode(request.body.as_slice()).expect("request");
@@ -693,7 +714,11 @@ mod tests {
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("accept");
             let init = read_framed_frame(&mut stream).expect("init request");
-            respond(&mut stream, &init, vec![0x08, 0x00, 0x22, 0x00]);
+            respond(
+                &mut stream,
+                &init,
+                vec![0x08, 0x00, 0x22, 0x03, 0x08, 0xf1, 0x07],
+            );
             let rejected = read_framed_frame(&mut stream).expect("rejected request");
             respond(
                 &mut stream,
@@ -731,7 +756,11 @@ mod tests {
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("accept");
             let init = read_framed_frame(&mut stream).expect("init request");
-            respond(&mut stream, &init, vec![0x08, 0x00, 0x22, 0x00]);
+            respond(
+                &mut stream,
+                &init,
+                vec![0x08, 0x00, 0x22, 0x03, 0x08, 0xf1, 0x07],
+            );
             let request = read_framed_frame(&mut stream).expect("query request");
             assert_eq!(request.header.proto_id, crate::PROTO_GET_BASIC_QOT);
             let decoded = BasicQuoteRequest::decode(request.body.as_slice()).expect("request");
@@ -790,7 +819,11 @@ mod tests {
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("accept");
             let init = read_framed_frame(&mut stream).expect("init request");
-            respond(&mut stream, &init, vec![0x08, 0x00, 0x22, 0x00]);
+            respond(
+                &mut stream,
+                &init,
+                vec![0x08, 0x00, 0x22, 0x03, 0x08, 0xf1, 0x07],
+            );
             for expected_price in [189.5_f64, 189.5_f64] {
                 let request = read_framed_frame(&mut stream).expect("query request");
                 assert_eq!(request.header.proto_id, crate::PROTO_GET_BASIC_QOT);
@@ -836,7 +869,11 @@ mod tests {
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("accept");
             let init = read_framed_frame(&mut stream).expect("init request");
-            respond(&mut stream, &init, vec![0x08, 0x00, 0x22, 0x00]);
+            respond(
+                &mut stream,
+                &init,
+                vec![0x08, 0x00, 0x22, 0x03, 0x08, 0xf1, 0x07],
+            );
             let query = read_framed_frame(&mut stream).expect("query request");
             thread::sleep(Duration::from_millis(30));
             respond(
@@ -883,7 +920,11 @@ mod tests {
             for attempt in 0..2 {
                 let (mut stream, _) = listener.accept().expect("accept session");
                 let init = read_framed_frame(&mut stream).expect("init request");
-                respond(&mut stream, &init, vec![0x08, 0x00, 0x22, 0x00]);
+                respond(
+                    &mut stream,
+                    &init,
+                    vec![0x08, 0x00, 0x22, 0x03, 0x08, 0xf1, 0x07],
+                );
                 let query = read_framed_frame(&mut stream).expect("query request");
                 assert_request(&query);
                 if attempt == 1 {
@@ -939,7 +980,11 @@ mod tests {
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("accept");
             let init = read_framed_frame(&mut stream).expect("init request");
-            respond(&mut stream, &init, vec![0x08, 0x00, 0x22, 0x00]);
+            respond(
+                &mut stream,
+                &init,
+                vec![0x08, 0x00, 0x22, 0x03, 0x08, 0xf1, 0x07],
+            );
             let query = read_framed_frame(&mut stream).expect("query request");
             assert_request(&query);
             respond(
