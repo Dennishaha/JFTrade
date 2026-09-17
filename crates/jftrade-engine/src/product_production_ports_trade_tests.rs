@@ -6,6 +6,8 @@ use jftrade_integration_futu::{
     TradeMaxTradeQuantitySnapshot, TradeOrderFeeSnapshot, TradeOrderSnapshot,
     TradePositionSnapshot, TradeSessionError,
 };
+use super::market_code;
+use super::product_production_ports_trade_requests::normalize_trade_account_market;
 use jftrade_marketdata::ProviderRouter;
 use jftrade_settings::{FutuIntegrationConfig, MarketDataProvider, MarketDataProviderRuntimePort};
 use std::time::{Duration, Instant};
@@ -3121,4 +3123,351 @@ fn test_service_broker_write_operations_propagate_upstream_failures() {
         .expect_err("must fail when trade client is unavailable");
     let err_msg = format!("{err:?}");
     assert!(err_msg.contains("TradeClientUnavailable") || err_msg.contains("Unavailable"));
+}
+
+/// Read fixture whose account list is caller-supplied, so authority and
+/// priority resolution can be driven with exact Go fixtures.
+#[derive(Debug)]
+struct AccountsFixtureRead {
+    accounts: Vec<TradeAccountSnapshot>,
+}
+
+impl TradeReadPort for AccountsFixtureRead {
+    fn read_accounts(
+        &self,
+        _: u64,
+        _: Option<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+        Ok(self.accounts.clone())
+    }
+
+    fn read_funds(
+        &self,
+        header: TradeHeader,
+        refresh: Option<bool>,
+        currency: Option<i32>,
+        asset_category: Option<i32>,
+    ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+        FakeTradeRead.read_funds(header, refresh, currency, asset_category)
+    }
+
+    fn read_cash_flows(
+        &self,
+        header: TradeHeader,
+        clearing_date: String,
+        currency: Option<i32>,
+    ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_cash_flows(header, clearing_date, currency)
+    }
+
+    fn read_positions(
+        &self,
+        header: TradeHeader,
+        filter: Option<jftrade_integration_futu::TradeFilter>,
+        min: Option<f64>,
+        max: Option<f64>,
+        refresh: Option<bool>,
+        asset_category: Option<i32>,
+        currency: Option<i32>,
+        option_strategy_view: Option<bool>,
+    ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_positions(
+            header,
+            filter,
+            min,
+            max,
+            refresh,
+            asset_category,
+            currency,
+            option_strategy_view,
+        )
+    }
+
+    fn read_orders(
+        &self,
+        header: TradeHeader,
+        filter: Option<jftrade_integration_futu::TradeFilter>,
+        status: Vec<i32>,
+        refresh: Option<bool>,
+    ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_orders(header, filter, status, refresh)
+    }
+
+    fn read_fills(
+        &self,
+        header: TradeHeader,
+        filter: Option<jftrade_integration_futu::TradeFilter>,
+        refresh: Option<bool>,
+    ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_fills(header, filter, refresh)
+    }
+
+    fn read_order_fees(
+        &self,
+        header: TradeHeader,
+        order_id_ex_list: Vec<String>,
+    ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_order_fees(header, order_id_ex_list)
+    }
+
+    fn read_margin_ratios(
+        &self,
+        header: TradeHeader,
+        securities: Vec<jftrade_integration_futu::TradeSecurity>,
+    ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_margin_ratios(header, securities)
+    }
+
+    fn read_max_trade_quantity(
+        &self,
+        request: TradeMaxTradeQuantityRequest,
+    ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+        FakeTradeRead.read_max_trade_quantity(request)
+    }
+}
+
+fn account_with(
+    trd_env: i32,
+    acc_id: u64,
+    auth: Vec<i32>,
+    card_num: Option<&str>,
+) -> TradeAccountSnapshot {
+    TradeAccountSnapshot {
+        trd_env,
+        acc_id,
+        trd_market_auth_list: auth,
+        acc_type: Some(2),
+        card_num: card_num.map(str::to_owned),
+        security_firm: Some(1),
+        sim_acc_type: None,
+        uni_card_num: None,
+        acc_status: Some(0),
+        acc_role: Some(1),
+        jp_acc_type: Vec::new(),
+        competition_acc_name: None,
+    }
+}
+
+#[test]
+fn resolve_account_honors_requested_authority_and_falls_back_like_go() {
+    // Parity: go:452dea11:pkg/futu/read_account_test.go:37
+    // TestResolveTradeMarketHonorsRequestedAuthorityAndFallbacks. Go accepts a
+    // trimmed/case-insensitive requested market only when the account holds the
+    // matching authority, maps an unauthorized market to "no match without
+    // error", falls back to a direct market mapping when the account carries no
+    // authority list, rejects unsupported names, skips invalid authority
+    // entries, and defaults to HK for a nil account.
+    let dual = Arc::new(AccountsFixtureRead {
+        accounts: vec![account_with(1, 42, vec![1, 2], None)],
+    });
+    let requested = TradeRequest::parse(
+        "/api/v1/brokers/futu/funds",
+        "accountId=42&tradingEnvironment=REAL&market=%20us%20",
+    )
+    .expect("request");
+    let resolved = requested
+        .resolve_account_with_environment(dual.as_ref(), Some(1), Some("US"))
+        .expect("authorized US");
+    assert_eq!(resolved.market, "US");
+    assert_eq!(resolved.header.trd_market, 2);
+    assert_eq!(resolved.header.trd_env, 1);
+    assert_eq!(resolved.account_id, "42");
+
+    // Unauthorized market: Go reports no match without a resolution error, so
+    // the Rust owner must refuse to fabricate a header.
+    let unauthorized = TradeRequest::parse(
+        "/api/v1/brokers/futu/funds",
+        "accountId=42&tradingEnvironment=REAL",
+    )
+    .expect("request");
+    let error = match unauthorized
+        .resolve_account_with_environment(dual.as_ref(), Some(1), Some("CN"))
+    {
+        Ok(resolved) => panic!(
+            "unauthorized CN must not resolve, got market {}",
+            resolved.market
+        ),
+        Err(error) => error,
+    };
+    assert!(
+        error.contains("no Futu trading account matched"),
+        "unexpected unauthorized-market error: {error}"
+    );
+
+    // No authority list: JP resolves through the direct market mapping.
+    let bare = Arc::new(AccountsFixtureRead {
+        accounts: vec![account_with(1, 42, Vec::new(), None)],
+    });
+    let resolved = unauthorized
+        .resolve_account_with_environment(bare.as_ref(), Some(1), Some("JP"))
+        .expect("no-authority JP");
+    assert_eq!(resolved.market, "JP");
+    assert_eq!(resolved.header.trd_market, 15);
+
+    // Unsupported market name is a hard error, not a silent default.
+    let error = match unauthorized
+        .resolve_account_with_environment(bare.as_ref(), Some(1), Some("MARS"))
+    {
+        Ok(resolved) => panic!("unsupported market must fail: {}", resolved.market),
+        Err(error) => error,
+    };
+    assert!(
+        error.contains("invalid market") || error.contains("no Futu trading account matched"),
+        "unexpected unsupported-market error: {error}"
+    );
+
+    // Invalid authority entries are skipped in favour of the first valid one.
+    let noisy = Arc::new(AccountsFixtureRead {
+        accounts: vec![account_with(
+            1,
+            42,
+            vec![999_999, 1],
+            None,
+        )],
+    });
+    let resolved = unauthorized
+        .resolve_account_with_environment(noisy.as_ref(), Some(1), None)
+        .expect("first valid authority");
+    assert_eq!(resolved.market, "HK");
+    assert_eq!(resolved.header.trd_market, 1);
+}
+
+#[test]
+fn candidate_account_filters_and_card_identity_match_go() {
+    // Parity: go:452dea11:pkg/futu/read_account_test.go:85
+    // TestCandidateTradeAccountFromProtoFiltersAndBuildsHeader. Go normalizes
+    // account id / environment / market, filters on mismatch, and falls back to
+    // the card number when accId is absent.
+    let accounts = Arc::new(AccountsFixtureRead {
+        accounts: vec![
+            account_with(0, 9001, vec![2, 1], None),
+            account_with(1, 0, vec![1], Some("CARD-9002")),
+        ],
+    });
+
+    // Account-id + environment + market match selects the simulated account.
+    let matched = TradeRequest::parse(
+        "/api/v1/brokers/futu/funds",
+        "accountId=9001&tradingEnvironment=simulate&market=us",
+    )
+    .expect("request");
+    let resolved = matched
+        .resolve_account(accounts.as_ref())
+        .expect("matched candidate");
+    assert_eq!(resolved.account_id, "9001");
+    assert_eq!(resolved.environment, "SIMULATE");
+    assert_eq!(resolved.market, "US");
+    assert_eq!(resolved.header.trd_env, 0);
+    assert_eq!(resolved.header.acc_id, 9001);
+    assert_eq!(resolved.header.trd_market, 2);
+
+    // Mismatched account id / environment / market each filter the account out.
+    for query in [
+        "accountId=other&tradingEnvironment=simulate&market=us",
+        "accountId=9001&tradingEnvironment=REAL&market=us",
+        "accountId=9001&tradingEnvironment=simulate&market=CN",
+    ] {
+        let request = TradeRequest::parse("/api/v1/brokers/futu/funds", query).expect("request");
+        assert!(
+            request.resolve_account(accounts.as_ref()).is_err(),
+            "{query} must not match any account"
+        );
+    }
+
+    // A zero accId falls back to the card number as the account identity.
+    let card = TradeRequest::parse(
+        "/api/v1/brokers/futu/funds",
+        "accountId=card-9002&tradingEnvironment=REAL",
+    )
+    .expect("request");
+    let resolved = card
+        .resolve_account(accounts.as_ref())
+        .expect("card-number candidate");
+    assert_eq!(resolved.account_id, "CARD-9002");
+    assert_eq!(resolved.environment, "REAL");
+}
+
+#[test]
+fn broker_read_query_normalization_and_account_priority_match_go() {
+    // Parity: go:452dea11:pkg/futu/read_account_test.go:140
+    // TestBrokerReadQueryNormalizationAndAccountPriority. Go trims and
+    // upper-cases accountId/environment/market, prefers the simulated account
+    // when no environment is requested, and sorts unknown after real.
+    let normalized = TradeRequest::parse(
+        "/api/v1/brokers/futu/funds",
+        "accountId=%209001%20&tradingEnvironment=%20simulate%20&market=%20us%20",
+    )
+    .expect("request");
+    assert_eq!(normalized.account_id(), Some("9001"));
+    assert_eq!(normalized.environment_code().expect("environment"), Some(0));
+    assert_eq!(normalize_trade_account_market(&normalized.market_label()), "US");
+
+    // No environment requested: simulated wins over real, and unknown sorts last.
+    let candidates = Arc::new(AccountsFixtureRead {
+        accounts: vec![
+            account_with(1, 1, vec![1], None),
+            account_with(0, 2, vec![1], None),
+            account_with(9, 3, vec![1], None),
+        ],
+    });
+    let any = TradeRequest::parse("/api/v1/brokers/futu/funds", "market=HK").expect("request");
+    let resolved = any
+        .resolve_account(candidates.as_ref())
+        .expect("default priority");
+    assert_eq!(
+        resolved.account_id, "2",
+        "simulate must be preferred over real when no environment is requested"
+    );
+
+    // When a REAL environment is requested explicitly the real account wins.
+    let real = TradeRequest::parse(
+        "/api/v1/brokers/futu/funds",
+        "tradingEnvironment=REAL&market=HK",
+    )
+    .expect("request");
+    let resolved = real
+        .resolve_account(candidates.as_ref())
+        .expect("real priority");
+    assert_eq!(resolved.account_id, "1");
+    assert_eq!(resolved.environment, "REAL");
+}
+
+#[test]
+fn trd_market_codes_follow_go_normalized_mapping() {
+    // Parity: go:452dea11:pkg/futu/read_account_test.go:167
+    // TestTrdMarketFromNormalizedCoversSupportedMarkets. Go maps the ten
+    // normalized market names to TrdMarket enum codes and rejects unknown ones.
+    for (raw, expected) in [
+        ("hk", 1),
+        ("US", 2),
+        ("cn", 3),
+        ("SG", 6),
+        ("au", 8),
+        ("JP", 15),
+        ("my", 111),
+        ("CA", 112),
+        ("crypto", 7),
+        ("futures", 5),
+    ] {
+        let normalized = normalize_trade_account_market(raw);
+        assert_eq!(
+            market_code(&normalized).expect("supported market"),
+            expected,
+            "market {raw}"
+        );
+    }
+    assert!(
+        market_code(&normalize_trade_account_market("MARS")).is_err(),
+        "unknown market must not map to a code"
+    );
+    // SH/SZ normalize onto the CN trade market.
+    assert_eq!(
+        market_code(&normalize_trade_account_market(" sh ")).expect("CN"),
+        3
+    );
+    assert_eq!(
+        market_code(&normalize_trade_account_market("sz")).expect("CN"),
+        3
+    );
 }

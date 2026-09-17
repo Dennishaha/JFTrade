@@ -110,26 +110,40 @@ impl TradeRequest {
                     .filter(|market| !market.is_empty())
                     .map(normalize_trade_account_market)
             });
-        let mut candidates = accounts
-            .into_iter()
-            .filter(|account| {
-                let account_id = account_identity(account);
-                let account_matches = requested_account.as_deref().is_none_or(|requested| {
-                    account_id
-                        .as_deref()
-                        .is_some_and(|id| id.eq_ignore_ascii_case(requested))
-                });
-                let environment_matches =
-                    requested_environment.is_none_or(|environment| account.trd_env == environment);
-                let market_matches = requested_market.as_ref().is_none_or(|requested| {
-                    account
-                        .trd_market_auth_list
-                        .iter()
-                        .any(|market| trade_market_authority(*market) == Some(requested.as_str()))
-                });
-                account_matches && environment_matches && market_matches
-            })
-            .collect::<Vec<_>>();
+        // Go `resolveTradeMarket`: a requested market must appear in the
+        // account's authority list, but an account that carries no authority
+        // list maps the requested market directly (and rejects unsupported
+        // names). Filtering such an account out would turn a supported request
+        // into a spurious "no account matched" failure.
+        let mut candidates = Vec::new();
+        for account in accounts {
+            let account_id = account_identity(&account);
+            let account_matches = requested_account.as_deref().is_none_or(|requested| {
+                account_id
+                    .as_deref()
+                    .is_some_and(|id| id.eq_ignore_ascii_case(requested))
+            });
+            if !account_matches {
+                continue;
+            }
+            if let Some(environment) = requested_environment
+                && account.trd_env != environment
+            {
+                continue;
+            }
+            if let Some(requested) = requested_market.as_ref() {
+                if account.trd_market_auth_list.is_empty() {
+                    market_code(requested)?;
+                } else if !account
+                    .trd_market_auth_list
+                    .iter()
+                    .any(|market| trade_market_authority(*market) == Some(requested.as_str()))
+                {
+                    continue;
+                }
+            }
+            candidates.push(account);
+        }
         if requested_environment.is_none() {
             let simulated = candidates
                 .iter()
@@ -167,7 +181,7 @@ impl TradeRequest {
             .iter()
             .copied()
             .find(|market| trade_market_authority(*market) == Some(selected_market.as_str()))
-            .unwrap_or(market_code(&self.market_label())?);
+            .unwrap_or(market_code(&selected_market)?);
         Ok(ResolvedTradeRequest {
             account_id,
             environment: environment_label_from_code(account.trd_env).to_owned(),

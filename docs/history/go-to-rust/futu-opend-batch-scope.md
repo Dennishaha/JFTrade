@@ -2466,3 +2466,62 @@ node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --loc
 cargo fmt --all --check
 cargo clippy -p jftrade-engine --all-targets --locked
 ```
+
+---
+
+## 批次：`pkg/futu/read_account_test.go`（5 项）
+
+### 结果：5 `[x]`
+
+| Go 测试 | 行号 | 状态 | Rust 证据 |
+|---|---:|---|---|
+| `TestRecoverableOpenDErrClassifiesConnectionFailures` | :12 | `[x]` | `recoverable_error_tests.rs::recoverable_errors_match_go_is_recoverable_opend_err` + `io_error_kinds_are_classified_without_string_matching` |
+| `TestResolveTradeMarketHonorsRequestedAuthorityAndFallbacks` | :37 | `[x]` | `product_production_ports_trade_tests.rs::resolve_account_honors_requested_authority_and_falls_back_like_go` |
+| `TestCandidateTradeAccountFromProtoFiltersAndBuildsHeader` | :85 | `[x]` | `product_production_ports_trade_tests.rs::candidate_account_filters_and_card_identity_match_go` |
+| `TestBrokerReadQueryNormalizationAndAccountPriority` | :140 | `[x]` | `product_production_ports_trade_tests.rs::broker_read_query_normalization_and_account_priority_match_go` |
+| `TestTrdMarketFromNormalizedCoversSupportedMarkets` | :167 | `[x]` | `product_production_ports_trade_tests.rs::trd_market_codes_follow_go_normalized_mapping` |
+
+### 真实功能缺失修复：无授权列表的账户无法直映射请求市场
+
+Go `resolveTradeMarket`（`pkg/futu/trade_read_account.go:101`）有三个分支：
+
+1. 授权列表非空 → 请求市场必须在列表内，否则返回 `ok=false`（不是错误）；
+2. **授权列表为空 → 按归一化请求市场直接映射**，未支持的名称报
+   `unsupported market`；
+3. 请求为空 → 取第一个有效授权，全无则默认 `HK`。
+
+修复前 Rust 的 `resolve_account_with_environment`
+（`crates/jftrade-engine/src/product_production_ports_trade_requests.rs`）把市场匹配
+写成“授权列表中存在该市场”，于是**授权列表为空的账户一律被过滤**，导致
+`market=JP` 这类 Go 会直接映射的合法请求报
+`no Futu trading account matched ... market=JP`。这是账户解析层面的行为差异，
+会直接影响实盘/模拟盘下单前的账户选择。
+
+修复：按 Go 的三分支重写市场过滤——空授权列表走 `market_code` 直映射
+（失败即报错），非空列表保持授权校验；同时把 `header_market` 的回退从
+`self.market_label()` 改为 `selected_market`，使直映射分支能产出正确的
+`trd_market`。
+
+### 回归可证性（临时探针，已回滚）
+
+- 恢复“空授权列表即过滤”的旧分支 →
+  `resolve_account_honors_requested_authority_and_falls_back_like_go` 在
+  `no-authority JP` 断言处失败：
+  `no Futu trading account matched account 42 for tradingEnvironment=REAL market=JP`。
+
+### 保留边界
+
+- Go 的 `candidateTradeAccountFromProto` 返回 `(candidate, ok, err)` 三元组；
+  Rust 由 `resolve_account_with_environment` 直接产出 `ResolvedTradeRequest`，
+  因此映射的是同样的过滤与归一化结果，而非同名函数式 API。
+- Go 的 `resolvedTradeAccountPriority` 是独立排序函数；Rust 用
+  “无环境请求时优先保留 `trd_env == 0`”实现同一优先级，测试固定该可观察结果。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked
+cargo fmt --all --check
+cargo clippy -p jftrade-engine --all-targets --locked
+```

@@ -17472,39 +17472,39 @@
     "evidence_type": "function_exact"
   },
   "pkg/futu/read_account_test.go:12:TestRecoverableOpenDErrClassifiesConnectionFailures": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/recoverable_error_tests.rs::recoverable_errors_match_go_is_recoverable_opend_err + crates/jftrade-integration-futu/src/recoverable_error_tests.rs::io_error_kinds_are_classified_without_string_matching",
+    "conclusion": "function_exact：Go 用一张 8 行表判定 isRecoverableOpenDErr：nil/业务拒绝(false)，closed sentinel、wrapped timeout sentinel、broken pipe、connection reset、io.EOF、closed network(true)。Rust 的单一 owner 是 recoverable_error::classify_recoverable，已有回归逐条覆盖同一组文本（closed/timeout 两类 sentinel、4 个 transport 子串、None、permission denied、业务拒绝），另有 classify_recoverable_io 对 io::ErrorKind 做无字符串分类（BrokenPipe/ConnectionReset/ConnectionAborted/UnexpectedEof/NotConnected→Transport，TimedOut→RequestTimeout，PermissionDenied→None）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(recoverable_errors_match_go_is_recoverable_opend_err) | test(io_error_kinds_are_classified_without_string_matching)'"
   },
   "pkg/futu/read_account_test.go:37:TestResolveTradeMarketHonorsRequestedAuthorityAndFallbacks": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::resolve_account_honors_requested_authority_and_falls_back_like_go",
+    "conclusion": "function_exact（含真实功能修复）：Go 的 resolveTradeMarket 有三分支——请求市场命中授权列表则返回该 raw 市场码；授权列表非空但不含请求市场则返回 ok=false（非错误）；授权列表为空时按请求市场直接映射，未支持则报 unsupported market；请求为空时取第一个有效授权，全无则默认 HK，nil 账户亦然。修复前 Rust 的 resolve_account_with_environment 把“授权列表为空 + 请求市场”的账户直接过滤掉，导致 JP 这类合法直映射请求报 “no Futu trading account matched”，与 Go 语义不符。修复后按 Go 三分支处理（空授权列表走 market_code 直映射，未支持名报错），header_market 回退改用 selected_market。探针（已回滚）：恢复过滤分支 → no-authority JP 断言失败。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(resolve_account_honors_requested_authority_and_falls_back_like_go)'"
   },
   "pkg/futu/read_account_test.go:85:TestCandidateTradeAccountFromProtoFiltersAndBuildsHeader": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::candidate_account_filters_and_card_identity_match_go",
+    "conclusion": "function_exact：Go 归一化 accountId/tradingEnvironment/market（trim + upper），命中时断言 AccountID/TradingEnvironment/Market/AccountType 与 header 的 accID/trdEnv/trdMarket；不匹配的 accountId、environment、market 各自被过滤；accId 为 0 时回退 cardNum 作为账户身份。Rust 侧同一夹具断言匹配账户解析出 account_id=9001/SIMULATE/US 与 header(0,9001,2)，三组不匹配查询全部无匹配，且 accId=0 + cardNum=CARD-9002 归一化为 CARD-9002/REAL（account_identity 的 card_num 回退）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(candidate_account_filters_and_card_identity_match_go)'"
   },
   "pkg/futu/read_account_test.go:140:TestBrokerReadQueryNormalizationAndAccountPriority": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_query_normalization_and_account_priority_match_go",
+    "conclusion": "function_exact：Go 断言 normalizeBrokerReadQuery 对 accountId/tradingEnvironment/market 做 trim+upper；未指定环境时 SIMULATE 优先于 REAL；UNKNOWN 排在 REAL 之后。Rust 侧断言解析出的 account_id/environment_code/market 归一化（含 URL 编码空白），并在候选 {REAL 1, SIMULATE 2, UNKNOWN 9} 上验证默认优先选中 SIMULATE(2)，显式 REAL 时选中 REAL(1)。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_read_query_normalization_and_account_priority_match_go)'"
   },
   "pkg/futu/read_account_test.go:167:TestTrdMarketFromNormalizedCoversSupportedMarkets": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::trd_market_codes_follow_go_normalized_mapping",
+    "conclusion": "function_exact：Go 的 trdMarketFromNormalized 覆盖 hk/US/cn/SG/au/JP/my/CA/crypto/futures 十个归一化市场名并拒绝未知名。Rust 侧对同一组名字（大小写混合）断言 market_code(normalize_trade_account_market(raw)) 得到 1/2/3/6/8/15/111/112/7/5，未知 MARS 报错，并额外固定 SH/SZ 归一化为 CN(3)。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(trd_market_codes_follow_go_normalized_mapping)'"
   },
   "pkg/futu/security_query_test.go:13:TestSecuritySnapshotQueriesValidateInputsBeforeOpenDCall": {
     "status": "[~]",
