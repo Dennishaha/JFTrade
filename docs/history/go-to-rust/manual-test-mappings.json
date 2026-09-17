@@ -17549,46 +17549,46 @@
     "evidence_type": "missing"
   },
   "pkg/futu/security_snapshot_coordinator_test.go:17:TestSecuritySnapshotCoordinatorCachesClonesAndUsesMarketBatches": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/security_snapshot_coordinator_tests.rs::tests::security_snapshot_coordinator_caches_clones_and_uses_market_batches",
+    "conclusion": "function_exact（新增 Rust 功能）：Go 的 6 标的查询被 canonical 去重排序后按 HK/非 HK 切成 2 批（HK 批 [HK.00700,HK.00941]、其余 [SH.600519,SZ.000001,US.AAPL]）并返回 5 条；调用方改写返回值后二次查询命中缓存、不触达 fetch 且仍是原始值。Rust 新增 SecuritySnapshotCoordinator 承接 3s TTL 深拷贝缓存与市场分批（HK 20/其它 400，见 security_snapshot_batches_split_hk_and_other_markets_by_size）；缓存的 TTL 边界（+3s 即失效）由 security_snapshot_coordinator_cache_expires_at_the_ttl_boundary 单列断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(security_snapshot_coordinator)' --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/security_snapshot_coordinator_test.go:48:TestSecuritySnapshotCoordinatorCoalescesConcurrentRequests": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/security_snapshot_coordinator_tests.rs::tests::security_snapshot_coordinator_coalesces_concurrent_requests",
+    "conclusion": "function_exact（新增 Rust 功能）：两个并发调用同一批次的调用方共享一次物理 3203 读取（fetch 计数=1）。Rust 用单飞表（batch key + Condvar）实现；测试显式指定 leader/follower 角色并用 coalesced_waiters 探针做无 sleep 会合，follower 的 fetch 闭包一旦被调用即 panic，因此“只读一次”不依赖调度时序。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(security_snapshot_coordinator)' --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/security_snapshot_coordinator_test.go:83:TestSecuritySnapshotCoordinatorEnforcesSlidingBudgetAndDoesNotCacheFailures": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/security_snapshot_coordinator_tests.rs::tests::security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures",
+    "conclusion": "function_exact（新增 Rust 功能）：首次失败上抛且不写缓存（第二次仍到达 fetch），callLimit=2 时第 3 次返回 RateLimited 且 retry_after == 30s，被限流的请求不触达 OpenD（fetch 计数保持 2），推进 now 超过窗口+1ms 后恢复放行并把计数推到 3。Rust 的滑动窗口预算与 Go 的 !call.After(cutoff) 剪枝一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(security_snapshot_coordinator)' --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/security_snapshot_coordinator_test.go:120:TestSecuritySnapshotCoordinatorClassifiesRemoteRateLimitAndHonorsCancellation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/security_snapshot_coordinator_tests.rs::tests::security_snapshot_coordinator_classifies_remote_rate_limit + security_snapshot_coordinator_honors_cancellation_of_a_coalesced_wait",
+    "conclusion": "function_exact（新增 Rust 功能）：(1) OpenD 文案“获取市场快照频率太高，请求失败，每30秒最多60次”被 classify_security_snapshot_fetch_error 提升为 RateLimited 且 retry_after=30s（与 Go 的 classifySecuritySnapshotError 同表）；(2) 取消半边按 Go 顺序复现：leader 进入物理读取后，waiter 加入同一 flight，随后另一线程翻转 SecuritySnapshotCancelToken，waiter 返回 Canceled 且断言 leader 仍在飞行中（leader_finished=0）、waiter 槽位归零、leader 成功后结果仍被缓存。Rust 无 context，取消以 token 表达。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(security_snapshot_coordinator)' --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/security_snapshot_coordinator_test.go:154:TestSecuritySnapshotCoordinatorRejectsUnavailableAndInvalidInputs": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/security_snapshot_coordinator_tests.rs::tests::security_snapshot_coordinator_rejects_invalid_and_unavailable_inputs",
+    "conclusion": "function_exact（新增 Rust 功能）：非法标的（\"BAD\"）在任何物理读取前被拒（fetch 闭包 panic 断言不可达），错误归类为 InvalidInstrument 且 is_symbol_scoped()=true、retry_after=None，对应 Go 的 broker.NewSymbolScopedSnapshotError；空输入是成功空结果而非错误（Go query 对 len(canonical)==0 直接返回空 map）。Go 该测试同时覆盖 nil Exchange / nil coordinator / nil fetch 三个 nil-receiver 分支，Rust 用 Option/Arc 表达所有权，无 nil receiver，故不迁移为等价断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(security_snapshot_coordinator)' --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/security_snapshot_coordinator_test.go:189:TestSecuritySnapshotCoordinatorHandlesEmptyAndUnexpectedResults": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/security_snapshot_coordinator_tests.rs::tests::security_snapshot_coordinator_handles_empty_and_unexpected_results",
+    "conclusion": "function_exact（新增 Rust 功能）：空 fetch 结果成功且仍占用 1 个配额槽（admitted_calls=1，对应 Go 先 takeCall 再 fetch 的顺序）；缺 symbol 的快照被丢弃而不污染缓存；错误分类对普通传输失败保持 Fetch 原样；canonical 化把 \" us.aapl \" 与重复项归一为 [HK.00700, US.AAPL]。Go 该测试的 singleflight 返回 \"unexpected\" 分支由 Rust 的 InvalidResult 变体承接（类型化结果使该分支只在表结构损坏时出现）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(security_snapshot_coordinator)' --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/security_snapshot_error_classification_test.go:14:TestMarketDataReaderClassifiesSymbolScopedSecuritySnapshotProtocolErrors": {
     "status": "[~]",

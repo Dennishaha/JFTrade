@@ -1828,3 +1828,80 @@ pnpm run check:rust:architecture
 python3 scripts/compatibility/audit_test_parity.py
 git diff --check
 ```
+
+## 批次：pkg/futu/security_snapshot_coordinator_test.go（6 项，全部新增功能）
+
+行为基线：`go:452dea11:pkg/futu/security_snapshot_coordinator_test.go`（255 行，6 项）、
+`go:452dea11:pkg/futu/security_snapshot_coordinator.go`（205 行）、
+`go:452dea11:pkg/futu/security_snapshot.go:203-265`（direct 读取）。
+本批是**功能缺失修复**：Rust 此前没有 3203 快照协调器，只有裸
+`OpenDSecuritySnapshotReader`（按市场分组 + 固定 20 分块 + 失败逐标的回退，且无缓存、无单飞、
+无调用预算）。
+
+### 修复内容
+
+新增 `crates/jftrade-integration-futu/src/security_snapshot_coordinator.rs`，
+按 Go 一一承接：
+
+| Go 常量/行为 | Rust |
+| --- | --- |
+| `securitySnapshotCacheTTL` = 3s | `SECURITY_SNAPSHOT_CACHE_TTL` |
+| `securitySnapshotCallLimit` = 54 | `SECURITY_SNAPSHOT_CALL_LIMIT` |
+| `securitySnapshotCallWindow` = 30s | `SECURITY_SNAPSHOT_CALL_WINDOW` |
+| `securitySnapshotHKBatchSize` = 20 | `SECURITY_SNAPSHOT_HK_BATCH_SIZE` |
+| `securitySnapshotOtherBatchSize` = 400 | `SECURITY_SNAPSHOT_OTHER_BATCH_SIZE` |
+| `singleflight.Group` | `flights: Mutex<HashMap<key, Arc<Flight>>>` + `Condvar` |
+| `context.Canceled` | `SecuritySnapshotCancelToken` + `query_with_cancel` |
+| `broker.NewSymbolScopedSnapshotError` | `SecuritySnapshotCoordinatorError::InvalidInstrument` + `is_symbol_scoped()` |
+| `classifySecuritySnapshotError` | `classify_security_snapshot_fetch_error`（四段限流文案） |
+| `querySecuritySnapshotListDirect` | `OpenDSecuritySnapshotReader::query_batch`（单批一次物理读） |
+
+关键设计：协调器拥有分批/缓存/单飞/预算，内层 reader 只做**一次** 3203 编解码
+（`SecuritySnapshotBatchReader` 端口）。这样 400 标的非 HK 批次就是 1 次记账 + 1 次 socket
+写入，与 Go 一致；旧实现里 reader 自己再按 20 分块会让预算记账失真。
+生产装配（`product_runtime_provider_activation::install_security_catalog_readers`）已改为
+`CachedSecuritySnapshotReader::new(OpenDSecuritySnapshotBatchReader::new(coordinator))`。
+
+### 逐项结果（全部 `[x]` function_exact）
+
+1. `:17` 缓存/深拷贝/市场分批 → `..._caches_clones_and_uses_market_batches`
+   （TTL 边界单独由 `..._cache_expires_at_the_ttl_boundary` 断言）。
+2. `:48` 并发合流 → `..._coalesces_concurrent_requests`（leader/follower 显式角色 +
+   `coalesced_waiters()` 探针，无 sleep 会合；follower 的 fetch 一旦被调用即 panic）。
+3. `:83` 滑动预算 + 失败不缓存 → `..._enforces_sliding_budget_and_does_not_cache_failures`。
+4. `:120` 远端限流分类 + 取消 → `..._classifies_remote_rate_limit` 与
+   `..._honors_cancellation_of_a_coalesced_wait`（取消后断言 leader 仍在飞行中）。
+5. `:154` 非法/不可用输入 → `..._rejects_invalid_and_unavailable_inputs`
+   （symbol-scoped 与空输入成功空结果）。
+6. `:189` 空/异常结果 → `..._handles_empty_and_unexpected_results`
+   （空结果仍占配额槽；缺 symbol 快照不入缓存）。
+
+### 回归可证性
+
+对实现注入临时探针验证测试确为回归守卫（探针已回滚，工作树经 diff 复核一致）：
+
+- 移除 `store()`（即无缓存）→ 3 条测试失败（缓存、TTL 边界、取消后缓存）。
+- 把 HK 分批改成单批 → 2 条失败：
+  `security_snapshot_batches_split_hk_and_other_markets_by_size` 与
+  **引擎级** `cached_security_snapshot_reader_batches_hk_and_serves_repeats_from_cache`
+  （45 个 HK 标的必须恰好 3 次物理读、重复查询不再读、`admitted_calls` 保持 3），
+  证明生产装配确实走协调器而非裸 reader。
+
+### 边界说明
+
+- 未改动 `contracts/openapi/`、`proto/` 或冻结 fixture；3203 协议与既有 wire 形状不变。
+- Go 的 nil-receiver 分支（nil Exchange / nil coordinator / nil fetch）与 Rust 的
+  `Option`/`Arc` 所有权模型不同，未伪造等价断言，已在对应条目的结论中写明。
+- 保留既有 `OpenDSecuritySnapshotReader::query`（按市场分组 + 逐标的回退）给直接调用方；
+  协调器路径经由新的 `query_batch` 单批入口，两者不重复分块。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+pnpm run check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py
+git diff --check
+```

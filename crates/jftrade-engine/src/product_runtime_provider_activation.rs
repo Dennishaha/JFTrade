@@ -491,8 +491,16 @@ pub(crate) fn install_security_catalog_readers(
     trade_runtime: &SharedTradeReadRuntime,
     coordinator: &Arc<Mutex<OpenDSessionCoordinator>>,
 ) {
+    // Go keeps one 3203 coordinator per Exchange in front of the raw reader:
+    // 3s TTL cache + market batching (HK 20 / other 400) + single-flight
+    // coalescing + a sliding 54-calls/30s gate. The inner reader performs one
+    // physical read per batch so the two never double-chunk the quota.
     trade_runtime.set_security_snapshots(Some(Arc::new(
-        jftrade_integration_futu::OpenDSecuritySnapshotReader::new(Arc::clone(coordinator)),
+        jftrade_integration_futu::CachedSecuritySnapshotReader::new(Arc::new(
+            jftrade_integration_futu::OpenDSecuritySnapshotBatchReader::new(Arc::clone(
+                coordinator,
+            )),
+        )),
     )));
     trade_runtime.set_instrument_search_reader(Some(Arc::new(
         jftrade_integration_futu::OpenDInstrumentSearchReader::new(Arc::clone(coordinator)),

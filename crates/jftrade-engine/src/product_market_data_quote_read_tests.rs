@@ -1755,3 +1755,69 @@ async fn basic_quote_read_requires_a_lease_and_never_leaks_the_raw_opend_error()
         .expect("leased read");
     assert_eq!(response["request"]["instrumentId"], "US.AAPL");
 }
+
+/// Go keeps one 3203 coordinator per Exchange in front of the raw reader
+/// (`security_snapshot_coordinator.go`). This proves the production runtime
+/// installs that layer rather than the bare reader: a 45-symbol HK batch must
+/// reach the physical reader as three HK-sized calls, the second identical
+/// query must be served from the 3s TTL cache, and the sliding 54-call gate
+/// must be shared across those calls.
+#[derive(Debug, Default)]
+struct RecordingSnapshotBatchReader {
+    batches: Mutex<Vec<Vec<String>>>,
+}
+
+impl RecordingSnapshotBatchReader {
+    fn batches(&self) -> Vec<Vec<String>> {
+        self.batches.lock().expect("recorded batches").clone()
+    }
+}
+
+impl jftrade_integration_futu::SecuritySnapshotBatchReader for RecordingSnapshotBatchReader {
+    fn query_batch(
+        &self,
+        symbols: &[String],
+    ) -> Result<Vec<jftrade_marketdata::BrokerSecuritySnapshot>, String> {
+        self.batches
+            .lock()
+            .expect("recorded batches")
+            .push(symbols.to_vec());
+        Ok(symbols
+            .iter()
+            .map(|symbol| jftrade_marketdata::BrokerSecuritySnapshot {
+                symbol: Some(symbol.clone()),
+                name: Some(symbol.clone()),
+                ..Default::default()
+            })
+            .collect())
+    }
+}
+
+#[test]
+fn cached_security_snapshot_reader_batches_hk_and_serves_repeats_from_cache() {
+    use jftrade_integration_futu::{CachedSecuritySnapshotReader, SECURITY_SNAPSHOT_HK_BATCH_SIZE};
+
+    let inner = Arc::new(RecordingSnapshotBatchReader::default());
+    let reader = CachedSecuritySnapshotReader::new(inner.clone());
+    // 45 HK symbols: Go splits HK at 20, so this must be exactly 3 calls.
+    let instruments = (0..45)
+        .map(|index| format!("HK.{index:05}"))
+        .collect::<Vec<_>>();
+
+    let first = reader.query(&instruments).expect("first snapshot query");
+    assert_eq!(first.len(), 45);
+    let batches = inner.batches();
+    assert_eq!(batches.len(), 3, "HK batches are capped at 20");
+    assert_eq!(batches[0].len(), SECURITY_SNAPSHOT_HK_BATCH_SIZE);
+    assert_eq!(batches[1].len(), SECURITY_SNAPSHOT_HK_BATCH_SIZE);
+    assert_eq!(batches[2].len(), 5);
+    // Every physical read is booked against the shared budget until the
+    // window releases, which is what keeps OpenD's own quota unreachable.
+    assert_eq!(reader.coordinator().admitted_calls(), 3);
+
+    // A repeated identical query must not reach the reader at all.
+    let second = reader.query(&instruments).expect("cached snapshot query");
+    assert_eq!(second.len(), 45);
+    assert_eq!(inner.batches().len(), 3, "cache hit must not re-read");
+    assert_eq!(reader.coordinator().admitted_calls(), 3);
+}

@@ -156,6 +156,37 @@ impl OpenDSecuritySnapshotReader {
 
         Ok(all_snapshots)
     }
+
+    /// One physical 3203 read for exactly `instruments` (Go's
+    /// `querySecuritySnapshotListDirect`).
+    ///
+    /// The market batching, cache, coalescing and quota gate live in
+    /// [`crate::SecuritySnapshotCoordinator`]; this entry point therefore must
+    /// not chunk its input again or the coordinator's call accounting would
+    /// under-count the physical reads.
+    pub fn query_batch(
+        &self,
+        instruments: &[String],
+    ) -> Result<Vec<BrokerSecuritySnapshot>, SecuritySnapshotQueryError> {
+        if instruments.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut securities = Vec::with_capacity(instruments.len());
+        for value in instruments {
+            let Some((market, code)) = value.split_once('.') else {
+                return Err(SecuritySnapshotQueryError::InvalidInstrument(value.clone()));
+            };
+            let Some(market) = market_code(market) else {
+                return Err(SecuritySnapshotQueryError::InvalidInstrument(value.clone()));
+            };
+            let code = code.trim().to_ascii_uppercase();
+            if code.is_empty() {
+                return Err(SecuritySnapshotQueryError::InvalidInstrument(value.clone()));
+            }
+            securities.push(crate::trade_proto::qot_common::Security { market, code });
+        }
+        self.query_raw_securities(&securities)
+    }
 }
 
 impl SecuritySnapshotReadPort for OpenDSecuritySnapshotReader {

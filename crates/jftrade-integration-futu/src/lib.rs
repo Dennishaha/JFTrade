@@ -52,6 +52,7 @@ mod research_normalization;
 mod research_params;
 mod research_short_interest_query;
 mod runtime_task;
+mod security_snapshot_coordinator;
 mod security_snapshot_query;
 mod session_coordinator;
 mod session_event_pump;
@@ -294,6 +295,13 @@ pub use research_short_interest_query::{
 pub use runtime_task::{
     OpenDSessionEventListener, OpenDSessionRuntime, OpenDSessionRuntimeConfig,
     OpenDSessionRuntimeError, OpenDSessionRuntimeStatus,
+};
+pub use security_snapshot_coordinator::{
+    CachedSecuritySnapshotReader, OpenDSecuritySnapshotBatchReader, SECURITY_SNAPSHOT_CACHE_TTL,
+    SECURITY_SNAPSHOT_CALL_LIMIT, SECURITY_SNAPSHOT_CALL_WINDOW, SECURITY_SNAPSHOT_HK_BATCH_SIZE,
+    SECURITY_SNAPSHOT_OTHER_BATCH_SIZE, SecuritySnapshotBatchReader, SecuritySnapshotClock,
+    SecuritySnapshotCoordinator, SecuritySnapshotCoordinatorError, canonical_snapshot_symbols,
+    classify_security_snapshot_fetch_error, snapshot_batches,
 };
 pub use security_snapshot_query::{
     OpenDSecuritySnapshotReader, SecuritySnapshotQueryError, SecuritySnapshotReadPort,
