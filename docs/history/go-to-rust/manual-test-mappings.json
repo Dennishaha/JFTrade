@@ -15561,39 +15561,39 @@
     "evidence_type": "missing"
   },
   "pkg/futu/adapter_research_contract_test.go:12:TestResearchCatalogOperationsBuildStrictOpenDRequests": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/research_normalization_tests.rs::catalog_operations_build_strict_opend_requests_like_go",
+    "conclusion": "function_exact：Go 逐组断言 7 个 catalog 操作注入后的 OpenD 字段（concept plate list plateSetType=3、plate members plate={market:1,code:BK1001}、fund catalog secType 3→4、down movers direction=down→sortDir=1、concept heatmap plateType=1、economic calendar marketList=[21]、institution holding institutionId int64 7→int32 7），并断言业务字段 direction 不泄漏进 OpenD params、opend.ValidateAdvancedC2S 通过。Rust 由 research_params.rs 的 translate_plate_set_type / translate_heat_map_plate_type / translate_top_movers_direction / inject_advanced_research_defaults（secType、marketList、institutionId）唯一承接，新测试逐条固定这 5 个可注入字段、断言 direction 被删除且 sortDir 生效、并断言 plate 对象按 {market,code} 透传。Go 的 opend.ValidateAdvancedC2S 在 Rust 对应「注入后必须能被 typed reader 接受」，该前置契约由 research_params_tests.rs::advanced_feature_defaults_build_strict_opend_requests 与 advanced_page_size_respects_protocol_limits 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(catalog_operations_build_strict_opend_requests_like_go)'"
   },
   "pkg/futu/adapter_research_contract_test.go:84:TestResearchCatalogOperationsRejectMissingOrInvalidParameters": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/research_normalization_tests.rs::catalog_operations_reject_the_exact_go_parameter_matrix + crates/jftrade-integration-futu/src/research_params_tests.rs::advanced_research_defaults_reject_incomplete_queries",
+    "conclusion": "function_exact：Go 用 10 行表断言「缺参/非法参必须被拒且错误文本含指定子串」，并带各自 FeatureQuery.Market（前 4 条 HK、fund/economic 为空 market、dividend HK、institution/movers US）。Rust 由 inject_advanced_research_defaults / inject_advanced_defaults 承接；新测试逐条复刻这 10 条（含 Go 的 per-case market 取值，空 market 正是「requires market / requires beginDate」的触发条件），断言每条都以 Err 返回且 error.message() 命中 Go 子串：requires plateType、unsupported plateType（theme 与 4.0 两种）、plate_members requires an exact plate instrumentId、fund_catalog requires market、economic calendar requires beginDate、dividend calendar requires date、requires a positive integer institutionId（缺失与 1.5 两种）、unsupported top movers direction。既有 advanced_research_defaults_reject_incomplete_queries 覆盖同族 7 条（market 变体不同），两者互补。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(catalog_operations_reject_the_exact_go_parameter_matrix) | test(advanced_research_defaults_reject_incomplete_queries)'"
   },
   "pkg/futu/adapter_research_contract_test.go:115:TestResearchProtocolPayloadAddsCanonicalFieldsWithoutDroppingOpenDFields": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/research_normalization_tests.rs::wire_security_rows_gain_canonical_fields_without_losing_opend_fields + crates/jftrade-integration-futu/src/research_normalization_tests.rs::open_d_enum_text_is_stripped_like_go + crates/jftrade-integration-futu/src/research_normalization_tests.rs::product_and_calendar_variants_match_go_projection",
+    "conclusion": "function_exact（含真实功能修复）：Go 断言规范化只补 canonical 字段、不丢 OpenD 原有字段，覆盖 5 组形态（ranking 行：instrumentId/market/symbol/name/productClass=equity 与 changeRate/changeRatio/price/dividendYield 别名、plate 行：plateType 原字段保留、fund static：basic 原块保留、IPO 行：issuePriceMin/Max/issueVolume/listingDate/eventDate/calendarType 与 usExData 保留、economic/institution 行：eventTimestamp/eventDate/eventTime/calendarType/region/importance 与 previousValue/forecastValue/actualValue、marketValue/holdingCount/asOfDate 以及 canonicalResearchTimestamp 对秒/毫秒两种输入）。修复前 Rust 的 research_entry_security 只认「已存在的 security[\"instrumentId\"]」，而真实 OpenD wire 行只有 {market:\"QotMarket_US_Security\", code:\"aapl\"}，因此该投影对**任何真实 payload 都是空操作**：实测 basic.security={market:QotMarket_US_Security,code:spy} 会被原样返回，instrumentId/market/symbol/name/productClass 一个都没补。修复后新增 Go normalizeOpenDValue/normalizeOpenDSecurity/normalizeOpenDEnum 的等价 owner（枚举前缀剥离含 EC_ 的双段规则、字符串与数值 market 两种解析、future→HK 与 event/prediction→US 的 productClass 映射、以及 quoteMarket/tradeMarket/instrumentId 注入），并在 normalize_research_protocol_payload 入口先套用。既有 product_and_calendar_variants_match_go_projection 继续覆盖 security-type/product-class/IPO/calendar/institution 别名表。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(wire_security_rows_gain_canonical_fields) | test(open_d_enum_text_is_stripped_like_go) | test(product_and_calendar_variants_match_go_projection)'"
   },
   "pkg/futu/adapter_research_contract_test.go:237:TestResearchCatalogLocalPaginationKeepsOpenDRequestUnchanged": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/research_normalization_tests.rs::local_pagination_never_leaks_into_the_opend_request + crates/jftrade-integration-futu/src/research_normalization_tests.rs::local_pagination_walks_plate_and_catalog_windows",
+    "conclusion": "function_exact：Go 对 PlateSet/PlateSecurity/StaticInfo 三协议断言两件事——injectAdvancedCursor(\"local:2\") 与 injectAdvancedPageSize(2) 之后 params 必须**完全为空**（本地分页不得进入 OpenD 请求），以及 applyResearchLocalPagination 按 local:2 → local:4 → 末尾清空游标走完 5 行、total=5、hasMore 正确，非法游标（server-cursor）报 invalid local research cursor。Rust 侧 local_pagination_walks_plate_and_catalog_windows 已覆盖三协议三页与非法游标；新增 local_pagination_never_leaks_into_the_opend_request 逐协议断言注入后 params.is_empty()（三协议必须为空），闭合 Go 的「不泄漏」子断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(local_pagination_never_leaks_into_the_opend_request) | test(local_pagination_walks_plate_and_catalog_windows)'"
   },
   "pkg/futu/adapter_research_contract_test.go:314:TestEconomicCalendarPaginationHonorsExplicitHasMoreAndEmptyRows": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/research_normalization_tests.rs::economic_calendar_pagination_honors_explicit_has_more_and_empty_rows + crates/jftrade-integration-futu/src/research_normalization_tests.rs::payload_envelope_picks_the_first_sorted_entry_list_like_go",
+    "conclusion": "function_exact（含真实功能修复）：Go 断言「pagination metadata 不得变成 economic event 行、hasMore=false 且 nextCursor 清空、total=0、metadata 仍保留 nextPage/hasMore」。修复前 Rust 没有 Go payloadEntries/setPagination 的同构 owner，该组合断言无归属（research_normalization.rs 只把 PAGINATION_KEYS 用于「只有分页元数据就原样返回」判定）。修复后新增 research_payload_envelope（metadata 与 entries 分离、firstString(nextPage,nextKey) 探针、显式 bool hasMore 覆盖派生值、hasMore=false 清空游标、total 取 total/totalCount/allCount 否则 entries.len），并由测试逐条固定：纯分页 metadata 无 entries、hasMore=false 清空 stale 游标、带真实行时仍清空、显式 hasMore=true 无游标、nextPage 派生、allCount 覆盖计数、nextKey 次级探针，以及 payload_entries 的「按键名升序取第一个对象数组、丢弃标量行、行状 payload 自成一条」规则。这同时是 Go featureResultFromNormalizedPayload（结构体级 -> 字段名级）的 Rust owner。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(economic_calendar_pagination_honors_explicit_has_more) | test(payload_envelope_picks_the_first_sorted_entry_list)'"
   },
   "pkg/futu/adapter_research_normalization_boundaries_test.go:16:TestAdvancedResearchDefaultsRejectIncompleteQueries": {
     "status": "[x]",

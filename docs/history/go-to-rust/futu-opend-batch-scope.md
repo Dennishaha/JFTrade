@@ -2677,3 +2677,82 @@ node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --loc
 cargo fmt --all --check
 cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
 ```
+
+## 批次：pkg/futu/adapter_research_contract_test.go（5 项）
+
+### 结果：5 `[x]`
+
+| Go 测试 | 行号 | 状态 | Rust 证据 |
+|---|---|---|---|
+| `TestResearchCatalogOperationsBuildStrictOpenDRequests` | :12 | `[x]` | `research_normalization_tests.rs::catalog_operations_build_strict_opend_requests_like_go` |
+| `TestResearchCatalogOperationsRejectMissingOrInvalidParameters` | :84 | `[x]` | `research_normalization_tests.rs::catalog_operations_reject_the_exact_go_parameter_matrix` + `research_params_tests.rs::advanced_research_defaults_reject_incomplete_queries` |
+| `TestResearchProtocolPayloadAddsCanonicalFieldsWithoutDroppingOpenDFields` | :115 | `[x]` | `research_normalization_tests.rs::wire_security_rows_gain_canonical_fields_without_losing_opend_fields` + `open_d_enum_text_is_stripped_like_go` + `product_and_calendar_variants_match_go_projection` |
+| `TestResearchCatalogLocalPaginationKeepsOpenDRequestUnchanged` | :237 | `[x]` | `research_normalization_tests.rs::local_pagination_never_leaks_into_the_opend_request` + `local_pagination_walks_plate_and_catalog_windows` |
+| `TestEconomicCalendarPaginationHonorsExplicitHasMoreAndEmptyRows` | :314 | `[x]` | `research_normalization_tests.rs::economic_calendar_pagination_honors_explicit_has_more_and_empty_rows` + `payload_envelope_picks_the_first_sorted_entry_list_like_go` |
+
+### 真实功能缺失修复
+
+1. **wire 安全标志识没有 owner**（`adapter_advanced_normalization.go::normalizeOpenDValue` /
+   `normalizeOpenDSecurity` / `normalizeOpenDEnum`）：
+
+   - Rust 的 `research_entry_security` 只认「已存在的 `security["instrumentId"]`」，
+     而真实 OpenD payload 里只有 `{market: "QotMarket_US_Security", code: "aapl"}`。
+     实测把 `{"staticInfoList":[{"basic":{"security":{"market":"QotMarket_US_Security","code":"spy"},...}}]}`
+     喂给 `normalize_research_protocol_payload("Qot_GetStaticInfo", …)` 会**原样返回**，
+     `instrumentId`/`market`/`symbol`/`name`/`productClass` 一个都没补——
+     也就是说该投影对任何真实 payload 都是空操作。
+   - 修复后新增等价 owner：枚举前缀剥离（13 个前缀，含 `EC_` 的双段规则）、
+     `market` 支持枚举文本与数值 `Qot_Common.QotMarket` 两种来源、
+     五市场映射 + `future`→HK 与 `event`/`prediction`→US 的 `productClass`，
+     并注入 `market`/`quoteMarket`/`tradeMarket`/`instrumentId`；
+     在 `normalize_research_protocol_payload` 入口先套用。
+2. **没有 Go `payloadEntries` + `setPagination` 的同构 owner**：
+
+   - Go 由这两者把 payload 拆成 entries/metadata 并派生分页信封
+     （`nextCursor = firstString(nextPage, nextKey)`、显式 bool `hasMore` **覆盖**派生值、
+     `hasMore=false` 清空游标、`total` 取 `total`/`totalCount`/`allCount` 否则用行数）。
+     Rust 此前只把 `PAGINATION_KEYS` 用于「只有分页元数据就原样返回」判定，
+     `TestEconomicCalendarPaginationHonorsExplicitHasMoreAndEmptyRows` 的
+     Entries/HasMore/NextCursor/Total/Metadata 组合断言没有归属。
+   - 修复后新增 `research_payload_envelope`（entry 列表按键名升序取第一个对象数组、
+     标量行丢弃、行状 payload 自成一条；metadata 剔除已被消费的分页键）。
+
+### 只读侦察结论（本批前提）
+
+- `research_params.rs` 的注入族（`inject_advanced_defaults` /
+  `inject_advanced_research_defaults` / `inject_advanced_protocol_defaults` /
+  `inject_advanced_cursor` / `inject_advanced_page_size` / `translate_*`）
+  在 workspace 内除 `lib.rs` 的 `pub use` 外**没有任何生产调用方**，只有 `*_tests.rs` 在驱动。
+  Go 侧这些函数由 `adapter_advanced.go::queryAdvancedFeatureWithProtocols` 统一编排
+  （cursor → pageSize → injectFeatureInstrument → injectAdvancedDefaults → CallAdvanced →
+  featureResultFromProtocolPayload → applyResearchLocalPagination）。
+  本批按「测试 owner 已存在且契约被逐条固定」判 `function_exact`，
+  但编排入口缺失属于独立的架构性缺口，未在本批扩大范围处理。
+
+### 保留边界
+
+- Go 的 `injectFeatureInstrument`（`protocolInstrumentField` 表：`securityList`/`ownerList`/
+  `multi_legs` 三种赋值形态、事件合约 `US.` 前缀剥离）没有同构 Rust owner；
+  本批只固定 `Qot_GetPlateSecurity` 的 `plate` 对象按 `{market, code}` 透传，
+  其余形态已在 `adapter_advanced_protocol_test.go` 的既有 partial 结论中记录，不重复登记。
+- Go 的 `opend.ValidateAdvancedC2S` 反射式严格校验在 Rust 没有同构函数；
+  Rust 的代偿是 typed reader 在 RPC 前重新校验注入结果，
+  由 `advanced_feature_defaults_build_strict_opend_requests` 与
+  `advanced_page_size_respects_protocol_limits` 覆盖。
+
+### 回归可证性（临时探针，已回滚）
+
+- 把 `normalize_research_protocol_payload` 里的 `normalize_open_d_value(payload)`
+  换回 `payload.clone()`（即恢复「无 wire 规范化」）→
+  `wire_security_rows_gain_canonical_fields_without_losing_opend_fields` 失败：
+  `assertion left == right failed, left: Null, right: String("US.AAPL")`。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+```
+
+结果：`jftrade-integration-futu` 498 passed / 1 skipped。

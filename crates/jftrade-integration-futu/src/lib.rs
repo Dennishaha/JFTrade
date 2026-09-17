@@ -277,10 +277,10 @@ pub use research_institutions_query::{
     OpenDInstitutionReader,
 };
 pub use research_normalization::{
-    LocalResearchPage, apply_research_local_pagination, flatten_research_ipo,
-    is_research_normalization_protocol, normalize_research_calendar_fields,
+    LocalResearchPage, ResearchPayloadEnvelope, apply_research_local_pagination,
+    flatten_research_ipo, is_research_normalization_protocol, normalize_research_calendar_fields,
     normalize_research_institution_fields, normalize_research_protocol_payload,
-    research_product_class, research_security_type,
+    research_payload_envelope, research_product_class, research_security_type,
 };
 pub use research_params::{
     ResearchParamsError, ResearchQueryScope, advanced_cursor_field, advanced_has_field,

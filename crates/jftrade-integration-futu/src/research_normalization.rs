@@ -59,7 +59,13 @@ pub fn normalize_research_protocol_payload(protocol: &str, payload: &Value) -> V
     if !is_research_normalization_protocol(protocol) {
         return payload.clone();
     }
-    let Some(object) = payload.as_object() else {
+    // Go runs `normalizeOpenDMap` before the protocol-specific projection, so
+    // a raw OpenD row that carries `{market: "QotMarket_US_Security", code}`
+    // already has `instrumentId`/`market`/`quoteMarket`/`tradeMarket` when
+    // `researchEntrySecurity` inspects it. Without this step the projection is
+    // a no-op on every real wire payload.
+    let normalized = normalize_open_d_value(payload);
+    let Some(object) = normalized.as_object() else {
         return payload.clone();
     };
     if object.is_empty() || payload_contains_only_pagination_metadata(object) {
@@ -80,6 +86,247 @@ pub fn normalize_research_protocol_payload(protocol: &str, payload: &Value) -> V
         result.insert(key, Value::Array(normalized));
     }
     Value::Object(result)
+}
+
+/// Go `normalizeOpenDValue`: recursively rewrites OpenD enum text and turns
+/// every `{market, code}` security object into the broker-neutral identity the
+/// projection expects.
+fn normalize_open_d_value(value: &Value) -> Value {
+    match value {
+        Value::Object(object) => {
+            let mut result = Map::with_capacity(object.len());
+            for (key, item) in object {
+                result.insert(key.clone(), normalize_open_d_value(item));
+            }
+            match normalize_open_d_security(&result) {
+                Some(security) => Value::Object(security),
+                None => Value::Object(result),
+            }
+        }
+        Value::Array(values) => Value::Array(values.iter().map(normalize_open_d_value).collect()),
+        Value::String(text) => Value::String(normalize_open_d_enum(text)),
+        other => other.clone(),
+    }
+}
+
+/// Prefixes Go strips from OpenD enum text (`QotMarket_`, `SecurityType_`, ...).
+const OPEN_D_ENUM_PREFIXES: &[&str] = &[
+    "QotMarket_",
+    "SecurityType_",
+    "OptionType_",
+    "IndexOptionType_",
+    "ExpirationCycle_",
+    "EC_",
+    "PredSide_",
+    "TrdSide_",
+    "OrderStatus_",
+    "TrdEnv_",
+    "TrdMarket_",
+    "KLType_",
+    "RehabType_",
+];
+
+fn normalize_open_d_enum(value: &str) -> String {
+    for prefix in OPEN_D_ENUM_PREFIXES {
+        let Some(remainder) = value.strip_prefix(prefix) else {
+            continue;
+        };
+        // `EC_<group>_<value>` drops the group segment as well.
+        let remainder = if *prefix == "EC_" {
+            remainder
+                .split_once('_')
+                .map(|(_, rest)| rest)
+                .unwrap_or(remainder)
+        } else {
+            remainder
+        };
+        return remainder.to_ascii_lowercase();
+    }
+    value.to_owned()
+}
+
+/// Go `normalizeOpenDSecurity`. A `code` plus a resolvable market (enum text or
+/// the numeric `Qot_Common.QotMarket` code) yields the public market label and
+/// the canonical `<MARKET>.<CODE>` instrument id. Anything else is left alone.
+fn normalize_open_d_security(value: &Map<String, Value>) -> Option<Map<String, Value>> {
+    let code = value.get("code").and_then(Value::as_str)?.trim();
+    if code.is_empty() {
+        return None;
+    }
+    let raw_market = match value.get("market") {
+        Some(Value::String(text)) => text.trim().to_ascii_lowercase(),
+        Some(Value::Number(number)) => number
+            .as_i64()
+            .and_then(qot_market_label)
+            .map(|label| label.to_ascii_lowercase())
+            .unwrap_or_default(),
+        _ => String::new(),
+    };
+    if raw_market.is_empty() {
+        return None;
+    }
+    let (public_market, product_class) = if raw_market.contains("future") {
+        ("HK", Some("future"))
+    } else if raw_market.contains("event") || raw_market.contains("prediction") {
+        ("US", Some("event_contract"))
+    } else if raw_market.contains("us") {
+        ("US", None)
+    } else if raw_market.contains("hk") {
+        ("HK", None)
+    } else if raw_market.contains("sh") {
+        ("SH", None)
+    } else if raw_market.contains("sz") {
+        ("SZ", None)
+    } else {
+        return None;
+    };
+    let mut result = value.clone();
+    result.insert("market".to_owned(), Value::String(public_market.to_owned()));
+    result.insert(
+        "quoteMarket".to_owned(),
+        Value::String(public_market.to_owned()),
+    );
+    result.insert(
+        "tradeMarket".to_owned(),
+        Value::String(public_market.to_owned()),
+    );
+    result.insert(
+        "instrumentId".to_owned(),
+        Value::String(format!(
+            "{public_market}.{}",
+            code.trim().to_ascii_uppercase()
+        )),
+    );
+    if let Some(product_class) = product_class {
+        result.insert(
+            "productClass".to_owned(),
+            Value::String(product_class.to_owned()),
+        );
+    }
+    Some(result)
+}
+
+/// Public market label for a numeric `Qot_Common.QotMarket` code.
+fn qot_market_label(value: i64) -> Option<&'static str> {
+    match value {
+        1 => Some("HK"),
+        11 => Some("US"),
+        21 => Some("SH"),
+        22 => Some("SZ"),
+        31 => Some("SG"),
+        41 => Some("JP"),
+        51 => Some("AU"),
+        61 => Some("MY"),
+        71 => Some("CA"),
+        _ => None,
+    }
+}
+
+/// OpenD response envelope derived from a normalized payload, mirroring Go
+/// `payloadEntries` + `setPagination` (`adapter_advanced_helpers.go` /
+/// `adapter_prediction_normalization.go`).
+///
+/// The entry list is the first list-of-objects key in ascending key order; the
+/// remaining keys become metadata. Pagination then follows Go's explicit rule:
+/// the cursor defaults to `nextPage`/`nextKey`, an explicit boolean `hasMore`
+/// overrides the derived value, and a `hasMore == false` clears the cursor.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResearchPayloadEnvelope {
+    pub entries: Vec<Value>,
+    pub metadata: Map<String, Value>,
+    pub total: usize,
+    pub has_more: bool,
+    pub next_cursor: String,
+}
+
+pub fn research_payload_envelope(payload: &Value) -> ResearchPayloadEnvelope {
+    let normalized = normalize_open_d_value(payload);
+    let (entries, mut metadata) = research_payload_entries(normalized.as_object());
+    let object = normalized.as_object();
+
+    let explicit_has_more = object
+        .and_then(|object| object.get("hasMore"))
+        .and_then(Value::as_bool);
+    let mut next_cursor = object
+        .and_then(|object| {
+            ["nextPage", "nextKey"]
+                .into_iter()
+                .map(|key| string_value(object.get(key)))
+                .find(|value| !value.is_empty())
+        })
+        .unwrap_or_default();
+    let mut has_more = !next_cursor.is_empty();
+    if let Some(explicit) = explicit_has_more {
+        has_more = explicit;
+    }
+    if !has_more {
+        next_cursor.clear();
+    }
+
+    let total = object
+        .and_then(|object| {
+            ["total", "totalCount", "allCount"]
+                .into_iter()
+                .find_map(|key| integer_value(object.get(key)))
+        })
+        .unwrap_or(entries.len() as i64)
+        .max(0) as usize;
+
+    metadata.remove("hasMore");
+    metadata.remove("nextPage");
+    metadata.remove("nextKey");
+    metadata.remove("total");
+    metadata.remove("totalCount");
+    metadata.remove("allCount");
+    ResearchPayloadEnvelope {
+        entries,
+        metadata,
+        total,
+        has_more,
+        next_cursor,
+    }
+}
+
+/// Go `payloadEntries`: the first list-of-objects key in ascending key order
+/// becomes the entry list and is removed from the metadata; a payload with only
+/// pagination keys (or none at all) yields no entries.
+fn research_payload_entries(
+    payload: Option<&Map<String, Value>>,
+) -> (Vec<Value>, Map<String, Value>) {
+    let Some(payload) = payload else {
+        return (Vec::new(), Map::new());
+    };
+    let mut metadata = payload.clone();
+    let mut keys: Vec<&String> = payload.keys().collect();
+    keys.sort();
+    let mut empty_list_key: Option<&String> = None;
+    for key in keys {
+        let Some(values) = payload[key].as_array() else {
+            continue;
+        };
+        let entries: Vec<Value> = values
+            .iter()
+            .filter(|value| value.is_object())
+            .cloned()
+            .collect();
+        if entries.is_empty() {
+            if empty_list_key.is_none() {
+                empty_list_key = Some(key);
+            }
+            continue;
+        }
+        metadata.remove(key);
+        return (entries, metadata);
+    }
+    if let Some(key) = empty_list_key {
+        metadata.remove(key);
+        return (Vec::new(), metadata);
+    }
+    if payload_contains_only_pagination_metadata(payload) || payload.is_empty() {
+        return (Vec::new(), metadata);
+    }
+    // A row-shaped payload is its own single entry.
+    (vec![Value::Object(payload.clone())], Map::new())
 }
 
 fn payload_contains_only_pagination_metadata(payload: &Map<String, Value>) -> bool {
@@ -415,6 +662,18 @@ pub fn apply_research_local_pagination(
             String::new()
         },
     })
+}
+
+/// Go `integerValue`: JSON numbers and integer-looking text are accepted.
+fn integer_value(value: Option<&Value>) -> Option<i64> {
+    match value? {
+        Value::Number(number) => number.as_i64().or_else(|| {
+            let float = number.as_f64()?;
+            float.is_finite().then_some(float as i64)
+        }),
+        Value::String(text) => text.trim().parse::<i64>().ok(),
+        _ => None,
+    }
 }
 
 fn string_value(value: Option<&Value>) -> String {
