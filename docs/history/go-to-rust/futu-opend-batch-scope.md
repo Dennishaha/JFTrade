@@ -2904,3 +2904,55 @@ python3 scripts/compatibility/audit_test_parity.py
 ```
 
 结果：1803 passed / 1 skipped；审计 OK: 499 function_exact。
+
+## 批次：pkg/futu/adapter_marketdata_search_test.go（4 项）
+
+### 结果：4 `[x]`
+
+| Go 测试 | 行号 | 状态 | Rust 证据 |
+| :--- | :--- | :--- | :--- |
+| `TestFutuSearchMarketCodePreservesEveryStableDisplayMarket` | 12 | `[x]` | `instrument_search_query_tests.rs::search_market_codes_are_mapped_like_go_for_every_stable_display_market` |
+| `TestCanonicalSearchQuoteSymbolHandlesOpenDPrefixedCodes` | 38 | `[x]` | `product_production_ports_market_data_catalog_tests.rs::futu_search_canonicalizes_open_d_prefixed_symbols_like_go` + `instrument_search_query_tests.rs::search_symbols_normalize_open_d_prefixed_codes_like_go` |
+| `TestBrokerAdapterSecuritySearchMapsCrossMarketOpenDResults` | 58 | `[x]` | `product_production_ports_market_data_catalog_tests.rs::futu_search_maps_cross_market_rows_and_drops_unusable_entries` |
+| `TestBrokerAdapterSecuritySearchRejectsInvalidQueriesBeforeConnecting` | 113 | `[x]` | `product_production_ports_market_data_catalog_tests.rs::futu_search_rejects_invalid_queries_before_reaching_opend` |
+
+### 本批修复的功能差异（1 项，真实缺口）
+
+1. **带前缀的 OpenD 搜索码被二次加前缀**
+   Go `canonicalSearchQuoteSymbol` 只在「码自带的前缀等于该行市场」时剥离前缀
+   （`CNSH`/`CNSZ` 归一到 `SH`/`SZ`，`CC`→`CRYPTO`），否则保留原始码。Rust 的
+   `candidate()` 直接做 `format!("{market}.{code}")`，于是 loopback 返回的
+   `US.AAPL` / `CNSH.600519` 被投影成 **`US.US.AAPL` / `SH.CNSH.600519`**，
+   公开的 `instrumentId` 不再指向券商返回的证券身份。修复：在
+   `product_production_ports_market_data_catalog_futu.rs` 新增
+   `canonical_search_code` + `canonical_search_market_prefix` 等价 owner，
+   由投影层统一产出 `code`/`symbol`/`instrumentId`。
+
+### 回归可证性（临时探针，已回滚）
+
+- 把 `canonical_search_code(&entry.market, &entry.code)` 换回裸 `entry.code.clone()` →
+  `futu_search_canonicalizes_open_d_prefixed_symbols_like_go` 与
+  `futu_search_maps_cross_market_rows_and_drops_unusable_entries` 双双失败：
+  `left: String("US.US.AAPL")`。
+
+### 边界保留结论（非缺口）
+
+- `securityType` 大小写：Go 的 `enumName` 透出 protobuf 原始名（`Eqty`），
+  Rust 的 `map_entry` 输出 `EQUITY`。控制台
+  `instrumentPresentation.ts::SECURITY_TYPE_LABELS` 同时登记 `EQTY` 与
+  `EQUITY`（以及 `STOCK`）并归一化，公开 schema 只声明 `string`，属于双方都能
+  消费的拼写差异而非行为缺口，本批按原样固定（`EQTY` 由 fixture 传入）。
+- 路由 `market` 参数只接受 US/HK/CN/SH/SZ，而 Go 用例是直接驱动 reader 覆盖
+  JP 等非路由市场；因此 `futu_search_canonicalizes_open_d_prefixed_symbols_like_go`
+  省略 `market` 参数，由行自身市场决定前缀，与 Go 的调用层级一致。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu -p jftrade-marketdata --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+cargo clippy -p jftrade-engine -p jftrade-integration-futu --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：1808 passed / 1 skipped；审计 OK: 503 function_exact。

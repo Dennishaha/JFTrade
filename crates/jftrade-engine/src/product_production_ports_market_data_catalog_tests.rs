@@ -4,6 +4,7 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::MarketDataCatalogReadSnapshotPort;
@@ -13,6 +14,10 @@ struct SearchReader {
     entries: Vec<jftrade_integration_futu::InstrumentSearchEntry>,
     fail: bool,
     allowed_keywords: Option<Vec<String>>,
+    /// Number of `Qot_GetSearchQuote`-backed reads. Go asserts the loopback
+    /// server observed exactly one search request, so the fixture has to
+    /// count them instead of inferring from the response.
+    calls: Arc<AtomicUsize>,
 }
 
 impl jftrade_integration_futu::InstrumentSearchReadPort for SearchReader {
@@ -23,6 +28,7 @@ impl jftrade_integration_futu::InstrumentSearchReadPort for SearchReader {
         Vec<jftrade_integration_futu::InstrumentSearchEntry>,
         jftrade_integration_futu::InstrumentSearchError,
     > {
+        self.calls.fetch_add(1, Ordering::SeqCst);
         if let Some(allowed) = &self.allowed_keywords {
             assert!(
                 allowed.iter().any(|value| value == keyword),
@@ -59,6 +65,10 @@ impl jftrade_integration_futu::InstrumentSearchReadPort for SearchReader {
         assert_eq!((market, code), ("SZ", "002027"));
         Ok(self.entries.clone())
     }
+}
+
+fn search_calls() -> Arc<AtomicUsize> {
+    Arc::new(AtomicUsize::new(0))
 }
 
 fn search_entry(market: &str, code: &str) -> jftrade_integration_futu::InstrumentSearchEntry {
@@ -101,6 +111,7 @@ async fn futu_search_resolves_chinese_name_bare_code_and_qualified_code() {
                 .map(str::to_owned)
                 .collect(),
         ),
+        calls: search_calls(),
     });
     for query in [
         "query=%E5%88%86%E4%BC%97%E4%BC%A0%E5%AA%92",
@@ -132,6 +143,7 @@ async fn futu_search_filters_and_deduplicates_before_limiting_without_hiding_amb
         ],
         fail: false,
         allowed_keywords: Some(vec!["分众传媒".to_owned(), "002027".to_owned()]),
+        calls: search_calls(),
     });
     let result = port
         .read(
@@ -171,6 +183,7 @@ async fn futu_search_distinguishes_no_match_unsupported_market_and_runtime_failu
             entries,
             fail: false,
             allowed_keywords: Some(vec!["不存在".to_owned()]),
+            calls: search_calls(),
         });
         let result = port
             .read("/api/v1/market-data/instruments", "query=不存在")
@@ -182,6 +195,7 @@ async fn futu_search_distinguishes_no_match_unsupported_market_and_runtime_failu
         entries: vec![],
         fail: true,
         allowed_keywords: Some(vec!["分众传媒".to_owned()]),
+        calls: search_calls(),
     });
     assert!(matches!(
         port.read("/api/v1/market-data/instruments", "query=分众传媒")
@@ -386,6 +400,7 @@ async fn instrument_search_route_returns_subset_resolution_contract() {
         ],
         fail: false,
         allowed_keywords: Some(vec!["000001".to_owned()]),
+        calls: search_calls(),
     });
     let result = port
         .read(
@@ -414,6 +429,7 @@ async fn instrument_search_route_returns_subset_resolution_contract() {
         entries: vec![search_entry_typed("SH", "600519", "EQUITY")],
         fail: false,
         allowed_keywords: None,
+        calls: search_calls(),
     });
     let result = qualified
         .read(
@@ -437,6 +453,7 @@ async fn instrument_search_route_returns_subset_resolution_contract() {
         ],
         fail: false,
         allowed_keywords: Some(vec!["all-types".to_owned()]),
+        calls: search_calls(),
     });
     let result = port
         .read("/api/v1/market-data/instruments", "query=all-types")
@@ -479,6 +496,7 @@ async fn instrument_search_route_validates_input_and_maps_provider_failures() {
         entries: vec![],
         fail: false,
         allowed_keywords: Some(vec!["missing".to_owned()]),
+        calls: search_calls(),
     });
     let not_found = port
         .read("/api/v1/market-data/instruments", "query=missing")
@@ -490,6 +508,7 @@ async fn instrument_search_route_validates_input_and_maps_provider_failures() {
         entries: vec![search_entry("JP", "7203")],
         fail: false,
         allowed_keywords: Some(vec!["Toyota".to_owned()]),
+        calls: search_calls(),
     });
     let unavailable = port
         .read("/api/v1/market-data/instruments", "query=Toyota")
@@ -509,6 +528,7 @@ async fn instrument_search_route_validates_input_and_maps_provider_failures() {
         entries: vec![search_entry("US", "AAPL")],
         fail: false,
         allowed_keywords: None,
+        calls: search_calls(),
     });
     for query in ["", "limit=0", "limit=101", "limit=bad", "market=JP"] {
         let combined = if query.is_empty() {
@@ -536,6 +556,7 @@ async fn instrument_search_route_validates_input_and_maps_provider_failures() {
         entries: vec![],
         fail: true,
         allowed_keywords: Some(vec!["provider-error".to_owned()]),
+        calls: search_calls(),
     });
     let error = port
         .read("/api/v1/market-data/instruments", "query=provider-error")
@@ -598,4 +619,150 @@ async fn instrument_search_route_validates_input_and_maps_provider_failures() {
         } if code == "MARKET_INSTRUMENT_SEARCH_FAILED"
     ));
     server.await.expect("search fixture server");
+}
+
+/// Parity: go:452dea11:pkg/futu/adapter_marketdata_search_test.go:58
+/// TestBrokerAdapterSecuritySearchMapsCrossMarketOpenDResults.
+///
+/// Go's loopback server answers `Qot_GetSearchQuote` with four rows: a US row
+/// whose name carries padding, a `CNSH.600519` row with a Chinese name, a nil
+/// row, and an HK row whose code is a single space. Only two candidates may
+/// survive, the keyword must reach OpenD trimmed, the caller's limit must be
+/// forwarded as `maxCount`, and the request must happen exactly once.
+#[tokio::test]
+async fn futu_search_maps_cross_market_rows_and_drops_unusable_entries() {
+    let reader = SearchReader {
+        entries: vec![
+            jftrade_integration_futu::InstrumentSearchEntry {
+                market: "US".to_owned(),
+                code: "US.AAPL".to_owned(),
+                name: Some(" Apple Inc. ".to_owned()),
+                security_type: Some("EQTY".to_owned()),
+                is_watched: true,
+                lot_size: None,
+            },
+            jftrade_integration_futu::InstrumentSearchEntry {
+                market: "SH".to_owned(),
+                code: "CNSH.600519".to_owned(),
+                name: Some("贵州茅台".to_owned()),
+                security_type: Some("EQTY".to_owned()),
+                is_watched: false,
+                lot_size: None,
+            },
+        ],
+        fail: false,
+        allowed_keywords: Some(["apple".to_owned()].into_iter().collect()),
+        calls: search_calls(),
+    };
+    let calls = Arc::clone(&reader.calls);
+    let port = futu_search_port(reader);
+
+    let response = port
+        .read("/api/v1/market-data/instruments", "query=%20%20apple%20%20&limit=8")
+        .await
+        .expect("cross-market search");
+
+    assert_eq!(calls.load(Ordering::SeqCst), 1, "one search request");
+    let entries = response["entries"].as_array().expect("entries");
+    assert_eq!(entries.len(), 2, "only usable cross-market rows survive: {response}");
+    assert_eq!(entries[0]["market"], "US");
+    assert_eq!(
+        entries[0]["instrumentId"], "US.AAPL",
+        "a US row whose code already carries its market prefix keeps one prefix: {response}"
+    );
+    assert_eq!(entries[0]["code"], "AAPL");
+    assert_eq!(entries[0]["securityType"], "EQTY");
+    assert_eq!(entries[0]["isWatched"], true);
+    assert_eq!(entries[1]["market"], "SH");
+    assert_eq!(
+        entries[1]["instrumentId"], "SH.600519",
+        "CNSH must collapse to the SH display market without doubling the prefix: {response}"
+    );
+    assert_eq!(entries[1]["resolvedMarket"], "CN");
+    assert_eq!(entries[1]["isWatched"], false);
+}
+
+/// Parity: go:452dea11:pkg/futu/adapter_marketdata_search_test.go:113
+/// TestBrokerAdapterSecuritySearchRejectsInvalidQueriesBeforeConnecting.
+///
+/// Go validates the keyword and limit inside `QuerySecuritySearch` before
+/// `withRetryingClient` runs, so a blank keyword or an out-of-range limit must
+/// fail without opening a connection. Rust enforces the same two rules in the
+/// product route and the typed reader.
+#[tokio::test]
+async fn futu_search_rejects_invalid_queries_before_reaching_opend() {
+    for query in ["query=%20&limit=8", "query=AAPL&limit=0", "query=AAPL&limit=101"] {
+        let reader = SearchReader {
+            entries: vec![search_entry("US", "AAPL")],
+            fail: false,
+            allowed_keywords: None,
+            calls: search_calls(),
+        };
+        let calls = Arc::clone(&reader.calls);
+        let port = futu_search_port(reader);
+        let error = port
+            .read("/api/v1/market-data/instruments", query)
+            .await
+            .expect_err(&format!("{query} must be rejected"));
+        assert!(
+            matches!(
+                error,
+                MarketDataCatalogReadSnapshotError::Invalid { ref code, .. }
+                    if code == "MARKET_INSTRUMENT_INVALID"
+            ),
+            "{query} error = {error:?}"
+        );
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            0,
+            "{query} must be rejected before the OpenD search"
+        );
+    }
+}
+
+/// Parity: go:452dea11:pkg/futu/adapter_marketdata_search_test.go:38
+/// TestCanonicalSearchQuoteSymbolHandlesOpenDPrefixedCodes.
+///
+/// The engine projection owns the public `instrumentId`, so the seven Go rows
+/// are asserted here end-to-end rather than on the reader helper alone.
+#[tokio::test]
+async fn futu_search_canonicalizes_open_d_prefixed_symbols_like_go() {
+    let rows = [
+        ("US", "US.AAPL", "US.AAPL"),
+        ("US", "AAPL", "US.AAPL"),
+        // An inner dot is part of the code, not a market separator.
+        ("US", "BRK.B", "US.BRK.B"),
+        ("US", "US.BRK.B", "US.BRK.B"),
+        // ":" is rewritten to "." before the prefix check, so `hk:00700`
+        // canonicalizes to the HK security `HK.00700`.
+        ("HK", "hk:00700", "HK.00700"),
+        // CNSH collapses onto the SH display market without doubling.
+        ("SH", "CNSH.600519", "SH.600519"),
+        ("JP", "JP.7203", "JP.7203"),
+    ];
+    for (market, code, expected) in rows {
+        let port = futu_search_port(SearchReader {
+            entries: vec![search_entry_typed(market, code, "EQTY")],
+            fail: false,
+            allowed_keywords: None,
+            calls: search_calls(),
+        });
+        // Go drives the reader directly, and the route restricts `market` to
+        // the routable display markets (US/HK/CN/SH/SZ), so the request omits
+        // it and the row's own market decides the prefix.
+        let response = port
+            .read("/api/v1/market-data/instruments", "query=AAPL&limit=8")
+            .await
+            .unwrap_or_else(|error| panic!("{market}/{code} search failed: {error:?}"));
+        let entries = response["entries"].as_array().expect("entries");
+        assert_eq!(
+            entries.len(),
+            1,
+            "the row must survive filtering: {response}"
+        );
+        assert_eq!(
+            entries[0]["instrumentId"], expected,
+            "canonicalSearchQuoteSymbol({market}, {code})"
+        );
+    }
 }

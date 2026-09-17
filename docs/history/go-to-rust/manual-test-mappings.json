@@ -15246,32 +15246,32 @@
     "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_marketdata_search_test.go:12:TestFutuSearchMarketCodePreservesEveryStableDisplayMarket": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/instrument_search_query_tests.rs::search_market_codes_are_mapped_like_go_for_every_stable_display_market",
+    "conclusion": "function_exact：13 条映射逐条固定（HK/US/SH/SZ/SG/JP/AU/MY/CA 十市场 + HK_FUTURE(2) + FX(81) + CRYPTO(91) + 999→UNKNOWN），并断言缺少 market 字段的行是协议错误而不是伪造的 UNKNOWN 条目。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(search_market_codes_are_mapped_like_go_for_every_stable_display_market)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_marketdata_search_test.go:38:TestCanonicalSearchQuoteSymbolHandlesOpenDPrefixedCodes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::futu_search_canonicalizes_open_d_prefixed_symbols_like_go + crates/jftrade-integration-futu/src/instrument_search_query_tests.rs::search_symbols_normalize_open_d_prefixed_codes_like_go",
+    "conclusion": "function_exact：Go 的 7 行端到端固定——US.US.AAPL→US.AAPL、US.AAPL→US.AAPL、BRK.B→US.BRK.B（内部点保留）、US.BRK.B→US.BRK.B、hk:00700→HK.00700、CNSH.600519→SH.600519、JP.7203→JP.7203。reader 半侧固定原始码（大写+trim，前缀剥离由 engine 投影拥有）。本批修复了重复前缀缺口（原先 US.US.AAPL / SH.CNSH.600519）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(futu_search_canonicalizes_open_d_prefixed_symbols_like_go)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_marketdata_search_test.go:58:TestBrokerAdapterSecuritySearchMapsCrossMarketOpenDResults": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::futu_search_maps_cross_market_rows_and_drops_unusable_entries",
+    "conclusion": "function_exact：跨市场行投影——US 行的 \" Apple Inc. \" 与 CNSH.600519 中文名、仅两条可用结果、keyword 必须 trim 成 apple、limit=8 作为 maxCount 下发、Qot_GetSearchQuote 恰好 1 次（fixture 计数）、US instrumentId=US.AAPL、SH resolvedMarket=CN、IsWatched true/false 分别保留。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(futu_search_maps_cross_market_rows_and_drops_unusable_entries)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_marketdata_search_test.go:113:TestBrokerAdapterSecuritySearchRejectsInvalidQueriesBeforeConnecting": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::futu_search_rejects_invalid_queries_before_reaching_opend",
+    "conclusion": "function_exact：空/仅空格 keyword、limit=0、limit=101 全部在触达 OpenD 前以 400 MARKET_INSTRUMENT_INVALID 拒绝，并断言 fixture 的 search 调用计数为 0（即未发起 Qot_GetSearchQuote）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(futu_search_rejects_invalid_queries_before_reaching_opend)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_new_methods_test.go:14:TestConvertFundsSnapshotFullMarginFields": {
     "status": "[x]",

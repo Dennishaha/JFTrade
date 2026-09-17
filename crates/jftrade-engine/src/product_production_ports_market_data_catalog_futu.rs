@@ -120,14 +120,50 @@ fn selectable(market: &str) -> bool {
 
 fn candidate(entry: InstrumentSearchEntry) -> Value {
     let selectable = selectable(&entry.market);
+    // Go canonicalizes the row through `canonicalSearchQuoteSymbol`: an OpenD
+    // code that already carries its own market prefix (`US.AAPL`,
+    // `CNSH.600519`) must not be prefixed a second time, otherwise the public
+    // `instrumentId` becomes `US.US.AAPL` / `SH.CNSH.600519` and no longer
+    // resolves to the security the broker returned.
+    let code = canonical_search_code(&entry.market, &entry.code);
     json!({
-        "instrumentId": format!("{}.{}", entry.market, entry.code),
+        "instrumentId": format!("{}.{}", entry.market, code),
         "resolvedMarket": if matches!(entry.market.as_str(), "SH" | "SZ") { "CN" } else { &entry.market },
-        "market": entry.market, "code": entry.code, "symbol": entry.code,
+        "market": entry.market, "code": code, "symbol": code,
         "name": entry.name, "securityType": entry.security_type, "lotSize": entry.lot_size,
         "source": "futu", "isWatched": entry.is_watched, "selectable": selectable,
         "unavailableReason": if selectable { None } else { Some(format!("当前版本暂不支持 {} 市场", entry.market)) },
     })
+}
+
+/// Go `canonicalSearchQuoteMarketPrefix` + `canonicalSearchQuoteSymbol`.
+///
+/// A leading prefix is stripped only when it names the row's own market, with
+/// `CNSH`/`CNSZ` collapsing onto `SH`/`SZ` and `CC` onto `CRYPTO`. Anything
+/// else (including a nested `BRK.B`) is preserved verbatim so the code stays
+/// the exact broker identity.
+fn canonical_search_code(market: &str, code: &str) -> String {
+    let code = code.trim().to_ascii_uppercase().replace(':', ".");
+    let Some((prefix, bare)) = code.split_once('.') else {
+        return code;
+    };
+    let prefix = canonical_search_market_prefix(prefix);
+    let bare = bare.trim();
+    if prefix == market && !bare.is_empty() {
+        bare.to_owned()
+    } else {
+        code
+    }
+}
+
+fn canonical_search_market_prefix(value: &str) -> String {
+    match value.trim().to_ascii_uppercase().as_str() {
+        "CNSH" => "SH".to_owned(),
+        "CNSZ" => "SZ".to_owned(),
+        "HKFUTURE" | "HK_FUTURES" => "HK_FUTURE".to_owned(),
+        "CC" => "CRYPTO".to_owned(),
+        other => other.to_owned(),
+    }
 }
 
 fn map_error(error: InstrumentSearchError) -> Error {

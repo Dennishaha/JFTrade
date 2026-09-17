@@ -226,3 +226,89 @@ fn static_info_lookup_maps_every_security_static_basic_field() {
         })
     ));
 }
+
+#[test]
+fn search_market_codes_are_mapped_like_go_for_every_stable_display_market() {
+    // Parity: go:452dea11:pkg/futu/adapter_marketdata_search_test.go:12
+    // TestFutuSearchMarketCodePreservesEveryStableDisplayMarket.
+    //
+    // Go maps the stock markets through `futuMarketCodeFromQotMarket` and then
+    // adds the three non-stock codes the helper rejects, falling back to
+    // "UNKNOWN" for anything else. The table is part of the public
+    // `InstrumentCandidate.market`/`resolvedMarket` contract, so every row is
+    // pinned instead of sampling a few.
+    for (raw, expected) in [
+        (1, "HK"),
+        (11, "US"),
+        (21, "SH"),
+        (22, "SZ"),
+        (31, "SG"),
+        (41, "JP"),
+        (51, "AU"),
+        (61, "MY"),
+        (71, "CA"),
+        (2, "HK_FUTURE"),
+        (81, "FX"),
+        (91, "CRYPTO"),
+        (999, "UNKNOWN"),
+    ] {
+        let entries = decode_response(&response(vec![wire::SearchQuote {
+            market: Some(raw),
+            code: Some("00700".to_owned()),
+            name: None,
+            sec_type: None,
+            is_watched: None,
+        }]))
+        .unwrap_or_else(|error| panic!("market {raw} must decode: {error}"));
+        assert_eq!(entries[0].market, expected, "futuSearchMarketCode({raw})");
+    }
+
+    // A row without a market is a protocol error rather than a silent
+    // "UNKNOWN" entry, matching Go's `GetMarket()` default of 0 only being
+    // acceptable because `map_entry` requires the field.
+    assert!(
+        decode_response(&response(vec![wire::SearchQuote {
+            market: None,
+            code: Some("00700".to_owned()),
+            ..wire::SearchQuote::default()
+        }]))
+        .is_err()
+    );
+}
+
+#[test]
+fn search_symbols_normalize_open_d_prefixed_codes_like_go() {
+    // Parity: go:452dea11:pkg/futu/adapter_marketdata_search_test.go:38
+    // TestCanonicalSearchQuoteSymbolHandlesOpenDPrefixedCodes.
+    //
+    // `canonicalSearchQuoteSymbol` upper-cases and trims, rewrites ":" to ".",
+    // strips a leading prefix only when it already names the same market, and
+    // otherwise re-prefixes the row's market. The Rust owner splits that work
+    // between `map_entry` (market + `code` normalization) and the engine
+    // projection, so this pins the reader half for every Go row.
+    // The reader publishes the raw OpenD code (upper-cased, trimmed); the
+    // market-prefix stripping Go performs in `canonicalSearchQuoteSymbol` is
+    // owned by the engine projection that builds the public instrument id.
+    for (market, code, expected_code) in [
+        (11, "US.AAPL", "US.AAPL"),
+        (11, "aapl", "AAPL"),
+        (11, "BRK.B", "BRK.B"),
+        (11, "US.BRK.B", "US.BRK.B"),
+        (1, "hk:00700", "HK:00700"),
+        (21, "CNSH.600519", "CNSH.600519"),
+        (41, "jp.7203", "JP.7203"),
+    ] {
+        let entries = decode_response(&response(vec![wire::SearchQuote {
+            market: Some(market),
+            code: Some(code.to_owned()),
+            name: None,
+            sec_type: None,
+            is_watched: None,
+        }]))
+        .unwrap_or_else(|error| panic!("{market}/{code} must decode: {error}"));
+        assert_eq!(
+            entries[0].code, expected_code,
+            "canonicalSearchQuoteSymbol for {market}/{code}"
+        );
+    }
+}
