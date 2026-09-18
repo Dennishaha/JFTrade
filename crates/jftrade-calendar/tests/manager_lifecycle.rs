@@ -206,6 +206,68 @@ fn build_manager(
     .expect("create calendar manager")
 }
 
+/// A source that answers every declared market successfully while recording the
+/// markets it was asked for, so a test can assert which markets a probe or a
+/// warmup refresh actually touched.
+struct MarketRecordingSource {
+    id: String,
+    markets: Vec<String>,
+    log: Arc<Mutex<Vec<String>>>,
+}
+
+impl MarketRecordingSource {
+    fn new(id: &str, markets: Vec<&str>, log: Arc<Mutex<Vec<String>>>) -> Self {
+        Self {
+            id: id.to_owned(),
+            markets: markets.into_iter().map(str::to_owned).collect(),
+            log,
+        }
+    }
+}
+
+impl CalendarSourcePort for MarketRecordingSource {
+    fn descriptor(&self) -> CalendarSourceDescriptor {
+        CalendarSourceDescriptor {
+            id: self.id.clone(),
+            kind: "recording".to_owned(),
+            authority: "fixture".to_owned(),
+            markets: self.markets.clone(),
+        }
+    }
+
+    fn fetch(
+        &self,
+        market: &str,
+        from: WireTimestamp,
+        _to: WireTimestamp,
+        _cancellation: &CalendarCancellationToken,
+    ) -> Result<CalendarSnapshot, CalendarSourceError> {
+        self.log
+            .lock()
+            .expect("market fetch log")
+            .push(market.to_owned());
+        Ok(CalendarSnapshot {
+            market_code: market.to_owned(),
+            source_id: self.id.clone(),
+            from,
+            to: timestamp("2027-12-31T23:59:59Z"),
+            schedules: vec![TradingDaySchedule {
+                market_code: market.to_owned(),
+                date: timestamp("2026-06-19T00:00:00Z"),
+                status: "closed".to_owned(),
+                sessions: Vec::new(),
+                reason: "juneteenth".to_owned(),
+                source_id: self.id.clone(),
+                observed: false,
+                updated_at: None,
+            }],
+            fetched_at: timestamp("2026-06-19T12:00:00Z"),
+            valid_until: timestamp("2026-06-26T12:00:00Z"),
+            checksum: String::new(),
+        })
+    }
+}
+
 /// A source that records the order in which it is asked to fetch, so a test can
 /// assert the registry's resolve order through the real refresh path.
 struct RecordingOrderSource {
@@ -2241,6 +2303,428 @@ fn injected_clock_is_normalized_to_utc_for_projected_timestamps() {
         source_row.last_failure_at.as_deref(),
         Some("2026-06-20T01:30:00Z"),
         "recorded failure instants are UTC-normalized too"
+    );
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:890
+/// TestSnapshotCacheIndexesEveryCoveredMarketYear.
+///
+/// A snapshot spanning 2026-01-01..2027-12-31 must answer a day in *either*
+/// year, because Go indexes one cache entry per covered market-local year, and
+/// the status projection must still report it as one logical snapshot rather
+/// than one row per year.
+#[test]
+fn cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let source = Arc::new(FixtureSource::new("cross-year", events));
+    source.push(Ok(CalendarSnapshot {
+        market_code: "US".to_owned(),
+        source_id: "cross-year".to_owned(),
+        from: timestamp("2026-01-01T00:00:00-05:00"),
+        to: timestamp("2027-12-31T23:59:59-05:00"),
+        schedules: vec![
+            TradingDaySchedule {
+                market_code: "US".to_owned(),
+                date: timestamp("2026-06-19T00:00:00-04:00"),
+                status: "closed".to_owned(),
+                sessions: Vec::new(),
+                reason: "first-year".to_owned(),
+                source_id: "cross-year".to_owned(),
+                observed: false,
+                updated_at: None,
+            },
+            TradingDaySchedule {
+                market_code: "US".to_owned(),
+                date: timestamp("2027-01-02T00:00:00-05:00"),
+                status: "closed".to_owned(),
+                sessions: Vec::new(),
+                reason: "second-year".to_owned(),
+                source_id: "cross-year".to_owned(),
+                observed: false,
+                updated_at: None,
+            },
+        ],
+        fetched_at: timestamp("2026-06-19T12:00:00Z"),
+        valid_until: timestamp("2027-12-31T23:59:59Z"),
+        checksum: "cross-year".to_owned(),
+    }));
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-19T12:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = build_manager(source, None, settings("cross-year"), now);
+    manager.start().expect("start manager");
+    manager.refresh_all().expect("refresh all");
+
+    for (query, reason) in [
+        ("2026-06-19T14:00:00Z", "first-year"),
+        ("2027-01-02T14:00:00Z", "second-year"),
+    ] {
+        let schedule = manager
+            .schedule("US", timestamp(query))
+            .expect("cross-year schedule")
+            .expect("schedule");
+        assert_eq!(
+            schedule.source_id, "cross-year",
+            "the snapshot must answer {query}"
+        );
+        assert_eq!(schedule.reason, reason);
+    }
+
+    // One logical snapshot, not one row per indexed year.
+    let status = manager.status_snapshot().expect("status");
+    assert_eq!(
+        status.snapshots.len(),
+        1,
+        "snapshot summaries = {:?}",
+        status.snapshots
+    );
+    assert_eq!(status.snapshots[0].checksum, "cross-year");
+    assert_eq!(status.snapshots[0].schedules_parsed, 2);
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_probe_test.go:14
+/// TestManagerProbeMarketWarmupAndSnapshotOrdering.
+///
+/// Three properties in one Go case: `ProbeMarket("US")` touches only the
+/// requested market, the warmup refresh follows the configured warmup markets,
+/// and the status projection orders its snapshot rows by market-local sort key
+/// (HK before US) rather than by insertion order.
+#[test]
+fn probe_targets_one_market_while_warmup_follows_settings() {
+    let fetch_log = Arc::new(Mutex::new(Vec::new()));
+    let mut registry = CalendarSourceRegistry::default();
+    registry
+        .register(Arc::new(MarketRecordingSource::new(
+            "nyse_official",
+            vec!["US", "HK"],
+            Arc::clone(&fetch_log),
+        )))
+        .expect("register source");
+    let policy = CalendarManagerSettings {
+        // Auto refresh stays off so only the explicit calls below fetch; the
+        // background loop would otherwise add its own warmup pass.
+        auto_refresh_enabled: false,
+        refresh_interval_hours: 24,
+        // Warmup only covers HK, so a targeted US probe must not warm HK up.
+        warmup_markets: vec!["HK".to_owned()],
+        source_policies: vec![
+            CalendarSourcePolicy {
+                market: "US".to_owned(),
+                preferred_source_ids: vec!["nyse_official".to_owned()],
+                enabled_source_ids: vec!["nyse_official".to_owned()],
+                fallback_to_builtin: true,
+                stale_after_hours: 24,
+                ..CalendarSourcePolicy::default()
+            },
+            CalendarSourcePolicy {
+                market: "HK".to_owned(),
+                preferred_source_ids: vec!["nyse_official".to_owned()],
+                enabled_source_ids: vec!["nyse_official".to_owned()],
+                fallback_to_builtin: true,
+                stale_after_hours: 24,
+                ..CalendarSourcePolicy::default()
+            },
+        ],
+        ..CalendarManagerSettings::default()
+    };
+    let manager = CalendarManager::new(registry, None, policy).expect("create manager");
+    manager.start().expect("start manager");
+
+    let probe = manager.probe_market("US").expect("probe US");
+    assert_eq!(probe.market, "US");
+    assert_eq!((probe.healthy, probe.failures), (1, 0));
+    assert_eq!(
+        fetch_log.lock().expect("fetch log").clone(),
+        vec!["US".to_owned()],
+        "a targeted probe must not touch other markets"
+    );
+
+    // Warmup follows settings, so HK is fetched there and the US row comes only
+    // from an explicit targeted refresh (a probe never caches a snapshot).
+    manager.refresh_all().expect("warmup refresh");
+    manager.refresh_market("US").expect("refresh US");
+    assert_eq!(
+        fetch_log.lock().expect("fetch log").clone(),
+        vec!["US".to_owned(), "HK".to_owned(), "US".to_owned()],
+        "the warmup refresh follows the configured warmup markets"
+    );
+
+    // Snapshot rows are ordered by the market-local sort key and the builtin
+    // source is filtered out, so the HK row sorts before the US row regardless
+    // of the fetch order. Both markets still have to appear.
+    let summaries = manager.status_snapshot().expect("status").snapshots;
+    let markets = summaries
+        .iter()
+        .map(|summary| summary.market.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        markets,
+        vec!["HK".to_owned(), "US".to_owned()],
+        "snapshot summaries sort HK before US: {summaries:?}"
+    );
+    assert!(
+        summaries
+            .iter()
+            .all(|summary| summary.source_id != BUILTIN_SOURCE_ID),
+        "builtin snapshots are never summarised: {summaries:?}"
+    );
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/source_health_status_test.go:17
+/// TestRefreshAndProbeKeepPerSourceHealthTruthful.
+///
+/// With three providers — one network failure, one structure failure and one
+/// healthy — a refresh must keep the usable source while making both failures
+/// visible, and a probe must report the same split. An unsupported operator
+/// target is a no-op for both entry points rather than a success for an
+/// unrelated market.
+#[test]
+fn refresh_and_probe_keep_per_source_health_truthful() {
+    let mut failing = FixtureSource::new(
+        "coverage98-network-failure",
+        Arc::new(Mutex::new(Vec::new())),
+    );
+    failing.descriptor_markets = vec!["US".to_owned()];
+    failing.push(Err(CalendarSourceError::Failed(
+        "official endpoint unavailable".to_owned(),
+    )));
+    failing.push(Err(CalendarSourceError::Failed(
+        "official endpoint unavailable".to_owned(),
+    )));
+    let network = Arc::new(failing);
+
+    // A well-formed answer with zero schedules is a structure failure.
+    let mut structural = FixtureSource::new(
+        "coverage98-structure-failure",
+        Arc::new(Mutex::new(Vec::new())),
+    );
+    structural.descriptor_markets = vec!["US".to_owned()];
+    structural.push(Ok(CalendarSnapshot {
+        market_code: "US".to_owned(),
+        source_id: "coverage98-structure-failure".to_owned(),
+        from: timestamp("2026-01-01T00:00:00Z"),
+        to: timestamp("2027-12-31T23:59:59Z"),
+        schedules: Vec::new(),
+        fetched_at: timestamp("2026-07-02T16:00:00Z"),
+        valid_until: timestamp("2026-07-03T16:00:00Z"),
+        checksum: String::new(),
+    }));
+    structural.push(Ok(CalendarSnapshot {
+        market_code: "US".to_owned(),
+        source_id: "coverage98-structure-failure".to_owned(),
+        from: timestamp("2026-01-01T00:00:00Z"),
+        to: timestamp("2027-12-31T23:59:59Z"),
+        schedules: Vec::new(),
+        fetched_at: timestamp("2026-07-02T16:00:00Z"),
+        valid_until: timestamp("2026-07-03T16:00:00Z"),
+        checksum: String::new(),
+    }));
+    let structure = Arc::new(structural);
+
+    let mut healthy = FixtureSource::new("coverage98-official", Arc::new(Mutex::new(Vec::new())));
+    healthy.descriptor_markets = vec!["US".to_owned()];
+    for _ in 0..2 {
+        healthy.push(Ok(CalendarSnapshot {
+            market_code: "US".to_owned(),
+            source_id: "coverage98-official".to_owned(),
+            from: timestamp("2026-01-01T00:00:00Z"),
+            to: timestamp("2027-12-31T23:59:59Z"),
+            schedules: vec![TradingDaySchedule {
+                market_code: "US".to_owned(),
+                // 16:00Z is the US local trading day 2026-07-02; UTC midnight
+                // would land on the previous local date.
+                date: timestamp("2026-07-02T16:00:00Z"),
+                status: "closed".to_owned(),
+                sessions: Vec::new(),
+                reason: "official test closure".to_owned(),
+                source_id: "coverage98-official".to_owned(),
+                observed: false,
+                updated_at: None,
+            }],
+            fetched_at: timestamp("2026-07-02T16:00:00Z"),
+            valid_until: timestamp("2026-07-03T16:00:00Z"),
+            checksum: "coverage98-checksum".to_owned(),
+        }));
+    }
+    let official = Arc::new(healthy);
+
+    let mut registry = CalendarSourceRegistry::default();
+    for source in [
+        Arc::clone(&network) as Arc<dyn CalendarSourcePort>,
+        Arc::clone(&structure) as Arc<dyn CalendarSourcePort>,
+        Arc::clone(&official) as Arc<dyn CalendarSourcePort>,
+    ] {
+        registry.register(source).expect("register provider");
+    }
+    let policy = CalendarManagerSettings {
+        refresh_interval_hours: 24,
+        warmup_markets: vec!["US".to_owned()],
+        source_policies: vec![CalendarSourcePolicy {
+            market: "US".to_owned(),
+            preferred_source_ids: vec![
+                "coverage98-network-failure".to_owned(),
+                "coverage98-structure-failure".to_owned(),
+                "coverage98-official".to_owned(),
+            ],
+            enabled_source_ids: vec![
+                "coverage98-network-failure".to_owned(),
+                "coverage98-structure-failure".to_owned(),
+                "coverage98-official".to_owned(),
+            ],
+            fallback_to_builtin: true,
+            ..CalendarSourcePolicy::default()
+        }],
+        ..CalendarManagerSettings::default()
+    };
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-07-02T16:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = CalendarManager::with_clock(
+        registry,
+        None,
+        policy,
+        Arc::new(move || *now.lock().expect("fixture clock")),
+    )
+    .expect("create manager");
+    manager.start().expect("start manager");
+
+    // The usable source survives while both failures stay visible.
+    let refresh = manager.refresh_market("US").expect("refresh");
+    assert_eq!(
+        (refresh.updated, refresh.failures),
+        (1, 2),
+        "one healthy provider and two failures"
+    );
+    let status = |manager: &CalendarManager, id: &str| {
+        manager
+            .source_statuses()
+            .expect("source statuses")
+            .into_iter()
+            .find(|status| status.source_id == id)
+            .expect("provider status")
+    };
+    for id in ["coverage98-network-failure", "coverage98-structure-failure"] {
+        let failed = status(&manager, id);
+        assert!(
+            !failed.last_error.is_empty(),
+            "{id} must record its failure: {failed:?}"
+        );
+        assert_eq!(failed.consecutive_failures, 1, "{id}");
+        assert_eq!(failed.health_state, "unhealthy", "{id}");
+    }
+    let good = status(&manager, "coverage98-official");
+    assert!(good.last_success_at.is_some(), "healthy provider: {good:?}");
+    assert!(good.last_snapshot_fetched_at.is_some());
+    assert_eq!(good.health_state, "healthy");
+    // The healthy provider is the one actually serving the day.
+    let schedule = manager
+        .schedule("US", timestamp("2026-07-02T16:00:00Z"))
+        .expect("remote schedule")
+        .expect("schedule");
+    assert_eq!(schedule.source_id, "coverage98-official");
+    assert_eq!(schedule.status, "closed");
+
+    // The probe reports the same provider-level split.
+    let probe = manager.probe_market("US").expect("probe US");
+    assert_eq!((probe.healthy, probe.failures), (1, 2));
+    assert_eq!(probe.results.len(), 3);
+    for result in &probe.results {
+        let expected = if result.source_id == "coverage98-official" {
+            "healthy"
+        } else {
+            "unhealthy"
+        };
+        assert_eq!(result.status, expected, "probe row {result:?}");
+    }
+
+    // An unsupported target is a no-op, not a success for another market.
+    let unknown_refresh = manager.refresh_market("MARS").expect("unknown refresh");
+    assert!(unknown_refresh.accepted);
+    assert_eq!(unknown_refresh.market, "MARS");
+    assert_eq!((unknown_refresh.updated, unknown_refresh.failures), (0, 0));
+    let unknown_probe = manager.probe_market("MARS").expect("unknown probe");
+    assert!(unknown_probe.accepted);
+    assert_eq!(unknown_probe.market, "MARS");
+    assert_eq!((unknown_probe.healthy, unknown_probe.failures), (0, 0));
+    assert!(unknown_probe.results.is_empty());
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/source_health_status_test.go:98
+/// TestStatusDistinguishesRemoteCoverageFromRemoteOverride.
+///
+/// A fresh snapshot that covers the checked day but carries its special schedule
+/// on a *different* covered day must report `remote_covered_day`, not
+/// `remote_override`: the provider is credited with coverage while the builtin
+/// template keeps answering the ordinary day. Go deliberately places the early
+/// close one day after `now` to pin exactly that distinction.
+#[test]
+fn fresh_snapshot_without_a_special_day_is_coverage_not_override() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let source = Arc::new(FixtureSource::new("coverage98-covered", events));
+    source.push(Ok(CalendarSnapshot {
+        market_code: "US".to_owned(),
+        source_id: "coverage98-covered".to_owned(),
+        from: timestamp("2026-06-06T00:00:00Z"),
+        to: timestamp("2026-08-06T00:00:00Z"),
+        // The only special schedule sits on 2026-07-07, one day after the
+        // checked day, so it must not override 2026-07-06.
+        schedules: vec![TradingDaySchedule {
+            market_code: "US".to_owned(),
+            date: timestamp("2026-07-07T16:00:00Z"),
+            status: "early_close".to_owned(),
+            sessions: Vec::new(),
+            reason: String::new(),
+            source_id: "coverage98-covered".to_owned(),
+            observed: false,
+            updated_at: None,
+        }],
+        fetched_at: timestamp("2026-07-06T13:00:00Z"),
+        valid_until: timestamp("2026-07-06T15:00:00Z"),
+        checksum: String::new(),
+    }));
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-07-06T14:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = build_manager(source, None, settings("coverage98-covered"), now);
+    manager.start().expect("start manager");
+    manager.refresh_all().expect("refresh all");
+
+    let status = manager.status_snapshot().expect("status");
+    assert_eq!(status.markets.len(), 1);
+    let market = &status.markets[0];
+    assert_eq!(market.effective_source, "coverage98-covered");
+    assert_eq!(
+        market.effective_mode, "remote_covered_day",
+        "a fresh snapshot without a special day only supplies coverage"
+    );
+    assert_eq!(
+        market.effective_reason,
+        "a fresh source snapshot covers the checked trading day; builtin template supplies the standard session result because that date has no special override"
+    );
+    // The checked day itself still resolves to the builtin session.
+    let schedule = manager
+        .schedule("US", timestamp("2026-07-06T14:00:00Z"))
+        .expect("schedule")
+        .expect("builtin session");
+    assert_eq!(
+        schedule.source_id, BUILTIN_SOURCE_ID,
+        "the off-day early close must not leak onto the checked day"
     );
     manager.close().expect("close manager");
 }

@@ -3967,3 +3967,64 @@ python3 scripts/compatibility/audit_test_parity.py
 ```
 
 审计：553 → 564 function_exact；`jftrade-calendar` 59/59 通过。
+
+## 批次：internal/exchangecalendar 收尾（5 项）
+
+基线 `go:452dea11`。本批收掉 `internal/exchangecalendar` 剩余的 5 个
+`[~]` 行，全部判定为 `function_exact`（无生产改动，测试侧只做两处加固）。
+
+| Go 测试 | 状态 | Rust 测试 |
+| --- | --- | --- |
+| `manager_test.go:890` TestSnapshotCacheIndexesEveryCoveredMarketYear | `[x]` | `manager_lifecycle.rs::cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once` |
+| `manager_probe_test.go:14` TestManagerProbeMarketWarmupAndSnapshotOrdering | `[x]` | `manager_lifecycle.rs::probe_targets_one_market_while_warmup_follows_settings` |
+| `source_json_test.go:10` TestSourceStatusJSONOmitsZeroTimes | `[x]` | `sources.rs::tests::nonzero_time_fields_use_wire_rfc3339_and_zero_status_omits_them` |
+| `source_health_status_test.go:17` TestRefreshAndProbeKeepPerSourceHealthTruthful | `[x]` | `manager_lifecycle.rs::refresh_and_probe_keep_per_source_health_truthful` |
+| `source_health_status_test.go:98` TestStatusDistinguishesRemoteCoverageFromRemoteOverride | `[x]` | `manager_lifecycle.rs::fresh_snapshot_without_a_special_day_is_coverage_not_override` |
+
+### 本批新增/加固的测试
+
+前三条 Go 行为在上一批已由新写的 Rust 测试承载（`manager_lifecycle.rs`
+本轮 +484 行、3 个新 fixture），本批补齐映射并修正细节：
+
+1. `cross_year_snapshot_*`：Go 只断言“第二年可命中 + 汇总为 1 条”，Rust
+   额外断言第一年（2026-06-19）也命中、`checksum` 一致、
+   `schedules_parsed=2`，把跨年索引做成了双向证据。
+2. `probe_targets_one_market_*`：新增 `MarketRecordingSource`，用真实的
+   `probe_market` / `refresh_all` / `refresh_market` 调用黑盒断言
+   `fetch_log == ["US", "HK", "US"]`，并断言快照行按 market-local 排序键
+   （HK 先于 US）而非插入顺序。两条 fixture 规则写入 conclusion：
+   定向 probe 永不写缓存快照；US 本地日界是 `2026-07-02T16:00:00Z`
+   而不是 UTC 午夜。
+3. `nonzero_time_fields_*`（测试加固）：Go fixture 是
+   `SourceStatus{SourceID: "nyse_official", Enabled: true}` 后断言 8 个零值
+   时间字段全部不出现；Rust 原先构造的是 `enabled: false`，现在同样置
+   `enabled: true`（并断言 `zero["enabled"] == true`），使“启用状态下零值时间
+   仍然省略”这一点被真正锁住。
+
+### 有意差异（已写入 conclusion）
+
+- `:17`：Rust 在重试窗口内跳过 fetch（`skipped_backoff`），Go 的
+  `NextRefreshAt` 只用于展示、`refresh` 从不读取它。这是 Rust 侧刻意的额外
+  节流，不是回归；测试按 Rust 语义断言 provider 级健康真相（1 healthy /
+  2 unhealthy、unknown market 为 no-op）。
+
+### 探针（改坏实现 → 跑测试 → 确认守卫 → 回滚）
+
+本批为验证 `:98` 的 `remote_covered_day` 分支，曾把
+`manager_projection.rs` 的覆盖分支临时改成 `_ if false && covered.is_some()`，
+确认断言从 `effectiveMode="remote_covered_day"` 变成
+`effectiveSource="builtin_rules"` 后失败，随后 `git checkout --` 完整还原
+（`git status` 确认无残留）。生产代码本批零改动。
+
+### 验证
+
+```bash
+cargo fmt --all
+node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked --no-fail-fast
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+审计：564 → 569 function_exact（4451 条映射、569 个 `[x]` 且
+`rust_entry` 全局唯一）；`jftrade-calendar` 63/63 通过。
+
+`internal/exchangecalendar` 至此全部收口（72 条映射中已无该目录 `[~]` 行）。

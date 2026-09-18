@@ -407,11 +407,14 @@ mod tests {
     fn nonzero_time_fields_use_wire_rfc3339_and_zero_status_omits_them() {
         let zero = serde_json::to_value(CalendarSourceStatus {
             source_id: "nyse_official".to_owned(),
+            // Go's fixture enables the source before asserting that every
+            // zero timestamp is still omitted from the wire form.
+            enabled: true,
             ..CalendarSourceStatus::default()
         })
         .expect("serialize zero source status");
         assert_eq!(zero["sourceId"], "nyse_official");
-        assert_eq!(zero["enabled"], false);
+        assert_eq!(zero["enabled"], true);
         for field in [
             "lastSuccessAt",
             "lastFailureAt",
