@@ -243,3 +243,472 @@ fn market_research_projection_rejects_identity_drift() {
         Err(ResearchReadSnapshotError::Failed { status: 502, .. })
     ));
 }
+
+use std::io::{Read, Write};
+use std::net::TcpListener as StdTcpListener;
+use std::time::Duration;
+
+/// Loopback helper fixture for the market research routes.
+///
+/// The production code performs its helper call on a nested Tokio runtime from
+/// a blocking thread, so the peer lives on a plain OS thread with its own
+/// listener and is joined by the test after the call returns. The fixture
+/// answers the queued responses in order and records each request line so a
+/// test can assert the exact provider-neutral wire request.
+struct MarketResearchFixture {
+    client: HelperClient,
+    server: std::thread::JoinHandle<Vec<String>>,
+}
+
+impl MarketResearchFixture {
+    fn new(responses: Vec<(String, String)>) -> Self {
+        let listener = StdTcpListener::bind("127.0.0.1:0").expect("listen");
+        let address = listener.local_addr().expect("address");
+        let server = std::thread::spawn(move || {
+            let mut requests = Vec::new();
+            for (status, body) in responses {
+                let (mut stream, _) = listener.accept().expect("accept");
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .expect("read timeout");
+                let mut request = Vec::new();
+                let mut chunk = [0_u8; 1024];
+                while !request.windows(4).any(|window| window == b"\r\n\r\n") {
+                    let read = Read::read(&mut stream, &mut chunk).expect("read");
+                    if read == 0 {
+                        break;
+                    }
+                    request.extend_from_slice(&chunk[..read]);
+                    if request.len() > 32 * 1024 {
+                        break;
+                    }
+                }
+                requests.push(
+                    String::from_utf8_lossy(&request)
+                        .lines()
+                        .next()
+                        .unwrap_or_default()
+                        .to_owned(),
+                );
+                let response = format!(
+                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                Write::write_all(&mut stream, response.as_bytes()).expect("write");
+            }
+            requests
+        });
+        let client = HelperClient::new(jftrade_integration_marketdata_helper::HelperClientConfig {
+            base_url: format!("http://{address}"),
+            bearer_token: None,
+            request_timeout: Duration::from_secs(5),
+            max_attempts: 1,
+            retry_delay: Duration::ZERO,
+        })
+        .expect("helper client");
+        Self { client, server }
+    }
+
+    /// Fixture that answers a single 200 with the supplied body.
+    fn ok(body: String) -> Self {
+        Self::new(vec![("200 OK".to_owned(), body)])
+    }
+
+    /// Fixture with queued responses; an empty list means "no helper call may
+    /// happen", because the read would otherwise block on the join.
+    fn with_responses(responses: Vec<(String, String)>) -> Self {
+        Self::new(responses)
+    }
+
+    fn join(self) -> Vec<String> {
+        self.server.join().expect("server")
+    }
+}
+
+fn rankings_body(kind: &str, market: &str) -> String {
+    format!(
+        r#"{{"market":"{market}","kind":"{kind}","source":"akshare-rankings","entries":[{{"instrument_id":"SH.600519","name":"贵州茅台","price":1680.5,"change_rate":5.42}}]}}"#
+    )
+}
+
+fn boards_body(kind: &str, market: &str) -> String {
+    format!(
+        r#"{{"market":"{market}","kind":"{kind}","source":"akshare-industries","boards":[{{"name":"人工智能"}}]}}"#
+    )
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_rankings_test.go:53
+/// TestEmbeddedProviderMapsRankingsOperationsToKinds
+///
+/// The console sends `top_movers` with `direction=up|down` (default up) and
+/// `hot`; the facade maps those to the provider kinds gainers/losers/active and
+/// forwards market, kind, and the page limit verbatim.
+#[test]
+fn rankings_operations_map_to_provider_kinds_on_the_wire() {
+    for (query, expected) in [
+        ("operation=top_movers&direction=up&pageSize=30", "gainers"),
+        ("operation=top_movers&pageSize=30", "gainers"),
+        ("operation=top_movers&direction=down&pageSize=30", "losers"),
+        ("operation=hot&pageSize=30", "active"),
+    ] {
+        // The fixture echoes the kind the route asked for, so a wrong kind in
+        // the request is a projection identity failure rather than a pass.
+        let fixture = MarketResearchFixture::ok(rankings_body(expected, "CN"));
+        let result = read_market_research(
+            MarketDataProvider::Akshare,
+            true,
+            Some(&fixture.client),
+            "/api/v1/research/rankings",
+            &format!("market=CN&{query}"),
+        )
+        .expect("rankings read");
+        let requests = fixture.join();
+        assert_eq!(requests.len(), 1);
+        assert!(
+            requests[0].starts_with(&format!(
+                "GET /providers/akshare/rankings?market=CN&kind={expected}&limit=30 "
+            )),
+            "request = {}",
+            requests[0]
+        );
+        assert_eq!(result["entries"][0]["instrumentId"], "SH.600519");
+        assert_eq!(result["provider"]["brokerId"], "akshare");
+        assert_eq!(
+            result["provider"]["selectionReason"],
+            "embedded-market-data-provider"
+        );
+        assert_eq!(result["provider"]["featureId"], "research.rankings");
+    }
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_rankings_test.go:101
+/// TestEmbeddedProviderRejectsUnmappedRankingsOperations
+///
+/// Futu-only ranking operations (and an empty operation) must fail closed with
+/// the capability error and never reach the helper.
+#[test]
+fn rankings_reject_unmapped_operations_without_a_helper_call() {
+    for operation in [
+        "pre_market",
+        "after_hours",
+        "overnight",
+        "high_dividend_state",
+        "fund_catalog",
+        "",
+    ] {
+        // No queued response: any helper call would block the join, so the
+        // capability error proves the read never left the process.
+        let fixture = MarketResearchFixture::with_responses(Vec::new());
+        let error = read_market_research(
+            MarketDataProvider::Yfinance,
+            true,
+            Some(&fixture.client),
+            "/api/v1/research/rankings",
+            &format!("market=US&operation={operation}"),
+        )
+        .expect_err("unmapped operations must not be served");
+        assert!(
+            matches!(
+                error,
+                ResearchReadSnapshotError::Failed { status: 409, ref code, .. }
+                    if code == "BROKER_CAPABILITY_UNAVAILABLE"
+            ),
+            "operation {operation:?} => {error:?}"
+        );
+        assert!(
+            fixture.join().is_empty(),
+            "operation {operation:?} reached the helper"
+        );
+    }
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_rankings_test.go:127
+/// TestEmbeddedProviderMapsIndustryBoardOperations
+///
+/// `plate_list` (industry feature) and `heatmap` (rankings feature) both render
+/// the industry board feed; `plateType` defaults to industry and swaps to
+/// concept, and the heatmap keeps the rankings feature id.
+#[test]
+fn industry_board_operations_map_to_provider_kinds_on_the_wire() {
+    for (path, query, expected_plate, expected_feature) in [
+        (
+            "/api/v1/research/industries",
+            "market=CN&operation=plate_list&plateType=concept",
+            "concept",
+            "research.industry",
+        ),
+        (
+            "/api/v1/research/industries",
+            "market=CN&operation=plate_list",
+            "industry",
+            "research.industry",
+        ),
+        (
+            "/api/v1/research/rankings",
+            "market=CN&operation=heatmap&plateType=industry",
+            "industry",
+            "research.rankings",
+        ),
+        (
+            "/api/v1/research/rankings",
+            "market=CN&operation=heatmap&plateType=concept",
+            "concept",
+            "research.rankings",
+        ),
+    ] {
+        let fixture = MarketResearchFixture::ok(boards_body(expected_plate, "CN"));
+        let result = read_market_research(
+            MarketDataProvider::Akshare,
+            true,
+            Some(&fixture.client),
+            path,
+            query,
+        )
+        .expect("industry boards");
+        let requests = fixture.join();
+        assert!(
+            requests[0].starts_with(&format!(
+                "GET /providers/akshare/industries?kind={expected_plate}&market=CN "
+            )),
+            "request = {}",
+            requests[0]
+        );
+        assert_eq!(result["entries"][0]["instrumentId"], "CN.人工智能");
+        assert_eq!(result["entries"][0]["productClass"], "plate");
+        assert_eq!(result["provider"]["featureId"], expected_feature);
+    }
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_rankings_test.go:173
+/// TestEmbeddedProviderServesPlateMembersFromInstrumentID
+///
+/// `plate_members` derives the board from the `CN.<board>` instrumentId and
+/// reuses the ranking entry keys for the member rows.
+#[test]
+fn industry_plate_members_read_the_board_from_the_instrument_id() {
+    let fixture = MarketResearchFixture::ok(
+        // Rust validates the members identity (market/board/kind) before projecting,
+        // so the fixture echoes them. Go projects `Entries` without checking the
+        // response envelope, which is the identity-drift hole the Rust owner closes.
+        r#"{"market":"CN","kind":"industry","board":"半导体","source":"akshare-industries","entries":[{"instrument_id":"SH.688981","name":"中芯国际"}]}"#
+            .to_owned(),
+    );
+    let result = read_market_research(
+        MarketDataProvider::Akshare,
+        true,
+        Some(&fixture.client),
+        "/api/v1/research/industries",
+        "market=CN&instrumentId=CN.半导体&operation=plate_members&pageSize=50",
+    )
+    .expect("plate members");
+    let requests = fixture.join();
+    assert!(
+        requests[0].starts_with(
+            "GET /providers/akshare/industries/%E5%8D%8A%E5%AF%BC%E4%BD%93/members?limit=50&market=CN "
+        ),
+        "request = {}",
+        requests[0]
+    );
+    assert_eq!(result["entries"][0]["symbol"], "688981");
+    assert_eq!(result["resolvedInstrument"]["instrumentId"], "CN.半导体");
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_rankings_test.go:199
+/// TestEmbeddedProviderRejectsUnsupportedIndustryOperationsAndPlateTypes
+///
+/// Industry-chain operations are Futu-only and region/theme plate types have no
+/// embedded feed, so both are capability errors rather than empty results.
+#[test]
+fn industry_rejects_unsupported_operations_and_plate_types() {
+    for operation in [
+        "chains",
+        "chain_detail",
+        "chains_by_plate",
+        "plate",
+        "plate_stocks",
+    ] {
+        let fixture = MarketResearchFixture::with_responses(Vec::new());
+        let error = read_market_research(
+            MarketDataProvider::Akshare,
+            true,
+            Some(&fixture.client),
+            "/api/v1/research/industries",
+            &format!("market=CN&operation={operation}"),
+        )
+        .expect_err("unsupported industry operation");
+        assert!(
+            matches!(
+                error,
+                ResearchReadSnapshotError::Failed { status: 409, ref code, .. }
+                    if code == "BROKER_CAPABILITY_UNAVAILABLE"
+            ),
+            "operation {operation:?} => {error:?}"
+        );
+        assert!(fixture.join().is_empty());
+    }
+    for plate_type in ["region", "theme"] {
+        let fixture = MarketResearchFixture::with_responses(Vec::new());
+        let error = read_market_research(
+            MarketDataProvider::Akshare,
+            true,
+            Some(&fixture.client),
+            "/api/v1/research/industries",
+            &format!("market=CN&operation=plate_list&plateType={plate_type}"),
+        )
+        .expect_err("unsupported plate type");
+        assert!(
+            matches!(
+                error,
+                ResearchReadSnapshotError::Failed { status: 409, ref code, .. }
+                    if code == "BROKER_CAPABILITY_UNAVAILABLE"
+            ),
+            "plateType {plate_type:?} => {error:?}"
+        );
+        assert!(fixture.join().is_empty());
+    }
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_rankings_test.go:235
+/// TestEmbeddedProviderPropagatesRankingsCapabilityErrors
+///
+/// A helper-side capability rejection keeps its own code instead of being
+/// rewritten into an empty result, and the warming lifecycle sentinel keeps its
+/// identity plus Retry-After so the transport can answer 503.
+#[test]
+fn rankings_propagate_capability_and_lifecycle_errors() {
+    let fixture = MarketResearchFixture::with_responses(vec![(
+        "409 Conflict".to_owned(),
+        r#"{"error":{"code":"CAPABILITY_UNSUPPORTED","message":"market rankings unsupported for akshare"}}"#
+            .to_owned(),
+    )]);
+    let error = read_market_research(
+        MarketDataProvider::Akshare,
+        true,
+        Some(&fixture.client),
+        "/api/v1/research/rankings",
+        "market=HK&operation=hot",
+    )
+    .expect_err("unsupported rankings");
+    assert!(
+        matches!(
+            error,
+            ResearchReadSnapshotError::Failed { status: 409, ref code, .. }
+                if code == "CAPABILITY_UNSUPPORTED"
+        ),
+        "error = {error:?}"
+    );
+    assert_eq!(fixture.join().len(), 1);
+
+    let fixture = MarketResearchFixture::with_responses(vec![(
+        "503 Service Unavailable".to_owned(),
+        r#"{"error":{"code":"AKSHARE_RUNTIME_WARMING","message":"runtime loading"}}"#.to_owned(),
+    )]);
+    let error = read_market_research(
+        MarketDataProvider::Akshare,
+        true,
+        Some(&fixture.client),
+        "/api/v1/research/industries",
+        "market=CN&operation=plate_list",
+    )
+    .expect_err("warming industry boards");
+    assert!(
+        matches!(
+            error,
+            ResearchReadSnapshotError::Failed {
+                status: 503,
+                ref code,
+                retry_after_seconds: Some(1),
+                ..
+            } if code == "MARKET_DATA_PROVIDER_WARMING"
+        ),
+        "error = {error:?}"
+    );
+    assert_eq!(fixture.join().len(), 1);
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_rankings_test.go:262
+/// TestEmbeddedProviderRankingsStayOnBrokerPathForFutu
+///
+/// Futu never serves the embedded market-research feed, so the route fails
+/// closed with the capability error and performs no helper read.
+#[test]
+fn market_research_stays_off_the_helper_for_futu() {
+    for path in [
+        "/api/v1/research/rankings",
+        "/api/v1/research/industries",
+    ] {
+        let fixture = MarketResearchFixture::with_responses(Vec::new());
+        let error = read_market_research(
+            MarketDataProvider::Futu,
+            true,
+            Some(&fixture.client),
+            path,
+            "market=US&operation=top_movers",
+        )
+        .expect_err("Futu must not be served by the embedded feed");
+        // Observable contract: Futu never reaches the helper and never gets an
+        // empty result; the rejection names the provider family as the
+        // unsupported operand. The family-level early return in
+        // `read_market_research` and the per-operation `helper_provider` guard
+        // render the same answer, so this asserts behavior rather than one line.
+        match error {
+            ResearchReadSnapshotError::Failed {
+                status,
+                ref code,
+                ref message,
+                ..
+            } => {
+                assert_eq!(status, 409, "path {path}");
+                assert_eq!(code, "BROKER_CAPABILITY_UNAVAILABLE", "path {path}");
+                assert!(
+                    message.contains("\"futu\""),
+                    "path {path} message = {message}"
+                );
+            }
+            other => panic!("path {path} => {other:?}"),
+        }
+        assert!(fixture.join().is_empty());
+    }
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_rankings_test.go:278
+/// TestEmbeddedProviderDefaultsEmptyMarketToProviderDefault
+///
+/// Market-wide reads default an absent market by provider: yfinance falls back
+/// to US, AKShare to CN.
+#[test]
+fn market_research_defaults_an_absent_market_per_provider() {
+    let fixture = MarketResearchFixture::ok(
+        r#"{"market":"US","kind":"active","source":"yfinance-rankings","entries":[]}"#.to_owned(),
+    );
+    read_market_research(
+        MarketDataProvider::Yfinance,
+        true,
+        Some(&fixture.client),
+        "/api/v1/research/rankings",
+        "operation=hot",
+    )
+    .expect("yfinance default market");
+    let requests = fixture.join();
+    assert!(
+        requests[0].starts_with("GET /providers/yfinance/rankings?market=US&kind=active&"),
+        "request = {}",
+        requests[0]
+    );
+
+    let fixture = MarketResearchFixture::ok(boards_body("industry", "CN"));
+    read_market_research(
+        MarketDataProvider::Akshare,
+        true,
+        Some(&fixture.client),
+        "/api/v1/research/industries",
+        "operation=plate_list",
+    )
+    .expect("akshare default market");
+    let requests = fixture.join();
+    assert!(
+        requests[0].starts_with("GET /providers/akshare/industries?kind=industry&market=CN "),
+        "request = {}",
+        requests[0]
+    );
+}

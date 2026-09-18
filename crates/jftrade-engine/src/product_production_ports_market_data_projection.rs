@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use jftrade_marketdata::{DemandSnapshot, PhysicalSubscriptionSnapshot};
 
 use crate::product::MarketDataQuoteReadSnapshotError;
+use crate::product::product_production_ports::product_production_ports_helper_runtime::classify_helper_runtime_code;
 use crate::product::product_query::has_invalid_percent_escape;
 
 pub(crate) fn render_subscriptions_data(
@@ -240,14 +241,12 @@ pub(crate) fn map_helper_quote_error(
             // Retry-After contract.  Keep that mapping at the read owner so the
             // wire envelope matches Go instead of leaking the helper's
             // provider-specific codes.
-            if let Some((status, mapped_code, mapped_message, retry_after)) =
-                classify_helper_runtime_code(&code)
-            {
+            if let Some(runtime) = classify_helper_runtime_code(&code) {
                 return MarketDataQuoteReadSnapshotError::Failed {
-                    status,
-                    code: mapped_code.to_owned(),
-                    message: mapped_message.to_owned(),
-                    retry_after_seconds: Some(retry_after),
+                    status: runtime.status,
+                    code: runtime.code.to_owned(),
+                    message: runtime.message.to_owned(),
+                    retry_after_seconds: Some(runtime.retry_after_seconds),
                 };
             }
             let error_code = if !code.is_empty() {
@@ -290,25 +289,6 @@ pub(crate) fn map_helper_quote_error(
     }
 }
 
-fn classify_helper_runtime_code(code: &str) -> Option<(u16, &'static str, &'static str, u64)> {
-    match code.trim().to_ascii_uppercase().as_str() {
-        "YFINANCE_RUNTIME_WARMING" | "AKSHARE_RUNTIME_WARMING" | "PROVIDER_RUNTIME_WARMING" => {
-            Some((
-                503,
-                "MARKET_DATA_PROVIDER_WARMING",
-                "行情服务正在预热，请稍后重试",
-                1,
-            ))
-        }
-        "AKSHARE_POOL_BUSY" | "AKSHARE_UPSTREAM_TIMEOUT" => Some((
-            503,
-            "MARKET_DATA_PROVIDER_BUSY",
-            "行情服务当前繁忙，请稍后重试",
-            2,
-        )),
-        _ => None,
-    }
-}
 
 pub(crate) fn broker_polling_subscription_response(
     consumer_id: &str,

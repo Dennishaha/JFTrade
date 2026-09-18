@@ -1,4 +1,12 @@
 use super::*;
+use crate::product::ResearchReadSnapshotPort;
+use std::sync::Arc;
+use crate::product::product_active_provider_state::ActiveProviderState;
+use crate::product::product_production_ports::ProductionResearchPort;
+use jftrade_integration_marketdata_helper::HelperClient;
+use std::io::{Read, Write};
+use std::net::TcpListener as StdTcpListener;
+use std::time::Duration;
 use serde_json::json;
 
 /// Parity: go:452dea11:internal/productfeatures/provider_projection_test.go:97
@@ -328,4 +336,393 @@ fn embedded_research_instrument_derives_market_and_symbol() {
         research_helper_request("/api/v1/research/instruments/", ""),
         Err(ResearchReadSnapshotError::Invalid(_))
     ));
+}
+
+
+/// Loopback helper fixture for the company-research routes.
+///
+/// The production port performs its helper call on a nested Tokio runtime from
+/// a blocking thread, so the peer lives on a plain OS thread and is joined by
+/// the test after the call returns.
+struct CompanyResearchFixture {
+    client: HelperClient,
+    server: std::thread::JoinHandle<Vec<String>>,
+}
+
+impl CompanyResearchFixture {
+    fn new(responses: Vec<(String, String)>) -> Self {
+        let listener = StdTcpListener::bind("127.0.0.1:0").expect("listen");
+        let address = listener.local_addr().expect("address");
+        let server = std::thread::spawn(move || {
+            let mut requests = Vec::new();
+            for (status, body) in responses {
+                let (mut stream, _) = listener.accept().expect("accept");
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .expect("read timeout");
+                let mut request = Vec::new();
+                let mut chunk = [0_u8; 1024];
+                while !request.windows(4).any(|window| window == b"\r\n\r\n") {
+                    let read = Read::read(&mut stream, &mut chunk).expect("read");
+                    if read == 0 {
+                        break;
+                    }
+                    request.extend_from_slice(&chunk[..read]);
+                    if request.len() > 32 * 1024 {
+                        break;
+                    }
+                }
+                requests.push(
+                    String::from_utf8_lossy(&request)
+                        .lines()
+                        .next()
+                        .unwrap_or_default()
+                        .to_owned(),
+                );
+                let response = format!(
+                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                Write::write_all(&mut stream, response.as_bytes()).expect("write");
+            }
+            requests
+        });
+        let client = HelperClient::new(jftrade_integration_marketdata_helper::HelperClientConfig {
+            base_url: format!("http://{address}"),
+            bearer_token: None,
+            request_timeout: Duration::from_secs(5),
+            max_attempts: 1,
+            retry_delay: Duration::ZERO,
+        })
+        .expect("helper client");
+        Self { client, server }
+    }
+
+    fn ok(body: &str) -> Self {
+        Self::new(vec![("200 OK".to_owned(), body.to_owned())])
+    }
+
+    fn join(self) -> Vec<String> {
+        self.server.join().expect("server")
+    }
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_company_test.go:51
+/// TestEmbeddedProviderServesCompanyResearchDefaultOperations
+///
+/// Each company-research feature has one embedded operation (profile,
+/// statements, consensus, overview). Serving them forwards the instrument and
+/// resolves it for the caller, with no broker hop.
+#[test]
+fn company_research_default_operations_project_on_the_wire() {
+    // profile -> /providers/yfinance/profile/US/AAPL
+    let fixture = CompanyResearchFixture::ok(
+        r#"{"instrument_id":"US.AAPL","market":"US","symbol":"AAPL","source":"yfinance-profile","groups":[{"title":"Company","fields":[{"name":"Sector","value":"Technology"}]}]}"#,
+    );
+    let result = production_research_client(&fixture.client)
+        .read("/api/v1/research/instruments/US.AAPL", "operation=profile")
+        .expect("profile");
+    let requests = fixture.join();
+    assert!(
+        requests[0].starts_with("GET /providers/yfinance/profile/US/AAPL "),
+        "request = {}",
+        requests[0]
+    );
+    assert_eq!(result["entries"][0]["fieldType"], "title");
+    assert_eq!(result["entries"][1]["name"], "Sector");
+    assert_eq!(result["resolvedInstrument"]["instrumentId"], "US.AAPL");
+    assert_eq!(result["provider"]["featureId"], "research.instrument");
+
+    // statements -> /providers/yfinance/financials/US/AAPL
+    let fixture = CompanyResearchFixture::ok(
+        r#"{"instrument_id":"US.AAPL","statement":"income","source":"yfinance-financials","fields":[{"field_id":"revenue","display_name":"Revenue"}]}"#,
+    );
+    let result = production_research_client(&fixture.client)
+        .read(
+            "/api/v1/research/financials/US.AAPL",
+            "operation=statements&statement=income",
+        )
+        .expect("financials");
+    let requests = fixture.join();
+    assert!(
+        requests[0].starts_with(
+            "GET /providers/yfinance/financials/US/AAPL?statement=income "
+        ),
+        "request = {}",
+        requests[0]
+    );
+    assert_eq!(result["metadata"]["structureList"][0]["fieldId"], "revenue");
+    assert_eq!(result["provider"]["featureId"], "research.financials");
+
+    // consensus -> /providers/yfinance/analyst/US/AAPL
+    let fixture = CompanyResearchFixture::ok(
+        r#"{"instrument_id":"US.AAPL","source":"yfinance-analyst","rating":4}"#,
+    );
+    let result = production_research_client(&fixture.client)
+        .read("/api/v1/research/analyst/US.AAPL", "operation=consensus")
+        .expect("analyst");
+    let requests = fixture.join();
+    assert!(
+        requests[0].starts_with("GET /providers/yfinance/analyst/US/AAPL "),
+        "request = {}",
+        requests[0]
+    );
+    assert_eq!(result["entries"][0]["rating"], 4);
+    assert_eq!(result["provider"]["featureId"], "research.analyst");
+
+    // overview -> /providers/yfinance/ownership/US/AAPL
+    let fixture = CompanyResearchFixture::ok(
+        r#"{"instrument_id":"US.AAPL","source":"yfinance-ownership","groups":[{"kind":"major_holders","items":[{"name":"Vanguard","holder_pct":8.6}]}]}"#,
+    );
+    let result = production_research_client(&fixture.client)
+        .read("/api/v1/research/ownership/US.AAPL", "operation=overview")
+        .expect("ownership");
+    let requests = fixture.join();
+    assert!(
+        requests[0].starts_with("GET /providers/yfinance/ownership/US/AAPL "),
+        "request = {}",
+        requests[0]
+    );
+    assert_eq!(
+        result["metadata"]["mainHolderInfoList"][0]["itemList"][0]["name"],
+        "Vanguard"
+    );
+    assert_eq!(
+        result["metadata"]["mainHolderInfoList"][0]["itemList"][0]["holderPct"],
+        8.6
+    );
+    assert_eq!(result["provider"]["featureId"], "research.ownership");
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_company_test.go:148
+/// TestEmbeddedProviderCompanyResearchForwardsMarketSymbolAndStatement
+///
+/// The financials read forwards the request's market, symbol, and statement
+/// selection verbatim to the provider path.
+#[test]
+fn company_financials_forwards_market_symbol_and_statement() {
+    let fixture = CompanyResearchFixture::ok(
+        r#"{"instrument_id":"SH.600519","statement":"cashflow","source":"akshare-financials","fields":[]}"#,
+    );
+    let result = production_research_client(&fixture.client)
+        .read(
+            "/api/v1/research/financials/SH.600519",
+            "operation=statements&statement=cashflow",
+        )
+        .expect("financials");
+    let requests = fixture.join();
+    assert!(
+        requests[0].starts_with(
+            "GET /providers/yfinance/financials/SH/600519?statement=cashflow "
+        ),
+        "request = {}",
+        requests[0]
+    );
+    assert_eq!(result["resolvedInstrument"]["instrumentId"], "SH.600519");
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_company_test.go:170
+/// TestEmbeddedProviderCompanyResearchAcceptsOmittedOperation
+///
+/// An absent operation falls back to the feature's embedded default instead of
+/// being rejected.
+#[test]
+fn company_research_accepts_an_omitted_operation() {
+    let fixture = CompanyResearchFixture::ok(
+        r#"{"instrument_id":"US.AAPL","market":"US","symbol":"AAPL","source":"yfinance-profile","groups":[]}"#,
+    );
+    production_research_client(&fixture.client)
+        .read("/api/v1/research/instruments/US.AAPL", "")
+        .expect("profile without an explicit operation");
+    let requests = fixture.join();
+    assert!(
+        requests[0].starts_with("GET /providers/yfinance/profile/US/AAPL "),
+        "request = {}",
+        requests[0]
+    );
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_company_test.go:183
+/// TestEmbeddedProviderRejectsNonDefaultCompanyOperations
+///
+/// Non-default operations for the embedded company-research features are
+/// capability errors and never reach the helper.
+#[test]
+fn company_research_rejects_non_default_operations() {
+    for (path, operation) in [
+        ("/api/v1/research/instruments/US.AAPL", "deep_dive"),
+        ("/api/v1/research/financials/US.AAPL", "ratios"),
+        ("/api/v1/research/analyst/US.AAPL", "estimate_trend"),
+        ("/api/v1/research/ownership/US.AAPL", "history"),
+    ] {
+        let fixture = CompanyResearchFixture::new(Vec::new());
+        let error = production_research_client(&fixture.client)
+            .read(path, &format!("operation={operation}"))
+            .expect_err("non-default operations must fail closed");
+        assert!(
+            matches!(
+                error,
+                ResearchReadSnapshotError::Failed { status: 409, ref code, .. }
+                    if code == "BROKER_CAPABILITY_UNAVAILABLE"
+            ),
+            "{path} {operation} => {error:?}"
+        );
+        // No queued response: the join only returns because no helper read ran.
+        assert!(fixture.join().is_empty(), "{path} reached the helper");
+    }
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_company_test.go:207
+/// TestEmbeddedProviderPropagatesCompanyResearchCapabilityErrors
+///
+/// A helper capability rejection keeps its code, and the warming sentinel keeps
+/// its identity so the transport can answer 503 instead of 409.
+#[test]
+fn company_research_propagates_capability_and_lifecycle_errors() {
+    let fixture = CompanyResearchFixture::new(vec![(
+        "409 Conflict".to_owned(),
+        r#"{"error":{"code":"CAPABILITY_UNSUPPORTED","message":"analyst consensus unsupported"}}"#
+            .to_owned(),
+    )]);
+    let error = production_research_client(&fixture.client)
+        .read("/api/v1/research/analyst/US.AAPL", "operation=consensus")
+        .expect_err("unsupported analyst consensus");
+    assert!(
+        matches!(
+            error,
+            ResearchReadSnapshotError::Failed { status: 409, ref code, .. }
+                if code == "CAPABILITY_UNSUPPORTED"
+        ),
+        "error = {error:?}"
+    );
+    assert_eq!(fixture.join().len(), 1);
+
+    let fixture = CompanyResearchFixture::new(vec![(
+        "503 Service Unavailable".to_owned(),
+        r#"{"error":{"code":"AKSHARE_RUNTIME_WARMING","message":"runtime loading"}}"#.to_owned(),
+    )]);
+    let error = production_research_client(&fixture.client)
+        .read("/api/v1/research/instruments/US.AAPL", "operation=profile")
+        .expect_err("warming profile");
+    assert!(
+        matches!(
+            error,
+            ResearchReadSnapshotError::Failed {
+                status: 503,
+                ref code,
+                retry_after_seconds: Some(1),
+                ..
+            } if code == "MARKET_DATA_PROVIDER_WARMING"
+        ),
+        "error = {error:?}"
+    );
+    assert_eq!(fixture.join().len(), 1);
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_company_test.go:226
+/// TestEmbeddedProviderCompanyResearchStaysOnBrokerPathForFutu
+///
+/// With Futu active the embedded reader is never consulted for company
+/// research; the route fails closed before any helper read.
+#[test]
+fn company_research_stays_off_the_helper_for_futu() {
+    let fixture = CompanyResearchFixture::new(Vec::new());
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(true, true, true);
+    let port = ProductionResearchPort {
+        active_provider_state: state,
+        helper: Some(fixture.client.clone()),
+        trade_runtime: None,
+    };
+    let error = port
+        .read("/api/v1/research/analyst/US.AAPL", "operation=consensus")
+        .expect_err("Futu must keep company research on the broker path");
+    assert!(
+        matches!(
+            error,
+            ResearchReadSnapshotError::Failed { status: 409, ref code, .. }
+                if code == "BROKER_CAPABILITY_UNAVAILABLE"
+        ),
+        "error = {error:?}"
+    );
+    assert!(fixture.join().is_empty());
+}
+
+/// Build the production research port with a yfinance helper client, matching
+/// the Go fixture's active descriptor.
+fn production_research_client(
+    client: &HelperClient,
+) -> ProductionResearchPort {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Yfinance,
+    )));
+    state.set_readiness(true, false, false);
+    ProductionResearchPort {
+        active_provider_state: state,
+        helper: Some(client.clone()),
+        trade_runtime: None,
+    }
+}
+
+/// The company-research projection is fail-closed on provider identity: a
+/// helper payload whose instrument/market/symbol does not match the request is
+/// a 502 instead of a silently mislabeled result.
+///
+/// This guard had no Rust test before this batch: removing it kept every other
+/// company-research test green, so it is asserted here rather than assumed.
+#[test]
+fn company_research_rejects_provider_identity_drift() {
+    // instrument_id belongs to a different instrument than the request.
+    let fixture = CompanyResearchFixture::ok(
+        r#"{"instrument_id":"US.MSFT","market":"US","symbol":"MSFT","source":"yfinance-profile","groups":[]}"#,
+    );
+    let error = production_research_client(&fixture.client)
+        .read("/api/v1/research/instruments/US.AAPL", "operation=profile")
+        .expect_err("identity drift must fail closed");
+    assert!(
+        matches!(
+            error,
+            ResearchReadSnapshotError::Failed { status: 502, ref code, .. }
+                if code == "BAD_GATEWAY"
+        ),
+        "error = {error:?}"
+    );
+    assert_eq!(fixture.join().len(), 1);
+
+    // Profile's own market/symbol fields must agree with the request too.
+    let fixture = CompanyResearchFixture::ok(
+        r#"{"instrument_id":"US.AAPL","market":"US","symbol":"MSFT","source":"yfinance-profile","groups":[]}"#,
+    );
+    let error = production_research_client(&fixture.client)
+        .read("/api/v1/research/instruments/US.AAPL", "operation=profile")
+        .expect_err("symbol drift must fail closed");
+    assert!(
+        matches!(
+            error,
+            ResearchReadSnapshotError::Failed { status: 502, ref code, .. }
+                if code == "BAD_GATEWAY"
+        ),
+        "error = {error:?}"
+    );
+    assert_eq!(fixture.join().len(), 1);
+
+    // A non-instrument operation is checked against the request identity as
+    // well, so analyst/ownership reads cannot be relabeled either.
+    let fixture = CompanyResearchFixture::ok(
+        r#"{"instrument_id":"SH.600519","source":"yfinance-analyst","rating":4}"#,
+    );
+    let error = production_research_client(&fixture.client)
+        .read("/api/v1/research/analyst/US.AAPL", "operation=consensus")
+        .expect_err("cross-market identity drift must fail closed");
+    assert!(
+        matches!(
+            error,
+            ResearchReadSnapshotError::Failed { status: 502, ref code, .. }
+                if code == "BAD_GATEWAY"
+        ),
+        "error = {error:?}"
+    );
+    assert_eq!(fixture.join().len(), 1);
 }

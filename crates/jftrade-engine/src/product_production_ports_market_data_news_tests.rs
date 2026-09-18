@@ -130,6 +130,148 @@ async fn production_news_actions_port_maps_helper_failure_and_rejects_bad_limit(
     server.await.expect("server");
 }
 
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_interception_test.go:180
+/// TestEmbeddedProviderServesNewsForExplicitBrokerID
+///
+/// An explicit `brokerId` that names the active embedded provider is served by
+/// the helper instead of falling through to the broker registry: the request
+/// reaches `/providers/yfinance/news/US/AAPL` with the resolved `limit`, and
+/// the helper payload is projected for the console.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn news_route_serves_an_explicit_broker_id_for_the_active_provider() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
+    let address = listener.local_addr().expect("address");
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.expect("accept");
+        let mut request = vec![0_u8; 4096];
+        let read = stream.read(&mut request).await.expect("read");
+        let request = String::from_utf8_lossy(&request[..read]);
+        assert!(
+            request.starts_with("GET /providers/yfinance/news/US/AAPL?limit=5 HTTP/1.1\r\n"),
+            "request = {request}"
+        );
+        let body = r#"{"market":"US","symbol":"AAPL","instrument_id":"US.AAPL","entries":[{"title":"results","published_at":"2026-08-15T21:30:00Z"}],"source":"yfinance-news"}"#;
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            body.len(),
+            body
+        );
+        stream.write_all(response.as_bytes()).await.expect("write");
+    });
+    let value = MarketDataNewsActionsReadSnapshotPort::read(
+        &port(format!("http://{address}")),
+        "/api/v1/market-data/news/US/AAPL",
+        "brokerId=yfinance&limit=5",
+    )
+    .expect("news for the active provider's explicit id");
+    assert_eq!(value["instrumentId"], "US.AAPL");
+    assert_eq!(value["entries"][0]["title"], "results");
+    assert_eq!(value["entries"][0]["publishedAt"], "2026-08-15T21:30:00Z");
+    server.await.expect("server");
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_interception_test.go:213
+/// TestEmbeddedProviderServesCorporateActionsForActiveProvider
+///
+/// Corporate actions are served by the active embedded provider with no broker
+/// hop. Go's reader derives the default window (`now.AddDate(-2, 0, 0)` .. now),
+/// which the Python sidecar owns here (`action_window`: last two years), so the
+/// Rust contract is "forward no bounds" and let the sidecar default; an explicit
+/// window is forwarded verbatim.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn corporate_actions_route_uses_the_sidecar_default_window() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
+    let address = listener.local_addr().expect("address");
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.expect("accept");
+        let mut request = vec![0_u8; 4096];
+        let read = stream.read(&mut request).await.expect("read");
+        let request = String::from_utf8_lossy(&request[..read]);
+        assert!(
+            request.starts_with("GET /providers/yfinance/corporate-actions/SH/600519 HTTP/1.1\r\n"),
+            "request = {request}"
+        );
+        assert!(
+            !request.contains("from=") && !request.contains("to="),
+            "the sidecar owns the default two-year window: {request}"
+        );
+        let body = r#"{"market":"SH","symbol":"600519","instrument_id":"SH.600519","events":[{"kind":"dividend","ex_date":"2026-06-30","amount":1.2}],"source":"yfinance-actions"}"#;
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            body.len(),
+            body
+        );
+        stream.write_all(response.as_bytes()).await.expect("write");
+    });
+    let value = MarketDataNewsActionsReadSnapshotPort::read(
+        &port(format!("http://{address}")),
+        "/api/v1/market-data/corporate-actions/SH/600519",
+        "",
+    )
+    .expect("corporate actions with the sidecar window");
+    assert_eq!(value["instrumentId"], "SH.600519");
+    assert_eq!(value["events"][0]["kind"], "dividend");
+    server.await.expect("server");
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_interception_test.go:248
+/// TestEmbeddedProviderLeavesFutuQueriesOnBrokerPath
+///
+/// News queries never enter the embedded facade when they belong to the broker
+/// path: an explicit `brokerId=futu` while yfinance is active, and Futu being
+/// the active provider with no explicit id. Both fail closed on the broker side
+/// (capability / OpenD readiness) instead of borrowing yfinance's helper.
+#[test]
+fn futu_news_queries_stay_on_the_broker_path() {
+    // yfinance active, explicit futu: the active-provider guard rejects before
+    // any helper read even though the helper is "ready".
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Yfinance)));
+    state.set_readiness(true, false, false);
+    let port = ProductionMarketDataNewsPort {
+        active_provider_state: state,
+        helper: None,
+        trade_runtime: None,
+    };
+    let error = MarketDataNewsActionsReadSnapshotPort::read(
+        &port,
+        "/api/v1/market-data/news/US/AAPL",
+        "brokerId=futu&limit=5",
+    )
+    .expect_err("explicit futu must not be intercepted by the embedded facade");
+    assert!(
+        matches!(
+            error,
+            MarketDataNewsActionsReadSnapshotError::Failed { status: 409, ref code, .. }
+                if code == "MARKET_DATA_CAPABILITY_UNSUPPORTED"
+        ),
+        "error = {error:?}"
+    );
+
+    // Futu active with no explicit id: the broker path owns the read and fails
+    // closed on OpenD readiness, so no helper is consulted.
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    state.set_readiness(true, false, false);
+    let port = ProductionMarketDataNewsPort {
+        active_provider_state: state,
+        helper: None,
+        trade_runtime: None,
+    };
+    let error = MarketDataNewsActionsReadSnapshotPort::read(
+        &port,
+        "/api/v1/market-data/news/US/AAPL",
+        "limit=5",
+    )
+    .expect_err("futu-active news must stay on the OpenD path");
+    assert!(
+        matches!(
+            error,
+            MarketDataNewsActionsReadSnapshotError::Unavailable(ref message)
+                if message.contains("Futu OpenD")
+        ),
+        "error = {error:?}"
+    );
+}
+
 #[test]
 fn corporate_actions_projection_rejects_missing_events() {
     let payload = serde_json::json!({

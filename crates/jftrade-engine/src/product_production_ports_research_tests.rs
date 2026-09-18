@@ -756,7 +756,7 @@ async fn research_screen_helper_projects_rows_and_cells_without_fixture_defaults
         offset: 0,
         limit: 50,
         definition: json!({
-            "conditions": [{"factor": {"factorKey": "simple.price"}, "operator": "gte", "value": 10}],
+            "conditions": [{"factor": {"factorKey": "simple.price"}, "operator": "between", "value": {"min": 10}}],
             "sorts": [{"factor": {"factorKey": "simple.price"}, "direction": "desc"}]
         }),
         columns: vec![ResearchScreenColumn {
@@ -911,7 +911,7 @@ fn embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels() {
             ref code,
             retry_after_seconds: Some(1),
             ..
-        } if code == "AKSHARE_RUNTIME_WARMING"
+        } if code == "MARKET_DATA_PROVIDER_WARMING"
     ));
 
     let busy = map_research_helper_error(
@@ -929,8 +929,58 @@ fn embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels() {
             ref code,
             retry_after_seconds: Some(2),
             ..
-        } if code == "AKSHARE_POOL_BUSY"
+        } if code == "MARKET_DATA_PROVIDER_BUSY"
     ));
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_interception_test.go:294
+/// TestEmbeddedProviderPropagatesCapabilityAndLifecycleErrors
+///
+/// The embedded facade maps a helper capability rejection into the broker
+/// capability contract, while helper runtime pressure keeps the market-data
+/// lifecycle identity so the transport answers 503 with the fixed Retry-After:
+/// warming -> `MARKET_DATA_PROVIDER_WARMING`/1s, busy -> `..._BUSY`/2s. This is
+/// the news/corporate-actions interception path; the rankings, calendar, and
+/// company owners assert the same mapping at their own boundaries.
+#[test]
+fn embedded_facade_propagates_capability_and_lifecycle_sentinels() {
+    use jftrade_integration_marketdata_helper::HttpAdapterError;
+
+    let capability_error = capability("research.news", "instrument news");
+    assert!(matches!(
+        capability_error,
+        ResearchReadSnapshotError::Failed {
+            status: 409,
+            ref code,
+            ..
+        } if code == "BROKER_CAPABILITY_UNAVAILABLE"
+    ));
+
+    for (raw_code, expected_code, expected_retry_after) in [
+        ("AKSHARE_RUNTIME_WARMING", "MARKET_DATA_PROVIDER_WARMING", 1_u64),
+        ("AKSHARE_POOL_BUSY", "MARKET_DATA_PROVIDER_BUSY", 2_u64),
+        ("AKSHARE_UPSTREAM_TIMEOUT", "MARKET_DATA_PROVIDER_BUSY", 2_u64),
+        ("PROVIDER_RUNTIME_WARMING", "MARKET_DATA_PROVIDER_WARMING", 1_u64),
+    ] {
+        let mapped = map_research_helper_error(HttpAdapterError::Remote {
+            status: 503,
+            code: raw_code.to_owned(),
+            message: "runtime loading".to_owned(),
+            retry_after_seconds: None,
+        });
+        assert!(
+            matches!(
+                mapped,
+                ResearchReadSnapshotError::Failed {
+                    status: 503,
+                    ref code,
+                    retry_after_seconds: Some(retry_after),
+                    ..
+                } if code == expected_code && retry_after == expected_retry_after
+            ),
+            "{raw_code} => {mapped:?}"
+        );
+    }
 }
 
 /// Parity: go:452dea11:internal/productfeatures/provider_projection_test.go:160

@@ -1,4 +1,5 @@
 use super::*;
+use std::net::TcpListener as StdTcpListener;
 
 #[test]
 fn macro_history_uses_page_size_before_legacy_limit() {
@@ -509,4 +510,337 @@ fn macro_indicator_history_route_rejects_identity_and_type_drift() {
             ..
         } if message == "research response field value must be numeric"
     ));
+}
+
+/// Loopback helper fixture for the calendar/macro routes.
+struct CalendarRouteFixture {
+    client: HelperClient,
+    server: std::thread::JoinHandle<Vec<String>>,
+}
+
+impl CalendarRouteFixture {
+    fn new(responses: Vec<(String, String)>) -> Self {
+        let listener = StdTcpListener::bind("127.0.0.1:0").expect("listen");
+        let address = listener.local_addr().expect("address");
+        let server = std::thread::spawn(move || {
+            let mut requests = Vec::new();
+            for (status, body) in responses {
+                let (mut stream, _) = listener.accept().expect("accept");
+                stream
+                    .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                    .expect("read timeout");
+                let mut request = Vec::new();
+                let mut chunk = [0_u8; 1024];
+                while !request.windows(4).any(|window| window == b"\r\n\r\n") {
+                    let read = std::io::Read::read(&mut stream, &mut chunk).expect("read");
+                    if read == 0 {
+                        break;
+                    }
+                    request.extend_from_slice(&chunk[..read]);
+                    if request.len() > 32 * 1024 {
+                        break;
+                    }
+                }
+                requests.push(
+                    String::from_utf8_lossy(&request)
+                        .lines()
+                        .next()
+                        .unwrap_or_default()
+                        .to_owned(),
+                );
+                let response = format!(
+                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                std::io::Write::write_all(&mut stream, response.as_bytes()).expect("write");
+            }
+            requests
+        });
+        let client = HelperClient::new(jftrade_integration_marketdata_helper::HelperClientConfig {
+            base_url: format!("http://{address}"),
+            bearer_token: None,
+            request_timeout: std::time::Duration::from_secs(5),
+            max_attempts: 1,
+            retry_delay: std::time::Duration::ZERO,
+        })
+        .expect("helper client");
+        Self { client, server }
+    }
+
+    fn ok(body: &str) -> Self {
+        Self::new(vec![("200 OK".to_owned(), body.to_owned())])
+    }
+
+    fn join(self) -> Vec<String> {
+        self.server.join().expect("server")
+    }
+}
+
+fn akshare_calendar_route(
+    client: &HelperClient,
+    path: &str,
+    query: &str,
+) -> Result<serde_json::Value, ResearchReadSnapshotError> {
+    read_market_calendar(MarketDataProvider::Akshare, true, Some(client), path, query)
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_calendar_test.go:33
+/// TestEmbeddedProviderServesCalendarOperations
+///
+/// All four calendar operations (earnings/dividends/economic/ipos) are served
+/// by the embedded provider, forward their business parameters verbatim, keep
+/// the request envelope (no resolved instrument), and never resolve a broker.
+#[test]
+fn calendar_operations_map_to_provider_reads_on_the_wire() {
+    let fixture = CalendarRouteFixture::ok(
+        r#"{"source":"akshare-calendar","entries":[{"instrument_id":"SH.600519","name":"贵州茅台","symbol":"600519","event_date":"2026-08-20","period_text":"2025中报","price":1680.5}]}"#,
+    );
+    let result = akshare_calendar_route(
+        &fixture.client,
+        "/api/v1/research/calendars",
+        "operation=earnings&beginDate=2026-08-01&endDate=2026-08-31",
+    )
+    .expect("earnings");
+    let requests = fixture.join();
+    assert!(
+        requests[0].starts_with(
+            "GET /providers/akshare/calendar/earnings?begin_date=2026-08-01&end_date=2026-08-31 "
+        ),
+        "request = {}",
+        requests[0]
+    );
+    assert_eq!(result["entries"][0]["instrumentId"], "SH.600519");
+    assert_eq!(result["entries"][0]["market"], "SH");
+    assert_eq!(result["entries"][0]["symbol"], "600519");
+    assert_eq!(result["entries"][0]["price"], 1680.5);
+    assert!(result.get("resolvedInstrument").is_none());
+
+    let fixture = CalendarRouteFixture::ok(
+        r#"{"source":"akshare-calendar","entries":[{"instrument_id":"SZ.000001","statement":"10派2元","ex_date":"2026-08-15"}]}"#,
+    );
+    let result = akshare_calendar_route(
+        &fixture.client,
+        "/api/v1/research/calendars",
+        "operation=dividends&date=2026-08-15",
+    )
+    .expect("dividends");
+    let requests = fixture.join();
+    assert!(
+        requests[0].starts_with("GET /providers/akshare/calendar/dividends?date=2026-08-15 "),
+        "request = {}",
+        requests[0]
+    );
+    assert_eq!(result["entries"][0]["statement"], "10派2元");
+
+    let fixture = CalendarRouteFixture::ok(
+        r#"{"source":"akshare-calendar","entries":[{"event_id":"econ-1","title":"CPI同比","region":"中国","event_timestamp":1787000000}]}"#,
+    );
+    let result = akshare_calendar_route(
+        &fixture.client,
+        "/api/v1/research/calendars",
+        "operation=economic&beginDate=2026-08-01&endDate=2026-08-07",
+    )
+    .expect("economic");
+    let requests = fixture.join();
+    assert!(
+        requests[0].starts_with(
+            "GET /providers/akshare/calendar/economic?begin_date=2026-08-01&end_date=2026-08-07 "
+        ),
+        "request = {}",
+        requests[0]
+    );
+    assert_eq!(result["entries"][0]["eventId"], "econ-1");
+    assert_eq!(result["entries"][0]["eventTimestamp"], 1787000000_i64);
+    // Flat pagination: the calendar envelope always reports hasMore=false and
+    // never invents a cursor.
+    assert_eq!(result["hasMore"], false);
+    assert!(result.get("nextCursor").is_none());
+
+    let fixture = CalendarRouteFixture::ok(
+        r#"{"source":"akshare-calendar","entries":[{"instrument_id":"SZ.301999","name":"新股示例","status":"pending"}]}"#,
+    );
+    let result = akshare_calendar_route(
+        &fixture.client,
+        "/api/v1/research/calendars",
+        "operation=ipos&market=CN",
+    )
+    .expect("ipos");
+    let requests = fixture.join();
+    assert!(
+        requests[0].starts_with("GET /providers/akshare/calendar/ipos "),
+        "request = {}",
+        requests[0]
+    );
+    assert_eq!(result["entries"][0]["status"], "pending");
+    assert_eq!(result["provider"]["featureId"], "research.calendar");
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_calendar_test.go:147
+/// TestEmbeddedProviderServesMacroOperations
+///
+/// `indicators` nests the indicator list per category; `indicator_history`
+/// forwards indicatorId plus pageSize as the provider limit and projects the
+/// point rows.
+#[test]
+fn macro_operations_map_to_provider_reads_on_the_wire() {
+    let fixture = CalendarRouteFixture::ok(
+        r#"{"source":"akshare-macro","categories":[{"category_name":"价格","indicators":[{"indicator_id":"cpi_yoy","name":"CPI同比","region":"中国","unit":"%","frequency":"monthly","unit_type":1}]}]}"#,
+    );
+    let result = akshare_calendar_route(
+        &fixture.client,
+        "/api/v1/research/macro",
+        "operation=indicators",
+    )
+    .expect("indicators");
+    let requests = fixture.join();
+    assert!(
+        requests[0].starts_with("GET /providers/akshare/macro/indicators "),
+        "request = {}",
+        requests[0]
+    );
+    assert_eq!(result["entries"][0]["categoryName"], "价格");
+    assert_eq!(
+        result["entries"][0]["indicatorList"][0]["indicatorId"],
+        "cpi_yoy"
+    );
+
+    let fixture = CalendarRouteFixture::ok(
+        r#"{"indicator_id":"cpi_yoy","source":"akshare-macro","entries":[{"data_time":"2026-07","value":0.5,"unit":"%","unit_type":1}]}"#,
+    );
+    let result = akshare_calendar_route(
+        &fixture.client,
+        "/api/v1/research/macro",
+        "operation=indicator_history&indicatorId=cpi_yoy&pageSize=60",
+    )
+    .expect("indicator history");
+    let requests = fixture.join();
+    assert!(
+        requests[0].starts_with(
+            "GET /providers/akshare/macro/indicator-history?indicator_id=cpi_yoy&limit=60 "
+        ),
+        "request = {}",
+        requests[0]
+    );
+    assert_eq!(result["entries"][0]["dataTime"], "2026-07");
+    assert_eq!(result["entries"][0]["value"], 0.5);
+    assert_eq!(result["provider"]["featureId"], "research.macro");
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_calendar_test.go:205
+/// TestEmbeddedProviderRejectsUnsupportedCalendarMacroOperations
+///
+/// trade_dates and the fed_* macro operations have no embedded feed, an empty
+/// operation is not a default, and indicator_history without indicatorId is a
+/// capability error — none of them falls through to broker routing or the
+/// helper.
+#[test]
+fn calendar_and_macro_reject_unsupported_operations_without_a_helper_call() {
+    for (path, query) in [
+        ("/api/v1/research/calendars", "operation=trade_dates"),
+        ("/api/v1/research/calendars", ""),
+        ("/api/v1/research/macro", "operation=fed_target_rate"),
+        ("/api/v1/research/macro", "operation=fed_dot_plot"),
+        ("/api/v1/research/macro", "operation=indicator_history"),
+        ("/api/v1/research/macro", ""),
+    ] {
+        let fixture = CalendarRouteFixture::new(Vec::new());
+        let error = akshare_calendar_route(&fixture.client, path, query)
+            .expect_err("unsupported operations must fail closed");
+        assert!(
+            matches!(
+                error,
+                ResearchReadSnapshotError::Failed { status: 409, ref code, .. }
+                    if code == "BROKER_CAPABILITY_UNAVAILABLE"
+            ),
+            "{path} {query} => {error:?}"
+        );
+        // No queued response: any helper read would block the join.
+        assert!(
+            fixture.join().is_empty(),
+            "{path} {query} reached the helper"
+        );
+    }
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_calendar_test.go:237
+/// TestEmbeddedProviderPropagatesCalendarMacroErrors
+///
+/// A helper capability rejection keeps its own code, and the provider-busy
+/// sentinel keeps its identity instead of being flattened into a capability
+/// error or an empty calendar.
+#[test]
+fn calendar_and_macro_propagate_capability_and_busy_errors() {
+    let fixture = CalendarRouteFixture::new(vec![(
+        "409 Conflict".to_owned(),
+        r#"{"error":{"code":"CAPABILITY_UNSUPPORTED","message":"event calendars unsupported"}}"#
+            .to_owned(),
+    )]);
+    let error = akshare_calendar_route(
+        &fixture.client,
+        "/api/v1/research/calendars",
+        "operation=ipos",
+    )
+    .expect_err("unsupported ipos");
+    assert!(
+        matches!(
+            error,
+            ResearchReadSnapshotError::Failed { status: 409, ref code, .. }
+                if code == "CAPABILITY_UNSUPPORTED"
+        ),
+        "error = {error:?}"
+    );
+    assert_eq!(fixture.join().len(), 1);
+
+    let fixture = CalendarRouteFixture::new(vec![(
+        "503 Service Unavailable".to_owned(),
+        r#"{"error":{"code":"AKSHARE_POOL_BUSY","message":"pool busy"}}"#.to_owned(),
+    )]);
+    let error = akshare_calendar_route(
+        &fixture.client,
+        "/api/v1/research/macro",
+        "operation=indicators",
+    )
+    .expect_err("busy macro indicators");
+    assert!(
+        matches!(
+            error,
+            ResearchReadSnapshotError::Failed {
+                status: 503,
+                ref code,
+                retry_after_seconds: Some(2),
+                ..
+            } if code == "MARKET_DATA_PROVIDER_BUSY"
+        ),
+        "error = {error:?}"
+    );
+    assert_eq!(fixture.join().len(), 1);
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_facade_calendar_test.go:262
+/// TestEmbeddedProviderCalendarMacroStayOnBrokerPathForFutu
+///
+/// With Futu active the calendar/macro routes never consult the helper: the
+/// read fails closed as unavailable rather than borrowing another provider.
+#[test]
+fn calendar_and_macro_stay_off_the_helper_for_futu() {
+    for path in [
+        "/api/v1/research/calendars",
+        "/api/v1/research/macro",
+    ] {
+        let fixture = CalendarRouteFixture::new(Vec::new());
+        let error = read_market_calendar(
+            MarketDataProvider::Futu,
+            true,
+            Some(&fixture.client),
+            path,
+            "operation=indicators",
+        )
+        .expect_err("Futu must not be served by the embedded calendar/macro feed");
+        assert!(
+            matches!(error, ResearchReadSnapshotError::Unavailable(ref m)
+                if m.contains("Futu research calendar/macro runtime is not ready")),
+            "path {path} => {error:?}"
+        );
+        assert!(fixture.join().is_empty());
+    }
 }

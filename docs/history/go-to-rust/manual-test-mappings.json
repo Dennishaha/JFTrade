@@ -22323,207 +22323,207 @@
     "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_calendar_test.go:33:TestEmbeddedProviderServesCalendarOperations": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_calendar_tests.rs::calendar_operations_map_to_provider_reads_on_the_wire",
+    "conclusion": "function_exact：earnings/dividends/economic/ipos 四个前端 operation 分别映射到 helper 读取并投影前端键（earnings 的 instrumentId/market/symbol/price、dividend 的 statement、economic 的 eventId/eventTimestamp 且分页保持扁平、ipo 的 status）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_calendar_test.go:147:TestEmbeddedProviderServesMacroOperations": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_calendar_tests.rs::macro_operations_map_to_provider_reads_on_the_wire",
+    "conclusion": "function_exact：macro indicators 与 history 两个 operation 映射到 helper，indicators 结果嵌套在 indicators 键下，history 投影 indicatorId/entries 且 limit 按 pageSize 优先。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_calendar_test.go:205:TestEmbeddedProviderRejectsUnsupportedCalendarMacroOperations": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_calendar_tests.rs::calendar_and_macro_reject_unsupported_operations_without_a_helper_call",
+    "conclusion": "function_exact：calendar/macro 的未映射 operation 必须 capability-unavailable 且零 helper 调用。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_calendar_test.go:237:TestEmbeddedProviderPropagatesCalendarMacroErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_calendar_tests.rs::calendar_and_macro_propagate_capability_and_busy_errors",
+    "conclusion": "function_exact：helper 409 CAPABILITY_UNSUPPORTED 保留 409/原 code；helper runtime sentinel AKSHARE_POOL_BUSY 折叠为 503 MARKET_DATA_PROVIDER_BUSY + Retry-After 2（Go 侧 ErrProviderBusy）。本轮新增 sentinel 分类。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_calendar_test.go:262:TestEmbeddedProviderCalendarMacroStayOnBrokerPathForFutu": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_calendar_tests.rs::calendar_and_macro_stay_off_the_helper_for_futu",
+    "conclusion": "function_exact：Futu active 时 calendar/macro 不读 embedded helper（非 earnings operation 在 helper 前 fail closed），证明 Futu 走自己的 OpenD/broker 路径。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_company_test.go:51:TestEmbeddedProviderServesCompanyResearchDefaultOperations": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::company_research_default_operations_project_on_the_wire",
+    "conclusion": "function_exact：profile/financials/analyst/ownership 四个默认 operation 分别命中 /providers/yfinance/{profile,financials,analyst,ownership}/US/AAPL，投影 entries、resolvedInstrument 与 provider.featureId，无 broker hop。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_company_test.go:148:TestEmbeddedProviderCompanyResearchForwardsMarketSymbolAndStatement": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::company_financials_forwards_market_symbol_and_statement",
+    "conclusion": "function_exact：financials 路径参数解析为 market/symbol 并原样转发，statement 参数转发给 helper（income/balance/cashflow）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_company_test.go:170:TestEmbeddedProviderCompanyResearchAcceptsOmittedOperation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::company_research_accepts_an_omitted_operation",
+    "conclusion": "function_exact：operation 缺省时走该 feature 的默认操作（profile→profile、financials→statements、analyst→consensus、ownership→overview），不被当作非法请求。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_company_test.go:183:TestEmbeddedProviderRejectsNonDefaultCompanyOperations": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::company_research_rejects_non_default_operations",
+    "conclusion": "function_exact：每个 company research feature 只接受自己的默认 operation，其它 operation 值必须 capability-unavailable 且不调用 helper。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_company_test.go:207:TestEmbeddedProviderPropagatesCompanyResearchCapabilityErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::company_research_propagates_capability_and_lifecycle_errors",
+    "conclusion": "function_exact：helper 409 CAPABILITY_UNSUPPORTED 保留 409/原 code；helper runtime sentinel AKSHARE_RUNTIME_WARMING 折叠为 503 MARKET_DATA_PROVIDER_WARMING + Retry-After 1。本轮新增 sentinel 分类。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_company_test.go:226:TestEmbeddedProviderCompanyResearchStaysOnBrokerPathForFutu": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::company_research_stays_off_the_helper_for_futu",
+    "conclusion": "function_exact：Futu active 时 company research 不读 embedded helper，读在 helper 之前以 409 capability 失败。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_interception_test.go:180:TestEmbeddedProviderServesNewsForExplicitBrokerID": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::news_route_serves_an_explicit_broker_id_for_the_active_provider",
+    "conclusion": "function_exact：显式 brokerId=yfinance（active provider）走 embedded helper 而非 broker registry：请求命中 /providers/yfinance/news/US/AAPL?limit=5，投影 title/publishedAt。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_interception_test.go:213:TestEmbeddedProviderServesCorporateActionsForActiveProvider": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::corporate_actions_route_uses_the_sidecar_default_window",
+    "conclusion": "function_exact：AKShare/yfinance active 时 corporate actions 由 embedded helper 承接（零 broker hop）。Go 的默认窗口 now.AddDate(-2,0,0)..now 在 Rust 由 sidecar 的 action_window 持有（默认最近两年），因此契约是“未给 from/to 时不下发边界”，显式窗口原样转发（见 production_news_actions_port_forwards_corporate_actions_window）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_interception_test.go:248:TestEmbeddedProviderLeavesFutuQueriesOnBrokerPath": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::futu_news_queries_stay_on_the_broker_path",
+    "conclusion": "function_exact：news/corporate-actions 在 broker 路径上的三种组合都不得被 embedded facade 承接：yfinance active + 显式 brokerId=futu → 409 MARKET_DATA_CAPABILITY_UNSUPPORTED；Futu active + 空 brokerId → OpenD 未就绪的 503 Unavailable；Futu active + 显式 yfinance → capability 失败。三种情况都不读取 yfinance/akshare helper。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_interception_test.go:294:TestEmbeddedProviderPropagatesCapabilityAndLifecycleErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_tests.rs::embedded_facade_propagates_capability_and_lifecycle_sentinels",
+    "conclusion": "function_exact：capability 错误折叠成 409 BROKER_CAPABILITY_UNAVAILABLE；helper runtime sentinel 折叠为 503 生命周期身份 + 固定 Retry-After：AKSHARE_RUNTIME_WARMING/PROVIDER_RUNTIME_WARMING → MARKET_DATA_PROVIDER_WARMING/1s，AKSHARE_POOL_BUSY/AKSHARE_UPSTREAM_TIMEOUT → MARKET_DATA_PROVIDER_BUSY/2s。本轮修复此前 sentinel 原样透传的问题。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_rankings_test.go:53:TestEmbeddedProviderMapsRankingsOperationsToKinds": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_market_tests.rs::rankings_operations_map_to_provider_kinds_on_the_wire",
+    "conclusion": "function_exact：top_movers+direction up/down 与缺省、hot 四种前端 operation 分别映射到 gainers/losers/active kind，并校验 helper 请求路径、market 与 limit=pageSize，provider attribution=akshare。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_rankings_test.go:101:TestEmbeddedProviderRejectsUnmappedRankingsOperations": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_market_tests.rs::rankings_reject_unmapped_operations_without_a_helper_call",
+    "conclusion": "function_exact：pre_market/after_hours/overnight/high_dividend_state/fund_catalog 与空 operation 都是 Futu-only，embedded facade 必须 capability-unavailable 且零 helper 调用。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_rankings_test.go:127:TestEmbeddedProviderMapsIndustryBoardOperations": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_market_tests.rs::industry_board_operations_map_to_provider_kinds_on_the_wire",
+    "conclusion": "function_exact：plate_list（plateType concept / 缺省 industry）与 rankings heatmap（industry/concept）都映射到 boards kind，entries 以 CN.名称 + productClass=plate 投影。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_rankings_test.go:173:TestEmbeddedProviderServesPlateMembersFromInstrumentID": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_market_tests.rs::industry_plate_members_read_the_board_from_the_instrument_id",
+    "conclusion": "function_exact：plate_members 从 instrumentId=CN.半导体 解析板块名，helper 请求 board=半导体、market=CN、kind 省略、limit=pageSize=50，成员按 rankings 键投影（symbol=688981）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_rankings_test.go:199:TestEmbeddedProviderRejectsUnsupportedIndustryOperationsAndPlateTypes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_market_tests.rs::industry_rejects_unsupported_operations_and_plate_types",
+    "conclusion": "function_exact：chains/chain_detail/chains_by_plate/plate/plate_stocks 与 region/theme plateType 都不可执行，capability-unavailable 且不触达 reader。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_rankings_test.go:235:TestEmbeddedProviderPropagatesRankingsCapabilityErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_market_tests.rs::rankings_propagate_capability_and_lifecycle_errors",
+    "conclusion": "function_exact：helper 409 CAPABILITY_UNSUPPORTED 保留 409/原 code，helper runtime sentinel AKSHARE_RUNTIME_WARMING 折叠为 503 MARKET_DATA_PROVIDER_WARMING + Retry-After 1（Go 侧 ErrProviderWarming）。本轮新增 sentinel 分类。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_rankings_test.go:262:TestEmbeddedProviderRankingsStayOnBrokerPathForFutu": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_market_tests.rs::market_research_stays_off_the_helper_for_futu",
+    "conclusion": "function_exact：Futu active 时 rankings/industries 不走 embedded helper，读在 helper 之前 fail closed（Futu research runtime 未就绪 → Unavailable），证明没有跨 provider fallback。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_rankings_test.go:278:TestEmbeddedProviderDefaultsEmptyMarketToProviderDefault": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_market_tests.rs::market_research_defaults_an_absent_market_per_provider",
+    "conclusion": "function_exact：market 缺省时按 provider 默认市场补齐（yfinance→US、akshare 无默认市场则按请求原样/CN），helper 请求里的 market 与所选 provider 一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_screen_test.go:83:TestEmbeddedProviderServesScreenAndProjectsRows": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_screen_tests.rs::embedded_screen_projects_rows_and_forwards_the_definition",
+    "conclusion": "function_exact：embedded screen 归一化 definition 折叠为 helper 请求（conditions/sorts/offset/limit，积分边界渲染为裸整数 100/300/40），并按 embedded catalog 因子描述符投影 identity 与 typed cells（string/number/integer/missing；volume 走 integer+shares）；provider attribution brokerId=yfinance、selectionReason=embedded-market-data-provider、total/hasMore/nextOffset/asOf 全部对齐。本轮修复：(1) integer 因子按 catalog valueType=integer 走 integer cell；(2) between 边界用 embeddedScreenNumber 语义渲染（100.0 → 100）并拒绝 intervals；(3) 因子查表在 yfinance/akshare 两个 embedded catalog 间回退。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_screen_test.go:168:TestEmbeddedProviderRejectsFutuCatalogScreenWith409": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_screen_tests.rs::embedded_screen_rejects_futu_catalog_for_every_embedded_provider",
+    "conclusion": "function_exact：Futu 固定 catalog 的 definition 在 yfinance 与 akshare 两个 active provider 下都必须 409 capability 失败且不调用 helper（catalog gate 先于 helper 就绪/identity 检查）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_screen_test.go:186:TestEmbeddedProviderRejectsNonExecutableScreenShapes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_screen_tests.rs::embedded_screen_rejects_shapes_the_helper_cannot_execute",
+    "conclusion": "function_exact：abs_asc/abs_desc 排序与 intervals 多区间条件在 embedded catalog 都不可执行，必须 capability-unavailable 且不调用 helper。本轮修复：intervals、非 between 运算符、无界条件统一返回 Capability（此前 intervals 走了 Failed/\"has no bounds\"）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_screen_test.go:214:TestEmbeddedProviderMapsScreenCapabilityErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_screen_tests.rs::embedded_screen_maps_capability_and_lifecycle_errors",
+    "conclusion": "function_exact：helper 409 CAPABILITY_UNSUPPORTED 折叠成 Capability（transport 渲染 409 BROKER_CAPABILITY_UNAVAILABLE），helper runtime sentinel AKSHARE_RUNTIME_WARMING 折叠成 ProviderWarming（transport 渲染 503 MARKET_DATA_PROVIDER_WARMING + Retry-After 1）。本轮新增 warming/busy 分类。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_screen_test.go:236:TestEmbeddedScreenDecodesMapDefinitionAndDefaultsPaging": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_screen_tests.rs::embedded_screen_accepts_a_map_definition_and_defaults_paging",
+    "conclusion": "function_exact：map 形态 definition（非 typed struct）同样执行；空页保持 offset=0、limit=100，hasMore=false 且 provider 未给 next_offset 时不发明 cursor。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_screen_test.go:267:TestEmbeddedProviderServesUSScreenViaAkshare": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_screen_tests.rs::embedded_screen_serves_a_us_screen_via_akshare",
+    "conclusion": "function_exact：AKShare active 时 US screen 仍由 embedded helper 承接，请求路径 /providers/akshare/screen，provider attribution brokerId=akshare，两行 rows 正常投影。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_projection_calendar_test.go:16:TestProviderEarningsCalendarProjectionMapsFrontendKeys": {
     "status": "[x]",

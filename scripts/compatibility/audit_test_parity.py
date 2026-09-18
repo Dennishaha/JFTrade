@@ -49,7 +49,7 @@ def _is_known_cargo_package(name: str) -> bool:
 # the common ``#[test]`` + anchor-comment + ``fn`` layout used across this
 # workspace.
 _RUST_TEST_FN = re.compile(
-    r'#\[(?:tokio::)?test\]'
+    r'#\[(?:tokio::)?test(?:\([^\]]*\))?\]'
     r'(?:(?:\s*#\[[^\]]*\])|(?:\s*//[^\n]*)|(?:\s*\n\s*))*'
     r'\s*(?:pub(?:\([^)]*\))?\s+)?'
     r'(?:async\s+)?fn\s+([A-Za-z0-9_]+)'
@@ -314,7 +314,7 @@ def extract_go_tests():
 
 def extract_rust_tests():
     tests = []
-    test_pattern = re.compile(r'#\[(?:tokio::)?test\](?:\s*#\[[^\]]+\])*\s*(?:pub(?:\([^\)]+\))?\s+)?(?:async\s+)?fn\s+([a-zA-Z0-9_]+)')
+    test_pattern = re.compile(r'#\[(?:tokio::)?test(?:\([^\]]*\))?\](?:\s*#\[[^\]]+\])*\s*(?:pub(?:\([^\)]+\))?\s+)?(?:async\s+)?fn\s+([a-zA-Z0-9_]+)')
     
     for f in glob.glob('crates/**/*.rs', recursive=True):
         crate_name = f.split('/')[1]

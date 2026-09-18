@@ -8,6 +8,7 @@
 use std::thread;
 
 use jftrade_integration_marketdata_helper::{HelperClient, HttpAdapterError};
+use crate::product::product_production_ports::product_production_ports_helper_runtime::normalize_helper_remote_error;
 use jftrade_settings::MarketDataProvider;
 use serde_json::{Map, Value, json};
 
@@ -323,16 +324,21 @@ fn map_helper_error(error: HttpAdapterError) -> ResearchReadSnapshotError {
             code,
             message,
             retry_after_seconds,
-        } => ResearchReadSnapshotError::Failed {
-            status,
-            code: if code.is_empty() {
-                "BAD_GATEWAY".to_owned()
-            } else {
-                code
-            },
-            message,
-            retry_after_seconds,
-        },
+        } => {
+            let (status, code, message, retry_after_seconds) = normalize_helper_remote_error(
+                status,
+                &code,
+                message,
+                retry_after_seconds,
+                "BAD_GATEWAY",
+            );
+            ResearchReadSnapshotError::Failed {
+                status,
+                code,
+                message,
+                retry_after_seconds,
+            }
+        }
         HttpAdapterError::Timeout => ResearchReadSnapshotError::Failed {
             status: 504,
             code: "GATEWAY_TIMEOUT".to_owned(),
