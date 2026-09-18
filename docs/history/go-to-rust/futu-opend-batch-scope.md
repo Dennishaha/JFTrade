@@ -3270,3 +3270,77 @@ python3 scripts/compatibility/audit_test_parity.py
 ```
 
 结果：1760 passed / 1 skipped；审计 OK: 519 function_exact（本批 4 条 → `[x]`）。
+
+---
+
+## 批次：pkg/futu/trade_helpers_boundary_test.go（4 项）
+
+基线：`go:pkg/futu/trade_helpers_boundary_test.go` 的 4 条 `[~]`/`missing`。
+本批发现并修复 **2 处真实功能缺口**，另有 2 条为 Go 专有边界。
+
+### 修复的真实功能缺口
+
+1. **`:68 TestTradeProtoConversionSkipsNilFeeAndInvalidMarginSecurity` —
+   非法 margin security 让整个读取失败**
+   Go 的 `brokerMarginRatioSnapshotFromProto` 对无法解析的 security 是**降级**：
+   `futuSymbolFromSecurity` 失败则把 `symbol` 置空，**该行仍然保留**在其他字段
+   正常返回的结果里。Rust 原先在响应校验层
+   （`trade_proto_margin_ratio_validation.rs`）对
+   `security.market ∉ {1,11,21,22,31,41,51,61,71}` 直接
+   `UnsupportedValue` 整包拒绝——Go 能正常返回的数据在 Rust 变成硬错误。
+   已改为：只有 market 可解析时才校验 `security.code` 非空，非法 market 交由
+   `trade_snapshots::margin_ratios_projection` 置空 symbol。
+   新测试 `margin_ratio_response_keeps_a_row_with_an_unusable_security_market`
+   断言两行都保留（非法行 symbol 为空、合法行 `HK.00700`，按 symbol 排序）。
+
+2. **`:81 TestAccountAndPushConversionBoundaries`（候选排序部分）—
+   账户选择依赖 provider 返回顺序**
+   Go 的 `sortResolvedTradeAccounts` 先按 environment priority
+   （SIMULATE `0` < REAL `1` < UNKNOWN `2`）→ `AccountID` → `Market` 排序，
+   再取 `candidates[0]`。Rust 的 `resolve_account_with_environment` 直接
+   `candidates.into_iter().next()`，谁先返回谁被扣款。新增
+   `environment_priority` 与 `account_market_order_key`，在选账户前排序。
+
+### Go 专有边界（不迁移）
+
+3. **`FeeList: []*OrderFeeItem{nil, ...}` 的 nil 跳过**：
+   Rust 的 `repeated` 由 prost 解码成值，不可为 nil，没有对应行可跳。
+   该结论写进了 `margin_ratio_with_an_invalid_security_market_keeps_an_empty_symbol`
+   的注释。
+
+4. **`fixedpointFromDifference` / `optionalFloat64Value` / `parseUint64`**：
+   Go `pkg/bbgo/fixedpoint` 与指针辅助层的专有符号。Rust 用
+   `Option<f64>` / `Option<String>` 直接表达同一语义，不存在同形函数；
+   `brokerOrderStatusFilterValues` 的空输入与去重语义改由
+   `TradeRequest::status_codes` 承担并已断言。
+
+### 补齐的行为证据
+
+- **`:14 TestTradeReadConversionBoundaries`**：Rust 的等价物是
+  `qualify_symbol` + 已解析请求市场。新测试
+  `symbol_qualification_falls_back_to_the_resolved_market_like_go` 覆盖
+  「US 前缀限定」「已限定代码不被二次加前缀」「空市场不加前缀」，以及未知
+  runtime 市场时沿用账户解析市场（对应 Go
+  `resolveBrokerOrderMarket(999, "US.AAPL", "HK") == "US"`）。
+  balance/currency 两半另由既有
+  `portfolio_cash_balances_fall_back_to_*` 覆盖。
+- **`:46 TestTradeReadHelperBoundaries`**：新测试
+  `empty_status_filters_produce_no_codes_like_go` 覆盖空参数返回空列表与
+  `[" ", "submitted", "SUBMITTED"] → [5]` 去重收敛。
+
+### 探针（改坏实现 → 跑测试 → 确认守卫 → 回滚）
+
+- 去掉 `resolve_account_with_environment` 的候选排序
+  → `runtime_account_candidates_are_sorted_before_selection_like_go` 失败：
+  `left: "9" / right: "1"`（provider 顺序第一个 REAL 账户被选中）。
+  探针已回滚并复跑通过。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --no-fail-fast
+cargo fmt --all
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：1765 passed / 1 skipped；审计 OK: 523 function_exact（本批 4 条 → `[x]`）。

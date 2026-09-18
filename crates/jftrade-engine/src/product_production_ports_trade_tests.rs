@@ -3568,6 +3568,71 @@ fn history_query_builds_time_and_status_filters() {
 }
 
 #[test]
+fn symbol_qualification_falls_back_to_the_resolved_market_like_go() {
+    // Parity: go:452dea11:pkg/futu/trade_helpers_boundary_test.go:14
+    // TestTradeReadConversionBoundaries (symbol/market half). Go resolves the
+    // order's market from the runtime enum, falls back to the caller's market
+    // for an unknown enum (`resolveBrokerOrderMarket(999, "US.AAPL", "HK") ==
+    // "US"`), and treats a CN-prefixed symbol as the CN aggregate market. The
+    // Rust projection owner is `qualify_symbol` plus the resolved request
+    // market, which never re-prefixes an already qualified code.
+    assert_eq!(qualify_symbol("US", "AAPL"), "US.AAPL");
+    assert_eq!(
+        qualify_symbol("US", "HK.00700"),
+        "HK.00700",
+        "an already-qualified code keeps its own market"
+    );
+    assert_eq!(
+        qualify_symbol("", "AAPL"),
+        "AAPL",
+        "an empty market cannot qualify the code"
+    );
+
+    // The unknown-runtime-market fallback is the request market chosen by the
+    // account resolver: `US.AAPL` under a US account stays US even though the
+    // provider row carries an unusable market enum.
+    let request = TradeRequest::parse(
+        "/api/v1/brokers/futu/orders",
+        "accountId=42&market=US",
+    )
+    .expect("request");
+    let resolved = request
+        .resolve_account(Arc::new(AccountsFixtureRead {
+            accounts: vec![account_with(1, 42, vec![2], None)],
+        }).as_ref())
+        .expect("US account");
+    assert_eq!(resolved.market, "US");
+    assert_eq!(qualify_symbol(&resolved.market, "AAPL"), "US.AAPL");
+}
+
+#[test]
+fn empty_status_filters_produce_no_codes_like_go() {
+    // Parity: go:452dea11:pkg/futu/trade_helpers_boundary_test.go:46
+    // TestTradeReadHelperBoundaries (status half). Go's
+    // `brokerOrderStatusFilterValues(nil)` returns nil and the only usable
+    // token in `[" ", "submitted", "SUBMITTED"]` collapses to one entry; the
+    // Rust owner is `TradeRequest::status_codes`, which must also tolerate
+    // blank-only input instead of inventing a code.
+    let empty = TradeRequest::parse("/api/v1/brokers/futu/orders", "scope=history")
+        .expect("request");
+    assert!(
+        empty.status_codes().expect("statuses").is_empty(),
+        "no status parameters means no status filter"
+    );
+
+    let blank = TradeRequest::parse(
+        "/api/v1/brokers/futu/orders",
+        "scope=history&status=%20&status=submitted&statuses=SUBMITTED",
+    )
+    .expect("request");
+    assert_eq!(
+        blank.status_codes().expect("statuses"),
+        vec![5],
+        "blank tokens are skipped and the duplicate SUBMITTED collapses"
+    );
+}
+
+#[test]
 fn history_query_converts_hk_rfc3339_to_local_wall_clock() {
     let request = TradeRequest::parse(
         "/api/v1/brokers/futu/fills",
@@ -3951,6 +4016,35 @@ fn resolve_account_honors_requested_authority_and_falls_back_like_go() {
     let resolved = unauthorized
         .resolve_account_with_environment(noisy.as_ref(), Some(1), None)
         .expect("first valid authority");
+    assert_eq!(resolved.market, "HK");
+    assert_eq!(resolved.header.trd_market, 1);
+}
+
+#[test]
+fn runtime_account_candidates_are_sorted_before_selection_like_go() {
+    // Parity: go:452dea11:pkg/futu/trade_helpers_boundary_test.go:81
+    // TestAccountAndPushConversionBoundaries (candidate half). Go's
+    // `sortResolvedTradeAccounts` orders candidates by environment priority
+    // (SIMULATE < REAL < UNKNOWN), then AccountID, then Market, and only then
+    // picks `candidates[0]`. Ordering is therefore provider-order independent.
+    //
+    // The fixture lists the REAL accounts in the "wrong" order so the choice
+    // can only be right when the sort runs.
+    let accounts = Arc::new(AccountsFixtureRead {
+        accounts: vec![
+            account_with(1, 9, vec![1], None),
+            account_with(1, 1, vec![2], None),
+            account_with(1, 1, vec![1], None),
+            account_with(1, 2, vec![1], None),
+        ],
+    });
+    let request =
+        TradeRequest::parse("/api/v1/brokers/futu/funds", "tradingEnvironment=REAL").expect("request");
+    let resolved = request
+        .resolve_account(accounts.as_ref())
+        .expect("sorted candidate");
+    // AccountID 1 sorts before 2/9, and within the same id HK(1) sorts before US(2).
+    assert_eq!(resolved.account_id, "1");
     assert_eq!(resolved.market, "HK");
     assert_eq!(resolved.header.trd_market, 1);
 }

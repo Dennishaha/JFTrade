@@ -153,6 +153,15 @@ impl TradeRequest {
                 candidates.retain(|account| account.trd_env == 0);
             }
         }
+        // Go's `sortResolvedTradeAccounts`: environment priority
+        // (SIMULATE < REAL < UNKNOWN), then AccountID, then Market. The
+        // provider's row order must not decide which account is charged.
+        candidates.sort_by(|left, right| {
+            environment_priority(left.trd_env)
+                .cmp(&environment_priority(right.trd_env))
+                .then_with(|| account_identity(left).cmp(&account_identity(right)))
+                .then_with(|| account_market_order_key(left).cmp(&account_market_order_key(right)))
+        });
         let selected = candidates.into_iter().next();
         let Some(account) = selected else {
             let account_detail = requested_account
@@ -658,6 +667,27 @@ pub(crate) struct ResolvedTradeRequest {
     /// to `brokerOrderSnapshotsFromProto`, which re-checks every row because the
     /// provider filter is only a hint.
     pub(crate) order_symbol_filter: Option<String>,
+}
+
+/// Go `resolvedTradeAccountPriority`: SIMULATE sorts first, then REAL, then
+/// anything unrecognized.
+fn environment_priority(value: i32) -> i32 {
+    match value {
+        0 => 0,
+        1 => 1,
+        _ => 2,
+    }
+}
+
+/// Sort key for the candidate's market, matching Go's `candidate.Market`
+/// comparison (the label, not the raw enum).
+fn account_market_order_key(account: &jftrade_integration_futu::TradeAccountSnapshot) -> String {
+    account
+        .trd_market_auth_list
+        .iter()
+        .find_map(|market| trade_market_authority(*market))
+        .unwrap_or("")
+        .to_owned()
 }
 
 pub(crate) fn account_identity(

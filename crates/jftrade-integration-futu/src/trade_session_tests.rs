@@ -1759,6 +1759,112 @@ fn margin_ratio_read_projects_permit_fee_and_tier_ratios() {
 }
 
 #[test]
+fn margin_ratio_with_an_invalid_security_market_keeps_an_empty_symbol() {
+    // Parity: go:452dea11:pkg/futu/trade_helpers_boundary_test.go:68
+    // TestTradeProtoConversionSkipsNilFeeAndInvalidMarginSecurity. Go's
+    // `brokerMarginRatioSnapshotFromProto` resolves the security market through
+    // the quote enum and leaves the symbol empty when the market code is not
+    // usable (`Market: -1` in the fixture), instead of fabricating "BAD".
+    //
+    // Two Go-only halves are boundary conclusions rather than gaps:
+    // `FeeList: []*OrderFeeItem{nil, ...}` cannot occur in Rust because prost
+    // decodes `repeated` messages into values that are never nil, and the
+    // request side is stricter: Rust rejects an unusable `security.market`
+    // before any OpenD call (Go only drops the label during projection).
+    let header: TradeHeader = trade_header(1, 1001, 1);
+    let ratios = crate::trade_snapshots::margin_ratios_projection(
+        crate::trade_proto::trd_get_margin_ratio::S2c {
+            header: header.clone().into(),
+            margin_ratio_info_list: vec![
+                crate::trade_proto::trd_get_margin_ratio::MarginRatioInfo {
+                    security: crate::trade_proto::qot_common::Security {
+                        market: -1,
+                        code: "BAD".to_owned(),
+                    },
+                    is_long_permit: Some(true),
+                    is_short_permit: None,
+                    short_pool_remain: None,
+                    short_fee_rate: None,
+                    alert_long_ratio: None,
+                    alert_short_ratio: None,
+                    im_long_ratio: None,
+                    im_short_ratio: None,
+                    mcm_long_ratio: None,
+                    mcm_short_ratio: None,
+                    mm_long_ratio: None,
+                    mm_short_ratio: None,
+                },
+            ],
+        },
+    );
+    assert_eq!(ratios.len(), 1);
+    assert_eq!(
+        ratios[0].symbol, "",
+        "an unusable market code must not fabricate a symbol"
+    );
+}
+
+#[test]
+fn margin_ratio_response_keeps_a_row_with_an_unusable_security_market() {
+    // Boundary: Go's `brokerMarginRatioSnapshotFromProto` keeps the row and
+    // only clears the symbol when `futuSymbolFromSecurity` cannot resolve the
+    // market; the Rust response validator must therefore not fail the whole
+    // read for a single unusable row.
+    let header: TradeHeader = trade_header(1, 1001, 1);
+    let payload = crate::trade_proto::trd_get_margin_ratio::S2c {
+        header: header.into(),
+        margin_ratio_info_list: vec![
+            crate::trade_proto::trd_get_margin_ratio::MarginRatioInfo {
+                security: crate::trade_proto::qot_common::Security {
+                    market: -1,
+                    code: "BAD".to_owned(),
+                },
+                is_long_permit: Some(true),
+                is_short_permit: None,
+                short_pool_remain: None,
+                short_fee_rate: None,
+                alert_long_ratio: None,
+                alert_short_ratio: None,
+                im_long_ratio: None,
+                im_short_ratio: None,
+                mcm_long_ratio: None,
+                mcm_short_ratio: None,
+                mm_long_ratio: None,
+                mm_short_ratio: None,
+            },
+            crate::trade_proto::trd_get_margin_ratio::MarginRatioInfo {
+                security: crate::trade_proto::qot_common::Security {
+                    market: 1,
+                    code: "00700".to_owned(),
+                },
+                is_long_permit: Some(false),
+                is_short_permit: None,
+                short_pool_remain: None,
+                short_fee_rate: None,
+                alert_long_ratio: None,
+                alert_short_ratio: None,
+                im_long_ratio: None,
+                im_short_ratio: None,
+                mcm_long_ratio: None,
+                mcm_short_ratio: None,
+                mm_long_ratio: None,
+                mm_short_ratio: None,
+            },
+        ],
+    };
+    crate::trade_proto_margin_ratio_validation::validate_margin_ratio_s2c(
+        "GetMarginRatio",
+        &payload,
+    )
+    .expect("an unusable market must not fail the whole read");
+    let ratios = crate::trade_snapshots::margin_ratios_projection(payload);
+    assert_eq!(ratios.len(), 2, "both rows survive: {ratios:?}");
+    // Sorted by symbol, so the empty-symbol row comes first.
+    assert_eq!(ratios[0].symbol, "");
+    assert_eq!(ratios[1].symbol, "HK.00700");
+}
+
+#[test]
 fn margin_ratio_server_throttling_maps_to_the_typed_rate_limit() {
     // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:13
     // (`isMarginRatioRateLimitedError`) and :86
