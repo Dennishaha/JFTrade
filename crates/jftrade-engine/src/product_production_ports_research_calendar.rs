@@ -549,7 +549,7 @@ fn unavailable(message: impl Into<String>) -> ResearchReadSnapshotError {
 fn capability(feature: &str, operation: &str) -> ResearchReadSnapshotError {
     ResearchReadSnapshotError::Failed {
         status: 409,
-        code: "CAPABILITY_UNAVAILABLE".to_owned(),
+        code: "BROKER_CAPABILITY_UNAVAILABLE".to_owned(),
         message: format!("{feature} operation {operation:?} is unavailable"),
         retry_after_seconds: None,
     }
@@ -564,46 +564,7 @@ fn bad_gateway(message: impl Into<String>) -> ResearchReadSnapshotError {
     }
 }
 
+
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn macro_history_uses_page_size_before_legacy_limit() {
-        let query = QueryMap::parse("pageSize=60&limit=5").expect("query");
-        assert_eq!(macro_limit(&query).expect("limit"), 60);
-    }
-
-    #[test]
-    fn macro_history_limit_is_bounded_and_defaults() {
-        let default = QueryMap::parse("").expect("query");
-        assert_eq!(macro_limit(&default).expect("default"), DEFAULT_MACRO_LIMIT);
-
-        let oversized = QueryMap::parse("pageSize=9999").expect("query");
-        assert_eq!(macro_limit(&oversized).expect("clamp"), MAX_MACRO_LIMIT);
-
-        let zero = QueryMap::parse("pageSize=0").expect("query");
-        assert_eq!(macro_limit(&zero).expect("default"), DEFAULT_MACRO_LIMIT);
-
-        let legacy = QueryMap::parse("pageSize=0&limit=5").expect("query");
-        assert_eq!(macro_limit(&legacy).expect("legacy fallback"), 5);
-    }
-
-    #[test]
-    fn macro_projection_rejects_missing_or_malformed_typed_fields() {
-        let mut indicator = Map::new();
-        indicator.insert("unit_type".to_owned(), json!("percent"));
-        assert!(matches!(
-            required_integer(&indicator, "unit_type"),
-            Err(ResearchReadSnapshotError::Failed { status: 502, .. })
-        ));
-
-        let mut point = Map::new();
-        point.insert("value".to_owned(), json!("1.2"));
-        let mut projected = Map::new();
-        assert!(matches!(
-            copy_optional_number(&point, &mut projected, "value", "value"),
-            Err(ResearchReadSnapshotError::Failed { status: 502, .. })
-        ));
-    }
-}
+#[path = "product_production_ports_research_calendar_tests.rs"]
+mod tests;

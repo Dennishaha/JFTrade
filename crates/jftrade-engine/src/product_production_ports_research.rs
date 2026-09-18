@@ -532,7 +532,7 @@ fn map_research_helper_error(error: HttpAdapterError) -> ResearchReadSnapshotErr
 fn capability(feature: &str, operation: &str) -> ResearchReadSnapshotError {
     ResearchReadSnapshotError::Failed {
         status: 409,
-        code: "CAPABILITY_UNAVAILABLE".to_owned(),
+        code: "BROKER_CAPABILITY_UNAVAILABLE".to_owned(),
         message: format!(
             "embedded market-data provider does not serve {feature} operation {operation:?}"
         ),

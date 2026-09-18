@@ -873,3 +873,205 @@ fn embedded_research_facade_serves_exactly_the_allowed_feature_set() {
     }
 }
 
+/// Parity: go:452dea11:internal/productfeatures/provider_projection_test.go:205
+/// TestMapEmbeddedProviderErrorKeepsSentinels
+///
+/// The embedded facade folds an unsupported capability into the broker
+/// capability contract, while warming/busy lifecycle sentinels keep their own
+/// identity so the transport can answer 503 with the documented Retry-After.
+#[test]
+fn embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels() {
+    let unsupported = capability("research.news", "instrument news");
+    match unsupported {
+        ResearchReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            ..
+        } => {
+            assert_eq!(status, 409);
+            assert_eq!(code, "BROKER_CAPABILITY_UNAVAILABLE");
+            assert!(message.contains("research.news"), "message = {message}");
+        }
+        other => panic!("expected a capability failure, got {other:?}"),
+    }
+
+    let warming = map_research_helper_error(
+        jftrade_integration_marketdata_helper::HttpAdapterError::Remote {
+            status: 503,
+            code: "AKSHARE_RUNTIME_WARMING".to_owned(),
+            message: "runtime loading".to_owned(),
+            retry_after_seconds: Some(1),
+        },
+    );
+    assert!(matches!(
+        warming,
+        ResearchReadSnapshotError::Failed {
+            status: 503,
+            ref code,
+            retry_after_seconds: Some(1),
+            ..
+        } if code == "AKSHARE_RUNTIME_WARMING"
+    ));
+
+    let busy = map_research_helper_error(
+        jftrade_integration_marketdata_helper::HttpAdapterError::Remote {
+            status: 503,
+            code: "AKSHARE_POOL_BUSY".to_owned(),
+            message: "pool busy".to_owned(),
+            retry_after_seconds: Some(2),
+        },
+    );
+    assert!(matches!(
+        busy,
+        ResearchReadSnapshotError::Failed {
+            status: 503,
+            ref code,
+            retry_after_seconds: Some(2),
+            ..
+        } if code == "AKSHARE_POOL_BUSY"
+    ));
+}
+
+/// Parity: go:452dea11:internal/productfeatures/provider_projection_test.go:160
+/// TestEmbeddedProviderServesMirrorsActiveProviderMatching
+///
+/// Go's `embeddedProviderServes` mirrors `usesActiveNonBrokerProvider` in
+/// internal/api/marketdata: the embedded provider owns a request only when the
+/// active provider is not Futu and the explicit `brokerId` matches the active
+/// descriptor's broker id *or* its provider id, case-insensitively. An empty
+/// request matches, and a Futu/empty descriptor never serves.
+///
+/// Rust collapses the descriptor pair (brokerID/providerID) into the single
+/// `MarketDataProvider` enum, so the same contract lives in
+/// `provider_request_matches`: each enum value accepts its own ids and
+/// aliases. This test freezes the complete Go case table and then proves the
+/// production research port applies it before any helper/OpenD read.
+#[test]
+fn active_provider_matching_accepts_descriptor_aliases_and_rejects_other_brokers() {
+    // The Go predicate is compound: the embedded facade serves only when the
+    // descriptor is not Futu *and* the requested id matches the descriptor.
+    // Rust splits the same decision the same way — the Futu branch owns its
+    // routes before the helper facade is reached — so the faithful
+    // transcription of \`embeddedProviderServes\` is
+    // \`provider != Futu && provider_request_matches(provider, query)\`.
+    let embedded_serves =
+        |provider: jftrade_settings::MarketDataProvider, requested: &str| -> bool {
+            provider != jftrade_settings::MarketDataProvider::Futu
+                && super::super::super::provider_request_matches(
+                    provider,
+                    &QueryMap::parse(&format!("brokerId={requested}")).expect("query map"),
+                )
+        };
+
+    // (active provider, requested brokerId, served) transcribed from the Go
+    // table. The descriptor-less row is asserted separately below because Rust
+    // models "no descriptor" as None, not as a zero-valued descriptor.
+    let cases = [
+        (jftrade_settings::MarketDataProvider::Yfinance, "", true),
+        (jftrade_settings::MarketDataProvider::Yfinance, "yfinance", true),
+        (
+            jftrade_settings::MarketDataProvider::Yfinance,
+            "yahoo-finance",
+            true,
+        ),
+        (jftrade_settings::MarketDataProvider::Yfinance, "YFINANCE", true),
+        (jftrade_settings::MarketDataProvider::Yfinance, "akshare", false),
+        (jftrade_settings::MarketDataProvider::Yfinance, "futu", false),
+        (jftrade_settings::MarketDataProvider::Futu, "", false),
+        (jftrade_settings::MarketDataProvider::Futu, "yfinance", false),
+        (jftrade_settings::MarketDataProvider::Futu, "futu", false),
+        (jftrade_settings::MarketDataProvider::Akshare, "AKSHARE", true),
+        (jftrade_settings::MarketDataProvider::Akshare, "yfinance", false),
+    ];
+    for (provider, requested, served) in cases {
+        assert_eq!(
+            embedded_serves(provider, requested),
+            served,
+            "provider {provider:?} requested {requested:?}"
+        );
+    }
+
+    // A blank value is "not requested", exactly like the Go TrimSpace guard.
+    // It only serves for a non-Futu facade.
+    for blank in ["", "%20", "%20%20"] {
+        assert!(
+            embedded_serves(jftrade_settings::MarketDataProvider::Yfinance, blank),
+            "{blank:?} must behave as no explicit broker for yfinance"
+        );
+        assert!(
+            !embedded_serves(jftrade_settings::MarketDataProvider::Futu, blank),
+            "{blank:?} must not serve the Futu descriptor"
+        );
+    }
+
+    // Production behavior: the guard runs before helper readiness, so a
+    // non-active broker is a 409 capability rejection rather than a fallback
+    // or a 503, while the provider's own alias reaches the helper boundary.
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Yfinance,
+    )));
+    state.set_readiness(false, false, false);
+    let port = ProductionResearchPort {
+        active_provider_state: state,
+        helper: None,
+        trade_runtime: None,
+    };
+    for requested in ["akshare", "futu"] {
+        match port.read("/api/v1/research/rankings", &format!("brokerId={requested}")) {
+            Err(ResearchReadSnapshotError::Failed {
+                status,
+                code,
+                message,
+                retry_after_seconds,
+            }) => {
+                assert_eq!(status, 409);
+                assert_eq!(code, "BROKER_CAPABILITY_UNAVAILABLE");
+                assert!(
+                    message.contains("does not match active provider"),
+                    "message = {message}"
+                );
+                assert_eq!(retry_after_seconds, None);
+            }
+            other => panic!("{requested} must be a capability rejection, got {other:?}"),
+        }
+    }
+    // "yahoo-finance" is the active provider's other id, so it is accepted and
+    // only the unready helper stops the read.
+    assert!(matches!(
+        port.read("/api/v1/research/rankings", "brokerId=yahoo-finance"),
+        Err(ResearchReadSnapshotError::Unavailable(message))
+            if message == "market-data helper is not ready"
+    ));
+    // So is a case variation of the broker id.
+    assert!(matches!(
+        port.read("/api/v1/research/rankings", "brokerId=YFinance"),
+        Err(ResearchReadSnapshotError::Unavailable(message))
+            if message == "market-data helper is not ready"
+    ));
+
+    // Futu never serves the embedded research facade, even when the request
+    // names futu; the read fails closed instead of borrowing the helper.
+    let futu = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    futu.set_readiness(true, true, true);
+    let futu_port = ProductionResearchPort {
+        active_provider_state: futu,
+        helper: None,
+        trade_runtime: None,
+    };
+    match futu_port.read("/api/v1/research/rankings", "") {
+        Err(ResearchReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            ..
+        }) => {
+            assert_eq!(status, 409);
+            assert_eq!(code, "BROKER_CAPABILITY_UNAVAILABLE");
+            assert!(message.contains("futu"), "message = {message}");
+        }
+        other => panic!("Futu must not serve rankings, got {other:?}"),
+    }
+}

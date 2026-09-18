@@ -170,7 +170,7 @@ fn map_futu_screen_write_error(
         },
         ResearchScreenWritePortError::Capability(message) => ResearchReadSnapshotError::Failed {
             status: 409,
-            code: "CAPABILITY_UNAVAILABLE".to_owned(),
+            code: "BROKER_CAPABILITY_UNAVAILABLE".to_owned(),
             message,
             retry_after_seconds: None,
         },
@@ -183,3 +183,78 @@ fn map_futu_screen_write_error(
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Parity: go:452dea11:internal/api/productfeatures/research_screen_test.go:355
+    /// TestResearchScreenPostServesEmbeddedProvider (capability branch)
+    ///
+    /// The typed screen write path renders a broker capability rejection as 409
+    /// `BROKER_CAPABILITY_UNAVAILABLE` — the code the console's
+    /// ProviderUnsupportedState fallback keys on (frozen `research-screens`
+    /// fixture case `capability-error`).
+    #[test]
+    fn futu_screen_capability_errors_use_the_broker_code() {
+        let error = map_futu_screen_write_error(ResearchScreenWritePortError::Capability(
+            "requested broker does not match active provider \"futu\"".to_owned(),
+        ));
+        match error {
+            ResearchReadSnapshotError::Failed {
+                status,
+                code,
+                message,
+                retry_after_seconds,
+            } => {
+                assert_eq!(status, 409);
+                assert_eq!(code, "BROKER_CAPABILITY_UNAVAILABLE");
+                assert!(message.contains("does not match active provider"));
+                assert_eq!(retry_after_seconds, None);
+            }
+            other => panic!("expected a capability failure, got {other:?}"),
+        }
+    }
+
+    /// The other screen-write failures keep their own contract: a rate limit
+    /// carries the rounded Retry-After, warming/busy stay 503 lifecycle errors,
+    /// and a provider failure is the generic 502.
+    #[test]
+    fn futu_screen_write_errors_keep_their_transport_contract() {
+        let rate_limited = map_futu_screen_write_error(ResearchScreenWritePortError::RateLimited {
+            message: "research stock screen rate limited; retry after 2.5s".to_owned(),
+            retry_after: 3,
+        });
+        assert!(matches!(
+            rate_limited,
+            ResearchReadSnapshotError::Failed {
+                status: 429,
+                ref code,
+                retry_after_seconds: Some(3),
+                ..
+            } if code == "RESEARCH_SCREEN_RATE_LIMITED"
+        ));
+
+        for lifecycle in [
+            ResearchScreenWritePortError::Unavailable,
+            ResearchScreenWritePortError::ProviderWarming,
+            ResearchScreenWritePortError::ProviderBusy,
+        ] {
+            assert!(matches!(
+                map_futu_screen_write_error(lifecycle),
+                ResearchReadSnapshotError::Unavailable(_)
+            ));
+        }
+
+        let failed = map_futu_screen_write_error(ResearchScreenWritePortError::Failed(
+            "fixture broker failed".to_owned(),
+        ));
+        assert!(matches!(
+            failed,
+            ResearchReadSnapshotError::Failed {
+                status: 502,
+                ref code,
+                ..
+            } if code == "BAD_GATEWAY"
+        ));
+    }
+}

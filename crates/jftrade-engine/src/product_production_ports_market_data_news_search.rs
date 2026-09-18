@@ -608,118 +608,19 @@ fn search_bad_gateway(message: &str) -> MarketDataNewsSearchReadSnapshotError {
 }
 
 fn search_capability(message: &str) -> MarketDataNewsSearchReadSnapshotError {
+    // Go's product-feature route renders the ErrCapabilityUnavailable sentinel
+    // as `409 BROKER_CAPABILITY_UNAVAILABLE` (see the frozen
+    // market-data-news-search-read compatibility fixture), and the console's
+    // provider-unsupported fallback keys on that exact code. Emitting the
+    // unprefixed `CAPABILITY_UNAVAILABLE` made the fallback miss the 409.
     MarketDataNewsSearchReadSnapshotError::Failed {
         status: 409,
-        code: "CAPABILITY_UNAVAILABLE".to_owned(),
+        code: "BROKER_CAPABILITY_UNAVAILABLE".to_owned(),
         message: message.to_owned(),
         retry_after_seconds: None,
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parser_matches_product_precedence_and_market_override() {
-        let request = parse_search_request("instrumentId=us.aapl&market=hk&pageSize=500&limit=2")
-            .expect("search request");
-        assert_eq!(request.market, "HK");
-        assert_eq!(request.symbol, "AAPL");
-        assert_eq!(request.limit, 50);
-
-        let request =
-            parse_search_request("instrumentId=sh.600519&limit=7").expect("instrument request");
-        assert_eq!(request.market, "SH");
-        assert_eq!(request.symbol, "600519");
-        assert_eq!(request.limit, 7);
-    }
-
-    #[test]
-    fn parser_rejects_missing_or_ambiguous_instrument() {
-        let error = parse_search_request("market=US&limit=5").expect_err("missing instrument");
-        assert!(matches!(
-            error,
-            MarketDataNewsSearchReadSnapshotError::Failed { status: 400, .. }
-        ));
-
-        let error = parse_search_request("instrumentId=CN.600519&market=CN")
-            .expect_err("bare CN instrument");
-        assert!(matches!(
-            error,
-            MarketDataNewsSearchReadSnapshotError::Failed { status: 400, .. }
-        ));
-    }
-
-    #[test]
-    fn projection_accepts_sidecar_snake_case_and_keeps_public_camel_case() {
-        let payload = json!({
-            "market": "US",
-            "symbol": "AAPL",
-            "instrument_id": "US.AAPL",
-            "entries": [{
-                "title": "Headline",
-                "published_at": "2026-08-15T14:30:00+08:00"
-            }],
-            "source": "yfinance-news"
-        });
-        let result = project_news(
-            payload,
-            "yfinance",
-            NewsSearchRequest {
-                market: "US".to_owned(),
-                symbol: "AAPL".to_owned(),
-                limit: 10,
-            },
-        )
-        .expect("project sidecar response");
-        assert_eq!(result["entries"][0]["publishedAt"], "2026-08-15T06:30:00Z");
-        assert!(result["entries"][0].get("published_at").is_none());
-        assert_eq!(result["metadata"]["source"], "yfinance-news");
-        assert!(result["metadata"].get("providerGeneration").is_none());
-    }
-
-    #[test]
-    fn projection_treats_null_entries_as_empty_and_rejects_identity_drift() {
-        let payload = json!({
-            "market": "US",
-            "symbol": "AAPL",
-            "instrument_id": "US.AAPL",
-            "entries": null,
-            "source": "yfinance-news"
-        });
-        let result = project_news(
-            payload,
-            "yfinance",
-            NewsSearchRequest {
-                market: "US".to_owned(),
-                symbol: "AAPL".to_owned(),
-                limit: 10,
-            },
-        )
-        .expect("null entries projection");
-        assert_eq!(result["entries"], json!([]));
-        assert_eq!(result["total"], 0);
-
-        let error = project_news(
-            json!({
-                "market": "HK",
-                "symbol": "AAPL",
-                "instrument_id": "HK.AAPL",
-                "entries": [],
-                "source": "yfinance-news"
-            }),
-            "yfinance",
-            NewsSearchRequest {
-                market: "US".to_owned(),
-                symbol: "AAPL".to_owned(),
-                limit: 10,
-            },
-        )
-        .expect_err("identity mismatch");
-        assert!(matches!(
-            error,
-            MarketDataNewsSearchReadSnapshotError::Failed { status: 502, .. }
-        ));
-    }
-}
+#[path = "product_production_ports_market_data_news_search_tests.rs"]
+mod tests;

@@ -163,8 +163,16 @@ fn corporate_actions_projection_rejects_missing_events() {
 /// `ErrCapabilityUnavailable` when that broker cannot serve the feature; it
 /// never falls back to another registered broker. The Rust owner is the
 /// production port's active-provider guard: an explicit `brokerId` that names a
-/// different provider must answer 409 `CAPABILITY_UNAVAILABLE` before any
-/// helper/OpenD read, which is the fail-closed equivalent of "no fallback".
+/// different provider must answer 409 before any helper/OpenD read, which is
+/// the fail-closed equivalent of "no fallback".
+///
+/// Two Go transports render that sentinel: the path-style market-data routes
+/// (`/api/v1/market-data/news/{market}/{symbol}`) use
+/// `MARKET_DATA_CAPABILITY_UNSUPPORTED`, while the product-feature routes use
+/// `BROKER_CAPABILITY_UNAVAILABLE`. This port serves the path-style family, so
+/// it must report the market-data code; the product-feature code is asserted by
+/// `product_production_ports_market_data_news_search_tests.rs`. Only the code
+/// differs — the no-fallback decision and the 409 status are shared.
 #[test]
 fn explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback() {
     let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Yfinance)));
@@ -189,7 +197,7 @@ fn explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback(
                 ..
             } => {
                 assert_eq!(status, 409);
-                assert_eq!(code, "CAPABILITY_UNAVAILABLE");
+                assert_eq!(code, "MARKET_DATA_CAPABILITY_UNSUPPORTED");
                 assert!(
                     message.contains("does not match active provider"),
                     "message = {message}"

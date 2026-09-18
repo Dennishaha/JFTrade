@@ -623,7 +623,7 @@ fn invalid(message: &str) -> ResearchReadSnapshotError {
 fn capability(feature: &str, operation: &str) -> ResearchReadSnapshotError {
     ResearchReadSnapshotError::Failed {
         status: 409,
-        code: "CAPABILITY_UNAVAILABLE".to_owned(),
+        code: "BROKER_CAPABILITY_UNAVAILABLE".to_owned(),
         message: format!(
             "embedded market-data provider does not serve {feature} operation/market {operation:?}"
         ),
@@ -673,50 +673,7 @@ fn map_helper_error(error: HttpAdapterError) -> ResearchReadSnapshotError {
     }
 }
 
+
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_board_kind_defaults_empty_to_industry() {
-        // Parity: internal/marketdata/rankings_facade_test.go:193 TestServiceIndustriesDefaultsEmptyKindToIndustry
-        let empty_query = QueryMap::parse("").expect("empty query");
-        assert_eq!(board_kind(&empty_query).expect("kind"), "industry");
-
-        let explicit_industry = QueryMap::parse("plateType=industry").expect("query");
-        assert_eq!(board_kind(&explicit_industry).expect("kind"), "industry");
-
-        let uppercase_industry = QueryMap::parse("plateType=INDUSTRY").expect("query");
-        assert_eq!(board_kind(&uppercase_industry).expect("kind"), "industry");
-
-        let concept = QueryMap::parse("plateType=concept").expect("query");
-        assert_eq!(board_kind(&concept).expect("kind"), "concept");
-
-        let invalid = QueryMap::parse("plateType=unsupported").expect("query");
-        assert!(board_kind(&invalid).is_err());
-    }
-
-    #[test]
-    fn rankings_limit_prefers_positive_page_size() {
-        let query = QueryMap::parse("pageSize=40&limit=5").expect("query");
-        assert_eq!(request_limit(&query).expect("limit"), 40);
-    }
-
-    #[test]
-    fn rankings_limit_falls_back_to_legacy_limit_and_default() {
-        let zero = QueryMap::parse("pageSize=0&limit=5").expect("query");
-        assert_eq!(request_limit(&zero).expect("legacy fallback"), 5);
-
-        let malformed = QueryMap::parse("pageSize=bad&limit=-2").expect("query");
-        assert_eq!(request_limit(&malformed).expect("default"), DEFAULT_LIMIT);
-
-        let empty = QueryMap::parse("").expect("query");
-        assert_eq!(request_limit(&empty).expect("default"), DEFAULT_LIMIT);
-    }
-
-    #[test]
-    fn rankings_limit_clamps_to_provider_bounds() {
-        let query = QueryMap::parse("pageSize=10000").expect("query");
-        assert_eq!(request_limit(&query).expect("clamp"), MAX_LIMIT);
-    }
-}
+#[path = "product_production_ports_research_market_tests.rs"]
+mod tests;

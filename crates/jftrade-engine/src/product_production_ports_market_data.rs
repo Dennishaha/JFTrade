@@ -784,9 +784,13 @@ fn map_news_actions_helper_error(
 }
 
 fn news_actions_capability(message: &str) -> MarketDataNewsActionsReadSnapshotError {
+    // The path-style news/corporate-actions routes belong to the market-data
+    // transport family, whose owner maps an unsupported capability to
+    // MARKET_DATA_CAPABILITY_UNSUPPORTED (frozen news-actions fixture); the
+    // product-feature family reports BROKER_CAPABILITY_UNAVAILABLE instead.
     MarketDataNewsActionsReadSnapshotError::Failed {
         status: 409,
-        code: "CAPABILITY_UNAVAILABLE".to_owned(),
+        code: "MARKET_DATA_CAPABILITY_UNSUPPORTED".to_owned(),
         message: message.to_owned(),
         retry_after_seconds: None,
     }

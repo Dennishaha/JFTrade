@@ -4637,3 +4637,88 @@ python3 scripts/compatibility/audit_test_parity.py
 3. `internal/api/productfeatures/routes_test.go`（4 条路由 wire/错误映射）。
 4. 判定 akshare + yfinance embedded facade 在 Rust 的架构边界（embedded provider 是否由 engine 直接持有，
    还是归 integration crate），逐条给出 `[x]` 或边界保留结论。
+
+## 批次：internal/productfeatures embedded provider 投影组（22 条 Go 测试，审计 642 → 664）
+
+### 范围与基线
+- Go 基线 `go:452dea11`，本轮处理 `internal/productfeatures/provider_projection_test.go`（16 条）与
+  `provider_projection_calendar_test.go`（6 条），共 22 条，全部升级为 `[x] function_exact`。
+- 这 22 条原先都停在“当前仅有领域级 Rust 入口映射”的占位结论，本轮逐条比对 Go 实现与 Rust 生产代码。
+
+### 真实功能修复（4 处，均有回归测试）
+1. **capability 错误码错位（P0，两族并存）**：Go 把 `marketdata.ErrCapabilityUnsupported` 折成
+   `ErrCapabilityUnavailable`，product-feature 路由渲染 `BROKER_CAPABILITY_UNAVAILABLE`；path-style
+   market-data 路由渲染 `MARKET_DATA_CAPABILITY_UNSUPPORTED`。Rust 两侧都输出未加前缀的
+   `CAPABILITY_UNAVAILABLE`，控制台的 `ProviderUnsupportedState` 降级匹配不到。
+   - 修复位置：`product_production_ports_research.rs`、`product_production_ports_research_market.rs`、
+     `..._calendar.rs`、`..._company.rs`、`research_screen_query.rs` 统一为 `BROKER_CAPABILITY_UNAVAILABLE`；
+     `product_production_ports_market_data.rs::news_actions_capability` 改为
+     `MARKET_DATA_CAPABILITY_UNSUPPORTED`。
+   - 回归测试：`embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels`（同时断言 warming/busy
+     的 503 + Retry-After 语义不受影响）、`explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback`。
+2. **company research 投影过严（P1）**：profile 原先用 `copy_required_number`/必填字符串，Go 对
+   id/name/value 的缺失、null、空白都折叠成 `""`（只有类型错误才 502）；analyst 分布桶是可选的；
+   ownership 只从 `holder_types` 取材（原先多读了 institutional/mutualfund），条目名走 `text_or_empty`。
+   - 修复位置：`product_production_ports_research_company.rs`（并删除随之失效的 `copy_required_number`）。
+   - 回归测试：`provider_company_profile_projection_maps_frontend_keys`、
+     `provider_analyst_consensus_projection_maps_frontend_keys`（含分布桶缺省）、
+     `provider_ownership_projection_maps_frontend_keys`。
+3. **calendar 时区与身份校验（P1）**：economic 日历的日期/时间派生原先把时间按 UTC 处理，Go 用
+   Asia/Shanghai（UTC+8）；earnings/dividend 的 instrumentId 身份校验也不完整。
+   - 修复位置：`product_production_ports_research_calendar.rs`（固定 +08:00 派生 + identity 校验）。
+4. **rankings 身份漂移未拒绝（P1）**：Go 会拒绝 market/kind 与请求不一致的 helper 响应，Rust 原先直接投影。
+   - 修复位置：`product_production_ports_research_market.rs`。
+   - 回归测试：`market_research_projection_rejects_identity_drift`。
+
+### 新增测试文件（模块拆分，生产文件 800 行硬上限）
+- `product_production_ports_market_data_news_search_tests.rs`（3 条）
+- `product_production_ports_research_company_tests.rs`（7 条）
+- `product_production_ports_research_market_tests.rs`（4 条）
+- `product_production_ports_research_calendar_tests.rs`（10 条）
+- `product_production_ports_research_tests.rs` 追加
+  `active_provider_matching_accepts_descriptor_aliases_and_rejects_other_brokers`
+- `research_screen_query.rs` 内联 `#[cfg(test)] mod tests`（2 条）
+
+### 本轮修正的映射缺陷
+- `TestEmbeddedProviderServesMirrorsActiveProviderMatching` 原先错误复用了 allow-list 测试的 `rust_entry`，
+  触发审计的 `[x] mappings must use unique Rust test entries; duplicate references=1` 失败。
+  该 Go 断言是复合判定（descriptor 非 futu 且 requested 为空或 EqualFold 匹配 brokerID/providerID），
+  已新建专用测试逐行冻结 Go 的 11 行 case 表，并用生产 `ProductionResearchPort` 证明判定先于
+  helper/OpenD 读取生效（非 active broker 在 helper 未就绪时仍 409，而不是 503 回退）。
+
+### 探针验证（改坏实现 → 测试必须失败 → 回滚）
+| # | 探针 | 结果 |
+| --- | --- | --- |
+| 1 | `research.rs` capability 码回退为未加前缀 | `embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels` FAILED |
+| 2 | `market_data.rs` capability 码回退 | `explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback` FAILED |
+| 3 | `news_search.rs` capability 码回退 | 2 条测试 FAILED |
+| 4 | profile 的 `text_or_empty` 收紧回必填 | `provider_company_profile_projection_maps_frontend_keys` FAILED |
+| 5 | analyst 分布桶改回必填 | `provider_analyst_consensus_projection_maps_frontend_keys` FAILED |
+| 6 | economic 时区 +08 改回 UTC | `economic_calendar_route_derives_date_and_time` FAILED |
+| 7 | `identity()` 简化为不校验 | `earnings_calendar_route_maps_frontend_keys` FAILED |
+| 8 | rankings 去掉 market identity 校验 | `market_research_projection_rejects_identity_drift` FAILED |
+| 9 | `provider_matches_broker_id` 去掉 yahoo-finance 别名 | `active_provider_matching_..._rejects_other_brokers` FAILED |
+| 10 | `ProductionResearchPort` 绕过 provider 判定 | `active_provider_matching_..._rejects_other_brokers` FAILED |
+
+所有探针已回滚，无 `.probe_backup` 残留。
+
+### 验证
+```
+cargo fmt --all
+cargo clippy -p jftrade-engine --all-targets --locked
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast
+pnpm run check:zero-go
+pnpm run check:rust:architecture
+pnpm run check:compatibility
+python3 scripts/compatibility/audit_test_parity.py
+```
+- `jftrade-engine`：1318 passed，0 failed。
+- 审计：4451 Go 测试 / 2446 Rust 测试，`function_exact` 642 → 664，0 nonexistent crate 引用，
+  0 条 `[x]` 缺 `function_exact`，`partial` 无解析测试仍为 5（已确认缺口非失败）。
+
+### 下一批
+1. `internal/productfeatures/provider_facade_calendar_test.go`（5 条）、`..._company_test.go`（6 条）、
+   `..._interception_test.go`（4 条）、`..._rankings_test.go`（8 条）、`..._screen_test.go`（6 条）。
+2. `internal/api/productfeatures/provider_research_routes_test.go`（9 条）、
+   `research_screen_test.go`（10 条）、`routes_test.go`（4 条）、`prediction_combo_routes_test.go`（1 条）。
+3. 之后依次：`internal/api/assistant`（ADK）→ `internal/api` → `pkg/futu/live_opend_test.go`（8 条，需真实 OpenD，列最后）。

@@ -243,12 +243,22 @@ fn project_profile(
     let mut entries = Vec::new();
     for group in groups {
         let group = object_entry(group, "profile group")?;
-        let title = required_text(group, "title")?;
-        entries.push(json!({"fieldType": "title", "name": title}));
+        // Go's projectProviderCompanyProfile only opens a group when the title
+        // has content and otherwise projects the fields alone, so a title-less
+        // group is valid input rather than a malformed payload.
+        let title = text_or_empty(group, "title")?;
+        if !title.is_empty() {
+            entries.push(json!({"fieldType": "title", "name": title}));
+        }
         for field in required_array(group, "fields")? {
             let field = object_entry(field, "profile field")?;
-            let name = required_text(field, "name")?;
-            let value = required_text(field, "value")?;
+            // Go trims both cells and skips only the fully empty row; a row with
+            // just a name or just a value still projects.
+            let name = text_or_empty(field, "name")?;
+            let value = text_or_empty(field, "value")?;
+            if name.is_empty() && value.is_empty() {
+                continue;
+            }
             entries.push(json!({"fieldType": "text", "name": name, "value": value}));
         }
     }
@@ -335,6 +345,8 @@ fn project_analyst(
         copy_optional_number(target, &mut entry, "highest", "highest")?;
     }
     if let Some(distribution) = optional_object(object, "distribution")? {
+        // Go's AnalystDistribution buckets are all nullable: the feed may
+        // publish only the buckets it knows, and the console omits the rest.
         for (from, to) in [
             ("strong_buy", "strongBuy"),
             ("buy", "buy"),
@@ -342,7 +354,7 @@ fn project_analyst(
             ("underperform", "underperform"),
             ("sell", "sell"),
         ] {
-            copy_required_number(distribution, &mut entry, from, to)?;
+            copy_optional_number(distribution, &mut entry, from, to)?;
         }
     }
     if let Some(update_time) = optional_text(object, "update_time")? {
@@ -375,7 +387,9 @@ fn project_ownership(
         for item in items {
             let item = object_entry(item, "ownership item")?;
             let mut projected = Map::new();
-            projected.insert("name".to_owned(), json!(required_text(item, "name")?));
+            // Go's OwnershipItem.Name is a plain string field, so a missing or
+            // null name decodes as "" and still projects a row.
+            projected.insert("name".to_owned(), json!(text_or_empty(item, "name")?));
             copy_optional_number(item, &mut projected, "holder_pct", "holderPct")?;
             item_list.push(Value::Object(projected));
         }
@@ -425,18 +439,12 @@ fn project_corporate_actions(
         projected.insert("exDate".to_owned(), json!(ex_date));
         let amount = optional_number(event, "amount")?;
         let ratio = optional_number(event, "ratio")?;
-        if kind.eq_ignore_ascii_case("dividend") && amount.is_none() {
-            return Err(bad_gateway("dividend event is missing amount"));
-        }
-        if kind.eq_ignore_ascii_case("split") && ratio.is_none() {
-            return Err(bad_gateway("split event is missing ratio"));
-        }
-        if kind.eq_ignore_ascii_case("dividend") && ratio.is_some() {
-            return Err(bad_gateway("dividend event must not contain ratio"));
-        }
-        if kind.eq_ignore_ascii_case("split") && amount.is_some() {
-            return Err(bad_gateway("split event must not contain amount"));
-        }
+        // Go's `corporateActionStatement` renders the statement whenever the
+        // kind's own term is present and omits it otherwise: an amount-less
+        // dividend, a ratio-less split, a dividend carrying a ratio or a split
+        // carrying an amount all project successfully with kind/exDate only.
+        // Rejecting those shapes made the facade stricter than Go and turned a
+        // valid provider row into a 502.
         if kind.eq_ignore_ascii_case("dividend") {
             if let Some(value) = amount.as_ref().and_then(Value::as_f64) {
                 projected.insert("statement".to_owned(), json!(format!("每股派息 {value}")));
@@ -477,6 +485,22 @@ fn optional_text<'a>(
         .filter(|value| !value.is_empty())
         .map(Some)
         .ok_or_else(|| bad_gateway(format!("research response field {key} must be a string")))
+}
+
+/// Decode a Go `string` field: a missing key, JSON `null`, and an empty or
+/// whitespace-only value all mean "" — Go's plain `string` fields have no way
+/// to distinguish them — while a non-string value is still malformed input.
+fn text_or_empty<'a>(
+    object: &'a Map<String, Value>,
+    key: &str,
+) -> Result<&'a str, ResearchReadSnapshotError> {
+    match object.get(key) {
+        None | Some(Value::Null) => Ok(""),
+        Some(value) => value
+            .as_str()
+            .map(str::trim)
+            .ok_or_else(|| bad_gateway(format!("research response field {key} must be a string"))),
+    }
 }
 
 fn required_array<'a>(
@@ -547,18 +571,6 @@ fn copy_optional_number(
     Ok(())
 }
 
-fn copy_required_number(
-    source: &Map<String, Value>,
-    target: &mut Map<String, Value>,
-    from: &str,
-    to: &str,
-) -> Result<(), ResearchReadSnapshotError> {
-    let value = optional_number(source, from)?
-        .ok_or_else(|| bad_gateway(format!("research response is missing {from}")))?;
-    target.insert(to.to_owned(), value);
-    Ok(())
-}
-
 fn copy_optional_integer(
     source: &Map<String, Value>,
     target: &mut Map<String, Value>,
@@ -594,7 +606,7 @@ fn unavailable(message: impl Into<String>) -> ResearchReadSnapshotError {
 fn capability(feature: &str, operation: &str) -> ResearchReadSnapshotError {
     ResearchReadSnapshotError::Failed {
         status: 409,
-        code: "CAPABILITY_UNAVAILABLE".to_owned(),
+        code: "BROKER_CAPABILITY_UNAVAILABLE".to_owned(),
         message: format!(
             "embedded market-data provider does not serve {feature} operation {operation:?}"
         ),
@@ -610,3 +622,8 @@ fn bad_gateway(message: impl Into<String>) -> ResearchReadSnapshotError {
         retry_after_seconds: None,
     }
 }
+
+
+#[cfg(test)]
+#[path = "product_production_ports_research_company_tests.rs"]
+mod tests;
