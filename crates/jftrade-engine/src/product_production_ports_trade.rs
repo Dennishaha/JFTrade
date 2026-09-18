@@ -50,7 +50,7 @@ pub(crate) use product_production_ports_trade_requests::{
 pub(crate) mod trade_projection;
 #[allow(unused_imports)]
 use trade_projection::{
-    account_value, active_order_status, canonical_time, cash_flow_direction_label,
+    account_value, accounts_value, active_order_status, orders_value, canonical_time, cash_flow_direction_label,
     cash_flow_value, currency_label, fill_status_label, fill_value, funds_value,
     map_broker_header_error,
     map_portfolio_header_error, margin_ratio_value, market_label_from_code,
@@ -137,12 +137,16 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                     .live_clients_snapshot()
                     .ok_or_else(|| unavailable("live websocket client metrics are unavailable"))?;
                 let accounts = client.read_accounts(0, None, None).map_err(session_error)?;
+                // Go's `runtimeAccountsFromProto` deduplicates and sorts before
+                // the runtime route reports the discovered accounts, so both the
+                // list and its count must reflect the deduplicated projection.
+                let accounts = accounts_value(accounts);
                 let accounts_discovered = accounts.len();
                 let descriptor =
                     serde_json::to_value(jftrade_integration_futu::broker_descriptor())
                         .map_err(|error| unavailable(error.to_string()))?;
                 Ok(json!({
-                    "accounts": accounts.into_iter().map(account_value).collect::<Vec<_>>(),
+                    "accounts": accounts,
                     "descriptor": descriptor,
                     "session": {"brokerId": request.broker_id, "displayName": "Futu", "accountsDiscovered": accounts_discovered, "tradeLoggedIn": runtime.snapshot().trade_logged_in == Some(true), "connectivity": "connected", "checkedAt": checked_at(), "connection": {"host": connection.host, "apiPort": connection.api_port, "websocketPort": connection.websocket_port, "port": connection.api_port, "useEncryption": connection.use_encryption, "marketDataTransport": "bbgo-opend-tcp-api"}, "globalState": null, "lastError": null, "liveWebSocketClients": {"connected": live_clients.0, "limit": live_clients.1, "atLimit": live_clients.0 >= live_clients.1}}
                 }))
@@ -300,7 +304,7 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                         .collect()
                 };
                 Ok(
-                    json!({"checkedAt": checked_at(), "connectivity": "connected", "orders": orders.into_iter().map(|v| order_value(&resolved, v)).collect::<Vec<_>>() }),
+                    json!({"checkedAt": checked_at(), "connectivity": "connected", "orders": orders_value(&resolved, orders) }),
                 )
             }
             "fills" => {

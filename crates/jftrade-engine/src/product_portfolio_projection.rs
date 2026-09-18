@@ -598,6 +598,7 @@ fn read_account_positions_item(
                 environment: env.to_owned(),
                 market: query_market.clone(),
                 header,
+                order_symbol_filter: None,
             };
             for pos in positions {
                 positions_json.push(position_value(&trade_req, pos));

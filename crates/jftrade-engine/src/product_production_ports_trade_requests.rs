@@ -187,6 +187,12 @@ impl TradeRequest {
             environment: environment_label_from_code(account.trd_env).to_owned(),
             market: selected_market,
             header: trade_header(account.trd_env, acc_id, header_market),
+            order_symbol_filter: self
+                .query
+                .get_first("symbol")
+                .map(str::trim)
+                .filter(|symbol| !symbol.is_empty())
+                .map(str::to_ascii_uppercase),
         })
     }
 
@@ -647,6 +653,11 @@ pub(crate) struct ResolvedTradeRequest {
     pub(crate) environment: String,
     pub(crate) market: String,
     pub(crate) header: TradeHeader,
+    /// Canonical `symbol` filter for broker order reads. Go's
+    /// `QueryBrokerOrders` passes `strings.TrimSpace(strings.ToUpper(symbol))`
+    /// to `brokerOrderSnapshotsFromProto`, which re-checks every row because the
+    /// provider filter is only a hint.
+    pub(crate) order_symbol_filter: Option<String>,
 }
 
 pub(crate) fn account_identity(

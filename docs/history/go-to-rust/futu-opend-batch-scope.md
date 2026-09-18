@@ -3180,3 +3180,93 @@ python3 scripts/compatibility/audit_test_parity.py
 ```
 
 结果：1757 passed / 1 skipped；审计 OK: 515 function_exact（本批 4 条 → `[x]`）。
+
+---
+
+## 批次：pkg/futu/trade_account_test.go（4 项）
+
+基线：`go:pkg/futu/trade_account_test.go` 的 4 条 `[~]`/`missing` 用例。
+本批发现并修复 **4 处真实功能缺口**。
+
+### 修复的真实功能缺口
+
+1. **`:15 TestDiscoverAccountsDeduplicatesAndFallsBackToCardIdentifier` —
+   runtime 账户列表不去重、不排序，`accountsDiscovered` 也不是去重后数量**
+   Go 的 `runtimeAccountsFromProto` 在返回前按
+   `key := AccountID + "|" + TradingEnvironment` 去重，再按
+   「environment → AccountID」排序，`AccID == 0` 时回退到 `CardNum` /
+   `UniCardNum`（任意非空字符串，不要求纯数字）。
+   Rust 之前直接把 provider 顺序原样投影，两条共享 `SIM-CARD` 的模拟账户
+   会重复出现（且各自带不同枚举投影），`accountsDiscovered` 报 3。
+   新增 `crates/jftrade-engine/src/trade_projection.rs::accounts_value`，
+   在 runtime 路由 `product_production_ports_trade.rs` 中先投影再去重，
+   计数取去重后长度。
+   注意：`execution_reconciliation_discovery.rs::account_identity` 仍要求
+   正数字 ID ——那是**对账**路径，与 Go 不同 owner，本批未改动。
+
+2. **`:118 TestQueryBrokerOrdersFiltersAndSortsWorkingOrders` —
+   broker 订单既不排序也不做 symbol 过滤**
+   Go 的 `brokerOrderSnapshotsFromProto` 先用
+   `strings.EqualFold(strings.TrimSpace(order.GetCode()), canonicalSymbol)`
+   过滤（provider 的 filter 只是提示），再按 `brokerOrderSortKey`
+   （`UpdatedAt`，缺失回退 `SubmittedAt`）倒序、以 `BrokerOrderID` 降序破平。
+   Rust 之前依赖 provider 返回顺序，`symbol=hk.00700` 时会把 `US.AAPL` 行
+   一起返回（实测 3 条 / 期望 2 条）。
+   新增 `trade_projection.rs::orders_value` + `order_sort_key` +
+   `parse_broker_order_time`，并在 `ResolvedTradeRequest` 上新增
+   `order_symbol_filter` 字段承载 canonical symbol。
+
+3. **`:199 TestPlaceOrderRequestFromSubmitOrderCoversValidationAndRemarkSemantics`
+   — 非 US 订单的 `fillOutsideRTH` 未拒绝、market 单未丢弃该 flag**
+   Go 在 `placeOrderRequestFromSubmitOrder` 中先判
+   `secMarket != TrdSecMarket_US` → 报
+   `"fillOutsideRTH is supported for US orders only"`，再判
+   `supportsFillOutsideRTH`（只覆盖 Normal / StopLimit）才写入 wire。
+   Rust 之前把显式 flag 原样透传：HK 订单被静默接受，market 单会带上
+   `fillOutsideRTH`（实测 `left: Some(true) / right: None`）。
+   在 `product_production_ports_execution_order_parse.rs` 补两处守卫，
+   并把显式 flag 也纳入 `supports_fill_outside_rth` 判定。
+
+### remark 语义澄清（非缺口）
+
+Go 有**两层**remark 规则：
+`internal/trading/execution_normalize.go` 是「显式 `remark` 优先、缺失回退
+`clientOrderId`」；更下游的 `placeOrderRequestFromSubmitOrder` 才是
+「`SubmitOrder.ClientOrderID` 优先、`Tag` 回退」。Rust 的 wire `remark`
+对应前者（后者在 Rust 没有独立的 `tag` 字段），现有实现与 Go 一致，
+本批只补齐断言，未改语义。
+
+### 补齐的行为证据
+
+4. **`:72 TestResolveTradeMarketCoversRequestedAndFallbackBranches`**
+   既有
+   `resolve_account_honors_requested_authority_and_falls_back_like_go`
+   已逐条覆盖 Go 的五个分支（请求市场需在 authority 内、未授权返回
+   no-match 而非错误、无 authority 走直接映射、非法市场名硬报错、
+   非法 authority 项跳过取首个有效项、无 authority 默认 HK），本批登记。
+
+### 探针（改坏实现 → 跑测试 → 确认守卫 → 回滚）
+
+- `accounts_value` 去掉排序
+  → `runtime_account_discovery_deduplicates_sorts_and_falls_back_to_card_identity`
+  失败：`left: String("SIM-CARD") / right: "1002"`。
+- `orders_value` 去掉 canonical symbol 过滤
+  → `broker_working_orders_are_filtered_sorted_and_symbol_normalized_like_go`
+  失败：`left: 3 / right: 2`。
+  两处探针均已回滚并复跑通过。
+
+### 既有测试的期望值修正
+
+- `broker_current_orders_hide_terminal_statuses_while_history_keeps_them`：
+  `OrderFixtureRead` 的 2001/2002 共享同一 update time，排序生效后按 Go
+  的 tie-breaker（broker order id 降序）2002 应排在前，断言随之调整。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --no-fail-fast
+cargo fmt --all
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：1760 passed / 1 skipped；审计 OK: 519 function_exact（本批 4 条 → `[x]`）。

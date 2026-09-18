@@ -17857,32 +17857,32 @@
     "evidence_type": "missing"
   },
   "pkg/futu/trade_account_test.go:15:TestDiscoverAccountsDeduplicatesAndFallsBackToCardIdentifier": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::runtime_account_discovery_deduplicates_sorts_and_falls_back_to_card_identity",
+    "conclusion": "function_exact：runtime 路由现在按 Go 的 runtimeAccountsFromProto 先投影再去重（key=AccountID|TradingEnvironment）+ 按 environment→AccountID 排序，accountsDiscovered 反映去重后数量；两条共享 SIM-CARD 的模拟账户收敛为 1 条，未知安全厂商保持 null（不伪造），marketAuthorities 去重为 [HK]。修点：crates/jftrade-engine/src/trade_projection.rs::accounts_value + product_production_ports_trade.rs 的 runtime 分支。探针去掉排序即失败（left SIM-CARD / right 1002）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(runtime_account_discovery_deduplicates_sorts_and_falls_back_to_card_identity)'"
   },
   "pkg/futu/trade_account_test.go:72:TestResolveTradeMarketCoversRequestedAndFallbackBranches": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::resolve_account_honors_requested_authority_and_falls_back_like_go",
+    "conclusion": "function_exact：请求市场必须出现在 authority 列表（case/空白归一），未授权市场返回 no-match 而非错误，authority 为空时走直接市场映射（JP→15），非法市场名硬报错，非法 authority 项被跳过并取第一个有效项，无 authority 时默认 HK(1)。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(resolve_account_honors_requested_authority_and_falls_back_like_go)'"
   },
   "pkg/futu/trade_account_test.go:118:TestQueryBrokerOrdersFiltersAndSortsWorkingOrders": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_working_orders_are_filtered_sorted_and_symbol_normalized_like_go",
+    "conclusion": "function_exact：current-session 读取丢弃终态订单、按 canonical symbol（trim+uppercase，大小写不敏感）过滤、按 brokerOrderSortKey 倒序（updatedAt 优先，缺失回退 submittedAt）并以 brokerOrderId 降序破平；US 行与 Cancelled_All 行被剔除，剩 2002→2001，symbol 输出 HK.00700。修点：trade_projection.rs::orders_value + ResolvedTradeRequest.order_symbol_filter。探针去掉 symbol 过滤即失败（left 3 / right 2）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(broker_working_orders_are_filtered_sorted_and_symbol_normalized_like_go)'"
   },
   "pkg/futu/trade_account_test.go:199:TestPlaceOrderRequestFromSubmitOrderCoversValidationAndRemarkSemantics": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::execution_order_rejects_non_us_fill_outside_rth_and_normalizes_the_remark",
+    "conclusion": "function_exact：非 US 订单带 fillOutsideRTH 硬报错（Go 的 \"fillOutsideRTH is supported for US orders only\"，本批新增校验）；market 单即便显式传 flag 也不落 wire（Go supportsFillOutsideRTH 只覆盖 Normal/StopLimit）；remark 归一化沿用 Go execution_normalize.go 的顺序（显式 remark 优先、缺失回退 clientOrderId），clientOrderId 另行保留用于幂等。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(execution_order_rejects_non_us_fill_outside_rth_and_normalizes_the_remark)'"
   },
   "pkg/futu/trade_bounds_test.go:12:TestBrokerReadQueriesSurfaceAccountResolutionErrors": {
     "status": "[~]",

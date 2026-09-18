@@ -9,6 +9,36 @@ use serde_json::{Value, json};
 use super::{ResolvedTradeRequest, account_identity, checked_at, environment_label_from_code};
 use crate::product::{BrokerReadSnapshotError, PortfolioSnapshotError};
 
+/// Projects the discovered accounts exactly like Go's
+/// `runtimeAccountsFromProto`: deduplicate on `AccountID|TradingEnvironment`,
+/// then sort by environment and account id.
+///
+/// Go keeps `runtimeAccountsFromProto` as the single owner of this rule, so the
+/// runtime projection must not reorder or repeat rows: a duplicate simulate
+/// card would otherwise be reported twice with different enum projections.
+pub(crate) fn accounts_value(
+    accounts: Vec<jftrade_integration_futu::TradeAccountSnapshot>,
+) -> Vec<Value> {
+    let mut seen = std::collections::HashSet::new();
+    let mut projected = accounts
+        .into_iter()
+        .filter_map(|account| {
+            let identity = account_identity(&account).unwrap_or_default();
+            let environment = environment_label_from_code(account.trd_env);
+            if !seen.insert(format!("{identity}|{environment}")) {
+                return None;
+            }
+            Some((environment.to_owned(), identity, account_value(account)))
+        })
+        .collect::<Vec<_>>();
+    projected.sort_by(|left, right| {
+        left.0
+            .cmp(&right.0)
+            .then_with(|| left.1.cmp(&right.1))
+    });
+    projected.into_iter().map(|(_, _, value)| value).collect()
+}
+
 pub(crate) fn account_value(value: jftrade_integration_futu::TradeAccountSnapshot) -> Value {
     let account_id = account_identity(&value);
     let markets = value
@@ -196,6 +226,72 @@ pub(super) fn order_value(
     value: jftrade_integration_futu::TradeOrderSnapshot,
 ) -> Value {
     json!({"accountId": request.account_id, "brokerOrderId": value.order_id.to_string(), "brokerOrderIdEx": non_empty(&value.order_id_ex), "currency": currency_label(value.currency), "filledAveragePrice": value.fill_avg_price, "filledQuantity": value.fill_qty, "lastError": value.last_err_msg, "market": request.market, "orderType": order_type_label(value.order_type), "price": value.price, "quantity": value.qty, "remark": value.remark, "side": trade_side(value.trd_side), "status": order_status_label(value.order_status), "submittedAt": canonical_time(&value.create_time), "symbol": qualify_symbol(&request.market, &value.code), "symbolName": non_empty(&value.name), "timeInForce": value.time_in_force.map(time_in_force_label), "tradingEnvironment": request.environment, "updatedAt": canonical_time(&value.update_time)})
+}
+
+/// Projects broker orders exactly like Go's `brokerOrderSnapshotsFromProto`.
+///
+/// Go filters on the canonical symbol (`strings.TrimSpace(strings.ToUpper)`)
+/// with a case-insensitive compare against each row's `code`, then sorts by
+/// descending update time with the broker order id as the tie-breaker. The
+/// filter is applied here as well because the provider request is only a hint:
+/// rows for another instrument can still come back.
+pub(super) fn orders_value(
+    request: &ResolvedTradeRequest,
+    orders: Vec<jftrade_integration_futu::TradeOrderSnapshot>,
+) -> Vec<Value> {
+    let canonical_symbol = request
+        .order_symbol_filter
+        .as_deref()
+        .map(|symbol| symbol.trim().to_ascii_uppercase())
+        .filter(|symbol| !symbol.is_empty());
+    let mut orders = orders
+        .into_iter()
+        .filter(|order| {
+            canonical_symbol
+                .as_deref()
+                .is_none_or(|symbol| order.code.trim().eq_ignore_ascii_case(symbol))
+        })
+        .collect::<Vec<_>>();
+    orders.sort_by(|left, right| {
+        let left_key = order_sort_key(left);
+        let right_key = order_sort_key(right);
+        right_key
+            .cmp(&left_key)
+            .then_with(|| right.order_id.cmp(&left.order_id))
+    });
+    orders
+        .into_iter()
+        .map(|order| order_value(request, order))
+        .collect()
+}
+
+/// Go `brokerOrderSortKey`: the update time, falling back to the submit time
+/// only when the update time cannot be parsed.
+fn order_sort_key(order: &jftrade_integration_futu::TradeOrderSnapshot) -> (i64, String) {
+    let updated = parse_broker_order_time(&order.update_time);
+    if updated.0 != 0 || !updated.1.is_empty() {
+        return updated;
+    }
+    parse_broker_order_time(&order.create_time)
+}
+
+/// Go `parseBrokerOrderTime`: normalize the wire label to a sortable instant.
+/// Unparsable labels keep their trimmed text so ordering stays deterministic
+/// instead of silently collapsing to the epoch.
+fn parse_broker_order_time(value: &str) -> (i64, String) {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return (0, String::new());
+    }
+    let canonical =
+        crate::product::product_production_ports::product_production_ports_trade::canonical_candle_time(trimmed, "UTC");
+    match time::OffsetDateTime::parse(
+        &canonical,
+        &time::format_description::well_known::Rfc3339,
+    ) {
+        Ok(parsed) => (parsed.unix_timestamp(), String::new()),
+        Err(_) => (0, trimmed.to_owned()),
+    }
 }
 
 pub(super) fn fill_value(

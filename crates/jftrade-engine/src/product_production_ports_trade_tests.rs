@@ -1234,8 +1234,141 @@ fn broker_current_orders_hide_terminal_statuses_while_history_keeps_them() {
         .expect("history orders");
     let history = history["orders"].as_array().expect("history orders array");
     assert_eq!(history.len(), 2, "history scope keeps terminal orders");
-    assert_eq!(history[1]["brokerOrderId"], "2002");
-    assert_eq!(history[1]["status"], "FILLED_ALL");
+    // Both fixture rows share the same update time, so Go's
+    // `brokerOrderSortKey` tie-breaker (descending broker order id) decides and
+    // 2002 sorts first.
+    assert_eq!(history[0]["brokerOrderId"], "2002");
+    assert_eq!(history[0]["status"], "FILLED_ALL");
+    assert_eq!(history[1]["brokerOrderId"], "2001");
+}
+
+#[test]
+fn broker_working_orders_are_filtered_sorted_and_symbol_normalized_like_go() {
+    // Parity: go:452dea11:pkg/futu/trade_account_test.go:118
+    // TestQueryBrokerOrdersFiltersAndSortsWorkingOrders. Go drops terminal
+    // orders (`brokerOrderIsWorking`), filters on the canonical
+    // `strings.TrimSpace(strings.ToUpper(symbol))`, then sorts by descending
+    // `brokerOrderSortKey` with the broker order id as the tie-breaker, and
+    // finally projects the canonical HK symbol.
+    #[derive(Debug)]
+    struct WorkingOrderRead;
+
+    impl TradeReadPort for WorkingOrderRead {
+        fn read_accounts(
+            &self,
+            user_id: u64,
+            category: Option<i32>,
+            general: Option<bool>,
+        ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+            FakeTradeRead.read_accounts(user_id, category, general)
+        }
+        fn read_funds(
+            &self,
+            header: TradeHeader,
+            refresh: Option<bool>,
+            currency: Option<i32>,
+            asset: Option<i32>,
+        ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+            FakeTradeRead.read_funds(header, refresh, currency, asset)
+        }
+        fn read_cash_flows(
+            &self,
+            header: TradeHeader,
+            clearing_date: String,
+            direction: Option<i32>,
+        ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+            FakeTradeRead.read_cash_flows(header, clearing_date, direction)
+        }
+        fn read_order_fees(
+            &self,
+            header: TradeHeader,
+            order_ids: Vec<String>,
+        ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+            FakeTradeRead.read_order_fees(header, order_ids)
+        }
+        fn read_margin_ratios(
+            &self,
+            header: TradeHeader,
+            securities: Vec<TradeSecurity>,
+        ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+            FakeTradeRead.read_margin_ratios(header, securities)
+        }
+        fn read_max_trade_quantity(
+            &self,
+            request: TradeMaxTradeQuantityRequest,
+        ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+            FakeTradeRead.read_max_trade_quantity(request)
+        }
+        fn read_positions(
+            &self,
+            header: TradeHeader,
+            filter: Option<TradeFilter>,
+            min: Option<f64>,
+            max: Option<f64>,
+            refresh: Option<bool>,
+            asset: Option<i32>,
+            currency: Option<i32>,
+            option_view: Option<bool>,
+        ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+            FakeTradeRead.read_positions(
+                header, filter, min, max, refresh, asset, currency, option_view,
+            )
+        }
+        fn read_orders(
+            &self,
+            header: TradeHeader,
+            _: Option<TradeFilter>,
+            _: Vec<i32>,
+            _: Option<bool>,
+        ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+            // Go's fixture: 2001 (Submitted, 09:31), 2002 (Filled_Part,
+            // 09:32), 2003 (Cancelled_All, 09:33) and a US row. Only the first
+            // two are working HK orders, so the newest-first list is 2002, 2001.
+            let mut submitted = fixture_order(header.clone(), 2001, 5, 25.0);
+            submitted.create_time = "2026-05-20 09:30:00".to_owned();
+            submitted.update_time = "2026-05-20 09:31:00".to_owned();
+            let mut partial = fixture_order(header.clone(), 2002, 10, 50.0);
+            partial.create_time = "2026-05-20 09:32:00".to_owned();
+            partial.update_time = "2026-05-20 09:32:00".to_owned();
+            let mut cancelled = fixture_order(header.clone(), 2003, 15, 0.0);
+            cancelled.update_time = "2026-05-20 09:33:00".to_owned();
+            let mut us = fixture_order(header, 2004, 5, 0.0);
+            us.code = "US.AAPL".to_owned();
+            us.update_time = "2026-05-20 09:34:00".to_owned();
+            us.sec_market = Some(11);
+            us.trd_market = Some(2);
+            Ok(vec![submitted, partial, cancelled, us])
+        }
+        fn read_fills(
+            &self,
+            header: TradeHeader,
+            filter: Option<TradeFilter>,
+            refresh: Option<bool>,
+        ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+            FakeTradeRead.read_fills(header, filter, refresh)
+        }
+    }
+
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(WorkingOrderRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let value = port
+        .read(
+            "/api/v1/brokers/futu/orders",
+            "accountId=42&market=HK&symbol=%20hk.00700%20",
+        )
+        .expect("working orders");
+    let orders = value["orders"].as_array().expect("orders array");
+    assert_eq!(orders.len(), 2, "working HK orders only: {value}");
+    assert_eq!(orders[0]["brokerOrderId"], "2002");
+    assert_eq!(orders[1]["brokerOrderId"], "2001");
+    assert_eq!(
+        orders[0]["symbol"], "HK.00700",
+        "the canonical symbol is uppercase and trimmed: {value}"
+    );
 }
 
 #[test]
@@ -1481,6 +1614,7 @@ fn portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty
         environment: "REAL".to_owned(),
         market: "US".to_owned(),
         header: trade_header(1, 42, 2),
+        order_symbol_filter: None,
     };
     let balances = portfolio_cash_balance_values("futu", &resolved, &funds);
     assert_eq!(balances.len(), 1);
@@ -1588,6 +1722,7 @@ fn portfolio_cash_balances_prefer_currency_rows_over_summary_fallback() {
         environment: "REAL".to_owned(),
         market: "US".to_owned(),
         header: trade_header(1, 42, 2),
+        order_symbol_filter: None,
     };
     let mut funds = FakeTradeRead
         .read_funds(trade_header(1, 42, 2), None, None, None)
@@ -1667,6 +1802,7 @@ fn portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is
         environment: "REAL".to_owned(),
         market: "US".to_owned(),
         header: trade_header(1, 42, 2),
+        order_symbol_filter: None,
     };
     let balances = portfolio_cash_balance_values("futu", &resolved, &funds);
     assert_eq!(balances.len(), 1);
@@ -2315,6 +2451,104 @@ fn broker_runtime_requires_real_projection_sources() {
         .expect_err("runtime projection must not use fixture values");
     assert!(
         matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("projection") || message.contains("connection settings"))
+    );
+}
+
+#[test]
+fn runtime_account_discovery_deduplicates_sorts_and_falls_back_to_card_identity() {
+    // Parity: go:452dea11:pkg/futu/trade_account_test.go:15
+    // TestDiscoverAccountsDeduplicatesAndFallsBackToCardIdentifier.
+    //
+    // Go's `runtimeAccountsFromProto` deduplicates on
+    // `AccountID|TradingEnvironment`, sorts by environment then account id, and
+    // falls back to `cardNum` when `accId` is zero. Two simulate rows sharing
+    // the same card collapse into one, and an unknown enum stays UNKNOWN with
+    // `securityFirm` omitted rather than fabricated.
+    let accounts = Arc::new(AccountsFixtureRead {
+        accounts: vec![
+            TradeAccountSnapshot {
+                trd_env: 0,
+                acc_id: 0,
+                trd_market_auth_list: vec![1, 1, 999],
+                acc_type: Some(999),
+                card_num: Some("SIM-CARD".to_owned()),
+                security_firm: Some(999),
+                sim_acc_type: None,
+                uni_card_num: None,
+                acc_status: Some(0),
+                acc_role: Some(1),
+                jp_acc_type: Vec::new(),
+                competition_acc_name: None,
+            },
+            TradeAccountSnapshot {
+                trd_env: 0,
+                acc_id: 0,
+                trd_market_auth_list: vec![2],
+                acc_type: Some(1),
+                card_num: Some("SIM-CARD".to_owned()),
+                security_firm: Some(1),
+                sim_acc_type: None,
+                uni_card_num: None,
+                acc_status: Some(0),
+                acc_role: Some(1),
+                jp_acc_type: Vec::new(),
+                competition_acc_name: None,
+            },
+            TradeAccountSnapshot {
+                trd_env: 1,
+                acc_id: 1002,
+                trd_market_auth_list: vec![2],
+                acc_type: Some(2),
+                card_num: None,
+                security_firm: Some(1),
+                sim_acc_type: Some(1),
+                uni_card_num: None,
+                acc_status: Some(0),
+                acc_role: Some(1),
+                jp_acc_type: Vec::new(),
+                competition_acc_name: None,
+            },
+        ],
+    });
+
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(accounts), Some(true));
+    let connection = Arc::new(LiveHub::default());
+    let mut config = FutuIntegrationConfig::current_default();
+    config.host = "127.0.0.1".to_owned();
+    runtime.set_runtime_projection(&config, Some(connection), 1);
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let value = port
+        .read("/api/v1/brokers/futu/runtime", "")
+        .expect("runtime projection");
+    assert_eq!(
+        value["session"]["accountsDiscovered"], 2,
+        "the duplicate simulate card must collapse: {value}"
+    );
+    let accounts = value["accounts"].as_array().expect("accounts");
+    assert_eq!(accounts.len(), 2, "deduplicated accounts: {value}");
+    // Go sorts by environment first (REAL before SIMULATE alphabetically).
+    let real = &accounts[0];
+    assert_eq!(real["accountId"], "1002");
+    assert_eq!(real["tradingEnvironment"], "REAL");
+    assert_eq!(real["accountType"], "MARGIN");
+    let simulated = &accounts[1];
+    assert_eq!(simulated["accountId"], "SIM-CARD");
+    assert_eq!(simulated["tradingEnvironment"], "SIMULATE");
+    assert_eq!(simulated["accountType"], "UNKNOWN");
+    assert!(
+        simulated.get("securityFirm").is_none_or(|firm| firm.is_null()),
+        "an unknown security firm must stay omitted: {simulated}"
+    );
+    assert_eq!(
+        simulated["marketAuthorities"],
+        json!(["HK"]),
+        "authority codes must be deduplicated: {simulated}"
     );
 }
 

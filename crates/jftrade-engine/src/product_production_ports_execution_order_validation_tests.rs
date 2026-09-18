@@ -406,6 +406,84 @@ fn test_normalize_execution_order_supports_stop_and_market_orders() {
 }
 
 #[test]
+fn execution_order_rejects_non_us_fill_outside_rth_and_normalizes_the_remark() {
+    // Parity: go:452dea11:pkg/futu/trade_account_test.go:199
+    // TestPlaceOrderRequestFromSubmitOrderCoversValidationAndRemarkSemantics.
+    // Go rejects `fillOutsideRTH` on a non-US order and keeps `ClientOrderID`
+    // as the remark whenever it is set, falling back to `Tag` only when the
+    // client order id is absent. A market order also never carries the flag.
+    let hk_fill_flag = json!({
+        "accountId": "1001",
+        "market": "HK",
+        "symbol": "00700",
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "quantity": 100,
+        "price": 320,
+        "fillOutsideRTH": true,
+    });
+    let error =
+        parse_order(&hk_fill_flag).expect_err("non-US fillOutsideRTH must be rejected");
+    assert!(
+        error.contains("fillOutsideRTH is supported for US orders only"),
+        "error = {error:?}"
+    );
+
+    // The market order drops the flag even when the caller asks for it.
+    let market = json!({
+        "accountId": "1001",
+        "market": "US",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "orderType": "MARKET",
+        "quantity": 10,
+        "session": "RTH",
+        "fillOutsideRTH": true,
+    });
+    let order = parse_order(&market).expect("US market order");
+    assert_eq!(order.session, Some(1)); // RTH
+    assert_eq!(order.fill_outside_rth, None);
+
+    // Go's `execution_normalize.go` keeps an explicit `remark` and falls back
+    // to `clientOrderId`; the deeper bbgo layer (`placeOrderRequestFromSubmitOrder`)
+    // then prefers `SubmitOrder.ClientOrderID` and falls back to `Tag`. The Rust
+    // wire field is the normalized remark, and the client order id stays
+    // available separately for idempotency.
+    let with_client = json!({
+        "accountId": "1001",
+        "market": "US",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "quantity": 10,
+        "price": 180,
+        "clientOrderId": "client-001",
+    });
+    let order = parse_order(&with_client).expect("client order id remark");
+    assert_eq!(
+        order.remark.as_deref(),
+        Some("client-001"),
+        "an absent remark falls back to the client order id"
+    );
+    assert_eq!(order.client_order_id.as_deref(), Some("client-001"));
+
+    let with_remark = json!({
+        "accountId": "1001",
+        "market": "US",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "quantity": 10,
+        "price": 180,
+        "clientOrderId": "client-001",
+        "remark": "explicit-remark",
+    });
+    let order = parse_order(&with_remark).expect("explicit remark");
+    assert_eq!(order.remark.as_deref(), Some("explicit-remark"));
+    assert_eq!(order.client_order_id.as_deref(), Some("client-001"));
+}
+
+#[test]
 fn test_normalize_execution_order_rejects_business_rule_violations() {
     // Parity: internal/trading/execution_test.go:96 TestNormalizeExecutionOrderRejectsBusinessRuleViolations
     let missing_price = json!({

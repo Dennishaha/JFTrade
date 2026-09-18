@@ -323,26 +323,32 @@ pub(super) fn parse_order_with_defaults(
         .unwrap_or_else(|| "SIMULATE".to_owned());
     let client_order_id = string_field(object, "clientOrderId");
     let remark = string_field(object, "remark").or_else(|| client_order_id.clone());
-    let time_in_force =
-        parse_time_in_force(string_field(object, "timeInForce").as_deref())?.or(Some(0));
+    let time_in_force = parse_time_in_force(string_field(object, "timeInForce").as_deref())?.or(Some(0));
     let session = if raw_session.is_none()
         && market.eq_ignore_ascii_case("US")
         && product_class != "option"
         && product_class != "event_contract"
     {
-        // Match Go's normalizeExecutionSession default (RTH) and OpenD's
-        // Common.Session enum rather than sending Session_NONE (0).
+        // Go's normalizeExecutionSession default (RTH), not Session_NONE (0).
         Some(1)
     } else {
         parse_session(raw_session.as_deref())?
     };
+    // Go rejects an explicit `FillOutsideRTH` on a non-US order.
+    if object.get("fillOutsideRTH").is_some() && !market.eq_ignore_ascii_case("US") {
+        return Err("fillOutsideRTH is supported for US orders only".into());
+    }
+    // Go's `supportsFillOutsideRTH` covers Normal and StopLimit only.
+    let supports_fill_outside_rth =
+        matches!(order_type, ORDER_TYPE_NORMAL | ORDER_TYPE_STOP_LIMIT);
+
     let fill_outside_rth = object
         .get("fillOutsideRTH")
         .and_then(Value::as_bool)
+        .filter(|_| supports_fill_outside_rth)
         .or_else(|| {
-            // Go's `supportsFillOutsideRTH` covers LIMIT/LIMIT_MAKER (Normal)
-            // and STOP_LIMIT (StopLimit) only.
-            if matches!(order_type, ORDER_TYPE_NORMAL | ORDER_TYPE_STOP_LIMIT) {
+            // Go's `supportsFillOutsideRTH` covers Normal and StopLimit only.
+            if supports_fill_outside_rth {
                 session.map(|value| value != 1)
             } else {
                 None
@@ -742,12 +748,8 @@ fn parse_side(value: &str) -> Result<i32, String> {
 }
 
 /// OpenD `Trd_Common.OrderType` wire values used by the execution write path.
-///
-/// These codes are sent verbatim as `Trd_PlaceOrder.orderType` /
-/// `Trd_GetMaxTrdQtys.orderType`, so the parser must not invent a private
-/// numbering: Go maps the neutral order types through
-/// `trdOrderTypeFromBBGOOrderType` (`Normal=1`, `Market=2`, `Stop=10`,
-/// `StopLimit=11`, `MarketifTouched=12`, `LimitifTouched=13`).
+/// These are sent verbatim, so the parser must not invent a private numbering:
+/// Go maps neutral order types through `trdOrderTypeFromBBGOOrderType`.
 pub(super) const ORDER_TYPE_NORMAL: i32 = 1;
 pub(super) const ORDER_TYPE_MARKET: i32 = 2;
 pub(super) const ORDER_TYPE_ABSOLUTE_LIMIT: i32 = 5;
