@@ -10,7 +10,7 @@ use jftrade_calendar::{
     CalendarManagerSettings, CalendarManualOverride, CalendarPersistencePort,
     CalendarRefreshResult, CalendarSessionOverride, CalendarSnapshot, CalendarSnapshotLoadResult,
     CalendarSourceDescriptor, CalendarSourceError, CalendarSourcePolicy, CalendarSourcePort,
-    CalendarSourceRegistry, ManagerLifecycleState, TradingDaySchedule,
+    CalendarSourceRegistry, MANUAL_OVERRIDE_SOURCE_ID, ManagerLifecycleState, TradingDaySchedule,
 };
 use jftrade_kernel::WireTimestamp;
 use time::{Duration, OffsetDateTime};
@@ -2727,4 +2727,238 @@ fn fresh_snapshot_without_a_special_day_is_coverage_not_override() {
         "the off-day early close must not leak onto the checked day"
     );
     manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/http_source_boundaries_test.go:229
+/// TestCalendarSourceAlertLifecycleRecordsFailuresDeduplicatesAndRecovers.
+///
+/// Go drives the recording helpers directly (`recordOperationFailure`,
+/// `recordSourceFailure`, `recordProbeFailure`, `recordProbeSuccess`,
+/// `recordSuccess`) and asserts three things at once: an operation failure only
+/// grows the retry ladder, a repeated provider fault is deduplicated against a
+/// single alert, and a later success records a `recovered` alert carrying the
+/// previous fingerprint. The recording helpers are private in Rust, so the same
+/// lifecycle is driven through the public refresh/probe surface and read back
+/// from the source status, which is the projection Go's alert sink feeds.
+#[test]
+fn source_alert_lifecycle_records_failures_deduplicates_and_recovers() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let source = Arc::new(FixtureSource::new("remote-source", Arc::clone(&events)));
+    for _ in 0..2 {
+        source.push(Err(CalendarSourceError::Failed(
+            "disk unavailable".to_owned(),
+        )));
+    }
+    source.push(Err(CalendarSourceError::Failed(
+        "disk unavailable".to_owned(),
+    )));
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-07-02T08:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = build_manager(source, None, settings("remote-source"), Arc::clone(&now));
+    manager.start().expect("start manager");
+
+    let status = |manager: &CalendarManager| {
+        manager
+            .source_statuses()
+            .expect("source statuses")
+            .into_iter()
+            .find(|status| status.source_id == "remote-source")
+            .expect("provider status")
+    };
+
+    // The first provider fault opens the retry ladder at one hour and raises one
+    // alert.
+    assert_eq!(
+        manager
+            .refresh_market("US")
+            .expect("first refresh")
+            .failures,
+        1
+    );
+    let first = status(&manager);
+    assert_eq!(first.consecutive_failures, 1);
+    assert_eq!(first.last_error, "disk unavailable");
+    assert_eq!(
+        first.next_refresh_at.as_deref(),
+        Some("2026-07-02T09:00:00Z"),
+        "the retry ladder starts one hour after the manager clock"
+    );
+    assert_eq!(first.health_state, "unhealthy");
+    assert_eq!(first.last_alert_status, "triggered");
+    let first_alert_at = first.last_alert_at.clone();
+    let fingerprint = first.health_fingerprint.clone();
+
+    // An identical repeat is deduplicated: the state stays, the alert instant
+    // does not move.
+    *now.lock().expect("fixture clock") += Duration::hours(2);
+    assert_eq!(
+        manager
+            .refresh_market("US")
+            .expect("repeat refresh")
+            .failures,
+        1
+    );
+    let repeated = status(&manager);
+    assert_eq!(repeated.consecutive_failures, 2);
+    assert_eq!(
+        repeated.health_fingerprint, fingerprint,
+        "same fault identity"
+    );
+    assert_eq!(
+        repeated.last_alert_status, "triggered",
+        "a repeated identical fault does not invent a new alert state"
+    );
+    assert_eq!(repeated.last_alert_at, first_alert_at);
+
+    // A probe that recovers the provider clears the failure state and records
+    // the previous fingerprint on the recovery alert.
+    let recovering = Arc::new(FixtureSource::new("probe-source", Arc::clone(&events)));
+    recovering.push(Err(CalendarSourceError::Failed(
+        "context deadline exceeded".to_owned(),
+    )));
+    recovering.push(Ok(snapshot("probe-source", "recovered")));
+    let mut registry = CalendarSourceRegistry::default();
+    registry
+        .register(recovering)
+        .expect("register probe source");
+    registry
+        .register(Arc::new(FixtureSource::new(
+            "remote-source",
+            Arc::clone(&events),
+        )))
+        .expect("register refresh source");
+    let mut probe_settings = settings("remote-source");
+    probe_settings.source_policies[0]
+        .enabled_source_ids
+        .push("probe-source".to_owned());
+    let probe_manager = CalendarManager::with_clock(
+        registry,
+        None,
+        probe_settings,
+        Arc::new({
+            let now = Arc::clone(&now);
+            move || *now.lock().expect("fixture clock")
+        }),
+    )
+    .expect("create probe manager");
+    probe_manager.start().expect("start probe manager");
+
+    let failed = probe_manager.probe_market("US").expect("failing probe");
+    assert_eq!(failed.failures, 2, "both providers fail this round");
+    let probe_status = probe_manager
+        .source_statuses()
+        .expect("probe statuses")
+        .into_iter()
+        .find(|status| status.source_id == "probe-source")
+        .expect("probe status");
+    assert_eq!(probe_status.last_probe_status, "unhealthy");
+    assert_eq!(probe_status.health_state, "unhealthy");
+    assert_eq!(
+        probe_status.health_fingerprint,
+        "probe-source|US|fetch_failed|network_timeout_or_cancelled",
+        "a probe timeout shares the refresh fingerprint vocabulary"
+    );
+
+    let success = probe_manager.probe_market("US").expect("recovering probe");
+    assert_eq!((success.healthy, success.failures), (1, 1));
+    let recovered = probe_manager
+        .source_statuses()
+        .expect("probe statuses")
+        .into_iter()
+        .find(|status| status.source_id == "probe-source")
+        .expect("probe status");
+    assert_eq!(recovered.last_probe_status, "healthy");
+    assert_eq!(recovered.health_state, "healthy");
+    assert_eq!(recovered.last_probe_schedules, 1);
+    assert_eq!(
+        recovered.last_alert_status, "recovered",
+        "a recovered provider records the recovery alert"
+    );
+    assert_eq!(
+        recovered.last_alert_fingerprint,
+        "probe-source|US|fetch_failed|network_timeout_or_cancelled",
+        "the recovery alert carries the fingerprint it recovered from"
+    );
+    probe_manager.close().expect("close probe manager");
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/http_source_boundaries_test.go:298
+/// TestNilCalendarManagerOperationsRemainSafeDuringStartupAndShutdown.
+///
+/// Go's nil-receiver guards make `recordSuccess`/`record*Failure`/`settings`
+/// safe on a `(*Manager)(nil)` and fall back to `time.Now().UTC()` when no clock
+/// is installed. Rust has no nil receiver: `CalendarManager::new` always builds
+/// a clock, and a manager with an empty registry and no clock injection must
+/// still answer settings, time and lifecycle questions and stay safe to start,
+/// probe and close.
+#[test]
+fn manager_without_configured_sources_stays_safe_across_its_lifecycle() {
+    let manager = CalendarManager::new(
+        CalendarSourceRegistry::default(),
+        None,
+        CalendarManagerSettings::default(),
+    )
+    .expect("create manager without sources or persistence");
+
+    // Equivalent of `settings()` on a nil manager: default policy, no panic.
+    // The projection always publishes the two local owners so an operator can
+    // see that builtin/manual coverage exists even with no remote provider
+    // configured; nothing is enabled and no health state was invented.
+    let snapshot = manager.status_snapshot().expect("status snapshot");
+    assert_eq!(snapshot.refresh_interval_hours, 0);
+    assert!(!snapshot.auto_refresh_enabled);
+    assert_eq!(
+        snapshot
+            .sources
+            .iter()
+            .filter(|source| source.enabled)
+            .map(|source| source.id.as_str())
+            .collect::<Vec<_>>(),
+        [BUILTIN_SOURCE_ID, MANUAL_OVERRIDE_SOURCE_ID],
+        "only the local owners are enabled without policy"
+    );
+    assert!(
+        snapshot
+            .sources
+            .iter()
+            .all(|source| source.health_state.is_empty()),
+        "recording helpers must not invent health state: {:?}",
+        snapshot.sources
+    );
+
+    // Equivalent of `currentTime()` with no clock: the projection stamps a real
+    // instant, since `CalendarManager::new` always installs a UTC clock.
+    assert!(
+        snapshot
+            .markets
+            .iter()
+            .all(|market| market.checked_at.starts_with("20")),
+        "an unconfigured manager still reports a usable clock: {:?}",
+        snapshot.markets
+    );
+
+    // Equivalent of the nil-safe recording helpers: every entry point is a
+    // no-op rather than a panic, and the lifecycle stays consistent.
+    manager.start().expect("start without sources");
+    assert_eq!(
+        manager.lifecycle_state().expect("lifecycle"),
+        ManagerLifecycleState::Running
+    );
+    let refresh = manager.refresh_all().expect("refresh without sources");
+    let probe = manager.probe_all().expect("probe without sources");
+    assert_eq!((refresh.updated, refresh.failures), (0, 0));
+    assert_eq!((probe.healthy, probe.failures), (0, 0));
+    assert!(manager.source_statuses().expect("statuses").is_empty());
+    manager.close().expect("close");
+    assert_eq!(
+        manager.lifecycle_state().expect("lifecycle"),
+        ManagerLifecycleState::Closed
+    );
+    manager.close().expect("repeat close stays a no-op");
 }

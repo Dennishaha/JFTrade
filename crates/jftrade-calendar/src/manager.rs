@@ -685,7 +685,12 @@ fn run_manager(inner: Arc<ManagerInner>, receiver: Receiver<ManagerCommand>) {
 /// Go's `sourceAlertFingerprint` plus `sourceAlertFingerprintDetail`: the alert
 /// identity an operator sees, so repeats of the same fault stay deduplicated
 /// and a different fault raises a new alert.
-fn source_alert_fingerprint(source_id: &str, market: &str, kind: &str, message: &str) -> String {
+pub(crate) fn source_alert_fingerprint(
+    source_id: &str,
+    market: &str,
+    kind: &str,
+    message: &str,
+) -> String {
     let detail = if kind == "structure_changed" {
         "structure_changed".to_owned()
     } else {

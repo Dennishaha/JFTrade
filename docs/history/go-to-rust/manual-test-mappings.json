@@ -20615,53 +20615,53 @@
     "evidence_type": "missing"
   },
   "internal/exchangecalendar/http_source_boundaries_test.go:30:TestHTTPCalendarSourceFetchPreservesDistinctTransportAndParsingFailures": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-calendar/tests/http_source_boundaries.rs::fetch_preserves_distinct_transport_parse_and_validation_failures",
+    "conclusion": "function_exact：Go 断言六种可区分的失败身份——nil receiver、非法 URL、传输错误（errors.Is）、body 读取失败（消息含 interrupted 且 body 被 Close）、parse 错误、validate 错误。Rust adapter 无 nil receiver，URL 由构造参数与 typed client 负责，可达身份是 transport/parse/validate：测试分别用 StubClient::transport 的 unreachable、body interrupted、无条件返回 parse Err、以及 Err 的 ValidateFn 命中，并断言消息逐字透传（Go 的 errors.Is 等价物）；Go 的 read-failure 在 Rust 由 transport seam 承载。另断言取消请求映射为 CalendarSourceError::Cancelled，而不是退化成 provider 故障。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-calendar -E 'test(fetch_preserves_distinct_transport_parse_and_validation_failures)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/http_source_boundaries_test.go:89:TestCalendarParserHelpersHandleMalformedAndPartialAuthorityDocuments": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-calendar/tests/http_source_boundaries.rs::parsers_tolerate_malformed_and_partial_authority_documents；crates/jftrade-integration-calendar/src/parser_helpers.rs::tests::helper_contracts_match_the_go_authority_boundaries；crates/jftrade-integration-calendar/src/parser_helpers.rs::tests::fetch_range_uses_the_market_local_boundaries",
+    "conclusion": "function_exact（含真实修复）：Go 直接断言 helper 级契约（unfoldICalLines 折叠、fieldValue 缺失分隔符、parseICalDateValue 三种格式、resolveParseTemplate 默认/SH/MARS、appendSchedule 去重、parseMonthDayCellWithYear 的 TBD、parseStandaloneYear 的 embedded year、containsMonthName、extractSSEDateSpans 跨年与 plus 截断、dateWithinFetchRange 两端）。Rust helper 是 crate 私有，所以分两层取证：集成测试经 provider parser 断言可观察行为（折叠后的 reason、未知市场空结果、去重、非日期单元格、embedded year 不开启年份块、窗口外丢弃、缺 DTSTART 丢弃），模块测试直接断言 helper 契约。修复点：原先 parse_ical_date_value/parse_any_date/parse_numeric_date/parse_month_day_cell_with_year/extract_sse_date_spans 只按数字构造 CivilDay，February 30 会被接受并在锚定时静默回退成 1 月 1 日；新增 CivilDay::parse 走 Date::from_calendar_date 校验，与 Go 的 time.ParseInLocation 拒绝非法日期语义一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-calendar",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/http_source_boundaries_test.go:156:TestCalendarAuthorityValidatorHandlesMissingAnchorsAndSparseYears": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-calendar/tests/http_source_boundaries.rs::authority_validator_handles_missing_anchors_and_sparse_years",
+    "conclusion": "function_exact（含真实修复）：Go 的 validator 是闭包，用例覆盖 minimumPerYear<=0 关闭检查、缺 anchor year（no anchor year）、稀疏年份（too few）、阈值 1 通过、以及 from 无可用年份时回退到首个 schedule 的年份。Rust 原实现把阈值编码进函数指针的两个分支，除 8 以外的任何阈值（含 0）都被当成“无阈值”静默放行，属于真实功能缺失。现将 ValidateFn 改为 Arc<dyn Fn .. + Send + Sync>（保留 fn 隐式转换），minimum_anchor_year_schedules_validator 用闭包携带阈值，并新增 4 条断言：阈值 0 放行、无 anchor year 报错、阈值 2 报 too few 且消息含 want at least 2、阈值 1 在 window/fallback 两种 anchor 来源下均通过；另断言 anchor 取请求窗口年份（后续年份的 feed 仍需按请求年计覆盖）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-calendar -E 'test(authority_validator_handles_missing_anchors_and_sparse_years)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/http_source_boundaries_test.go:179:TestCalendarParsersDiscardIncompleteOrOutOfRangeAuthorityRows": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-calendar/tests/http_source_boundaries.rs::parsers_discard_incomplete_or_out_of_range_authority_rows",
+    "conclusion": "function_exact：Go 的 NYSE 表含四种畸形行（cells 不足、holiday 名为空、February 30、窗口外 July 3）且最后窗口裁到 6/30，期望 0 条；HK 事件缺 DTSTART 期望 0 条；SSE 文档在 holiday 块之前出现 Trading hours 标记，期望解析器在此停止并返回 0 条。Rust 测试逐条复现同一 fixture 并断言四种丢弃原因为 0 条结果（February 30 由新增的 CivilDay::parse 校验负责，与 Go 的 parseMonthDayCellWithYear 失败等价）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-calendar -E 'test(parsers_discard_incomplete_or_out_of_range_authority_rows)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/http_source_boundaries_test.go:229:TestCalendarSourceAlertLifecycleRecordsFailuresDeduplicatesAndRecovers": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::source_alert_lifecycle_records_failures_deduplicates_and_recovers",
+    "conclusion": "function_exact（含真实修复）：Go 直接驱动 recordOperationFailure/recordSourceFailure/recordProbeFailure/recordProbeSuccess/recordSuccess，断言 operation failure 只增长退避阶梯（1 小时后重试、不写 provider health）、重复的 provider 故障只产生一条告警（lastAlertAt 不变）、probe 失败置 unhealthy、probe 成功置 healthy 并回报 schedules=9 且产生 recovered 告警。Rust 的录制函数是私有的，改由公开 refresh/probe 驱动同一生命周期并从 source status 读回（Rust 组合根没有 alert-sink port）。修复点：manager_probe.rs 对 probe 失败自算 fingerprint，只识别 timed out/cancelled 两种文本；refresh 路径走 source_alert_fingerprint，语义包含 context canceled/context deadline exceeded/client.timeout exceeded 与空消息→unknown_error。同一个错误经 probe 与 refresh 会得到不同 fingerprint，导致去重失效。现 probe 复用 source_alert_fingerprint（改为 pub(crate)），并新增断言 probe 超时得到与 refresh 相同的 probe-source|US|fetch_failed|network_timeout_or_cancelled，恢复时 last_alert_fingerprint 携带原故障指纹。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(source_alert_lifecycle_records_failures_deduplicates_and_recovers)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/http_source_boundaries_test.go:278:TestCalendarParsersHonorNarrowFetchWindowsAndDiscardImpossibleDates": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-calendar/tests/http_source_boundaries.rs::parsers_honor_narrow_fetch_windows_and_discard_impossible_dates",
+    "conclusion": "function_exact：Go 断言窄窗口（10/03–10/04）把 `National Day October 1 - October 8` 裁剪成恰好两天且按日序列出，并断言 February 30 在 parseMonthDayCellWithYear、extractSSEDateSpans 的 start 与 end 三个位置都被拒绝。Rust 测试用 CN +08:00 锚定的窄窗口断言结果恰为 2026-10-03/2026-10-04，并用 NYSE 表格（February 30 单元格）与两条 SSE 行（单日期、区间终点）断言 0 条结果；后者依赖本批新增的 CivilDay::parse 日期校验。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-calendar -E 'test(parsers_honor_narrow_fetch_windows_and_discard_impossible_dates)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/http_source_boundaries_test.go:298:TestNilCalendarManagerOperationsRemainSafeDuringStartupAndShutdown": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::manager_without_configured_sources_stays_safe_across_its_lifecycle",
+    "conclusion": "function_exact（等效替代，无 nil receiver 语义）：Go 的用例靠 (*Manager)(nil) receiver guard 覆盖 nil manager 的 settings/currentTime/录制函数，并验证 NewManager 未注入 clock 时 currentTime 回退 time.Now().UTC()，以及 manualOverrideSchedule 在 nil builtin resolver 下返回 false。Rust 无 nil receiver：CalendarManager::new 总是安装 OffsetDateTime::now_utc，空 registry 合法。等价边界用空 registry + 空 settings 驱动：status_snapshot 只启用 builtin_rules/manual_override 两个本地 owner 且不臆造 health state；start/refresh_all/probe_all/close/重复 close 全部安全，refresh/probe 为零更新零失败。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(manager_without_configured_sources_stays_safe_across_its_lifecycle)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/http_source_test.go:21:TestDefaultRegistryRegistersExpectedSources": {
     "status": "[x]",

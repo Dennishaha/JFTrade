@@ -5,6 +5,7 @@
 //! shape separable and makes every provider fixture reproducible offline.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use jftrade_calendar::{
     CalendarSnapshot, CalendarSourceError, TradingDaySchedule, builtin_schedule_for_market,
@@ -33,12 +34,22 @@ pub type ParseFn = fn(
 ) -> Result<Vec<TradingDaySchedule>, CalendarSourceError>;
 
 /// Provider validator, run after parsing and before the snapshot is accepted.
-pub type ValidateFn = fn(
-    market: &str,
-    schedules: &[TradingDaySchedule],
-    from: Option<WireTimestamp>,
-    to: Option<WireTimestamp>,
-) -> Result<(), CalendarSourceError>;
+///
+/// Go's `ValidateFunc` is a closure, so a validator can carry configuration —
+/// `minimumAnchorYearSchedulesValidator(8)` is only one instance of a
+/// parameterised factory. The Rust alias therefore uses `Arc<dyn Fn>` rather
+/// than a bare function pointer; a plain `fn` still coerces into it, and the
+/// threshold of a stateful validator survives the round trip.
+pub type ValidateFn = Arc<
+    dyn Fn(
+            &str,
+            &[TradingDaySchedule],
+            Option<WireTimestamp>,
+            Option<WireTimestamp>,
+        ) -> Result<(), CalendarSourceError>
+        + Send
+        + Sync,
+>;
 
 /// US holiday rows from a plain text/table listing.
 ///
@@ -237,37 +248,31 @@ pub fn sse_trading_schedule_parser(
 /// Reject a document that does not cover enough of the anchor year.
 ///
 /// Go's `minimumAnchorYearSchedulesValidator`: a provider that silently returns a
-/// handful of rows is treated as a structure change rather than fresh data.
+/// handful of rows is treated as a structure change rather than fresh data. A
+/// non-positive threshold disables the check, exactly like Go's early return.
 pub fn minimum_anchor_year_schedules_validator(minimum_per_year: usize) -> ValidateFn {
-    // `ValidateFn` is a plain function pointer, so the threshold is carried in
-    // the two `usize` arms below instead of in a closure. Keeping it a function
-    // pointer matches Go's `ValidateFunc` and lets providers be described as
-    // data.
-    match minimum_per_year {
-        8 => validate_minimum_eight_anchor_year_schedules,
-        _ => validate_minimum_anchor_year_schedules,
-    }
+    Arc::new(
+        move |market: &str,
+              schedules: &[TradingDaySchedule],
+              from: Option<WireTimestamp>,
+              _to: Option<WireTimestamp>| {
+            validate_minimum_anchor_year_schedules(minimum_per_year, market, schedules, from)
+        },
+    )
 }
 
 fn validate_minimum_anchor_year_schedules(
+    minimum_per_year: usize,
     market: &str,
     schedules: &[TradingDaySchedule],
     from: Option<WireTimestamp>,
-    _to: Option<WireTimestamp>,
 ) -> Result<(), CalendarSourceError> {
-    // A custom threshold is only reachable through the function-pointer form,
-    // which cannot carry state; treat it as the documented "no threshold" case.
-    let _ = (market, schedules, from);
-    Ok(())
-}
-
-fn validate_minimum_eight_anchor_year_schedules(
-    market: &str,
-    schedules: &[TradingDaySchedule],
-    from: Option<WireTimestamp>,
-    _to: Option<WireTimestamp>,
-) -> Result<(), CalendarSourceError> {
-    const MINIMUM_PER_YEAR: usize = 8;
+    if minimum_per_year == 0 {
+        return Ok(());
+    }
+    // Go takes the requested window's year as the anchor and only falls back to
+    // the first parsed schedule when the window carries no usable year, so a
+    // feed that answers with a later year still passes.
     let anchor_year = from
         .map(|value| value.into_inner().year())
         .filter(|year| *year > 0)
@@ -286,9 +291,9 @@ fn validate_minimum_eight_anchor_year_schedules(
         .iter()
         .filter(|schedule| schedule.date.into_inner().year() == anchor_year)
         .count();
-    if count < MINIMUM_PER_YEAR {
+    if count < minimum_per_year {
         return Err(CalendarSourceError::Failed(format!(
-            "{} parsed too few anchor-year schedules for {anchor_year}: got {count}, want at least {MINIMUM_PER_YEAR}",
+            "{} parsed too few anchor-year schedules for {anchor_year}: got {count}, want at least {minimum_per_year}",
             market.trim().to_uppercase()
         )));
     }

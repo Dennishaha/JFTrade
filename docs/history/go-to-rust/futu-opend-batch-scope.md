@@ -4187,3 +4187,65 @@ zero-go、compatibility 全通过。审计 576 → 590 function_exact。
 `check:rust:static` 的 advisories 阶段在**干净 HEAD 上同样失败**（`git stash` 后
 复跑确认），失败项是既有的 RUSTSEC-2026-0285（rustls 0.23.44），本批未改
 `Cargo.lock` 中的 rustls 版本，也未新增除新 crate 之外的依赖。
+
+## 批次：internal/exchangecalendar/http_source_boundaries_test.go（7 项，含 3 处真实功能补齐）
+
+基线 `go:452dea11`，本批 7 条全部 `[x]`/`function_exact`（`:298` 为 nil receiver 的等效替代并记录边界）。
+`internal/exchangecalendar` 这一目录至此只剩 `store` 侧（`internal/store/exchangecalendar`）未收口。
+
+| Go 测试 | 结论 | Rust 证据 |
+| --- | --- | --- |
+| `:30` TestHTTPCalendarSourceFetchPreservesDistinctTransportAndParsingFailures | transport/parse/validate 三类失败身份逐字透传 | `tests/http_source_boundaries.rs::fetch_preserves_distinct_transport_parse_and_validation_failures` |
+| `:89` TestCalendarParserHelpersHandleMalformedAndPartialAuthorityDocuments | helper 契约两层取证（集成 + 模块） | `tests/http_source_boundaries.rs::parsers_tolerate_malformed_and_partial_authority_documents`；`src/parser_helpers.rs::tests::helper_contracts_match_the_go_authority_boundaries`、`fetch_range_uses_the_market_local_boundaries` |
+| `:156` TestCalendarAuthorityValidatorHandlesMissingAnchorsAndSparseYears | 阈值闭包化（修复） | `tests/http_source_boundaries.rs::authority_validator_handles_missing_anchors_and_sparse_years` |
+| `:179` TestCalendarParsersDiscardIncompleteOrOutOfRangeAuthorityRows | 四种畸形行 + stop marker | `tests/http_source_boundaries.rs::parsers_discard_incomplete_or_out_of_range_authority_rows` |
+| `:229` TestCalendarSourceAlertLifecycleRecordsFailuresDeduplicatesAndRecovers | probe 复用统一 fingerprint（修复） | `manager_lifecycle.rs::source_alert_lifecycle_records_failures_deduplicates_and_recovers` |
+| `:278` TestCalendarParsersHonorNarrowFetchWindowsAndDiscardImpossibleDates | 窄窗口裁剪 + 非法日期拒绝 | `tests/http_source_boundaries.rs::parsers_honor_narrow_fetch_windows_and_discard_impossible_dates` |
+| `:298` TestNilCalendarManagerOperationsRemainSafeDuringStartupAndShutdown | 边界：Rust 无 nil receiver | `manager_lifecycle.rs::manager_without_configured_sources_stays_safe_across_its_lifecycle` |
+
+### 本批修的三处真实功能差异
+
+1. **日期合法性**（`parser_helpers.rs`）：`CivilDay` 原先只按数字字段构造，
+   `February 30` 会被接受，随后 `anchor()` 里 `Date::from_calendar_date` 失败再
+   **静默回退成 1 月 1 日** —— 一个畸形 authority 行会变成一条完全错误的假日。
+   Go 的 `time.ParseInLocation` 直接让该行解析失败。新增 `CivilDay::parse`
+   走真实日历校验，`parse_ical_date_value` / `parse_any_date` /
+   `parse_numeric_date` / `parse_month_day_cell_with_year` /
+   `extract_sse_date_spans`（start 与 end 两个位置）全部改用它。回归：
+   `helper_contracts_match_the_go_authority_boundaries` 中 4 条非法日期断言。
+2. **validator 阈值丢失**（`parser.rs`）：`ValidateFn` 是**函数指针**，
+   `minimum_anchor_year_schedules_validator` 只能把 `8` 映射到真实实现、
+   其余全部映射到空实现。也就是说 Go 里 `minimumPerYear<=0` 关闭检查、
+   `2` 报 `too few` 的语义在 Rust 都不存在，任何非 8 的阈值都会**静默放行**
+   （这正是 `:156` 的用例）。改为 `Arc<dyn Fn(..) + Send + Sync>`
+   （普通 `fn` 仍可隐式转换），闭包携带阈值，0 表示关闭。
+   `default_sources` 的四处 validator 改为 `Arc::clone`。
+3. **probe 与 refresh 的告警指纹不一致**（`manager_probe.rs`）：
+   probe 失败自算 `format!("{id}|{market}|{kind}|{detail}")`，只识别
+   `timed out` / `cancelled` 两个子串；refresh 走
+   `source_alert_fingerprint`，还识别 `context canceled`、
+   `context deadline exceeded`、`client.timeout exceeded`，空消息归
+   `unknown_error`。同一个 provider 出错，先 probe 后 refresh 会产生
+   **两个不同 fingerprint → 去重失效 → 操作者收到重复告警**。
+   现 probe 复用同一 helper（提升为 `pub(crate)`），并把
+   `network_timeout_or_cancelled` 的一致性写进回归断言。
+
+### 验证
+
+```bash
+cargo fmt --all
+cargo clippy -p jftrade-integration-calendar -p jftrade-calendar -p jftrade-engine --all-targets --locked
+node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -p jftrade-integration-calendar -p jftrade-engine --all-targets --locked --no-fail-fast
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：三 crate 1358 passed / 0 skipped（`jftrade-calendar` 77、`jftrade-integration-calendar` 21）；
+clippy `-D clippy::all` 通过；审计 590 → **597 function_exact**，0 条失效引用。
+
+### 下一批（代办目标）
+
+转向 `internal/store/exchangecalendar`：`store_test.go`、`store_boundaries_test.go`、
+`store_snapshot_failures_test.go`、`snapshot_load_failures_test.go`。该目录由
+`crates/jftrade-calendar/src/snapshot.rs`（`CalendarSnapshotStore`）承载，
+预计覆盖原子写入、覆盖写、读回失败、坏文件隔离与 `delete` 语义；
+之后队列为 `internal/productfeatures`（含 `predictionPushResult` 5s 缓存 TTL）→ assistant → api。

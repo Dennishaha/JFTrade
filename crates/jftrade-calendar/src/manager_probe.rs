@@ -173,14 +173,12 @@ impl CalendarManager {
             } else {
                 "fetch_failed"
             };
-            let detail = if kind == "structure_changed" {
-                "structure_changed"
-            } else if item.error.contains("timed out") || item.error.contains("cancelled") {
-                "network_timeout_or_cancelled"
-            } else {
-                item.error.trim()
-            };
-            let fingerprint = format!("{}|{}|{kind}|{detail}", item.source_id, item.market);
+            let fingerprint = crate::manager::source_alert_fingerprint(
+                &item.source_id,
+                &item.market,
+                kind,
+                &item.error,
+            );
             let should_alert =
                 status.health_state != "unhealthy" || status.health_fingerprint != fingerprint;
             status.health_state = "unhealthy".to_owned();

@@ -177,7 +177,7 @@ impl HttpCalendarSource {
             .get(&self.url, cancellation)
             .map_err(classify_transport_error)?;
         let schedules = (self.parse)(market, &body, Some(from), Some(to))?;
-        if let Some(validate) = self.validate {
+        if let Some(validate) = &self.validate {
             validate(market, &schedules, Some(from), Some(to))?;
         }
         let checksum = hex_digest(&body);
@@ -247,7 +247,7 @@ pub fn default_sources(client: Arc<dyn CalendarHttpClient>) -> Vec<HttpCalendarS
             time::Duration::days(14),
             Arc::clone(&client),
         )
-        .with_validate(verifying),
+        .with_validate(Arc::clone(&verifying)),
         HttpCalendarSource::new(
             descriptor("nasdaq_verifier", "official_html", "Nasdaq", &["US"]),
             "https://www.nasdaq.com/market-activity/stock-market-holiday-schedule",
@@ -255,7 +255,7 @@ pub fn default_sources(client: Arc<dyn CalendarHttpClient>) -> Vec<HttpCalendarS
             time::Duration::days(14),
             Arc::clone(&client),
         )
-        .with_validate(verifying),
+        .with_validate(Arc::clone(&verifying)),
         HttpCalendarSource::new(
             descriptor("hk_gov_1823_ical", "official_ical", "GovHK 1823", &["HK"]),
             "https://www.1823.gov.hk/common/ical/en.ics",
@@ -263,7 +263,7 @@ pub fn default_sources(client: Arc<dyn CalendarHttpClient>) -> Vec<HttpCalendarS
             time::Duration::days(30),
             Arc::clone(&client),
         )
-        .with_validate(verifying),
+        .with_validate(Arc::clone(&verifying)),
         HttpCalendarSource::new(
             descriptor(
                 "mainland_official_notice",
@@ -276,7 +276,7 @@ pub fn default_sources(client: Arc<dyn CalendarHttpClient>) -> Vec<HttpCalendarS
             time::Duration::days(30),
             Arc::clone(&client),
         )
-        .with_validate(verifying),
+        .with_validate(Arc::clone(&verifying)),
     ]
 }
 

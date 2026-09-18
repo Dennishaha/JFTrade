@@ -23,6 +23,18 @@ pub(crate) struct CivilDay {
 }
 
 impl CivilDay {
+    /// Build a civil day only when it names a real calendar date.
+    ///
+    /// Go reaches the same guarantee through `time.ParseInLocation`: an
+    /// authority document that says `February 30` simply fails to parse, so the
+    /// row is discarded instead of being silently normalised into March.
+    pub(crate) fn parse(year: i32, month: u8, day: u8) -> Option<Self> {
+        Date::from_calendar_date(year, Month::try_from(month).ok()?, day).ok()?;
+        Some(Self { year, month, day })
+    }
+}
+
+impl CivilDay {
     /// Anchor this civil date at the market's local midnight.
     pub(crate) fn anchor(self, market: &str) -> WireTimestamp {
         market_local_midnight(market, self.year, self.month, self.day).unwrap_or_else(|_| {
@@ -151,14 +163,18 @@ pub(crate) fn field_value(line: &str) -> String {
 
 pub(crate) fn parse_ical_date_value(line: &str) -> Option<CivilDay> {
     // `DTSTART;VALUE=DATE:20260101` and `DTSTART:20260101T000000Z` both carry
-    // the date as the first eight digits of the value.
+    // the date as the first eight digits of the value; an empty value yields
+    // `None` exactly like Go's `parseICalDateValue`.
     let value = line.split_once(':').map_or("", |(_, tail)| tail).trim();
     let digits = value.get(0..8)?;
-    Some(CivilDay {
-        year: digits.get(0..4)?.parse::<i32>().ok()?,
-        month: digits.get(4..6)?.parse::<u8>().ok()?,
-        day: digits.get(6..8)?.parse::<u8>().ok()?,
-    })
+    if !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    CivilDay::parse(
+        digits.get(0..4)?.parse::<i32>().ok()?,
+        digits.get(4..6)?.parse::<u8>().ok()?,
+        digits.get(6..8)?.parse::<u8>().ok()?,
+    )
 }
 
 pub(crate) fn decode_ical_text(value: &str) -> String {
@@ -213,27 +229,27 @@ pub(crate) fn parse_any_date(value: &str) -> Option<CivilDay> {
     if let (Some(month), Some(day), Some(year)) =
         (captures.get(1), captures.get(2), captures.get(3))
     {
-        return Some(CivilDay {
-            year: year.as_str().parse::<i32>().ok()?,
-            month: month_number(&month.as_str().to_lowercase())?,
-            day: day.as_str().parse::<u8>().ok()?,
-        });
+        return CivilDay::parse(
+            year.as_str().parse::<i32>().ok()?,
+            month_number(&month.as_str().to_lowercase())?,
+            day.as_str().parse::<u8>().ok()?,
+        );
     }
-    Some(CivilDay {
-        year: captures.get(6)?.as_str().parse::<i32>().ok()?,
-        month: month_number(&captures.get(5)?.as_str().to_lowercase())?,
-        day: captures.get(4)?.as_str().parse::<u8>().ok()?,
-    })
+    CivilDay::parse(
+        captures.get(6)?.as_str().parse::<i32>().ok()?,
+        month_number(&captures.get(5)?.as_str().to_lowercase())?,
+        captures.get(4)?.as_str().parse::<u8>().ok()?,
+    )
 }
 
 pub(crate) fn parse_numeric_date(value: &str) -> Option<CivilDay> {
     let digits = Regex::new(r"(\d{4})\D+(\d{1,2})\D+(\d{1,2})").expect("static numeric regex");
     let captures = digits.captures(value)?;
-    Some(CivilDay {
-        year: captures.get(1)?.as_str().parse::<i32>().ok()?,
-        month: captures.get(2)?.as_str().parse::<u8>().ok()?,
-        day: captures.get(3)?.as_str().parse::<u8>().ok()?,
-    })
+    CivilDay::parse(
+        captures.get(1)?.as_str().parse::<i32>().ok()?,
+        captures.get(2)?.as_str().parse::<u8>().ok()?,
+        captures.get(3)?.as_str().parse::<u8>().ok()?,
+    )
 }
 
 pub(crate) fn month_number(value: &str) -> Option<u8> {
@@ -296,11 +312,11 @@ pub(crate) fn parse_month_day_cell_with_year(
     )
     .expect("static month/day regex");
     let captures = pattern.captures(cell)?;
-    Some(CivilDay {
+    CivilDay::parse(
         year,
-        month: month_number(&captures.get(1)?.as_str().to_lowercase())?,
-        day: captures.get(2)?.as_str().parse::<u8>().ok()?,
-    })
+        month_number(&captures.get(1)?.as_str().to_lowercase())?,
+        captures.get(2)?.as_str().parse::<u8>().ok()?,
+    )
 }
 
 pub(crate) fn parse_standalone_year(line: &str) -> Option<i32> {
@@ -361,10 +377,8 @@ pub(crate) fn extract_sse_date_spans(
             .get(3)
             .and_then(|m| m.as_str().trim().parse::<i32>().ok())
             .unwrap_or(year);
-        let start = CivilDay {
-            year: start_year,
-            month: start_month,
-            day: start_day,
+        let Some(start) = CivilDay::parse(start_year, start_month, start_day) else {
+            continue;
         };
         let mut end = start;
         if let (Some(end_month), Some(end_day)) = (
@@ -377,21 +391,18 @@ pub(crate) fn extract_sse_date_spans(
                 .get(6)
                 .and_then(|m| m.as_str().trim().parse::<i32>().ok());
             let end_year = explicit_end_year.unwrap_or(start_year);
-            let parsed_end = CivilDay {
-                year: end_year,
-                month: end_month,
-                day: end_day,
+            let Some(parsed_end) = CivilDay::parse(end_year, end_month, end_day) else {
+                continue;
             };
             // "December 31 - January 2" with no explicit end year rolls into
             // the following year, exactly like Go's `extractSSEDateSpans`.
             if explicit_end_year.is_none()
                 && (parsed_end.month, parsed_end.day) < (start.month, start.day)
             {
-                end = CivilDay {
-                    year: end_year + 1,
-                    month: end_month,
-                    day: end_day,
+                let Some(rolled) = CivilDay::parse(end_year + 1, end_month, end_day) else {
+                    continue;
                 };
+                end = rolled;
             } else {
                 end = parsed_end;
             }
@@ -400,4 +411,132 @@ pub(crate) fn extract_sse_date_spans(
         spans.push((start, end));
     }
     spans
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    /// Parity: go:452dea11:internal/exchangecalendar/http_source_boundaries_test.go:89
+    /// TestCalendarParserHelpersHandleMalformedAndPartialAuthorityDocuments
+    /// (helper-level half).
+    ///
+    /// The integration tests reach these helpers through the provider parsers;
+    /// these cases assert the helper contracts directly, because the observable
+    /// behaviour at the parser level cannot distinguish "discarded by the
+    /// helper" from "discarded by the caller".
+    #[test]
+    fn helper_contracts_match_the_go_authority_boundaries() {
+        let unfolded =
+            fold_ical_lines("BEGIN:VEVENT\r\nSUMMARY:National\r\n Day\r\nEND:VEVENT\r\n");
+        assert_eq!(unfolded.len(), 4, "lines = {unfolded:?}");
+        assert_eq!(
+            unfolded[1], "SUMMARY:NationalDay",
+            "a folded continuation is appended without re-inserting the break"
+        );
+
+        assert_eq!(
+            field_value("SUMMARY without separator"),
+            "",
+            "a line without a separator has no value"
+        );
+        assert_eq!(field_value("SUMMARY: National Day "), "National Day");
+
+        assert!(
+            parse_ical_date_value("DTSTART:20260102T153000Z").is_some(),
+            "a timestamped DTSTART carries its civil date"
+        );
+        assert!(
+            parse_ical_date_value("DTSTART;VALUE=DATE:20260102").is_some(),
+            "a date-only DTSTART is parsed too"
+        );
+        assert_eq!(
+            parse_ical_date_value("DTSTART:"),
+            None,
+            "an empty DTSTART value is rejected"
+        );
+        assert_eq!(
+            parse_ical_date_value("DTSTART:invalid"),
+            None,
+            "a non-numeric DTSTART value is rejected"
+        );
+
+        assert!(
+            parse_month_day_cell_with_year("February 30", 2026, "US").is_none(),
+            "an impossible civil day is rejected instead of normalised into March"
+        );
+        assert!(
+            parse_month_day_cell_with_year("TBD", 2026, "US").is_none(),
+            "a non-date cell has no month/day pair"
+        );
+        assert!(parse_month_day_cell_with_year("February 29", 2024, "US").is_some());
+        assert!(
+            parse_month_day_cell_with_year("February 29", 2026, "US").is_none(),
+            "a leap day outside a leap year is rejected"
+        );
+        assert_eq!(parse_standalone_year("## 2026"), Some(2026));
+        assert_eq!(
+            parse_standalone_year("calendar 2026"),
+            None,
+            "an embedded year is not a standalone year header"
+        );
+        assert!(!contains_month_name("exchange holiday notice"));
+        assert!(contains_month_name("National Day October 1"));
+
+        let spans = extract_sse_date_spans(
+            "National Day December 31, 2026 - January 2, 2027, plus makeup workdays",
+            2026,
+            "US",
+        );
+        assert_eq!(
+            spans.len(),
+            1,
+            "the makeup-day tail is truncated: {spans:?}"
+        );
+        assert_eq!(spans[0].1.year, 2027, "the explicit end year is honoured");
+
+        assert!(
+            extract_sse_date_spans("Holiday February 30", 2026, "US").is_empty(),
+            "an impossible single date produces no span"
+        );
+        assert!(
+            extract_sse_date_spans("Holiday January 1 - February 30", 2026, "US").is_empty(),
+            "an impossible span end produces no span"
+        );
+        assert!(
+            parse_any_date("February 30, 2026").is_none(),
+            "a month-name date with an impossible day is not a date"
+        );
+        assert!(
+            parse_numeric_date("2026-02-30").is_none(),
+            "a numeric date with an impossible day is not a date"
+        );
+    }
+
+    #[test]
+    fn fetch_range_uses_the_market_local_boundaries() {
+        // Every fixture instant is market-anchored (US Eastern in July), which
+        // is what Go's `DayStart(template, ...)` compares: a provider civil day
+        // is anchored at local midnight, and the window edges are folded onto
+        // the same local day before the comparison.
+        let from = Some(WireTimestamp::from_str("2026-07-02T00:00:00-04:00").expect("window"));
+        let to = Some(WireTimestamp::from_str("2026-07-04T00:00:00-04:00").expect("window"));
+        let day = |day| CivilDay::parse(2026, 7, day).expect("valid civil day");
+
+        assert!(
+            !date_within_fetch_range(day(1), from, to, "US"),
+            "a day before the window is rejected"
+        );
+        assert!(date_within_fetch_range(day(2), from, to, "US"));
+        assert!(date_within_fetch_range(day(4), from, to, "US"));
+        assert!(
+            !date_within_fetch_range(day(5), from, to, "US"),
+            "a day after the window is rejected"
+        );
+        assert!(
+            date_within_fetch_range(day(1), None, None, "US"),
+            "an unbounded window accepts every date"
+        );
+    }
 }
