@@ -155,10 +155,15 @@ fn normalize_open_d_security(value: &Map<String, Value>) -> Option<Map<String, V
     }
     let raw_market = match value.get("market") {
         Some(Value::String(text)) => text.trim().to_ascii_lowercase(),
+        // Go re-derives `rawMarket` from `qotcommonpb.QotMarket(n).String()`
+        // whenever the wire value is numeric, so the numeric path must resolve
+        // through the enum *name* rather than a market-label table: 101 is
+        // `QotMarket_EventContract` (→ US + event_contract) and 2 is
+        // `QotMarket_HK_Future` (→ HK + future).
         Some(Value::Number(number)) => number
             .as_i64()
-            .and_then(qot_market_label)
-            .map(|label| label.to_ascii_lowercase())
+            .and_then(qot_market_enum_name)
+            .map(str::to_ascii_lowercase)
             .unwrap_or_default(),
         _ => String::new(),
     };
@@ -206,18 +211,29 @@ fn normalize_open_d_security(value: &Map<String, Value>) -> Option<Map<String, V
     Some(result)
 }
 
-/// Public market label for a numeric `Qot_Common.QotMarket` code.
-fn qot_market_label(value: i64) -> Option<&'static str> {
+/// `Qot_Common.QotMarket` enum name for a numeric code, i.e. Go's
+/// `qotcommonpb.QotMarket(n).String()`.
+///
+/// The caller matches substrings against this name, which is what makes the
+/// numeric `HK_Future` (2) and `EventContract` (101) codes resolvable. An
+/// unknown code has no enum name; Go's `String()` would return the bare number,
+/// which contains no market substring and is therefore equivalent to `None`.
+fn qot_market_enum_name(value: i64) -> Option<&'static str> {
     match value {
-        1 => Some("HK"),
-        11 => Some("US"),
-        21 => Some("SH"),
-        22 => Some("SZ"),
-        31 => Some("SG"),
-        41 => Some("JP"),
-        51 => Some("AU"),
-        61 => Some("MY"),
-        71 => Some("CA"),
+        0 => Some("QotMarket_Unknown"),
+        1 => Some("QotMarket_HK_Security"),
+        2 => Some("QotMarket_HK_Future"),
+        11 => Some("QotMarket_US_Security"),
+        21 => Some("QotMarket_CNSH_Security"),
+        22 => Some("QotMarket_CNSZ_Security"),
+        31 => Some("QotMarket_SG_Security"),
+        41 => Some("QotMarket_JP_Security"),
+        51 => Some("QotMarket_AU_Security"),
+        61 => Some("QotMarket_MY_Security"),
+        71 => Some("QotMarket_CA_Security"),
+        81 => Some("QotMarket_FX_Security"),
+        91 => Some("QotMarket_CC_Security"),
+        101 => Some("QotMarket_EventContract"),
         _ => None,
     }
 }

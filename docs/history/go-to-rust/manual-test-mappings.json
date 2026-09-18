@@ -15533,32 +15533,32 @@
     "evidence_type": "missing"
   },
   "pkg/futu/adapter_prediction_stream_test.go:13:TestFutuPredictionStreamListenersSequencesAndMalformedPushes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/prediction_push_stream.rs::prediction_listeners_sequence_rows_and_drop_malformed_pushes",
+    "conclusion": "function_exact（含真实功能修复）：Go 断言三件事——nil listener 注册是 no-op 且不破坏后续注册、一次 push 每行产出一条 update 且身份取自行自身、sequence 取最后一个点的 sequence→timeKey→time；ORDER_BOOK 行无 sequence，畸形/被拒/无 s2c 的帧必须在派发前丢弃。Rust 此前【完全没有】3450/3451/3452 推送路径：build.rs 未编译三个 Qot_UpdateEventContract*.proto，trade_proto 无对应模块，decode_quote_push 把它们一律落进 `_ => Ok(None)`，引擎里也搜不到任何 PredictionMarketUpdate/PredictionPush 符号——即 prediction 推送在线路上被静默丢弃。本批新增 crate 级 owner crates/jftrade-integration-futu/src/prediction_push.rs（PredictionDataType/PredictionPushRow/PredictionPushRegistry/decode_prediction_push/entry_instrument_id/entry_sequence）以及 build.rs 协议表、trade_proto 三个 3450/3451/3452 模块；accept 规则与 Go subscribePredictionPush 的三重检查逐条对应（非 prediction 协议、retType!=0、缺 s2c 一律丢弃，畸形 protobuf 仍向直接调用方报 Err 以便会话泵按既有约定 drop）。测试逐条覆盖：空 code 行不得被伪造成 `US.`（探针：去掉 code.is_empty() 守卫后 updates 出现 (US., \"\", ORDER_BOOK) 并失败）、被拒响应（探针：去掉 ret_type==0 检查后 \"a rejected push must not reach listeners\" 失败）、无 s2c 丢弃、ticker 取 sequence=12、KLINE 回退 timeKey、ORDER_BOOK 无 sequence、remove 后不再投递，以及 entry_instrument_id/entry_sequence 三个边界（contractSecurity 回退、klineList 内非对象、order-book 空）。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(prediction_listeners_sequence_rows_and_drop_malformed_pushes)'`",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_prediction_stream_test.go:87:TestFutuPredictionPushHandlerInstallationReplayAndFailure": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/prediction_push_stream.rs::prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand",
+    "conclusion": "function_exact（含真实功能修复）：Go 断言 nil client 是 no-op、同一 client 重复 ensurePredictionPushHandlers 不重复装 handler、按 sorted key 重放 predictionSubscriptions，且【首个重放失败必须上抛而不是被吞掉】（invalid replay subscription 与 setDropProto(3453) 传输失败两条）。Rust 侧重放需求由 OpenDPredictionMarketReader 按 coordinator generation 栅栏持有（重放次数已由 prediction_subscriptions_replay_after_reconnect_and_clear_on_unsubscribe 覆盖），本条补齐同一 Go 用例的另两半：handler 注册幂等性（PredictionPushRegistry 两次订阅=两个独立槽位、重复 remove 安全、remove 后不再投递）与重放前校验必须 fail-closed——为此把 prediction_subscription_body 提升为 pub（唯一校验 owner，replay/subscribe/unsubscribe/测试共用），测试断言空 code 与未知 dataType 均报错，并断言合法需求编码出的 subTypeList=[2,11,4] 与 KLINE 的 klineSource=[1] 与 Go predictionSubscriptionParams 的 enum 值一致。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand)'`",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_prediction_stream_test.go:139:TestFutuPredictionNormalizationCatalogPaginationAndIdentity": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/prediction_push_stream.rs::prediction_catalog_pagination_and_identity_follow_the_go_rules",
+    "conclusion": "function_exact：Go 固定每个 prediction protocol 的 listKey、integerValue 的数值/字符串强制、以及 resolvedPredictionInstrument 对首行的身份规则（code/contractSecurity → instrumentId、eventCode/event_code/eventSecurity → eventID、tickSize 非法回退 0.01、catalog 类协议不产出 resolvedInstrument）。Rust 走 typed reader（route_operation + 各协议 C2s）而不是无类型 protocol map，因此等价 owner 拆成两处：typed reader 的路由表与非 prediction 协议拒绝（prediction_route_parsing_preserves_contract_operation_boundaries 既有覆盖），以及本测试对推送行投影的断言——ticker 点的 sequence→timeKey→time 回退、KLINE 行取自身 contractSecurity 得到 US.EC.K、order-book 行无 sequence 且价位/量原样投影、非 prediction 协议 3005 与未知 9999 均返回 None。此处刻意不改写为 Go 的 map 形态：Rust 的 prediction 读取入口是 typed reader，复制一层 listKey 表反而会造出第二个 owner。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(prediction_catalog_pagination_and_identity_follow_the_go_rules)'`",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_prediction_stream_test.go:239:TestFutuAdvancedSecurityNormalizationAllPublicMarkets": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/prediction_push_stream.rs::prediction_security_normalization_covers_all_public_markets",
+    "conclusion": "function_exact（含真实功能修复）：Go 断言 normalizeOpenDSecurity 把每个公开市场枚举映射到 broker-neutral 标签，其中 event/prediction → US + productClass=event_contract、future → HK + future；未限定或未知市场不解析；并单独固定「数值市场」路径——value[market] 是 float64 时 Go 用 qotcommonpb.QotMarket(int32(n)).String() 重新取枚举名再走同一 switch，因此 float64(101) → US。Rust 的 qot_market_label 只登记 1/11/21/22/31/41/51/61/71 且直接返回市场标签，导致数值 101（EventContract）与 2（HK_Future）双双解析失败——实测数值 101 断言失败 left:QotMarket_Event（原始值未改写），探针删掉 101 => Some(QotMarket_EventContract) 复现同一失败。修复：改成 qot_market_enum_name 返回枚举名（含 0/2/81/91/101），由既有 contains(event)/contains(future)/contains(us) 子串判断消费，与 Go 的 String()→switch 顺序等价。测试覆盖六个字符串市场别名、数值 101→US+event_contract、数值 2→HK+future、未知串与数值 9999 与空 code 不产出 instrumentId，并断言推送行身份始终落到 US 命名空间。",
+    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(prediction_security_normalization_covers_all_public_markets)'`",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/adapter_research_contract_test.go:12:TestResearchCatalogOperationsBuildStrictOpenDRequests": {
     "status": "[x]",

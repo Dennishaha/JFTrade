@@ -528,6 +528,27 @@ pub mod qot_sub_event_contract {
     include!(concat!(env!("OUT_DIR"), "/qot_sub_event_contract.rs"));
     pub const PROTOCOL_ID: u32 = 3455;
 }
+pub mod qot_update_event_contract_order_book {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_update_event_contract_order_book.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3450;
+}
+pub mod qot_update_event_contract_kline {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_update_event_contract_kline.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3451;
+}
+pub mod qot_update_event_contract_ticker {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_update_event_contract_ticker.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3452;
+}
 pub mod qot_request_history_event_contract_kl {
     include!(concat!(
         env!("OUT_DIR"),

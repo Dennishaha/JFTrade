@@ -42,6 +42,7 @@ mod option_zero_dte_contract_query;
 mod option_zero_dte_screener_query;
 mod order_book_wire;
 mod prediction;
+mod prediction_push;
 mod probe;
 mod provider;
 mod provider_runtime;
@@ -251,7 +252,11 @@ pub use option_zero_dte_screener_query::{
 };
 pub use prediction::{
     OpenDPredictionMarketReader, PredictionComboQuotePort, PredictionMarketReadError,
-    PredictionMarketReadPort, PredictionMarketSubscriptionPort,
+    PredictionMarketReadPort, PredictionMarketSubscriptionPort, prediction_subscription_body,
+};
+pub use prediction_push::{
+    PredictionDataType, PredictionPushListener, PredictionPushRegistry, PredictionPushRow,
+    PredictionPushUnsubscribe, decode_prediction_push, entry_instrument_id, entry_sequence,
 };
 pub use probe::{MarketState, OpenDProbe, WireGlobalState};
 pub use provider::{broker_descriptor, provider_descriptor};

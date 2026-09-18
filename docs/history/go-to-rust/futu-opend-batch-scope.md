@@ -2956,3 +2956,82 @@ python3 scripts/compatibility/audit_test_parity.py
 ```
 
 结果：1808 passed / 1 skipped；审计 OK: 503 function_exact。
+
+## 批次：`pkg/futu/adapter_prediction_stream_test.go`（4 项，全部 `missing` → `[x]`）
+
+### 结果：4 `[x]`（4 条 function_exact，含 2 处真实功能修复）
+
+| Go 测试 | 行号 | 状态 | Rust 证据 |
+| --- | --- | --- | --- |
+| `TestFutuPredictionStreamListenersSequencesAndMalformedPushes` | :13 | `[x]` | `prediction_push_stream.rs::prediction_listeners_sequence_rows_and_drop_malformed_pushes` |
+| `TestFutuPredictionPushHandlerInstallationReplayAndFailure` | :87 | `[x]` | `prediction_push_stream.rs::prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand` |
+| `TestFutuPredictionNormalizationCatalogPaginationAndIdentity` | :139 | `[x]` | `prediction_push_stream.rs::prediction_catalog_pagination_and_identity_follow_the_go_rules` |
+| `TestFutuAdvancedSecurityNormalizationAllPublicMarkets` | :239 | `[x]` | `prediction_push_stream.rs::prediction_security_normalization_covers_all_public_markets` |
+
+### 本批修复的功能差异（2 项，真实缺口）
+
+1. **3450/3451/3452 事件合约推送在线路上被完全丢弃**
+   Go 用 `subscribePredictionPush` 给每个 OpenD client 装三个订阅
+   （`Qot_UpdateEventContractOrderBook`=3450、`Kline`=3451、`Ticker`=3452），
+   只有「能解码 + `retType==0` + `s2c` 非空」三条件同时成立才把 `S2C` 交给
+   `emitPredictionPush`；adapter 再按行投影成 `PredictionMarketUpdate`。
+   Rust 此前完全没有这条路径：`build.rs` 不编译三个 `Qot_UpdateEventContract*.proto`，
+   `trade_proto` 无对应模块，`decode_quote_push` 把这三个协议一律落进最后的
+   `_ => Ok(None)`，全仓也搜不到任何 prediction 推送符号——即使用户已经持有
+   prediction 订阅租约，市场推送也永远不会到达前端。
+   修复：新增 crate 级 owner `crates/jftrade-integration-futu/src/prediction_push.rs`
+   （`PredictionDataType`/`PredictionPushRow`/`PredictionPushRegistry`/
+   `decode_prediction_push`/`entry_instrument_id`/`entry_sequence`），
+   补 `build.rs` 协议表与 `trade_proto` 三个 `PROTOCOL_ID` 模块；
+   accept 规则与 Go 的三重检查逐条对应（畸形 protobuf 仍向直接调用方报 `Err`，
+   由会话泵按既有 quote-push 约定 drop，不升级为重连）。
+   handler 注册语义对齐 Go：普通注册是可移除槽位、重复移除安全、
+   移除后不再投递，且 listener 集合在派发前快照，
+   listener 内部的注册/注销不会改变本次派发的扇出。
+2. **数值市场 101 / 2 无法解析（`qot_market_label` 表不全且语义错位）**
+   Go 的 `normalizeOpenDSecurity` 在 `value["market"]` 是 `float64` 时先用
+   `qotcommonpb.QotMarket(int32(n)).String()` 还原枚举名，再走同一套
+   `contains("future")`/`contains("event")` 子串判断，因此 `float64(101)`
+   （`QotMarket_EventContract`）得到 `US` + `productClass=event_contract`，
+   `float64(2)`（`QotMarket_HK_Future`）得到 `HK` + `future`。
+   Rust 原先只登记 7 个市场标签且直接返回「标签」而非枚举名，
+   数值 101/2 双双解析失败；实测数值 101 的断言失败为
+   `left: String("QotMarket_Event")`（原始串未被改写）。
+   修复：把 `qot_market_label` 改为 `qot_market_enum_name`（0/1/2/11/21/22/
+   31/41/51/61/71/81/91/101），保留既有子串判断消费，
+   与 Go 的 `String()` → `switch` 顺序等价。
+
+### 探针（改坏实现 → 跑测试 → 确认失败 → 已回滚）
+
+- 去掉 `PredictionPushRegistry` 接受路径中的 `ret_type == 0` 检查
+  → `prediction_listeners_sequence_rows_and_drop_malformed_pushes` 失败：
+  `a rejected push must not reach listeners`。
+- 去掉推送投影里的 `code.is_empty()` 守卫
+  → 同一测试的 updates 断言失败，出现伪造身份
+  `("US.", "", "ORDER_BOOK")`。
+- 删掉 `101 => Some("QotMarket_EventContract")`
+  → `prediction_security_normalization_covers_all_public_markets` 失败：
+  `numeric 101 must resolve to US`。
+
+### 边界保留结论（非缺口）
+
+- `resolvedPredictionInstrument`（Go 在无类型 protocol map 上算首行身份）
+  在 Rust 由 typed reader 的 `code()`/`security()`/`snapshot_value` 与
+  推送行的 `entry_instrument_id` 分别承担，故意不复制 Go 的 `listKey` 表：
+  prediction 读取入口是 typed reader，再造一层 map 投影只会产生第二个 owner。
+- Go 的 `predictionPushResult` 5 秒新鲜度缓存位于 `internal/productfeatures`
+  （Go 侧 assembly owner），Rust 的对应读取路径是 engine 的
+  `ProductionMarketDataPredictionPort`，不在本 crate；
+  该用例的断言面（listener/install/replay/normalization）已全部落地，
+  缓存 TTL 语义归属 `internal/productfeatures` 批次继续跟踪。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine -p jftrade-marketdata --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：1812 passed / 1 skipped（新增 4 项）；审计 OK: 507 function_exact。

@@ -245,7 +245,12 @@ fn call_on_session(
 
 /// Encode `Qot_SubEventContract` exactly the way Go's
 /// `predictionSubscriptionParams` does, including the K-line source list.
-fn prediction_subscription_body(
+///
+/// Public because it is the single validation owner for prediction
+/// subscription demand: the replay path, the explicit subscribe/unsubscribe
+/// calls and the parity tests all have to reject a blank contract code or an
+/// unknown data type before an OpenD call is attempted.
+pub fn prediction_subscription_body(
     code_value: &str,
     data_types: &[String],
     subscribe: bool,
