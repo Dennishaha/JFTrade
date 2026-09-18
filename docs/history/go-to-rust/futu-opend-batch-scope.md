@@ -4323,3 +4323,67 @@ python3 scripts/compatibility/audit_test_parity.py
 
 `internal/productfeatures`（含 `predictionPushResult` 的 5s 缓存 TTL、预测推送结果
 聚合与错误映射），随后是 `internal/api/assistant` → `internal/api`。
+
+## 批次：internal/productfeatures 第一批（candle adjustment 语义 + assistant 高级 candle 校验）
+
+基线 `go:452dea11`。本批 3 条 `[~]`→`[x]`，`internal/productfeatures`
+目录 open 从 91 降到 88（其余为 provider_projection/provider_facade 组，后续批次）。
+
+| Go 测试 | 结论 | Rust 证据 |
+| --- | --- | --- |
+| `internal/productfeatures/candle_query_options_test.go:8` TestNormalizeCandleOptionsAcceptsSessionsAndAdjustments | sessions 既有覆盖 + adjustment 新建 | `product_query.rs::tests::candle_adjustment_normalizes_and_rejects_unsupported_labels`、`candle_sessions_parse_dedup_order_and_reject_invalid` |
+| `internal/productfeatures/candle_query_options_test.go:18` TestNormalizeCandleOptionsRejectsUnsupportedValues | 路由层拒绝（修复） | `product_query.rs::tests::candle_adjustment_normalizes_and_rejects_unsupported_labels`、`product_market_data_candle_pagination_tests.rs::candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type` |
+| `internal/assistant/assembly/application_adapter_test.go:164` TestApplicationAdapterRejectsAdvancedCandleInputsBeforeProviderCall | assistant→路由端到端（修复） | `product_market_data_candle_pagination_tests.rs::candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type`、`product_mcp_production_executor_market_data.rs::tests::market_candles_maps_instrument_and_advanced_query` |
+
+### 本批修的真实功能差异
+
+**candle `adjustment` 参数在 Rust 侧被完全忽略**。Go 有两层处理：
+`internal/productfeatures/candle_query_options.go::normalizeCandleOptions` 把
+adjustment trim+lowercase、空值默认 `none`、只接受 `none`/`forward`/`backward`，
+否则 `ErrInvalidQuery`；`pkg/futu/adapter_marketdata_reader.go::brokerKLineRehabType`
+再把标签映射到 `Qot_Common.RehabType`（none=0 / forward=1 / backward=2），
+`internal/assistant/assembly/application_adapter.go` 的 `MarketCandlesAdvanced`
+同样在调用 provider 之前拒绝非法值。
+
+Rust 的 `read_candles` **从不读取 `adjustment`**，并且在 Futu 分支硬编码
+`adjustment: 1`。探针实测（临时在 `candle_pagination_tests.rs` 里加一条打印
+路由结果的测试）：
+
+```
+PROBE: adjustment=split => Ok(200 + 6 根 candles)      # Go 应为 400
+PROBE: adjustment=none  => provider saw [1, 1]         # Go 应为 [0, 0]
+```
+
+即：非法标签被静默接受，`none`（不复权）请求会拿到前复权数据 —— 对以价格为
+依据的策略/回测是静默的数值污染，不是错误消息细节问题。
+
+修复：
+1. `product_query.rs` 新增 `parse_candle_adjustment`（Go 的归一与默认值语义）与
+   `CandleAdjustmentError`，并在模块测试里锚定四个合法标签 + 四个非法标签。
+2. `read_candles` 在任何 provider 调用之前校验，非法值返回
+   400 `BAD_REQUEST` + `unsupported candle adjustment "<label>"`。
+3. `jftrade-integration-futu::rehab_type_for_adjustment`（history.rs 内，紧邻
+   `HistoricalKlineQuery`）承载 `Qot_Common.RehabType` 映射，Futu 分支不再硬编码 1。
+
+探针（改坏实现 → 复现失败 → 回滚）：把 `read_candles` 的校验段换回
+`let adjustment_label = "forward";` 后，
+`candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type` 立刻失败
+（`adjustment=split` 返回 200 且带 6 根 candles），回滚后复跑通过。
+
+### 验证
+
+```bash
+cargo fmt --all
+cargo clippy -p jftrade-engine -p jftrade-integration-futu --all-targets --locked
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --no-fail-fast
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：两 crate 1795 passed / 1 skipped；clippy 通过；审计 610 → **613 function_exact**。
+
+### 下一批（代办目标）
+
+`internal/productfeatures` 继续：`service_test.go`(11) + `service_routing_and_validation_test.go`(4)
++ `typed_queries_test.go`(2) + `capabilities_evaluation_test.go`(4)
++ `provider_capability_alignment_test.go`(1) + `prediction_quote_candle_bridge_test.go`(4，含
+predictionPushResult 5s TTL)。随后是 provider_projection/provider_facade 组（约 60 条）。

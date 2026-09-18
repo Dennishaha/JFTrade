@@ -20,6 +20,8 @@ mod quote_reads_futu;
 mod quote_tick_candles;
 #[path = "product_production_ports_market_data_quote_snapshot.rs"]
 mod quote_snapshot;
+#[path = "product_production_ports_market_data_quote_snapshot_reads.rs"]
+mod quote_snapshot_reads;
 #[path = "product_production_ports_market_data_quote_lease.rs"]
 mod quote_lease;
 use quote_lease::capability_unsupported_error;
@@ -32,8 +34,9 @@ use super::product_production_ports_market_data_projection::{
 };
 use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::product_query::{
-    CandleSessionError, QueryMap, is_intraday_candle_period, normalize_candle_period,
-    normalize_optional_query_time, parse_candle_before_time, parse_candle_sessions,
+    CandleAdjustmentError, CandleSessionError, QueryMap, is_intraday_candle_period,
+    normalize_candle_period, normalize_optional_query_time, parse_candle_adjustment,
+    parse_candle_before_time, parse_candle_sessions,
 };
 use crate::product::{
     MarketDataQuoteReadFuture, MarketDataQuoteReadSnapshotError, MarketDataQuoteReadSnapshotPort,

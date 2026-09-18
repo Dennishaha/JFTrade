@@ -165,6 +165,34 @@ pub(crate) fn parse_candle_sessions(
     Ok(Some(result))
 }
 
+/// Reject a candle price-adjustment label that no provider can serve.
+///
+/// Go's `normalizeCandleOptions` lowercases and trims the label, defaults a
+/// missing value to `none`, and rejects everything outside
+/// `none`/`forward`/`backward` with `ErrInvalidQuery`. The empty string is
+/// accepted and mapped to the default so the assistant tool and the HTTP route
+/// share one vocabulary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum CandleAdjustmentError {
+    Unsupported(String),
+}
+
+/// Go's `brokerKLineRehabType` label set.
+pub(crate) fn parse_candle_adjustment(
+    raw: Option<&str>,
+) -> Result<&'static str, CandleAdjustmentError> {
+    let Some(raw) = raw else {
+        return Ok("none");
+    };
+    let normalized = raw.trim().to_ascii_lowercase();
+    match normalized.as_str() {
+        "" | "none" => Ok("none"),
+        "forward" => Ok("forward"),
+        "backward" => Ok("backward"),
+        other => Err(CandleAdjustmentError::Unsupported(other.to_owned())),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum QueryTimeError {
     Invalid(String),
@@ -301,6 +329,29 @@ mod tests {
 
         // None
         assert!(parse_candle_sessions(None).unwrap().is_none());
+    }
+
+    /// Parity: go:452dea11:internal/productfeatures/candle_query_options_test.go:9
+    /// TestNormalizeCandleOptionsAcceptsSessionsAndAdjustments and :17
+    /// TestNormalizeCandleOptionsRejectsUnsupportedValues.
+    #[test]
+    fn candle_adjustment_normalizes_and_rejects_unsupported_labels() {
+        assert_eq!(parse_candle_adjustment(Some(" FORWARD ")), Ok("forward"));
+        assert_eq!(parse_candle_adjustment(Some("Backward")), Ok("backward"));
+        assert_eq!(parse_candle_adjustment(Some("none")), Ok("none"));
+        assert_eq!(
+            parse_candle_adjustment(None),
+            Ok("none"),
+            "Go defaults a missing adjustment to none"
+        );
+        assert_eq!(parse_candle_adjustment(Some("  ")), Ok("none"));
+        for label in ["split", "split-adjusted", "rehab", "1"] {
+            assert_eq!(
+                parse_candle_adjustment(Some(label)),
+                Err(CandleAdjustmentError::Unsupported(label.to_owned())),
+                "unsupported adjustment {label:?}"
+            );
+        }
     }
 
     #[test]

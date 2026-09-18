@@ -123,6 +123,9 @@ struct PagedHistory {
     /// Explicit provider series for the current-unclosed bucket (`Qot_GetKL`).
     /// When empty the default `10:05` candle is used.
     current_series: Vec<HistoricalKline>,
+    /// Records the `adjustment` value each provider request carried, so the
+    /// route's adjustment handling can be asserted end to end.
+    adjustments: Arc<Mutex<Vec<i32>>>,
 }
 
 fn candle(minute: usize) -> HistoricalKline {
@@ -161,6 +164,7 @@ impl HistoricalKlineReadPort for PagedHistory {
         query: &HistoricalKlineQuery,
     ) -> Result<HistoricalKlineResult, HistoricalKlineError> {
         self.requests.lock().unwrap().push(query.clone());
+        self.adjustments.lock().unwrap().push(query.adjustment);
         let first = query.next_req_key.is_empty();
         if !self.series.is_empty() {
             return Ok(HistoricalKlineResult {
@@ -1813,4 +1817,79 @@ async fn us_regular_only_request_drops_an_extended_hours_current_bucket() {
             );
         }
     }
+}
+
+/// Parity: go:452dea11:internal/productfeatures/candle_query_options_test.go:17
+/// TestNormalizeCandleOptionsRejectsUnsupportedValues and
+/// go:452dea11:internal/assistant/assembly/application_adapter_test.go:177
+/// ("invalid adjustment").
+///
+/// Go validates the candle price-adjustment label before touching a provider:
+/// `none`/`forward`/`backward` (and a missing/empty value, which defaults to
+/// `none`) are accepted, everything else is an invalid query. Rust's candle
+/// route previously never read the parameter at all, so `adjustment=split`
+/// returned 200 with candles and every request reached OpenD as forward(1).
+#[tokio::test]
+async fn candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type() {
+    let reader = Arc::new(PagedHistory::default());
+    let error = port(reader.clone())
+        .read(
+            "/api/v1/market-data/candles/US/AAPL",
+            "period=1d&adjustment=split",
+        )
+        .await
+        .expect_err("an unsupported adjustment is rejected before any provider call");
+    match error {
+        MarketDataQuoteReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            ..
+        } => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "BAD_REQUEST");
+            assert_eq!(message, "unsupported candle adjustment \"split\"");
+        }
+        other => panic!("unsupported adjustment must be a 400, got {other:?}"),
+    }
+    assert!(
+        reader.requests.lock().unwrap().is_empty(),
+        "the rejected request must not reach the provider"
+    );
+
+    // Each accepted label maps onto its `Qot_Common.RehabType` value.
+    for (label, expected) in [
+        ("none", 0),
+        ("forward", 1),
+        ("backward", 2),
+        ("BACKWARD", 2),
+    ] {
+        let reader = Arc::new(PagedHistory::default());
+        port(reader.clone())
+            .read(
+                "/api/v1/market-data/candles/US/AAPL",
+                &format!("period=1d&adjustment={label}"),
+            )
+            .await
+            .unwrap_or_else(|error| panic!("adjustment={label} must be accepted: {error:?}"));
+        let seen = reader.adjustments.lock().unwrap().clone();
+        // The US intraday fan-out issues one request per OpenD route, so the
+        // recorded label is asserted per request rather than as one value.
+        assert!(
+            !seen.is_empty() && seen.iter().all(|recorded| *recorded == expected),
+            "adjustment={label} must reach OpenD as rehab type {expected}, saw {seen:?}"
+        );
+    }
+
+    // A route without the parameter keeps Go's `none` default, not forward.
+    let reader = Arc::new(PagedHistory::default());
+    port(reader.clone())
+        .read("/api/v1/market-data/candles/US/AAPL", "period=1d")
+        .await
+        .expect("a missing adjustment defaults to none");
+    let seen = reader.adjustments.lock().unwrap().clone();
+    assert!(
+        !seen.is_empty() && seen.iter().all(|recorded| *recorded == 0),
+        "Go defaults a missing adjustment to none, saw {seen:?}"
+    );
 }

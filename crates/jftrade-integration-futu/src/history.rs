@@ -7,6 +7,21 @@ use thiserror::Error;
 
 use crate::{OpenDSessionCoordinator, OpenDSessionCoordinatorError, PROTO_REQUEST_HISTORY_KL};
 
+/// Map the broker-neutral price-adjustment label onto `Qot_Common.RehabType`.
+///
+/// Go's `brokerKLineRehabType` owns this translation: `none` is unadjusted,
+/// `forward`/`backward` select the matching rehab direction. The mapping lives
+/// next to the wire query so every caller reaches the same enum values, and the
+/// route layer is what validates the label.
+pub fn rehab_type_for_adjustment(label: &str) -> i32 {
+    match label.trim() {
+        "none" => 0,
+        "backward" => 2,
+        // Go treats the empty label as forward, which is also OpenD's default.
+        _ => 1,
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct HistoricalSecurity {
     pub market: i32,
@@ -31,6 +46,8 @@ pub struct HistoricalKlineQuery {
     pub market: i32,
     pub symbol: String,
     pub period: String,
+    /// `Qot_Common.RehabType`: build it from a route label with
+    /// [`rehab_type_for_adjustment`] so the mapping stays in one place.
     pub adjustment: i32,
     pub begin_time: String,
     pub end_time: String,

@@ -116,7 +116,7 @@ pub use health::{
 pub use history::{
     HistoricalKline, HistoricalKlineError, HistoricalKlineQuery, HistoricalKlineReadPort,
     HistoricalKlineResult, HistoricalSecurity, OpenDHistoricalKlineReader,
-    resolve_historical_kline_page_size,
+    rehab_type_for_adjustment, resolve_historical_kline_page_size,
 };
 pub use history_session_plan::{
     HistoricalKlineRequestPlan, HistoricalKlineRouteError, MarketSession, SESSION_ALL, SESSION_ETH,
