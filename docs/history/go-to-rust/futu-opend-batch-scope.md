@@ -3344,3 +3344,76 @@ python3 scripts/compatibility/audit_test_parity.py
 ```
 
 结果：1765 passed / 1 skipped；审计 OK: 523 function_exact（本批 4 条 → `[x]`）。
+
+## 批次：pkg/futu/marketdata_reader_boundaries_test.go（4 项，全部 `missing`/`[~]` → `[x]`）
+
+Go 侧 `TestMarketDataReaderSurfacesTransportAndPayloadBoundaries`(17)、
+`TestBrokerKLineSessionHelpersNormalizeAndRejectSelections`(108)、
+`TestMarketRuleFallbacksExplainTheirSourceAndFailures`(153)、
+`TestMarketDataRuleHelpersRejectIncompleteBrokerPayloads`(188)。Rust 没有单一的
+"reader" 类型，四个断言组分别落到 live 路由校验、会话选择/标签投影、market-rule
+fallback 链和 catalog 前缀归一；映射按 owner 拆分而不是造一个平行 reader。
+
+### 行为映射
+
+- **:17 运输与 payload 边界**：非法 symbol 在 `securities/snapshots/candles/depth`
+  四条 live 路由上以 400 `BAD_REQUEST` 失败（新增
+  `live_read_routes_reject_malformed_instruments_before_any_provider_access`）；
+  缺租约由 `live_read_routes_require_a_logical_subscription_lease` 证明 provider
+  调用计数为 0；`QuerySecuritySnapshot`/`QuerySecurityInfo` 的非法 symbol 由
+  `snapshot_reader_rejects_invalid_symbols_before_any_opend_call` 与新增的
+  `market_rules_reject_invalid_symbols_before_touching_opend` 在 wire 之前拒绝；
+  `QueryOrderBook` 由新增
+  `microstructure_reader_rejects_invalid_instruments_before_any_opend_call` 覆盖
+  （`BAD`、`HK.`、`.00700`、`MARS.AAPL`、`CN.600519` 全部拒绝）。
+- **:108 会话选择与标签（含 2 处真实修复）**：
+  1. `parse_requested_sessions` 原先保留调用方顺序与重复形态，Go 的
+     `resolveBrokerKLineSessions` 收集进 set 后按
+     `regular→extended→overnight` 固定顺序输出。改为 `BTreeSet` + 固定顺序表。
+  2. `historical_snapshot` 原先用"market 是否支持扩展时段"推导
+     `extendedHours`/`session`，与 Go 的
+     `hasNonRegularBrokerSession`/`brokerKLineSessionLabel` 不符：Go 看的是
+     **已解析的会话选择**。修复后 US intraday 的 `sessions=regular` 返回
+     `extendedHours=false`/`session="regular"`，单独的 `extended` 或
+     `overnight` 折叠成 `session="all"`。
+  证据：`session_selection_normalizes_aliases_and_rejects_unsupported_ones`、
+  `broker_kline_snapshot_session_fields_follow_go_classification_helpers`、
+  `sessions_default_and_validation_follow_go_extended_hours_rules`。
+- **:153 fallback 来源与失败说明**：空 symbols 先拒绝；快照 fallback 成功时单条
+  warning 同时含 `QuerySecuritySnapshot fallback` 与主错误文本；主错误 + 空
+  fallback 走 `FallbackEmpty`（新增测试断言渲染信息含
+  `returned no market rules`）；主/备同时失败走 `FallbackFailed`；两侧都空走
+  `NoRules`。
+- **:188 不完整 broker payload**：`marketRulesFromSecurityInfo`/
+  `marketRulesFromSecuritySnapshot` 丢弃空 symbol、缺 lot、非正 lot 行；
+  `canonicalSearchQuoteMarketPrefix` 与 `canonicalSearchQuoteCode` 由 futu 模块内
+  新增的两条测试逐项断言（函数私有，测试与 production 同文件）。本批同时清理了
+  审计脚本要求的"`[x]` 条目必须引用唯一 Rust 测试"约束：
+  `trade_account_test.go:72` 与 `read_account_test.go:37` 原先共用
+  `resolve_account_honors_requested_authority_and_falls_back_like_go`，现拆出
+  `resolve_trade_market_covers_requested_and_fallback_branches_like_go`
+  （authority 首项为 Unknown(0)、无 authority 默认 HK、非法市场硬报错三条分支）。
+
+### 探针（改坏实现 → 跑测试 → 确认守卫 → 回滚）
+
+- `historical_snapshot` 的 `extendedHours` 改回"按 market 能力"推导
+  → `broker_kline_snapshot_session_fields_follow_go_classification_helpers`
+  失败：`left: Bool(true) / right: Bool(false)`。已回滚并复跑通过。
+- `parse_market_symbol_path` 去掉 `market.is_empty() || symbol.is_empty()`
+  → `live_read_routes_reject_malformed_instruments_before_any_provider_access`
+  失败：`/snapshots/BAD` 返回 `Unavailable("no cached snapshot available for BAD.")`
+  而不是 400。已回滚并复跑通过。
+- `OpenDMarketMicrostructureReader::security` 去掉未知市场分支
+  → `microstructure_reader_rejects_invalid_instruments_before_any_opend_call`
+  失败：`instrument "BAD" must be rejected`。已回滚并复跑通过。
+
+### 验证
+
+```bash
+cargo fmt --all
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --no-fail-fast
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：1773 passed / 1 skipped（新增 5 条测试，含 1 条审计约束拆分）；审计
+OK: 527 function_exact（本批 4 条 `[~]` → `[x]`）。

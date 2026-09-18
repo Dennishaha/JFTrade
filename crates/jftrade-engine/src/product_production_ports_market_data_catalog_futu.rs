@@ -180,3 +180,43 @@ fn map_error(error: InstrumentSearchError) -> Error {
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Parity: go:452dea11:pkg/futu/marketdata_reader_boundaries_test.go:188
+    /// TestMarketDataRuleHelpersRejectIncompleteBrokerPayloads (prefix half).
+    ///
+    /// Go's `canonicalSearchQuoteMarketPrefix` maps the mainland aliases onto
+    /// the exchange prefixes, folds the HK future alias onto `HK_FUTURE`, and
+    /// rewrites the crypto alias, leaving every other market untouched.
+    #[test]
+    fn search_quote_market_prefixes_follow_the_go_aliases() {
+        for (input, expected) in [
+            ("cnsh", "SH"),
+            ("cnsz", "SZ"),
+            ("hkfuture", "HK_FUTURE"),
+            ("CC", "CRYPTO"),
+            ("us", "US"),
+        ] {
+            assert_eq!(
+                canonical_search_market_prefix(input),
+                expected,
+                "input={input:?}"
+            );
+        }
+    }
+
+    /// Parity: go:452dea11:pkg/futu/adapter_marketdata_search_test.go
+    /// `canonicalSearchQuoteCode`: the bare code is kept only when the entry's
+    /// market matches the caller's market prefix, otherwise the provider code
+    /// (which already carries its own prefix) is preserved.
+    #[test]
+    fn canonical_search_code_does_not_double_prefix_the_market() {
+        assert_eq!(canonical_search_code("HK", "00700"), "00700");
+        assert_eq!(canonical_search_code("US", "HK.00700"), "HK.00700");
+        assert_eq!(canonical_search_code("CNSH", "600519"), "600519");
+        assert_eq!(canonical_search_code("US", "AAPL"), "AAPL");
+    }
+}

@@ -4021,6 +4021,73 @@ fn resolve_account_honors_requested_authority_and_falls_back_like_go() {
 }
 
 #[test]
+fn resolve_trade_market_covers_requested_and_fallback_branches_like_go() {
+    // Parity: go:452dea11:pkg/futu/trade_account_test.go:72
+    // TestResolveTradeMarketCoversRequestedAndFallbackBranches. Distinct from
+    // the `read_account_test.go` case: the authority list here starts with the
+    // zero/Unknown entry, so "first valid authority" must skip it rather than
+    // treat the first list element as the answer.
+    let unknown_then_us = Arc::new(AccountsFixtureRead {
+        accounts: vec![account_with(1, 42, vec![0, 2], None)],
+    });
+    let request =
+        TradeRequest::parse("/api/v1/brokers/futu/funds", "accountId=42&tradingEnvironment=REAL")
+            .expect("request");
+    // An explicit request still wins when the authority is present.
+    let resolved = request
+        .resolve_account_with_environment(unknown_then_us.as_ref(), Some(1), Some("us"))
+        .expect("requested US");
+    assert_eq!(resolved.market, "US");
+    assert_eq!(resolved.header.trd_market, 2);
+
+    // A default (no requested market) skips Unknown and picks the first valid
+    // entry, which is US rather than the leading Unknown code.
+    let resolved = request
+        .resolve_account_with_environment(unknown_then_us.as_ref(), Some(1), None)
+        .expect("first valid authority");
+    assert_eq!(resolved.market, "US");
+    assert_eq!(resolved.header.trd_market, 2);
+
+    // An account holding only HK cannot satisfy a US request: no match and no
+    // fabricated header.
+    let hk_only = Arc::new(AccountsFixtureRead {
+        accounts: vec![account_with(1, 42, vec![1], None)],
+    });
+    let error = match request
+        .resolve_account_with_environment(hk_only.as_ref(), Some(1), Some("US"))
+    {
+        Ok(resolved) => panic!("unauthorized US must not resolve, got {}", resolved.market),
+        Err(error) => error,
+    };
+    assert!(
+        error.contains("no Futu trading account matched"),
+        "unexpected unauthorized error: {error}"
+    );
+
+    // An empty authority list defaults to HK.
+    let no_auth = Arc::new(AccountsFixtureRead {
+        accounts: vec![account_with(1, 42, Vec::new(), None)],
+    });
+    let resolved = request
+        .resolve_account_with_environment(no_auth.as_ref(), Some(1), None)
+        .expect("HK default");
+    assert_eq!(resolved.market, "HK");
+    assert_eq!(resolved.header.trd_market, 1);
+
+    // A malformed market name is a hard error, never a silent default.
+    let error = match request
+        .resolve_account_with_environment(no_auth.as_ref(), Some(1), Some("bad"))
+    {
+        Ok(resolved) => panic!("unsupported market must fail, got {}", resolved.market),
+        Err(error) => error,
+    };
+    assert!(
+        error.contains("invalid market") || error.contains("unsupported market"),
+        "unexpected unsupported-market error: {error}"
+    );
+}
+
+#[test]
 fn runtime_account_candidates_are_sorted_before_selection_like_go() {
     // Parity: go:452dea11:pkg/futu/trade_helpers_boundary_test.go:81
     // TestAccountAndPushConversionBoundaries (candidate half). Go's

@@ -69,6 +69,22 @@ pub(super) fn historical_snapshot(
     } else {
         json!({"hasMore": false})
     };
+    // Go's `hasNonRegularBrokerSession`: an empty selection follows the
+    // market's extended-hours capability, while any non-regular entry makes
+    // the snapshot extended even on a market that supports it.
+    let extended_hours = if sessions.is_empty() {
+        extended_hours
+    } else {
+        sessions.iter().any(|session| *session != "regular")
+    };
+    // Go's `brokerKLineSessionLabel`: only an all-regular selection is
+    // labelled "regular"; anything else (including a single extended token)
+    // collapses to "all".
+    let session = if sessions.iter().all(|session| *session == "regular") {
+        "regular"
+    } else {
+        "all"
+    };
     json!({
         "accountId": request.account_id().unwrap_or_default(),
         "symbol": format!("{}.{}", qot_market_label(result.security.market).unwrap_or("UNKNOWN"), result.security.code),
@@ -76,7 +92,7 @@ pub(super) fn historical_snapshot(
         "klines": rows,
         "pagination": pagination,
         "extendedHours": extended_hours,
-        "session": if sessions.len() == 1 { sessions[0] } else if extended_hours { "all" } else { "regular" },
+        "session": session,
         "sessions": sessions,
     })
 }
@@ -118,23 +134,31 @@ pub(super) fn parse_requested_sessions(
             vec!["regular"]
         });
     }
-    let mut result = Vec::new();
+    // Go's `resolveBrokerKLineSessions` collects the requested sessions into a
+    // set and then emits them in a fixed canonical order (regular, extended,
+    // overnight) instead of preserving the caller's order or duplicates.
+    let mut seen = std::collections::BTreeSet::new();
     for value in values {
         match value.trim().to_ascii_lowercase().as_str() {
-            "regular" if !result.contains(&"regular") => result.push("regular"),
-            "extended" if extended_hours && !result.contains(&"extended") => {
-                result.push("extended")
+            "regular" => {
+                seen.insert("regular");
             }
-            "overnight" if extended_hours && !result.contains(&"overnight") => {
-                result.push("overnight")
+            "extended" if extended_hours => {
+                seen.insert("extended");
             }
-            "regular" | "extended" | "overnight" => {
+            "overnight" if extended_hours => {
+                seen.insert("overnight");
+            }
+            "extended" | "overnight" => {
                 return Err("requested session is unsupported for this period or market".to_owned());
             }
             other => return Err(format!("invalid candle session {other:?}")),
         }
     }
-    Ok(result)
+    Ok(["regular", "extended", "overnight"]
+        .into_iter()
+        .filter(|session| seen.contains(session))
+        .collect())
 }
 
 impl super::SharedTradeReadRuntime {

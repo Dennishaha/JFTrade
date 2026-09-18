@@ -16625,32 +16625,32 @@
     "evidence_type": "missing"
   },
   "pkg/futu/marketdata_reader_boundaries_test.go:17:TestMarketDataReaderSurfacesTransportAndPayloadBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::live_read_routes_reject_malformed_instruments_before_any_provider_access + crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::live_read_routes_require_a_logical_subscription_lease + crates/jftrade-integration-futu/src/security_snapshot_query.rs::snapshot_reader_rejects_invalid_symbols_before_any_opend_call + crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_reject_invalid_symbols_before_touching_opend + crates/jftrade-integration-futu/src/market_microstructure_query.rs::tests::microstructure_reader_rejects_invalid_instruments_before_any_opend_call",
+    "conclusion": "function_exact：Go 逐条断言的 transport/payload 边界在 Rust 各有独立 owner 证据。非法 symbol 在 securities/snapshot/candles/depth 四条 live 路由上以 400 BAD_REQUEST 失败（新测试，探针去掉 parse_market_symbol_path 的 market/symbol 空值检查即复现 503 泄漏），探针已回滚；缺租约的 QueryQuote/QueryKLines/QueryOrderBook 在触碰 provider 前返回 409 且 provider 调用计数为 0；QuerySecuritySnapshot/QuerySecurityInfo/QueryOrderBook 的非法 symbol 由 futu 侧 parse_security/security() 在 wire 之前拒绝。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --no-fail-fast",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/marketdata_reader_boundaries_test.go:108:TestBrokerKLineSessionHelpersNormalizeAndRejectSelections": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_trade_runtime_projection_tests.rs::session_selection_normalizes_aliases_and_rejects_unsupported_ones + crates/jftrade-engine/src/product_trade_runtime_projection_tests.rs::broker_kline_snapshot_session_fields_follow_go_classification_helpers + crates/jftrade-engine/src/product_trade_runtime_projection_tests.rs::sessions_default_and_validation_follow_go_extended_hours_rules",
+    "conclusion": "function_exact：默认 US 会话四段、逗号切分与 trim、固定顺序 regular→extended→overnight、非扩展市场拒绝 extended/overnight、未知 token 拒绝均已覆盖。本批修复了两处真实缺口：(1) parse_requested_sessions 原先保留调用方顺序，改为 BTreeSet + 固定顺序；(2) historical_snapshot 原先用 market 能力推导 extendedHours/session，违反 hasNonRegularBrokerSession/brokerKLineSessionLabel——现在 regular-only 选择在 US 上返回 extendedHours=false、单独 extended/overnight 折叠为 session=\"all\"。探针把 extendedHours 改回旧式能力推导即复现 left=true/right=false，已回滚。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(product_trade_runtime_projection)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/marketdata_reader_boundaries_test.go:153:TestMarketRuleFallbacksExplainTheirSourceAndFailures": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_fallback_empty_keeps_the_primary_error_in_the_message + crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error + crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_report_no_rules_when_both_sources_are_empty + crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_combine_primary_and_fallback_failures + crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_reject_empty_symbol_queries_before_touching_opend",
+    "conclusion": "function_exact：空 symbols 在触碰 OpenD 前拒绝；快照 fallback 成功时只有一条 warning 且同时含 \"QuerySecuritySnapshot fallback\" 与主错误文本；主错误 + 空 fallback 返回 FallbackEmpty 且渲染信息含 \"returned no market rules\"（本批新增）；主/备同时失败返回 FallbackFailed；两侧都空返回 NoRules。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(market_rules)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/marketdata_reader_boundaries_test.go:188:TestMarketDataRuleHelpersRejectIncompleteBrokerPayloads": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_ignore_blank_symbols_and_non_positive_lots + crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_skip_snapshot_rows_with_blank_symbols_or_invalid_lot_sizes + crates/jftrade-engine/src/product_production_ports_market_data_catalog_futu.rs::tests::search_quote_market_prefixes_follow_the_go_aliases + crates/jftrade-engine/src/product_production_ports_market_data_catalog_futu.rs::tests::canonical_search_code_does_not_double_prefix_the_market",
+    "conclusion": "function_exact：marketRulesFromSecurityInfo/marketRulesFromSecuritySnapshot 丢弃空 symbol、缺 lot 与非正 lot 行（两侧各有独立测试）；canonicalSearchQuoteMarketPrefix 的 cnsh→SH / cnsz→SZ / hkfuture→HK_FUTURE / cc→CRYPTO / us→US 与 canonicalSearchQuoteCode 的“仅同市场前缀才剥前缀”语义由本批新增的两条 futu 模块内测试逐项断言（函数私有，测试放在 product_production_ports_market_data_catalog_futu.rs 文末）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(product_production_ports_market_data_catalog)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/opend/advanced_combo_protocol_test.go:17:TestAdvancedDispatcherKeysValidationSuccessAndFailures": {
     "status": "[~]",
@@ -17866,9 +17866,9 @@
   "pkg/futu/trade_account_test.go:72:TestResolveTradeMarketCoversRequestedAndFallbackBranches": {
     "status": "[x]",
     "evidence_type": "function_exact",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::resolve_account_honors_requested_authority_and_falls_back_like_go",
-    "conclusion": "function_exact：请求市场必须出现在 authority 列表（case/空白归一），未授权市场返回 no-match 而非错误，authority 为空时走直接市场映射（JP→15），非法市场名硬报错，非法 authority 项被跳过并取第一个有效项，无 authority 时默认 HK(1)。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(resolve_account_honors_requested_authority_and_falls_back_like_go)'"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::resolve_trade_market_covers_requested_and_fallback_branches_like_go",
+    "conclusion": "function_exact：authority 列表以 Unknown(0) 开头时，显式请求 us 仍命中 US；无请求市场时跳过 Unknown 取首个有效项 US（不是首位 0）；只持有 HK 的账户拒绝 US 请求且不编造 header；authority 为空时默认 HK(1)；非法市场名（bad）是硬错误而非静默默认。与 read_account_test.go:37 的用例分开断言，避免两条 Go 测试共用同一 Rust 证据。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(resolve_trade_market_covers_requested_and_fallback_branches_like_go)'"
   },
   "pkg/futu/trade_account_test.go:118:TestQueryBrokerOrdersFiltersAndSortsWorkingOrders": {
     "status": "[x]",

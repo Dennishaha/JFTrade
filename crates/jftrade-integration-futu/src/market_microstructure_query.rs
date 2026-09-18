@@ -1176,6 +1176,23 @@ mod tests {
     }
 
     #[test]
+    fn microstructure_reader_rejects_invalid_instruments_before_any_opend_call() {
+        // Parity: go:452dea11:pkg/futu/marketdata_reader_boundaries_test.go:17
+        // `QueryOrderBook(invalid symbol)` must fail. Rust's single owner is
+        // `OpenDMarketMicrostructureReader::security`, which validates the
+        // instrument before the coordinator is locked or a frame is written.
+        for instrument in ["BAD", "HK.", ".00700", "MARS.AAPL", "CN.600519"] {
+            assert!(
+                OpenDMarketMicrostructureReader::security(instrument).is_err(),
+                "instrument {instrument:?} must be rejected"
+            );
+        }
+        let security = OpenDMarketMicrostructureReader::security(" us.aapl ").expect("valid");
+        assert_eq!(security.market, 11);
+        assert_eq!(security.code, "AAPL");
+    }
+
+    #[test]
     fn order_book_levels_fail_closed_on_negative_volume_and_non_finite_price() {
         let negative = order_book_levels(vec![level(100.0, -1, 1)]);
         assert!(matches!(

@@ -229,6 +229,53 @@ fn market_rules_combine_primary_and_fallback_failures() {
 }
 
 #[test]
+fn market_rules_fallback_empty_keeps_the_primary_error_in_the_message() {
+    // Parity: go:452dea11:pkg/futu/marketdata_reader_boundaries_test.go:153
+    // TestMarketRuleFallbacksExplainTheirSourceAndFailures.
+    //
+    // When static info fails *and* the snapshot fallback answers nothing, Go
+    // wraps the primary error and appends "returned no market rules" so the
+    // caller cannot mistake the degraded path for a successful empty read.
+    let (reader, static_calls, snapshot_calls) = reader(
+        StubResult::Err("static metadata unavailable".to_owned()),
+        StubResult::Ok(Vec::new()),
+    );
+    match reader.query(&["HK.00700".to_owned()]) {
+        Err(MarketRulesQueryError::FallbackEmpty { primary }) => {
+            assert_eq!(primary, "static metadata unavailable");
+        }
+        other => panic!("expected fallback-empty failure, got {other:?}"),
+    }
+    assert_eq!(static_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(snapshot_calls.load(Ordering::SeqCst), 1);
+    assert!(
+        MarketRulesQueryError::FallbackEmpty {
+            primary: "static metadata unavailable".to_owned(),
+        }
+        .to_string()
+        .contains("returned no market rules"),
+        "the combined message must name the empty fallback"
+    );
+}
+
+#[test]
+fn market_rules_reject_invalid_symbols_before_touching_opend() {
+    // Parity: go:452dea11:pkg/futu/marketdata_reader_boundaries_test.go:17
+    // `QuerySecurityInfo(BAD)` must fail instead of silently querying OpenD.
+    // Rust validates the `MARKET.CODE` pair in `parse_security` before the
+    // static-info request is encoded.
+    for symbol in ["BAD", "HK.", "MARS.AAPL", ""] {
+        assert!(
+            parse_security(symbol).is_err(),
+            "symbol {symbol:?} must be rejected"
+        );
+    }
+    let security = parse_security(" us.aapl ").expect("valid symbol");
+    assert_eq!(security.market, 11);
+    assert_eq!(security.code, "AAPL");
+}
+
+#[test]
 fn market_rules_skip_snapshot_rows_with_blank_symbols_or_invalid_lot_sizes() {
     // Parity: go:452dea11:pkg/futu/adapter_marketdata_reader.go:658
     // `marketRulesFromSecuritySnapshot` drops rows without a usable lot size.

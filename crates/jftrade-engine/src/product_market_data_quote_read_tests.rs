@@ -296,6 +296,40 @@ async fn futu_securities_route_projects_broker_neutral_envelope_boundary() {
 }
 
 #[tokio::test]
+async fn live_read_routes_reject_malformed_instruments_before_any_provider_access() {
+    // Parity: go:452dea11:pkg/futu/marketdata_reader_boundaries_test.go:17
+    // TestMarketDataReaderSurfacesTransportAndPayloadBoundaries. Go rejects a
+    // malformed `BAD` symbol on QueryQuote/QueryKLines/QuerySecurityInfo/
+    // QuerySecuritySnapshot/QueryOrderBook before any OpenD call. Rust's route
+    // owner is `parse_market_symbol_path`, so an instrument that cannot be
+    // split into `MARKET/CODE` must fail closed with 400 BAD_REQUEST on every
+    // live read route instead of reaching a provider.
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    let port = ProductionMarketDataQuotePort::new(state, None, None, None);
+    for path in [
+        "/api/v1/market-data/securities/BAD",
+        "/api/v1/market-data/snapshots/BAD",
+        "/api/v1/market-data/candles/BAD",
+        "/api/v1/market-data/depth/BAD",
+        "/api/v1/market-data/securities/BAD.SYMBOL",
+        "/api/v1/market-data/snapshots/BAD.SYMBOL",
+        "/api/v1/market-data/depth/BAD.SYMBOL",
+    ] {
+        let error = port
+            .read(path, "")
+            .await
+            .expect_err("malformed instrument must be rejected");
+        assert!(
+            matches!(
+                error,
+                MarketDataQuoteReadSnapshotError::Failed { status: 400, .. }
+            ),
+            "path {path} produced {error:?}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn market_data_quote_read_routes_are_not_registered_without_snapshot_port() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
