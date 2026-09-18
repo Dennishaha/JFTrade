@@ -17108,18 +17108,18 @@
     "evidence_type": "missing"
   },
   "pkg/futu/opend/prediction_push_test.go:14:TestPredictionPushSubscribersDispatchOnlySuccessfulTypedUpdates": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/prediction_push_stream.rs::prediction_subscribers_dispatch_only_successful_typed_updates",
+    "conclusion": "function_exact：Go 在原始 OpenD client 上按 3450/3451/3452 各注册一个 typed subscriber，断言畸形 body 与 retType!=0 的响应都不会进回调、成功帧每个协议恰好触发一次。Rust 等价路径是 decode_prediction_push → typed rows → PredictionPushRegistry 扇出，测试逐条断言：畸形 body 返回 Err（直接调用方可见损害）且零投递；retType=-1 但带 s2c 的响应返回 None 且零投递；三个协议各自 retType=0 的空列表仍算「已接受」（返回数据类型且 rows 为空）；随后三个协议各推一条真实数据，3 个 listener 每个都恰好看到 3 行且类型/身份正确（总计 9 次回调）。有意差异：Go 的回调收到 message 本身，空 s2c 也会触发一次回调；Rust listener 收到的是行，空列表无行可播，接受性由 decode 层断言、扇出计数由非空推送断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(prediction_subscribers_dispatch_only_successful_typed_updates)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/opend/prediction_push_test.go:69:TestPredictionPushSubscribersIgnoreNilHandlers": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(opend)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/prediction_push_stream.rs::prediction_registry_registration_after_noop_slots_still_delivers",
+    "conclusion": "function_exact：Go 的 subscribePredictionPush 对 nil handler 返回 no-op 闭包且不安装任何东西——畸形/正常推送都不 panic，且之后注册的真实 handler 仍能收到推送（nil 没把 slot 弄坏）。Rust 的 PredictionPushListener 是 Arc<dyn Fn>，nil 在类型层不可表达，因此断言保留的是类型差异下仍然成立的部分：空 registry 是无害 no-op 状态（dispatch 不 panic、不占 slot，listener_count 仍为 0）；随后注册的 handler 收到下一次推送且只看到自己的流与身份；移除后再推不再投递；再次注册从同一干净状态开始并正常收到推送。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(prediction_registry_registration_after_noop_slots_still_delivers)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/opend/proto_v108_contract_test.go:13:TestProto108OrderBookFieldNumbers": {
     "status": "[~]",

@@ -6,6 +6,7 @@
 //! listener registered at that moment. These tests pin the push half of that
 //! contract against the real decoder and registry.
 
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use jftrade_integration_futu::trade_proto;
@@ -643,4 +644,222 @@ fn prediction_security_normalization_covers_all_public_markets() {
         decoded.1[0].instrument_id, "US.EC.US",
         "the row identity must be the canonical US instrument"
     );
+}
+
+/// Parity: go:452dea11:pkg/futu/opend/prediction_push_test.go:14
+/// TestPredictionPushSubscribersDispatchOnlySuccessfulTypedUpdates.
+///
+/// Go registers one typed subscriber per prediction protocol on the raw client
+/// and asserts that only a successful, `s2c`-bearing frame reaches it: a
+/// malformed body and a `retType != 0` response are dropped, and each accepted
+/// protocol drives exactly one typed callback. Rust routes the same three
+/// protocols through `decode_prediction_push` into typed rows and a shared
+/// listener registry, so the equivalent assertions are: the decoder reports
+/// `Err` for a malformed body (a direct caller must see the damage), `None` for
+/// the rejected response, an accepted-but-empty row set for an accepted empty
+/// `s2c`, and exactly one correctly labelled row per item for a non-empty push.
+///
+/// Deliberate difference: Go's `subscribePredictionPush` invokes the typed
+/// callback even when the accepted `S2C` carries zero items, because the
+/// callback receives the message itself. A Rust listener receives rows, so a
+/// row-less push has nothing to fan out and reaches nobody; acceptance of the
+/// empty push is still pinned at the decode layer, and the fan-out count is
+/// pinned for the non-empty pushes below.
+#[test]
+fn prediction_subscribers_dispatch_only_successful_typed_updates() {
+    let registry = PredictionPushRegistry::new();
+    type Typed = Arc<Mutex<Vec<(&'static str, String)>>>;
+    let invocations = Arc::new(AtomicUsize::new(0));
+    // One observation vector per listener, so the per-listener fan-out is
+    // asserted instead of the interleaved cross-listener order.
+    let mut handles = Vec::new();
+    let mut observed: Vec<Typed> = Vec::new();
+    for _ in 0..3 {
+        let seen: Typed = Arc::new(Mutex::new(Vec::new()));
+        observed.push(Arc::clone(&seen));
+        let invocations = Arc::clone(&invocations);
+        handles.push(registry.subscribe(Arc::new(move |row: &PredictionPushRow| {
+            invocations.fetch_add(1, Ordering::SeqCst);
+            seen.lock()
+                .expect("listener lock")
+                .push((row.data_type.label(), row.instrument_id.clone()));
+        })));
+    }
+
+    // Malformed body: visible to a direct caller and never dispatched.
+    assert!(
+        decode_prediction_push(&frame(ORDER_BOOK, vec![0xff])).is_err(),
+        "malformed prediction body must stay visible to direct callers"
+    );
+    assert_eq!(invocations.load(Ordering::SeqCst), 0);
+
+    // `retType != 0`: a rejected response never reaches a listener even though
+    // the frame still carries a populated `s2c`.
+    let rejected = trade_proto::qot_get_event_contract_order_book::Response {
+        ret_type: -1,
+        ret_msg: Some("rejected".to_owned()),
+        err_code: Some(7),
+        s2c: Some(trade_proto::qot_get_event_contract_order_book::S2c {
+            order_book_list: vec![order_book_item("EC.REJECTED", &[(0.51, 1.0)], &[])],
+        }),
+    }
+    .encode_to_vec();
+    assert_eq!(
+        deliver(&registry, ORDER_BOOK, rejected).expect("rejected push"),
+        None,
+        "a rejected push must not be an accepted update"
+    );
+    assert_eq!(invocations.load(Ordering::SeqCst), 0);
+
+    // An accepted `retType == 0` frame with an empty list is still an accepted
+    // push for every one of the three protocols.
+    for (protocol, data_type) in [
+        (ORDER_BOOK, PredictionDataType::OrderBook),
+        (KLINE, PredictionDataType::Kline),
+        (TICKER, PredictionDataType::Ticker),
+    ] {
+        let body = match data_type {
+            PredictionDataType::OrderBook => order_book_body(0, Vec::new()),
+            PredictionDataType::Kline => kline_body(0, Vec::new()),
+            PredictionDataType::Ticker => ticker_body(0, Vec::new()),
+        };
+        let (kind, rows) = deliver(&registry, protocol, body)
+            .expect("empty accepted push")
+            .expect("an accepted empty s2c is still an accepted push");
+        assert_eq!(
+            kind, data_type,
+            "accepted protocol {protocol} kept its type"
+        );
+        assert!(rows.is_empty(), "an empty list has no rows: {rows:?}");
+    }
+    assert_eq!(
+        invocations.load(Ordering::SeqCst),
+        0,
+        "a row-less push has nothing to hand to a listener"
+    );
+
+    // One successful push per protocol: every listener sees one row per push
+    // and every row carries the type of the protocol that produced it.
+    deliver(
+        &registry,
+        ORDER_BOOK,
+        order_book_body(
+            0,
+            vec![order_book_item(
+                "EC.TYPED.BOOK",
+                &[(0.51, 1.0)],
+                &[(0.53, 2.0)],
+            )],
+        ),
+    )
+    .expect("order-book push");
+    deliver(
+        &registry,
+        KLINE,
+        kline_body(
+            0,
+            vec![kline_item(
+                "EC.TYPED.KLINE",
+                &[("2026-07-18 10:00:00", None)],
+            )],
+        ),
+    )
+    .expect("kline push");
+    deliver(
+        &registry,
+        TICKER,
+        ticker_body(
+            0,
+            vec![ticker_item(
+                "EC.TYPED.TICK",
+                &[(Some("12"), "2026-07-18 10:00:01")],
+            )],
+        ),
+    )
+    .expect("ticker push");
+
+    let expected_push = vec![
+        ("ORDER_BOOK", "US.EC.TYPED.BOOK".to_owned()),
+        ("KLINE", "US.EC.TYPED.KLINE".to_owned()),
+        ("TICKER", "US.EC.TYPED.TICK".to_owned()),
+    ];
+    for (index, seen) in observed.iter().enumerate() {
+        assert_eq!(
+            seen.lock().expect("listener lock").clone(),
+            expected_push,
+            "listener {index} must see exactly one typed row per push"
+        );
+    }
+    assert_eq!(invocations.load(Ordering::SeqCst), 9);
+    assert_eq!(handles.len(), 3);
+}
+
+/// Parity: go:452dea11:pkg/futu/opend/prediction_push_test.go:69
+/// TestPredictionPushSubscribersIgnoreNilHandlers.
+///
+/// Go's `subscribePredictionPush` returns a no-op closure for a nil handler and
+/// installs nothing, so a nil registration neither panics on a well-formed push
+/// nor blocks a later real registration from receiving pushes. A Rust
+/// `PredictionPushListener` is a non-null `Arc<dyn Fn>`, so the nil case cannot
+/// be expressed; the guarantee that survives the type difference is that an
+/// empty registry is a usable no-op state: dispatching while nothing is
+/// installed neither panics nor consumes a slot, a registration made afterwards
+/// receives the very next push in full, and removing every listener returns the
+/// registry to that same state for the next registration.
+#[test]
+fn prediction_registry_registration_after_noop_slots_still_delivers() {
+    let registry = PredictionPushRegistry::new();
+    let body = order_book_body(
+        0,
+        vec![order_book_item(
+            "EC.AFTER.NIL",
+            &[(0.51, 1.0)],
+            &[(0.53, 2.0)],
+        )],
+    );
+
+    // No handler installed yet: the push must be dropped without panic.
+    deliver(&registry, ORDER_BOOK, body.clone()).expect("push without listeners");
+    assert_eq!(registry.listener_count(), 0);
+
+    // A registration made after that no-op state receives the next push.
+    let calls = Arc::new(AtomicUsize::new(0));
+    let counter = Arc::clone(&calls);
+    let handle = registry.subscribe(Arc::new(move |row: &PredictionPushRow| {
+        assert_eq!(
+            row.data_type,
+            PredictionDataType::OrderBook,
+            "a typed handler must only see its own stream"
+        );
+        assert_eq!(row.instrument_id, "US.EC.AFTER.NIL");
+        counter.fetch_add(1, Ordering::SeqCst);
+    }));
+    assert_eq!(registry.listener_count(), 1);
+    deliver(&registry, ORDER_BOOK, body.clone()).expect("push after nil registration");
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+
+    // Removing the handler restores the no-op state and the removed slot stays
+    // gone, so the next registration starts from the same clean slate.
+    handle.unsubscribe();
+    assert_eq!(registry.listener_count(), 0);
+    deliver(&registry, ORDER_BOOK, body.clone()).expect("push after removal");
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        1,
+        "a removed handler must not receive later pushes"
+    );
+
+    let again = Arc::new(AtomicUsize::new(0));
+    let counter = Arc::clone(&again);
+    let _handle = registry.subscribe(Arc::new(move |row: &PredictionPushRow| {
+        assert_eq!(row.data_type, PredictionDataType::OrderBook);
+        counter.fetch_add(1, Ordering::SeqCst);
+    }));
+    deliver(&registry, ORDER_BOOK, body).expect("push after re-registration");
+    assert_eq!(
+        again.load(Ordering::SeqCst),
+        1,
+        "a re-registered handler must receive the next push"
+    );
+    assert_eq!(registry.listener_count(), 1);
 }

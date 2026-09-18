@@ -3648,3 +3648,75 @@ python3 scripts/compatibility/audit_test_parity.py
 结果：1791 passed / 1 skipped（本批新增 1 条 Rust 测试）；审计
 OK: 539 function_exact（`:326` 由 `partial` 升级为 `[x]`，另 3 条保留
 boundary 并补齐了可解析的真实 Rust 位置）。
+
+---
+
+## 批次：pkg/futu/opend/prediction_push_test.go（2 项）
+
+基线 `go:452dea11`。
+
+| Go 测试 | 状态 | Rust 证据 |
+| :--- | :--- | :--- |
+| `:14` TestPredictionPushSubscribersDispatchOnlySuccessfulTypedUpdates | `[x]` | `tests/prediction_push_stream.rs::prediction_subscribers_dispatch_only_successful_typed_updates` |
+| `:69` TestPredictionPushSubscribersIgnoreNilHandlers | `[x]` | `tests/prediction_push_stream.rs::prediction_registry_registration_after_noop_slots_still_delivers` |
+
+### 本批新增 Rust 测试（2 条，均 `missing` → `[x]`）
+
+1. `prediction_subscribers_dispatch_only_successful_typed_updates`：逐条覆盖 Go 的
+   「只有成功的 typed 推送才分发」规则——
+   - 畸形 body：`decode_prediction_push` 返回 `Err`（直接调用方必须看到损害），
+     且零投递；
+   - `retType = -1` 但带 `s2c`：返回 `None`，零投递（证明拒绝判定看的是
+     `retType` 而不是 payload 是否存在）；
+   - 三个协议各自 `retType = 0` 且列表为空：仍返回已接受的数据类型，
+     `rows` 为空；
+   - 三个协议各推一条真实数据：3 个 listener 每个都恰好看到 3 行，
+     类型与 `instrumentId` 完全正确（合计 9 次回调）。
+   `PredictionPushRegistry::dispatch` 先快照 listener 集合再扇出，因此每个
+   listener 的观测顺序是稳定的协议顺序，断言按 listener 分组比较。
+
+2. `prediction_registry_registration_after_noop_slots_still_delivers`：覆盖
+   Go 的 nil-handler 语义。Rust 的 `PredictionPushListener` 是
+   `Arc<dyn Fn + Send + Sync>`，nil handler 在类型层不可表达，因此断言保留
+   类型差异下仍成立的不变量：空 registry 是无害 no-op（`dispatch` 不 panic、
+   不占 slot）；之后注册的 handler 能收到下一次推送且只看到自己的流与身份；
+   移除后再推不投递；重新注册从同一干净状态开始并正常收到推送。
+
+### 有意差异（已在结论中记录）
+
+- **空 `s2c` 的回调次数**：Go 的 `subscribePredictionPush` 把 message 本身交给
+  回调，因此 `retType=0` + 空列表也会触发一次回调。Rust listener 收到的是
+  **行**，空列表没有行可播，所以「接受」由 decode 层断言（返回数据类型 +
+  空 rows），「扇出次数」由非空推送断言。这不是缺口：Rust 契约里 listener
+  语义单位是行。
+- **nil handler**：Go 用 nil 闭包表达「什么都不装」；Rust 用一个空 registry
+  表达同一状态（没有可用 slot）。两者都保证后续真实注册不受影响。
+
+### 探针（改坏实现 → 跑测试 → 确认守卫 → 回滚）
+
+1. 把 `qot_get_event_contract_order_book::Response::accept` 的
+   `(self.ret_type == 0).then_some(self.s2c).flatten()` 改成直接 `self.s2c`
+   → `prediction_subscribers_dispatch_only_successful_typed_updates` 失败：
+   `a rejected push must not be an accepted update`，
+   `left: Some((OrderBook, [PredictionPushRow { instrument_id: "US.EC.REJECTED", ... }]))`
+   而 `right: None`。已回滚。
+2. 把 `PredictionPushUnsubscribe::drop` 里 `.remove(&self.id)` 注释掉
+   → `prediction_registry_registration_after_noop_slots_still_delivers` 失败：
+   `listener_count` left 1 / right 0（已移除的 handler 仍留在 registry）。
+   已回滚。
+
+回滚后 `git diff --stat` 对生产文件为零改动。
+
+### 验证
+
+```bash
+cargo fmt --all
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --no-fail-fast
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+pnpm run check:zero-go
+pnpm run check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py
+pnpm run check:quick
+```
+
+结果见下方「批次验证结果」小节；本批无生产代码改动。
