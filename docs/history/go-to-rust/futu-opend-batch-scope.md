@@ -3876,3 +3876,94 @@ python3 scripts/compatibility/audit_test_parity.py
 ```
 
 审计：545 → 553 function_exact。
+
+---
+
+## 批次：internal/exchangecalendar/manager_test.go 第二批（12 项）
+
+基线 `go:452dea11`。本批覆盖探针/告警、注册表顺序、状态文案与时钟归一。
+
+| Go 测试 | 状态 | Rust 证据 |
+| :--- | :--- | :--- |
+| `:393` TestManagerProbeMarksHealthySources | `[x]` | `manager_lifecycle.rs::probe_marks_a_productive_provider_healthy_with_its_market_and_count` |
+| `:444` TestManagerProbeMarksEmptyParsesUnhealthy | `[x]` | `manager_lifecycle.rs::probe_treats_an_empty_parse_as_structure_changed_unhealthy` |
+| `:488` TestManagerRefreshTreatsEmptyParsesAsFailureAndAlerts | `[x]` | `manager_lifecycle.rs::refresh_treats_an_empty_parse_as_structure_changed_failure` |
+| `:543` TestManagerSourceAlertsDeduplicateAndRecover | `[x]` | `manager_lifecycle.rs::source_alerts_deduplicate_repeats_and_record_recovery` |
+| `:613` TestManagerSourceAlertsDeduplicateNetworkTimeoutVariants | `[x]` | `manager_lifecycle.rs::network_timeout_variants_share_one_alert_fingerprint` |
+| `:670` TestManagerProbeRecoveryClearsCurrentFetchError | `[x]` | `manager_lifecycle.rs::successful_probe_recovery_clears_the_recorded_fetch_failure` |
+| `:736` TestSourceRegistryHonorsPreferredSourceOrder | `[x]` | `manager_lifecycle.rs::source_registry_honours_preferred_order_over_registration_order` |
+| `:751` TestManagerSourcesExposeAvailabilityNotes | `[x]` | `manager_lifecycle.rs::every_source_row_exposes_an_availability_note` |
+| `:779` TestManagerStatusExplainsBuiltinEffectiveReason | `[x]` | `manager_lifecycle.rs::status_explains_why_builtin_rules_serve_a_market` |
+| `:811` TestManagerStatusUsesRemoteCoverageSourceForRegularDay | `[x]` | `manager_lifecycle.rs::status_credits_the_covering_provider_on_a_regular_day` |
+| `:917` TestManagerCurrentTimeNormalizesInjectedClockToUTC | `[x]` | `manager_lifecycle.rs::injected_clock_is_normalized_to_utc_for_projected_timestamps` |
+
+（`:890` TestSnapshotCacheIndexesEveryCoveredMarketYear 与已映射的
+`:876` 同属 fetch-window 批次，见 `fetch_window_timezone.rs`。）
+
+### 真实功能缺口与修复（2 处，P1）
+
+1. **refresh 路径完全不写健康/告警状态（P1，可观测性 + 恢复语义）**
+   `crates/jftrade-calendar/src/manager.rs`
+
+   Go 有两条不同的失败记录路径：
+   `recordOperationFailure`（store/恢复类）只写 `LastError` + 退避梯度，
+   **不碰** `HealthState`；`recordSourceFailure`（provider 抓取/解析）额外
+   置 `HealthState=unhealthy` 并按 `sourceAlertFingerprint` 去重告警。
+   Rust 只有单一的 `record_failure`，而且只写 `last_error` + 退避——
+   `refresh` 路径**从不**写 `health_state`/`health_fingerprint`/`last_alert_*`。
+
+   修复：按 Go 拆成 `record_operation_failure` 与 `record_source_failure`，
+   共用内部的 `record_failure_state`；新增 `source_alert_fingerprint`
+   helper（`structure_changed` → 固定详情；`context canceled` /
+   `context deadline exceeded` / `client.timeout exceeded` 归并为
+   `network_timeout_or_cancelled`；空消息 → `unknown_error`）。
+
+   复现条件：provider 返回合法但零日程的快照。
+   预期：failures=1、provider `unhealthy`、
+   `health_fingerprint = <id>|<market>|structure_changed|structure_changed`、
+   `last_alert_status = triggered`、快照不入缓存、当天回退 builtin。
+   回归测试：`refresh_treats_an_empty_parse_as_structure_changed_failure`、
+   `source_alerts_deduplicate_repeats_and_record_recovery`、
+   `network_timeout_variants_share_one_alert_fingerprint`。
+
+2. **注入时钟未按 UTC 归一（P1，时区）**
+   `crates/jftrade-calendar/src/manager.rs::ManagerInner::now`
+
+   Go 的 `currentTime()` 一律 `.UTC()`，所以 UTC+8 的 09:30 被投影成 01:30Z。
+   Rust 原先直接返回时钟值，注入带偏移的时钟会让 `checkedAt`/`lastFailureAt`
+   等投影带上 `+08:00`，与 Go 的 wire 不一致（也让持久化时间戳依赖宿主偏移）。
+   修复：`now()` 返回 `(self.clock)().to_offset(UtcOffset::UTC)`。
+
+   回归测试：`injected_clock_is_normalized_to_utc_for_projected_timestamps`。
+
+### 有意边界（1 处，已写入 conclusion）
+
+- `:751` availability notes：Go 的 `NewManager` 会
+  `DefaultRegistry(nil)`，因此 `Sources()` 把四个官方 HTTP provider 与
+  builtin/manual 并列展示。Rust 没有 calendar HTTP adapter，生产注册空
+  registry，且**注入 registry 会替换 curated 集合**——这正是冻结 fixture
+  `calendar-status.json` 锁定的行为（只有 builtin/fixture/manual 三行）。
+  因此测试分两半：manager 实际列出的每行都必须有非空 note；
+  `default_source_descriptors` + `source_availability_note` 必须仍保留四个
+  官方 provider 的 curated 描述与说明。
+
+### 探针（改坏实现 → 跑测试 → 确认守卫 → 回滚）
+
+1. refresh 的 `kind` 固定成 `fetch_failed` → 结构变更指纹断言失败
+   （`...|fetch_failed|no schedules parsed` vs
+   `...|structure_changed|structure_changed`）。已回滚。
+2. 超时归并条件改成永不匹配 → 指纹退化成原始错误文本，失败。已回滚。
+3. `now()` 去掉 UTC 归一 → `checkedAt` 变成 `09:30+08:00`，失败。已回滚。
+
+`RecordingOrderSource` fixture 新增（记录 fetch 顺序），用于黑盒断言注册表
+偏好顺序——`ordered_source_ids` 是私有方法，早期直接调用的写法编译失败。
+
+### 验证
+
+```bash
+cargo fmt --all
+node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+审计：553 → 564 function_exact；`jftrade-calendar` 59/59 通过。

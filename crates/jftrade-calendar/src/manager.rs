@@ -304,8 +304,11 @@ impl ManagerInner {
             .map_err(|_| CalendarManagerError::StateUnavailable)
     }
 
+    /// Go's `currentTime`: every instant the manager reads or records is
+    /// normalized to UTC, so persisted and projected timestamps never depend on
+    /// the host or injected clock's offset.
     pub(crate) fn now(&self) -> OffsetDateTime {
-        (self.clock)()
+        (self.clock)().to_offset(time::UtcOffset::UTC)
     }
 
     fn restore_snapshots(&self) -> Result<(), CalendarManagerError> {
@@ -325,9 +328,9 @@ impl ManagerInner {
                         "discard invalid cached snapshot {}/{}: {error}",
                         snapshot.market_code, snapshot.source_id
                     );
-                    self.record_failure(&source_id, detail)?;
+                    self.record_operation_failure(&source_id, detail)?;
                     if let Err(delete_error) = persistence.delete(&snapshot) {
-                        self.record_failure(
+                        self.record_operation_failure(
                             &source_id,
                             format!("failed to delete invalid cached snapshot: {delete_error}"),
                         )?;
@@ -340,7 +343,7 @@ impl ManagerInner {
             // (`fmt.Errorf("decode %s: %w", path, err)` in
             // `internal/store/exchangecalendar/store.go`), so an operator can
             // find the corrupt cache. Keep that context in the recorded error.
-            self.record_failure(
+            self.record_operation_failure(
                 BUILTIN_SOURCE_ID,
                 format!("{}: {}", error.path.display(), error.message),
             )?;
@@ -404,7 +407,12 @@ impl ManagerInner {
                 Ok(snapshot) => snapshot,
                 Err(error) => {
                     result.failures = result.failures.saturating_add(1);
-                    self.record_failure(&source_id, error.to_string())?;
+                    self.record_source_failure(
+                        &source_id,
+                        &market,
+                        error.to_string(),
+                        "fetch_failed",
+                    )?;
                     continue;
                 }
             };
@@ -416,7 +424,12 @@ impl ManagerInner {
             }
             if let Err(error) = validate_snapshot(&snapshot) {
                 result.failures = result.failures.saturating_add(1);
-                self.record_failure(&source_id, error)?;
+                let kind = if error == "no schedules parsed" {
+                    "structure_changed"
+                } else {
+                    "fetch_failed"
+                };
+                self.record_source_failure(&source_id, &market, error, kind)?;
                 continue;
             }
             // Go caches the fetched snapshot before persisting it and keeps it
@@ -431,7 +444,7 @@ impl ManagerInner {
             self.cache_snapshot(snapshot.clone())?;
             if let Some(error) = persistence_error {
                 result.failures = result.failures.saturating_add(1);
-                self.record_failure(&source_id, error)?;
+                self.record_operation_failure(&source_id, error)?;
                 continue;
             }
             self.record_success(&snapshot)?;
@@ -456,6 +469,8 @@ impl ManagerInner {
         Ok(())
     }
 
+    /// Go's `recordSuccess`: clears the failure state and publishes a recovery
+    /// alert when the source was previously unhealthy.
     fn record_success(&self, snapshot: &CalendarSnapshot) -> Result<(), CalendarManagerError> {
         let now = wire_text(self.now());
         let mut statuses = self
@@ -464,19 +479,62 @@ impl ManagerInner {
             .map_err(|_| CalendarManagerError::StateUnavailable)?;
         let status = statuses.entry(snapshot.source_id.clone()).or_default();
         status.source_id = snapshot.source_id.clone();
-        status.last_success_at = Some(now);
+        status.last_success_at = Some(now.clone());
         status.last_failure_at = None;
         status.last_error.clear();
         status.consecutive_failures = 0;
         status.next_refresh_at = None;
         status.last_snapshot_fetched_at = Some(snapshot.fetched_at.to_string());
+        status.last_probe_error.clear();
+        let previous_fingerprint = std::mem::take(&mut status.health_fingerprint);
+        let recovered = status.health_state == "unhealthy";
         status.health_state = "healthy".to_owned();
-        status.health_fingerprint.clear();
+        if recovered {
+            status.last_alert_at = Some(now);
+            status.last_alert_status = "recovered".to_owned();
+            status.last_alert_fingerprint = previous_fingerprint;
+        }
         Ok(())
     }
 
-    fn record_failure(&self, source_id: &str, error: String) -> Result<(), CalendarManagerError> {
+    /// Go's `recordOperationFailure`: a durable-store or restore problem. It
+    /// grows the retry ladder and records the error, but deliberately leaves the
+    /// provider health state and alert bookkeeping alone.
+    fn record_operation_failure(
+        &self,
+        source_id: &str,
+        error: String,
+    ) -> Result<(), CalendarManagerError> {
+        self.record_failure_state(source_id, Some(error), None)
+    }
+
+    /// Go's `recordSourceFailure`: a provider fetch/parse failure. It upgrades
+    /// the source to `unhealthy` and publishes a fingerprint-deduplicated alert
+    /// through `sourceFailureAlert` (`kind` is `fetch_failed` or
+    /// `structure_changed`).
+    fn record_source_failure(
+        &self,
+        source_id: &str,
+        market: &str,
+        error: String,
+        kind: &str,
+    ) -> Result<(), CalendarManagerError> {
+        self.record_failure_state(source_id, Some(error.clone()), Some((market, error, kind)))
+    }
+
+    fn record_failure_state(
+        &self,
+        source_id: &str,
+        error: Option<String>,
+        alert: Option<(&str, String, &str)>,
+    ) -> Result<(), CalendarManagerError> {
         let now = self.now();
+        let market = alert
+            .as_ref()
+            .map_or_else(String::new, |(market, _, _)| normalize_market(market));
+        let fingerprint = alert
+            .as_ref()
+            .map(|(_, message, kind)| source_alert_fingerprint(source_id, &market, kind, message));
         let mut statuses = self
             .statuses
             .write()
@@ -484,11 +542,23 @@ impl ManagerInner {
         let status = statuses.entry(source_id.trim().to_owned()).or_default();
         status.source_id = source_id.trim().to_owned();
         status.last_failure_at = Some(wire_text(now));
-        status.last_error = error;
+        if let Some(error) = error {
+            status.last_error = error;
+        }
         status.consecutive_failures = status.consecutive_failures.saturating_add(1);
         let hours = i64::from(status.consecutive_failures.clamp(1, 24));
         status.next_refresh_at = now.checked_add(Duration::hours(hours)).map(wire_text);
-        status.health_state = "unhealthy".to_owned();
+        if let Some(fingerprint) = fingerprint {
+            let should_alert =
+                status.health_state != "unhealthy" || status.health_fingerprint != fingerprint;
+            status.health_state = "unhealthy".to_owned();
+            status.health_fingerprint = fingerprint.clone();
+            if should_alert {
+                status.last_alert_at = status.last_failure_at.clone();
+                status.last_alert_status = "triggered".to_owned();
+                status.last_alert_fingerprint = fingerprint;
+            }
+        }
         Ok(())
     }
 
@@ -600,6 +670,35 @@ fn run_manager(inner: Arc<ManagerInner>, receiver: Receiver<ManagerCommand>) {
             }
         }
     }
+}
+
+/// Go's `sourceAlertFingerprint` plus `sourceAlertFingerprintDetail`: the alert
+/// identity an operator sees, so repeats of the same fault stay deduplicated
+/// and a different fault raises a new alert.
+fn source_alert_fingerprint(source_id: &str, market: &str, kind: &str, message: &str) -> String {
+    let detail = if kind == "structure_changed" {
+        "structure_changed".to_owned()
+    } else {
+        let detail = message.trim().to_ascii_lowercase();
+        if detail.is_empty() {
+            "unknown_error".to_owned()
+        } else if detail.contains("context canceled")
+            || detail.contains("context deadline exceeded")
+            || detail.contains("client.timeout exceeded")
+            || detail.contains("timed out")
+            || detail.contains("cancelled")
+        {
+            "network_timeout_or_cancelled".to_owned()
+        } else {
+            detail
+        }
+    };
+    format!(
+        "{}|{}|{}|{detail}",
+        source_id.trim(),
+        normalize_market(market),
+        kind.trim()
+    )
 }
 
 fn close_sources(sources: &[Arc<dyn CalendarSourcePort>]) {

@@ -206,6 +206,49 @@ fn build_manager(
     .expect("create calendar manager")
 }
 
+/// A source that records the order in which it is asked to fetch, so a test can
+/// assert the registry's resolve order through the real refresh path.
+struct RecordingOrderSource {
+    id: String,
+    markets: Vec<String>,
+    order: Arc<Mutex<Vec<String>>>,
+}
+
+impl RecordingOrderSource {
+    fn new(id: &str, market: &str, order: Arc<Mutex<Vec<String>>>) -> Self {
+        Self {
+            id: id.to_owned(),
+            markets: vec![market.to_owned()],
+            order,
+        }
+    }
+}
+
+impl CalendarSourcePort for RecordingOrderSource {
+    fn descriptor(&self) -> CalendarSourceDescriptor {
+        CalendarSourceDescriptor {
+            id: self.id.clone(),
+            kind: "recording".to_owned(),
+            authority: "fixture".to_owned(),
+            markets: self.markets.clone(),
+        }
+    }
+
+    fn fetch(
+        &self,
+        _market: &str,
+        _from: WireTimestamp,
+        _to: WireTimestamp,
+        _cancellation: &CalendarCancellationToken,
+    ) -> Result<CalendarSnapshot, CalendarSourceError> {
+        self.order
+            .lock()
+            .expect("fetch order")
+            .push(self.id.clone());
+        Err(CalendarSourceError::Failed("recording fixture".to_owned()))
+    }
+}
+
 #[test]
 fn registry_snapshot_manual_and_builtin_policy_order_is_stable() {
     let events = Arc::new(Mutex::new(Vec::new()));
@@ -426,7 +469,15 @@ fn persistence_failure_keeps_the_fetched_snapshot_served_from_memory() {
         .expect("source status");
     assert_eq!(status.last_error, "fixture persistence unavailable");
     assert_eq!(status.consecutive_failures, 1);
-    assert!(status.health_state.is_empty() || status.health_state == "unhealthy");
+    assert_eq!(
+        status.health_state, "healthy",
+        "the provider itself succeeded; only the store write failed, so Go's \
+         recordOperationFailure must leave the health state alone"
+    );
+    assert_eq!(
+        status.last_alert_status, "",
+        "a durable-store failure is not a provider alert"
+    );
     manager.close().expect("close manager");
 }
 
@@ -1491,4 +1542,705 @@ fn invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules() 
     assert_eq!(discarded.consecutive_failures, 1);
     manager.close().expect("close manager");
     std::fs::remove_dir_all(&directory).expect("clean snapshot root");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:393
+/// TestManagerProbeMarksHealthySources.
+///
+/// A probe that parses at least one schedule marks the provider healthy and
+/// records the probe instant, market and parsed count on its status row.
+#[test]
+fn probe_marks_a_productive_provider_healthy_with_its_market_and_count() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let source = Arc::new(FixtureSource::new("nyse_official", events));
+    source.push(Ok(CalendarSnapshot {
+        market_code: "US".to_owned(),
+        source_id: "nyse_official".to_owned(),
+        from: timestamp("2026-01-01T00:00:00Z"),
+        to: timestamp("2027-12-31T23:59:59Z"),
+        schedules: vec![TradingDaySchedule {
+            market_code: "US".to_owned(),
+            date: timestamp("2026-06-19T00:00:00Z"),
+            status: "closed".to_owned(),
+            sessions: Vec::new(),
+            reason: String::new(),
+            source_id: "nyse_official".to_owned(),
+            observed: false,
+            updated_at: None,
+        }],
+        fetched_at: timestamp("2026-06-01T00:00:00Z"),
+        valid_until: timestamp("2026-07-01T00:00:00Z"),
+        checksum: String::new(),
+    }));
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-02T12:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = build_manager(source, None, settings("nyse_official"), now);
+    manager.start().expect("start manager");
+
+    let result = manager.probe_all().expect("probe all");
+    assert_eq!((result.healthy, result.failures), (1, 0));
+    assert_eq!(result.results.len(), 1);
+    assert_eq!(result.results[0].status, "healthy");
+    assert_eq!(result.results[0].schedules_parsed, 1);
+
+    let status = manager
+        .source_statuses()
+        .expect("source statuses")
+        .into_iter()
+        .find(|status| status.source_id == "nyse_official")
+        .expect("provider status");
+    assert_eq!(status.last_probe_status, "healthy");
+    assert_eq!(status.last_probe_schedules, 1);
+    assert_eq!(status.last_probe_market, "US");
+    assert!(status.last_probe_at.is_some());
+    assert!(status.last_probe_success_at.is_some());
+    assert_eq!(status.health_state, "healthy");
+    // A successful probe does not fabricate a snapshot.
+    assert!(manager.snapshots().expect("snapshot cache").is_empty());
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:444
+/// TestManagerProbeMarksEmptyParsesUnhealthy.
+///
+/// A provider that answers with a well-formed but empty snapshot is a
+/// `structure_changed` failure: the probe reports it unhealthy with the literal
+/// `no schedules parsed` error instead of treating the empty result as success.
+#[test]
+fn probe_treats_an_empty_parse_as_structure_changed_unhealthy() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut hk = FixtureSource::new("hk_gov_1823_ical", events);
+    hk.descriptor_markets = vec!["HK".to_owned()];
+    let source = Arc::new(hk);
+    source.push(Ok(CalendarSnapshot {
+        market_code: "HK".to_owned(),
+        source_id: "hk_gov_1823_ical".to_owned(),
+        from: timestamp("2026-01-01T00:00:00+08:00"),
+        to: timestamp("2026-12-31T23:59:59+08:00"),
+        schedules: Vec::new(),
+        fetched_at: timestamp("2026-06-01T00:00:00Z"),
+        valid_until: timestamp("2026-07-01T00:00:00Z"),
+        checksum: String::new(),
+    }));
+    let mut policy = settings("hk_gov_1823_ical");
+    policy.warmup_markets = vec!["HK".to_owned()];
+    policy.source_policies[0].market = "HK".to_owned();
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-02T12:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = build_manager(source, None, policy, now);
+    manager.start().expect("start manager");
+
+    let result = manager.probe_all().expect("probe all");
+    assert_eq!((result.healthy, result.failures), (0, 1));
+    assert_eq!(result.results[0].status, "unhealthy");
+    assert_eq!(result.results[0].error, "no schedules parsed");
+
+    let status = manager
+        .source_statuses()
+        .expect("source statuses")
+        .into_iter()
+        .find(|status| status.source_id == "hk_gov_1823_ical")
+        .expect("provider status");
+    assert_eq!(status.last_probe_status, "unhealthy");
+    assert_eq!(status.last_probe_error, "no schedules parsed");
+    assert_eq!(
+        status.health_state, "unhealthy",
+        "an empty parse is a health failure"
+    );
+    assert_eq!(
+        status.health_fingerprint,
+        "hk_gov_1823_ical|HK|structure_changed|structure_changed"
+    );
+    assert_eq!(status.last_alert_status, "triggered");
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:488
+/// TestManagerRefreshTreatsEmptyParsesAsFailureAndAlerts.
+///
+/// The refresh path must classify an empty parse the same way the probe does:
+/// one failure, the provider marked unhealthy, and a `structure_changed` alert
+/// recorded. Go raises this through `WithAlertSink`; Rust records the alert on
+/// the source status (`lastAlertStatus`/`lastAlertFingerprint`) because there is
+/// no alert-sink port in the Rust composition.
+#[test]
+fn refresh_treats_an_empty_parse_as_structure_changed_failure() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let source = Arc::new(FixtureSource::new("nyse_official", events));
+    source.push(Ok(CalendarSnapshot {
+        market_code: "US".to_owned(),
+        source_id: "nyse_official".to_owned(),
+        from: timestamp("2026-01-01T00:00:00Z"),
+        to: timestamp("2027-12-31T23:59:59Z"),
+        schedules: Vec::new(),
+        fetched_at: timestamp("2026-06-01T00:00:00Z"),
+        valid_until: timestamp("2026-07-01T00:00:00Z"),
+        checksum: String::new(),
+    }));
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-02T12:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = build_manager(source, None, settings("nyse_official"), now);
+    manager.start().expect("start manager");
+
+    let result = manager.refresh_all().expect("refresh all");
+    assert_eq!((result.updated, result.failures), (0, 1));
+
+    let status = manager
+        .source_statuses()
+        .expect("source statuses")
+        .into_iter()
+        .find(|status| status.source_id == "nyse_official")
+        .expect("provider status");
+    assert_eq!(status.last_error, "no schedules parsed");
+    assert_eq!(
+        status.health_state, "unhealthy",
+        "an empty parse is a health failure"
+    );
+    assert_eq!(
+        status.health_fingerprint, "nyse_official|US|structure_changed|structure_changed",
+        "the refresh path must fingerprint the structure change like Go's recordSourceFailure"
+    );
+    assert_eq!(status.last_alert_status, "triggered");
+    assert_eq!(
+        status.last_alert_fingerprint, status.health_fingerprint,
+        "the triggered alert carries the same fingerprint"
+    );
+    assert!(status.consecutive_failures >= 1);
+    // The empty snapshot never becomes a served calendar.
+    assert!(manager.snapshots().expect("snapshot cache").is_empty());
+    let schedule = manager
+        .schedule("US", timestamp("2026-06-19T00:00:00Z"))
+        .expect("builtin schedule")
+        .expect("schedule");
+    assert_eq!(schedule.source_id, BUILTIN_SOURCE_ID);
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:543
+/// TestManagerSourceAlertsDeduplicateAndRecover.
+///
+/// Three probes hit the same fetch failure twice and then succeed: the source
+/// must go unhealthy, the repeated identical fault must not raise a second
+/// alert, and the recovery must clear the failure state and record a
+/// `recovered` alert carrying the previous fingerprint.
+#[test]
+fn source_alerts_deduplicate_repeats_and_record_recovery() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut hk = FixtureSource::new("hk_gov_1823_ical", events);
+    hk.descriptor_markets = vec!["HK".to_owned()];
+    let source = Arc::new(hk);
+    source.push(Err(CalendarSourceError::Failed(
+        "temporary fetch failure".to_owned(),
+    )));
+    source.push(Err(CalendarSourceError::Failed(
+        "temporary fetch failure".to_owned(),
+    )));
+    source.push(Ok(CalendarSnapshot {
+        market_code: "HK".to_owned(),
+        source_id: "hk_gov_1823_ical".to_owned(),
+        from: timestamp("2026-01-01T00:00:00+08:00"),
+        to: timestamp("2026-12-31T23:59:59+08:00"),
+        schedules: vec![TradingDaySchedule {
+            market_code: "HK".to_owned(),
+            date: timestamp("2026-06-19T00:00:00+08:00"),
+            status: "closed".to_owned(),
+            sessions: Vec::new(),
+            reason: String::new(),
+            source_id: "hk_gov_1823_ical".to_owned(),
+            observed: false,
+            updated_at: None,
+        }],
+        fetched_at: timestamp("2026-06-01T00:00:00Z"),
+        valid_until: timestamp("2026-07-01T00:00:00Z"),
+        checksum: String::new(),
+    }));
+    let mut policy = settings("hk_gov_1823_ical");
+    policy.warmup_markets = vec!["HK".to_owned()];
+    policy.source_policies[0].market = "HK".to_owned();
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-02T12:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = build_manager(source, None, policy, now);
+    manager.start().expect("start manager");
+
+    let status = |manager: &CalendarManager| {
+        manager
+            .source_statuses()
+            .expect("source statuses")
+            .into_iter()
+            .find(|status| status.source_id == "hk_gov_1823_ical")
+            .expect("provider status")
+    };
+    let expected = "hk_gov_1823_ical|HK|fetch_failed|temporary fetch failure";
+
+    // First failure triggers the alert.
+    assert_eq!(manager.probe_all().expect("first probe").failures, 1);
+    let first = status(&manager);
+    assert_eq!(first.health_state, "unhealthy");
+    assert_eq!(first.health_fingerprint, expected);
+    assert_eq!(first.last_alert_status, "triggered");
+    assert_eq!(first.last_alert_fingerprint, expected);
+    assert!(first.last_alert_at.is_some());
+
+    // The identical repeat keeps the state but must not re-trigger.
+    assert_eq!(manager.probe_all().expect("second probe").failures, 1);
+    let repeated = status(&manager);
+    assert_eq!(repeated.health_fingerprint, expected, "same fault identity");
+    assert_eq!(
+        repeated.last_alert_status, "triggered",
+        "the deduplicated repeat does not invent a new alert state"
+    );
+    assert_eq!(repeated.last_alert_at, first.last_alert_at);
+
+    // Recovery clears the failure state and records the previous fingerprint.
+    assert_eq!(manager.probe_all().expect("recovering probe").healthy, 1);
+    let recovered = status(&manager);
+    assert_eq!(recovered.health_state, "healthy");
+    assert_eq!(recovered.health_fingerprint, "");
+    assert_eq!(recovered.last_error, "");
+    assert_eq!(recovered.consecutive_failures, 0);
+    assert_eq!(recovered.next_refresh_at, None);
+    assert_eq!(recovered.last_alert_status, "recovered");
+    assert_eq!(
+        recovered.last_alert_fingerprint, expected,
+        "the recovery alert carries the fingerprint it recovered from"
+    );
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:613
+/// TestManagerSourceAlertsDeduplicateNetworkTimeoutVariants.
+///
+/// Three different network faults — a cancelled context, a deadline and an HTTP
+/// client timeout message — must collapse into the single
+/// `network_timeout_or_cancelled` fingerprint, so an operator gets one alert for
+/// one outage instead of three.
+#[test]
+fn network_timeout_variants_share_one_alert_fingerprint() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let source = Arc::new(FixtureSource::new("nyse_official", events));
+    for message in [
+        "calendar source operation was cancelled",
+        "context deadline exceeded",
+        "Get \"https://www.nyse.com/trade/hours-calendars\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)",
+    ] {
+        source.push(Err(CalendarSourceError::Failed(message.to_owned())));
+    }
+    let clock_now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-02T12:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = build_manager(
+        source,
+        None,
+        settings("nyse_official"),
+        Arc::clone(&clock_now),
+    );
+    manager.start().expect("start manager");
+
+    let expected = "nyse_official|US|fetch_failed|network_timeout_or_cancelled";
+    let mut fingerprints = Vec::new();
+    for round in 0..3 {
+        // Rust additionally throttles inside the retry window (Go only writes
+        // `NextRefreshAt` for display), so step past it to reach the provider.
+        if round > 0 {
+            let mut clock = clock_now.lock().expect("fixture clock");
+            *clock += Duration::hours(25);
+        }
+        let result = manager.refresh_all().expect("failing refresh");
+        assert_eq!(
+            (result.failures, result.skipped_backoff),
+            (1, 0),
+            "round {round} must reach the provider"
+        );
+        let status = manager
+            .source_statuses()
+            .expect("source statuses")
+            .into_iter()
+            .find(|status| status.source_id == "nyse_official")
+            .expect("provider status");
+        assert_eq!(
+            status.health_fingerprint, expected,
+            "every timeout variant shares one fingerprint"
+        );
+        assert_eq!(status.health_state, "unhealthy");
+        assert_eq!(status.last_alert_status, "triggered");
+        assert_eq!(status.last_alert_fingerprint, expected);
+        fingerprints.push(status.last_alert_at.clone());
+    }
+    assert_eq!(
+        fingerprints.iter().filter(|at| at.is_some()).count(),
+        3,
+        "the alert instant is recorded on each trigger"
+    );
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:670
+/// TestManagerProbeRecoveryClearsCurrentFetchError.
+///
+/// After a fetch failure leaves the source unhealthy with a retry scheduled and
+/// a recorded error, a successful probe must clear all of it: the health state
+/// becomes healthy, the fetch error and probe error are emptied, the failure
+/// counter resets and the retry instant is dropped. A stale failure must never
+/// survive a successful verification.
+#[test]
+fn successful_probe_recovery_clears_the_recorded_fetch_failure() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let source = Arc::new(FixtureSource::new("nyse_official", events));
+    source.push(Err(CalendarSourceError::Failed(
+        "context deadline exceeded".to_owned(),
+    )));
+    source.push(Ok(CalendarSnapshot {
+        market_code: "US".to_owned(),
+        source_id: "nyse_official".to_owned(),
+        from: timestamp("2026-01-01T00:00:00Z"),
+        to: timestamp("2027-12-31T23:59:59Z"),
+        schedules: vec![TradingDaySchedule {
+            market_code: "US".to_owned(),
+            date: timestamp("2026-06-19T00:00:00Z"),
+            status: "closed".to_owned(),
+            sessions: Vec::new(),
+            reason: String::new(),
+            source_id: "nyse_official".to_owned(),
+            observed: false,
+            updated_at: None,
+        }],
+        fetched_at: timestamp("2026-06-01T00:00:00Z"),
+        valid_until: timestamp("2026-07-01T00:00:00Z"),
+        checksum: String::new(),
+    }));
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-02T12:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = build_manager(source, None, settings("nyse_official"), now);
+    manager.start().expect("start manager");
+
+    let status = |manager: &CalendarManager| {
+        manager
+            .source_statuses()
+            .expect("source statuses")
+            .into_iter()
+            .find(|status| status.source_id == "nyse_official")
+            .expect("provider status")
+    };
+
+    // The fetch failure leaves a retry scheduled and the error recorded.
+    assert_eq!(manager.refresh_all().expect("failing refresh").failures, 1);
+    let failed = status(&manager);
+    assert_eq!(failed.health_state, "unhealthy");
+    assert!(
+        !failed.last_error.is_empty(),
+        "a fetch failure records its error"
+    );
+    assert!(
+        failed.next_refresh_at.is_some(),
+        "a fetch failure schedules a retry"
+    );
+    assert!(failed.consecutive_failures >= 1);
+
+    // A successful probe clears the whole failure picture.
+    assert_eq!(manager.probe_all().expect("recovering probe").healthy, 1);
+    let recovered = status(&manager);
+    assert_eq!(recovered.health_state, "healthy");
+    assert_eq!(recovered.last_error, "");
+    assert_eq!(recovered.last_probe_error, "");
+    assert_eq!(recovered.consecutive_failures, 0);
+    assert_eq!(recovered.next_refresh_at, None);
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:736
+/// TestSourceRegistryHonorsPreferredSourceOrder.
+///
+/// Registration order is `b` then `a`, but a policy that prefers `a` must
+/// resolve `a` first while still keeping the other enabled source reachable.
+/// The observable effect is the refresh fan-out order, so this drives real
+/// refreshes and reads the order back from a recording fixture.
+#[test]
+fn source_registry_honours_preferred_order_over_registration_order() {
+    let fetch_order = Arc::new(Mutex::new(Vec::new()));
+    let mut registry = CalendarSourceRegistry::default();
+    registry
+        .register(Arc::new(RecordingOrderSource::new(
+            "b",
+            "US",
+            Arc::clone(&fetch_order),
+        )))
+        .expect("register b");
+    registry
+        .register(Arc::new(RecordingOrderSource::new(
+            "a",
+            "US",
+            Arc::clone(&fetch_order),
+        )))
+        .expect("register a");
+    let policy = CalendarManagerSettings {
+        refresh_interval_hours: 24,
+        warmup_markets: vec!["US".to_owned()],
+        source_policies: vec![CalendarSourcePolicy {
+            market: "US".to_owned(),
+            preferred_source_ids: vec!["a".to_owned()],
+            enabled_source_ids: vec!["a".to_owned(), "b".to_owned()],
+            fallback_to_builtin: false,
+            ..CalendarSourcePolicy::default()
+        }],
+        ..CalendarManagerSettings::default()
+    };
+    let manager = CalendarManager::new(registry, None, policy).expect("create manager");
+    manager.start().expect("start manager");
+    manager.refresh_market("US").expect("refresh US");
+
+    assert_eq!(
+        fetch_order.lock().expect("fetch order").clone(),
+        vec!["a".to_owned(), "b".to_owned()],
+        "the preferred source is fetched first and the remaining enabled source follows"
+    );
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:751
+/// TestManagerSourcesExposeAvailabilityNotes.
+///
+/// Every source row an operator can see carries an availability note, and the
+/// curated notes for the four official providers stay available even though this
+/// process wires no HTTP adapter for them.
+///
+/// Boundary: Go's `NewManager` seeds `DefaultRegistry(nil)`, so its `Sources()`
+/// lists the four official HTTP providers next to builtin/manual. Rust ships no
+/// calendar HTTP adapter, production registers an empty registry, and an
+/// injected registry deliberately replaces the curated set (that is what the
+/// frozen `calendar-status.json` fixture pins). The equivalent guarantee is
+/// therefore asserted in two parts: the rows the manager actually lists always
+/// carry their note, and the curated descriptor set with its notes remains
+/// available through `default_source_descriptors`/`source_availability_note`.
+#[test]
+fn every_source_row_exposes_an_availability_note() {
+    let mut policy = settings("official");
+    policy.warmup_markets = vec!["HK".to_owned(), "CN".to_owned()];
+    let manager = CalendarManager::new(CalendarSourceRegistry::default(), None, policy)
+        .expect("create manager");
+    manager.start().expect("start manager");
+
+    let sources = manager.sources_snapshot().expect("sources").sources;
+    let notes = sources
+        .iter()
+        .map(|source| (source.id.clone(), source.availability_note.clone()))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    // The manager always lists these two, with curated notes.
+    for id in [BUILTIN_SOURCE_ID, "manual_override"] {
+        assert!(
+            notes.get(id).is_some_and(|note| !note.is_empty()),
+            "missing availability note for {id}: {notes:?}"
+        );
+    }
+
+    // The curated official-provider descriptors and notes survive even with no
+    // adapter wired, which is what Go's DefaultRegistry-seeded manager shows.
+    let curated = jftrade_calendar::default_source_descriptors();
+    for id in [
+        "hk_gov_1823_ical",
+        "mainland_official_notice",
+        "nyse_official",
+        "nasdaq_verifier",
+    ] {
+        assert!(
+            curated.iter().any(|descriptor| descriptor.id == id),
+            "missing curated descriptor for {id}"
+        );
+        assert!(
+            !jftrade_calendar::source_availability_note(id).is_empty(),
+            "missing curated availability note for {id}"
+        );
+    }
+    assert!(
+        jftrade_calendar::source_availability_note("hk_gov_1823_ical").contains("iCal"),
+        "the HK note describes the provider"
+    );
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:779
+/// TestManagerStatusExplainsBuiltinEffectiveReason.
+///
+/// When a market enables only builtin rules, the status must say exactly why
+/// builtin is serving it: no external source is enabled for this market. That
+/// wording is what separates a configured offline policy from an outage.
+#[test]
+fn status_explains_why_builtin_rules_serve_a_market() {
+    let policy = CalendarManagerSettings {
+        auto_refresh_enabled: false,
+        refresh_interval_hours: 24,
+        warmup_markets: vec!["CN".to_owned()],
+        source_policies: vec![CalendarSourcePolicy {
+            market: "CN".to_owned(),
+            enabled_source_ids: vec![BUILTIN_SOURCE_ID.to_owned()],
+            fallback_to_builtin: true,
+            ..CalendarSourcePolicy::default()
+        }],
+        ..CalendarManagerSettings::default()
+    };
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-20T12:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = CalendarManager::with_clock(
+        CalendarSourceRegistry::default(),
+        None,
+        policy,
+        Arc::new(move || *now.lock().expect("fixture clock")),
+    )
+    .expect("create manager");
+    manager.start().expect("start manager");
+
+    let status = manager.status_snapshot().expect("status");
+    assert_eq!(status.markets.len(), 1);
+    let market = &status.markets[0];
+    assert_eq!(market.effective_source, BUILTIN_SOURCE_ID);
+    assert_eq!(market.effective_mode, "builtin_fallback");
+    assert_eq!(
+        market.effective_reason,
+        "current policy uses builtin_rules because no external source is enabled for this market"
+    );
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:811
+/// TestManagerStatusUsesRemoteCoverageSourceForRegularDay.
+///
+/// A fresh remote snapshot that covers the checked day but carries no special
+/// schedule for it makes the provider the *coverage* source: the mode is
+/// `remote_covered_day` and the reason spells out that the builtin template is
+/// still supplying the standard session result.
+#[test]
+fn status_credits_the_covering_provider_on_a_regular_day() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut hk = FixtureSource::new("hk_gov_1823_ical", events);
+    hk.descriptor_markets = vec!["HK".to_owned()];
+    let source = Arc::new(hk);
+    source.push(Ok(CalendarSnapshot {
+        market_code: "HK".to_owned(),
+        source_id: "hk_gov_1823_ical".to_owned(),
+        from: timestamp("2026-01-01T00:00:00+08:00"),
+        to: timestamp("2027-12-31T23:59:59+08:00"),
+        schedules: vec![TradingDaySchedule {
+            market_code: "HK".to_owned(),
+            date: timestamp("2026-06-19T00:00:00+08:00"),
+            status: "closed".to_owned(),
+            sessions: Vec::new(),
+            reason: "tuen_ng_festival".to_owned(),
+            source_id: "hk_gov_1823_ical".to_owned(),
+            observed: false,
+            updated_at: None,
+        }],
+        fetched_at: timestamp("2026-06-19T17:10:34Z"),
+        valid_until: timestamp("2026-07-19T17:10:34Z"),
+        checksum: String::new(),
+    }));
+    let mut policy = settings("hk_gov_1823_ical");
+    policy.warmup_markets = vec!["HK".to_owned()];
+    policy.source_policies[0].market = "HK".to_owned();
+    policy.source_policies[0].stale_after_hours = 168;
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-19T17:19:42Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = build_manager(source, None, policy, now);
+    manager.start().expect("start manager");
+    manager.refresh_all().expect("refresh all");
+
+    let status = manager.status_snapshot().expect("status");
+    assert_eq!(status.markets.len(), 1);
+    let market = &status.markets[0];
+    assert_eq!(market.effective_source, "hk_gov_1823_ical");
+    assert_eq!(market.effective_mode, "remote_covered_day");
+    assert_eq!(
+        market.effective_reason,
+        "a fresh source snapshot covers the checked trading day; builtin template supplies the standard session result because that date has no special override"
+    );
+    // The provider's own holiday is still the answer for that date.
+    let schedule = manager
+        .schedule("HK", timestamp("2026-06-19T12:00:00+08:00"))
+        .expect("remote schedule")
+        .expect("schedule");
+    assert_eq!(schedule.source_id, "hk_gov_1823_ical");
+    assert_eq!(schedule.status, "closed");
+    assert_eq!(schedule.reason, "tuen_ng_festival");
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:917
+/// TestManagerCurrentTimeNormalizesInjectedClockToUTC.
+///
+/// The injected clock is always read through the manager's UTC-normalizing
+/// accessor: an in-process clock in UTC+8 at 09:30 must be reported as 01:30Z,
+/// so persisted and projected timestamps do not depend on the host locale.
+#[test]
+fn injected_clock_is_normalized_to_utc_for_projected_timestamps() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let source = Arc::new(FixtureSource::new("official", events));
+    // 09:30 in a UTC+8 clock is 01:30Z on the same date.
+    let local = OffsetDateTime::parse(
+        "2026-06-20T09:30:00+08:00",
+        &time::format_description::well_known::Rfc3339,
+    )
+    .expect("clock");
+    let manager = build_manager(
+        source,
+        None,
+        settings("official"),
+        Arc::new(Mutex::new(local)),
+    );
+    manager.start().expect("start manager");
+    manager.refresh_market("US").expect("refresh");
+
+    let status = manager.status_snapshot().expect("status");
+    assert_eq!(
+        status.markets[0].checked_at, "2026-06-20T01:30:00Z",
+        "the projected instant is UTC-normalized"
+    );
+    let source_row = manager
+        .source_statuses()
+        .expect("source statuses")
+        .into_iter()
+        .find(|status| status.source_id == "official")
+        .expect("provider status");
+    assert_eq!(
+        source_row.last_failure_at.as_deref(),
+        Some("2026-06-20T01:30:00Z"),
+        "recorded failure instants are UTC-normalized too"
+    );
+    manager.close().expect("close manager");
 }

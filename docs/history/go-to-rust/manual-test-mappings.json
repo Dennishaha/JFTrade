@@ -20916,74 +20916,74 @@
     "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:393:TestManagerProbeMarksHealthySources": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::probe_marks_a_productive_provider_healthy_with_its_market_and_count",
+    "conclusion": "function_exact：Go 的成功的 probe（解析到 >=1 条日程）把 source 标记 healthy，并在状态上记录 probe 时间/市场/解析条数。测试断言 probe_all 的 healthy=1/failures=0、results[0].status=healthy、schedules_parsed=1，以及 last_probe_status=healthy、last_probe_schedules=1、last_probe_market=US、last_probe_at/last_probe_success_at 非空、health_state=healthy；同时断言成功的 probe 不会伪造快照（snapshots 为空）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(probe_marks_a_productive_provider_healthy_with_its_market_and_count)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:444:TestManagerProbeMarksEmptyParsesUnhealthy": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::probe_treats_an_empty_parse_as_structure_changed_unhealthy",
+    "conclusion": "function_exact：Go 对「抓取成功但零日程」判为 structure_changed 不健康，错误文本固定为 no schedules parsed。测试断言 failures=1/healthy=0、结果 status=unhealthy 且 error=no schedules parsed、last_probe_status=unhealthy、last_probe_error=no schedules parsed、health_state=unhealthy、health_fingerprint=hk_gov_1823_ical|HK|structure_changed|structure_changed、last_alert_status=triggered。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(probe_treats_an_empty_parse_as_structure_changed_unhealthy)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:488:TestManagerRefreshTreatsEmptyParsesAsFailureAndAlerts": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::refresh_treats_an_empty_parse_as_structure_changed_failure",
+    "conclusion": "function_exact（真实修复）：Go 的 refresh 路径对零日程按 structure_changed 处理：failures=1、provider 置 unhealthy、并发 structure_changed 告警（WithAlertSink）。Rust 原先只有一个 record_failure，抓取/结构失败只写 last_error 与退避，**从不写 health_state/health_fingerprint/last_alert***。现按 Go 拆成 record_operation_failure（只记错误+退避，store/恢复类失败，如 Go 的 recordOperationFailure）与 record_source_failure（额外置 unhealthy 并按 sourceAlertFingerprint 去重告警），并新增 source_alert_fingerprint helper（structure_changed → 固定详情；含 context canceled/deadline/client.timeout exceeded 归并为 network_timeout_or_cancelled）。测试断言 failures=1、last_error=no schedules parsed、health_state=unhealthy、health_fingerprint=nyse_official|US|structure_changed|structure_changed、last_alert_status=triggered、last_alert_fingerprint 与 health_fingerprint 相同、快照未入缓存且当天回退 builtin。探针：把 kind 固定成 fetch_failed → 失败并已回滚。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(refresh_treats_an_empty_parse_as_structure_changed_failure)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:543:TestManagerSourceAlertsDeduplicateAndRecover": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::source_alerts_deduplicate_repeats_and_record_recovery",
+    "conclusion": "function_exact：Go 的三次同因失败只产生一次告警，恢复时再产生 recovered 告警。测试断言首次失败后 health_state=unhealthy/health_fingerprint=hk_gov_1823_ical|HK|fetch_failed|temporary fetch failure/last_alert_status=triggered；第二次同因失败 fingerprint 与 last_alert_at 都不变（去重）；成功 probe 后 health_state=healthy、fingerprint 清空、last_error 清空、consecutive_failures=0、next_refresh_at=None，且 last_alert_status=recovered 且 last_alert_fingerprint 保留恢复前的 fingerprint。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(source_alerts_deduplicate_repeats_and_record_recovery)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:613:TestManagerSourceAlertsDeduplicateNetworkTimeoutVariants": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::network_timeout_variants_share_one_alert_fingerprint",
+    "conclusion": "function_exact：Go 把 context.Canceled / context.DeadlineExceeded / 含 client.timeout exceeded 的 HTTP 错误三种变体归并成同一个 network_timeout_or_cancelled 指纹，避免一次故障产生三条告警。测试连续注入三种文本，断言每轮 health_fingerprint 与 last_alert_fingerprint 都是 nyse_official|US|fetch_failed|network_timeout_or_cancelled、health_state=unhealthy、last_alert_status=triggered。注意 Rust 额外有退避门，需每轮推进时钟越过 24h 才真正触达 provider（已在测试注明）。探针：把归并条件改成永不匹配 → 失败（指纹退化成原始错误文本）并已回滚。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(network_timeout_variants_share_one_alert_fingerprint)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:670:TestManagerProbeRecoveryClearsCurrentFetchError": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::successful_probe_recovery_clears_the_recorded_fetch_failure",
+    "conclusion": "function_exact：Go 的抓取失败留下 unhealthy+lastError+NextRefreshAt，随后成功的 probe 必须把 health 置 healthy、清空 LastError/LastProbeError、ConsecutiveFailures 归零、NextRefreshAt 归零。测试逐项断言这套恢复语义（并在失败阶段先断言 last_error 非空且 next_refresh_at 存在）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(successful_probe_recovery_clears_the_recorded_fetch_failure)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:736:TestSourceRegistryHonorsPreferredSourceOrder": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::source_registry_honours_preferred_order_over_registration_order",
+    "conclusion": "function_exact：Go 先注册 b 再注册 a，但 policy 偏好 a，OrderedSources 必须给出 [a, b]。Rust 的 ordered_source_ids 是私有方法，因此测试通过真实 refresh 路径观察顺序：新增 RecordingOrderSource fixture 记录被 fetch 的顺序，断言为 [a, b]。（原实现试探性地直接调用私有方法，编译失败后改为黑盒断言。）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(source_registry_honours_preferred_order_over_registration_order)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:751:TestManagerSourcesExposeAvailabilityNotes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::every_source_row_exposes_an_availability_note",
+    "conclusion": "function_exact（含边界说明）：Go 的 Sources() 每行都有 availabilityNote，包括 HK iCal、内地通告与 builtin/manual。Rust 的 manager 只列出 builtin/manual 与其注册表里的 source（注入 registry 会替换 curated 集合——这正是冻结 fixture calendar-status.json 锁定的行为），因此测试分两半断言：manager 实际列出的每一行都有非空 note；同时 default_source_descriptors + source_availability_note 仍完整保留 nyse_official/nasdaq_verifier/hk_gov_1823_ical/mainland_official_notice 的 curated 描述与说明。结论中记录该结构性差异：Rust 没有 HTTP adapter，所以 curated 远端 source 不作为运行行出现。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(every_source_row_exposes_an_availability_note)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:779:TestManagerStatusExplainsBuiltinEffectiveReason": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::status_explains_why_builtin_rules_serve_a_market",
+    "conclusion": "function_exact：某市场只启用 builtin_rules 时，Status() 必须说明原因就是「本市场没有启用任何外部 source」。测试断言 effective_source=builtin_rules、effective_mode=builtin_fallback、effective_reason 与 Go 文案逐字一致：current policy uses builtin_rules because no external source is enabled for this market。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(status_explains_why_builtin_rules_serve_a_market)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:811:TestManagerStatusUsesRemoteCoverageSourceForRegularDay": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::status_credits_the_covering_provider_on_a_regular_day",
+    "conclusion": "function_exact：新鲜远端快照覆盖当天但没有当天特殊日程时，provider 是 coverage source：effective_mode=remote_covered_day 且 reason 逐字为「a fresh source snapshot covers the checked trading day; builtin template supplies the standard session result because that date has no special override」，而 provider 自己提供的特殊日程仍优先回答该日期。测试用 HK（+08:00）fixture 断言这三件事。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(status_credits_the_covering_provider_on_a_regular_day)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:876:TestSnapshotCacheKeyUsesMarketLocalYear": {
     "status": "[x]",
@@ -21000,11 +21000,11 @@
     "evidence_type": "missing"
   },
   "internal/exchangecalendar/manager_test.go:917:TestManagerCurrentTimeNormalizesInjectedClockToUTC": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::injected_clock_is_normalized_to_utc_for_projected_timestamps",
+    "conclusion": "function_exact（真实修复）：Go 的 currentTime() 把注入时钟统一 .UTC()，所以 UTC+8 的 09:30 被投影为 01:30Z。Rust 的 ManagerInner::now() 原先直接返回时钟值、不做偏移归一，注入带偏移的时钟会让 checkedAt/lastFailureAt 携带 +08:00。现 now() 改为 (self.clock)().to_offset(UtcOffset::UTC)。测试断言 status.markets[0].checked_at=2026-06-20T01:30:00Z 且 source 行的 last_failure_at 同样是 01:30:00Z。探针：还原 now() → left 2026-06-20T09:30:00+08:00 / right 01:30:00Z，失败并已回滚。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(injected_clock_is_normalized_to_utc_for_projected_timestamps)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/source_health_status_test.go:17:TestRefreshAndProbeKeepPerSourceHealthTruthful": {
     "status": "[~]",
