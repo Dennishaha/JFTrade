@@ -533,7 +533,12 @@ impl ProductionAdkPort {
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/sessions/", "/context") {
             let Some(session) = self.store.get_session(&id)? else {
-                return Err(not_found("session not found"));
+                // Go's `handleADKSessionContext` keeps the route's own code
+                // and only escalates "not found" to 404.
+                return Err(not_found_with_code(
+                    "ADK_SESSION_CONTEXT_FAILED",
+                    "session not found",
+                ));
             };
             if let Some(state) = self.store.get_session_context(&id)? {
                 return Ok(AdkReadSnapshot::Json(payload(
@@ -596,7 +601,7 @@ impl ProductionAdkPort {
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/tasks/", "") {
             let Some(row) = self.store.get_task(&id)? else {
-                return Err(not_found("task not found"));
+                return Err(not_found_with_code("ADK_TASK_NOT_FOUND", "task not found"));
             };
             return Ok(AdkReadSnapshot::Json(payload(
                 &row.payload_json,
@@ -613,7 +618,10 @@ impl ProductionAdkPort {
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/workflows/", "/triggers") {
             if self.store.get_workflow(&id)?.is_none() {
-                return Err(not_found("workflow not found"));
+                return Err(not_found_with_code(
+                    "ADK_WORKFLOW_TRIGGER_LIST_FAILED",
+                    "workflow not found",
+                ));
             }
             let values = self
                 .store
@@ -646,10 +654,16 @@ impl ProductionAdkPort {
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/workflows/", "") {
             let Some(row) = self.store.get_workflow(&id)? else {
-                return Err(not_found("workflow not found"));
+                return Err(not_found_with_code(
+                    "ADK_WORKFLOW_GET_FAILED",
+                    "workflow not found",
+                ));
             };
             if is_deleted_payload(&row.payload_json, "workflow")? {
-                return Err(not_found("workflow not found"));
+                return Err(not_found_with_code(
+                    "ADK_WORKFLOW_GET_FAILED",
+                    "workflow not found",
+                ));
             }
             return Ok(AdkReadSnapshot::Json(payload(
                 &row.payload_json,

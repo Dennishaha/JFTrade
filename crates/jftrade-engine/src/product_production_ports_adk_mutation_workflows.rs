@@ -19,6 +19,23 @@ pub(super) fn dispatch(
     input: &AdkMutationInput,
 ) -> Result<Value, AdkMutationPortError> {
     debug_assert!(handles(input.operation));
+    // Go's workflow handlers all funnel service errors through
+    // `writeWorkflowError`, which never rewrites the route's own code: a
+    // missing or deleted resource is a 404 keyed by the mutation route
+    // (`ADK_WORKFLOW_SAVE_FAILED`, `ADK_WORKFLOW_DELETE_FAILED`,
+    // `ADK_WORKFLOW_TRIGGER_SAVE_FAILED`,
+    // `ADK_WORKFLOW_TRIGGER_DELETE_FAILED`), never a resource-specific
+    // `ADK_WORKFLOW_NOT_FOUND` / `ADK_WORKFLOW_TRIGGER_NOT_FOUND`.
+    let route_code = match input.operation {
+        AdkMutationOperation::CreateWorkflow | AdkMutationOperation::UpdateWorkflow => {
+            "ADK_WORKFLOW_SAVE_FAILED"
+        }
+        AdkMutationOperation::DeleteWorkflow => "ADK_WORKFLOW_DELETE_FAILED",
+        AdkMutationOperation::CreateWorkflowTrigger
+        | AdkMutationOperation::UpdateWorkflowTrigger => "ADK_WORKFLOW_TRIGGER_SAVE_FAILED",
+        AdkMutationOperation::DeleteWorkflowTrigger => "ADK_WORKFLOW_TRIGGER_DELETE_FAILED",
+        _ => unreachable!("operation group checked before dispatch"),
+    };
     match input.operation {
         AdkMutationOperation::CreateWorkflow | AdkMutationOperation::UpdateWorkflow => {
             let is_update = input.operation == AdkMutationOperation::UpdateWorkflow;
@@ -38,13 +55,13 @@ pub(super) fn dispatch(
             if is_update {
                 let Some(existing) = existing.as_ref() else {
                     return Err(not_found_mutation(
-                        "ADK_WORKFLOW_NOT_FOUND",
+                        route_code,
                         "workflow not found",
                     ));
                 };
                 if is_deleted_payload(&existing.payload_json)? {
                     return Err(not_found_mutation(
-                        "ADK_WORKFLOW_NOT_FOUND",
+                        route_code,
                         "workflow not found",
                     ));
                 }
@@ -129,7 +146,7 @@ pub(super) fn dispatch(
                         .get_workflow(&id)
                         .map_err(storage_mutation_failed)?
                         .ok_or_else(|| {
-                            not_found_mutation("ADK_WORKFLOW_NOT_FOUND", "workflow not found")
+                            not_found_mutation(route_code, "workflow not found")
                         })?;
                     if current.updated_at != expected {
                         return Err(revision_conflict("WORKFLOW"));
@@ -140,7 +157,7 @@ pub(super) fn dispatch(
                     .get_workflow(&id)
                     .map_err(storage_mutation_failed)?
                     .ok_or_else(|| {
-                        not_found_mutation("ADK_WORKFLOW_NOT_FOUND", "workflow not found")
+                        not_found_mutation(route_code, "workflow not found")
                     })?
             } else {
                 port.store
@@ -157,13 +174,13 @@ pub(super) fn dispatch(
                 .map_err(storage_mutation_failed)?
             else {
                 return Err(not_found_mutation(
-                    "ADK_WORKFLOW_NOT_FOUND",
+                    route_code,
                     "workflow not found",
                 ));
             };
             if is_deleted_payload(&existing.payload_json)? {
                 return Err(not_found_mutation(
-                    "ADK_WORKFLOW_NOT_FOUND",
+                    route_code,
                     "workflow not found",
                 ));
             }
@@ -193,11 +210,11 @@ pub(super) fn dispatch(
                     .get_workflow(&id)
                     .map_err(storage_mutation_failed)?
                     .ok_or_else(|| {
-                        not_found_mutation("ADK_WORKFLOW_NOT_FOUND", "workflow not found")
+                        not_found_mutation(route_code, "workflow not found")
                     })?;
                 if is_deleted_payload(&current.payload_json)? {
                     return Err(not_found_mutation(
-                        "ADK_WORKFLOW_NOT_FOUND",
+                        route_code,
                         "workflow not found",
                     ));
                 }
@@ -208,7 +225,7 @@ pub(super) fn dispatch(
                 .get_workflow(&id)
                 .map_err(storage_mutation_failed)?
                 .ok_or_else(|| {
-                    not_found_mutation("ADK_WORKFLOW_NOT_FOUND", "workflow not found")
+                    not_found_mutation(route_code, "workflow not found")
                 })?;
             Ok(json!({"deleted": true, "workflow": workflow_payload(&stored)?}))
         }
@@ -220,13 +237,13 @@ pub(super) fn dispatch(
                 .map_err(storage_mutation_failed)?
             else {
                 return Err(not_found_mutation(
-                    "ADK_WORKFLOW_NOT_FOUND",
+                    route_code,
                     "workflow not found",
                 ));
             };
             if is_deleted_payload(&workflow.payload_json)? {
                 return Err(not_found_mutation(
-                    "ADK_WORKFLOW_NOT_FOUND",
+                    route_code,
                     "workflow not found",
                 ));
             }
@@ -299,13 +316,13 @@ pub(super) fn dispatch(
                 .map_err(storage_mutation_failed)?
             else {
                 return Err(not_found_mutation(
-                    "ADK_WORKFLOW_NOT_FOUND",
+                    route_code,
                     "workflow not found",
                 ));
             };
             if is_deleted_payload(&workflow.payload_json)? {
                 return Err(not_found_mutation(
-                    "ADK_WORKFLOW_NOT_FOUND",
+                    route_code,
                     "workflow not found",
                 ));
             }
@@ -315,13 +332,13 @@ pub(super) fn dispatch(
                 .map_err(storage_mutation_failed)?
             else {
                 return Err(not_found_mutation(
-                    "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                    route_code,
                     "workflow trigger not found",
                 ));
             };
             if existing.workflow_id != workflow_id || is_deleted_payload(&existing.payload_json)? {
                 return Err(not_found_mutation(
-                    "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                    route_code,
                     "workflow trigger not found",
                 ));
             }
@@ -419,13 +436,13 @@ pub(super) fn dispatch(
                     .map_err(storage_mutation_failed)?
                     .ok_or_else(|| {
                         not_found_mutation(
-                            "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                            route_code,
                             "workflow trigger not found",
                         )
                     })?;
                 if is_deleted_payload(&current.payload_json)? {
                     return Err(not_found_mutation(
-                        "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                        route_code,
                         "workflow trigger not found",
                     ));
                 }
@@ -437,7 +454,7 @@ pub(super) fn dispatch(
                 .map_err(storage_mutation_failed)?
                 .ok_or_else(|| {
                     not_found_mutation(
-                        "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                        route_code,
                         "workflow trigger not found",
                     )
                 })?;
@@ -452,13 +469,13 @@ pub(super) fn dispatch(
                 .map_err(storage_mutation_failed)?
             else {
                 return Err(not_found_mutation(
-                    "ADK_WORKFLOW_NOT_FOUND",
+                    route_code,
                     "workflow not found",
                 ));
             };
             if is_deleted_payload(&workflow.payload_json)? {
                 return Err(not_found_mutation(
-                    "ADK_WORKFLOW_NOT_FOUND",
+                    route_code,
                     "workflow not found",
                 ));
             }
@@ -468,13 +485,13 @@ pub(super) fn dispatch(
                 .map_err(storage_mutation_failed)?
             else {
                 return Err(not_found_mutation(
-                    "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                    route_code,
                     "workflow trigger not found",
                 ));
             };
             if existing.workflow_id != workflow_id || is_deleted_payload(&existing.payload_json)? {
                 return Err(not_found_mutation(
-                    "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                    route_code,
                     "workflow trigger not found",
                 ));
             }
@@ -509,13 +526,13 @@ pub(super) fn dispatch(
                     .map_err(storage_mutation_failed)?
                     .ok_or_else(|| {
                         not_found_mutation(
-                            "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                            route_code,
                             "workflow trigger not found",
                         )
                     })?;
                 if is_deleted_payload(&current.payload_json)? {
                     return Err(not_found_mutation(
-                        "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                        route_code,
                         "workflow trigger not found",
                     ));
                 }
@@ -527,7 +544,7 @@ pub(super) fn dispatch(
                 .map_err(storage_mutation_failed)?
                 .ok_or_else(|| {
                     not_found_mutation(
-                        "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                        route_code,
                         "workflow trigger not found",
                     )
                 })?;

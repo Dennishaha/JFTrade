@@ -34,7 +34,8 @@ mod support;
 
 use projection::{
     builtin_agent, builtin_skills, composer_state_value, dynamic_id, invalid_payload,
-    is_deleted_payload, normalize_memory_key, not_found, page, payload, put_string, query_param,
+    is_deleted_payload, normalize_memory_key, not_found, not_found_with_code, page, payload,
+    put_string, query_param,
     session_entity_value, timeline_value, workflow_trigger_value,
 };
 use support::{allowed_modes, helper_provider, is_provider_dynamic_adapter};

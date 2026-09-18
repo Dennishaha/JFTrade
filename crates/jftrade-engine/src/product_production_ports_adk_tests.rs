@@ -3265,6 +3265,57 @@ fn adk_skill_install_and_uninstall_failures_keep_the_go_codes() {
     }
 }
 
+/// Parity: go:452dea11:internal/api/assistant/workflow_routes_test.go:185
+/// TestWorkflowRoutesClassifyInvalidPayloadsAndUnavailableRuns and
+/// internal/api/assistant/adk_workflow_routes_test.go:262
+/// TestADKWorkflowRoutesRejectInvalidInputs.
+///
+/// Go read handlers keep the route's own error code on a missing resource
+/// (`ADK_TASK_NOT_FOUND`, `ADK_WORKFLOW_GET_FAILED`,
+/// `ADK_WORKFLOW_TRIGGER_LIST_FAILED`, `ADK_SESSION_CONTEXT_FAILED`) instead
+/// of a generic `NOT_FOUND`.  Those resources have no Rust projection owner
+/// yet, so the production read port must not collapse them into `NOT_FOUND`.
+#[test]
+fn adk_read_resource_misses_keep_the_go_route_error_codes() {
+    let (port, _directory) = unready_adk_port();
+    for (path, code, message) in [
+        (
+            "/api/v1/adk/tasks/missing-task",
+            "ADK_TASK_NOT_FOUND",
+            "task not found",
+        ),
+        (
+            "/api/v1/adk/workflows/missing-workflow",
+            "ADK_WORKFLOW_GET_FAILED",
+            "workflow not found",
+        ),
+        (
+            "/api/v1/adk/workflows/missing-workflow/triggers",
+            "ADK_WORKFLOW_TRIGGER_LIST_FAILED",
+            "workflow not found",
+        ),
+        (
+            "/api/v1/adk/sessions/missing-session/context",
+            "ADK_SESSION_CONTEXT_FAILED",
+            "session not found",
+        ),
+    ] {
+        match port.read(path, "") {
+            Err(AdkReadSnapshotError::Failed {
+                status,
+                code: actual_code,
+                message: actual_message,
+                ..
+            }) => {
+                assert_eq!(status, 404, "path {path}");
+                assert_eq!(actual_code, code, "path {path}");
+                assert_eq!(actual_message, message, "path {path}");
+            }
+            other => panic!("expected a {code} failure for {path}, got {other:?}"),
+        }
+    }
+}
+
 /// Parity: go:452dea11:internal/api/assistant/adk_approval_test.go:282
 /// TestADKProviderDeleteRejectsReferencedProvider
 ///

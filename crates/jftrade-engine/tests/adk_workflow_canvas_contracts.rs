@@ -743,3 +743,364 @@ fn test_workflow_tools_missing_session_and_empty_payload_boundaries() {
         cluster.create_canvas_workflow(&agent_id, "ValidBoundaryWorkflow", valid_graph);
     assert!(!workflow_id.is_empty());
 }
+
+/// Parity: go:452dea11:internal/api/assistant/adk_workflow_routes_test.go:262
+/// TestADKWorkflowRoutesRejectInvalidInputs and
+/// :15 TestADKWorkflowDefinitionTriggerAndRunRoutes.
+///
+/// The Go handler classifies workflow-run failures through
+/// `writeWorkflowError`: "not found" becomes 404, "disabled"/"active" becomes
+/// 409, and everything else stays 400 - always under the route's own code.
+#[test]
+fn workflow_run_and_trigger_routes_keep_the_go_error_codes() {
+    let cluster = EngineTestCluster::new();
+
+    // A missing workflow is a 404 under the run route's own code.
+    let mut identifiers = BTreeMap::new();
+    identifiers.insert("workflowId".to_owned(), "missing-workflow".to_owned());
+    let error = cluster
+        .port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::RunWorkflow,
+            identifiers,
+            body: json!({}),
+            webhook_secret: None,
+        })
+        .expect_err("missing workflow must not run");
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 404);
+            assert_eq!(code, "ADK_WORKFLOW_RUN_FAILED");
+            assert_eq!(message, "workflow not found");
+        }
+        other => panic!("expected 404 ADK_WORKFLOW_RUN_FAILED, got {other:?}"),
+    }
+
+    // A missing trigger is a 404 under the trigger-run code, not a generic
+    // `ADK_WORKFLOW_TRIGGER_NOT_FOUND`.
+    let mut identifiers = BTreeMap::new();
+    identifiers.insert("triggerId".to_owned(), "missing-trigger".to_owned());
+    let error = cluster
+        .port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::RunWorkflowTrigger,
+            identifiers,
+            body: json!({}),
+            webhook_secret: None,
+        })
+        .expect_err("missing trigger must not run");
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 404);
+            assert_eq!(code, "ADK_WORKFLOW_TRIGGER_RUN_FAILED");
+            assert_eq!(message, "workflow trigger not found");
+        }
+        other => panic!("expected 404 ADK_WORKFLOW_TRIGGER_RUN_FAILED, got {other:?}"),
+    }
+}
+
+/// A disabled workflow and a disabled webhook trigger keep the Go status/code
+/// pair: `409 ADK_WORKFLOW_RUN_FAILED` / "workflow is disabled" and
+/// `400 ADK_WORKFLOW_WEBHOOK_FAILED` / "workflow webhook is disabled".
+#[test]
+fn disabled_workflow_and_webhook_routes_keep_the_go_error_codes() {
+    let cluster = EngineTestCluster::new();
+    let agent_id = cluster.create_agent("WorkflowRouteAgent");
+    let workflow_id = cluster.create_canvas_workflow(
+        &agent_id,
+        "DisabledWorkflow",
+        json!({
+            "version": "v1",
+            "nodes": [{"id": "start", "type": "start", "title": "Start", "data": {}}],
+            "edges": []
+        }),
+    );
+
+    // A disabled workflow refuses to run.
+    cluster
+        .port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::UpdateWorkflow,
+            identifiers: BTreeMap::from([("workflowId".to_owned(), workflow_id.clone())]),
+            body: json!({"status": "DISABLED"}),
+            webhook_secret: None,
+        })
+        .expect("disable workflow");
+    let error = cluster
+        .port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::RunWorkflow,
+            identifiers: BTreeMap::from([("workflowId".to_owned(), workflow_id.clone())]),
+            body: json!({}),
+            webhook_secret: None,
+        })
+        .expect_err("a disabled workflow must not run");
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 409);
+            assert_eq!(code, "ADK_WORKFLOW_RUN_FAILED");
+            assert_eq!(message, "workflow is disabled");
+        }
+        other => panic!("expected 409 ADK_WORKFLOW_RUN_FAILED, got {other:?}"),
+    }
+
+    // A disabled webhook trigger refuses the webhook call.
+    let mut identifiers = BTreeMap::new();
+    identifiers.insert("workflowId".to_owned(), workflow_id);
+    let created = cluster
+        .port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateWorkflowTrigger,
+            identifiers,
+            body: json!({"type": "webhook", "status": "DISABLED"}),
+            webhook_secret: None,
+        })
+        .expect("create disabled webhook trigger");
+    let trigger_id = created["trigger"]["id"]
+        .as_str()
+        .expect("trigger id")
+        .to_owned();
+    let error = cluster
+        .port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::RunWorkflowWebhook,
+            identifiers: BTreeMap::from([("triggerId".to_owned(), trigger_id)]),
+            body: json!({}),
+            webhook_secret: Some("fixture-secret".to_owned()),
+        })
+        .expect_err("a disabled webhook must not run");
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "ADK_WORKFLOW_WEBHOOK_FAILED");
+            assert_eq!(message, "workflow webhook is disabled");
+        }
+        other => panic!("expected 400 ADK_WORKFLOW_WEBHOOK_FAILED, got {other:?}"),
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/workflow_routes_test.go:185
+/// TestWorkflowRoutesClassifyInvalidPayloadsAndUnavailableRuns and
+/// `internal/api/assistant/workflow.go` `writeWorkflowError`.
+///
+/// Go keeps each workflow mutation route's own code when a resource is
+/// missing, so an absent workflow reports `ADK_WORKFLOW_SAVE_FAILED` /
+/// `ADK_WORKFLOW_DELETE_FAILED` / `ADK_WORKFLOW_TRIGGER_SAVE_FAILED` and an
+/// absent trigger reports `ADK_WORKFLOW_TRIGGER_SAVE_FAILED` /
+/// `ADK_WORKFLOW_TRIGGER_DELETE_FAILED` instead of a resource-specific
+/// `*_NOT_FOUND` code.
+#[test]
+fn workflow_mutation_routes_keep_the_go_not_found_codes() {
+    let cluster = EngineTestCluster::new();
+
+    for (operation, identifiers, expected_code, expected_message) in [
+        (
+            AdkMutationOperation::UpdateWorkflow,
+            BTreeMap::from([("workflowId".to_owned(), "missing-workflow".to_owned())]),
+            "ADK_WORKFLOW_SAVE_FAILED",
+            "workflow not found",
+        ),
+        (
+            AdkMutationOperation::DeleteWorkflow,
+            BTreeMap::from([("workflowId".to_owned(), "missing-workflow".to_owned())]),
+            "ADK_WORKFLOW_DELETE_FAILED",
+            "workflow not found",
+        ),
+        (
+            AdkMutationOperation::CreateWorkflowTrigger,
+            BTreeMap::from([("workflowId".to_owned(), "missing-workflow".to_owned())]),
+            "ADK_WORKFLOW_TRIGGER_SAVE_FAILED",
+            "workflow not found",
+        ),
+    ] {
+        let error = match cluster.port.mutate(&AdkMutationInput {
+            operation,
+            identifiers,
+            body: json!({}),
+            webhook_secret: None,
+        }) {
+            Err(error) => error,
+            Ok(value) => panic!("{operation:?} must fail on a missing workflow, got {value}"),
+        };
+        match error {
+            AdkMutationPortError::Failed {
+                status,
+                code,
+                message,
+            } => {
+                assert_eq!(status, 404, "operation {operation:?}");
+                assert_eq!(code, expected_code, "operation {operation:?}");
+                assert_eq!(message, expected_message, "operation {operation:?}");
+            }
+            other => panic!("expected {expected_code} for {operation:?}, got {other:?}"),
+        }
+    }
+
+    // An existing workflow with a missing trigger keeps the trigger route code
+    // rather than a `ADK_WORKFLOW_TRIGGER_NOT_FOUND` projection.
+    let agent_id = cluster.create_agent("WorkflowMutationRouteAgent");
+    let workflow_id = cluster.create_canvas_workflow(
+        &agent_id,
+        "ExistingWorkflow",
+        json!({
+            "version": "v1",
+            "nodes": [{"id": "start", "type": "start", "title": "Start", "data": {}}],
+            "edges": []
+        }),
+    );
+    for (operation, expected_code) in [
+        (
+            AdkMutationOperation::UpdateWorkflowTrigger,
+            "ADK_WORKFLOW_TRIGGER_SAVE_FAILED",
+        ),
+        (
+            AdkMutationOperation::DeleteWorkflowTrigger,
+            "ADK_WORKFLOW_TRIGGER_DELETE_FAILED",
+        ),
+    ] {
+        let error = match cluster.port.mutate(&AdkMutationInput {
+            operation,
+            identifiers: BTreeMap::from([
+                ("workflowId".to_owned(), workflow_id.clone()),
+                ("triggerId".to_owned(), "missing-trigger".to_owned()),
+            ]),
+            body: json!({}),
+            webhook_secret: None,
+        }) {
+            Err(error) => error,
+            Ok(value) => panic!("{operation:?} must fail on a missing trigger, got {value}"),
+        };
+        match error {
+            AdkMutationPortError::Failed {
+                status,
+                code,
+                message,
+            } => {
+                assert_eq!(status, 404, "operation {operation:?}");
+                assert_eq!(code, expected_code, "operation {operation:?}");
+                assert_eq!(
+                    message, "workflow trigger not found",
+                    "operation {operation:?}"
+                );
+            }
+            other => panic!("expected {expected_code} for {operation:?}, got {other:?}"),
+        }
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/adk_workflow_routes_test.go:15
+/// TestADKWorkflowDefinitionTriggerAndRunRoutes and
+/// internal/api/assistant/workflow_routes_test.go:14
+/// TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts.
+///
+/// A webhook trigger response carries a one-time secret and a sanitized
+/// trigger: `hasSecret` is true while the stored `secretHash` is never
+/// returned.  A wrong secret is a `401 ADK_WORKFLOW_WEBHOOK_FAILED` while the
+/// correct secret runs the workflow under a `workflow.webhook` trigger log.
+#[test]
+fn workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated() {
+    let cluster = EngineTestCluster::new();
+    let agent_id = cluster.create_agent("WebhookSecretAgent");
+    let workflow_id = cluster.create_canvas_workflow(
+        &agent_id,
+        "WebhookSecretWorkflow",
+        json!({
+            "version": "v1",
+            "nodes": [
+                {"id": "start", "type": "start", "title": "Start", "data": {}},
+                {"id": "agent", "type": "agent", "title": "Agent", "data": {"message": "hi"}}
+            ],
+            "edges": [{"id": "e1", "source": "start", "target": "agent"}]
+        }),
+    );
+
+    let created = cluster
+        .port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateWorkflowTrigger,
+            identifiers: BTreeMap::from([("workflowId".to_owned(), workflow_id.clone())]),
+            body: json!({
+                "id": "webhook-secret-trigger",
+                "type": "webhook",
+                "title": "Secret webhook",
+                "status": "ENABLED",
+                "config": {"source": "external", "unknownLegacy": true},
+            }),
+            webhook_secret: None,
+        })
+        .expect("create webhook trigger");
+    // The one-time secret key is the only non-`trigger` field in the save
+    // result envelope (Go `WorkflowTriggerSaveResult` with `omitempty`).
+    let secret = created
+        .as_object()
+        .expect("workflow trigger save result is an object")
+        .iter()
+        .find_map(|(key, value)| (key != "trigger").then(|| value.as_str()).flatten())
+        .unwrap_or_else(|| panic!("one-time webhook value missing in {created}"))
+        .to_owned();
+    assert!(!secret.is_empty(), "the one-time secret must not be empty");
+    assert_eq!(created["trigger"]["hasSecret"], true);
+    assert!(
+        created["trigger"].get("secretHash").is_none(),
+        "the stored secret hash must never leak to the wire"
+    );
+
+    // A wrong secret is rejected with the Go `401` projection.
+    let error = match cluster.port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::RunWorkflowWebhook,
+        identifiers: BTreeMap::from([(
+            "triggerId".to_owned(),
+            "webhook-secret-trigger".to_owned(),
+        )]),
+        body: json!({"inputs": {"source": "bad-secret"}}),
+        webhook_secret: Some("wrong-secret".to_owned()),
+    }) {
+        Err(error) => error,
+        Ok(value) => panic!("a wrong webhook secret must not run the workflow, got {value}"),
+    };
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 401);
+            assert_eq!(code, "ADK_WORKFLOW_WEBHOOK_FAILED");
+            assert_eq!(message, "invalid workflow webhook secret");
+        }
+        other => panic!("expected 401 ADK_WORKFLOW_WEBHOOK_FAILED, got {other:?}"),
+    }
+
+    // The correct secret runs the workflow and records a webhook trigger log.
+    let result = cluster
+        .port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::RunWorkflowWebhook,
+            identifiers: BTreeMap::from([(
+                "triggerId".to_owned(),
+                "webhook-secret-trigger".to_owned(),
+            )]),
+            body: json!({"inputs": {"source": "webhook"}}),
+            webhook_secret: Some(secret),
+        })
+        .expect("authorized webhook run");
+    assert_eq!(result["log"]["status"], "SUCCEEDED");
+    assert_eq!(result["log"]["triggerType"], "webhook");
+    assert_eq!(result["log"]["triggerId"], "webhook-secret-trigger");
+}

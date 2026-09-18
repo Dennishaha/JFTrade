@@ -38,6 +38,19 @@ pub(super) fn run_workflow(
 
 fn run_workflow_with_checkpoint(port: &ProductionAdkPort, input: &AdkMutationInput,
     queued: Option<jftrade_store_sqlite::StoredAdkWorkflowTriggerLog>) -> Result<Value, AdkMutationPortError> {
+    // Go's workflow handlers all report through `writeWorkflowError`, which
+    // keeps the route's own code and only decides the status: "not found" ->
+    // 404, "disabled"/"active" -> 409, everything else -> 400.
+    let run_code = match input.operation {
+        AdkMutationOperation::RunWorkflowTrigger => "ADK_WORKFLOW_TRIGGER_RUN_FAILED",
+        AdkMutationOperation::RunWorkflowWebhook => "ADK_WORKFLOW_WEBHOOK_FAILED",
+        _ => "ADK_WORKFLOW_RUN_FAILED",
+    };
+    let workflow_failure = |status: u16, message: &str| AdkMutationPortError::Failed {
+        status,
+        code: run_code.to_owned(),
+        message: message.to_owned(),
+    };
     let (workflow_id, trigger) = match input.operation {
         AdkMutationOperation::RunWorkflow => {
             let id = required_identifier(input, "workflowId")?;
@@ -45,24 +58,26 @@ fn run_workflow_with_checkpoint(port: &ProductionAdkPort, input: &AdkMutationInp
         }
         AdkMutationOperation::RunWorkflowTrigger | AdkMutationOperation::RunWorkflowWebhook => {
             let trigger_id = required_identifier(input, "triggerId")?;
-            let trigger = port
+            let trigger = match port
                 .store
                 .get_workflow_trigger(&trigger_id)
                 .map_err(storage_mutation_failed)?
-                .ok_or_else(|| {
-                    not_found_mutation(
-                        "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
-                        "workflow trigger not found",
-                    )
-                })?;
+            {
+                Some(trigger) => trigger,
+                // Go reports a missing webhook trigger as "workflow webhook
+                // not found" and a missing ordinary trigger as "workflow
+                // trigger not found"; both stay 404 under the route's code.
+                None if input.operation == AdkMutationOperation::RunWorkflowWebhook => {
+                    return Err(workflow_failure(404, "workflow webhook not found"));
+                }
+                None => return Err(workflow_failure(404, "workflow trigger not found")),
+            };
             if input.operation == AdkMutationOperation::RunWorkflowWebhook {
                 if !trigger.trigger_type.eq_ignore_ascii_case("WEBHOOK") {
-                    return Err(invalid_mutation_input(
-                        "workflow trigger is not a webhook trigger",
-                    ));
+                    return Err(workflow_failure(404, "workflow webhook not found"));
                 }
                 if !trigger.status.eq_ignore_ascii_case("ENABLED") {
-                    return Err(invalid_mutation_input("workflow webhook is disabled"));
+                    return Err(workflow_failure(400, "workflow webhook is disabled"));
                 }
                 let secret = input.webhook_secret.as_deref().unwrap_or_default().trim();
                 let trigger_payload =
@@ -74,24 +89,27 @@ fn run_workflow_with_checkpoint(port: &ProductionAdkPort, input: &AdkMutationInp
                 let mut digest = Sha256::new();
                 digest.update(secret.as_bytes());
                 if secret.is_empty() || encode_hex(&digest.finalize()) != expected {
-                    return Err(invalid_mutation_input("invalid workflow webhook secret"));
+                    // `handleADKWorkflowWebhook` escalates only a bad secret
+                    // to 401; every other webhook failure stays a 400.
+                    return Err(workflow_failure(401, "invalid workflow webhook secret"));
                 }
             } else if !trigger.status.eq_ignore_ascii_case("ENABLED") {
-                return Err(invalid_mutation_input("workflow trigger is disabled"));
+                return Err(workflow_failure(409, "workflow trigger is disabled"));
             }
             (trigger.workflow_id.clone(), Some(trigger))
         }
         _ => unreachable!(),
     };
-    let workflow = port
+    let workflow = match port
         .store
         .get_workflow(&workflow_id)
         .map_err(storage_mutation_failed)?
-        .ok_or_else(|| not_found_mutation("ADK_WORKFLOW_NOT_FOUND", "workflow not found"))?;
-    if !workflow.status.eq_ignore_ascii_case("ENABLED")
-        || is_deleted_payload(&workflow.payload_json)?
     {
-        return Err(invalid_mutation_input("workflow is disabled"));
+        Some(workflow) if !is_deleted_payload(&workflow.payload_json)? => workflow,
+        _ => return Err(workflow_failure(404, "workflow not found")),
+    };
+    if !workflow.status.eq_ignore_ascii_case("ENABLED") {
+        return Err(workflow_failure(409, "workflow is disabled"));
     }
     let workflow_value = decode_mutation_payload(&workflow.payload_json, "workflow")?;
     let mut inputs = workflow_value

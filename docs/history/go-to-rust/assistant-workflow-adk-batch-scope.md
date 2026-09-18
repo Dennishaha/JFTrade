@@ -120,3 +120,80 @@ ADK 读路由此前把所有行都按分页切片返回，忽略了 Go 在持久
 （1114 passed）、`jftrade-assistant`（33 passed）、`jftrade-api`（54 passed）、
 `pnpm run check:rust:architecture`、`python3 scripts/compatibility/audit_test_parity.py`
 （4451 Go / 1840 Rust，0 重复 `[x]`，0 非 function_exact 的 `[x]`）。
+
+## 第三批：Assistant/ADK workflow 路由错误码与 webhook 认证
+
+本批以 `go:452dea11` 的
+`internal/api/assistant/adk_workflow_routes_test.go` 与
+`internal/api/assistant/workflow_routes_test.go` 作为行为基线，冻结的
+`tests/fixtures/compatibility/api-transport/adk-mutations.json` /
+`adk-read.json` 作为 wire 证据，逐条核对 Go handler 的
+`writeWorkflowError` 分类规则。
+
+### 真实功能差异与修复
+
+- workflow run / trigger run / webhook 三条运行时路由原先只复用
+  `invalid_mutation_input` 与 `not_found_mutation`，错误码为
+  `ADK_WORKFLOW_TRIGGER_NOT_FOUND` / `ADK_WORKFLOW_NOT_FOUND`。Go 的
+  `writeWorkflowError` 保持路由自身 code，只决定状态：
+  "not found" -> 404，"disabled"/"active" -> 409，其余 400。已改为
+  `ADK_WORKFLOW_RUN_FAILED` / `ADK_WORKFLOW_TRIGGER_RUN_FAILED` /
+  `ADK_WORKFLOW_WEBHOOK_FAILED`，并修正 webhook 三种投影：
+  missing/non-webhook -> `404 workflow webhook not found`、disabled ->
+  `400 workflow webhook is disabled`、错误 secret -> `401 invalid workflow
+  webhook secret`（Go `handleADKWorkflowWebhook` 只把 secret 失败升到 401）。
+  回归：`workflow_run_and_trigger_routes_keep_the_go_error_codes`、
+  `disabled_workflow_and_webhook_routes_keep_the_go_error_codes`。
+- workflow CRUD 与 trigger CRUD 的 not-found 投影原先统一返回
+  `ADK_WORKFLOW_NOT_FOUND` / `ADK_WORKFLOW_TRIGGER_NOT_FOUND`，而 Go 的
+  `handleADKSaveWorkflow` / `handleADKDeleteWorkflow` /
+  `handleADKSaveWorkflowTrigger` / `handleADKDeleteWorkflowTrigger` 全部经
+  `writeWorkflowError` 传出路由级 code。已改为按 operation 选择
+  `ADK_WORKFLOW_SAVE_FAILED`、`ADK_WORKFLOW_DELETE_FAILED`、
+  `ADK_WORKFLOW_TRIGGER_SAVE_FAILED`、`ADK_WORKFLOW_TRIGGER_DELETE_FAILED`。
+  回归：`workflow_mutation_routes_keep_the_go_not_found_codes`。
+- ADK read 投影把 missing task / workflow / trigger-list / session-context
+  的资源级 404 压成通用 `NOT_FOUND`。Go 分别返回
+  `ADK_TASK_NOT_FOUND`、`ADK_WORKFLOW_GET_FAILED`、
+  `ADK_WORKFLOW_TRIGGER_LIST_FAILED`、`ADK_SESSION_CONTEXT_FAILED`
+  （`handleADKSessionContext` 同样保留路由 code）。新增
+  `product_production_ports_adk_projection.rs::not_found_with_code` 后逐条对齐。
+  回归：`adk_read_resource_misses_keep_the_go_route_error_codes`。
+- webhook 一次性 secret 生命周期补齐为函数级断言：
+  `CreateWorkflowTrigger` 返回的 `trigger` 只带 `hasSecret=true` 且不泄露
+  `secretHash`；错误 secret 为 `401 ADK_WORKFLOW_WEBHOOK_FAILED`；正确
+  secret 运行成功并写入 `triggerType=webhook` 的触发日志。回归：
+  `workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated`。
+
+### 探针验证
+
+临时改坏实现确认测试真实守卫后回滚：把 task 404 改回 `not_found` 后
+`adk_read_resource_misses_keep_the_go_route_error_codes` 失败；把 disabled
+webhook 改回 `invalid_mutation_input` 后
+`disabled_workflow_and_webhook_routes_keep_the_go_error_codes` 失败；把
+`route_code` 换成常量 `ADK_WORKFLOW_NOT_FOUND` 后
+`workflow_mutation_routes_keep_the_go_not_found_codes` 失败。
+
+### 清单状态
+
+`manual-test-mappings.json` 本批升级 4 条 `[~]` -> `[x]`（均为
+`function_exact`）：`adk_workflow_routes_test.go:15`、`:262`、
+`workflow_routes_test.go:14`、`workflow_routes_test.go:185`。
+
+验证：`cargo fmt --all`；`node scripts/quality/cargo-nextest.mjs run -p
+jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`
+（1485 passed）；`-p jftrade-api`（54 passed）；`pnpm run check:quick`；
+`pnpm run check:zero-go`；`pnpm run check:compatibility`；
+`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / 2500 Rust，
+705 function_exact，0 重复 `[x]`，0 非 function_exact 的 `[x]`）；
+`git diff --check`。`pnpm run check:rust` 的 advisories 阶段仍在干净 HEAD
+上因既有 `RUSTSEC-2026-0285`（`rustls 0.23.44`）失败，未修改 `Cargo.lock`
+规避。
+
+### 边界与保留
+
+- workflow 事件/调度触发与 background run 生命周期（`workflows_extended_test.go`、
+  `workflow_async_tools_test.go`、`workflow_lifecycle_test.go` 等）仍属
+  Go-owned Assistant runtime，本批只覆盖到达 Rust 生产端口的路由投影。
+- `internal/assistant/engine` 的 497 条 `[~]` 尚未逐条映射，是
+  Assistant/ADK 领域下一批的主要缺口。

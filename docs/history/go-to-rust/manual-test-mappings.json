@@ -301,18 +301,18 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_workflow_routes_test.go:15:TestADKWorkflowDefinitionTriggerAndRunRoutes": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs::test_schedule_trigger_creation_and_next_run_calculation；crates/jftrade-engine/src/product_production_assembly_tests.rs::tests::production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers",
-    "conclusion": "partial：workflow definition/trigger 创建与调度有证据，但 Go 断言的 workflow run 路由 + webhook（ADK_WORKFLOW_WEBHOOK_FAILED）与 trigger 日志过滤组合未逐条对齐。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::workflow_run_and_trigger_routes_keep_the_go_error_codes；crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated",
+    "conclusion": "function_exact：workflow run/trigger/webhook 路由的 404/409/400/401 状态与 code 逐条对齐 Go writeWorkflowError；webhook 一次性 secret、hasSecret 脱敏、错误 secret 401 与正确 secret 成功执行均有断言；另由 adk_workflow_scheduler_contracts.rs 与 product_production_assembly_tests.rs 覆盖 trigger 创建与调度。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_workflow_routes_test.go:262:TestADKWorkflowRoutesRejectInvalidInputs": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_cycle_detection_rejects_with_400；crates/jftrade-engine/tests/adk_workflow_canvas_adversarial.rs::test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400",
-    "conclusion": "partial：非法 workflow 图/环检测 400 有证据，但 Go 的 missing-workflow GET/run/triggers（ADK_WORKFLOW_GET_FAILED）负路径矩阵未逐条断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_read_resource_misses_keep_the_go_route_error_codes；crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::workflow_mutation_routes_keep_the_go_not_found_codes",
+    "conclusion": "function_exact：missing workflow GET/trigger-list 与 missing task/session-context 的 404 错误码逐条对齐 Go（ADK_WORKFLOW_GET_FAILED、ADK_WORKFLOW_TRIGGER_LIST_FAILED、ADK_TASK_NOT_FOUND、ADK_SESSION_CONTEXT_FAILED）；非法 payload/inputs 由 product_adk_mutation_port 的 BAD_REQUEST 消息契约覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(adk_read_resource_misses_keep_the_go_route_error_codes) or test(workflow_mutation_routes_keep_the_go_not_found_codes)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/catalog_failure_contracts_test.go:17:TestCatalogReadFaultsExposeStableAPIContracts": {
     "status": "[~]",
@@ -630,18 +630,18 @@
     "evidence_type": "missing"
   },
   "internal/api/assistant/workflow_routes_test.go:14:TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated；crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_multi_node_execution_and_context_propagation",
+    "conclusion": "function_exact：definition/trigger 创建、webhook secret 生命周期与认证、webhook 成功执行并写入 webhook 触发日志、多节点 canvas 运行均有函数级断言；Go 断言中的剩余 wire 细节由 adk_workflow_canvas_contracts 与 adk_mutations_compatibility fixture replay 共同覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(test_canvas_workflow_multi_node_execution_and_context_propagation)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/workflow_routes_test.go:185:TestWorkflowRoutesClassifyInvalidPayloadsAndUnavailableRuns": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::disabled_workflow_and_webhook_routes_keep_the_go_error_codes；crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::workflow_mutation_routes_keep_the_go_not_found_codes",
+    "conclusion": "function_exact：disabled workflow run 409、disabled webhook 400、missing trigger run 404、missing workflow/trigger mutation 404 的路由级错误码与 Go writeWorkflowError 分类一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_mutation_routes_keep_the_go_not_found_codes)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/backtest/routes_boundaries_test.go:19:TestBacktestListAndMissingResultRoutes": {
     "status": "[~]",

@@ -192,6 +192,18 @@ pub(super) fn not_found(message: &str) -> AdkReadSnapshotError {
         retry_after_seconds: None,
     }
 }
+
+/// Go's `/api/v1/adk/tasks/{taskId}` read handler rewrites any "not found"
+/// service error to `404 ADK_TASK_NOT_FOUND` / "task not found", so the
+/// projection port cannot reuse the generic `NOT_FOUND` envelope there.
+pub(super) fn not_found_with_code(code: &str, message: &str) -> AdkReadSnapshotError {
+    AdkReadSnapshotError::Failed {
+        status: 404,
+        code: code.to_owned(),
+        message: message.to_owned(),
+        retry_after_seconds: None,
+    }
+}
 pub(super) fn put_string(value: &mut Value, key: &str, value_string: String) {
     if let Value::Object(object) = value {
         object.insert(key.to_owned(), Value::String(value_string));
