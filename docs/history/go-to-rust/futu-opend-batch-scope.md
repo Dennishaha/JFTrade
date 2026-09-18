@@ -3417,3 +3417,91 @@ python3 scripts/compatibility/audit_test_parity.py
 
 结果：1773 passed / 1 skipped（新增 5 条测试，含 1 条审计约束拆分）；审计
 OK: 527 function_exact（本批 4 条 `[~]` → `[x]`）。
+
+## 批次：pkg/futu/snapshot_fallback_test.go（4 项）+ snapshot_fallback_parsing_test.go（3 项）
+
+本批把 Go 的延迟 `Qot_StockScreen`（3252）快照回退完整落到 Rust，并把 7 条
+`[~]`/missing 映射升级为 `[x]`/`function_exact`（审计 527 → 534）。
+
+| Go 测试 | 映射状态 | Rust 入口 |
+| --- | --- | --- |
+| `snapshot_fallback_test.go:18` TestStockScreenSnapshotParamsUseStrictDelayedQuoteFields | `[x]` | `snapshot_fallback.rs::tests::snapshot_fallback_params_use_strict_delayed_quote_fields` |
+| `snapshot_fallback_test.go:58` TestFutuStockScreenSnapshotFallbackUsesStaticIDsWithoutSubscription | `[x]` | `snapshot_fallback.rs::tests::futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription` + `tests/snapshot_fallback_protocol.rs::delayed_snapshot_fallback_reads_static_info_and_pages_stock_screen_without_subscribing` |
+| `snapshot_fallback_test.go:98` TestStockScreenSnapshotCoordinatorCachesRowsAndNegativeResults | `[x]` | `snapshot_fallback.rs::tests::stock_screen_snapshot_coordinator_caches_rows_and_negative_results` |
+| `snapshot_fallback_test.go:153` TestFutuStockScreenSnapshotFallbackReportsScreenErrors | `[x]` | `snapshot_fallback.rs::tests::futu_stock_screen_snapshot_fallback_reports_screen_errors` |
+| `snapshot_fallback_parsing_test.go:14` TestStockScreenFallbackWireValueHelpers | `[x]` | `snapshot_fallback.rs::tests::stock_screen_fallback_wire_value_helpers_match_go_coercions` |
+| `snapshot_fallback_parsing_test.go:93` TestStockScreenFallbackParsesRowsAndMarketGroups | `[x]` | `snapshot_fallback.rs::tests::stock_screen_fallback_parses_rows_and_market_groups` |
+| `snapshot_fallback_parsing_test.go:146` TestStockScreenFallbackCoordinatesCopiesAndErrors | `[x]` | `snapshot_fallback.rs::tests::stock_screen_fallback_cancellation_and_adapter_entry_point` |
+
+### 真实功能缺口与修复
+
+1. **延迟回退 owner 此前完全缺失（P0）**
+   - 复现：watchlist / 行情路由在 3203 快照读取失败或未返回某标的时，只能落到
+     tick 缓存，无 BasicQot 权益的标的直接报“未返回”；`rg` 确认仓库内既没有
+     `Qot_StockScreen` 回退 owner，也没有 `futu:stock-screen-delayed` 生产方。
+   - 修复：`crates/jftrade-integration-futu/src/snapshot_fallback.rs` 新增唯一
+     owner——`encode_snapshot_page`（严格延迟字段）、`OpenDSnapshotFallbackReader`
+     （3202 + 每市场分页）、`project_screen_page_at`（`source`/`session` 注记）、
+     `StockScreenSnapshotCoordinator`（15s 正/负 TTL + single-flight）、
+     `StockScreenSnapshotFallback`（适配器能力入口）。
+   - 回归：上表 6 条 Rust 测试。
+
+2. **引擎没有把延迟回退接入快照投影（P0）**
+   - 修复前：`SharedTradeReadRuntime::security_snapshots` 只有 3203 → tick 缓存两段，
+     回退能力无处安放。
+   - 修复后：新增 `product_trade_runtime_snapshot_fallback.rs`，投影函数保持
+     `source=futu:stock-screen-delayed`，并由 `security_snapshots` 在 tick 缓存之前
+     消费；`install_security_catalog_readers` 同一 OpenD 会话下安装该 owner，
+     `reset` 一并清空。
+   - 回归：`product_production_ports_trade_tests.rs::trade_runtime_security_snapshots_uses_the_delayed_fallback_for_unanswered_symbols`。
+
+3. **分页守卫散落且消息硬编码**
+   - 修复：抽出 `validate_snapshot_page`，错误信息由
+     `STOCK_SCREEN_SNAPSHOT_PAGE_SIZE` 插值，避免出现与常量不一致的文案。
+
+4. **取消语义缺失（P1）**
+   - Go 在 `singleflight` 等待上用 `select` 监听 `ctx.Done()`；Rust 原先只能死等。
+   - 修复：`StockScreenSnapshotCoordinator::query_with_cancel` 以既有的
+     `SecuritySnapshotCancelToken` 做 2ms 轮询等待，取消返回
+     `SnapshotFallbackError::Canceled`，且不打扰 leader 的物理读、
+     也不让取消者另起一次读取。
+   - 回归：`stock_screen_fallback_waiter_can_be_canceled_before_the_read_completes`。
+
+### 探针（改坏实现 → 跑测试 → 确认守卫 → 回滚）
+
+- `security_snapshots` 里把延迟回退结果集换成空 Vec
+  → `trade_runtime_security_snapshots_uses_the_delayed_fallback_for_unanswered_symbols`
+  失败：`delayed fallback resolves the first instrument: "Futu market-data router is unavailable"`。已回滚并复跑通过。
+- `delayed_snapshot_value` 把 `source` 写成 `futu:security-snapshot`
+  → 同一测试失败：`left: String("futu:security-snapshot") / right: "futu:stock-screen-delayed"`。已回滚并复跑通过。
+- `StockScreenSnapshotCoordinator::store` 只写正结果（去掉负缓存）
+  → `stock_screen_snapshot_coordinator_caches_rows_and_negative_results` 失败：
+  `second query hit the cache: left 2 / right 1`。已回滚并复跑通过。
+- `encode_snapshot_page` 删除 `simpleField=4` 的 watchlist filter
+  → `snapshot_fallback_params_use_strict_delayed_quote_fields` 失败：
+  `filter_list.len()` 为 1 而非 2。已回滚并复跑通过。
+
+### 边界与有意区分
+
+- **负结果缓存**：Go 的 `cachedStockScreenSnapshot.item` 允许 nil 并缓存 15s，
+  Rust 用 `CachedRow.item: Option<..>` 表达同一语义；失败（Err）不缓存。
+- **TTL 边界**：Go 的 `expiresAt.After(now)` 使 TTL 边界本身即过期，测试据此断言
+  半 TTL 命中、`TTL + 1ns` 过期，未引入包含式边界。
+- **市场值空间**：`Qot_StockScreen` 的市场枚举（CN/SH/SZ→3）与 `Qot_Common.QotMarket`
+  不同，`screen_market_value` 保持独立映射，未与 `market_code` 合并。
+- **无订阅**：Rust 侧不是“断言没有 Qot_Sub 调用”，而是 `SnapshotFallbackFetchPort`
+  在类型层不暴露任何订阅入口；`tests/snapshot_fallback_protocol.rs` 的 framed
+  server 另外断言请求序列里绝不出现 3001。
+- `pkg/futu/live_opend_test.go` 中依赖真实 OpenD 的 `QuerySnapshotFallback` 用例仍需
+  `JFTRADE_FUTU_LIVE_TEST=1`，不在本批。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --no-fail-fast
+cargo fmt --all --check
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：1786 passed / 1 skipped（本批新增 11 条 Rust 测试）；审计
+OK: 534 function_exact（本批 7 条 `[~]` → `[x]`）。

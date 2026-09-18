@@ -59,6 +59,7 @@ mod security_snapshot_query;
 mod session_coordinator;
 mod session_event_pump;
 mod session_resolver;
+mod snapshot_fallback;
 mod stock_screen_factors;
 mod stock_screen_query;
 mod subscription_executor;
@@ -309,9 +310,9 @@ pub use runtime_task::{
 pub use security_snapshot_coordinator::{
     CachedSecuritySnapshotReader, OpenDSecuritySnapshotBatchReader, SECURITY_SNAPSHOT_CACHE_TTL,
     SECURITY_SNAPSHOT_CALL_LIMIT, SECURITY_SNAPSHOT_CALL_WINDOW, SECURITY_SNAPSHOT_HK_BATCH_SIZE,
-    SECURITY_SNAPSHOT_OTHER_BATCH_SIZE, SecuritySnapshotBatchReader, SecuritySnapshotClock,
-    SecuritySnapshotCoordinator, SecuritySnapshotCoordinatorError, canonical_snapshot_symbols,
-    classify_security_snapshot_fetch_error, snapshot_batches,
+    SECURITY_SNAPSHOT_OTHER_BATCH_SIZE, SecuritySnapshotBatchReader, SecuritySnapshotCancelToken,
+    SecuritySnapshotClock, SecuritySnapshotCoordinator, SecuritySnapshotCoordinatorError,
+    canonical_snapshot_symbols, classify_security_snapshot_fetch_error, snapshot_batches,
 };
 pub use security_snapshot_query::{
     OpenDSecuritySnapshotReader, SecuritySnapshotQueryError, SecuritySnapshotReadPort,
@@ -332,6 +333,15 @@ pub use stock_screen_query::{
     StockScreenItem, StockScreenLimiter, StockScreenPage, StockScreenParam, StockScreenProperty,
     StockScreenPropertyParams, StockScreenQuery, StockScreenQueryError, StockScreenReadPort,
     StockScreenResult, StockScreenSecurity, StockScreenValue,
+};
+
+pub use snapshot_fallback::{
+    DelayedSnapshotItem, OpenDSnapshotFallbackReader, STOCK_SCREEN_SNAPSHOT_CACHE_TTL,
+    STOCK_SCREEN_SNAPSHOT_PAGE_SIZE, STOCK_SCREEN_SNAPSHOT_SOURCE, ScreenRow,
+    SnapshotFallbackError, SnapshotFallbackFetchPort, StockIdentity,
+    StockScreenSnapshotCoordinator, StockScreenSnapshotFallback, canonical_fallback_symbols,
+    fetch_delayed_snapshots, project_screen_page, project_screen_page_at, screen_market_value,
+    validate_snapshot_page,
 };
 pub use subscription_executor::{OpenDSubscriptionExecutor, SubscriptionExecutorError};
 pub use subscriptions::{

@@ -234,6 +234,14 @@ pub(super) fn provider_activation(
                             provider.coordinator(),
                         ),
                     )));
+                    // Go attaches the delayed StockScreen capability to the
+                    // same broker adapter that owns the BasicQot path, so the
+                    // watchlist asks one owner for both reads.
+                    trade_runtime_for_activation.set_snapshot_fallback(Some(Arc::new(
+                        jftrade_integration_futu::StockScreenSnapshotFallback::new(
+                            provider.coordinator(),
+                        ),
+                    )));
                     trade_runtime_for_activation.set_market_microstructure(Some(Arc::new(
                         jftrade_integration_futu::OpenDMarketMicrostructureReader::new(
                             provider.coordinator(),

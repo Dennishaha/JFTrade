@@ -36,6 +36,8 @@ use super::{
 };
 #[path = "product_trade_runtime_candles.rs"]
 mod product_trade_runtime_candles;
+#[path = "product_trade_runtime_snapshot_fallback.rs"]
+mod delayed_snapshot;
 #[path = "product_trade_runtime_futures.rs"]
 mod product_trade_runtime_futures;
 #[path = "product_trade_runtime_projection_values.rs"]
@@ -53,7 +55,7 @@ pub(crate) fn canonical_candle_time(value: &str, market: &str) -> String {
     product_trade_runtime_candles::canonical_candle_time(value, market)
 }
 use product_trade_runtime_projection_values::{
-    insert_rich_quote_fields, insert_rich_security_fields, security_snapshot_value,
+    insert_rich_quote_fields, security_snapshot_value,
 };
 use prediction::{
     normalize_prediction_code, normalize_prediction_data_types, prediction_provider_value,
@@ -76,6 +78,11 @@ pub(crate) struct SharedTradeReadRuntime {
     /// `product_trade_runtime_candles::set_ticker_quotes`.
     ticker_quotes: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::TickerQuoteReadPort>>>>,
     security_snapshots: Arc<RwLock<Option<Arc<dyn SecuritySnapshotReadPort>>>>,
+    /// Delayed `Qot_StockScreen` capability for symbols whose BasicQot
+    /// subscription could not be established. One owner per runtime, matching
+    /// Go's per-adapter `SnapshotFallbackSource`.
+    snapshot_fallback:
+        Arc<RwLock<Option<Arc<jftrade_integration_futu::StockScreenSnapshotFallback>>>>,
     pub(crate) future_info: Arc<RwLock<Option<Arc<dyn FutureInfoReadPort>>>>,
     pub(crate) option_expirations:
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionExpirationReadPort>>>>,
@@ -563,6 +570,13 @@ impl SharedTradeReadRuntime {
         if missing.is_empty() {
             return Ok(results);
         }
+        // Go asks the delayed adapter capability before the tick cache, so a
+        // symbol without the BasicQot entitlement still answers inside this
+        // request instead of reporting "not returned".
+        let missing = self.resolve_delayed_snapshots(&mut results, missing);
+        if missing.is_empty() {
+            return Ok(results);
+        }
         let router = match self
             .market_data_router
             .read()
@@ -584,42 +598,16 @@ impl SharedTradeReadRuntime {
             .lock()
             .map_err(|e| format!("failed to lock market-data cache: {e}"))?;
         for security in missing {
-            if let Some(val) = Self::lookup_tick_snapshot(&cache_guard, security, now_ms) {
+            if let Some(val) = delayed_snapshot::lookup_tick_snapshot(
+                &cache_guard,
+                security,
+                now_ms,
+            ) {
                 results.push(val);
             }
         }
         Ok(results)
     }
-
-fn lookup_tick_snapshot(
-    cache: &jftrade_marketdata::TickCache,
-    security: &TradeSecurity,
-    now_ms: i64,
-) -> Option<Value> {
-    let market = qot_market_label(security.market)?;
-    let instrument_id = format!("{market}.{}", security.code);
-    let tick = match cache.lookup(&instrument_id, now_ms, 30_000) {
-        CacheLookup::Fresh(tick) | CacheLookup::Stale(tick) => tick,
-        CacheLookup::Missing => return None,
-    };
-    let volume = tick.volume.as_str().parse::<serde_json::Number>().ok()?;
-    let mut snapshot = Map::from_iter([
-        ("symbol".to_owned(), Value::String(tick.instrument_id)),
-        (
-            "lastPrice".to_owned(),
-            json!(tick.price),
-        ),
-        ("volume".to_owned(), Value::Number(volume)),
-        (
-            "observedAt".to_owned(),
-            Value::String(format_unix_millis_rfc3339(tick.observed_at_ms)),
-        ),
-    ]);
-    if let Some(rich) = tick.snapshot {
-        let _ = insert_rich_security_fields(&mut snapshot, &rich);
-    }
-    Some(Value::Object(snapshot))
-}
 
     pub(crate) fn quote_snapshot(
         &self,
@@ -756,6 +744,7 @@ fn lookup_tick_snapshot(
             .clear();
         self.set_corporate_actions_reader(None);
         self.set_stock_screen_reader(None);
+        self.set_snapshot_fallback(None);
         self.set_earnings_calendar_reader(None);
         self.set_customization_readers(None, None);
         self.set_customization_writers(None, None);

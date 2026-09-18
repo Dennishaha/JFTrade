@@ -11,6 +11,7 @@ use super::market_code;
 use super::product_production_ports_trade_requests::normalize_trade_account_market;
 use jftrade_marketdata::ProviderRouter;
 use jftrade_settings::{FutuIntegrationConfig, MarketDataProvider, MarketDataProviderRuntimePort};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tempfile::tempdir;
@@ -3292,6 +3293,168 @@ fn trade_runtime_security_snapshots_falls_through_to_tick_cache_on_failure() {
         .expect("should fall through to tick cache without aborting on reader error");
     assert_eq!(snapshots.len(), 1);
     assert_eq!(snapshots[0]["symbol"], "HK.00700");
+}
+
+
+/// Loopback OpenD server that completes only the `InitConnect` handshake. The
+/// delayed fallback under test injects its own fetch port, so the coordinator
+/// exists purely to satisfy the production composition shape.
+fn loopback_coordinator_for_snapshot_fallback()
+-> Arc<Mutex<jftrade_integration_futu::OpenDSessionCoordinator>> {
+    use prost::Message;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    #[derive(Clone, PartialEq, Message)]
+    struct InitResponse {
+        #[prost(int32, optional, tag = "1")]
+        ret_type: Option<i32>,
+        #[prost(message, optional, tag = "4")]
+        s2c: Option<InitState>,
+    }
+    #[derive(Clone, PartialEq, Message)]
+    struct InitState {
+        #[prost(int32, tag = "1")]
+        server_ver: i32,
+        #[prost(uint64, tag = "3")]
+        conn_id: u64,
+    }
+
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind");
+    let address = listener.local_addr().expect("address");
+    std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let mut header = [0_u8; 44];
+        if stream.read_exact(&mut header).is_err() {
+            return;
+        }
+        let body_len = u32::from_le_bytes(header[12..16].try_into().expect("len")) as usize;
+        let mut packet = vec![0_u8; 44 + body_len];
+        packet[..44].copy_from_slice(&header);
+        if stream.read_exact(&mut packet[44..]).is_err() {
+            return;
+        }
+        let frame = jftrade_integration_futu::decode_frame(&packet).expect("init frame");
+        let body = InitResponse {
+            ret_type: Some(0),
+            s2c: Some(InitState {
+                server_ver: 1009,
+                conn_id: 7,
+            }),
+        }
+        .encode_to_vec();
+        let _ = stream.write_all(
+            &jftrade_integration_futu::encode_frame(
+                frame.header.proto_id,
+                frame.header.serial_no,
+                &body,
+            )
+            .expect("encode init response"),
+        );
+    });
+    Arc::new(Mutex::new(
+        jftrade_integration_futu::OpenDSessionCoordinator::connect(
+            jftrade_integration_futu::OpenDTcpProbeConfig::new(address, Duration::from_secs(2)),
+            Arc::new(jftrade_marketdata::MarketDataRuntimeRecorder::default()),
+            Vec::new(),
+            0,
+        )
+        .expect("managed OpenD coordinator"),
+    ))
+}
+
+#[test]
+fn trade_runtime_security_snapshots_uses_the_delayed_fallback_for_unanswered_symbols() {
+    // Parity: go:452dea11:internal/watchlist/futu/source.go:345
+    // `queryFutuSnapshotBatch`: the delayed capability answers the symbols the
+    // primary read left unresolved, and unanswered symbols stay absent.
+    let runtime = SharedTradeReadRuntime::default();
+    runtime.set_security_snapshots(Some(Arc::new(FailingSecuritySnapshotReader)));
+
+    /// Delayed OpenD reader that answers only the first A-share instrument and
+    /// records every page it is asked for.
+    #[derive(Debug)]
+    struct RecordingFallback {
+        calls: Arc<Mutex<Vec<Vec<String>>>>,
+    }
+    impl jftrade_integration_futu::SnapshotFallbackFetchPort for RecordingFallback {
+        fn static_info_ids(
+            &self,
+            symbols: &[String],
+        ) -> Result<Vec<jftrade_integration_futu::StockIdentity>, String> {
+            Ok(symbols
+                .iter()
+                .enumerate()
+                .map(|(index, symbol)| jftrade_integration_futu::StockIdentity {
+                    symbol: symbol.clone(),
+                    stock_id: index as u64 + 1,
+                    name: Some(format!("name-{symbol}")),
+                })
+                .collect())
+        }
+
+        fn stock_screen_page(
+            &self,
+            _market_value: i64,
+            stock_ids: &[u64],
+        ) -> Result<Vec<jftrade_integration_futu::ScreenRow>, String> {
+            self.calls
+                .lock()
+                .expect("calls")
+                .push(stock_ids.iter().map(|id| id.to_string()).collect());
+            Ok(stock_ids
+                .iter()
+                .filter(|id| **id == 1)
+                .map(|id| jftrade_integration_futu::ScreenRow {
+                    stock_id: *id,
+                    simple: std::collections::BTreeMap::from([(2201, 1500.0), (2203, 1490.0)]),
+                    cumulative: std::collections::BTreeMap::new(),
+                })
+                .collect())
+        }
+    }
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let reader: Arc<dyn jftrade_integration_futu::SnapshotFallbackFetchPort> =
+        Arc::new(RecordingFallback {
+            calls: Arc::clone(&calls),
+        });
+    let coordinator = loopback_coordinator_for_snapshot_fallback();
+    runtime.set_snapshot_fallback(Some(Arc::new(
+        jftrade_integration_futu::StockScreenSnapshotFallback::with_reader(
+            reader,
+            jftrade_integration_futu::StockScreenSnapshotCoordinator::new(),
+            Arc::clone(&coordinator),
+        ),
+    )));
+
+    let snapshots = runtime
+        .security_snapshots(&[
+            TradeSecurity {
+                market: 21,
+                code: "600519".to_owned(),
+            },
+            TradeSecurity {
+                market: 22,
+                code: "000001".to_owned(),
+            },
+        ])
+        .expect("delayed fallback resolves the first instrument");
+    assert_eq!(snapshots.len(), 1, "unanswered symbols are not synthesized");
+    assert_eq!(snapshots[0]["symbol"], "SH.600519");
+    assert_eq!(
+        snapshots[0]["source"],
+        jftrade_integration_futu::STOCK_SCREEN_SNAPSHOT_SOURCE
+    );
+    assert_eq!(snapshots[0]["lastPrice"], 1500.0);
+    assert_eq!(snapshots[0]["previousClose"], 1490.0);
+    assert_eq!(snapshots[0]["name"], "name-SH.600519");
+    assert_eq!(
+        calls.lock().expect("calls").len(),
+        1,
+        "both A-share instruments ride one delayed page"
+    );
+
+    coordinator.lock().expect("lock").close().expect("close");
 }
 
 #[test]
