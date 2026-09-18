@@ -9,6 +9,7 @@ fn action_request(body: &[u8]) -> MarketDataProviderActionsRequest {
     }
 }
 
+
 #[tokio::test]
 async fn normalize_instrument_resolves_cn_market_with_prefix_inference() {
     let port = ProductionMarketDataProviderActionsPort::new(None);

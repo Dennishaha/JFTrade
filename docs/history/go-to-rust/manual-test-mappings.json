@@ -1442,11 +1442,11 @@
     "evidence_type": "missing"
   },
   "internal/api/productfeatures/prediction_combo_routes_test.go:15:TestPredictionComboQuoteAcceptsContextFromQueryAndMapsFailures": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:rust:architecture",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_prediction_combo_quote.rs; crates/jftrade-engine/src/product_production_ports_market_data_actions_rfq_tests.rs::prediction_combo_quote_rejects_invalid_and_unpersistable_requests; ::prediction_combo_quote_maps_ineligibility_and_upstream_failure",
+    "conclusion": "function_exact：Go 该路由测试有三条断言，全部由 engine 的同一 owner 承接。(1) query 回填 brokerId/accountId/tradingEnvironment：`PredictionComboQuoteRequest::parse` 以 body 优先、query 补缺，测试用只带 mvc+legs 的 body + 完整 query 断言成功；(2) 非法请求 400：7 类 leg/上下文错误全部 400 BAD_REQUEST，且在 parse 阶段就被拒绝、适配器不会被调用；(3) 上游失败 502：`prediction_combo_quote_maps_ineligibility_and_upstream_failure` 用失败适配器断言 502 BROKER_FEATURE_FAILED 且保留原始消息，同时断言非 FUTUINC 与 HK 授权账户被 403 PREDICTION_MARKET_INELIGIBLE 拦截（Go 的 predictionEligibility 前置闸门）。HTTP 层不变量（JSON body 必须先通过 serde 校验，非法 body 由 `product_market_data_provider_actions_api.rs::validate_json_body` 返回 400 同 code/message）也由该模块的既有测试覆盖；engine 不重复解析业务规则。探针验证（已回滚）：把 eligibility 闸门短路为 false 后该测试以 \"HK authority must be 403\" 失败，恢复后通过。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(prediction_combo_quote)'"
   },
   "internal/api/productfeatures/prediction_combo_routes_test.go:64:TestPostQueryMapsUpstreamFailureAndRouteHelpersCoverAcceptedEnums": {
     "status": "[~]",
@@ -22288,18 +22288,18 @@
     "evidence_type": "missing"
   },
   "internal/productfeatures/prediction_quote_candle_bridge_test.go:13:TestQuotePredictionComboValidatesPersistsAndPublishesServerExpiry": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_actions.rs::prediction_combo_quote（仅透传）；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs（execution 侧 quoteExpiresAt）",
-    "conclusion": "partial（已确认 Rust 功能缺失，非本批实施）：Go 的 Service.QuotePredictionCombo 做四件 Rust 目前没有的事——(1) 校验请求上下文（accountID 非空、legs 至少 2 条、productClass=event_contract、market=US、side 合法、predictionSide 合法、ratio>0）；(2) 各 leg 归一化并计算 legsHash；(3) 通过 WithPredictionQuoteStore 持久化 quoteId/brokerId/legsHash/bidPrice/askPrice/shouldRetry；(4) 用服务端策略写 metadata.quoteExpiresAt=now+30s 与 expirySource=jftrade_policy 并附 1 条 warning。Rust 当前只有 ProductionMarketDataProviderActionsPort::prediction_combo_quote 的 provider 就绪检查 + serde 解析 + runtime 透传，既无 leg 校验、无 legsHash、无 PredictionQuoteStore 等价持久化，也无服务端 30 秒到期策略（quoteExpiresAt 只存在于 execution 订单预览路径）。补齐需要新增 engine 侧 quote store port + 持久化接线 + 到期策略 owner，并以失败回归先行；属下一批范围。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_prediction_combo_quote.rs; crates/jftrade-engine/src/product_production_ports_market_data_actions_rfq_tests.rs::prediction_combo_quote_validates_persists_and_publishes_server_expiry",
+    "conclusion": "function_exact：Rust 由 engine 独占 owner 重写同一行为。`PredictionComboQuoteRequest::parse` 归一化 brokerId/accountId/tradingEnvironment/mvc 与每条 leg（trim + 大写、productClass 缺省 event_contract、instrumentId 必须 `US.`、side 属于 BUY/SELL、predictionSide 属于 YES/NO、ratio>0），`legs_hash()` 复刻 Go `broker.PredictionQuoteLegsHash`（sha256(JSON{mvc,legs})，GoNumber 浮点保真）；`ProductionMarketDataProviderActionsPort::prediction_combo_quote` 在 provider/runtime 就绪后调用唯一适配器，用服务端时钟写 `receivedAt` 与 `quoteExpiresAt = received_at + 30s`、`expirySource = jftrade_policy`，追加 1 条 warning，并把 quoteId/broker/account/environment/mvc/legsHash/bid/ask/shouldRetry 持久化到 `execution_prediction_quotes`。测试断言 metadata 三字段、warning 数量、适配器收到的归一化载荷，并用真实 SQLite store 回读校验绑定与 30 秒窗口。探针验证（已回滚）：TTL 改 60s、legsHash 丢弃 mvc、注释掉持久化调用，各自失败，恢复后通过。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(prediction_combo_quote_validates_persists_and_publishes_server_expiry)'",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/prediction_quote_candle_bridge_test.go:61:TestQuotePredictionComboRejectsInvalidAndUnpersistableQuotes": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_actions.rs::map_prediction_combo_quote_error",
-    "conclusion": "partial（已确认 Rust 功能缺失，与 :13 同一 owner）：Go 逐个拒绝 7 类非法请求（缺失上下文、单 leg、错误 productClass、非 US 市场、错误 side、错误 predictionSide、ratio=0），全部映射 ErrInvalidQuery；随后要求 quoteId 缺失时报错、无持久化 store 时报「persistence」、store 失败时透传底层错误（disk full）、上游 RFQ 错误原样返回。Rust 目前只有 map_prediction_combo_quote_error 按错误文案分类（invalid/required/unsupported/must be → 400，not ready → 503，其它 → 502），没有任何 leg 级前置校验，也没有 quoteId 必填与 persistence 错误分支。补齐依赖 :13 的 store port 落地后一并回归。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_prediction_combo_quote.rs; crates/jftrade-engine/src/product_production_ports_market_data_actions_rfq_tests.rs::prediction_combo_quote_rejects_invalid_and_unpersistable_requests",
+    "conclusion": "function_exact：7 类非法 leg/上下文（缺失 accountId、单 leg、错误 productClass、非 US 市场、错误 side、错误 predictionSide、ratio=0）全部 400 BAD_REQUEST，且适配器不被调用（Rust 在 parse 阶段就拒绝，早于 adapter，满足 Go「invalid 请求绝不透传上游」的语义）。adapter 缺失 quoteId → 502 `BROKER_FEATURE_FAILED` 且 message 含 quoteId；缺少持久化 owner → 502 且 message 含 persistence；store 失败与上游 RFQ 失败经 `map_prediction_combo_quote_error` 保持原文本回到 502，仅 not ready 归 503。query 回填 brokerId/accountId/tradingEnvironment 在同一测试内断言。探针验证（已回滚）：允许 side=HOLD，用例失败。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(prediction_combo_quote_rejects_invalid_and_unpersistable_requests)'",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/prediction_quote_candle_bridge_test.go:137:TestPredictionPushSourceCachesFreshUniqueUpdates": {
     "status": "[x]",
@@ -26173,11 +26173,11 @@
     "evidence_type": "missing"
   },
   "internal/store/trading/submission_safety_test.go:117:TestPredictionRFQPersistsBindingExpiryAndSingleConsumption": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(trading)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/src/prediction_quote.rs; crates/jftrade-store-sqlite/tests/prediction_quote_ledger.rs::prediction_rfq_persists_binding_expiry_and_single_consumption; ::prediction_rfq_rejects_missing_expired_and_malformed_rows; ::prediction_rfq_consume_is_fenced_by_status_and_expiry_in_one_transaction",
+    "conclusion": "function_exact：Rust 在 execution-orders SQLite 库内新增 `execution_prediction_quotes`，由同一个权威写入 owner（`ExecutionOrderStore` 唯一写锁）持有，三个行为一对一：保存后按相同 broker/account/environment/mvc/legsHash 验证成功并回读 `expirySource`；跨账户或改动 mvc/legsHash、超过 expires_at、空值/非法 status 全部失败（`NotFound`/`Validation`）；消费在 `BEGIN IMMEDIATE` 单事务内以 `UPDATE ... WHERE status='active' AND expires_at > now` 围栏，相同 preview/client 重放幂等，第二个 preview 触发 `Conflict`。Go 的幂等消费与过期围栏语义均被冻结。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(prediction_rfq)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/watchlist/delete_transaction_rollback_test.go:9:TestDeleteGroupNeverPartiallyRemovesWatchlistState": {
     "status": "[~]",
@@ -31101,11 +31101,11 @@
     "evidence_type": "missing"
   },
   "pkg/broker/product_capability_contracts_test.go:11:TestPredictionQuoteLegsHashNormalizesBrokerNeutralLegs": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_prediction_combo_quote.rs::PredictionComboQuoteRequest::legs_hash; crates/jftrade-engine/src/product_production_ports_market_data_actions_rfq_tests.rs::prediction_quote_legs_hash_matches_go_normalization",
+    "conclusion": "function_exact：Go 对归一化后的 leg 计算 broker-neutral 摘要，空白/大小写不影响结果、真实改动改变结果。Rust `legs_hash` 是 64 位十六进制 sha256，测试断言大小写与空白差异下摘要相等，mvc 改变、predictionSide 改变或 leg 变更时摘要不等。历史 Go fixture 只作为冻结输入/输出证据，未重新生成。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(prediction_quote_legs_hash_matches_go_normalization)'",
+    "evidence_type": "function_exact"
   },
   "pkg/broker/product_capability_contracts_test.go:26:TestCapabilityOperationSurfaceFallbacksAndOverrides": {
     "status": "[~]",

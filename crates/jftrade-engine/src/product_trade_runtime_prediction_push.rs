@@ -52,6 +52,22 @@ impl std::fmt::Debug for PredictionPushCache {
     }
 }
 
+impl super::SharedTradeReadRuntime {
+    /// Go runs `predictionEligibility` for every `prediction.*` feature before
+    /// the adapter is reached, so the RFQ route must prove the selected account
+    /// is a FUTUINC account with US authority.  The query-based owner lives in
+    /// `product_production_ports_market_data_prediction`; this variant takes
+    /// the value the request body already normalized.
+    pub(crate) fn prediction_combo_quote_eligibility(
+        &self,
+        account_id: &str,
+    ) -> Result<String, String> {
+        let query = format!("accountId={account_id}");
+        crate::product::product_production_ports::product_production_ports_market_data_prediction::
+            prediction_account_eligibility(self, &query)
+    }
+}
+
 impl PredictionPushCache {
     #[allow(dead_code)]
     pub(crate) fn len(&self) -> usize {

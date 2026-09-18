@@ -13,6 +13,7 @@ mod execution_order;
 mod execution_order_preview;
 mod execution_order_reservation;
 mod maintenance;
+mod prediction_quote;
 mod research_preset;
 mod schema_manifest;
 mod schema_migrations;
@@ -66,6 +67,7 @@ pub use execution_order::{
 pub use execution_order_preview::StoredExecutionOrderPreview;
 pub use execution_order_reservation::{ExecutionOrderReservation, normalized_request_hash};
 pub use maintenance::ManagedDatabaseMaintenanceStore;
+pub use prediction_quote::StoredPredictionQuote;
 pub use research_preset::{
     RESEARCH_PRESET_PRODUCTION_PROFILE, RESEARCH_PRESET_TEST_CUTOVER_PROFILE,
     ResearchPresetMutation, ResearchPresetStore, ResearchPresetStoreError,

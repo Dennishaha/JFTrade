@@ -38,7 +38,7 @@ mod product_production_ports_market_data_options_strategy_spread;
 #[path = "product_production_ports_market_data_options_tests.rs"]
 mod product_production_ports_market_data_options_tests;
 #[path = "product_production_ports_market_data_prediction.rs"]
-mod product_production_ports_market_data_prediction;
+pub(crate) mod product_production_ports_market_data_prediction;
 #[path = "product_production_ports_market_data_projection.rs"]
 pub(crate) mod product_production_ports_market_data_projection;
 #[path = "product_production_ports_market_data_quote.rs"]

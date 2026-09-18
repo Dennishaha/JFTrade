@@ -1,6 +1,12 @@
 //! Production market-data provider actions adapter.
 
 #[cfg(test)]
+#[path = "product_production_ports_market_data_actions_support.rs"]
+pub(crate) mod actions_test_support;
+#[cfg(test)]
+#[path = "product_production_ports_market_data_actions_rfq_tests.rs"]
+mod rfq_tests;
+#[cfg(test)]
 #[path = "product_production_ports_market_data_actions_tests.rs"]
 mod tests;
 
@@ -9,6 +15,9 @@ use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+
+#[path = "product_prediction_combo_quote.rs"]
+mod product_prediction_combo_quote;
 
 use super::super::product_production_ports_trade::SharedTradeReadRuntime;
 use crate::product::product_active_provider_state::ActiveProviderState;
@@ -20,7 +29,7 @@ use crate::product::product_market_data_provider_actions_port::{
 };
 use crate::product::{MarketDataQuoteReadSnapshotError, MarketDataQuoteReadSnapshotPort};
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub(crate) struct ProductionMarketDataProviderActionsPort {
     quote_port: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
     trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
@@ -31,6 +40,16 @@ pub(crate) struct ProductionMarketDataProviderActionsPort {
     /// read. The cache is process-local and only stores an already-successful
     /// response, so it can never fabricate data.
     batch_snapshot_cache: Arc<Mutex<HashMap<String, (Instant, Value)>>>,
+    /// Go persists every RFQ through `WithPredictionQuoteStore` before the
+    /// market-data service returns it. The engine hands the actions port the
+    /// same leased execution-orders store that owns
+    /// `execution_prediction_quotes`, so the durable write cannot diverge from
+    /// the ledger a later parlay submission consumes.
+    prediction_quotes: Option<Arc<jftrade_store_sqlite::ExecutionOrderStore>>,
+    /// Receive clock and expiry policy, injectable so the 30 second window can
+    /// be asserted without sleeping.
+    prediction_quote_clock: PredictionQuoteClock,
+    prediction_quote_expiry: PredictionQuoteExpiry,
 }
 
 /// Go `Service.BatchSnapshots` hard-codes `3*time.Second` for the batch
@@ -40,6 +59,8 @@ const BATCH_SNAPSHOT_CACHE_TTL: Duration = Duration::from_secs(3);
 /// instrument ids before de-duplicating.
 const BATCH_SNAPSHOT_MAX_SYMBOLS: usize = 200;
 const BATCH_SNAPSHOT_MARKETS: [&str; 4] = ["HK", "US", "SH", "SZ"];
+
+use product_prediction_combo_quote::{PredictionQuoteClock, PredictionQuoteExpiry};
 
 impl std::fmt::Debug for ProductionMarketDataProviderActionsPort {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -51,7 +72,14 @@ impl std::fmt::Debug for ProductionMarketDataProviderActionsPort {
                 "has_active_provider_state",
                 &self.active_provider_state.is_some(),
             )
+            .field("has_prediction_quotes", &self.prediction_quotes.is_some())
             .finish()
+    }
+}
+
+impl Default for ProductionMarketDataProviderActionsPort {
+    fn default() -> Self {
+        Self::new(None)
     }
 }
 
@@ -62,7 +90,33 @@ impl ProductionMarketDataProviderActionsPort {
             trade_runtime: None,
             active_provider_state: None,
             batch_snapshot_cache: Arc::new(Mutex::new(HashMap::new())),
+            prediction_quotes: None,
+            prediction_quote_clock: Arc::new(current_utc_rfc3339),
+            prediction_quote_expiry: Arc::new(
+                product_prediction_combo_quote::prediction_quote_expiry,
+            ),
         }
+    }
+
+    /// Inject the receive clock so the fixed 30 second RFQ window can be
+    /// asserted without sleeping.
+    #[cfg(test)]
+    pub(crate) fn with_prediction_quote_clock(
+        mut self,
+        clock: PredictionQuoteClock,
+    ) -> Self {
+        self.prediction_quote_clock = clock;
+        self
+    }
+
+    /// Attach the leased execution-orders store that owns
+    /// `execution_prediction_quotes`.
+    pub(crate) fn with_prediction_quotes(
+        mut self,
+        prediction_quotes: Option<Arc<jftrade_store_sqlite::ExecutionOrderStore>>,
+    ) -> Self {
+        self.prediction_quotes = prediction_quotes;
+        self
     }
 
     pub(crate) fn with_trade_runtime(
@@ -274,42 +328,6 @@ impl MarketDataProviderActionsPort for ProductionMarketDataProviderActionsPort {
 }
 
 impl ProductionMarketDataProviderActionsPort {
-    fn prediction_combo_quote(
-        &self,
-        request: &MarketDataProviderActionsRequest,
-    ) -> Result<Value, MarketDataProviderActionsPortError> {
-        let snapshot = self
-            .active_provider_state
-            .as_ref()
-            .map(|state| state.snapshot());
-        if snapshot
-            .as_ref()
-            .is_none_or(|value| {
-                value.provider != Some(jftrade_settings::MarketDataProvider::Futu)
-                    || !value.opend_ready
-            })
-        {
-            return Err(MarketDataProviderActionsPortError::Unavailable(
-                "Futu prediction combo quote provider is not ready".to_owned(),
-            ));
-        }
-        let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
-            MarketDataProviderActionsPortError::Unavailable(
-                "Futu prediction combo quote runtime is not configured".to_owned(),
-            )
-        })?;
-        if !runtime.prediction_combo_quote_available() {
-            return Err(MarketDataProviderActionsPortError::Unavailable(
-                "Futu prediction combo quote adapter is not ready".to_owned(),
-            ));
-        }
-        let payload: Value = serde_json::from_slice(&request.body)
-            .map_err(|_| action_bad_request("BAD_REQUEST", "invalid prediction combo quote payload"))?;
-        runtime
-            .prediction_combo_quote(&payload)
-            .map_err(map_prediction_combo_quote_error)
-    }
-
     fn zero_dte_contracts(
         &self,
         request: &MarketDataProviderActionsRequest,

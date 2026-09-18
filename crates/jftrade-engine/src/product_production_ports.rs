@@ -74,6 +74,7 @@ pub(crate) use product_production_ports_execution::{
     BacktestMarketDataProviderState, ExecutionReconciliationWorker, ProductionBacktestPort,
     ProductionExecutionPort,
 };
+pub(crate) use product_production_ports_market_data::product_production_ports_market_data_prediction;
 pub(crate) use product_production_ports_market_data::{
     ProductionMarketDataCatalogPort, ProductionMarketDataDerivativePort,
     ProductionMarketDataNewsPort, ProductionMarketDataOptionsPort,
@@ -639,7 +640,8 @@ pub(crate) fn production_ports(
     let market_data_actions_port = Arc::new(
         ProductionMarketDataProviderActionsPort::new(Some(market_data_quote_port.clone()))
             .with_trade_runtime(config.trade_runtime.clone())
-            .with_active_provider_state(Some(Arc::clone(&active_provider_state))),
+            .with_active_provider_state(Some(Arc::clone(&active_provider_state)))
+            .with_prediction_quotes(Some(Arc::clone(&execution_store))),
     );
 
     let mut bundle = ProductionPortBundle {

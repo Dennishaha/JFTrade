@@ -4573,3 +4573,67 @@ python3 scripts/compatibility/audit_test_parity.py
    `provider_facade_*` 组（约 60 条，含 `TestEmbeddedProvider*` 与 `TestProvider*Projection`）。
 3. `internal/productfeatures` 收尾后顺序：`internal/api/assistant`（ADK）→ `internal/api` →
    `pkg/futu/live_opend_test.go`(8，需真实 OpenD，列最后)。
+
+## 批次：prediction combo quote 持久化 owner（engine + store，5 条 Go 测试升级）
+
+基线：`go` 分支 `452dea11`。范围是 `internal/productfeatures/prediction_quote_candle_bridge_test.go:13/:61`、
+`internal/store/trading/submission_safety_test.go:117`、`pkg/broker/product_capability_contracts_test.go:11`
+与 `internal/api/productfeatures/prediction_combo_routes_test.go:15`。上一批把这些条目如实保留为 `[~] partial`
+（已确认功能缺失），本批按「先失败回归、再修生产实现」的闭环补齐。
+
+### 逐项映射
+
+| Go 测试 | Rust owner 与测试 | 状态 | 结论 |
+| --- | --- | --- | --- |
+| `prediction_quote_candle_bridge_test.go:13 TestQuotePredictionComboValidatesPersistsAndPublishesServerExpiry` | `crates/jftrade-engine/src/product_prediction_combo_quote.rs`；`product_production_ports_market_data_actions_rfq_tests.rs::prediction_combo_quote_validates_persists_and_publishes_server_expiry` | `[x]` | **真实功能缺失已修复**：engine 过去只做 provider 就绪检查 + serde 解析 + runtime 透传。现在 `PredictionComboQuoteRequest::parse` 归一化上下文与每条 leg，`legs_hash()` 复刻 Go 摘要，`ProductionMarketDataProviderActionsPort::prediction_combo_quote` 用服务端时钟写 `receivedAt` / `quoteExpiresAt = received_at + 30s` / `expirySource = jftrade_policy`、追加 1 条 warning，并把报价持久化到 `execution_prediction_quotes`。测试用真实 SQLite store 回读绑定与 30 秒窗口。 |
+| `prediction_quote_candle_bridge_test.go:61 TestQuotePredictionComboRejectsInvalidAndUnpersistableQuotes` | 同上；`…_rfq_tests.rs::prediction_combo_quote_rejects_invalid_and_unpersistable_requests` | `[x]` | 7 类非法 leg/上下文在 parse 阶段即 400 且适配器不被调用；缺失 quoteId、缺失持久化 owner 均为 502（message 分别含 `quoteId` / `persistence`）；store 失败与上游失败经 `map_prediction_combo_quote_error` 保留原文（400/502/503 三档）。query 回填在同一测试内断言。 |
+| `submission_safety_test.go:117 TestPredictionRFQPersistsBindingExpiryAndSingleConsumption` | `crates/jftrade-store-sqlite/src/prediction_quote.rs`；`crates/jftrade-store-sqlite/tests/prediction_quote_ledger.rs::prediction_rfq_persists_binding_expiry_and_single_consumption` / `::prediction_rfq_rejects_missing_expired_and_malformed_rows` / `::prediction_rfq_consume_is_fenced_by_status_and_expiry_in_one_transaction` | `[x]` | **真实功能缺失已修复**：`execution_prediction_quotes` 表由唯一写入 owner（`ExecutionOrderStore` 的 `WriterLease` 锁）持有。保存后按相同 broker/account/environment/mvc/legsHash 验证成功；跨账户、改动 mvc/legsHash、过期、空值/非法 status 全部失败；消费在 `BEGIN IMMEDIATE` 单事务内以 `UPDATE … WHERE status='active' AND expires_at > now` 围栏，相同 preview/client 重放幂等，第二个 preview 消费 `Conflict`。 |
+| `product_capability_contracts_test.go:11 TestPredictionQuoteLegsHashNormalizesBrokerNeutralLegs` | `product_prediction_combo_quote.rs::PredictionComboQuoteRequest::legs_hash`；`…_rfq_tests.rs::prediction_quote_legs_hash_matches_go_normalization` | `[x]` | sha256(JSON{mvc,legs}) 64 位十六进制；空白/大小写归一化不改摘要，mvc、predictionSide、leg 变更改变摘要。历史 Go fixture 仅作冻结证据，未重新生成。 |
+| `prediction_combo_routes_test.go:15 TestPredictionComboQuoteAcceptsContextFromQueryAndMapsFailures` | `product_prediction_combo_quote.rs`；`…_rfq_tests.rs::prediction_combo_quote_rejects_invalid_and_unpersistable_requests` / `::prediction_combo_quote_maps_ineligibility_and_upstream_failure` | `[x]` | 三条路由断言全部落到 engine 同一 owner：query 回填上下文成功、非法请求 400、上游失败 502 `BROKER_FEATURE_FAILED`（保留适配器原文）；额外断言 HK 授权与非 FUTUINC 账户为 403 `PREDICTION_MARKET_INELIGIBLE` 且适配器不被调用。HTTP 层 JSON 校验不变量由 `product_market_data_provider_actions_api.rs::validate_json_body` 既有测试承接。 |
+
+### 生产改动
+
+- 新增 `crates/jftrade-engine/src/product_prediction_combo_quote.rs`：请求解析/归一化、`legs_hash()`、
+  `PREDICTION_QUOTE_TTL_SECONDS = 30`、`PREDICTION_QUOTE_EXPIRY_SOURCE = "jftrade_policy"`、
+  `prediction_quote_expiry()`、`prediction_combo_quote` 端口实现与错误映射。
+- 新增 `crates/jftrade-store-sqlite/src/prediction_quote.rs`：`StoredPredictionQuote` 与
+  `save_prediction_quote` / `validate_prediction_quote` / `consume_prediction_quote` 三个操作，
+  全部在 `ExecutionOrderStore` 唯一写锁下；`crates/jftrade-store-sqlite/src/lib.rs` 导出。
+- `product_production_ports_market_data_actions.rs` 挂载 `prediction_quotes` / `prediction_quote_clock` /
+  `prediction_quote_expiry` 字段与 `with_prediction_quotes()`、`#[cfg(test)] with_prediction_quote_clock()`；
+  `product_production_ports.rs` 生产装配接入 execution store；
+  `product_trade_runtime_prediction_push.rs` 新增 `prediction_combo_quote_eligibility`（把 eligibility helper
+  移出 projection 文件以满足 800 行上限）。
+- 测试夹具拆到 `product_production_ports_market_data_actions_support.rs`（含 `failing_combo_quote_port`），
+  新测试放在 `product_production_ports_market_data_actions_rfq_tests.rs`（5 个测试）。
+
+### 探针（改坏 → 失败 → 还原 → 通过）
+
+- TTL 由 30s 改为 60s → 到期断言失败。
+- `legs_hash()` 丢弃 `mvc` → 摘要归一化断言失败。
+- 注释掉 `save_prediction_quote` 调用 → store 回读断言失败。
+- 允许 `side = HOLD` → 非法请求用例失败。
+- eligibility 闸门短路为 `false` → `HK authority must be 403, got Ok(...)` 失败，恢复后通过。
+
+### 验证
+
+```bash
+cargo fmt --all
+cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api -p jftrade-store-sqlite -p jftrade-integration-futu -p jftrade-trading --all-targets --locked --no-fail-fast
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+- `jftrade-engine` + `jftrade-store-sqlite`：1411 passed，0 failed。
+- 宽范围（engine/api/store/integration-futu/trading）：2077 passed，1 skipped。
+- 审计：4451 Go 测试，`function_exact` 637 → 642，0 nonexistent crate，`[x]` 缺 `function_exact` 为 0，
+  `partial` 无解析测试由 7 降到 5（剩余为已确认缺口，非本批失败）。
+
+### 下一批（provider facade 投影组）
+
+1. `internal/api/productfeatures/provider_research_routes_test.go`（9 条，含 6 条 `TestEmbeddedProvider*`）。
+2. `internal/api/productfeatures/research_screen_test.go`（10 条，含 embedded provider catalog/post/conflict 矩阵）。
+3. `internal/api/productfeatures/routes_test.go`（4 条路由 wire/错误映射）。
+4. 判定 akshare + yfinance embedded facade 在 Rust 的架构边界（embedded provider 是否由 engine 直接持有，
+   还是归 integration crate），逐条给出 `[x]` 或边界保留结论。
