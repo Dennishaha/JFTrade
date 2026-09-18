@@ -1,8 +1,135 @@
 use super::*;
 use crate::product::product_production_ports::SharedTradeReadRuntime;
-use jftrade_integration_futu::{PredictionMarketReadError, PredictionMarketSubscriptionPort};
+use jftrade_integration_futu::{
+    PredictionMarketReadError, PredictionMarketSubscriptionPort, TradeAccountSnapshot,
+    TradeCashFlowSnapshot, TradeFillSnapshot, TradeFundsSnapshot, TradeHeader,
+    TradeMarginRatioSnapshot, TradeMaxTradeQuantityRequest, TradeMaxTradeQuantitySnapshot,
+    TradeOrderFeeSnapshot, TradeOrderSnapshot, TradePositionSnapshot, TradeSecurity,
+    TradeSessionError,
+};
 use serde_json::json;
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+/// Account discovery double for the prediction eligibility gate.  The gate is
+/// owned by the shared prediction eligibility helper, so the subscription
+/// fixtures must expose the same `FUTUINC`/US account that Go's
+/// `featureBroker` discovery returns.
+#[derive(Debug, Default)]
+struct EligibleAccounts {
+    accounts: Vec<TradeAccountSnapshot>,
+}
+
+impl EligibleAccounts {
+    fn futu_inc(acc_id: u64) -> Self {
+        Self {
+            accounts: vec![TradeAccountSnapshot {
+                trd_env: 1,
+                acc_id,
+                trd_market_auth_list: vec![11],
+                acc_type: None,
+                card_num: None,
+                security_firm: Some(2),
+                sim_acc_type: None,
+                uni_card_num: None,
+                acc_status: None,
+                acc_role: None,
+                jp_acc_type: Vec::new(),
+                competition_acc_name: None,
+            }],
+        }
+    }
+}
+
+fn unused_session() -> TradeSessionError {
+    TradeSessionError::Unsupported("unused".to_owned())
+}
+
+impl jftrade_integration_futu::TradeReadPort for EligibleAccounts {
+    fn read_accounts(
+        &self,
+        _: u64,
+        _: Option<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+        Ok(self.accounts.clone())
+    }
+
+    fn read_funds(
+        &self,
+        _: TradeHeader,
+        _: Option<bool>,
+        _: Option<i32>,
+        _: Option<i32>,
+    ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+        Err(unused_session())
+    }
+
+    fn read_cash_flows(
+        &self,
+        _: TradeHeader,
+        _: String,
+        _: Option<i32>,
+    ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+        Err(unused_session())
+    }
+
+    fn read_order_fees(
+        &self,
+        _: TradeHeader,
+        _: Vec<String>,
+    ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+        Err(unused_session())
+    }
+
+    fn read_margin_ratios(
+        &self,
+        _: TradeHeader,
+        _: Vec<TradeSecurity>,
+    ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+        Err(unused_session())
+    }
+
+    fn read_max_trade_quantity(
+        &self,
+        _: TradeMaxTradeQuantityRequest,
+    ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+        Err(unused_session())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn read_positions(
+        &self,
+        _: TradeHeader,
+        _: Option<jftrade_integration_futu::TradeFilter>,
+        _: Option<f64>,
+        _: Option<f64>,
+        _: Option<bool>,
+        _: Option<i32>,
+        _: Option<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+        Err(unused_session())
+    }
+
+    fn read_orders(
+        &self,
+        _: TradeHeader,
+        _: Option<jftrade_integration_futu::TradeFilter>,
+        _: Vec<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        Err(unused_session())
+    }
+
+    fn read_fills(
+        &self,
+        _: TradeHeader,
+        _: Option<jftrade_integration_futu::TradeFilter>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        Err(unused_session())
+    }
+}
 
 #[derive(Debug, Default)]
 struct PredictionFixture {
@@ -44,6 +171,7 @@ fn prediction_subscription_uses_reference_counted_leases() {
     let active = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
     active.set_readiness(false, true, false);
     let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(EligibleAccounts::futu_inc(7))), Some(true));
     let fixture = Arc::new(PredictionFixture::default());
     runtime.set_prediction_adapters(None, Some(fixture.clone()), None);
     let port = ProductionMarketDataSubscriptionMutationPort::new(active, None, None)
@@ -73,6 +201,71 @@ fn prediction_subscription_uses_reference_counted_leases() {
     assert_eq!(fixture.unsubscribes.load(Ordering::SeqCst), 1);
 }
 
+/// Parity: go:452dea11:internal/productfeatures/service_test.go:12
+/// TestPredictionEligibilityRejectsFutuSecuritiesAndAcceptsFutuInc (subscription path)
+///
+/// Go's `AcquirePredictionSubscription` resolves the broker capability and then
+/// runs `predictionEligibility`, so a FUTUSECURITIES/HK account never reaches
+/// `SubscribePredictionMarket`.  The read route and this mutation route share
+/// one eligibility owner, so the account gate must answer 403 with the
+/// `PREDICTION_MARKET_INELIGIBLE` wire code before OpenD is touched.
+#[test]
+fn prediction_subscription_rejects_an_ineligible_account_before_subscribing() {
+    let active = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    active.set_readiness(false, true, false);
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(
+        Some(Arc::new(EligibleAccounts {
+            accounts: vec![TradeAccountSnapshot {
+                trd_env: 1,
+                acc_id: 9,
+                trd_market_auth_list: vec![1],
+                acc_type: None,
+                card_num: None,
+                security_firm: Some(1),
+                sim_acc_type: None,
+                uni_card_num: None,
+                acc_status: None,
+                acc_role: None,
+                jp_acc_type: Vec::new(),
+                competition_acc_name: None,
+            }],
+        })),
+        Some(true),
+    );
+    let fixture = Arc::new(PredictionFixture::default());
+    runtime.set_prediction_adapters(None, Some(fixture.clone()), None);
+    let port = ProductionMarketDataSubscriptionMutationPort::new(active, None, None)
+        .with_trade_runtime(Some(runtime));
+    let mut request = prediction_request(
+        "POST",
+        "/api/v1/market-data/prediction/contracts/EC-42/subscriptions",
+        br#"{"dataTypes":["ORDER_BOOK"]}"#,
+    );
+    request.query = "accountId=9".to_owned();
+    match port.dispatch(&request) {
+        Err(MarketDataSubscriptionMutationPortError::Failed {
+            status,
+            code,
+            message,
+            ..
+        }) => {
+            assert_eq!(status, 403);
+            assert_eq!(code, "PREDICTION_MARKET_INELIGIBLE");
+            assert!(
+                message.starts_with("prediction market requires an eligible Moomoo US account"),
+                "message = {message}"
+            );
+        }
+        other => panic!("expected the 403 ineligible failure, got {other:?}"),
+    }
+    assert_eq!(
+        fixture.subscribes.load(Ordering::SeqCst),
+        0,
+        "an ineligible account must not reach the OpenD subscription"
+    );
+}
+
 #[test]
 fn prediction_subscription_rejects_invalid_types_and_unready_provider() {
     let active = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
@@ -89,6 +282,175 @@ fn prediction_subscription_rejects_invalid_types_and_unready_provider() {
     assert!(matches!(
         port.dispatch(&request),
         Err(MarketDataSubscriptionMutationPortError::Unavailable(_))
+    ));
+}
+
+/// Parity: go:452dea11:internal/productfeatures/service_test.go:243
+/// TestProductFeatureServiceExhaustiveFailureAndNormalizationBranches (prediction part)
+///
+/// Go rejects an empty/`.`-only prediction instrument and a blank lease id with
+/// `ErrInvalidQuery`, and an empty `dataTypes` list can never produce a lease.
+/// The Rust subscription mutation port maps those owner errors onto 400
+/// `BAD_REQUEST` before any OpenD call.
+#[test]
+fn prediction_subscription_rejects_invalid_instrument_types_and_lease_ids() {
+    let active = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    active.set_readiness(false, true, false);
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(EligibleAccounts::futu_inc(7))), Some(true));
+    let fixture = Arc::new(PredictionFixture::default());
+    runtime.set_prediction_adapters(None, Some(fixture.clone()), None);
+    let port = ProductionMarketDataSubscriptionMutationPort::new(active, None, None)
+        .with_trade_runtime(Some(runtime));
+
+    // Go `normalizePredictionInstrumentID` trims/case-folds and strips a `US.`
+    // prefix; only an empty result is invalid. `""`, `" "` and `"US."` all
+    // normalize to empty, so each must be rejected with `ErrInvalidQuery`.
+    for code in ["", "%20", "US."] {
+        let path = format!("/api/v1/market-data/prediction/contracts/{code}/subscriptions");
+        let error = port
+            .dispatch(&prediction_request(
+                "POST",
+                &path,
+                br#"{"dataTypes":["ORDER_BOOK"]}"#,
+            ))
+            .expect_err("an empty prediction instrument must be rejected");
+        assert!(
+            matches!(
+                error,
+                MarketDataSubscriptionMutationPortError::Failed { status: 400, .. }
+            ),
+            "code {code:?} produced {error:?}"
+        );
+    }
+    // `"."` is *not* empty in Go: it is accepted and becomes `US..`. The Rust
+    // owner keeps that exact boundary so the wire string stays byte-identical.
+    let dot = port
+        .dispatch(&prediction_request(
+            "POST",
+            "/api/v1/market-data/prediction/contracts/./subscriptions",
+            br#"{"dataTypes":["ORDER_BOOK"]}"#,
+        ))
+        .expect("Go accepts a non-empty dot code");
+    assert_eq!(dot["instrumentId"], "US..");
+
+    // Empty and unsupported dataTypes are rejected by the same validation owner.
+    for body in [
+        br#"{"dataTypes":[]}"#.as_slice(),
+        br#"{"dataTypes":["UNKNOWN"]}"#.as_slice(),
+        br#"{}"#.as_slice(),
+    ] {
+        let error = port
+            .dispatch(&prediction_request(
+                "POST",
+                "/api/v1/market-data/prediction/contracts/EC-42/subscriptions",
+                body,
+            ))
+            .expect_err("an invalid dataTypes body must be rejected");
+        assert!(
+            matches!(
+                error,
+                MarketDataSubscriptionMutationPortError::Failed { status: 400, .. }
+            ),
+            "body produced {error:?}"
+        );
+    }
+
+    // A blank lease id is invalid, while an unknown-but-non-blank id is
+    // intentionally idempotent.
+    let blank = port
+        .dispatch(&prediction_request(
+            "DELETE",
+            "/api/v1/market-data/prediction/contracts/EC-42/subscriptions/%20",
+            b"",
+        ))
+        .expect_err("a blank lease id must be rejected");
+    assert!(matches!(
+        blank,
+        MarketDataSubscriptionMutationPortError::Failed { status: 400, .. }
+    ));
+    let unknown = port
+        .dispatch(&prediction_request(
+            "DELETE",
+            "/api/v1/market-data/prediction/contracts/EC-42/subscriptions/missing-lease",
+            b"",
+        ))
+        .expect("an unknown lease id is idempotent");
+    assert_eq!(unknown["released"], true);
+
+    // Exactly one subscribe reached OpenD: the accepted `"."` boundary above.
+    // Every invalid request was rejected by validation before the provider.
+    assert_eq!(
+        fixture.subscribes.load(Ordering::SeqCst),
+        1,
+        "only the accepted dot boundary may reach OpenD"
+    );
+}
+
+/// Parity: go:452dea11:internal/productfeatures/service_test.go:321
+/// TestProductFeaturePredictionAndCustomizationFailureBranches
+///
+/// Go hides no upstream failure: a failing `SubscribePredictionMarket` and a
+/// failing customization write both surface to the caller. The Rust
+/// subscription owner reports a provider failure as 502
+/// `BROKER_FEATURE_FAILED` while keeping the lease table untouched, which is
+/// the equivalent "no partial state on failure" contract.
+#[test]
+fn prediction_subscription_surfaces_a_provider_failure_without_retaining_a_lease() {
+    #[derive(Debug)]
+    struct FailingSubscription;
+
+    impl PredictionMarketSubscriptionPort for FailingSubscription {
+        fn subscribe(
+            &self,
+            _code: &str,
+            _data_types: &[String],
+        ) -> Result<Value, PredictionMarketReadError> {
+            Err(PredictionMarketReadError::Transport(
+                "subscription failed".to_owned(),
+            ))
+        }
+
+        fn unsubscribe(&self, _code: &str) -> Result<Value, PredictionMarketReadError> {
+            Ok(json!({"subscribed": false}))
+        }
+    }
+
+    let active = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    active.set_readiness(false, true, false);
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(EligibleAccounts::futu_inc(7))), Some(true));
+    runtime.set_prediction_adapters(None, Some(Arc::new(FailingSubscription)), None);
+    let port = ProductionMarketDataSubscriptionMutationPort::new(active, None, None)
+        .with_trade_runtime(Some(runtime));
+    let body = br#"{"dataTypes":["ticker","kline","ticker"]}"#;
+    let error = port
+        .dispatch(&prediction_request(
+            "POST",
+            "/api/v1/market-data/prediction/contracts/EC-42/subscriptions",
+            body,
+        ))
+        .expect_err("the upstream subscription failure must surface");
+    assert!(
+        matches!(
+            error,
+            MarketDataSubscriptionMutationPortError::Failed { status: 502, .. }
+        ),
+        "upstream subscription failure = {error:?}"
+    );
+
+    // A retry after the failure must still issue exactly one subscribe attempt,
+    // proving no half-written lease was retained by the failed call.
+    let retry = port
+        .dispatch(&prediction_request(
+            "POST",
+            "/api/v1/market-data/prediction/contracts/EC-42/subscriptions",
+            body,
+        ))
+        .expect_err("the provider is still failing");
+    assert!(matches!(
+        retry,
+        MarketDataSubscriptionMutationPortError::Failed { status: 502, .. }
     ));
 }
 

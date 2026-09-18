@@ -156,6 +156,65 @@ fn corporate_actions_projection_rejects_missing_events() {
     ));
 }
 
+/// Parity: go:452dea11:internal/productfeatures/service_test.go:30
+/// TestQueryDoesNotFallbackWhenBrokerIsExplicit
+///
+/// Go resolves the request against the explicit broker and returns
+/// `ErrCapabilityUnavailable` when that broker cannot serve the feature; it
+/// never falls back to another registered broker. The Rust owner is the
+/// production port's active-provider guard: an explicit `brokerId` that names a
+/// different provider must answer 409 `CAPABILITY_UNAVAILABLE` before any
+/// helper/OpenD read, which is the fail-closed equivalent of "no fallback".
+#[test]
+fn explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback() {
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Yfinance)));
+    state.set_readiness(true, false, false);
+    let port = ProductionMarketDataNewsPort {
+        active_provider_state: state,
+        helper: None,
+        trade_runtime: None,
+    };
+    for requested in ["akshare", "futu"] {
+        let error = MarketDataNewsActionsReadSnapshotPort::read(
+            &port,
+            "/api/v1/market-data/news/US/AAPL",
+            &format!("brokerId={requested}&limit=5"),
+        )
+        .expect_err("a non-active explicit broker must not fall back");
+        match error {
+            MarketDataNewsActionsReadSnapshotError::Failed {
+                status,
+                code,
+                message,
+                ..
+            } => {
+                assert_eq!(status, 409);
+                assert_eq!(code, "CAPABILITY_UNAVAILABLE");
+                assert!(
+                    message.contains("does not match active provider"),
+                    "message = {message}"
+                );
+            }
+            other => panic!("expected the capability rejection, got {other:?}"),
+        }
+    }
+
+    // The provider's own id is accepted and reaches the readiness check, which
+    // proves the guard keys on the provider identity rather than rejecting any
+    // explicit broker.
+    let error = MarketDataNewsActionsReadSnapshotPort::read(
+        &port,
+        "/api/v1/market-data/news/US/AAPL",
+        "brokerId=yfinance&limit=5",
+    )
+    .expect_err("helper is unavailable in this fixture");
+    assert!(matches!(
+        error,
+        MarketDataNewsActionsReadSnapshotError::Unavailable(message)
+            if message == "market-data helper is not configured"
+    ));
+}
+
 #[test]
 fn corporate_actions_query_requires_rfc3339_and_ascending_range() {
     let error = news_actions_helper_request(

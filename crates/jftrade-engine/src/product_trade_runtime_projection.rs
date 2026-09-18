@@ -297,6 +297,13 @@ impl SharedTradeReadRuntime {
             .is_some()
     }
 
+    /// The trade-read client that owns account discovery for prediction
+    /// eligibility.  Go resolves eligibility through `Broker.DiscoverAccounts`,
+    /// which is the same OpenD trade session the read projections use.
+    pub(crate) fn prediction_account_source(&self) -> Option<Arc<dyn TradeReadPort>> {
+        self.snapshot().client
+    }
+
     pub(crate) fn prediction_read(
         &self,
         path: &str,

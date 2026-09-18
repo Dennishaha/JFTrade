@@ -8,7 +8,15 @@ use serde_json::Value;
 
 use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::product_production_ports::SharedTradeReadRuntime;
+use crate::product::product_query::QueryMap;
 use crate::product::{MarketDataPredictionReadSnapshotError, MarketDataPredictionReadSnapshotPort};
+
+/// Go `productfeatures.ErrPredictionIneligible` message. The HTTP edge maps this
+/// sentinel to `403 PREDICTION_MARKET_INELIGIBLE`, so the text and the code are one
+/// contract shared by the read route, the extension executor and the mutation port.
+pub(crate) const PREDICTION_INELIGIBLE_MESSAGE: &str =
+    "prediction market requires an eligible Moomoo US account";
+pub(crate) const PREDICTION_INELIGIBLE_CODE: &str = "PREDICTION_MARKET_INELIGIBLE";
 
 #[derive(Debug)]
 pub(crate) struct ProductionMarketDataPredictionPort {
@@ -39,6 +47,19 @@ impl MarketDataPredictionReadSnapshotPort for ProductionMarketDataPredictionPort
                 "Futu prediction market-data runtime is not configured".to_owned(),
             )
         })?;
+        // Go `ProductFeatureService.Query` resolves the broker capability and then
+        // runs `predictionEligibility` for every `prediction.*` read before the
+        // reader runs, so an HK-authority or non-FUTUINC account can never receive
+        // prediction data. Keeping the check here gives the HTTP route, the
+        // extension executor and the subscription mutation port one owner.
+        if let Err(detail) = prediction_account_eligibility(runtime, query) {
+            return Err(MarketDataPredictionReadSnapshotError::Failed {
+                status: 403,
+                code: PREDICTION_INELIGIBLE_CODE.to_owned(),
+                message: format!("{PREDICTION_INELIGIBLE_MESSAGE}: {detail}"),
+                retry_after_seconds: None,
+            });
+        }
         if !runtime.prediction_reader_available() {
             return Err(MarketDataPredictionReadSnapshotError::Unavailable(
                 "Futu prediction market-data reader is not ready".to_owned(),
@@ -65,6 +86,63 @@ impl MarketDataPredictionReadSnapshotPort for ProductionMarketDataPredictionPort
                 }
             })
     }
+}
+
+/// Resolve the prediction account verdict the same way Go's
+/// `productfeatures.predictionEligibility` does.
+///
+/// The account id is optional: when it is absent any discovered account may
+/// satisfy the check, which is what a discovery query without a selected
+/// account relies on. Only `FUTUINC` accounts with US authority (or no
+/// authority list at all) qualify; everything else — including a discovery
+/// failure — is ineligible, because prediction data is gated on the Moomoo US
+/// entitlement and not on the market-data provider alone.
+pub(crate) fn prediction_account_eligibility(
+    runtime: &SharedTradeReadRuntime,
+    query: &str,
+) -> Result<String, String> {
+    let query_map =
+        QueryMap::parse(query).map_err(|_| "invalid prediction query encoding".to_owned())?;
+    let requested = query_map
+        .get_first("accountId")
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let client = runtime
+        .prediction_account_source()
+        .ok_or_else(|| {
+            "account eligibility could not be verified: Futu trade read client is unavailable"
+                .to_owned()
+        })?;
+    let accounts = client
+        .read_accounts(0, None, None)
+        .map_err(|error| format!("account eligibility could not be verified: {error}"))?;
+    for account in accounts {
+        let identity = super::super::product_production_ports_trade::account_identity(&account);
+        if let Some(requested) = requested
+            && identity.as_deref() != Some(requested)
+        {
+            continue;
+        }
+        let firm = account
+            .security_firm
+            .and_then(super::super::product_production_ports_trade::trade_projection::security_firm_label)
+            .unwrap_or_default();
+        if firm != "FUTUINC" {
+            continue;
+        }
+        if !account.trd_market_auth_list.is_empty()
+            && !account.trd_market_auth_list.iter().any(|market| {
+                super::super::product_production_ports_trade::trade_projection::trade_market_authority(
+                    *market,
+                )
+                .is_some_and(|label| label.eq_ignore_ascii_case("US"))
+            })
+        {
+            continue;
+        }
+        return Ok(firm.to_owned());
+    }
+    Err("no eligible Moomoo US (FUTUINC) account was found".to_owned())
 }
 
 const PREDICTION_READ_QUERY_MAX_BYTES: usize = 8 * 1024;
@@ -219,87 +297,5 @@ fn prediction_read_invalid(message: &str) -> MarketDataPredictionReadSnapshotErr
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn port(
-        provider: Option<MarketDataProvider>,
-        opend_ready: bool,
-    ) -> ProductionMarketDataPredictionPort {
-        let state = Arc::new(ActiveProviderState::new(provider));
-        state.set_readiness(false, opend_ready, false);
-        ProductionMarketDataPredictionPort {
-            active_provider_state: state,
-            trade_runtime: None,
-        }
-    }
-
-    #[test]
-    fn prediction_read_query_accepts_go_route_defaults() {
-        validate_prediction_read_request(
-            "/api/v1/market-data/prediction/events",
-            "brokerId=futu&accountId=acct-1&tradingEnvironment=SIMULATE&category=politics&pageSize=100&refresh=true",
-        ).expect("valid prediction query");
-    }
-
-    #[test]
-    fn prediction_read_query_rejects_invalid_schema_before_provider_check() {
-        let invalid = [
-            (
-                "/api/v1/market-data/prediction/events",
-                "pageSize=0",
-                "pageSize must be between 1 and 300",
-            ),
-            (
-                "/api/v1/market-data/prediction/events",
-                "refresh=maybe",
-                "refresh must be true or false",
-            ),
-            (
-                "/api/v1/market-data/prediction/events",
-                "category=%FF",
-                "invalid prediction query encoding",
-            ),
-            (
-                "/api/v1/market-data/prediction/contracts/US.EC-42/snapshot",
-                "operation=events",
-                "operation must be snapshot",
-            ),
-        ];
-        for (path, query, message) in invalid {
-            assert!(matches!(
-                validate_prediction_read_request(path, query),
-                Err(MarketDataPredictionReadSnapshotError::Invalid(actual)) if actual == message
-            ));
-        }
-    }
-
-    #[test]
-    fn prediction_read_query_rejects_invalid_path_segments() {
-        for path in [
-            "/api/v1/market-data/prediction/contracts//snapshot",
-            "/api/v1/market-data/prediction/contracts/US.EC%2F42/snapshot",
-            "/api/v1/market-data/prediction/events/EVENT%2042/contracts",
-        ] {
-            assert!(matches!(
-                validate_prediction_read_request(path, ""),
-                Err(MarketDataPredictionReadSnapshotError::Invalid(_))
-            ));
-        }
-    }
-
-    #[test]
-    fn prediction_read_port_fails_closed_for_missing_or_unready_provider() {
-        assert!(matches!(
-            port(None, false).read("/api/v1/market-data/prediction/categories", ""),
-            Err(MarketDataPredictionReadSnapshotError::Unavailable(message))
-                if message == "prediction market-data provider is not configured"
-        ));
-        assert!(matches!(
-            port(Some(MarketDataProvider::Futu), false)
-                .read("/api/v1/market-data/prediction/categories", ""),
-            Err(MarketDataPredictionReadSnapshotError::Unavailable(message))
-                if message == "Futu prediction market-data provider is not ready"
-        ));
-    }
-}
+#[path = "product_production_ports_market_data_prediction_tests.rs"]
+mod tests;

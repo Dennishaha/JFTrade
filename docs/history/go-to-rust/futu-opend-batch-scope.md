@@ -4464,3 +4464,53 @@ US authority）在 Rust 尚无对应实现，`PREDICTION_MARKET_INELIGIBLE` /
 `PREDICTION_ACCOUNT_INELIGIBLE` 在 crates 内均无字符串；`service_test.go` 批次需判定
 这是真实功能缺失还是已由账户解析路径覆盖，并据此记录修复或边界结论。
 
+## 批次：internal/productfeatures service_test.go（11 条）
+
+基线：`go` 分支 `452dea11`；范围是 `internal/productfeatures/service_test.go` 全部 11 个
+`Test*`。本批把 11 条全部升级为 `[x]` / `function_exact`，其中 4 条包含真实功能修复。
+
+### 清单
+
+| Go 测试 | Rust 证据 | 状态 | 结论 |
+| --- | --- | --- | --- |
+| `:12 TestPredictionEligibilityRejectsFutuSecuritiesAndAcceptsFutuInc` | `product_production_ports_market_data_prediction_tests.rs::prediction_eligibility_rejects_futu_securities_and_accepts_futu_inc`；`::prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority`；`::prediction_read_returns_403_for_an_ineligible_account_before_the_reader`；`product_production_ports_market_data_subscription_tests.rs::prediction_subscription_rejects_an_ineligible_account_before_subscribing` | `[x]` | **真实功能缺失已修复**：prediction 账户资格（FUTUINC + US authority）此前在 crates 内完全不存在。新增唯一 owner `prediction_account_eligibility`；读路由 403 `PREDICTION_MARKET_INELIGIBLE`，订阅路由在 OpenD subscribe 之前 fail closed。 |
+| `:30 TestQueryDoesNotFallbackWhenBrokerIsExplicit` | `product_production_ports_market_data_news_tests.rs::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback` | `[x]` | 按 Rust 架构等价重写：显式 broker 与 active provider 不一致即 409 `CAPABILITY_UNAVAILABLE`，不回退；provider 自身 id 通过守卫。 |
+| `:46 TestBatchSnapshotsUsesOptionalSourceWithoutSubscriptions` | `product_production_ports_market_data_actions_tests.rs::batch_snapshots_normalize_deduplicate_and_serve_the_short_lived_cache` | `[x]` | **真实功能缺失已修复**：batch snapshots 缺 3 秒缓存与 `metadata.fromCache`。新增 `batch_snapshot_cache` + `BATCH_SNAPSHOT_CACHE_TTL=3s`；同时断言去重、`subscriptionCreated=false`、`explicit_broker`/`active_provider`。 |
+| `:82 TestBatchSnapshotsRejectsUnsupportedRegionsAndOversizedRequests` | `product_production_ports_market_data_actions_tests.rs::batch_snapshots_reject_unsupported_markets_and_oversized_requests` | `[x]` | **真实功能缺失已修复**：Rust 原先静默把裸代码补成 `US.<code>`、不校验前缀、无 200 上限。新增 `BATCH_SNAPSHOT_MAX_SYMBOLS=200` 与 HK/US/SH/SZ 白名单，均在触达 provider 之前拒绝。 |
+| `:99 TestPredictionSubscriptionLeasesReferenceCountVisibleContracts` | `product_production_ports_market_data_subscription_tests.rs::prediction_subscription_uses_reference_counted_leases` | `[x]` | 租约引用计数已对齐（不同 leaseId、subscribe=1、最后一次 release 才 unsubscribe、重复释放幂等）；本批把夹具升级为合格 FUTUINC/US 账户以配合资格门。 |
+| `:143 TestProductFeatureServiceRoutesEveryOptionalInterfaceAndCaches` | `product_production_ports_research_tests.rs::embedded_research_facade_serves_exactly_the_allowed_feature_set`；`product_market_data_candle_pagination_tests.rs::tick_candles_use_fresh_cache_without_querying_the_provider`；`product_market_data_quote_read_tests.rs::snapshot_route_serves_a_fresh_cache_hit_without_provider_access`；`product_production_ports_market_data_actions_tests.rs::batch_snapshots_normalize_deduplicate_and_serve_the_short_lived_cache` | `[x]` | 按 owner 拆分：Go 中央 Service+map 缓存不存在，等价证据为 research allow-list、quote/candle 缓存不回源、batch snapshots `fromCache=true`。`ensure`/返回副本属架构边界。 |
+| `:210 TestProductFeatureServiceFailureBoundaries` | `product_broker_capabilities_projection_tests.rs::capabilities_mark_declared_but_missing_readers_unavailable`；`product_production_ports_market_data_subscription_tests.rs::prediction_subscription_rejects_invalid_types_and_unready_provider` | `[x]` | 缺可选接口 → unavailable/`ADAPTER_INTERFACE_UNAVAILABLE`；非法 dataTypes/未就绪 provider fail closed。nil-receiver 与「只读 feature 传入写入口」由静态路由注册表承担，归边界。 |
+| `:243 TestProductFeatureServiceExhaustiveFailureAndNormalizationBranches` | `product_production_ports_market_data_subscription_tests.rs::prediction_subscription_rejects_invalid_instrument_types_and_lease_ids`；`product_production_ports_market_data_actions_tests.rs::batch_snapshots_reject_unsupported_markets_and_oversized_requests` | `[x]` | 空/空白/`US.` instrument 与空白 leaseId 均 400、非法 dataTypes 矩阵 400；记录 Go 精确边界：`"."` 非空，因此在 Go 被接受为 `US..`，Rust 保持同一 wire 行为。 |
+| `:321 TestProductFeaturePredictionAndCustomizationFailureBranches` | `product_production_ports_market_data_subscription_tests.rs::prediction_subscription_surfaces_a_provider_failure_without_retaining_a_lease`；`::prediction_subscription_rejects_invalid_instrument_types_and_lease_ids` | `[x]` | 上游订阅失败映射 502 `BROKER_FEATURE_FAILED` 且不留下半写租约；非法输入 400。自定义 alert 写路径由既有 alerts 写端口测试族覆盖。 |
+| `:404 TestProductFeatureServiceNormalizesCoreMarketCandlesWithProvider` | `product_market_data_candle_pagination_tests.rs::candle_route_preserves_legacy_query_parsing`；`::candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type`；`::us_intraday_futu_candles_carry_calendar_resolved_session_labels` | `[x]` | period/limit/时间窗解析、adjustment→RehabType 映射、`period=5m` 历史 K 线 session 标签归一化均已冻结。`ResolvedInstrument` 由 path 段解析承担。 |
+| `:443 TestProductFeatureDirectAdapterCacheAndEligibilityBranches` | `product_production_ports_market_data_prediction_tests.rs::prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority`；`product_market_data_quote_read_tests.rs::snapshot_route_force_refresh_bypasses_the_cache`；`product_market_data_candle_pagination_tests.rs::tick_candles_use_fresh_cache_without_querying_the_provider` | `[x]` | 资格三态（discovery 失败/nil firm/错误 authority）与 authority 空列表放行、缓存 miss/expired 绕过、asOf 取 observedAt 均已断言。bare-broker 12 接口矩阵归 adapter bindings + fail-closed 边界。 |
+
+### 生产改动
+
+- `crates/jftrade-engine/src/product_production_ports_market_data_prediction.rs`：新增 `PREDICTION_INELIGIBLE_MESSAGE` / `PREDICTION_INELIGIBLE_CODE` 与 `prediction_account_eligibility`；读端口在 reader 之前 403 fail closed；测试模块拆到 `product_production_ports_market_data_prediction_tests.rs`。
+- `crates/jftrade-engine/src/product_production_ports_market_data_subscription.rs`：`prediction_acquire` 在 OpenD subscribe 之前走同一资格 owner。
+- `crates/jftrade-engine/src/product_trade_runtime_projection.rs`：新增 `prediction_account_source()`。
+- `crates/jftrade-engine/src/trade_projection.rs`：`trade_market_authority` / `security_firm_label` 放宽为 `pub(crate)`。
+- `crates/jftrade-engine/src/product_production_ports_market_data_actions.rs`：batch snapshots 新增 3 秒缓存 + `fromCache`、200 上限、HK/US/SH/SZ 前缀校验。
+
+### 探针
+
+- prediction 资格：把 `firm != "FUTUINC"` 反转为 `firm == "FUTUINC"` → 两条 eligibility 测试同时 FAILED；恢复后 PASS。
+- batch snapshot 缓存：把 `BATCH_SNAPSHOT_CACHE_TTL` 改为 `Duration::ZERO` → `fromCache` 断言 FAILED；恢复后 PASS。
+
+### 验证
+
+```bash
+cargo fmt --all
+cargo clippy -p jftrade-engine --all-targets --locked
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+- `jftrade-engine` 全量 1275 用例 + 新增用例全绿（nextest，0 failed）。
+- 审计：4451 Go 测试，`function_exact` 620 → 631，0 nonexistent crate，0 `[x]` 缺 `function_exact`。
+- 5 条 partial 无可解析测试为既有确认缺口，非本批失败。
+
+### 下一批（`internal/productfeatures` 收尾）
+
+`service_routing_and_validation_test.go`(4)：option advanced filters、institutionId 校验、fresh prediction push 优先于轮询（含 prediction push 5s TTL）；随后 `prediction_quote_candle_bridge_test.go`(4)，最后 provider_projection / provider_facade 组（约 60 条，含 `TestEmbeddedProvider*` 与 `TestProvider*Projection` 系列）。仍需逐条判定哪些属于 Rust 架构边界（Go 的中央 Service 与 embedded akshare+yfinance facade 在 Rust 已由 provider helper 端口承担）。

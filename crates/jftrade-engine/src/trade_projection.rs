@@ -472,7 +472,7 @@ pub(super) fn market_label_from_code(market: Option<i32>) -> Option<&'static str
     }
 }
 
-pub(super) fn trade_market_authority(value: i32) -> Option<&'static str> {
+pub(crate) fn trade_market_authority(value: i32) -> Option<&'static str> {
     market_label_from_code(Some(value))
 }
 
@@ -507,7 +507,7 @@ pub(super) fn account_role_label(value: i32) -> Option<&'static str> {
     }
 }
 
-pub(super) fn security_firm_label(value: i32) -> Option<&'static str> {
+pub(crate) fn security_firm_label(value: i32) -> Option<&'static str> {
     match value {
         1 => Some("FUTUSECURITIES"),
         2 => Some("FUTUINC"),

@@ -177,6 +177,25 @@ impl ProductionMarketDataSubscriptionMutationPort {
         request: &MarketDataSubscriptionMutationRequest,
     ) -> Result<Value, MarketDataSubscriptionMutationPortError> {
         let runtime = self.prediction_runtime()?;
+        // Go `AcquirePredictionSubscription` resolves the broker capability and
+        // then runs `predictionEligibility` before the reader subscription, so an
+        // ineligible account never reaches OpenD.  The read port and this
+        // mutation port share the same eligibility owner.
+        if let Err(message) = super::product_production_ports_market_data_prediction::prediction_account_eligibility(
+            runtime,
+            &request.query,
+        ) {
+            return Err(MarketDataSubscriptionMutationPortError::Failed {
+                status: 403,
+                code: super::product_production_ports_market_data_prediction::PREDICTION_INELIGIBLE_CODE
+                    .to_owned(),
+                message: format!(
+                    "{}: {message}",
+                    super::product_production_ports_market_data_prediction::PREDICTION_INELIGIBLE_MESSAGE
+                ),
+                retry_after_seconds: None,
+            });
+        }
         let body: PredictionSubscriptionRequestBody =
             serde_json::from_slice(&request.body).map_err(|_| {
                 MarketDataSubscriptionMutationPortError::Failed {

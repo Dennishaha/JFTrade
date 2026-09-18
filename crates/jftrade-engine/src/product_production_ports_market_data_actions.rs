@@ -6,7 +6,9 @@ mod tests;
 
 use serde::Deserialize;
 use serde_json::{Value, json};
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use super::super::product_production_ports_trade::SharedTradeReadRuntime;
 use crate::product::product_active_provider_state::ActiveProviderState;
@@ -23,7 +25,21 @@ pub(crate) struct ProductionMarketDataProviderActionsPort {
     quote_port: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
     trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
     active_provider_state: Option<Arc<ActiveProviderState>>,
+    /// Go `Service.BatchSnapshots` answers a repeated request inside a 3 second
+    /// window from its own result cache and marks the copy with
+    /// `metadata.fromCache=true`, while a `refresh=true` request bypasses the
+    /// read. The cache is process-local and only stores an already-successful
+    /// response, so it can never fabricate data.
+    batch_snapshot_cache: Arc<Mutex<HashMap<String, (Instant, Value)>>>,
 }
+
+/// Go `Service.BatchSnapshots` hard-codes `3*time.Second` for the batch
+/// snapshot cache entry regardless of the per-feature TTL table.
+const BATCH_SNAPSHOT_CACHE_TTL: Duration = Duration::from_secs(3);
+/// Go `normalizeSnapshotSymbols` rejects a request with more than 200
+/// instrument ids before de-duplicating.
+const BATCH_SNAPSHOT_MAX_SYMBOLS: usize = 200;
+const BATCH_SNAPSHOT_MARKETS: [&str; 4] = ["HK", "US", "SH", "SZ"];
 
 impl std::fmt::Debug for ProductionMarketDataProviderActionsPort {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -45,6 +61,7 @@ impl ProductionMarketDataProviderActionsPort {
             quote_port,
             trade_runtime: None,
             active_provider_state: None,
+            batch_snapshot_cache: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -491,20 +508,49 @@ impl ProductionMarketDataProviderActionsPort {
             raw_items.extend(list);
         }
 
+        // Go `normalizeSnapshotSymbols` rejects an oversized request before it
+        // trims or de-duplicates, so a 201 item body is invalid even when the
+        // entries collapse to one symbol.
+        if raw_items.len() > BATCH_SNAPSHOT_MAX_SYMBOLS {
+            return Err(MarketDataProviderActionsPortError::Failed {
+                status: 400,
+                code: "BAD_REQUEST".to_owned(),
+                message: "invalid product feature query: at most 200 instrumentIds are allowed"
+                    .to_owned(),
+                retry_after_seconds: None,
+            });
+        }
+
         let mut requested_symbols = Vec::new();
         for item in raw_items {
-            let trimmed = item.trim();
-            if trimmed.is_empty() {
+            let upper = item.trim().to_ascii_uppercase();
+            if upper.is_empty() {
                 continue;
             }
-            let formatted = if trimmed.contains('.') {
-                let mut parts = trimmed.splitn(2, '.');
-                let m = parts.next().unwrap_or("US").to_ascii_uppercase();
-                let s = parts.next().unwrap_or("").to_ascii_uppercase();
-                format!("{m}.{s}")
-            } else {
-                format!("US.{}", trimmed.to_ascii_uppercase())
+            // Go keeps the caller's `MARKET.SYMBOL` form and rejects anything
+            // whose prefix is not HK/US/SH/SZ; a bare ticker is not silently
+            // rewritten to a US instrument.
+            let Some((market, symbol)) = upper.split_once('.') else {
+                return Err(MarketDataProviderActionsPortError::Failed {
+                    status: 400,
+                    code: "BAD_REQUEST".to_owned(),
+                    message: format!(
+                        "invalid product feature query: instrumentId \"{item}\" must use HK, US, SH, or SZ prefix"
+                    ),
+                    retry_after_seconds: None,
+                });
             };
+            if !BATCH_SNAPSHOT_MARKETS.contains(&market) {
+                return Err(MarketDataProviderActionsPortError::Failed {
+                    status: 400,
+                    code: "BAD_REQUEST".to_owned(),
+                    message: format!(
+                        "invalid product feature query: instrumentId \"{item}\" must use HK, US, SH, or SZ prefix"
+                    ),
+                    retry_after_seconds: None,
+                });
+            }
+            let formatted = format!("{market}.{symbol}");
             if !requested_symbols.contains(&formatted) {
                 requested_symbols.push(formatted);
             }
@@ -518,6 +564,26 @@ impl ProductionMarketDataProviderActionsPort {
                     .to_owned(),
                 retry_after_seconds: None,
             });
+        }
+
+        let query_map = parse_query(&request.query);
+        let refresh = query_map
+            .get("refresh")
+            .is_some_and(|value| value.eq_ignore_ascii_case("true"));
+        // The Go cache key is the normalized query plus the de-duplicated
+        // symbol list; `refresh=true` stays part of the key, which is why a
+        // forced read never seeds the entry a later plain read resolves.
+        let cache_key = format!("{}|{}", request.query, requested_symbols.join(","));
+        if !refresh && let Some(hit) = self.batch_snapshot_cache.lock().map_or(None, |cache| {
+            cache.get(&cache_key).and_then(|(stored_at, value)| {
+                (stored_at.elapsed() < BATCH_SNAPSHOT_CACHE_TTL).then(|| value.clone())
+            })
+        }) {
+            let mut hit = hit;
+            if let Some(metadata) = hit.get_mut("metadata").and_then(Value::as_object_mut) {
+                metadata.insert("fromCache".to_owned(), Value::Bool(true));
+            }
+            return Ok(hit);
         }
 
         let mut entries = Vec::new();
@@ -605,7 +671,6 @@ impl ProductionMarketDataProviderActionsPort {
         }
 
         let as_of = current_utc_rfc3339();
-        let query_map = parse_query(&request.query);
         let broker_id = query_map
             .get("brokerId")
             .map(String::as_str)
@@ -616,7 +681,7 @@ impl ProductionMarketDataProviderActionsPort {
             "active_provider"
         };
 
-        Ok(json!({
+        let result = json!({
             "asOf": as_of,
             "entries": entries,
             "metadata": {
@@ -632,7 +697,11 @@ impl ProductionMarketDataProviderActionsPort {
                 "selectionReason": selection_reason,
             },
             "snapshots": snapshots_map,
-        }))
+        });
+        if let Ok(mut cache) = self.batch_snapshot_cache.lock() {
+            cache.insert(cache_key, (Instant::now(), result.clone()));
+        }
+        Ok(result)
     }
 }
 

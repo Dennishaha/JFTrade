@@ -312,6 +312,147 @@ impl MarketDataQuoteReadSnapshotPort for CountingBatchSnapshotQuotePort {
     }
 }
 
+/// A snapshot reader that records every read and can fail on demand, so the
+/// batch cache can be proven to answer repeats without touching the provider.
+#[derive(Debug, Default)]
+struct CacheCountingSnapshotQuotePort {
+    calls: std::sync::Mutex<Vec<String>>,
+}
+
+impl MarketDataQuoteReadSnapshotPort for CacheCountingSnapshotQuotePort {
+    fn read<'a>(
+        &'a self,
+        path: &'a str,
+        _query: &'a str,
+    ) -> crate::product::MarketDataQuoteReadFuture<'a> {
+        self.calls
+            .lock()
+            .expect("cache snapshot calls")
+            .push(path.to_owned());
+        Box::pin(async move {
+            Ok(json!({
+                "snapshot": {
+                    "price": "199.10",
+                    "observedAt": "2026-08-29T14:30:00Z",
+                },
+            }))
+        })
+    }
+}
+
+fn batch_snapshot_request(query: &str, body: &[u8]) -> MarketDataProviderActionsRequest {
+    MarketDataProviderActionsRequest {
+        method: "POST".to_owned(),
+        path: BATCH_SNAPSHOTS_PATH.to_owned(),
+        query: query.to_owned(),
+        body: body.to_vec(),
+    }
+}
+
+/// Parity: go:452dea11:internal/productfeatures/service_test.go:46
+/// TestBatchSnapshotsUsesOptionalSourceWithoutSubscriptions
+///
+/// Go normalizes `" us.aapl ", "US.AAPL"` down to one `US.AAPL` entry, reports
+/// `provider.selectionReason=explicit_broker` for an explicit `brokerId`,
+/// always stamps `metadata.subscriptionCreated=false`, and answers the second
+/// identical request from the 3 second cache with `metadata.fromCache=true`.
+#[tokio::test]
+async fn batch_snapshots_normalize_deduplicate_and_serve_the_short_lived_cache() {
+    let quote_port = Arc::new(CacheCountingSnapshotQuotePort::default());
+    let port = ProductionMarketDataProviderActionsPort::new(Some(quote_port.clone()));
+
+    let first = port
+        .dispatch(&batch_snapshot_request(
+            "brokerId=snapshot-broker&accountId=account-1",
+            br#"{"instrumentIds":[" us.aapl ","US.AAPL"]}"#,
+        ))
+        .await
+        .expect("first batch snapshot");
+    assert_eq!(first["entries"].as_array().map(Vec::len), Some(1));
+    assert_eq!(first["entries"][0]["symbol"], "US.AAPL");
+    assert_eq!(
+        first["metadata"]["requestedSymbols"],
+        json!(["US.AAPL"])
+    );
+    assert_eq!(first["metadata"]["subscriptionCreated"], false);
+    assert_eq!(first["provider"]["brokerId"], "snapshot-broker");
+    assert_eq!(first["provider"]["selectionReason"], "explicit_broker");
+    assert_eq!(first["metadata"].get("fromCache"), None);
+
+    let cached = port
+        .dispatch(&batch_snapshot_request(
+            "brokerId=snapshot-broker&accountId=account-1",
+            br#"{"instrumentIds":[" us.aapl ","US.AAPL"]}"#,
+        ))
+        .await
+        .expect("cached batch snapshot");
+    assert_eq!(cached["metadata"]["fromCache"], true);
+    assert_eq!(cached["entries"], first["entries"]);
+    assert_eq!(
+        quote_port.calls.lock().expect("cache calls").len(),
+        1,
+        "the cached read must not reach the snapshot provider again"
+    );
+
+    // An active-provider request is attributed without an explicit broker.
+    let active = port
+        .dispatch(&batch_snapshot_request("", br#"{"symbols":["US.AAPL"]}"#))
+        .await
+        .expect("active provider batch snapshot");
+    assert_eq!(active["provider"]["selectionReason"], "active_provider");
+}
+
+/// Parity: go:452dea11:internal/productfeatures/service_test.go:82
+/// TestBatchSnapshotsRejectsUnsupportedRegionsAndOversizedRequests
+///
+/// Go rejects `SG.D05` (prefix is not HK/US/SH/SZ) and a 201 symbol body with
+/// `ErrInvalidQuery`, both before the broker read.
+#[tokio::test]
+async fn batch_snapshots_reject_unsupported_markets_and_oversized_requests() {
+    let quote_port = Arc::new(CacheCountingSnapshotQuotePort::default());
+    let port = ProductionMarketDataProviderActionsPort::new(Some(quote_port.clone()));
+
+    let unsupported = port
+        .dispatch(&batch_snapshot_request("", br#"{"symbols":["SG.D05"]}"#))
+        .await
+        .expect_err("SG must be rejected");
+    assert!(matches!(
+        unsupported,
+        MarketDataProviderActionsPortError::Failed { status: 400, ref message, .. }
+            if message.contains("must use HK, US, SH, or SZ prefix")
+    ));
+
+    // A bare ticker has no market prefix, so it is invalid rather than being
+    // silently rewritten to a US instrument.
+    let unprefixed = port
+        .dispatch(&batch_snapshot_request("", br#"{"symbols":["AAPL"]}"#))
+        .await
+        .expect_err("an unqualified symbol must be rejected");
+    assert!(matches!(
+        unprefixed,
+        MarketDataProviderActionsPortError::Failed { status: 400, ref message, .. }
+            if message.contains("must use HK, US, SH, or SZ prefix")
+    ));
+
+    let oversized = vec!["US.AAPL"; 201];
+    let body = serde_json::to_vec(&json!({"symbols": oversized})).expect("oversized body");
+    let rejected = port
+        .dispatch(&batch_snapshot_request("", &body))
+        .await
+        .expect_err("201 symbols must be rejected");
+    assert!(matches!(
+        rejected,
+        MarketDataProviderActionsPortError::Failed { status: 400, ref message, .. }
+            if message.contains("at most 200 instrumentIds are allowed")
+    ));
+
+    assert_eq!(
+        quote_port.calls.lock().expect("cache calls").len(),
+        0,
+        "invalid batch requests must never reach the snapshot provider"
+    );
+}
+
 #[tokio::test]
 async fn batch_snapshots_forward_each_instrument_through_the_snapshot_reader_once() {
     let quote_port = Arc::new(CountingBatchSnapshotQuotePort::default());
