@@ -297,11 +297,19 @@ fn test_edge_case_empty_and_whitespace_session_ids() {
         .delete_session("")
         .expect_err("empty sessionId must fail");
     match err_empty {
-        AdkMutationPortError::Failed { status, code, .. } => {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
             assert_eq!(status, 400);
-            assert_eq!(code, "ADK_INVALID_REQUEST");
+            // Go rejects a blank `:sessionId` at the route binding with
+            // `400 BAD_REQUEST` / "sessionId is invalid" and never reaches
+            // the store, so the port keeps that same public code.
+            assert_eq!(code, "BAD_REQUEST");
+            assert_eq!(message, "sessionId is required");
         }
-        other => panic!("expected 400 ADK_INVALID_REQUEST, got {other:?}"),
+        other => panic!("expected 400 BAD_REQUEST, got {other:?}"),
     }
 
     // Whitespace only
@@ -309,11 +317,16 @@ fn test_edge_case_empty_and_whitespace_session_ids() {
         .delete_session("   \t  \n  ")
         .expect_err("whitespace sessionId must fail");
     match err_spaces {
-        AdkMutationPortError::Failed { status, code, .. } => {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
             assert_eq!(status, 400);
-            assert_eq!(code, "ADK_INVALID_REQUEST");
+            assert_eq!(code, "BAD_REQUEST");
+            assert_eq!(message, "sessionId is required");
         }
-        other => panic!("expected 400 ADK_INVALID_REQUEST, got {other:?}"),
+        other => panic!("expected 400 BAD_REQUEST, got {other:?}"),
     }
 
     cluster.check_db_integrity();

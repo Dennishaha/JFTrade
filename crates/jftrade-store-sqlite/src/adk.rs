@@ -585,8 +585,11 @@ impl AdkStore {
         let selected_id = selected_id.unwrap_or_else(|| id.to_owned());
         for (row_id, raw, _) in &rows {
             let mut value = decode_json_object(raw, "provider")?;
-            value["id"] = Value::String(row_id.clone());
-            value["default"] = Value::Bool(row_id == &selected_id);
+            // `Map::insert` keeps a legacy row that predates the `id` field
+            // from panicking the write transaction: a missing key is written,
+            // not indexed.
+            value.insert("id".to_owned(), Value::String(row_id.clone()));
+            value.insert("default".to_owned(), Value::Bool(row_id == &selected_id));
             let encoded = Value::Object(value).to_string();
             transaction
                 .execute(
@@ -740,8 +743,11 @@ impl AdkStore {
         let selected = selected.or_else(|| rows.first().map(|(row_id, _)| row_id.clone()));
         for (row_id, raw) in &mut rows {
             let mut value = decode_json_object(raw, "provider")?;
-            value["id"] = Value::String(row_id.clone());
-            value["default"] = Value::Bool(selected.as_deref() == Some(row_id.as_str()));
+            value.insert("id".to_owned(), Value::String(row_id.clone()));
+            value.insert(
+                "default".to_owned(),
+                Value::Bool(selected.as_deref() == Some(row_id.as_str())),
+            );
             let encoded = Value::Object(value).to_string();
             transaction
                 .execute(

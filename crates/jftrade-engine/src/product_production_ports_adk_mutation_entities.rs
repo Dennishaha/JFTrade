@@ -37,6 +37,7 @@ pub(super) fn dispatch(
                 .filter(|value| !value.is_empty())
                 .unwrap_or_else(|| next_id("agent"));
             let mut payload = new_entity_payload(&input.body, "agent", &id)?;
+            super::agent_validation::validate_agent_write(port, &id, &payload)?;
             let object = payload
                 .as_object_mut()
                 .ok_or_else(|| invalid_mutation_input("invalid agent payload"))?;
@@ -79,6 +80,7 @@ pub(super) fn dispatch(
                 .map_err(storage_mutation_failed)?
                 .ok_or_else(|| not_found_mutation("ADK_AGENT_NOT_FOUND", "agent not found"))?;
             let payload = merged_entity_payload(&existing, &input.body, "agent")?;
+            super::agent_validation::validate_agent_write(port, &id, &payload)?;
             let stored = port
                 .store
                 .upsert_agent(&id, &payload.to_string())
@@ -174,10 +176,9 @@ pub(super) fn dispatch(
                 .map_err(storage_mutation_failed)?;
             let old_secrets = read_adk_secrets(&port.settings_path)?;
             let Some(existing) = providers.iter().find(|provider| provider.id == id) else {
-                return Err(not_found_mutation(
-                    "ADK_PROVIDER_NOT_FOUND",
-                    "provider not found",
-                ));
+                // Go's store-level delete is idempotent for an unknown id and
+                // the handler still answers `200 {"deleted":true,"id":...}`.
+                return Ok(json!({"deleted": true, "id": id}));
             };
             for agent in port.store.list_agents().map_err(storage_mutation_failed)? {
                 let payload = decode_mutation_payload(&agent.payload_json, "agent")?;
@@ -186,10 +187,19 @@ pub(super) fn dispatch(
                     .and_then(Value::as_str)
                     .is_some_and(|provider| provider.trim() == id)
                 {
+                    // Go wraps `ErrProviderInUse` with the referencing agent
+                    // name and `handleADKDeleteProvider` reports it as
+                    // `409 ADK_PROVIDER_DELETE_FAILED`.
+                    let agent_name = payload
+                        .get("name")
+                        .and_then(Value::as_str)
+                        .map(str::trim)
+                        .filter(|name| !name.is_empty())
+                        .unwrap_or(agent.id.as_str());
                     return Err(AdkMutationPortError::Failed {
                         status: 409,
-                        code: "ADK_PROVIDER_IN_USE".to_owned(),
-                        message: "provider is referenced by an agent".to_owned(),
+                        code: "ADK_PROVIDER_DELETE_FAILED".to_owned(),
+                        message: format!("provider is used by agent {agent_name:?}"),
                     });
                 }
             }
@@ -269,10 +279,7 @@ pub(super) fn dispatch(
                     error,
                 ));
             }
-            Ok(json!({
-                "deleted": true,
-                "replacementProviderId": replacement.map(|(id, _)| id),
-            }))
+            Ok(json!({"deleted": true, "id": id}))
         }
         AdkMutationOperation::SetDefaultProvider => {
             let id = required_identifier(input, "providerId")?;
@@ -392,14 +399,7 @@ pub(super) fn dispatch(
         }
         AdkMutationOperation::DeleteSkill => {
             let id = required_identifier(input, "skillId")?;
-            let deleted = port
-                .store
-                .delete_skill(&id)
-                .map_err(storage_mutation_failed)?;
-            if !deleted {
-                return Err(not_found_mutation("ADK_SKILL_NOT_FOUND", "skill not found"));
-            }
-            Ok(json!({"id": id, "deleted": true}))
+            super::runtime::uninstall_skill(port, &id)
         }
         AdkMutationOperation::CreateSession => {
             let agent_id = required_body_string(&input.body, "agentId")?;

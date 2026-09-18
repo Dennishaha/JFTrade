@@ -1,4 +1,5 @@
 use super::*;
+use crate::product::product_adk_mutation_port::AdkMutationPortError;
 
 #[derive(Debug)]
 struct UnreadyChatRuntime;
@@ -2915,4 +2916,508 @@ async fn test_portfolio_funds_overview_and_sorting_and_unsupported_market() {
     // Account 102: cash 0 -> hasAssetsOrPositions = false (sorted to end)
     assert_eq!(overviews[2]["account"]["accountId"], "102");
     assert_eq!(overviews[2]["hasAssetsOrPositions"], false);
+}
+
+/// Build an ADK port whose on-disk provider/skill state matches the Go agent
+/// validation fixture: one enabled keyed provider, one disabled provider, one
+/// enabled provider without a key, and one external skill directory.
+fn agent_validation_port() -> (ProductionAdkPort, tempfile::TempDir) {
+    let (port, directory) = unready_adk_port();
+    std::fs::write(&port.settings_path, b"{}").expect("write settings");
+    let secrets = directory.path().join("secrets");
+    std::fs::create_dir_all(&secrets).expect("create secrets directory");
+    std::fs::write(
+        secrets.join("adk-secrets.json"),
+        br#"{"provider-enabled":"sk-fixture"}"#,
+    )
+    .expect("write adk secrets");
+    port.store
+        .upsert_provider(
+            "provider-enabled",
+            &json!({
+                "displayName": "Enabled Provider",
+                "baseUrl": "https://api.example.test/v1",
+                "model": "fixture-model",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist enabled provider");
+    port.store
+        .upsert_provider(
+            "provider-disabled",
+            &json!({
+                "displayName": "Disabled Provider",
+                "baseUrl": "https://api.example.test/v1",
+                "model": "fixture-model",
+                "enabled": false,
+            })
+            .to_string(),
+        )
+        .expect("persist disabled provider");
+    port.store
+        .upsert_provider(
+            "provider-no-key",
+            &json!({
+                "displayName": "No Key Provider",
+                "baseUrl": "https://api.example.test/v1",
+                "model": "fixture-model",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist keyless provider");
+    (port, directory)
+}
+
+fn create_agent_error(port: &ProductionAdkPort, body: Value) -> AdkMutationPortError {
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::CreateAgent,
+        identifiers: BTreeMap::new(),
+        body,
+        webhook_secret: None,
+    })
+    .expect_err("agent write must be rejected")
+}
+
+fn assert_bad_request(error: AdkMutationPortError, expected: &str) {
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 400, "status for {message:?}");
+            // Go's agent handler classifies every `isADKAgentValidationError`
+            // failure as `400 BAD_REQUEST` carrying the service message.
+            assert_eq!(code, "BAD_REQUEST", "code for {message:?}");
+            assert_eq!(message, expected);
+        }
+        other => panic!("expected a failed mutation, got {other:?}"),
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:634
+/// TestADKAgentSaveValidationFailures
+///
+/// The agent write contract classifies provider lifecycle, unknown catalogue
+/// membership and vocabulary failures as `400 BAD_REQUEST` carrying the
+/// service message. Every branch below is reachable from POST
+/// /api/v1/adk/agents in production.
+#[test]
+fn adk_agent_write_reports_the_go_validation_messages() {
+    let (port, _directory) = agent_validation_port();
+
+    for (expected, body) in [
+        (
+            "invalid agent status",
+            json!({"id": "agent-invalid-status", "name": "Agent", "status": "BROKEN"}),
+        ),
+        (
+            "invalid agent work mode",
+            json!({"id": "agent-invalid-mode", "name": "Agent", "workMode": "parallel"}),
+        ),
+        (
+            "invalid tool access mode",
+            json!({"id": "agent-invalid-access", "name": "Agent", "toolAccessMode": "some"}),
+        ),
+        (
+            "loop max iterations must be between 1 and 20",
+            json!({"id": "agent-invalid-loop", "name": "Agent", "loopMaxIterations": 21}),
+        ),
+        (
+            "loop max iterations must be between 1 and 20",
+            json!({"id": "agent-negative-loop", "name": "Agent", "loopMaxIterations": -1}),
+        ),
+        (
+            "invalid agent payload",
+            json!({"id": "agent-fractional-loop", "name": "Agent", "loopMaxIterations": 1.5}),
+        ),
+        (
+            "invalid agent payload",
+            json!({"id": "agent-string-loop", "name": "Agent", "loopMaxIterations": "5"}),
+        ),
+        (
+            "provider not found",
+            json!({
+                "id": "agent-missing-provider",
+                "name": "Agent",
+                "providerId": "provider-missing",
+            }),
+        ),
+        (
+            "provider is disabled",
+            json!({
+                "id": "agent-disabled-provider",
+                "name": "Agent",
+                "providerId": "provider-disabled",
+            }),
+        ),
+        (
+            "provider API keys is not configured",
+            json!({
+                "id": "agent-no-key",
+                "name": "Agent",
+                "providerId": "provider-no-key",
+            }),
+        ),
+        (
+            "unknown ADK tool: tool.does_not_exist",
+            json!({
+                "id": "agent-bad-tool",
+                "name": "Agent",
+                "tools": ["tool.does_not_exist"],
+            }),
+        ),
+        (
+            "unknown ADK skill: skill-does-not-exist",
+            json!({
+                "id": "agent-bad-skill",
+                "name": "Agent",
+                "skills": ["skill-does-not-exist"],
+            }),
+        ),
+    ] {
+        assert_bad_request(create_agent_error(&port, body), expected);
+    }
+
+    // A disabled agent keeps its provider reference even when that provider is
+    // disabled or has no key, and an enabled agent with a keyed provider saves.
+    for body in [
+        json!({
+            "id": "agent-disabled-ok",
+            "name": "Disabled OK",
+            "status": "DISABLED",
+            "providerId": "provider-disabled",
+        }),
+        json!({
+            "id": "agent-no-key-disabled-ok",
+            "name": "No Key Disabled OK",
+            "status": "DISABLED",
+            "providerId": "provider-no-key",
+        }),
+        json!({
+            "id": "agent-enabled-ok",
+            "name": "Enabled OK",
+            "status": "ENABLED",
+            "providerId": "provider-enabled",
+            "workMode": "loop",
+            "loopMaxIterations": 1,
+        }),
+    ] {
+        let saved = port
+            .mutate(&AdkMutationInput {
+                operation: AdkMutationOperation::CreateAgent,
+                identifiers: BTreeMap::new(),
+                body: body.clone(),
+                webhook_secret: None,
+            })
+            .unwrap_or_else(|error| panic!("agent {body} must save: {error:?}"));
+        assert_eq!(saved["id"], body["id"]);
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:741
+/// TestADKBindAgentWithPreinstalledNeodataFinancialSearch
+///
+/// A preinstalled external skill is addressable by the agent write path, so a
+/// valid binding saves and the stored agent keeps the skill reference. The
+/// builtin projection supplies the remaining catalogue entries.
+#[test]
+fn adk_agent_write_accepts_preinstalled_external_and_builtin_skills() {
+    let (port, _directory) = agent_validation_port();
+    port.store
+        .upsert_skill(
+            "neodata-financial-search",
+            &json!({
+                "id": "neodata-financial-search",
+                "displayName": "NeoData Financial Search",
+                "source": "https://example.test/neodata.zip",
+                "enabled": true,
+                "builtin": false,
+                "validationStatus": "VALID",
+            })
+            .to_string(),
+        )
+        .expect("persist installed skill");
+
+    let saved = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateAgent,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "id": "agent-neodata",
+                "name": "Agent NeoData",
+                "status": "ENABLED",
+                "tools": ["research.instrument"],
+                "skills": ["neodata-financial-search", "jftrade-market"],
+            }),
+            webhook_secret: None,
+        })
+        .expect("preinstalled and builtin skills must be bindable");
+    assert_eq!(
+        saved["skills"],
+        json!(["neodata-financial-search", "jftrade-market"])
+    );
+}
+
+/// Parity: go:452dea11:internal/assistant/service_business_test.go:29
+/// TestServiceSaveAgentValidationScenarios
+///
+/// Update goes through the same validation owner, so a PUT that introduces an
+/// unknown tool is rejected instead of persisting an unusable agent.
+#[test]
+fn adk_agent_update_revalidates_the_merged_payload() {
+    let (port, _directory) = agent_validation_port();
+    let saved = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateAgent,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "id": "agent-update",
+                "name": "Agent Update",
+                "providerId": "provider-enabled",
+            }),
+            webhook_secret: None,
+        })
+        .expect("create agent");
+    assert_eq!(saved["providerId"], "provider-enabled");
+
+    let error = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::UpdateAgent,
+            identifiers: BTreeMap::from([("agentId".to_owned(), "agent-update".to_owned())]),
+            body: json!({"tools": ["tool.does_not_exist"]}),
+            webhook_secret: None,
+        })
+        .expect_err("unknown tool on update");
+    assert_bad_request(error, "unknown ADK tool: tool.does_not_exist");
+
+    // The rejected update is not persisted: the stored agent keeps its
+    // provider reference and no partial tool list.
+    let stored = port
+        .store
+        .get_agent("agent-update")
+        .expect("read agent")
+        .expect("agent row");
+    let payload: Value =
+        serde_json::from_str(&stored.payload_json).expect("decode stored agent payload");
+    assert_eq!(payload["providerId"], "provider-enabled");
+    assert!(payload.get("tools").is_none());
+}
+
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:707
+/// TestADKSkillInstallAndUninstallFailureRoutes
+///
+/// Install failures are reported as `400 ADK_SKILL_INSTALL_FAILED` with the
+/// registry message, and uninstalling a builtin skill is
+/// `500 ADK_SKILL_UNINSTALL_FAILED`. Both codes are owned by the skill
+/// transport rather than the generic mutation failure.
+#[test]
+fn adk_skill_install_and_uninstall_failures_keep_the_go_codes() {
+    let (port, _directory) = agent_validation_port();
+
+    let error = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::InstallSkill,
+            identifiers: BTreeMap::new(),
+            body: json!({"url": "not-a-valid-url"}),
+            webhook_secret: None,
+        })
+        .expect_err("invalid skill URL");
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "ADK_SKILL_INSTALL_FAILED");
+            assert_eq!(message, "valid http/https skill URL is required");
+        }
+        other => panic!("expected a failed install, got {other:?}"),
+    }
+
+    // The builtin skill list is projected rather than stored, so the uninstall
+    // path must resolve it from the projection and refuse removal.
+    let error = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::DeleteSkill,
+            identifiers: BTreeMap::from([("skillId".to_owned(), "jftrade-market".to_owned())]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect_err("builtin skill uninstall");
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 500);
+            assert_eq!(code, "ADK_SKILL_UNINSTALL_FAILED");
+            assert!(
+                message.to_lowercase().contains("builtin"),
+                "uninstall message {message:?} must name the builtin protection"
+            );
+        }
+        other => panic!("expected a failed uninstall, got {other:?}"),
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/adk_approval_test.go:282
+/// TestADKProviderDeleteRejectsReferencedProvider
+///
+/// Go's store wraps `ErrProviderInUse` with the referencing agent name and
+/// `handleADKDeleteProvider` reports it as `409 ADK_PROVIDER_DELETE_FAILED`.
+#[test]
+fn adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection() {
+    let (port, _directory) = agent_validation_port();
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::CreateAgent,
+        identifiers: BTreeMap::new(),
+        body: json!({
+            "id": "agent-holding-provider",
+            "name": "Holding Agent",
+            "providerId": "provider-enabled",
+        }),
+        webhook_secret: None,
+    })
+    .expect("create referencing agent");
+
+    let error = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::DeleteProvider,
+            identifiers: BTreeMap::from([(
+                "providerId".to_owned(),
+                "provider-enabled".to_owned(),
+            )]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect_err("a referenced provider must not be deleted");
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 409);
+            assert_eq!(code, "ADK_PROVIDER_DELETE_FAILED");
+            assert!(
+                message.contains("used by agent") && message.contains("Holding Agent"),
+                "provider-in-use message {message:?} must name the referencing agent"
+            );
+        }
+        other => panic!("expected 409 ADK_PROVIDER_DELETE_FAILED, got {other:?}"),
+    }
+
+    // The rejected delete is not durable: the provider row survives.
+    assert!(
+        port.store
+            .get_provider("provider-enabled")
+            .expect("read provider")
+            .is_some(),
+        "the referenced provider must remain persisted"
+    );
+}
+
+/// Go's store-level provider delete is idempotent: `DeleteProvider` on an
+/// unknown id returns nil and the route still answers
+/// `200 {"deleted":true,"id":...}`. The same response drops the removed
+/// `replacementProviderId` field, which the Go handler never emits.
+#[test]
+fn adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope() {
+    let (port, _directory) = agent_validation_port();
+
+    let missing = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::DeleteProvider,
+            identifiers: BTreeMap::from([(
+                "providerId".to_owned(),
+                "provider-missing".to_owned(),
+            )]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect("deleting an unknown provider is idempotent in Go");
+    assert_eq!(missing, json!({"deleted": true, "id": "provider-missing"}));
+
+    let deleted = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::DeleteProvider,
+            identifiers: BTreeMap::from([(
+                "providerId".to_owned(),
+                "provider-disabled".to_owned(),
+            )]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect("delete existing provider");
+    assert_eq!(deleted, json!({"deleted": true, "id": "provider-disabled"}));
+}
+
+/// An installed external skill is removed together with its install directory,
+/// and a second uninstall reports the frozen missing-file projection instead of
+/// a synthetic 404.
+#[test]
+fn adk_skill_uninstall_removes_external_installs_and_reports_missing_files() {
+    let (port, directory) = agent_validation_port();
+    let install_dir = directory.path().join("skills/neodata-financial-search");
+    std::fs::create_dir_all(&install_dir).expect("create install directory");
+    let skill_document = install_dir.join("SKILL.md");
+    std::fs::write(&skill_document, "---\nname: neodata-financial-search\n---\n").expect("write skill");
+    port.store
+        .upsert_skill(
+            "neodata-financial-search",
+            &json!({
+                "id": "neodata-financial-search",
+                "displayName": "NeoData Financial Search",
+                "source": "https://example.test/neodata.zip",
+                "installPath": skill_document,
+                "enabled": true,
+                "builtin": false,
+                "validationStatus": "VALID",
+            })
+            .to_string(),
+        )
+        .expect("persist installed skill");
+
+    let removed = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::DeleteSkill,
+            identifiers: BTreeMap::from([(
+                "skillId".to_owned(),
+                "neodata-financial-search".to_owned(),
+            )]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect("uninstall external skill");
+    assert_eq!(removed["deleted"], true);
+    assert!(!install_dir.exists(), "install directory must be removed");
+
+    let error = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::DeleteSkill,
+            identifiers: BTreeMap::from([(
+                "skillId".to_owned(),
+                "neodata-financial-search".to_owned(),
+            )]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect_err("second uninstall");
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 500);
+            assert_eq!(code, "ADK_SKILL_UNINSTALL_FAILED");
+            assert_eq!(message, "file does not exist");
+        }
+        other => panic!("expected a failed uninstall, got {other:?}"),
+    }
 }

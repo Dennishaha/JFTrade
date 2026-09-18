@@ -62,14 +62,41 @@ ADK 读路由此前把所有行都按分页切片返回，忽略了 Go 在持久
 
 ### 边界与保留原因（部分覆盖）
 
-- `TestADKProviderDeleteRejectsReferencedProvider`：生产分支
-  `ADK_PROVIDER_IN_USE`（409）存在，但没有独立 Rust 测试构造被引用 provider；
-  需补测后升级。
-- `TestADKAgentSaveValidationFailures`：Go 的 disabled provider / missing key /
-  unknown tool / unknown skill 四条 400 文案矩阵无等价 Rust 断言；
-  Rust `CreateAgent` 目前不校验工具与技能存在性。
-- `TestADKSkillInstallAndUninstallFailureRoutes`：install 失败码存在，
-  uninstall 失败码与两条独立路由断言缺失。
+- `TestADKProviderDeleteRejectsReferencedProvider`：已补测并升级为 `[x]`。
+  Go 的 `DeleteProvider` 把 `ErrProviderInUse` 包装成引用 agent 名，
+  `handleADKDeleteProvider` 以 `409 ADK_PROVIDER_DELETE_FAILED` 投影。
+  Rust 原先返回 `409 ADK_PROVIDER_IN_USE` / "provider is referenced by an
+  agent"，与 Go 不一致，已修正为
+  `ADK_PROVIDER_DELETE_FAILED` / "provider is used by agent \"<name>\""；
+  回归测试 `adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection`。
+  同时补充 Go 的幂等删除语义（未知 provider 返回 `200 {"deleted":true,"id":...}`，
+  而非 404）与 `ADK_PROVIDER_DELETE_FAILED` 成功 envelope 只含 `deleted`/`id`
+  两个字段，回归测试
+  `adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope`。
+- `TestADKAgentSaveValidationFailures`：已补测并升级为 `[x]`。新增
+  `product_production_ports_adk_mutation_agent_validation.rs::validate_agent_write`
+  承接 Go `service.validateAgent` 的 status/workMode/toolAccessMode 词表、
+  `loopMaxIterations` 1..20 范围、provider 生命周期与 tool/skill 目录成员校验；
+  回归测试 `adk_agent_write_reports_the_go_validation_messages` 逐条断言
+  `400 BAD_REQUEST` 文案矩阵，`adk_agent_update_revalidates_the_merged_payload`
+  断言更新路径复用同一 owner 且拒写不落库。
+- `TestADKSkillInstallAndUninstallFailureRoutes`：已补测并升级为 `[x]`。
+  install 非 URL 为 `400 ADK_SKILL_INSTALL_FAILED`，uninstall builtin 为
+  `500 ADK_SKILL_UNINSTALL_FAILED`，缺失 skill 保留 Go 的
+  `"file does not exist"` 投影；回归测试
+  `adk_skill_install_and_uninstall_failures_keep_the_go_codes` 与
+  `adk_skill_uninstall_removes_external_installs_and_reports_missing_files`。
+
+### 本批次顺带修正的 wire 偏差
+
+- ADK mutation 的通用 400 失败码原为 `ADK_INVALID_REQUEST`，该字符串在 Go
+  代码库中并不存在。Go 各 handler 在 payload、路由标识与业务规则拒绝上统一
+  返回 `400 BAD_REQUEST`，因此 Rust 的 `invalid_mutation_input` 已对齐为
+  `BAD_REQUEST`。
+- `value["id"] = ...` 在 `serde_json::Map` 上对缺失键会 panic。
+  `jftrade-store-sqlite` 的 `set_default_provider_atomic` 与
+  `delete_provider_with_replacement_atomic` 已改用 `Map::insert`，历史
+  provider 行缺少 `id`/`default` 字段时不再中断写入事务。
 - `TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure` 系列：工具失败以
   `FAILED` + `errorCode` 持久化有证据，但 Go 断言的
   `degraded=true` + `failureReason/errorCode` 为空 + `error` 含 "disk full"

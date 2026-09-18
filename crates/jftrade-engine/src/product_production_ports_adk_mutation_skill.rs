@@ -1,7 +1,23 @@
+/// `400 ADK_SKILL_INSTALL_FAILED` carrying the registry message.
+///
+/// The Go skill handler wraps every `InstallSkill` error in this code, so URL
+/// parsing, host validation and download failures stay distinguishable from the
+/// generic mutation failure while still classifying as a client error.
+fn skill_install_failed(message: &str) -> AdkMutationPortError {
+    AdkMutationPortError::Failed {
+        status: 400,
+        code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
+        message: message.to_owned(),
+    }
+}
+
 fn install_skill(
     port: &ProductionAdkPort,
     input: &AdkMutationInput,
 ) -> Result<Value, AdkMutationPortError> {
+    // Go maps every `InstallSkill` failure to `400 ADK_SKILL_INSTALL_FAILED`
+    // with the registry message, so the skill transport owns this code rather
+    // than the generic `ADK_INVALID_REQUEST` mutation failure.
     let raw_url = input
         .body
         .get("url")
@@ -9,10 +25,10 @@ fn install_skill(
         .and_then(Value::as_str)
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .ok_or_else(|| invalid_mutation_input("skill URL is required"))?;
+        .ok_or_else(|| skill_install_failed("skill URL is required"))?;
     let parsed = Url::parse(raw_url)
-        .map_err(|_| invalid_mutation_input("valid http/https skill URL is required"))?;
-    validate_skill_url_shape(&parsed).map_err(|message| invalid_mutation_input(&message))?;
+        .map_err(|_| skill_install_failed("valid http/https skill URL is required"))?;
+    validate_skill_url_shape(&parsed).map_err(|message| skill_install_failed(&message))?;
     let url = raw_url.to_owned();
     const MAX_SKILL_FILE_BYTES: usize = 512 << 10;
     const MAX_SKILL_ARCHIVE_BYTES: usize = 4 << 20;
@@ -202,6 +218,64 @@ fn install_skill(
         }
     };
     object_payload(&stored, "skill")
+}
+
+/// Uninstall one external skill.
+///
+/// Go resolves the skill through the filesystem registry first, refuses
+/// `source == "builtin"`, and then removes the install directory. A missing
+/// skill surfaces as the registry's `file does not exist` error, which the
+/// transport reports as `500 ADK_SKILL_UNINSTALL_FAILED`; Rust keeps that
+/// frozen projection instead of repairing the Go status classification.
+pub(super) fn uninstall_skill(
+    port: &ProductionAdkPort,
+    id: &str,
+) -> Result<Value, AdkMutationPortError> {
+    // Go syncs the builtin bundles into the skills directory during runtime
+    // construction, so `Get` finds them with `source: builtin`. Rust projects
+    // builtins from the catalogue instead of duplicating them into the store,
+    // so the projection has to be consulted before reporting a missing skill.
+    let builtin = super::super::builtin_skills(&port.tool_catalog)
+        .into_iter()
+        .find(|skill| skill.get("id").and_then(Value::as_str) == Some(id));
+    let stored = port.store.get_skill(id).map_err(storage_mutation_failed)?;
+    let payload = match stored {
+        Some(stored) => decode_mutation_payload(&stored.payload_json, "skill")?,
+        None => match builtin {
+            Some(_) => {
+                return Err(skill_uninstall_failed(
+                    "builtin skills cannot be uninstalled",
+                ));
+            }
+            None => return Err(skill_uninstall_failed("file does not exist")),
+        },
+    };
+    let source = payload
+        .get("source")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .trim();
+    if source.eq_ignore_ascii_case("builtin") || builtin.is_some() {
+        return Err(skill_uninstall_failed("builtin skills cannot be uninstalled"));
+    }
+    port.store
+        .delete_skill(id)
+        .map_err(|error| skill_uninstall_failed(&error.to_string()))?;
+    if let Some(path) = payload.get("installPath").and_then(Value::as_str)
+        && let Some(parent) = std::path::Path::new(path).parent()
+    {
+        let _ = fs::remove_dir_all(parent);
+    }
+    Ok(json!({"id": id, "deleted": true}))
+}
+
+/// `500 ADK_SKILL_UNINSTALL_FAILED`, the Go skill handler's uninstall code.
+fn skill_uninstall_failed(message: &str) -> AdkMutationPortError {
+    AdkMutationPortError::Failed {
+        status: 500,
+        code: "ADK_SKILL_UNINSTALL_FAILED".to_owned(),
+        message: message.to_owned(),
+    }
 }
 
 fn validate_skill_url_shape(url: &Url) -> Result<(), String> {

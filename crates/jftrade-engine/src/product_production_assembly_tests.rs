@@ -2459,9 +2459,12 @@ mod product_production_assembly_tests {
         )
         .await;
         assert_eq!(invalid_agent_status, 400);
+        // Go's `handleADKCreateSession` reports a missing or disabled agent as
+        // `400 BAD_REQUEST` / "enabled agent is required".
+        assert_eq!(invalid_agent_response["error"]["code"], "BAD_REQUEST");
         assert_eq!(
-            invalid_agent_response["error"]["code"],
-            "ADK_INVALID_REQUEST"
+            invalid_agent_response["error"]["message"],
+            "enabled agent is required"
         );
 
         handle.shutdown().await.expect("shutdown cleanly");
@@ -5010,12 +5013,31 @@ mod product_production_assembly_tests {
             // B. Authenticated request must reach the handler and NEVER return 500 (Internal Server Error) or 501 (Not Implemented)
             let auth_status =
                 execute_http(address, &binding.method, &concrete_path, Some(&token)).await;
-            assert!(
-                auth_status != 500 && auth_status != 501,
-                "Route {} {} returned server error / unimplemented status {auth_status}",
-                binding.method,
-                binding.path
-            );
+            // Go's skill registry reports a missing skill as a 500
+            // `ADK_SKILL_UNINSTALL_FAILED` / `file does not exist` envelope.
+            // The frozen fixture `skill-delete-missing` preserves that
+            // projection byte-for-byte (see
+            // docs/history/go-to-rust/route-ledgers/adk-mutations.md), so the
+            // reachability matrix must not reclassify it as an unimplemented
+            // route.  Exact status/code coverage lives in the ADK mutation
+            // parity tests.
+            let is_go_skill_uninstall_quirk =
+                binding.method == "DELETE" && binding.path == "/api/v1/adk/skills/{skillId}";
+            if is_go_skill_uninstall_quirk {
+                assert_eq!(
+                    auth_status, 500,
+                    "The frozen Go skill-uninstall projection must stay 500 for a \
+                     missing skill ({} {})",
+                    binding.method, binding.path
+                );
+            } else {
+                assert!(
+                    auth_status != 500 && auth_status != 501,
+                    "Route {} {} returned server error / unimplemented status {auth_status}",
+                    binding.method,
+                    binding.path
+                );
+            }
 
             // A plain HTTP request cannot exercise the websocket upgrade
             // handshake.  Keep the route reachability/auth checks above, but

@@ -16,8 +16,11 @@ pub(super) fn decode_mutation_payload(
     })
 }
 
+/// `400 BAD_REQUEST`, the code every Go ADK handler uses for payload, route
+/// identifier and business-rule rejections that are not routed through a
+/// dedicated `ADK_*_FAILED` wrapper.
 pub(super) fn invalid_mutation_input(message: &str) -> AdkMutationPortError {
-    invalid_mutation_with_code("ADK_INVALID_REQUEST", message)
+    invalid_mutation_with_code("BAD_REQUEST", message)
 }
 
 pub(super) fn invalid_mutation_with_code(code: &str, message: &str) -> AdkMutationPortError {

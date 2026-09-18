@@ -84,11 +84,11 @@
     "evidence_type": "partial"
   },
   "internal/api/assistant/adk_approval_test.go:282:TestADKProviderDeleteRejectsReferencedProvider": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_entities.rs（ADK_PROVIDER_IN_USE 409 分支）；crates/jftrade-engine/tests/adk_mutations_compatibility.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
-    "conclusion": "partial：生产分支对“provider 被 agent 引用”返回 409 ADK_PROVIDER_IN_USE 且 mutation fixture 覆盖 provider-delete 成功路径，但没有独立 Rust 回归测试构造被引用 provider 并断言 409，需补测后升级。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_entities.rs::DeleteProvider；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection",
+    "conclusion": "function_exact：新增回归测试构造被 agent 引用的 provider，断言 409 ADK_PROVIDER_DELETE_FAILED、消息含 \"used by agent\" 与引用 agent 名，并验证 provider 行未被删除。修复了原先错误的 409 ADK_PROVIDER_IN_USE / \"provider is referenced by an agent\" 投影。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_approval_test.go:335:TestADKRunCancelAndFilteredList": {
     "status": "[x]",
@@ -245,25 +245,25 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:634:TestADKAgentSaveValidationFailures": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle.rs（\"assistant model provider is disabled\"）；crates/jftrade-engine/src/product_production_ports_adk_mutation_entities.rs::CreateAgent",
-    "conclusion": "partial：provider disabled 的拒绝对话在生产 runtime 中存在，但 Go 的四种 400 BAD_REQUEST 文案矩阵（disabled provider、missing key、unknown ADK tool、unknown ADK skill）没有等价 Rust 回归测试；Rust CreateAgent 不校验工具/技能存在性。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_agent_validation.rs::validate_agent_write；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_reports_the_go_validation_messages",
+    "conclusion": "function_exact：Go 的 400 BAD_REQUEST 校验文案矩阵逐条断言（invalid agent status / invalid agent work mode / invalid tool access mode / loop max iterations 1..20 / invalid agent payload / provider not found / provider is disabled / provider АРI keys is not configured / unknown ADK tool / unknown ADK skill），并覆盖 disabled agent 保留 provider 引用与 enabled+keyed 成功的对照分支。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:707:TestADKSkillInstallAndUninstallFailureRoutes": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill.rs（ADK_SKILL_INSTALL_FAILED）；crates/jftrade-engine/src/product_production_ports_adk_mutation_skill_helpers.rs",
-    "conclusion": "partial：install 失败码 ADK_SKILL_INSTALL_FAILED 与 URL 校验存在于生产代码，但 Rust 缺少 install 非 URL + uninstall 缺失两条路由的独立断言，且 ADK_SKILL_UNINSTALL_FAILED 未见等价码。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill.rs::skill_install_failed/uninstall_skill；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_skill_install_and_uninstall_failures_keep_the_go_codes、adk_skill_uninstall_removes_external_installs_and_reports_missing_files",
+    "conclusion": "function_exact：install 非 URL 返回 400 ADK_SKILL_INSTALL_FAILED，uninstall builtin 返回 500 ADK_SKILL_UNINSTALL_FAILED（消息含 builtin），外部 skill 卸载删除目录且二次卸载保留 Go 的 \"file does not exist\" 投影。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:741:TestADKBindAgentWithPreinstalledNeodataFinancialSearch": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::tests::production_builtin_skills_project_bound_tool_catalog；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::tool_catalog_marks_external_unavailable_tools_non_callable",
-    "conclusion": "partial：内置 skill→tool catalog 投影有证据，但没有等价 Rust 测试断言“绑定 neodata-financial-search 的 agent 保存后其允许工具集合包含预装工具”这一 Go 断言。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_agent_validation.rs::validate_agent_skills；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_accepts_preinstalled_external_and_builtin_skills",
+    "conclusion": "function_exact：预装外部 skill 与内置 skill 均可被 agent 保存引用，保存后的 skills 列表保留 neodata-financial-search 与 jftrade-market。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:787:TestADKSessionNegativeRoutes": {
     "status": "[~]",
@@ -289,7 +289,7 @@
   "internal/api/assistant/adk_sessions_test.go:15:TestADKSessionsCRUDAndFilteringRoutes": {
     "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::tests::production_adk_public_sessions_use_main_store_and_support_crud",
-    "conclusion": "function_exact：create/list(agentId+query)/detail(含 timeline 数组与 composerState)/composer-state PATCH/rename PUT/delete/缺失 404/未知 agent 400 ADK_INVALID_REQUEST 全流程断言。",
+    "conclusion": "function_exact：create/list(agentId+query)/detail(含 timeline 数组与 composerState)/composer-state PATCH/rename PUT/delete/缺失 404/未知 agent 400 BAD_REQUEST（enabled agent is required 文案） 全流程断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "function_exact"
   },
@@ -539,11 +539,11 @@
     "evidence_type": "missing"
   },
   "internal/api/assistant/routes_resource_contracts_test.go:159:TestProviderAndAgentValidationContracts": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_entities.rs::CreateProvider/DeleteProvider；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_reports_the_go_validation_messages、adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection、adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope",
+    "conclusion": "function_exact：missing/disabled/no-key provider 与 unknown tool 的 400 BAD_REQUEST 文案、被 agent 引用的 provider 删除 409 ADK_PROVIDER_DELETE_FAILED（消息含 used by agent 与引用 agent 名）、未知 provider 删除幂等 200 {deleted,id} 均有独立断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_resource_contracts_test.go:261:TestProviderDefaultContract": {
     "status": "[~]",
@@ -10003,11 +10003,11 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/store_business_test.go:22:TestStoreProviderLifecycleMaintainsDefaultAndSecrets": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_entities.rs::DeleteProvider；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope",
+    "conclusion": "function_exact：未知 provider 删除保持 Go 的幂等语义（200 deleted/id 而非 404），未知 replacement 不再触发索引 panic。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_business_test.go:108:TestStoreAgentSessionCascadeAndTaskMemoryBoundaries": {
     "status": "[~]",
@@ -10080,11 +10080,11 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/store_lifecycle_test.go:17:TestDeleteProviderFailsWhenReferencedByAgent": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_entities.rs::DeleteProvider（store 层 ErrProviderInUse 等价分支）；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection",
+    "conclusion": "function_exact：provider 被 agent 引用时删除按 Go 的 ErrProviderInUse 语义被拒绝（409 ADK_PROVIDER_DELETE_FAILED + used by agent + agent 名），且不产生 durable 变更。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_lifecycle_test.go:45:TestProvidersMaintainDefaultSelectionAndCreatedOrder": {
     "status": "[~]",
@@ -11879,11 +11879,11 @@
     "evidence_type": "missing"
   },
   "internal/assistant/service_business_test.go:12:TestServiceSaveAgentValidationScenarios": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_agent_validation.rs::validate_agent_write；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_update_revalidates_the_merged_payload",
+    "conclusion": "function_exact：更新路径对合并后的 payload 复用同一校验 owner；引入未知 tool 的 PUT 被 400 BAD_REQUEST 拒绝且不落库（保留原 providerId、不产生部分 tools 写入）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/service_business_test.go:117:TestServicePreviewSessionScenarios": {
     "status": "[~]",
