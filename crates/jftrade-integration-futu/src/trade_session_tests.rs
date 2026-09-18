@@ -2607,6 +2607,407 @@ fn combo_protocol_transport_errors_are_surfaced() {
     place_server.join().expect("place server");
 }
 
+/// Answer one request per protocol with the supplied bodies, recording every
+/// protocol id so the wire contract stays observable. `OpenDManagedSession`
+/// performs no handshake of its own, so the first frame is already the call.
+fn combo_scripted_server(
+    expected: Vec<(u32, Vec<u8>)>,
+) -> (
+    std::net::SocketAddr,
+    Arc<std::sync::Mutex<Vec<u32>>>,
+    thread::JoinHandle<()>,
+) {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let protocols = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let recorded = Arc::clone(&protocols);
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        for (protocol, body) in expected {
+            let frame = read_frame(&mut stream);
+            assert_eq!(frame.header.proto_id, protocol, "request protocol");
+            recorded
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .push(frame.header.proto_id);
+            stream
+                .write_all(
+                    &encode_frame(frame.header.proto_id, frame.header.serial_no, &body)
+                        .expect("response frame"),
+                )
+                .expect("response");
+        }
+    });
+    (address, protocols, server)
+}
+
+fn combo_max_request() -> TradeComboMaxTradeQuantityRequest {
+    TradeComboMaxTradeQuantityRequest {
+        header: trade_header(1, 1001, 2),
+        combo_legs: vec![
+            crate::TradeComboLeg {
+                market: 11,
+                code: "US.ONE".to_owned(),
+                side: Some(1),
+                qty_ratio: Some(1.0),
+                position_id: None,
+                pred_side: None,
+            },
+            crate::TradeComboLeg {
+                market: 11,
+                code: "US.TWO".to_owned(),
+                side: Some(2),
+                qty_ratio: Some(1.0),
+                position_id: None,
+                pred_side: None,
+            },
+        ],
+        quantity: 1.0,
+        price: Some(1.5),
+        order_type: 1,
+        order_id_ex: None,
+    }
+}
+
+fn combo_place_request() -> TradePlaceComboOrderRequest {
+    TradePlaceComboOrderRequest {
+        header: trade_header(1, 1001, 2),
+        combo_legs: vec![
+            crate::TradeComboLeg {
+                market: 11,
+                code: "US.ONE".to_owned(),
+                side: Some(1),
+                qty_ratio: Some(1.0),
+                position_id: None,
+                pred_side: None,
+            },
+            crate::TradeComboLeg {
+                market: 11,
+                code: "US.TWO".to_owned(),
+                side: Some(2),
+                qty_ratio: Some(1.0),
+                position_id: None,
+                pred_side: None,
+            },
+        ],
+        quantity: 1.0,
+        price: Some(1.5),
+        order_type: 1,
+        time_in_force: None,
+        expire_time: None,
+        remark: None,
+        quote_id: None,
+    }
+}
+
+#[test]
+fn combo_trading_client_response_shapes() {
+    // Parity: go:452dea11:pkg/futu/opend/advanced_combo_protocol_test.go:132
+    // TestComboTradingClientResponseShapes. Go asserts the empty-response
+    // envelope is an empty *success* for both combo protocols, that a nested
+    // empty s2c is still success, that populated rows project their fields, and
+    // that a broker rejection is never hidden.
+    let empty_max = trd_get_combo_max_trd_qtys::Response {
+        ret_type: 0,
+        ret_msg: None,
+        err_code: None,
+        s2c: None,
+    }
+    .encode_to_vec();
+    let empty_place = trd_place_combo_order::Response {
+        ret_type: 0,
+        ret_msg: None,
+        err_code: None,
+        s2c: None,
+    }
+    .encode_to_vec();
+    let (address, protocols, server) = combo_scripted_server(vec![
+        (trd_get_combo_max_trd_qtys::PROTOCOL_ID, empty_max),
+        (trd_place_combo_order::PROTOCOL_ID, empty_place),
+    ]);
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_secs(2), 41).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+
+    let maximum = client
+        .read_combo_max_trade_quantity(combo_max_request())
+        .expect("an empty combo max envelope is a success");
+    assert_eq!(maximum.buying_power_decrease, None);
+    let placed = client
+        .place_combo_order(combo_place_request())
+        .expect("an empty combo place envelope is a success");
+    assert_eq!(placed.order_id_ex, None);
+    session.close().expect("close");
+    server.join().expect("server");
+    assert_eq!(
+        protocols
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone(),
+        vec![
+            trd_get_combo_max_trd_qtys::PROTOCOL_ID,
+            trd_place_combo_order::PROTOCOL_ID
+        ]
+    );
+
+    // A populated nested s2c projects every delta field.
+    let max_body = trd_get_combo_max_trd_qtys::Response {
+        ret_type: 0,
+        ret_msg: None,
+        err_code: None,
+        s2c: Some(trd_get_combo_max_trd_qtys::S2c {
+            header: trade_header(1, 1001, 2).into(),
+            max_trd_qtys: Some(crate::trade_proto::trd_common::ComboMaxTrdQtys {
+                nlv_change: Some(-1.0),
+                initial_margin_change: Some(-2.0),
+                maintenance_margin_change: Some(-3.0),
+                option_buy_power: Some(4.0),
+                max_with_draw_change: Some(-5.0),
+                buy_power_decrease: Some(12.5),
+            }),
+        }),
+    }
+    .encode_to_vec();
+    let place_body = trd_place_combo_order::Response {
+        ret_type: 0,
+        ret_msg: None,
+        err_code: None,
+        s2c: Some(trd_place_combo_order::S2c {
+            header: trade_header(1, 1001, 2).into(),
+            order_id_ex: Some("combo-order".to_owned()),
+        }),
+    }
+    .encode_to_vec();
+    let (address, _, server) = combo_scripted_server(vec![
+        (trd_get_combo_max_trd_qtys::PROTOCOL_ID, max_body),
+        (trd_place_combo_order::PROTOCOL_ID, place_body),
+    ]);
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_secs(2), 42).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let maximum = client
+        .read_combo_max_trade_quantity(combo_max_request())
+        .expect("populated combo max");
+    assert_eq!(maximum.buying_power_decrease, Some(12.5));
+    assert_eq!(maximum.nlv_change, Some(-1.0));
+    assert_eq!(maximum.initial_margin_change, Some(-2.0));
+    assert_eq!(maximum.maintenance_margin_change, Some(-3.0));
+    assert_eq!(maximum.option_buy_power, Some(4.0));
+    assert_eq!(maximum.max_withdraw_change, Some(-5.0));
+    let placed = client
+        .place_combo_order(combo_place_request())
+        .expect("populated combo place");
+    assert_eq!(placed.order_id_ex.as_deref(), Some("combo-order"));
+    session.close().expect("close");
+    server.join().expect("server");
+
+    // A broker rejection must surface with its retType/errCode/retMsg instead
+    // of being reported as an empty success.
+    let rejected_max = trd_get_combo_max_trd_qtys::Response {
+        ret_type: 1,
+        ret_msg: Some("denied".to_owned()),
+        err_code: Some(2),
+        s2c: None,
+    }
+    .encode_to_vec();
+    let rejected_place = trd_place_combo_order::Response {
+        ret_type: 1,
+        ret_msg: Some("closed".to_owned()),
+        err_code: Some(3),
+        s2c: None,
+    }
+    .encode_to_vec();
+    let (address, _, server) = combo_scripted_server(vec![
+        (trd_get_combo_max_trd_qtys::PROTOCOL_ID, rejected_max),
+        (trd_place_combo_order::PROTOCOL_ID, rejected_place),
+    ]);
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_secs(2), 43).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let error = client
+        .read_combo_max_trade_quantity(combo_max_request())
+        .expect_err("combo max rejection");
+    assert!(error.to_string().contains("denied"), "error = {error}");
+    assert!(error.to_string().contains("errCode=2"), "error = {error}");
+    let error = client
+        .place_combo_order(combo_place_request())
+        .expect_err("combo place rejection");
+    assert!(error.to_string().contains("closed"), "error = {error}");
+    assert!(error.to_string().contains("errCode=3"), "error = {error}");
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn advanced_response_validation_helpers_match_go() {
+    // Parity: go:452dea11:pkg/futu/opend/advanced_combo_protocol_test.go:105
+    // TestAdvancedResponseValidationAndPayloadHelpers. Go validates a raw
+    // `retType` envelope independently of the concrete message and then
+    // re-marshals the payload with protojson.
+    // 1. A successful envelope without s2c stays valid for envelope-only
+    //    validation, so `validate_response_for` must accept it.
+    assert!(crate::trade_proto::validate_response_for(0, None, None, true).is_ok());
+    // 2. A failed envelope without optional details must be rejected with the
+    //    retType; Go's `validateAdvancedResponse("failed", ...)` fails.
+    assert!(matches!(
+        crate::trade_proto::validate_response_for(1, None, None, false),
+        Err(crate::trade_proto::ResponseError::ReturnCode { ret_type: 1, .. })
+    ));
+    // 3. A success that lost its s2c is a distinct failure kind, not a
+    //    return-code error.
+    assert!(matches!(
+        crate::trade_proto::validate_response_for(0, None, None, false),
+        Err(crate::trade_proto::ResponseError::MissingS2c)
+    ));
+    // 4. Rejections always carry errCode/retMsg so the operator sees both.
+    match crate::trade_proto::validate_response_for(1, Some(429), Some("limited"), false) {
+        Err(crate::trade_proto::ResponseError::ReturnCode {
+            ret_type,
+            err_code,
+            message,
+        }) => {
+            assert_eq!((ret_type, err_code, message.as_str()), (1, 429, "limited"));
+        }
+        other => panic!("unexpected rejection classification: {other:?}"),
+    }
+
+    // The combo-specific payload validator rejects non-finite deltas and keeps
+    // finite ones, including negatives (a combo may reduce margin).
+    let finite = trd_get_combo_max_trd_qtys::S2c {
+        header: trade_header(1, 1001, 2).into(),
+        max_trd_qtys: Some(crate::trade_proto::trd_common::ComboMaxTrdQtys {
+            nlv_change: Some(-1.25),
+            buy_power_decrease: Some(12.5),
+            ..Default::default()
+        }),
+    };
+    trd_get_combo_max_trd_qtys::validate_payload_for_test(&finite).expect("finite combo payload");
+    let non_finite = trd_get_combo_max_trd_qtys::S2c {
+        header: trade_header(1, 1001, 2).into(),
+        max_trd_qtys: Some(crate::trade_proto::trd_common::ComboMaxTrdQtys {
+            nlv_change: Some(f64::INFINITY),
+            ..Default::default()
+        }),
+    };
+    assert!(matches!(
+        trd_get_combo_max_trd_qtys::validate_payload_for_test(&non_finite),
+        Err(crate::trade_proto::ResponseError::Validation(_))
+    ));
+}
+
+#[test]
+fn combo_clients_reject_absent_requests_and_unauthenticated_clients() {
+    // Parity: go:452dea11:pkg/futu/opend/advanced_combo_protocol_test.go:132
+    // (the nil-request and no-connID branches). Go fails closed before touching
+    // the socket in both cases.
+    // Rust models "no request" as a value type, so the equivalent guard is the
+    // session: a client whose session is closed cannot issue a combo call, and
+    // the server would observe the call if it did.
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let requests = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let recorded = Arc::clone(&requests);
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        // A closed client must never send: only record a frame if one arrives.
+        if let Ok(frame) =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| read_frame(&mut stream)))
+        {
+            recorded
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .push(frame.header.proto_id);
+        }
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_secs(2), 44).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    session.close().expect("close");
+    assert!(
+        client
+            .read_combo_max_trade_quantity(combo_max_request())
+            .is_err(),
+        "a closed session must not answer a combo max read"
+    );
+    assert!(
+        client.place_combo_order(combo_place_request()).is_err(),
+        "a closed session must not answer a combo place"
+    );
+    assert!(
+        requests
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_empty(),
+        "a closed session must not reach the wire"
+    );
+    server.join().expect("server");
+}
+
+#[test]
+fn combo_protocol_ids_are_the_go_advanced_dispatcher_ids() {
+    // Parity: go:452dea11:pkg/futu/opend/advanced_combo_protocol_test.go:17
+    // TestAdvancedDispatcherKeysValidationSuccessAndFailures. Go registers both
+    // combo protocols in the advanced dispatcher table with fixed ids and
+    // rejects unknown keys/fields before the RPC; Rust addresses them through
+    // typed modules, so the ids and the request shape are the equivalent
+    // contract.
+    assert_eq!(trd_get_combo_max_trd_qtys::PROTOCOL_ID, 2112);
+    assert_eq!(trd_place_combo_order::PROTOCOL_ID, 2227);
+
+    let request = combo_max_request();
+    let body = trd_get_combo_max_trd_qtys::encode_request(&trd_get_combo_max_trd_qtys::Request {
+        c2s: trd_get_combo_max_trd_qtys::C2s {
+            header: request.header.clone().into(),
+            combo_legs: Vec::new(),
+            qty: request.quantity,
+            price: request.price,
+            order_type: request.order_type,
+            order_id_ex: None,
+        },
+    });
+    let decoded = trd_get_combo_max_trd_qtys::Request::decode(body.as_slice()).expect("request");
+    assert_eq!(decoded.c2s.header.acc_id, 1001);
+    assert_eq!(decoded.c2s.qty, 1.0);
+    assert_eq!(decoded.c2s.order_type, 1);
+
+    // Go's `AdvancedC2SHasField` rejects unknown request fields before the
+    // RPC; the typed encoding is the equivalent guarantee: the encoded request
+    // only carries allowlisted fields, and the placement request adds the
+    // command packet id plus the venue order fields.
+    let place_body = trd_place_combo_order::encode_request(&trd_place_combo_order::Request {
+        c2s: trd_place_combo_order::C2s {
+            packet_id: crate::trade_proto::common::PacketId {
+                conn_id: 77,
+                serial_no: 1,
+            },
+            header: trade_header(1, 1001, 2).into(),
+            combo_legs: Vec::new(),
+            qty: 1.0,
+            price: Some(1.5),
+            order_type: 1,
+            time_in_force: None,
+            expire_time: None,
+            remark: None,
+            quote_id: None,
+        },
+    });
+    let decoded =
+        trd_place_combo_order::Request::decode(place_body.as_slice()).expect("place request");
+    assert_eq!(decoded.c2s.packet_id.conn_id, 77);
+    assert_eq!(decoded.c2s.packet_id.serial_no, 1);
+    assert_eq!(decoded.c2s.header.acc_id, 1001);
+
+    // The two protocol ids are distinct dispatcher entries.
+    assert_ne!(
+        trd_get_combo_max_trd_qtys::PROTOCOL_ID,
+        trd_place_combo_order::PROTOCOL_ID
+    );
+}
+
 #[test]
 fn repeated_account_reads_reuse_one_opend_connection() {
     // Parity: go:452dea11:pkg/futu/exchange_test.go:265

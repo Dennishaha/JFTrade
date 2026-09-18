@@ -7,8 +7,8 @@
 //! because the account holds no BasicQot entitlement, the watchlist asks the
 //! broker object for a `SnapshotFallbackSource` and reads the same fields from
 //! the delayed StockScreen protocol instead. The delayed read is strictly
-//! read-only - it never creates a subscription, which is why the Go test
-//! asserts `subCallCount() == 0` on every path.
+//! read-only - it never creates a subscription, which is why the Go-side
+//! fixture asserts `subCallCount() == 0` on every path.
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Condvar, Mutex};
@@ -809,7 +809,7 @@ fn current_unix_millis() -> i64 {
 /// Go exposes this as the `broker.SnapshotFallbackSource` capability on the
 /// broker adapter, with one 15s coordinator per adapter so several quote
 /// surfaces share the delayed read. Kept read-only on purpose: no `Qot_Sub` is
-/// ever issued here, which is what the Go tests assert with
+/// ever issued here, which is what the Go-side fixtures assert with
 /// `subCallCount() == 0`.
 pub struct StockScreenSnapshotFallback {
     reader: Arc<dyn SnapshotFallbackFetchPort>,

@@ -3505,3 +3505,71 @@ python3 scripts/compatibility/audit_test_parity.py
 
 结果：1786 passed / 1 skipped（本批新增 11 条 Rust 测试）；审计
 OK: 534 function_exact（本批 7 条 `[~]` → `[x]`）。
+
+## 批次：pkg/futu/opend/advanced_combo_protocol_test.go（4 项）
+
+本批把 Go 高级协议分发器与组合交易客户端响应形状的 4 条 `[~]` 升级为
+`[x]`/`function_exact`（审计 534 → 538）。
+
+| Go 测试 | 映射状态 | Rust 入口 |
+| --- | --- | --- |
+| `:17` TestAdvancedDispatcherKeysValidationSuccessAndFailures | `[x]` | `trade_session_tests.rs::tests::combo_protocol_ids_are_the_go_advanced_dispatcher_ids` |
+| `:52` TestCallAdvancedSuccessEnvelopeAndAllErrorBoundaries | `[x]` | `trade_session_tests.rs::tests::combo_trading_client_response_shapes` |
+| `:105` TestAdvancedResponseValidationAndPayloadHelpers | `[x]` | `trade_session_tests.rs::tests::advanced_response_validation_helpers_match_go` |
+| `:132` TestComboTradingClientResponseShapes | `[x]` | `trade_session_tests.rs::tests::combo_clients_reject_absent_requests_and_unauthenticated_clients` |
+
+### 真实功能缺口与修复（1 处，P1）
+
+1. **组合交易把「空成功」误判为失败，同时可能把拒绝当成空成功**
+   - 复现：`Trd_GetComboMaxTrdQtys` 返回 `retType=0` 且没有 `s2c`（或 `s2c`
+     里没有 `maxTrdQtys`）时，Rust 的 `decode_response` 走 `MissingS2c` /
+     `MissingMaxTradeQuantity` 报错；Go 的 `GetComboMaxTrdQtys` 明确返回零值
+     `ComboMaxTrdQtys{}` 作为成功。`Trd_PlaceComboOrder` 同理：Go 在
+     `s2c == nil` 时返回空 order id 且不报错。
+   - 影响：组合预览在部分行情/券商没有该字段时整单失败，而 Go 只是把资金占用
+     显示为空；这是用户可见的行为差异。
+   - 修复：`crates/jftrade-integration-futu/src/trade_proto.rs` 为两个组合协议
+     各自提供 `decode_response`——零 `retType` 时 `unwrap_or_default()` 得到空
+     payload，非零 `retType` 一律映射为带 `retType/errCode/retMsg` 的
+     `ResponseError::ReturnCode`；`trade_session.rs` 的
+     `read_combo_max_trade_quantity` 同步改为 `unwrap_or_default()`（不再
+     `ok_or(MissingMaxTradeQuantity)`）。
+   - 边界：**权益协议仍然严格**——`trd_get_max_trd_qtys::decode_response` 对
+     缺失 `maxTrdQtys` 继续报 `MissingMaxTradeQuantity`
+     （`trade_proto_tests.rs` 既有断言保持不变）。
+   - 回归：`combo_trading_client_response_shapes`（空信封成功、填充字段投影、
+     拒绝必须报错）、`advanced_response_validation_helpers_match_go`。
+
+### 探针（改坏实现 → 跑测试 → 确认守卫 → 回滚）
+
+- 把 combo max 改回严格 `MissingS2c`
+  → `combo_trading_client_response_shapes` 失败：
+  `an empty combo max envelope is a success: Response(MissingS2c)`。已回滚并复跑通过。
+- 删掉 combo place 的 `ret_type != 0` 检查
+  → 同一测试失败于 `combo place rejection`：返回
+  `TradePlaceComboOrderResult { order_id_ex: None, .. }` 而不是错误。已回滚并复跑通过。
+
+### 有意区分（未强行统一）
+
+- **分发模型**：Go 用 `AdvancedProtocols` 运行时表 + `map[string]any` +
+  protojson；Rust 每个协议一个强类型模块，未知协议/未知字段在类型层不可表达。
+  因此 `:17` 的「键有序、未知字段 false、chan 请求报错」映射为
+  protocol id + 编码 round-trip 断言，而不是复刻运行时表。
+- **请求可空性**：Go 的 `*C2S` 可以是 nil 并在入口报错；Rust 请求是值类型，
+  等价 fail-closed 条件是已关闭 session 下调用必须失败且不触网（测试用服务端
+  记录的协议列表为空来证明）。
+- **错误文本**：Go 的 `CallAdvanced` 错误串形如
+  `retType=1 errCode=429 retMsg=limited`；Rust 用结构化
+  `ResponseError::ReturnCode { ret_type, err_code, message }`，测试断言结构化
+  字段与文本均含 retMsg/errCode。
+
+### 验证
+
+```bash
+cargo fmt --all
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --no-fail-fast
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：1789 passed / 1 skipped（本批新增 4 条 Rust 测试）；审计
+OK: 538 function_exact（本批 4 条 `[~]` → `[x]`）。

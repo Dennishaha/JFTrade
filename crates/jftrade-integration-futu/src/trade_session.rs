@@ -696,9 +696,10 @@ impl OpenDTradeReadClient {
             }),
         )?;
         let payload = trd_get_combo_max_trd_qtys::decode_response(&payload)?;
-        let maximum = payload
-            .max_trd_qtys
-            .ok_or(crate::trade_proto::ResponseError::MissingMaxTradeQuantity)?;
+        // Go `GetComboMaxTrdQtys` treats an absent `maxTrdQtys` as the zero
+        // value, so the preview can still report "no impact" instead of
+        // failing the whole combo on a provider that omits the block.
+        let maximum = payload.max_trd_qtys.unwrap_or_default();
         Ok(crate::trade_snapshots::combo_max_trade_quantity_projection(
             &request, maximum,
         ))

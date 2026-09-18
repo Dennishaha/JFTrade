@@ -624,7 +624,7 @@ pub enum ValidationError {
     },
 }
 
-fn validate_response_for(
+pub(crate) fn validate_response_for(
     ret_type: i32,
     err_code: Option<i32>,
     ret_msg: Option<&str>,
@@ -816,21 +816,32 @@ pub mod trd_get_combo_max_trd_qtys {
         request.encode_to_vec()
     }
 
+    /// Decodes the combo buying-power response.
+    ///
+    /// Go `GetComboMaxTrdQtys` is deliberately permissive here: a zero
+    /// retType with an absent `s2c`, or an `s2c` without `maxTrdQtys`, is an
+    /// empty *success* rather than an error, because the preview only needs the
+    /// delta fields when the venue supplies them. A missing `s2c` on a
+    /// *rejected* response still fails through `validate_response_for`.
+    /// Test seam for the combo payload validator; production callers decode a
+    /// full response body through [`Self::decode_response`].
+    pub fn validate_payload_for_test(payload: &S2c) -> Result<(), super::ResponseError> {
+        super::validate_combo_max_trade_quantity_s2c(payload)
+    }
+
     pub fn decode_response(body: &[u8]) -> Result<S2c, super::ResponseError> {
         let response = Response::decode(body).map_err(|error| super::ResponseError::Decode {
             operation: "GetComboMaxTrdQtys",
             message: error.to_string(),
         })?;
-        super::validate_response_for(
-            response.ret_type,
-            response.err_code,
-            response.ret_msg.as_deref(),
-            response.s2c.is_some(),
-        )?;
-        let payload = response.s2c.ok_or(super::ResponseError::MissingS2c)?;
-        if payload.max_trd_qtys.is_none() {
-            return Err(super::ResponseError::MissingMaxTradeQuantity);
+        if response.ret_type != 0 {
+            return Err(super::ResponseError::ReturnCode {
+                ret_type: response.ret_type,
+                err_code: response.err_code.unwrap_or_default(),
+                message: response.ret_msg.unwrap_or_default(),
+            });
         }
+        let payload = response.s2c.unwrap_or_default();
         super::validate_combo_max_trade_quantity_s2c(&payload)?;
         Ok(payload)
     }
@@ -901,12 +912,38 @@ macro_rules! trade_command_proto {
 }
 
 trade_command_proto!(trd_place_order, "trd_place_order.rs", "PlaceOrder", 2202);
-trade_command_proto!(
-    trd_place_combo_order,
-    "trd_place_combo_order.rs",
-    "PlaceComboOrder",
-    2227
-);
+pub mod trd_place_combo_order {
+    use prost::Message;
+
+    include!(concat!(env!("OUT_DIR"), "/trd_place_combo_order.rs"));
+
+    pub const PROTOCOL_ID: u32 = 2227;
+
+    pub fn encode_request(request: &Request) -> Vec<u8> {
+        request.encode_to_vec()
+    }
+
+    /// Decodes the combo placement response.
+    ///
+    /// Go `PlaceComboOrder` returns an empty order id when the venue answered
+    /// success without an `s2c`, and only fails on a non-zero retType; the
+    /// strict `MissingS2c` rule would turn that documented empty success into
+    /// a false failure.
+    pub fn decode_response(body: &[u8]) -> Result<S2c, super::ResponseError> {
+        let response = Response::decode(body).map_err(|error| super::ResponseError::Decode {
+            operation: "PlaceComboOrder",
+            message: error.to_string(),
+        })?;
+        if response.ret_type != 0 {
+            return Err(super::ResponseError::ReturnCode {
+                ret_type: response.ret_type,
+                err_code: response.err_code.unwrap_or_default(),
+                message: response.ret_msg.unwrap_or_default(),
+            });
+        }
+        Ok(response.s2c.unwrap_or_default())
+    }
+}
 trade_command_proto!(trd_modify_order, "trd_modify_order.rs", "ModifyOrder", 2205);
 trade_command_proto!(trd_unlock_trade, "trd_unlock_trade.rs", "UnlockTrade", 2005);
 trade_command_proto!(
