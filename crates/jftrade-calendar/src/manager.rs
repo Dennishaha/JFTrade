@@ -379,11 +379,21 @@ impl ManagerInner {
     }
 
     fn refresh_market(&self, market: &str) -> Result<CalendarRefreshResult, CalendarManagerError> {
-        let market = normalize_market(market);
+        let target = normalize_market(market);
         let now = self.now();
+        // Go's `refresh` resolves the fetch scope through
+        // `refreshMarketsForTarget`, so an SH/SZ target is served by its CN
+        // owner while the reported `market` stays the requested target.
+        // `probe_market` already mirrors that split; the wire contract is
+        // pinned by the frozen calendar-control fixture for the US/MARS cases.
+        let market = if matches!(target.as_str(), "SH" | "SZ") {
+            "CN".to_owned()
+        } else {
+            target.clone()
+        };
         let mut result = CalendarRefreshResult {
             accepted: true,
-            market: market.clone(),
+            market: target,
             requested_at: wire_text(now),
             warmup_markets: vec![market.clone()],
             ..CalendarRefreshResult::default()

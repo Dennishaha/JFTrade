@@ -262,3 +262,138 @@ pub(crate) fn market_local_year(
 pub(crate) fn wire_text(at: OffsetDateTime) -> String {
     WireTimestamp::from_offset_datetime(at).to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::*;
+    use crate::{CalendarSnapshot, TradingDaySchedule};
+
+    fn timestamp(value: &str) -> WireTimestamp {
+        WireTimestamp::from_str(value).expect("valid fixture timestamp")
+    }
+
+    fn closed_snapshot() -> CalendarSnapshot {
+        CalendarSnapshot {
+            source_id: "cache_probe".to_owned(),
+            market_code: "US".to_owned(),
+            from: timestamp("2026-01-01T00:00:00-05:00"),
+            to: timestamp("2026-12-31T23:59:59-05:00"),
+            schedules: vec![TradingDaySchedule {
+                market_code: "US".to_owned(),
+                date: timestamp("2026-07-03T00:00:00-04:00"),
+                status: "closed".to_owned(),
+                sessions: Vec::new(),
+                reason: "independence_day".to_owned(),
+                source_id: "cache_probe".to_owned(),
+                observed: true,
+                updated_at: None,
+            }],
+            fetched_at: timestamp("2026-01-02T00:00:00Z"),
+            valid_until: timestamp("2026-12-31T23:59:59Z"),
+            checksum: "cache_probe".to_owned(),
+        }
+    }
+
+    /// Parity: go:452dea11:internal/exchangecalendar/manager_boundaries_test.go:172
+    /// TestManagerValidateCachedSnapshotRejectsCorruptSnapshots.
+    ///
+    /// Go calls `validateCachedSnapshot` directly and asserts the reason for
+    /// each corrupt shape. Rust reaches the same owner through restore, so the
+    /// condition table is pinned here, next to the validator, and the restore
+    /// path's observable effects are pinned by
+    /// `tests/manager_boundaries.rs`. Wording differs from Go (`missing
+    /// sourceId` vs. the combined identity message, `%s outside snapshot range`
+    /// vs. the market/range message), so each arm asserts the condition it
+    /// encodes.
+    #[test]
+    fn validate_snapshot_rejects_the_go_boundary_table() {
+        let valid = closed_snapshot();
+        assert!(
+            validate_snapshot(&valid).is_ok(),
+            "the valid snapshot passes"
+        );
+
+        let mut missing_source = valid.clone();
+        missing_source.source_id = " ".to_owned();
+        assert!(
+            validate_snapshot(&missing_source).is_err(),
+            "missing source"
+        );
+
+        let mut missing_market = valid.clone();
+        missing_market.market_code = " ".to_owned();
+        assert!(
+            validate_snapshot(&missing_market).is_err(),
+            "missing market"
+        );
+
+        let mut unsupported = valid.clone();
+        unsupported.market_code = "MARS".to_owned();
+        assert!(
+            validate_snapshot(&unsupported)
+                .is_err_and(|error| error.contains("unsupported snapshot market")),
+            "unsupported market"
+        );
+
+        let mut missing_range = valid.clone();
+        missing_range.from = timestamp("0001-01-01T00:00:00Z");
+        assert!(
+            validate_snapshot(&missing_range)
+                .is_err_and(|error| error.contains("missing snapshot range")),
+            "missing range"
+        );
+
+        let mut backward = valid.clone();
+        backward.from = valid.to;
+        backward.to = valid.from;
+        assert!(
+            validate_snapshot(&backward).is_err_and(|error| error.contains("range is invalid")),
+            "backward range"
+        );
+
+        let mut empty_date = valid.clone();
+        empty_date.schedules[0].date = timestamp("0001-01-01T00:00:00Z");
+        assert!(
+            validate_snapshot(&empty_date).is_err_and(|error| error.contains("empty date")),
+            "empty schedule date"
+        );
+
+        let mut outside = valid.clone();
+        outside.schedules[0].date = timestamp("2029-01-01T00:00:00-05:00");
+        assert!(
+            validate_snapshot(&outside)
+                .is_err_and(|error| error.contains("outside its market or range")),
+            "schedule outside snapshot range"
+        );
+    }
+
+    /// The snapshot's own market and every schedule must agree: a US snapshot
+    /// carrying a CN schedule is rejected rather than silently served.
+    #[test]
+    fn validate_snapshot_rejects_mismatched_schedule_market() {
+        let mut snapshot = closed_snapshot();
+        snapshot.schedules[0].market_code = "CN".to_owned();
+        assert!(
+            validate_snapshot(&snapshot)
+                .is_err_and(|error| error.contains("does not match snapshot market"))
+        );
+    }
+
+    /// An SH snapshot is accepted for the mainland templates, which is what the
+    /// shared mainland fallback depends on.
+    #[test]
+    fn validate_snapshot_accepts_mainland_alias_markets() {
+        let mut snapshot = closed_snapshot();
+        snapshot.market_code = "SH".to_owned();
+        snapshot.from = timestamp("2026-01-01T00:00:00+08:00");
+        snapshot.to = timestamp("2026-12-31T23:59:59+08:00");
+        snapshot.schedules[0].market_code = "CN".to_owned();
+        snapshot.schedules[0].date = timestamp("2026-10-01T00:00:00+08:00");
+        assert!(
+            validate_snapshot(&snapshot).is_ok(),
+            "an SH snapshot with a CN schedule is valid mainland data"
+        );
+    }
+}

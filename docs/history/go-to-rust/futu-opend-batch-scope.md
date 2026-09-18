@@ -4028,3 +4028,63 @@ python3 scripts/compatibility/audit_test_parity.py
 `rust_entry` 全局唯一）；`jftrade-calendar` 63/63 通过。
 
 `internal/exchangecalendar` 至此全部收口（72 条映射中已无该目录 `[~]` 行）。
+
+## 批次：internal/exchangecalendar/manager_boundaries_test.go（9 项）
+
+基线 `go:452dea11`。本批 9 条：7 条 `[x]`（其中 1 条含真实修复）+ 2 条
+boundary。新增 `crates/jftrade-calendar/tests/manager_boundaries.rs`（8 个测试）
+与 `manager_calendar.rs` 的 `mod tests`（3 个 owner 级单元测试）。
+
+| Go 测试 | 状态 | Rust 测试 |
+| --- | --- | --- |
+| `:14` TestManagerLifecycleAndTemplateBoundaries | `[x]` | `manager_boundaries.rs::manager_lifecycle_and_market_lookup_boundaries_match_go` |
+| `:50` TestManualOverrideStatusAndSessionBoundaries | `[x]` | `manager_boundaries.rs::manual_override_status_and_session_window_boundaries_match_go` |
+| `:119` TestHTTPCalendarSourceValidateSnapshotBoundary | `boundary` | `manager_calendar.rs::tests::validate_snapshot_rejects_the_go_boundary_table` |
+| `:146` TestCalendarSourceAvailabilityNotesAndRefreshTargets | `[x]` | `manager_boundaries.rs::source_availability_notes_and_refresh_target_folding_match_go` |
+| `:172` TestManagerValidateCachedSnapshotRejectsCorruptSnapshots | `[x]` | `manager_calendar.rs::tests::validate_snapshot_rejects_the_go_boundary_table` + `manager_boundaries.rs::corrupt_cached_snapshots_are_rejected_with_the_go_conditions` |
+| `:216` TestManagerValidateCachedSnapshotUsesRegisteredSourceValidator | `[x]` | `manager_boundaries.rs::registered_provider_snapshots_pass_domain_validation_before_caching` |
+| `:248` TestManagerCachedSnapshotMainlandFallbackAndFreshnessBoundaries | `[x]` | `manager_boundaries.rs::cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go` |
+| `:287` TestSourceRegistryNilDuplicateAndMarketNormalizationBoundaries | `[x]` | `manager_boundaries.rs::source_registry_normalization_and_duplicate_boundaries_match_go` |
+| `:333` TestExtractNYSEHeaderYearsSkipsMalformedRowsBeforeValidHeader | `boundary` | `manager_boundaries.rs::nyse_header_year_extraction_is_a_retired_go_parser_boundary` |
+
+### 真实功能缺口（1 处）
+
+`:146` 的 `refreshMarketsForTarget` 折叠暴露了 `refresh_market` 与
+`probe_market` 的不对称：
+
+- Go 的 `refresh(ctx, targetMarket)` 先用 `refreshMarketsForTarget` 折叠目标
+  （`""`/`CN`/`SH`/`SZ`→`CN`，其余归一后原样），返回体里的 `market` 仍是
+  `normalizeMarket(targetMarket)`。
+- Rust 的 `probe_market` 早就这样折叠（`scope = ["CN"]`），但
+  `ManagerInner::refresh_market` 直接用请求市场取 policy 并 fetch。mainland
+  provider 声明的是 `CN`，所以 `refresh_market("SH")` 永远匹配不到任何
+  source，`updated=0`、`failures=0`，前端“刷新上交所”会静默空转。
+
+修复：`crates/jftrade-calendar/src/manager.rs::ManagerInner::refresh_market`
+先归一得 `target`，把 `SH`/`SZ` 折到 `CN` 作为 fetch/policy 的市场，结果体
+的 `market` 仍写 `target`。`calendar-control.json` 冻结 fixture 的
+`refreshAll`/`refreshUnknown` 未受影响（下一次 nextest 全绿即证）。
+
+探针：把折叠行改回 `let market = target.clone()` 后，
+`source_availability_notes_and_refresh_target_folding_match_go` 的 fetch 日志
+从 `["CN","CN","CN"]` 变成 `["CN","SH","SZ"]` 并断言失败；已回滚并复跑通过。
+
+### 有意差异（3 处，已写入 conclusion）
+
+1. `:14` 零时间：Go 的 `Schedule("US", time.Time{})` 返回 not-ok；Rust 的
+   `WireTimestamp` 没有零值概念，`0001-01-01T00:00:00Z` 会按日历年历返回
+   `status=closed/reason=new_years_day`。属类型边界差异，不复制 Go 的哨兵值。
+2. `:287` 空白 source id：Go `Register(nil)` 与 `Register(id=" ")` 静默忽略；
+   Rust `register` 返回 `InvalidSettings`，调用方必须显式处理，属更严格行为。
+3. `:119`/`:333` 两条 boundary：无 adapter 级 `ValidateSnapshot`、无 NYSE HTML
+   parser，理由见清单 conclusion。
+
+### 验证
+
+```bash
+cargo fmt --all
+node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked --no-fail-fast
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+审计：569 → 576 function_exact；`jftrade-calendar` 75/75 通过。
