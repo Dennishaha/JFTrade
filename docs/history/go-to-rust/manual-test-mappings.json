@@ -15981,11 +15981,11 @@
     "evidence_type": "boundary"
   },
   "pkg/futu/exchange_kline_test.go:17:TestQueryTickersBatchesBasicQotRequests": {
-    "status": "[~]",
-    "evidence_type": "partial",
-    "rust_entry": "crates/jftrade-integration-futu/src/history_session_plan.rs::tests::non_us_and_daily_requests_stay_unsegmented",
-    "conclusion": "partial：本批只覆盖该测试用作前提的分段规则（HK 与非日线以上窗口保持 unsegmented）；批量 GetBasicQot 合并在 Rust 侧由 basic_quote_query 承担，未在本批断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(history_session_plan)'"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_query.rs::query_ticks_batches_every_instrument_into_one_get_basic_qot_call",
+    "conclusion": "function_exact：一条 TCP 会话内先发两次 Qot_Sub（每次一个 security，校验 market/code），再以一次 Qot_GetBasicQot 批量携带两个 security，返回 2 条 tick；acceptCount=1 与 Go 的 acceptCount/subCallCount=2/basicQotCallCount=1 一一对应。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(query_ticks_batches_every_instrument_into_one_get_basic_qot_call)'"
   },
   "pkg/futu/exchange_kline_test.go:50:TestQueryKLinesSplitsUSHistoricalRequestsBySessionAndMergesResults": {
     "status": "[x]",
@@ -16009,11 +16009,11 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(history_session_plan)'"
   },
   "pkg/futu/exchange_kline_test.go:150:TestQueryKLinesForSessionsFiltersCurrentUSBucket": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::us_regular_only_request_drops_an_extended_hours_current_bucket",
+    "conclusion": "function_exact：regular-only 读取仍发起一次 Qot_GetKL 当前桶（current_calls=1），合并后对整表重跑 session 过滤，盘前/盘后当前桶不再泄漏；探针把过滤开关改为 false 即复现 overnight 桶泄漏，修复点在 crates/jftrade-engine/src/product_production_ports_market_data_quote_reads_futu.rs::filter_klines_by_sessions。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(us_regular_only_request_drops_an_extended_hours_current_bucket)'"
   },
   "pkg/futu/exchange_kline_test.go:178:TestResolveHistoricalRequestSessionUsesRouteForRTHAndOvernight": {
     "status": "[x]",
@@ -16072,18 +16072,18 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(history_window)'"
   },
   "pkg/futu/exchange_kline_test.go:385:TestQueryKLinesIncludesCurrentRealtimeBucketFromGetKL": {
-    "status": "[~]",
-    "evidence_type": "partial",
-    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_keeps_latest_history_after_all_forward_pages_and_current_bar",
-    "conclusion": "partial：Rust 已在读取路径合并当前未闭合 bucket（PagedHistory 断言 currentCalls=1 且返回 3 条含当前 bar）；Go 另断言 GetKL 订阅前置与 closed=false 的具体标签，Rust 由 calendar/candle_is_closed 判定，未在本项逐条断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(candle_route_keeps_latest_history_after_all_forward_pages_and_current_bar)'"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_trims_current_bucket_to_the_callers_window",
+    "conclusion": "function_exact：GetKL 当前未闭合桶先经窗口过滤（越窗桶被丢弃，探针去掉过滤即复现），窗口内桶保留上游 OHLC/volume（open=105/high=106/low=104/volume=1000）且 closed=false，对应 Go 的 closed/false 与 OHLC/volume 断言；修复点为 product_production_ports_market_data_quote_reads_futu.rs::filter_current_klines_by_window，经由 product_route_current_bucket_helper.rs::merge_current_bucket 接入。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(candle_route_trims_current_bucket_to_the_callers_window)'"
   },
   "pkg/futu/exchange_kline_test.go:428:TestStreamConnectEmitsBasicQotPushAsBBGOEvents": {
-    "status": "[~]",
-    "evidence_type": "partial",
-    "rust_entry": "crates/jftrade-integration-futu/src/quote_push_tests.rs::decodes_basic_kline_and_order_book_pushes_with_go_field_semantics",
-    "conclusion": "partial：BasicKot/OrderBook push 的 wire 解码与字段语义已由 quote_push 测试覆盖；Rust 的 live 事件是 engine 侧 market-data.tick/orderbook SSE envelope（非 BBGO Trade/BookTicker 类型），且成交量差分的 Quantity/VolumeDelta 语义尚未实现，故不标 function_exact。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(quote_push)'"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::one_live_subscription_publishes_both_trade_and_depth_pushes",
+    "conclusion": "function_exact：Rust 的等价 wire 是引擎侧 market-data.tick / market.depth envelope（非 BBGO Trade/BookTicker 类型），同一条 HK.00700 订阅在收到 BasicQot push 后产出 price=700、cumulativeVolume=1000、volumeDelta=0（首笔累计量只作基线，对应 Go ticker.Quantity=0），OrderBook push 产出 bids/asks 最佳价=700。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(one_live_subscription_publishes_both_trade_and_depth_pushes)'"
   },
   "pkg/futu/exchange_kline_test.go:479:TestStreamConnectRebuildsClosedCachedOpenDClient": {
     "status": "[x]",

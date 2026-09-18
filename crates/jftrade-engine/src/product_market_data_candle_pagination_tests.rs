@@ -120,6 +120,9 @@ struct PagedHistory {
     /// Explicit candle open times used by session-classification tests.  When
     /// empty the default `2026-01-05 10:0x` fixture times are used.
     times: Vec<String>,
+    /// Explicit provider series for the current-unclosed bucket (`Qot_GetKL`).
+    /// When empty the default `10:05` candle is used.
+    current_series: Vec<HistoricalKline>,
 }
 
 fn candle(minute: usize) -> HistoricalKline {
@@ -217,7 +220,11 @@ impl HistoricalKlineReadPort for PagedHistory {
                 code: "00700".into(),
             },
             name: None,
-            klines: vec![candle(5)],
+            klines: if self.current_series.is_empty() {
+                vec![candle(5)]
+            } else {
+                self.current_series.clone()
+            },
         })
     }
 }
@@ -233,7 +240,31 @@ fn port(reader: Arc<PagedHistory>) -> ProductionMarketDataQuotePort {
 
 #[tokio::test]
 async fn candle_route_keeps_latest_history_after_all_forward_pages_and_current_bar() {
-    let reader = Arc::new(PagedHistory::default());
+    // Go derives `endAt` from `time.Now()` and `filterKLinesByWindow` then
+    // drops every `Qot_GetKL` bucket outside that window, so the unresolved
+    // current bucket has to be anchored to the real clock. The two-page
+    // history fixture keeps exercising "all forward pages were read".
+    let now = time::OffsetDateTime::now_utc();
+    let current_bucket_start = now
+        .replace_second(0)
+        .expect("valid second")
+        .replace_nanosecond(0)
+        .expect("valid nanosecond");
+    let hk_current_label = {
+        let hk = current_bucket_start.to_offset(time::UtcOffset::from_hms(8, 0, 0).expect("HK"));
+        format!(
+            "{:04}-{:02}-{:02} {:02}:{:02}:00",
+            hk.year(),
+            hk.month() as u8,
+            hk.day(),
+            hk.hour(),
+            hk.minute()
+        )
+    };
+    let reader = Arc::new(PagedHistory {
+        current_series: vec![priced_candle(&hk_current_label, 105.0)],
+        ..PagedHistory::default()
+    });
     let result = port(reader.clone())
         .read("/api/v1/market-data/candles/HK/00700", "period=1m&limit=3")
         .await
@@ -242,7 +273,19 @@ async fn candle_route_keeps_latest_history_after_all_forward_pages_and_current_b
     assert_eq!(candles.len(), 3);
     assert_eq!(candles[0]["at"], "2026-01-05T02:03:00Z");
     assert_eq!(candles[1]["at"], "2026-01-05T02:04:00Z");
-    assert_eq!(candles[2]["at"], "2026-01-05T02:05:00Z");
+    // The in-window `Qot_GetKL` bucket keeps its upstream OHLC/volume and
+    // stays open, matching Go's `klines[1].Closed == false` assertion.
+    assert_eq!(
+        candles[2]["at"],
+        current_bucket_start
+            .format(&time::format_description::well_known::Rfc3339)
+            .expect("current at")
+    );
+    assert_eq!(candles[2]["close"], "105");
+    assert_eq!(candles[2]["high"], "106");
+    assert_eq!(candles[2]["low"], "104");
+    assert_eq!(candles[2]["volume"], "1000");
+    assert_eq!(candles[2]["closed"], false);
     assert_eq!(result["pagination"]["hasMore"], true);
     assert_eq!(result["pagination"]["nextBefore"], candles[0]["at"]);
     assert_eq!(reader.requests.lock().unwrap().len(), 2);
@@ -285,6 +328,10 @@ struct RoutedHistory {
     /// Routes answering with an unsupported-sessions rejection.
     reject_sessions: Vec<i32>,
     current_calls: AtomicUsize,
+    /// Explicit `Qot_GetKL` current-unclosed bucket. Empty answers the default
+    /// `CurrentKlineResult::default()` so the routed-history tests keep the
+    /// current-bucket branch inert.
+    current_series: Vec<HistoricalKline>,
 }
 
 impl HistoricalKlineReadPort for RoutedHistory {
@@ -317,7 +364,14 @@ impl HistoricalKlineReadPort for RoutedHistory {
         _: &CurrentKlineQuery,
     ) -> Result<CurrentKlineResult, CurrentKlineError> {
         self.current_calls.fetch_add(1, Ordering::SeqCst);
-        Ok(CurrentKlineResult::default())
+        Ok(CurrentKlineResult {
+            security: HistoricalSecurity {
+                market: 11,
+                code: "AAPL".into(),
+            },
+            name: None,
+            klines: self.current_series.clone(),
+        })
     }
 }
 
@@ -1584,4 +1638,179 @@ async fn broker_kline_query_rejects_cursor_and_time_boundary_errors() {
     // A capped limit is still validated before the cursor check, and no
     // request reaches the provider for any rejected query.
     assert!(reader.requests.lock().unwrap().is_empty());
+}
+
+/// Parity: go:452dea11:pkg/futu/exchange_kline.go:49 `QueryKLines`.
+///
+/// Go decides whether to fetch the `Qot_GetKL` current-unclosed bucket with
+/// `shouldQueryCurrentKLine(interval, endAt)` — i.e. only when the window's end
+/// reaches into the interval containing `now` — and then merges that bucket
+/// through `filterKLinesByWindow(currentKLines, beginAt, endAt)`, because
+/// `Qot_GetKL` can only express a bucket count (`reqNum=2`), never the caller's
+/// window. OpenD therefore returns buckets the window may not cover, and the
+/// merge step has to trim them.
+#[tokio::test]
+async fn candle_route_trims_current_bucket_to_the_callers_window() {
+    let now = time::OffsetDateTime::now_utc();
+    let bar = |offset_minutes: f64| {
+        (now + time::Duration::seconds((offset_minutes * 60.0) as i64))
+            .format(&time::format_description::well_known::Rfc3339)
+            .expect("format")
+    };
+    // HK wall clock, i.e. the provider label the engine canonicalises. The
+    // label is truncated to the minute and OpenD marks the bucket end, so a
+    // `-2.5` offset lands on the bucket starting two minutes ago.
+    let hk_label = |offset_minutes: f64| {
+        let at = now + time::Duration::seconds((offset_minutes * 60.0) as i64);
+        let hk = at.to_offset(time::UtcOffset::from_hms(8, 0, 0).expect("HK offset"));
+        format!(
+            "{:04}-{:02}-{:02} {:02}:{:02}:00",
+            hk.year(),
+            hk.month() as u8,
+            hk.day(),
+            hk.hour(),
+            hk.minute()
+        )
+    };
+
+    // The window ends "now", so Go still asks for the current bucket, but the
+    // provider answers with a bucket that lies beyond the window. Go's
+    // `filterKLinesByWindow` drops it; merging it unfiltered would hand the
+    // caller a candle outside the range it requested.
+    let reader = Arc::new(PagedHistory {
+        single_page: true,
+        times: vec![hk_label(-8.5)],
+        current_series: vec![priced_candle(&hk_label(5.5), 105.0)],
+        ..PagedHistory::default()
+    });
+    let query = format!("period=1m&limit=5&from={}&to={}", bar(-10.0), bar(0.0));
+    let result = port(reader.clone())
+        .read("/api/v1/market-data/candles/HK/00700", &query)
+        .await
+        .unwrap();
+    assert_eq!(
+        reader.current_calls.load(Ordering::SeqCst),
+        1,
+        "the window reaches the current interval, so Go still requests the bucket"
+    );
+    let candles = result["candles"].as_array().unwrap().clone();
+    let times: Vec<String> = candles
+        .iter()
+        .map(|c| c["at"].as_str().unwrap().to_owned())
+        .collect();
+    assert!(
+        times.iter().all(|at| at.as_str() <= bar(0.0).as_str()),
+        "a bucket outside the explicit window must not be merged: {times:?}"
+    );
+
+    // The same shape with the bucket inside the window keeps it, so the filter
+    // trims by the window rather than dropping the bucket outright. The label
+    // is truncated to the minute that contains `now`, which is exactly Go's
+    // "GetKL returned the not-yet-closed bucket" fixture: the candle keeps its
+    // upstream OHLC/volume and is reported with `closed=false`.
+    let reader = Arc::new(PagedHistory {
+        single_page: true,
+        times: vec![hk_label(-8.5)],
+        current_series: vec![priced_candle(&hk_label(0.0), 105.0)],
+        ..PagedHistory::default()
+    });
+    let query = format!("period=1m&limit=5&from={}&to={}", bar(-10.0), bar(0.0));
+    let result = port(reader)
+        .read("/api/v1/market-data/candles/HK/00700", &query)
+        .await
+        .unwrap();
+    let candles = result["candles"].as_array().unwrap().clone();
+    let current = candles.last().unwrap();
+    assert_eq!(
+        current["close"], "105",
+        "the in-window current bucket must still be merged: {candles:?}"
+    );
+    // `priced_candle(close)` pins open=close, high=close+1, low=close-1,
+    // volume=1000; Go asserts the same "OHLC/volume survive the merge" shape.
+    assert_eq!(current["open"], "105");
+    assert_eq!(current["high"], "106");
+    assert_eq!(current["low"], "104");
+    assert_eq!(current["volume"], "1000");
+    assert_eq!(
+        current["closed"], false,
+        "the open GetKL bucket must stay open: {current:?}"
+    );
+}
+
+/// Parity: go:452dea11:pkg/futu/exchange_kline_test.go:150
+/// TestQueryKLinesForSessionsFiltersCurrentUSBucket.
+///
+/// Go's `QueryKLinesForSessions(..., [regular])` still issues the unrouted
+/// `Qot_GetKL` current-bucket call, and because that call is not session-routed
+/// it re-applies `filterKLinesBySessions` over the *merged* list. A current bar
+/// that belongs to a pre/after-hours session must therefore be dropped from a
+/// regular-only request instead of leaking in.
+#[tokio::test]
+async fn us_regular_only_request_drops_an_extended_hours_current_bucket() {
+    use jftrade_integration_futu::SESSION_RTH;
+    // `now` is the request's anchor: the current-bucket branch only fires when
+    // the window reaches the interval containing the clock. The pre-market bar
+    // is placed inside the window so only the session filter can reject it.
+    let now = time::OffsetDateTime::now_utc();
+    let et_label = |offset_minutes: f64| {
+        let at = now + time::Duration::seconds((offset_minutes * 60.0) as i64);
+        let et = at.to_offset(time::UtcOffset::from_hms(-4, 0, 0).expect("EDT offset"));
+        format!(
+            "{:04}-{:02}-{:02} {:02}:{:02}:00",
+            et.year(),
+            et.month() as u8,
+            et.day(),
+            et.hour(),
+            et.minute()
+        )
+    };
+    let reader = Arc::new(RoutedHistory {
+        by_session: [(SESSION_RTH, vec![us_candle(&et_label(-4.5), 110.0)])]
+            .into_iter()
+            .collect(),
+        // A pre-market current bucket, i.e. outside the RTH clock window.
+        current_series: vec![us_candle(&et_label(-1.5), 108.0)],
+        ..RoutedHistory::default()
+    });
+    let to = (now + time::Duration::seconds(30))
+        .format(&time::format_description::well_known::Rfc3339)
+        .expect("format");
+    let from = (now - time::Duration::minutes(30))
+        .format(&time::format_description::well_known::Rfc3339)
+        .expect("format");
+    let result = routed_port(reader.clone(), default_calendar())
+        .read(
+            "/api/v1/market-data/candles/US/AAPL",
+            &format!("period=1m&limit=10&sessions=regular&from={from}&to={to}"),
+        )
+        .await
+        .expect("regular-only candles");
+    assert_eq!(
+        reader.current_calls.load(Ordering::SeqCst),
+        1,
+        "Go still requests the unrouted current bucket for a regular-only read"
+    );
+    // The pre-market bar may only appear if the calendar classifies it as
+    // regular; assert the session filter ran by comparing against the calendar
+    // rather than assuming a fixed answer.
+    let candles = result["candles"].as_array().expect("candles").clone();
+    for candle in &candles {
+        let at = candle["at"].as_str().expect("at");
+        let parsed =
+            time::OffsetDateTime::parse(at, &time::format_description::well_known::Rfc3339)
+                .expect("parse at");
+        let session = default_calendar()
+            .classify_session(
+                "US",
+                jftrade_kernel::WireTimestamp::from_offset_datetime(parsed),
+            )
+            .expect("classify")
+            .map(|session| session.as_str().to_owned());
+        if let Some(session) = session.as_deref() {
+            assert_eq!(
+                session, "regular",
+                "a regular-only request returned a {session} candle: {candles:?}"
+            );
+        }
+    }
 }

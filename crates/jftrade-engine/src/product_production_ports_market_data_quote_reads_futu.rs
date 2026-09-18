@@ -3,6 +3,9 @@
 //! Parity: `internal/app/apiserver/marketdataapp/query.go`
 //! (`KLineQueryWindow`, `effectivePeriodSeconds`, `parseFutuTimeToTS`).
 
+use crate::product::product_production_ports::product_production_ports_trade::canonical_candle_time;
+use super::quote_reads::calendar_session_for_route;
+
 pub(super) fn effective_period_seconds(period: &str) -> i64 {
     let secs = jftrade_integration_futu::kline_query::period_duration_seconds(period);
     if secs > 0 {
@@ -133,6 +136,106 @@ pub(super) fn futu_kline_query_window(
             .checked_sub(jiff::SignedDuration::from_secs(bar_duration))
             .unwrap_or(now_ts);
     (begin_str, end_str, query_current)
+}
+
+/// Go `filterKLinesByWindow`: trim the `Qot_GetKL` current-unclosed bucket to
+/// the caller's explicit `[begin, end]` window before it is merged into the
+/// historical series.
+///
+/// Go's `QueryKLines` merges the current bucket through
+/// `mergeKLinesByStartTime(klines, filterKLinesByWindow(currentKLines, beginAt, endAt))`.
+/// The `Qot_GetKL` request can only express `reqNum` (Go always asks for 2:
+/// the previous closed bucket plus the unfinished one), so the window has to be
+/// enforced on the response. Without this, an explicit `from`/`to` window still
+/// received the current unfinished bucket even when the window excluded it.
+///
+/// Go drops a candle when its finish is before `begin` or its start is after
+/// `end`. OpenD labels an intraday candle by the end of its bucket, and the
+/// engine's canonical time is that start (label minus one period), so the
+/// comparison here uses the canonical start against the window end plus the
+/// same period as the candle's finish. Unparsable bounds or candle labels keep
+/// the candle: Go only trims what it can compare.
+pub(super) fn filter_current_klines_by_window(
+    klines: &[jftrade_integration_futu::HistoricalKline],
+    market: &str,
+    period: &str,
+    begin_time: &str,
+    end_time: &str,
+) -> Vec<jftrade_integration_futu::HistoricalKline> {
+    let period_secs = effective_period_seconds(period).max(1);
+    let window_start = parse_window_bound(begin_time, market)
+        .unwrap_or(time::OffsetDateTime::UNIX_EPOCH);
+    let Some(window_end) = parse_window_bound(end_time, market) else {
+        return klines.to_vec();
+    };
+    klines
+        .iter()
+        .filter(|kline| {
+            let Some(start) = parse_window_bound(&kline.time, market) else {
+                return true;
+            };
+            let finish = start + time::Duration::seconds(period_secs);
+            finish >= window_start && start <= window_end
+        })
+        .cloned()
+        .collect()
+}
+
+/// Parse one OpenD wall-clock label (or RFC3339 bound) into an instant.
+fn parse_window_bound(value: &str, market: &str) -> Option<time::OffsetDateTime> {
+    let canonical = canonical_candle_time(value, market);
+    time::OffsetDateTime::parse(&canonical, &time::format_description::well_known::Rfc3339).ok()
+}
+
+/// Go `filterKLinesBySessions`: drop the merged candles whose exchange-calendar
+/// session is not in the caller's requested set.
+///
+/// Go's `QueryKLinesForSessions` runs this **twice**: once over the historical
+/// pages inside the routing loop and again over the merged list
+/// (`if filterBySession { klines = filterKLinesBySessions(klines, sessions) }`)
+/// after the `Qot_GetKL` current bucket has been merged in. The second pass is
+/// what keeps `QueryKLinesForSessions(..., [regular])` from handing back a
+/// pre/after-hours current bar: the routed history pages are already filtered
+/// per route, but the current bucket arrives un-routed and would otherwise slip
+/// through.
+///
+/// Candles the schedule cannot classify are kept, matching the page filter so a
+/// missing calendar never silently empties the caller's result.
+pub(super) fn filter_klines_by_sessions(
+    klines: &[jftrade_integration_futu::HistoricalKline],
+    calendar: Option<&jftrade_calendar::CalendarManager>,
+    market: &str,
+    period: &str,
+    sessions: &[&str],
+) -> Vec<jftrade_integration_futu::HistoricalKline> {
+    let Some(calendar) = calendar else {
+        return klines.to_vec();
+    };
+    if sessions.is_empty() {
+        return klines.to_vec();
+    }
+    // The caller-facing session vocabulary is the engine's (`regular` /
+    // `extended` / `overnight`), while the calendar returns the four-way market
+    // session. Go compares against the caller's set directly; the same
+    // projection is applied here so `extended` covers both pre and after.
+    let keep = |session: jftrade_integration_futu::MarketSession| match session {
+        jftrade_integration_futu::MarketSession::Regular => sessions.contains(&"regular"),
+        jftrade_integration_futu::MarketSession::Pre
+        | jftrade_integration_futu::MarketSession::After => sessions.contains(&"extended"),
+        jftrade_integration_futu::MarketSession::Overnight => sessions.contains(&"overnight"),
+    };
+    let _ = period;
+    klines
+        .iter()
+        .filter(|kline| {
+            let at = canonical_candle_time(&kline.time, market);
+            let Some(session) = calendar_session_for_route(Some(calendar), market, &at) else {
+                return true;
+            };
+            keep(session)
+        })
+        .cloned()
+        .collect()
 }
 
 #[cfg(test)]

@@ -32,11 +32,9 @@ impl ProductionMarketDataQuotePort {
 
         let provider = self.active_provider()?;
 
-        // Go's `GetSnapshot` gates live reads behind
-        // `requireBasicSubscriptionDemand` once a subscription reconciler is
-        // installed for a push provider.  The router is the Rust owner of that
-        // logical demand, so its presence is the equivalent trigger; poll-only
-        // providers remain authorized by provider selection alone.
+        // Go gates live reads behind `requireBasicSubscriptionDemand` once a
+        // subscription reconciler exists; the router is the Rust owner of that
+        // logical demand and poll-only providers stay authorized by selection.
         if provider == MarketDataProvider::Futu && self.router.is_some() {
             self.require_basic_subscription_lease(&format!("{market}.{symbol}"), "SNAPSHOT", None)?;
         }
@@ -49,11 +47,10 @@ impl ProductionMarketDataQuotePort {
                 MarketDataProvider::Akshare => "akshare",
                 MarketDataProvider::Futu => "futu",
             };
-            // Go's GetSnapshot fences the provider query with the active
-            // provider generation and reports ErrProviderChanged (HTTP 409
-            // MARKET_DATA_PROVIDER_CHANGED) when a switch lands mid-read, so a
-            // snapshot produced by the retired provider never reaches the
-            // caller or the cache.
+            // Go fences the provider query with the active provider
+            // generation and reports 409 MARKET_DATA_PROVIDER_CHANGED when a
+            // switch lands mid-read, so a retired provider's snapshot never
+            // reaches the caller or the cache.
             let generation = self.active_provider_state.snapshot().generation;
             let resp = helper
                 .get_provider_json::<HelperSnapshotResponse>(
@@ -239,11 +236,9 @@ impl ProductionMarketDataQuotePort {
     /// Resolve the per-candle session label for a Futu history window.
     ///
     /// Go classifies the candle open against `market.ClassifySession`, which
-    /// owns DST, holidays, early closes and the US overnight carry.  Rust keeps
+    /// owns DST, holidays, early closes and the US overnight carry. Rust keeps
     /// that schedule in the exchange calendar, so the label must come from the
-    /// calendar rather than a hardcoded `regular`.  When no calendar is
-    /// configured the candle is left unannotated instead of fabricating a
-    /// session the schedule cannot prove.
+    /// calendar; without one the candle stays unannotated.
     fn futu_candle_session(&self, market: &str, at: &str) -> Option<&'static str> {
         let calendar = self.calendar.as_deref()?;
         let parsed = time::OffsetDateTime::parse(
@@ -266,11 +261,9 @@ impl ProductionMarketDataQuotePort {
     /// Classifies one annotated candle and reports a schedule gap.
     ///
     /// Go's `brokerKLineSession` returns
-    /// `unable to classify K-line session at <ts>` when the exchange calendar
-    /// puts the bar outside every session (holiday, weekend or an unknown
-    /// schedule), and the route surfaces that as a data error. Rust must not
-    /// silently drop the `session` field in that case, because a US intraday
-    /// page would then look complete while missing its session labels.
+    /// `unable to classify K-line session at <ts>` when the calendar puts the
+    /// bar outside every session (holiday, weekend, unknown schedule) and the
+    /// route surfaces a data error; Rust must not silently drop the field.
     fn futu_candle_session_checked(
         &self,
         market: &str,
@@ -293,9 +286,9 @@ impl ProductionMarketDataQuotePort {
         query: &str,
     ) -> Result<Value, MarketDataQuoteReadSnapshotError> {
         let (market, symbol) = parse_market_symbol_path(suffix)?;
-        // Go's candles handler accepts lower-case market path segments and
-        // upper-cases them inside the service; keep that normalization at the
-        // read owner so provider windows and session zones resolve identically.
+        // Go's candles handler accepts lower-case market segments and
+        // upper-cases them inside the service; normalize at the read owner so
+        // provider windows and session zones resolve identically.
         let market = market.to_ascii_uppercase();
         let query_map =
             QueryMap::parse(query).map_err(|_| MarketDataQuoteReadSnapshotError::Failed {
@@ -546,18 +539,19 @@ impl ProductionMarketDataQuotePort {
                 to_time.as_deref(),
                 before.as_deref(),
             );
+            // The window filter below still needs the bounds after the
+            // historical request takes ownership of them.
+            let (window_begin, window_end) = (begin_time.clone(), end_time.clone());
             let extended_hours = sessions
                 .iter()
                 .any(|s| *s == "extended" || *s == "overnight");
-            // Go's `ShouldAnnotateHistoricalKLineSession` only labels a
-            // per-candle session for US intraday history windows.  Daily and
-            // non-US markets carry no `session` field at all, so the Futu
-            // projection must not claim every candle is `regular`.
+            // Go labels a per-candle session only for US intraday windows;
+            // daily and non-US markets carry no `session` field at all.
             let annotate_session = market.eq_ignore_ascii_case("US")
                 && is_intraday_candle_period(period);
-            // US intraday history must fan out across OpenD session routes
-            // (RTH/ETH/ALL) so extended and overnight bars are actually
-            // returned; daily/non-US windows stay on the unsegmented plan.
+            // US intraday history fans out across OpenD routes (RTH/ETH/ALL)
+            // so extended/overnight bars are returned; other windows stay
+            // unsegmented.
             let route_sessions = crate::product::kline_route_sessions(
                 &market,
                 period,
@@ -648,19 +642,21 @@ impl ProductionMarketDataQuotePort {
             };
 
             if query_current {
-                let current_query =
-                    jftrade_integration_futu::CurrentKlineQuery::new(market_code, &symbol, period);
-                if let Ok(current_res) = runtime.current_kline(&current_query) {
-                    if !current_res.klines.is_empty() {
-                        result.klines = jftrade_integration_futu::kline_query::merge_klines_by_time(
-                            &result.klines,
-                            &current_res.klines,
-                        );
-                    }
-                    if result.name.is_none() {
-                        result.name = current_res.name;
-                    }
-                }
+                merge_current_bucket(
+                    &mut result,
+                    runtime,
+                    CurrentBucketMerge {
+                        market: &market,
+                        symbol: &symbol,
+                        period,
+                        market_code,
+                        window_begin: &window_begin,
+                        window_end: &window_end,
+                        sessions: &sessions,
+                        route_sessions: route_sessions.is_some(),
+                        calendar: self.calendar.as_deref(),
+                    },
+                );
             }
 
             let name_missing = result.name.as_deref().unwrap_or_default().trim().is_empty()
@@ -795,4 +791,5 @@ impl ProductionMarketDataQuotePort {
     }
 }
 
+include!("product_route_current_bucket_helper.rs");
 include!("product_route_session_helper.rs");

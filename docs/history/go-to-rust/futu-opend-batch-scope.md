@@ -3035,3 +3035,85 @@ python3 scripts/compatibility/audit_test_parity.py
 ```
 
 结果：1812 passed / 1 skipped（新增 4 项）；审计 OK: 507 function_exact。
+
+---
+
+## 批次：pkg/futu/exchange_kline_test.go（4 项）
+
+基线：`go:pkg/futu/exchange_kline_test.go` 的 4 条 `[~]` 用例。
+
+### 修复的真实功能缺口
+
+1. **`:385 TestQueryKLinesIncludesCurrentRealtimeBucketFromGetKL` — `Qot_GetKL`
+   当前桶没有按调用方窗口过滤**
+   Go 在 `mergeKLinesByStartTime` 之前先跑
+   `filterKLinesByWindow(currentKLines, beginAt, endAt)`；`Qot_GetKL` 只能按
+   bucket 数量请求，无法表达窗口，所以窗口必须在响应上强制。Rust 之前直接
+   合并 `current_res.klines`，会把窗口外的桶交给调用方。
+   新增 `crates/jftrade-engine/src/product_production_ports_market_data_quote_reads_futu.rs::filter_current_klines_by_window`
+   （配 `parse_window_bound`），并按 Go 的
+   `finishAt.Before(beginAt) || startAt.After(endAt)` 语义丢弃越窗桶；
+   窗口能比较就用窗口端点，无法解析的边界或标签保留蜡烛。
+
+2. **`:150 TestQueryKLinesForSessionsFiltersCurrentUSBucket` — 合并后的整表
+   没有重跑 session 过滤**
+   Go 的 `QueryKLinesForSessions` 跑两次
+   `filterKLinesBySessions`：路由历史页一次，`Qot_GetKL` 当前桶合并后再一次。
+   当前桶这一路不经路由，所以 `sessions=regular` 的请求可能拿到盘前/盘后桶。
+   新增 `product_production_ports_market_data_quote_reads_futu.rs::filter_klines_by_sessions`，
+   在 merge 之后按 `route_sessions.is_some()` 重跑，`extended` 覆盖 pre+after。
+
+3. **`merge_current_bucket` 抽取（同时守住 800 行生产文件上限）**
+   上述两步把主读取路径推到 827 行，超过
+   `check:workspace-architecture` 的 800 行上限。抽取到
+   `crates/jftrade-engine/src/product_route_current_bucket_helper.rs`
+   （与既有 `product_route_session_helper.rs` 同风格，经 `include!` 引入），
+   主文件回到 795 行。
+
+### 补齐的行为证据
+
+4. **`:17 TestQueryTickersBatchesBasicQotRequests`**
+   `crates/jftrade-integration-futu/src/basic_quote_query.rs::query_ticks_batches_every_instrument_into_one_get_basic_qot_call`
+   扩到完整 Go 形状：一条 TCP 会话（acceptCount=1）内先解码两次 `Qot_Sub`
+   （每次一个 security，断言 `isSubOrUnSub=true` 与 market/code），再用一次
+   `Qot_GetBasicQot` 批量携带两个 security，最后断言 `calls==1`、两条 tick。
+   测试模块新增 `WireQotSubRequest/WireQotSubC2s/WireQotSubResponse` 镜像结构
+   用于解码线上字节，生产 `QotSub*` 类型保持私有。
+
+5. **`:428 TestStreamConnectEmitsBasicQotPushAsBBGOEvents`**
+   新增
+   `crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::one_live_subscription_publishes_both_trade_and_depth_pushes`：
+   同一条 `HK.00700` 订阅先收到 BasicQot push（price=700、
+   cumulativeVolume=1000、volumeDelta=0，对应 Go 的 `ticker.Quantity=0`，
+   首笔累计量只作基线），再收到 OrderBook push（bids/asks 最佳价=700）。
+   Rust 的等价 wire 是引擎侧 `market-data.tick` / `market.depth` envelope，
+   而非 BBGO `Trade`/`BookTicker` 类型。
+
+### 夹具修正（既有测试）
+
+- `candle_route_keeps_latest_history_after_all_forward_pages_and_current_bar`
+  原用固定 `2026-01-05` 的 current 夹具。窗口过滤落地后该桶落在真实 `now`
+  窗口之外并被正确丢弃（与 Go 同行为），因此按 Go 的 `time.Now()` 形状把
+  history 页与未闭合桶都锚到真实时钟，并把断言扩到 Go 的
+  `klines[1].Closed == false` 与 OHLC/volume。默认 `PagedHistory` 分页形状
+  改由 `single_page` + 真时钟 times 承载。
+
+### 探针（改坏实现 → 跑测试 → 确认守卫 → 回滚）
+
+- `filter_current_klines_by_window` 不接入 merge
+  → `candle_route_trims_current_bucket_to_the_callers_window` 失败：
+  `a bucket outside the explicit window must not be merged: ["2026-09-18T01:01:00Z", "2026-09-18T01:15:00Z"]`。
+- `if route_sessions.is_some()` 改成 `if false`
+  → `us_regular_only_request_drops_an_extended_hours_current_bucket` 失败：
+  `a regular-only request returned a overnight candle: [... "session": String("overnight")]`。
+  两处探针均已回滚并复跑通过。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --no-fail-fast
+cargo fmt --all
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：1755 passed / 1 skipped；审计 OK: 511 function_exact（本批 4 条 `[~]` → `[x]`）。

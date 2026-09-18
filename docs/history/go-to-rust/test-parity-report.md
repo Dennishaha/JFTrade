@@ -6,17 +6,17 @@
 
 - **Go 分支（`go:452dea11`）测试总数**：4451
 - **Go 高风险测试用例数**（涉及分页、缓存、时区、对账、断连重连等）：952
-- **Rust 当前测试总数**：2269
-- **总体测试数量比（非覆盖率）**：51.0%
-- **Rust 基线（`271aee5e`）**：当前工作树
+- **Rust 当前测试总数**：2273
+- **总体测试数量比（非覆盖率）**：51.1%
+- **Rust 基线（`da2df039`）**：当前工作树
 
 - **同名 Go 测试组**：32（映射必须使用文件路径与行号，不能仅按测试名）
 ## 2. 分领域对齐矩阵
 
 | 业务领域 | Go 测试数 | Go 高风险数 | Rust 测试数 | 测试数量比（非覆盖率） |
 | :--- | :--- | :--- | :--- | :--- |
-| Futu / OpenD Protocol & Integration | 524 | 152 | 528 | 100.8% |
-| MarketData / Quotes & Providers | 214 | 86 | 297 | 138.8% |
+| Futu / OpenD Protocol & Integration | 524 | 152 | 530 | 101.1% |
+| MarketData / Quotes & Providers | 214 | 86 | 299 | 139.7% |
 | Trading & Broker Execution | 138 | 36 | 328 | 237.7% |
 | Strategy & Pine Runtime | 545 | 83 | 168 | 30.8% |
 | Backtest & Exchange Calendar | 304 | 80 | 140 | 46.1% |

@@ -228,6 +228,55 @@ async fn order_book_pushes_without_any_price_are_dropped() {
     );
 }
 
+// Parity: go:452dea11:pkg/futu/exchange_kline_test.go:428
+// TestStreamConnectEmitsBasicQotPushAsBBGOEvents.
+//
+// Go connects a stream, registers exactly one subscription
+// (`stream.Subscribe(types.MarketTradeChannel, "HK.00700")`), and the fake OpenD
+// session then pushes a BasicQot and an OrderBook frame for that symbol. Both
+// must reach the same consumer: the trade carries Go's
+// `Price=700/Quantity=0/CumulativeVolume=1000` contract (the first cumulative
+// sample is only a baseline, so the per-event delta is zero) and the book
+// ticker exposes the pushed best bid/ask. Rust's owner is the
+// composition-held OpenD listener: one live subscription for "HK.00700" must
+// deliver the `market-data.tick` and `market.depth` envelopes from both push
+// kinds, which is why this test reuses a single `subscribed()` connection.
+#[tokio::test]
+async fn one_live_subscription_publishes_both_trade_and_depth_pushes() {
+    let (_hub, listener, mut connection) = subscribed(&["HK.00700"]);
+
+    // Go's fake server answers the BasicQot push with Last=700 and the
+    // OrderBook push with best bid == best ask == 700.
+    let mut trade_push = hk(Some(1_000), Some(1_784_518_800.0));
+    if let QuotePush::Basic(push) = &mut trade_push {
+        push.quotes[0].cur_price = Some(700.0);
+    }
+    let mut depth_push = depth();
+    if let QuotePush::OrderBook(push) = &mut depth_push {
+        push.bids[0].price = Some(700.0);
+        push.asks[0].price = Some(700.0);
+    }
+    listener.on_event(&OpenDSessionCoordinatorOutcome::Push(trade_push));
+    listener.on_event(&OpenDSessionCoordinatorOutcome::Push(depth_push));
+
+    let trade = next_event(&mut connection).await.expect("trade push");
+    assert_eq!(trade["type"], "market-data.tick");
+    assert_eq!(trade["entityId"], "HK.00700");
+    assert_eq!(trade["payload"]["instrument"]["symbol"], "00700");
+    assert_eq!(trade["payload"]["snapshot"]["price"], "700");
+    assert_eq!(trade["payload"]["cumulativeVolume"], "1000");
+    assert_eq!(
+        trade["payload"]["volumeDelta"], "0",
+        "Go publishes Quantity=0 for the first cumulative sample"
+    );
+
+    let book = next_event(&mut connection).await.expect("book ticker push");
+    assert_eq!(book["type"], "market.depth");
+    assert_eq!(book["entityId"], "HK.00700");
+    assert_eq!(book["payload"]["depth"]["bids"][0]["price"], 700.0);
+    assert_eq!(book["payload"]["depth"]["asks"][0]["price"], 700.0);
+}
+
 #[tokio::test]
 async fn basic_quote_pushes_publish_delta_and_cumulative_volume() {
     let (_hub, listener, mut connection) = subscribed(&["HK.00700"]);

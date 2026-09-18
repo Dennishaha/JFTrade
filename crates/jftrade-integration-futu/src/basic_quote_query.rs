@@ -308,6 +308,7 @@ struct QotSecurity {
 mod tests {
     use std::io::Write;
     use std::net::{TcpListener, TcpStream};
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, mpsc};
     use std::thread;
     use std::time::Duration;
@@ -319,7 +320,10 @@ mod tests {
 
     use super::*;
     use crate::transport::read_framed_frame;
-    use crate::{Frame, OpenDTcpProbeConfig, ReconcileAction, SubscriptionKind, encode_frame};
+    use crate::{
+        Frame, OpenDSubscriptionExecutor, OpenDTcpProbeConfig, PhysicalSubscription,
+        ReconcileAction, SubscriptionKind, encode_frame,
+    };
 
     #[derive(Clone, PartialEq, Message)]
     struct Response {
@@ -331,6 +335,35 @@ mod tests {
         err_code: Option<i32>,
         #[prost(message, optional, tag = "4")]
         s2c: Option<ResponseS2c>,
+    }
+
+    /// Mirror of `subscription_executor::QotSubRequest` used only to decode the
+    /// bytes the executor writes on the wire; the production builder stays
+    /// private to its owner.
+    #[derive(Clone, PartialEq, Message)]
+    struct WireQotSubRequest {
+        #[prost(message, optional, tag = "1")]
+        c2s: Option<WireQotSubC2s>,
+    }
+
+    #[derive(Clone, PartialEq, Message)]
+    struct WireQotSubC2s {
+        #[prost(message, repeated, tag = "1")]
+        security_list: Vec<QotSecurity>,
+        #[prost(int32, repeated, tag = "2")]
+        sub_type_list: Vec<i32>,
+        #[prost(bool, optional, tag = "3")]
+        is_sub_or_un_sub: Option<bool>,
+    }
+
+    #[derive(Clone, PartialEq, Message)]
+    struct WireQotSubResponse {
+        #[prost(int32, optional, tag = "1")]
+        ret_type: Option<i32>,
+        #[prost(string, optional, tag = "2")]
+        ret_msg: Option<String>,
+        #[prost(int32, optional, tag = "3")]
+        err_code: Option<i32>,
     }
 
     #[derive(Clone, PartialEq, Message)]
@@ -439,6 +472,36 @@ mod tests {
                     channel: "SNAPSHOT".to_owned(),
                     market: "US".to_owned(),
                     symbol: "MSFT".to_owned(),
+                    interval: None,
+                },
+            ],
+            0,
+        );
+        let generation = lifecycle.generation();
+        for action in &actions {
+            assert!(lifecycle.record_subscription_success(action, 0, generation));
+        }
+        lifecycle
+    }
+
+    /// Two-symbol BASIC lease matching Go's
+    /// `SubscribeBasicQuote("HK.00700")` + `SubscribeBasicQuote("US.NVDA")`
+    /// pair feeding `QueryTickers`.
+    fn hk_us_lifecycle() -> OpenDSubscriptionLifecycle {
+        let recorder = Arc::new(MarketDataRuntimeRecorder::default());
+        let mut lifecycle = OpenDSubscriptionLifecycle::new(recorder, 60_000);
+        let actions = lifecycle.reconcile_demand(
+            &[
+                InstrumentRef {
+                    channel: "SNAPSHOT".to_owned(),
+                    market: "HK".to_owned(),
+                    symbol: "00700".to_owned(),
+                    interval: None,
+                },
+                InstrumentRef {
+                    channel: "SNAPSHOT".to_owned(),
+                    market: "US".to_owned(),
+                    symbol: "NVDA".to_owned(),
                     interval: None,
                 },
             ],
@@ -830,6 +893,138 @@ mod tests {
         assert_eq!(quotes.len(), 2);
         assert_eq!(quotes[0].cur_price, Some(189.5));
         assert_eq!(quotes[1].cur_price, Some(88.5));
+        server.join().expect("server thread");
+    }
+
+    #[test]
+    fn query_ticks_batches_every_instrument_into_one_get_basic_qot_call() {
+        // Parity: go:452dea11:pkg/futu/exchange_kline_test.go:17
+        // TestQueryTickersBatchesBasicQotRequests.
+        //
+        // Go's two `SubscribeBasicQuote` leases create two `Qot_Sub` calls on a
+        // single OpenD TCP session, then `QueryTickers(symbols...)` issues
+        // exactly one batched `Qot_GetBasicQot` for both symbols. The Rust
+        // owners are the same shape: the subscription executor emits one
+        // `Qot_Sub` per physical lease on the shared session, and `query_ticks`
+        // encodes a single `Qot_GetBasicQot` c2s carrying both securities.
+        //
+        // The fixture therefore exercises the whole Go sequence: one accept,
+        // two decoded `Qot_Sub` requests (one per symbol), then one decoded
+        // `Qot_GetBasicQot` carrying both securities, and finally one tick per
+        // instrument keyed by its canonical id.
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let calls = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::clone(&calls);
+        let accepts = Arc::new(AtomicUsize::new(0));
+        let observed_accepts = Arc::clone(&accepts);
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            observed_accepts.fetch_add(1, Ordering::SeqCst);
+            let init = read_framed_frame(&mut stream).expect("init request");
+            respond(
+                &mut stream,
+                &init,
+                vec![0x08, 0x00, 0x22, 0x03, 0x08, 0xf1, 0x07],
+            );
+            for expected in [(1, "00700"), (11, "NVDA")] {
+                let sub = read_framed_frame(&mut stream).expect("sub request");
+                assert_eq!(sub.header.proto_id, crate::PROTO_QOT_SUB);
+                let decoded = WireQotSubRequest::decode(sub.body.as_slice()).expect("sub body");
+                let c2s = decoded.c2s.expect("sub c2s");
+                assert_eq!(c2s.is_sub_or_un_sub, Some(true));
+                let security = c2s.security_list.first().expect("sub security");
+                assert_eq!(security.market, Some(expected.0));
+                assert_eq!(security.code.as_deref(), Some(expected.1));
+                respond(
+                    &mut stream,
+                    &sub,
+                    WireQotSubResponse {
+                        ret_type: Some(0),
+                        ret_msg: None,
+                        err_code: None,
+                    }
+                    .encode_to_vec(),
+                );
+            }
+            let request = read_framed_frame(&mut stream).expect("batched request");
+            assert_eq!(request.header.proto_id, crate::PROTO_GET_BASIC_QOT);
+            let decoded = BasicQuoteRequest::decode(request.body.as_slice()).expect("request");
+            let securities = decoded.c2s.expect("c2s").security_list;
+            assert_eq!(securities.len(), 2, "both symbols must share one request");
+            assert_eq!(securities[0].market, Some(1));
+            assert_eq!(securities[0].code.as_deref(), Some("00700"));
+            assert_eq!(securities[1].market, Some(11));
+            assert_eq!(securities[1].code.as_deref(), Some("NVDA"));
+            observed.fetch_add(1, Ordering::SeqCst);
+
+            let mut hk = quote();
+            hk.security = Some(QotSecurity {
+                market: Some(1),
+                code: Some("00700".to_owned()),
+            });
+            hk.cur_price = Some(700.0);
+            let mut us = quote();
+            us.security = Some(QotSecurity {
+                market: Some(11),
+                code: Some("NVDA".to_owned()),
+            });
+            us.cur_price = Some(180.0);
+            respond(
+                &mut stream,
+                &request,
+                Response {
+                    ret_type: Some(0),
+                    ret_msg: None,
+                    err_code: None,
+                    s2c: Some(ResponseS2c {
+                        quotes: vec![hk, us],
+                    }),
+                }
+                .encode_to_vec(),
+            );
+        });
+
+        let config = OpenDTcpProbeConfig::new(address, Duration::from_secs(1));
+        let session =
+            OpenDInitializedSession::connect_with_push_notifications(&config, 1).expect("session");
+        // Two explicit leases => two Qot_Sub calls on the one accepted session.
+        let mut subscriptions = OpenDSubscriptionExecutor::from_session(session.clone());
+        for subscription in [
+            (SubscriptionKind::Basic, "HK.00700"),
+            (SubscriptionKind::Basic, "US.NVDA"),
+        ] {
+            subscriptions
+                .execute(&ReconcileAction::Subscribe {
+                    subscription: PhysicalSubscription {
+                        key: subscription.1.to_owned(),
+                        kind: subscription.0,
+                        instrument_id: subscription.1.to_owned(),
+                        interval: None,
+                    },
+                })
+                .expect("subscribe");
+        }
+        let executor = OpenDBasicQuoteExecutor::new(session);
+        let lifecycle = hk_us_lifecycle();
+        let ticks = executor
+            .query_ticks(
+                &lifecycle,
+                &["HK.00700".to_owned(), "US.NVDA".to_owned()],
+                1_724_464_001_250,
+            )
+            .expect("batched ticks");
+        assert_eq!(ticks.len(), 2);
+        assert_eq!(
+            accepts.load(Ordering::SeqCst),
+            1,
+            "both leases and the read must reuse one OpenD TCP session"
+        );
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            1,
+            "one batched Qot_GetBasicQot call must serve both symbols"
+        );
         server.join().expect("server thread");
     }
 
