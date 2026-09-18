@@ -84,6 +84,89 @@ fn schedule_from_manual(
     }
 }
 
+/// Builtin fallback schedule for a supported market.
+///
+/// External calendar adapters need the same authoritative template that the
+/// manager falls back to, because a provider often reports only "early close"
+/// and the concrete session windows still have to come from the bundled rules.
+/// This mirrors Go's `BuiltinResolver.Schedule`, which the HTTP parsers call to
+/// materialise an early-close schedule.
+pub fn builtin_schedule_for_market(market: &str, at: WireTimestamp) -> Option<TradingDaySchedule> {
+    let market = normalize_market(market);
+    crate::manager::supported_market(&market).then(|| builtin_schedule(&market, at))
+}
+
+/// Exchange-local day start for one market, exposed to calendar adapters that
+/// must normalise an instant into the market's own trading day.
+pub fn market_day_start_for_market(
+    market: &str,
+    at: WireTimestamp,
+) -> Result<WireTimestamp, crate::CalendarManagerError> {
+    market_day_start(&normalize_market(market), at)
+}
+
+/// Midnight of a civil date in the market's own exchange timezone.
+///
+/// Calendar providers publish plain dates ("June 19, 2026", "20260101"), not
+/// instants, so a provider adapter must anchor that date in the exchange
+/// timezone rather than in UTC. Mirroring Go's
+/// `marketcalendar.DayStart(template, day)` keeps a US holiday from sliding to
+/// the previous local day.
+pub fn market_local_midnight(
+    market: &str,
+    year: i32,
+    month: u8,
+    day: u8,
+) -> Result<WireTimestamp, crate::CalendarManagerError> {
+    let market = normalize_market(market);
+    let date = CivilDate::new(
+        i16::try_from(year).map_err(|_| {
+            crate::CalendarManagerError::InvalidSettings(format!("calendar year {year} is invalid"))
+        })?,
+        i8::try_from(month).map_err(|_| {
+            crate::CalendarManagerError::InvalidSettings(format!(
+                "calendar month {month} is invalid"
+            ))
+        })?,
+        i8::try_from(day).map_err(|_| {
+            crate::CalendarManagerError::InvalidSettings(format!("calendar day {day} is invalid"))
+        })?,
+    )
+    .map_err(|error| crate::CalendarManagerError::InvalidSettings(error.to_string()))?;
+    let Some(timezone) = crate::manager_calendar::market_timezone(&market) else {
+        return Ok(WireTimestamp::from_offset_datetime(
+            time::PrimitiveDateTime::new(
+                Date::from_calendar_date(
+                    year,
+                    Month::try_from(month).map_err(|error| {
+                        crate::CalendarManagerError::InvalidSettings(error.to_string())
+                    })?,
+                    day,
+                )
+                .map_err(|error| crate::CalendarManagerError::InvalidSettings(error.to_string()))?,
+                time::Time::MIDNIGHT,
+            )
+            .assume_utc(),
+        ));
+    };
+    let midnight = date
+        .in_tz(timezone)
+        .map_err(|error| crate::CalendarManagerError::InvalidSettings(error.to_string()))?;
+    let instant =
+        OffsetDateTime::from_unix_timestamp_nanos(midnight.timestamp().as_nanosecond())
+            .map_err(|error| crate::CalendarManagerError::InvalidSettings(error.to_string()))?;
+    let offset = UtcOffset::from_whole_seconds(midnight.offset().seconds())
+        .map_err(|error| crate::CalendarManagerError::InvalidSettings(error.to_string()))?;
+    Ok(WireTimestamp::from_offset_datetime(
+        instant.to_offset(offset),
+    ))
+}
+
+/// Whether the calendar owns builtin rules for this market code.
+pub fn supported_calendar_market(market: &str) -> bool {
+    crate::manager::supported_market(&normalize_market(market))
+}
+
 pub(crate) fn builtin_schedule(market: &str, at: WireTimestamp) -> TradingDaySchedule {
     let local_date = at.into_inner().date();
     let closed = matches!(local_date.weekday(), Weekday::Saturday | Weekday::Sunday);

@@ -131,6 +131,16 @@
       ]
     },
     {
+      "name": "jftrade-integration-calendar",
+      "path": "crates/jftrade-integration-calendar",
+      "status": "active",
+      "layer": "adapter",
+      "allowedWorkspaceDependencies": [
+        "jftrade-calendar",
+        "jftrade-kernel"
+      ]
+    },
+    {
       "name": "jftrade-integration-futu",
       "path": "crates/jftrade-integration-futu",
       "status": "active",
@@ -148,6 +158,7 @@
       "status": "active",
       "layer": "composition",
       "allowedWorkspaceDependencies": [
+        "jftrade-integration-calendar",
         "jftrade-kernel",
         "jftrade-api",
         "jftrade-assistant",

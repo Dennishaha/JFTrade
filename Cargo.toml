@@ -8,6 +8,7 @@ members = [
   "crates/jftrade-calendar",
   "crates/jftrade-datamanagement",
   "crates/jftrade-engine",
+  "crates/jftrade-integration-calendar",
   "crates/jftrade-integration-futu",
   "crates/jftrade-integration-marketdata-helper",
   "crates/jftrade-integration-pine",
@@ -45,6 +46,7 @@ jftrade-broker = { path = "crates/jftrade-broker", version = "=0.1.0" }
 jftrade-calendar = { path = "crates/jftrade-calendar", version = "=0.1.0" }
 jftrade-datamanagement = { path = "crates/jftrade-datamanagement", version = "=0.1.0" }
 jftrade-engine = { path = "crates/jftrade-engine", version = "=0.1.0" }
+jftrade-integration-calendar = { path = "crates/jftrade-integration-calendar", version = "=0.1.0" }
 jftrade-integration-futu = { path = "crates/jftrade-integration-futu", version = "=0.1.0" }
 jftrade-integration-marketdata-helper = { path = "crates/jftrade-integration-marketdata-helper", version = "=0.1.0" }
 jftrade-integration-pine = { path = "crates/jftrade-integration-pine", version = "=0.1.0" }
@@ -60,6 +62,7 @@ jftrade-trading = { path = "crates/jftrade-trading", version = "=0.1.0" }
 jftrade-watchlist = { path = "crates/jftrade-watchlist", version = "=0.1.0" }
 jiff = { version = "=0.2.35", default-features = false, features = ["std", "tz-system", "tzdb-zoneinfo"] }
 percent-encoding = "=2.3.2"
+regex = { version = "=1.13.1", default-features = false, features = ["std", "unicode"] }
 reqwest = { version = "=0.13.4", default-features = false, features = ["json"] }
 zip = { version = "=4.6.1", default-features = false, features = ["deflate"] }
 rig-core = { version = "=0.42.0", default-features = false }

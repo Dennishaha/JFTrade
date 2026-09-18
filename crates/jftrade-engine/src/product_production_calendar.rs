@@ -7,6 +7,8 @@ use jftrade_calendar::{
 };
 use jftrade_settings::ExchangeCalendarSettings;
 
+use crate::product::ProductError;
+
 const EXCHANGE_CALENDAR_DIR_ENV: &str = "JFTRADE_EXCHANGE_CALENDAR_DIR";
 
 pub(crate) fn exchange_calendar_snapshot_root(settings_path: &Path) -> PathBuf {
@@ -65,4 +67,25 @@ pub(crate) fn calendar_manager_settings(
             })
             .collect(),
     }
+}
+
+/// Build the production calendar source registry.
+///
+/// Mirrors Go's `exchangecalendar.DefaultRegistry(nil)`: the four official
+/// providers share one HTTP client with the default request timeout. If the
+/// client cannot be built the composition root fails closed rather than
+/// starting with an empty registry that would report sources as enabled that
+/// can never be fetched.
+pub(crate) fn calendar_source_registry(
+) -> Result<jftrade_calendar::CalendarSourceRegistry, ProductError> {
+    let calendar_error = |error: jftrade_calendar::CalendarSourceError| {
+        ProductError::Calendar(jftrade_calendar::CalendarManagerError::InvalidSettings(
+            error.to_string(),
+        ))
+    };
+    let client = std::sync::Arc::new(
+        jftrade_integration_calendar::ReqwestCalendarClient::with_default_timeout()
+            .map_err(calendar_error)?,
+    );
+    jftrade_integration_calendar::default_registry(client).map_err(calendar_error)
 }

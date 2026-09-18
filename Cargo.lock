@@ -2221,6 +2221,7 @@ dependencies = [
  "jftrade-assistant",
  "jftrade-calendar",
  "jftrade-datamanagement",
+ "jftrade-integration-calendar",
  "jftrade-integration-futu",
  "jftrade-integration-marketdata-helper",
  "jftrade-integration-pine",
@@ -2254,6 +2255,21 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "zip",
+]
+
+[[package]]
+name = "jftrade-integration-calendar"
+version = "0.1.0"
+dependencies = [
+ "jftrade-calendar",
+ "jftrade-kernel",
+ "regex",
+ "reqwest",
+ "rustls",
+ "sha2 0.11.0",
+ "thiserror 2.0.20",
+ "time",
+ "tokio",
 ]
 
 [[package]]
@@ -3802,6 +3818,7 @@ checksum = "219c5811de6525e5416c7d5d53bb656d3afdbc6c5af816e0802bcfa42dbdc1c3"
 dependencies = [
  "base64 0.22.1",
  "bytes",
+ "futures-channel",
  "futures-core",
  "futures-util",
  "http",

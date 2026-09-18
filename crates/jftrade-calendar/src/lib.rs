@@ -15,6 +15,10 @@ mod sources;
 mod status;
 
 pub use manager::{CalendarManager, CalendarManagerError};
+pub use manager_policy::{
+    builtin_schedule_for_market, market_day_start_for_market, market_local_midnight,
+    supported_calendar_market,
+};
 pub use manager_registry::CalendarSourceRegistry;
 pub use manager_session::CalendarSessionContext;
 pub use manager_types::{

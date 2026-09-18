@@ -13,7 +13,7 @@ use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::product_adk_model_runtime::{
     ProductionAdkChatRuntime, RunCancellationRegistry,
 };
-use jftrade_calendar::{CalendarManager, CalendarSnapshotStore, CalendarSourceRegistry};
+use jftrade_calendar::{CalendarManager, CalendarSnapshotStore};
 use jftrade_settings::{
     BacktestMarketDataProviderSettingsStorePort, BrokerSettingsStorePort,
     ExchangeCalendarSettingsStorePort,
@@ -98,6 +98,7 @@ pub(crate) use product_production_ports_unavailable::ProductionWsLivePort;
 pub(crate) use product_production_ports_watchlist::{
     ProductionRemoteWatchlistPort, ProductionWatchlistPort,
 };
+pub(crate) use product_production_calendar::calendar_source_registry;
 pub(crate) use product_production_calendar::{
     calendar_manager_settings, exchange_calendar_snapshot_root,
 };
@@ -569,9 +570,15 @@ pub(crate) fn production_ports(
         Arc::clone(&active_provider_state),
         config.market_data_helper.clone(),
     ).with_trade_runtime(config.trade_runtime.clone()));
+    // Go's `exchangecalendar.DefaultRegistry` registers the four official
+    // providers with a 15s client. The settings defaults enable
+    // `nyse_official`/`hk_gov_1823_ical`, so production must inject the same
+    // adapters — an empty registry would list those sources as enabled while
+    // every market refresh silently produced `updated: 0`.
+    let calendar_registry = calendar_source_registry()?;
     let calendar_manager = Arc::new(
         CalendarManager::new(
-            CalendarSourceRegistry::default(),
+            calendar_registry,
             Some(Arc::new(CalendarSnapshotStore::new(
                 exchange_calendar_snapshot_root(config.settings_path()),
             ))),

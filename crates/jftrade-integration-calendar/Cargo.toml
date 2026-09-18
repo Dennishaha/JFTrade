@@ -1,0 +1,24 @@
+[package]
+name = "jftrade-integration-calendar"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+jftrade-calendar.workspace = true
+jftrade-kernel.workspace = true
+regex.workspace = true
+reqwest = { workspace = true, features = ["blocking", "rustls-no-provider"] }
+rustls.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+time.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true }
+
+[lints]
+workspace = true

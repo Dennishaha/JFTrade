@@ -18,6 +18,7 @@ jftrade-api.workspace = true
 jftrade-assistant.workspace = true
 jftrade-calendar.workspace = true
 jftrade-datamanagement.workspace = true
+jftrade-integration-calendar.workspace = true
 jftrade-integration-futu.workspace = true
 jftrade-integration-marketdata-helper = { workspace = true, features = ["rustls-ring-provider"] }
 jftrade-integration-pine.workspace = true

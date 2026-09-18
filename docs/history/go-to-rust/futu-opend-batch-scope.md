@@ -4088,3 +4088,102 @@ python3 scripts/compatibility/audit_test_parity.py
 ```
 
 审计：569 → 576 function_exact；`jftrade-calendar` 75/75 通过。
+
+## 批次：internal/exchangecalendar/http_source_test.go（14 项，含真实功能补齐）
+
+基线 `go:452dea11`。本批 14 条全部 `[x]`/`function_exact`，并补上了 Rust
+迁移时漏掉的一整条 HTTP calendar provider 链。
+
+| Go 测试 | 状态 | Rust 测试 |
+| --- | --- | --- |
+| `:21` TestDefaultRegistryRegistersExpectedSources | `[x]` | `http_source.rs::default_registry_registers_the_four_official_providers_with_their_markets` |
+| `:40` TestDefaultRegistryUsesCalendarFetchTimeout | `[x]` | `http_source.rs::default_registry_client_uses_the_calendar_fetch_timeout` |
+| `:55` TestHTTPCalendarSourceFetchBuildsSnapshotMetadata | `[x]` | `http_source.rs::fetch_builds_snapshot_metadata_with_checksum_and_validity` |
+| `:88` TestHTTPCalendarSourceFetchReturnsStatusErrors | `[x]` | `http_source.rs::fetch_surfaces_a_provider_status_error` |
+| `:109` TestHTTPCalendarSourceFetchRejectsSparseAnnualSchedules | `[x]` | `http_source.rs::fetch_rejects_a_sparse_annual_schedule_via_the_anchor_validator` |
+| `:133` TestAnchorYearSchedulesValidatorAllowsMissingFutureYearCoverage | `[x]` | `http_source.rs::anchor_year_validator_allows_missing_future_year_coverage` |
+| `:201` TestDefaultHolidayOverrideParserUSParsesTableRows | `[x]` | `http_source.rs::us_holiday_override_parser_reads_closed_and_early_close_rows` |
+| `:224` TestNYSEHolidayScheduleParserParsesMultiYearTableAndFootnotes | `[x]` | `http_source.rs::nyse_parser_reads_multi_year_table_and_footnote_early_closes` |
+| `:276` TestDefaultHolidayOverrideParserHKParsesEnglishList | `[x]` | `http_source.rs::hk_holiday_override_parser_reads_english_list_items` |
+| `:288` TestHongKongHolidayICalParserParsesClosedDays | `[x]` | `http_source.rs::hk_ical_parser_reads_closed_days_from_events` |
+| `:320` TestSSETradingScheduleParserExpandsRangesAndSkipsMakeupDays | `[x]` | `http_source.rs::sse_parser_expands_closed_ranges_and_skips_makeup_days` |
+| `:351` TestSSETradingScheduleParserInfersCrossYearRange | `[x]` | `http_source.rs::sse_parser_infers_a_cross_year_range` |
+| `:378` TestDefaultHolidayOverrideParserCNParsesChineseDateLine | `[x]` | `http_source.rs::cn_holiday_override_parser_reads_a_chinese_date_line` |
+| `:390` TestDefaultHolidayOverrideParserRejectsOutOfRangeDates | `[x]` | `http_source.rs::holiday_override_parser_drops_dates_outside_the_fetch_window` |
+
+### 判定：真实功能缺失，不是边界
+
+上一轮把这一组标为“最大未知”，本轮先做判定，结论是**真实缺**：
+
+- Go 的 `NewManager` 用 `DefaultRegistry(nil)` 注册 4 个 `HTTPCalendarSource`；
+  默认设置（`jftrade-settings::ExchangeCalendarSettings::default`）里
+  `nyse_official` 与 `hk_gov_1823_ical` 是 **enabled**，CN 只有 `builtin_rules`。
+- Rust 迁移只搬了领域端口与内置规则：`jftrade-calendar` 不含任何 HTTP 依赖，
+  `impl CalendarSourcePort` 只出现在测试 fixture 里，engine 的
+  `product_production_ports.rs` 用 `CalendarSourceRegistry::default()` 注册**零个**
+  source。
+- 后果是双向的：`/system/exchange-calendars/sources` 把这两个官方源列成
+  `enabled: true`，但 `refresh_market("US"/"HK")` 永远 `updated: 0`；也就是说
+  界面承诺的官方日历能力根本不存在，只剩内置规则兜底。这不是“Go 遗留模型”，
+  是 Rust 侧的功能缺失，所以本轮按实现补齐而不是记 boundary。
+
+### 新增：crates/jftrade-integration-calendar
+
+- `parser.rs`：4 套 parser + `minimum_anchor_year_schedules_validator(8)`。
+  NYSE 多年表（表头年份、`observed` 标记、脚注早收）、通用 holiday override
+  （closed / early close / half day / 提前收市 / 1:00 p.m.）、GovHK iCal
+  （VEvent 状态机、续行折叠、`decode_ical_text`）、SSE 时段表（区间展开、
+  `, plus ` 调休日剔除、跨年推断）。
+- `http_source.rs`：`HttpCalendarSource`、`CalendarHttpClient` 传输 seam、
+  `ReqwestCalendarClient`、`default_sources` / `default_registry`，checksum 用
+  sha256，`validUntil = fetchedAt + validFor`。
+- 领域侧配套：`jftrade-calendar` 新增 `builtin_schedule_for_market`、
+  `market_day_start_for_market`、`market_local_midnight`、
+  `supported_calendar_market` 四个公开 helper，对应 Go 的
+  `BuiltinResolver.Schedule` / `DayStart`，让早收走内置会话窗口而不是空列表。
+- 架构：新 crate 以 `adapter` layer 登记进
+  `scripts/quality/workspace-architecture-policy.json`，只依赖
+  `jftrade-calendar` + `jftrade-kernel`；engine 的 allowlist 加入该 adapter，
+  `product_production_calendar.rs::calendar_source_registry()` 构建失败即 fail-closed。
+
+### 两个实现要点（踩过才知道）
+
+1. **rustls provider**：reqwest 固定 `rustls-no-provider`，首个 client 构建前必须
+   安装 crypto provider，否则 `reqwest` 在内部事件循环线程 panic
+   （`No rustls crypto provider is configured`）。镜像
+   `jftrade-integration-marketdata-helper::install_rustls_provider`，幂等。
+2. **blocking client 不能在 async 上下文里 drop**：`reqwest::blocking::Client`
+   自带内部 runtime，engine 的 async handler 会直接调用 `refresh`/`probe`，
+   在 async 上下文 drop 会 panic（`Cannot drop a runtime in a context where
+   blocking is not allowed`）。改为每次请求在专用 OS 线程内建 client、发请求、
+   读 body 并 `join` 回调用方，client 的生命周期完全不落在调用方 executor 上。
+   日历抓取是低频操作（每个刷新周期几个 provider + 人工触发），线程开销有界。
+
+### 探针
+
+- TLS provider：去掉 `install_rustls_provider()` → executor 线程 panic，测试失败
+  （日志见上）；已回滚。
+- 线程隔离：改回在调用线程直接建 blocking client →
+  `production_calendar_settings_write_reloads_running_manager` 复现
+  `Cannot drop a runtime in a context where blocking is not allowed`；已回滚。
+- 日期锚定：早期版本用 UTC 解释 provider 的 civil date，导致
+  `2026-06-19`(US) 落到本地 06-18、`1 October 2026`(HK) 完全解析不出；
+  `market_local_midnight` 修正后 14/14 通过。
+
+### 验证
+
+```bash
+cargo fmt --all
+node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -p jftrade-integration-calendar -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --no-fail-fast
+cargo clippy -p jftrade-integration-calendar -p jftrade-engine -p jftrade-calendar --all-targets --locked
+pnpm run check:quick / check:zero-go / check:rust:architecture / check:compatibility
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：四 crate 1882 passed / 1 skipped；`jftrade-integration-calendar` 14/14；
+engine 日历相关 21/21（含此前会 panic 的 settings-reload 用例）；architecture、
+zero-go、compatibility 全通过。审计 576 → 590 function_exact。
+
+`check:rust:static` 的 advisories 阶段在**干净 HEAD 上同样失败**（`git stash` 后
+复跑确认），失败项是既有的 RUSTSEC-2026-0285（rustls 0.23.44），本批未改
+`Cargo.lock` 中的 rustls 版本，也未新增除新 crate 之外的依赖。
