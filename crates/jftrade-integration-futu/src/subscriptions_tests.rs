@@ -1647,3 +1647,66 @@ fn failed_or_replayed_subscriptions_are_not_active_until_opend_confirms() {
         1
     ));
 }
+
+#[test]
+fn exchange_invalidate_client_clears_ready_state_and_every_subscription_kind() {
+    // Parity: go:452dea11:pkg/futu/exchange_business_boundary_test.go:326
+    // TestExchangeInvalidateClientClearsReadyStateAndSubscriptions. Go drops
+    // `ready` and every subscription set (BasicQot, BasicQotPush, KLine,
+    // OrderBook, OrderBookPush) together, so no surface can keep rendering a
+    // quote that the invalidated client no longer owns.
+    //
+    // Rust has no `invalidateClient`; the equivalent owner is
+    // `OpenDSubscriptionLifecycle::close`, which is what the coordinator calls
+    // when the physical client is invalidated (peer close or explicit close).
+    let recorder = Arc::new(MarketDataRuntimeRecorder::default());
+    let mut lifecycle = OpenDSubscriptionLifecycle::new(Arc::clone(&recorder), 60_000);
+    let desired = [
+        reference("SNAPSHOT", None),
+        reference("KLINE", Some("1m")),
+        reference("ORDER_BOOK", None),
+    ];
+    for action in lifecycle.reconcile_demand(&desired, 0) {
+        assert!(lifecycle.record_subscription_success(&action, 0, lifecycle.generation()));
+    }
+    // The invalidated client still owns live subscriptions, in every kind.
+    let snapshot = lifecycle.physical_snapshot();
+    assert!(
+        !snapshot.entries.is_empty(),
+        "precondition: subscriptions exist"
+    );
+    assert!(snapshot.own_active_count > 0);
+    assert!(
+        !lifecycle.active_basic_instruments().is_empty(),
+        "precondition: a Basic subscription is active"
+    );
+    assert!(
+        snapshot
+            .entries
+            .iter()
+            .any(|entry| entry.kind.to_lowercase().contains("kline")),
+        "precondition: a KLine subscription is active"
+    );
+    assert!(
+        snapshot
+            .entries
+            .iter()
+            .any(|entry| entry.kind.to_lowercase().contains("order")),
+        "precondition: an order-book subscription is active"
+    );
+
+    assert!(lifecycle.close(), "first invalidate reports a change");
+
+    // After invalidation nothing is ready and no kind survives.
+    let snapshot = lifecycle.physical_snapshot();
+    assert!(snapshot.entries.is_empty(), "entries = {snapshot:?}");
+    assert_eq!(snapshot.own_active_count, 0);
+    assert_eq!(snapshot.fallback_count, 0);
+    assert_eq!(snapshot.pending_release_count, 0);
+    assert!(lifecycle.active_basic_instruments().is_empty());
+    // A closed lifecycle also refuses new work and stays idempotent, matching
+    // Go's repeated invalidateClient() being a no-op.
+    assert!(!lifecycle.close());
+    assert!(lifecycle.reconcile_demand(&desired, 1_000).is_empty());
+    assert!(lifecycle.physical_snapshot().entries.is_empty());
+}

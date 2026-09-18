@@ -15946,11 +15946,11 @@
     "evidence_type": "function_exact"
   },
   "pkg/futu/exchange_business_boundary_test.go:326:TestExchangeInvalidateClientClearsReadyStateAndSubscriptions": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-futu/src/session_coordinator.rs::tests::peer_close_advances_generation_replays_subscriptions_and_accepts_push",
-    "conclusion": "partial：Go 的 Exchange.invalidateClient 直接清空 ready 与全部订阅集合；Rust 由 OpenDSessionCoordinator 的 close/断线路径重建 generation 并重新对账 desired 订阅（generation fencing），没有同名清空函数。已引用 peer_close 生成新 generation 并重放订阅的测试作为等价证据。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(peer_close_advances_generation_replays_subscriptions_and_accepts_push)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions.rs::tests::exchange_invalidate_client_clears_ready_state_and_every_subscription_kind",
+    "conclusion": "function_exact：Rust 无同名 invalidateClient；等价 owner 是 OpenDSubscriptionLifecycle::close（coordinator 在 client 失效/peer close 时调用）。测试先用 reconcile_demand+record_subscription_success 建立 BasicQot/KLine/OrderBook 三类活跃订阅，close 后 physical_snapshot().entries 为空、own_active_count/fallback_count/pending_release_count 全为 0、active_basic_instruments() 为空，重复 close 幂等且不再接受新需求——与 Go invalidateClient 一次性清空 ready 与全部订阅集合、重复调用为 no-op 语义一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(exchange_invalidate_client_clears_ready_state_and_every_subscription_kind)'",
+    "evidence_type": "function_exact"
   },
   "pkg/futu/exchange_business_boundary_test.go:349:TestTradeSecurityInfoAndRuntimeMarketAuthorityBoundaries": {
     "status": "[x]",
@@ -15961,22 +15961,22 @@
   },
   "pkg/futu/exchange_business_boundary_test.go:433:TestKLineSessionRegistryResolvesExactRecordAndQuoteSamples": {
     "status": "[~]",
-    "rust_entry": "架构差异：Rust 无 kline session registry",
-    "conclusion": "boundary：Go 用 Exchange 内部 klineSessions/marketSessionSamples 缓存 + ResolveKLineSession；Rust 由注入的 QuoteSessionResolver（calendar）在生产组合时解析 session，并由 K线/快照投影直接携带 session 标签，无同名 registry 及其 exact-record/sample 两条解析路径。",
+    "rust_entry": "crates/jftrade-integration-futu/src/history_session_plan.rs::HistoricalKlineRequestPlan::resolve_market_session + crates/jftrade-integration-futu/src/session_resolver.rs::QuoteSessionResolver + crates/jftrade-integration-futu/src/basic_quote_tick.rs::quote_session_label",
+    "conclusion": "boundary：Go 的 klineSessions/marketSessionSamples 是 Exchange 进程内的 Wails 侧会话注册表，ResolveKLineSession 先按 record key 精确命中、再按 ±interval 窗口在采样里取最新。Rust 无该缓存 owner：session 在请求期由 HistoricalKlineRequestPlan（SESSION_RTH/SESSION_ETH/SESSION_ALL/SESSION_OVERNIGHT + resolve_market_session）与注入的 QuoteSessionResolver（calendar）判定，K线/快照投影直接携带 session 标签（quote_session_label）。既无 record key 也没有采样窗口这两条解析路径，属 Go 遗留模型，不迁移。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours)'",
     "evidence_type": "boundary"
   },
   "pkg/futu/exchange_business_boundary_test.go:461:TestKLineSessionSamplePruningAndWindowFallback": {
     "status": "[~]",
-    "rust_entry": "架构差异：Rust 无 marketSessionSamples 修剪/窗口回落",
-    "conclusion": "boundary：Go 的 pruneMarketSessionSamples（12h TTL/256 上限/Unknown 丢弃）与 resolveSessionFromSamples（±interval 窗口取最新）在 Rust 无等价缓存；Rust 时区/session 边界由 calendar resolver 与 basic_quote_tick 的 session 判定测试覆盖。",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_tick.rs::quote_session_label + crates/jftrade-integration-futu/src/session_resolver.rs::QuoteSessionResolver::resolve_quote_session",
+    "conclusion": "boundary：Go 的 pruneMarketSessionSamples（12h TTL/256 上限/丢弃 Unknown）与 resolveSessionFromSamples（±interval 窗口取最新已知会话）维护的是 Exchange 进程内采样缓存，Rust 没有对应缓存，因此没有相等价的修剪/窗口回落 owner。Rust 的会话边界改由 calendar resolver 在请求期解析（QuoteSessionResolver::resolve_quote_session），并由 basic_quote_tick 的 session 判定测试覆盖 HK 午休与 US 常规盘边界，属边界保留。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(snapshot_projection_reclassifies_us_regular_boundary_and_clears_extended_hours)'",
     "evidence_type": "boundary"
   },
   "pkg/futu/exchange_business_boundary_test.go:487:TestMergeStaticInfoIntoSecurityDetailsFillsMissingFieldsWithoutClobberingSnapshot": {
     "status": "[~]",
-    "rust_entry": "架构差异：Rust 无 SecurityDetails 合并层",
-    "conclusion": "boundary：Go 的 mergeStaticInfoIntoSecurityDetails 把 GetStaticInfo 合并进既有 snapshot 且不覆盖非空字段；Rust 的 SecurityDetails 由 security_snapshot_query / trade_runtime_projection 直接构建，没有“合并进已有详情”的公开 owner，避免引入 Go 遗留模型。",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote.rs::enrich_security_from_snapshot",
+    "conclusion": "boundary：Go 的 mergeStaticInfoIntoSecurityDetails 把 GetStaticInfo 按“只填空、不覆盖非空”合并进既有 SecurityDetails（保留 snapshot 的 Name/SecurityType/LotSize/Option.OptionType）。Rust 的 SecurityDetails 由 security_snapshot_query 的 SecurityDetailsMap 直接构建（maps_security_snapshot_bbo_and_equity_metrics_without_defaults 断言字段映射、不合成默认值），唯一相近的合并逻辑是 engine 的 enrich_security_from_snapshot——它把 snapshot 合并进 securities 视图且按字段覆盖，不会保留“snapshot 冻结字段”，因此不存在同语义 owner；不引入 Go 的静态信息合并模型。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(maps_security_snapshot_bbo_and_equity_metrics_without_defaults)'",
     "evidence_type": "boundary"
   },

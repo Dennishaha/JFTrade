@@ -3573,3 +3573,78 @@ python3 scripts/compatibility/audit_test_parity.py
 
 结果：1789 passed / 1 skipped（本批新增 4 条 Rust 测试）；审计
 OK: 538 function_exact（本批 4 条 `[~]` → `[x]`）。
+
+---
+
+## 批次：pkg/futu/exchange_business_boundary_test.go（4 项）
+
+基线 `go:452dea11`，本批只处理上一批剩余的 4 条（其余 8 条已在前批完成）。
+
+| Go 测试 | 状态 | Rust 证据 |
+| :--- | :--- | :--- |
+| `:326` TestExchangeInvalidateClientClearsReadyStateAndSubscriptions | `[x]` | `subscriptions_tests.rs::tests::exchange_invalidate_client_clears_ready_state_and_every_subscription_kind` |
+| `:433` TestKLineSessionRegistryResolvesExactRecordAndQuoteSamples | `[~]` boundary | `history_session_plan.rs::HistoricalKlineRequestPlan::resolve_market_session` + `session_resolver.rs::QuoteSessionResolver` + `basic_quote_tick.rs::quote_session_label` |
+| `:461` TestKLineSessionSamplePruningAndWindowFallback | `[~]` boundary | `basic_quote_tick.rs::quote_session_label` + `session_resolver.rs::QuoteSessionResolver::resolve_quote_session` |
+| `:487` TestMergeStaticInfoIntoSecurityDetailsFillsMissingFieldsWithoutClobberingSnapshot | `[~]` boundary | `product_production_ports_market_data_quote.rs::enrich_security_from_snapshot` |
+
+### 本批新增 Rust 测试（1 条）
+
+`crates/jftrade-integration-futu/src/subscriptions_tests.rs`
+`exchange_invalidate_client_clears_ready_state_and_every_subscription_kind`：
+先用 `reconcile_demand` + `record_subscription_success` 建立 SNAPSHOT/KLINE/ORDER_BOOK
+三类活跃物理订阅（并断言 `own_active_count > 0` 作为前置条件），再断言
+`OpenDSubscriptionLifecycle::close` 之后：
+
+- `physical_snapshot().entries` 为空，`own_active_count`/`fallback_count`/
+  `pending_release_count` 全为 0；
+- `active_basic_instruments()` 为空；
+- 重复 `close()` 返回 false（幂等，不产生第二个 owner 或二次释放）；
+- `reconcile_demand` 返回空（closed lifecycle 不再接受新需求）。
+
+### 无同名 owner 的边界结论（3 项）
+
+这三项都不是“测试没写”，而是 Rust 侧**不存在同名 owner**，因此保留
+`evidence_type = boundary`，并在 `rust_entry` 写明真实的等价机制位置：
+
+1. **`:433` kline session registry**：Go 的 `klineSessions` 按 record key 精确命中，
+   `marketSessionSamples` 再按 ±interval 窗口取最新，两者都是 `Exchange`
+   进程内的 Wails 侧缓存。Rust 没有该缓存：会话在**请求期**由
+   `HistoricalKlineRequestPlan::resolve_market_session`（`SESSION_RTH`/
+   `SESSION_ETH`/`SESSION_ALL`/`SESSION_OVERNIGHT`）与注入的
+   `QuoteSessionResolver`（calendar）判定，K 线/快照投影直接经
+   `basic_quote_tick::quote_session_label` 携带会话标签。
+2. **`:461` 采样修剪/窗口回落**：Go 的 `pruneMarketSessionSamples`
+   （12h TTL / 256 上限 / 丢弃 Unknown）与 `resolveSessionFromSamples`
+   （±interval 窗口取最新已知会话）维护的是同一份进程内采样缓存。
+   Rust 没有采样缓存即无修剪与窗口回落语义；会话边界由 calendar resolver
+   在请求期解析，并由 `basic_quote_tick` 的 HK 午休与 US 常规盘边界测试覆盖。
+3. **`:487` static info 合并**：Go 的 `mergeStaticInfoIntoSecurityDetails`
+   按“只填空、不覆盖非空”把 `GetStaticInfo` 合并进既有 `SecurityDetails`
+   （保留 snapshot 的 `Name`/`SecurityType`/`LotSize`/`Option.OptionType`）。
+   Rust 的 `SecurityDetails` 由 `security_snapshot_query` 的
+   `SecurityDetailsMap` 直接构建，唯一相近的合并逻辑是 engine 的
+   `enrich_security_from_snapshot`，它把 snapshot 合并进 securities 视图且按
+   字段覆盖，**不保留 snapshot 冻结字段**，语义不同，不引入 Go 的静态信息
+   合并模型。
+
+### 探针（改坏实现 → 跑测试 → 确认守卫 → 回滚）
+
+- 让 `OpenDSubscriptionLifecycle::physical_snapshot` 绕过 `self.closed` 检查
+  → `exchange_invalidate_client_clears_ready_state_and_every_subscription_kind`
+  失败并打印 3 条残留 active entries。已回滚，测试恢复通过。
+- 其余 3 项无生产改动，无需探针。
+
+### 验证
+
+```bash
+cargo fmt --all
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --no-fail-fast
+cargo clippy -p jftrade-integration-futu -p jftrade-engine --all-targets --locked
+pnpm run check:zero-go
+pnpm run check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：1791 passed / 1 skipped（本批新增 1 条 Rust 测试）；审计
+OK: 539 function_exact（`:326` 由 `partial` 升级为 `[x]`，另 3 条保留
+boundary 并补齐了可解析的真实 Rust 位置）。
