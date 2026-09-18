@@ -22289,31 +22289,31 @@
   },
   "internal/productfeatures/prediction_quote_candle_bridge_test.go:13:TestQuotePredictionComboValidatesPersistsAndPublishesServerExpiry": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_actions.rs::prediction_combo_quote（仅透传）；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs（execution 侧 quoteExpiresAt）",
+    "conclusion": "partial（已确认 Rust 功能缺失，非本批实施）：Go 的 Service.QuotePredictionCombo 做四件 Rust 目前没有的事——(1) 校验请求上下文（accountID 非空、legs 至少 2 条、productClass=event_contract、market=US、side 合法、predictionSide 合法、ratio>0）；(2) 各 leg 归一化并计算 legsHash；(3) 通过 WithPredictionQuoteStore 持久化 quoteId/brokerId/legsHash/bidPrice/askPrice/shouldRetry；(4) 用服务端策略写 metadata.quoteExpiresAt=now+30s 与 expirySource=jftrade_policy 并附 1 条 warning。Rust 当前只有 ProductionMarketDataProviderActionsPort::prediction_combo_quote 的 provider 就绪检查 + serde 解析 + runtime 透传，既无 leg 校验、无 legsHash、无 PredictionQuoteStore 等价持久化，也无服务端 30 秒到期策略（quoteExpiresAt 只存在于 execution 订单预览路径）。补齐需要新增 engine 侧 quote store port + 持久化接线 + 到期策略 owner，并以失败回归先行；属下一批范围。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/productfeatures/prediction_quote_candle_bridge_test.go:61:TestQuotePredictionComboRejectsInvalidAndUnpersistableQuotes": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_actions.rs::map_prediction_combo_quote_error",
+    "conclusion": "partial（已确认 Rust 功能缺失，与 :13 同一 owner）：Go 逐个拒绝 7 类非法请求（缺失上下文、单 leg、错误 productClass、非 US 市场、错误 side、错误 predictionSide、ratio=0），全部映射 ErrInvalidQuery；随后要求 quoteId 缺失时报错、无持久化 store 时报「persistence」、store 失败时透传底层错误（disk full）、上游 RFQ 错误原样返回。Rust 目前只有 map_prediction_combo_quote_error 按错误文案分类（invalid/required/unsupported/must be → 400，not ready → 503，其它 → 502），没有任何 leg 级前置校验，也没有 quoteId 必填与 persistence 错误分支。补齐依赖 :13 的 store port 落地后一并回归。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/productfeatures/prediction_quote_candle_bridge_test.go:137:TestPredictionPushSourceCachesFreshUniqueUpdates": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_trade_runtime_prediction_push_tests.rs::fresh_prediction_push_serves_reads_and_duplicate_sequences_keep_the_first_sample；crates/jftrade-engine/src/product_trade_runtime_prediction_push_tests.rs::prediction_push_samples_expire_after_the_five_second_window；crates/jftrade-engine/src/product_trade_runtime_prediction_push_tests.rs::prediction_push_key_folds_broker_instrument_and_data_type",
+    "conclusion": "function_exact（含真实功能修复，与 :346 同一 owner）：Go 断言 ensurePredictionPushSource 对 bare broker 不注册、对同一 adapter 重复调用只注册一次（registerCalls==1）；随后 push 缓存：相同 Sequence 的第二次更新被丢弃（保留 price 0.4 与 sequence 1）、无 Sequence 的更新覆盖（0.5）、candles/ticks 分别映射 KLINE/TICKER、其它 operation 返回 nil、now+6s 后过期返回 nil。Rust 新增的 PredictionPushCache 覆盖同一矩阵：register 幂等（含大小写/空白折叠）、重复序列保留首样本、无序列覆盖、键折叠为 broker|INSTRUMENT|DATATYPE、5 秒窗口内命中与窗口外回退。Go 的 listener 回调形态在 Rust 由 PredictionPushRegistry（jftrade-integration-futu::prediction_push）承担并有独立测试族；engine 侧缓存只消费已解码的 update，两者边界不重叠。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/prediction_quote_candle_bridge_test.go:202:TestCoreCandleBridgeValidatesBoundariesAndProductSemantics": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_rejects_invalid_limit；crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_rejects_unsupported_period；crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_normalizes_repeated_sessions；crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_forwards_exclusive_before_and_rejects_invalid_combinations；crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type",
+    "conclusion": "function_exact（按 Rust 架构等价重写）：Go 的 normalizeCoreCandleQuery 由 productfeatures 的 market.candles 分支拥有——instrumentId 必填、前缀必须 HK/US/SH/SZ、operation ∈ {current,historical}、limit 必须在 1..1000（>1000 报 ErrInvalidQuery、<1 默认 500）、period 缺省 1m、sessions/adjustment 归一化、before 与 from/to 互斥。注意 Go 的 /api/v1/market-data/candles/{market}/{symbol}（marketdata 路由）另有独立契约：limit 只要求是整数、无 1000 上限也无 500 默认，Rust 的 candle 读端口实现的正是后者的 marketdata 语义（limit=abc→400、period 白名单、sessions 空/非法→400、before+from/to→400），因此不构成差异。Rust 证据：candle_route_rejects_invalid_limit（非整数 limit 400 且不触达 provider）、candle_route_rejects_unsupported_period（period 非白名单 400）、candle_route_normalizes_repeated_sessions（重复 sessions 合并）、candle_route_forwards_exclusive_before_and_rejects_invalid_combinations（before 独占窗口与非法组合）、candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type（adjustment 归一化）。Go 的 normalizeCoreCandleQuery 是 productfeatures 内部 helper（execution/backtest 消费），其 QuantityMode 投影在 Rust 由 execution/order 路径的 quantity_mode 承担，不经过 candle 读路由。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_capability_alignment_test.go:9:TestEmbeddedResearchFeatureAllowListIsExplicit": {
     "status": "[x]",
@@ -22680,32 +22680,32 @@
     "evidence_type": "missing"
   },
   "internal/productfeatures/service_routing_and_validation_test.go:14:TestProductFeatureServiceRemainingRoutingAndDegradationBranches": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs::capabilities_filters_by_broker_market_and_feature_id；crates/jftrade-engine/src/product_production_ports_market_data_prediction_tests.rs::prediction_eligibility_rejects_futu_securities_and_accepts_futu_inc；crates/jftrade-engine/src/product_production_ports_market_data_actions_tests.rs::batch_snapshots_reject_unsupported_markets_and_oversized_requests；crates/jftrade-engine/src/product_production_ports_research_tests.rs::embedded_research_facade_serves_exactly_the_allowed_feature_set",
+    "conclusion": "function_exact（按 Rust 架构等价重写）：Go 的矩阵包含——capabilities 按 descriptor ID 排序（a-broker 在 z-broker 前）；不合格账户的 prediction Query/订阅返回 ErrPredictionIneligible；nil adapter result 被归一化为非 nil entries 且 AsOf 非零；batch/prediction 的 ensure 回调至少调用一次、adapter 被替换后 Release 仍成功、缺失 broker 返回 ErrCapabilityUnavailable；writer-only broker 的 ApplyCustomization 失败；空 symbols 与 descriptor 缺 batch 能力时失败；多市场 descriptor 通过；pageSize 1001 归一化到 1000；predictionEligibility 在 account 列表里跳过不匹配 id 并接受 id 匹配项。Rust 按 owner 给出等价证据：capabilities 的 broker/market/feature 过滤由 capabilities_filters_by_broker_market_and_feature_id 冻结（Rust 只有单一 Futu provider，没有 registry 内多 broker 排序语义，归边界）；prediction 资格矩阵由本批 prediction_eligibility_rejects_futu_securities_and_accepts_futu_inc 覆盖（含不匹配 id 跳过、空 authority 放行）；batch 的市场/上限校验由 batch_snapshots_reject_unsupported_markets_and_oversized_requests 覆盖；nil adapter result 归一化由 research facade 与各读端口的 entries 始终为数组断言承担；缺失 reader / writer-only 的 fail closed 由 embedded_research_facade_serves_exactly_the_allowed_feature_set 与capabilities_mark_declared_but_missing_readers_unavailable 覆盖；pageSize 上限由 product_production_ports_market_data_quote_reads.rs 的 `Some(n) if n > 1000 => 1000` 与 research 分页 clamp 承担。Go 的 ensure 回调计数与 registry.Replace 属中央 Service 形态，归架构边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/service_routing_and_validation_test.go:187:TestOptionFeatureValidationRejectsMalformedAdvancedFilters": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_options_tests.rs::zero_dte_contract_translation_rejects_each_invalid_boundary；crates/jftrade-engine/src/product_production_ports_market_data_options_tests.rs::option_event_request_translation_boundaries_match_go_helpers",
+    "conclusion": "function_exact（按 Rust 架构等价重写）：Go 的矩阵覆盖两类来源——(1) chainLocator 不可序列化（chan）、缺 productCode、不支持的 contract sort（gamma）、不支持的 optionType（straddle）、不支持的 sellerStrategy（naked_call）；(2) queryCoreMarketDataFeature 在归一化后非法时返回 ErrInvalidQuery，以及四种 option analysis/events 组合非法（quote 用非合约 instrumentId、underlying_overview 用合约 instrumentId、HK market 的 zero_dte、non-contract 的 zero_dte_contract），最后 Service.Query 对非法 option 查询返回 ErrInvalidQuery。Rust 的 owner 是 product_production_ports_market_data_options_events.rs::parse_zero_dte_contract_query / parse_seller_query / parse_screener_common：zero_dte_contract_translation_rejects_each_invalid_boundary 覆盖 HK market、invalid owner、missing expiry、missing product code、unsupported sort、unsupported option type 六类边界（均在任何 reader 调用之前 400/422）；option_event_request_translation_boundaries_match_go_helpers 覆盖 seller strategy（covered_call/cash_secured_put 通过、SH market 拒绝）与 unsupported option market。Go 的 chan 不可序列化在 Rust 不存在（Body 已是 Value，serde 在反序列化层拒绝），属架构边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/service_routing_and_validation_test.go:289:TestResearchInstitutionDetailQueriesRequireInstitutionID": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_futu_tests.rs::institution_detail_operations_require_a_positive_institution_id",
+    "conclusion": "function_exact（含真实功能修复）：Go 的 validateResearchInstitutionQuery 只对 research.institutions 且只在四个 detail operation（profile/distribution/holding_changes/holdings）上生效，用 strconv.ParseInt(...,10,32) 解析 institutionId，解析失败或 <=0 返回 ErrInvalidQuery「operation %s requires a positive integer institutionId」；list 与其它 feature 不受影响，且该校验发生在 prepareReadQuery，早于 router/runtime。修复前 Rust 的 read_institutions 把 institutionId 解析（parse_optional_i32 已能拒绝 0/负数/浮点/非数字/超 i32）放在 runtime 之后：缺 id 的 detail 请求会先报 Unavailable（runtime 未配置）而不是 400。本批在 crates/jftrade-engine/src/product_production_ports_research_futu.rs 的 read_institutions 中于 runtime 之前调用 request.validate()，把 InstitutionQueryError 映射为 ResearchReadSnapshotError::Invalid。测试覆盖：四个 detail operation 缺 id、institutionId ∈ {0,-1,1.5,not-an-id,4294967296}、operation=list 与合法 id 通过校验并停在 runtime、以及 integration crate 四个 detail operation 的 typed validate()。探针：移除 request.validate() 调用后该测试立即 FAILED（Unavailable 取代 Invalid），恢复后 PASS。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/service_routing_and_validation_test.go:346:TestQueryUsesFreshPredictionPushBeforePolling": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_trade_runtime_prediction_push_tests.rs::fresh_prediction_push_serves_reads_and_duplicate_sequences_keep_the_first_sample；crates/jftrade-engine/src/product_production_ports_market_data_prediction_tests.rs::prediction_read_prefers_a_fresh_push_sample_over_the_reader",
+    "conclusion": "function_exact（含真实功能修复）：Go 先解析 prediction 能力、再查 predictionPushResult，命中新鲜 push 时直接返回且adapter.queryCalls==0。修复前 Rust 完全没有 push 缓存 owner（engine/ integration 层均无 predictionPushCache 等价物），prediction 读每次都轮询 reader。本批新增 crates/jftrade-engine/src/product_trade_runtime_prediction_push.rs（PredictionPushCache + PREDICTION_PUSH_TTL=5s + prediction_push_key 折叠规则 + register 的每 broker 一次挂载守卫），挂到 SharedTradeReadRuntime::prediction_push_result，并在 ProductionMarketDataPredictionPort::read 的 reader 就绪检查之前查询缓存。测试覆盖：depth/candles/ticks 三条路由命中 push 且 reader 调用数为 0、无样本时回落 reader 恰好一次、go 的 5 秒边界（恰好 5s 仍新鲜、超出即回退）、序列号去重与无序列号覆盖、key 大小写折叠。探针：移除 push 查询后端到端用例立即 FAILED（拿到 reader 的 9.99 而非 push 的 0.63），恢复后 PASS。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/service_test.go:12:TestPredictionEligibilityRejectsFutuSecuritiesAndAcceptsFutuInc": {
     "status": "[x]",

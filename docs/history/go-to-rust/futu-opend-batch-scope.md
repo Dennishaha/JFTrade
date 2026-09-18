@@ -4514,3 +4514,62 @@ python3 scripts/compatibility/audit_test_parity.py
 ### 下一批（`internal/productfeatures` 收尾）
 
 `service_routing_and_validation_test.go`(4)：option advanced filters、institutionId 校验、fresh prediction push 优先于轮询（含 prediction push 5s TTL）；随后 `prediction_quote_candle_bridge_test.go`(4)，最后 provider_projection / provider_facade 组（约 60 条，含 `TestEmbeddedProvider*` 与 `TestProvider*Projection` 系列）。仍需逐条判定哪些属于 Rust 架构边界（Go 的中央 Service 与 embedded akshare+yfinance facade 在 Rust 已由 provider helper 端口承担）。
+
+## 批次：internal/productfeatures service_routing_and_validation + prediction bridge
+
+基线：`go` 分支 `452dea11`。范围是 `internal/productfeatures/service_routing_and_validation_test.go`
+全部 4 条与 `internal/productfeatures/prediction_quote_candle_bridge_test.go` 全部 4 条。本批 5 条升级为
+`[x]` / `function_exact`，3 条如实保留 `[~]` / `partial` 并记录真实缺口。
+
+### 清单
+
+| Go 测试 | Rust 证据 | 状态 | 结论 |
+| --- | --- | --- | --- |
+| `service_routing_and_validation_test.go:14 TestProductFeatureServiceRemainingRoutingAndDegradationBranches` | `product_broker_capabilities_projection_tests.rs::capabilities_filters_by_broker_market_and_feature_id`；`product_production_ports_market_data_prediction_tests.rs::prediction_eligibility_rejects_futu_securities_and_accepts_futu_inc`；`product_production_ports_market_data_actions_tests.rs::batch_snapshots_reject_unsupported_markets_and_oversized_requests`；`product_production_ports_research_tests.rs::embedded_research_facade_serves_exactly_the_allowed_feature_set` | `[x]` | 按 owner 拆分：资格矩阵、batch 市场/上限校验、缺失 reader 的 fail closed、pageSize 上限（`quote_reads` 的 `n > 1000 => 1000`）均有等价证据。Go 的 registry 多 broker 排序、`ensure` 回调计数、`registry.Replace` 属中央 Service 形态，归架构边界。 |
+| `service_routing_and_validation_test.go:187 TestOptionFeatureValidationRejectsMalformedAdvancedFilters` | `product_production_ports_market_data_options_tests.rs::zero_dte_contract_translation_rejects_each_invalid_boundary`；`::option_event_request_translation_boundaries_match_go_helpers` | `[x]` | HK market / invalid owner / missing expiry / missing product code / unsupported sort / unsupported option type 六类边界在任何 reader 调用前 400/422；seller strategy 与非法 option market 独立覆盖。Go 的 `chan` 不可序列化在 Rust 由 serde 层拒绝，属边界。 |
+| `service_routing_and_validation_test.go:289 TestResearchInstitutionDetailQueriesRequireInstitutionID` | `product_production_ports_research_futu_tests.rs::institution_detail_operations_require_a_positive_institution_id` | `[x]` | **真实功能修复**：Rust 原先把 institutionId 校验放在 runtime 之后，缺 id 的 detail 请求返回 Unavailable 而非 400。已在 `read_institutions` 于 runtime 之前调用 `request.validate()`。测试覆盖四个 detail operation、`{0,-1,1.5,not-an-id,4294967296}`、`list`/合法 id 通过校验，及 integration 层 typed validate。 |
+| `service_routing_and_validation_test.go:346 TestQueryUsesFreshPredictionPushBeforePolling` | `product_trade_runtime_prediction_push_tests.rs::fresh_prediction_push_serves_reads_and_duplicate_sequences_keep_the_first_sample`；`product_production_ports_market_data_prediction_tests.rs::prediction_read_prefers_a_fresh_push_sample_over_the_reader` | `[x]` | **真实功能缺失已修复**：engine 层完全没有 push 缓存，prediction 读每次都轮询。新增 `product_trade_runtime_prediction_push.rs`（5s TTL + key 折叠 + 每 broker 一次挂载守卫），挂到 `SharedTradeReadRuntime::prediction_push_result`，读端口在 reader 就绪检查之前查询。端到端断言三条路由命中 push 且 reader 调用数 0，无样本时恰好回落一次。 |
+| `prediction_quote_candle_bridge_test.go:137 TestPredictionPushSourceCachesFreshUniqueUpdates` | `product_trade_runtime_prediction_push_tests.rs::fresh_prediction_push_serves_reads_and_duplicate_sequences_keep_the_first_sample`；`::prediction_push_samples_expire_after_the_five_second_window`；`::prediction_push_key_folds_broker_instrument_and_data_type` | `[x]` | 同一 owner：register 幂等、重复序列保留首样本、无序列覆盖、key 折叠、5 秒窗口（恰好 5s 仍新鲜、超出回退）。Go 的 listener 回调形态由 integration 层 `PredictionPushRegistry` 承担（独立测试族）。 |
+| `prediction_quote_candle_bridge_test.go:202 TestCoreCandleBridgeValidatesBoundariesAndProductSemantics` | `product_market_data_candle_pagination_tests.rs::candle_route_rejects_invalid_limit`；`::candle_route_rejects_unsupported_period`；`::candle_route_normalizes_repeated_sessions`；`::candle_route_forwards_exclusive_before_and_rejects_invalid_combinations`；`::candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type` | `[x]` | 核对后确认非差异：Go 的 `normalizeCoreCandleQuery`（productfeatures，limit 1..1000 / 默认 500）与 `/api/v1/market-data/candles/...`（marketdata 路由，limit 仅要求整数）是两条不同契约；Rust candle 读端口实现的是后者。 |
+| `prediction_quote_candle_bridge_test.go:13 TestQuotePredictionComboValidatesPersistsAndPublishesServerExpiry` | `product_production_ports_market_data_actions.rs::prediction_combo_quote`（仅透传） | `[~]` partial | **已确认功能缺失**：Rust 无 leg 校验、无 legsHash、无 PredictionQuoteStore 等价持久化、无服务端 30 秒到期策略（`quoteExpiresAt` 只在 execution 预览路径）。 |
+| `prediction_quote_candle_bridge_test.go:61 TestQuotePredictionComboRejectsInvalidAndUnpersistableQuotes` | `product_production_ports_market_data_actions.rs::map_prediction_combo_quote_error` | `[~]` partial | 同上 owner：目前只有错误文案分类，没有 7 类 leg 前置校验与 quoteId/persistence 必填分支。 |
+| `research_screen.go`（同批参考） | — | — | 本批未涉及。 |
+
+### 生产改动
+
+- 新增 `crates/jftrade-engine/src/product_trade_runtime_prediction_push.rs`：`PredictionPushCache`、
+  `PREDICTION_PUSH_TTL = 5s`、`prediction_push_key`、`register` / `ingest` / `result` / `result_at`。
+- `crates/jftrade-engine/src/product_trade_runtime_projection.rs`：runtime 持有 `prediction_push_cache`，新增
+  `prediction_push_result`。
+- `crates/jftrade-engine/src/product_production_ports_market_data_prediction.rs`：读路径在 reader 之前查询 push 缓存，
+  新增 `prediction_read_contract_code`（补全 `US.` 前缀）与 `prediction_push_data_type`。
+- `crates/jftrade-engine/src/product_production_ports_research_futu.rs`：`read_institutions` 在 runtime 之前调用
+  `request.validate()`；测试模块拆到 `product_production_ports_research_futu_tests.rs`。
+
+### 探针
+
+- institutionId：移除 `request.validate()` → 测试立即 FAILED（Unavailable 取代 Invalid）；恢复后 PASS。
+- prediction push：移除读端口的 push 查询 → 端到端用例 FAILED（拿到 reader 的 9.99 而非 push 的 0.63）；恢复后 PASS。
+
+### 验证
+
+```bash
+cargo fmt --all
+cargo clippy -p jftrade-engine --all-targets --locked
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+- `jftrade-engine` 全量 1283 用例全绿（nextest，0 failed）。
+- 审计：4451 Go 测试，`function_exact` 631 → 637，0 nonexistent crate，0 `[x]` 缺 `function_exact`。
+- 7 条 partial 无解析测试为已确认缺口（含本批新增 2 条 combo quote），非本批失败。
+
+### 下一批（prediction combo quote 持久化 + provider facade 组）
+
+1. 补齐 `QuotePredictionCombo` owner：leg 校验矩阵、legsHash、PredictionQuoteStore 等价持久化 port、
+   服务端 `quoteExpiresAt = now + 30s` 与 `expirySource = jftrade_policy`，随后把
+   `prediction_quote_candle_bridge_test.go:13/:61` 升级为 `[x]`。
+2. `provider_projection_test.go` / `provider_projection_calendar_test.go` / `provider_projection_screen_test.go` /
+   `provider_facade_*` 组（约 60 条，含 `TestEmbeddedProvider*` 与 `TestProvider*Projection`）。
+3. `internal/productfeatures` 收尾后顺序：`internal/api/assistant`（ADK）→ `internal/api` →
+   `pkg/futu/live_opend_test.go`(8，需真实 OpenD，列最后)。

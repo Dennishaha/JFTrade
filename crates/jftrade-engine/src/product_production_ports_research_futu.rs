@@ -104,6 +104,15 @@ pub(super) fn read_institutions(
         name_part: optional_text(&query_map, "namePart")?,
         keyword: optional_text(&query_map, "keyword")?,
     };
+    // Go validates the decoded query in `prepareReadQuery`, before the router
+    // resolves a broker or the runtime is touched, so an invalid institutionId
+    // must answer 400 instead of surfacing the runtime as unavailable.
+    // Go validates the decoded query in `prepareReadQuery`, before the router
+    // resolves a broker or the runtime is touched, so an invalid institutionId
+    // must answer 400 instead of surfacing the runtime as unavailable.
+    request
+        .validate()
+        .map_err(|error| ResearchReadSnapshotError::Invalid(error.to_string()))?;
     let runtime = institution_runtime(runtime)?;
     let result = runtime.institution(&request).map_err(map_institution_error)?;
     project_institution_result(result)
@@ -769,3 +778,7 @@ fn serialize_error(error: serde_json::Error) -> ResearchReadSnapshotError {
 fn invalid_payload(message: &str) -> ResearchReadSnapshotError {
     failed_error(message.to_owned())
 }
+
+#[cfg(test)]
+#[path = "product_production_ports_research_futu_tests.rs"]
+mod tests;

@@ -123,6 +123,9 @@ pub(crate) struct SharedTradeReadRuntime {
     pub(crate) prediction_combo_quote:
         Arc<RwLock<Option<Arc<dyn PredictionComboQuotePort>>>>,
     prediction_subscription_state: Arc<Mutex<PredictionSubscriptionState>>,
+    /// Go's `predictionPushCache` + `predictionPushUnsubscribe`: the newest
+    /// push per (broker, instrument, data type) and the per-broker attach flag.
+    pub(crate) prediction_push_cache: product_trade_runtime_prediction_push::PredictionPushCache,
     pub(crate) valuation_detail: Arc<RwLock<Option<Arc<dyn ValuationDetailReadPort>>>>,
     pub(crate) institution_reader: Arc<RwLock<Option<Arc<dyn FutuInstitutionReadPort>>>>,
     pub(crate) short_interest_reader: Arc<RwLock<Option<Arc<dyn FutuShortInterestReadPort>>>>,
@@ -774,6 +777,9 @@ impl SharedTradeReadRuntime {
 
 #[path = "product_trade_runtime_prediction_state.rs"]
 pub(crate) mod product_trade_runtime_prediction_state;
+
+#[path = "product_trade_runtime_prediction_push.rs"]
+pub(crate) mod product_trade_runtime_prediction_push;
 
 #[path = "product_trade_runtime_quote_rights.rs"]
 pub(crate) mod product_trade_runtime_quote_rights;

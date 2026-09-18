@@ -60,6 +60,24 @@ impl MarketDataPredictionReadSnapshotPort for ProductionMarketDataPredictionPort
                 retry_after_seconds: None,
             });
         }
+        // Go answers a matching depth/history read from the push cache before
+        // it polls OpenD, and only falls through when the sample is missing or
+        // older than five seconds. Resolve the cache before the reader
+        // readiness check so a fresh push serves the read even when the
+        // explicit reader path is not attached.
+        let query_map = QueryMap::parse(query)
+            .map_err(|_| prediction_read_invalid("invalid prediction query encoding"))?;
+        let broker_id = query_map
+            .get_first("brokerId")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("futu");
+        if let Some(contract) = prediction_read_contract_code(path)
+            && let Some(data_type) = prediction_push_data_type(path)
+            && let Some(pushed) = runtime.prediction_push_result(broker_id, &contract, data_type)
+        {
+            return Ok(pushed);
+        }
         if !runtime.prediction_reader_available() {
             return Err(MarketDataPredictionReadSnapshotError::Unavailable(
                 "Futu prediction market-data reader is not ready".to_owned(),
@@ -217,6 +235,45 @@ pub(crate) fn validate_prediction_read_request(
         return Err(prediction_read_invalid("prediction market must be US"));
     }
     Ok(())
+}
+
+/// Extract the contract code from a contract-scoped prediction read so the
+/// push cache can be keyed the same way Go's `predictionPushKey` is.
+fn prediction_read_contract_code(path: &str) -> Option<String> {
+    let suffix = path.strip_prefix("/api/v1/market-data/prediction/contracts/")?;
+    let (encoded, _) = suffix.split_once('/')?;
+    let code = percent_decode_str(encoded)
+        .decode_utf8()
+        .ok()?
+        .trim()
+        .to_ascii_uppercase();
+    if code.is_empty() {
+        return None;
+    }
+    // The route carries the bare contract code while a push update carries the
+    // fully qualified `US.<code>` instrument id, so the cache key is completed
+    // here. An already-qualified code is left untouched.
+    Some(if code.contains('.') {
+        code
+    } else {
+        format!("US.{code}")
+    })
+}
+
+/// Go's push-backed prediction reads: `prediction.depth` (order book) is
+/// `ORDER_BOOK`, `prediction.history` with `operation=candles` is `KLINE`, and
+/// `operation=ticks` is `TICKER`. Every other prediction route polls.
+fn prediction_push_data_type(path: &str) -> Option<&'static str> {
+    if !path.contains("/order-book") && !path.ends_with("/order-book") {
+        let suffix = path.strip_prefix("/api/v1/market-data/prediction/contracts/")?;
+        let (_, operation) = suffix.split_once('/')?;
+        return match operation {
+            "candles" => Some("KLINE"),
+            "ticks" => Some("TICKER"),
+            _ => None,
+        };
+    }
+    Some("ORDER_BOOK")
 }
 
 fn prediction_read_operation(

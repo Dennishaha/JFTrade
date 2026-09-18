@@ -1,4 +1,5 @@
 use super::*;
+use serde_json::json;
 
 fn port(
     provider: Option<MarketDataProvider>,
@@ -357,4 +358,153 @@ fn prediction_read_returns_403_for_an_ineligible_account_before_the_reader() {
         }
         other => panic!("expected the 403 ineligible failure, got {other:?}"),
     }
+}
+
+/// Parity: go:452dea11:internal/productfeatures/service_routing_and_validation_test.go:346
+/// TestQueryUsesFreshPredictionPushBeforePolling
+///
+/// Go resolves the prediction capability, then asks `predictionPushResult`
+/// before it touches the broker: a fresh push sample answers the read and the
+/// adapter records zero query calls. The Rust equivalent is the prediction read
+/// port consulting the runtime push cache before `prediction_reader_available`
+/// and `prediction_read`.
+#[test]
+fn prediction_read_prefers_a_fresh_push_sample_over_the_reader() {
+    /// Counts every reader call so the push-served read can prove it never
+    /// polled OpenD.
+    #[derive(Debug, Default)]
+    struct CountingPredictionReader {
+        calls: std::sync::atomic::AtomicUsize,
+    }
+
+    impl jftrade_integration_futu::PredictionMarketReadPort for CountingPredictionReader {
+        fn read(
+            &self,
+            _path: &str,
+            _query: &str,
+        ) -> Result<Value, jftrade_integration_futu::PredictionMarketReadError> {
+            self.calls
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(json!({"entries": [{"price": 9.99}]}))
+        }
+    }
+
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    state.set_readiness(false, true, false);
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(EligibilityAccounts { accounts: vec![account(1, Some(2), vec![11])], error: None })), Some(true));
+    let reader = Arc::new(CountingPredictionReader::default());
+    runtime.set_prediction_adapters(
+        Some(reader.clone()
+            as Arc<dyn jftrade_integration_futu::PredictionMarketReadPort>),
+        None,
+        None,
+    );
+    runtime.prediction_push_cache.store(
+        "futu",
+        "US.EC-42",
+        "ORDER_BOOK",
+        "7",
+        "2026-07-18T12:00:00Z",
+        vec![json!({"price": 0.63})],
+    );
+    let port = ProductionMarketDataPredictionPort {
+        active_provider_state: state,
+        trade_runtime: Some(runtime),
+    };
+
+    let value = port
+        .read(
+            "/api/v1/market-data/prediction/contracts/EC-42/order-book",
+            "brokerId=futu&accountId=1",
+        )
+        .expect("a fresh push must serve the prediction read");
+    assert_eq!(value["entries"][0]["price"], 0.63);
+    assert_eq!(value["metadata"]["source"], "push");
+    assert_eq!(value["metadata"]["dataType"], "ORDER_BOOK");
+    assert_eq!(value["metadata"]["sequence"], "7");
+    assert_eq!(
+        reader.calls.load(std::sync::atomic::Ordering::SeqCst),
+        0,
+        "a push-served read must not poll the prediction reader"
+    );
+
+    // The KLINE/TICKER operations map onto the same cache keyed by route.
+    for (path, data_type) in [
+        (
+            "/api/v1/market-data/prediction/contracts/EC-42/candles",
+            "KLINE",
+        ),
+        ("/api/v1/market-data/prediction/contracts/EC-42/ticks", "TICKER"),
+    ] {
+        let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+        state.set_readiness(false, true, false);
+        let runtime = Arc::new(SharedTradeReadRuntime::default());
+        runtime.set(
+            Some(Arc::new(EligibilityAccounts {
+                accounts: vec![account(1, Some(2), vec![11])],
+                error: None,
+            })),
+            Some(true),
+        );
+        let reader = Arc::new(CountingPredictionReader::default());
+        runtime.set_prediction_adapters(
+            Some(reader.clone()
+                as Arc<dyn jftrade_integration_futu::PredictionMarketReadPort>),
+            None,
+            None,
+        );
+        runtime.prediction_push_cache.store(
+            "futu",
+            "US.EC-42",
+            data_type,
+            "9",
+            "2026-07-18T12:00:00Z",
+            vec![json!({"price": 0.77})],
+        );
+        let port = ProductionMarketDataPredictionPort {
+            active_provider_state: state,
+            trade_runtime: Some(runtime),
+        };
+        let value = port
+            .read(path, "brokerId=futu&accountId=1")
+            .unwrap_or_else(|error| panic!("{path} push read: {error:?}"));
+        assert_eq!(value["metadata"]["dataType"], data_type);
+        assert_eq!(
+            reader.calls.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "{path} must be served from the push cache"
+        );
+    }
+
+    // Without a push sample the read falls through to the reader exactly once.
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    state.set_readiness(false, true, false);
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(
+        Some(Arc::new(EligibilityAccounts {
+            accounts: vec![account(1, Some(2), vec![11])],
+            error: None,
+        })),
+        Some(true),
+    );
+    let reader = Arc::new(CountingPredictionReader::default());
+    runtime.set_prediction_adapters(
+        Some(reader.clone()
+            as Arc<dyn jftrade_integration_futu::PredictionMarketReadPort>),
+        None,
+        None,
+    );
+    let port = ProductionMarketDataPredictionPort {
+        active_provider_state: state,
+        trade_runtime: Some(runtime),
+    };
+    let value = port
+        .read(
+            "/api/v1/market-data/prediction/contracts/EC-42/order-book",
+            "brokerId=futu&accountId=1",
+        )
+        .expect("cache miss falls through to the reader");
+    assert_eq!(value["entries"][0]["price"], 9.99);
+    assert_eq!(reader.calls.load(std::sync::atomic::Ordering::SeqCst), 1);
 }
