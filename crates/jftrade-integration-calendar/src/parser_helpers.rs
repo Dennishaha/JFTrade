@@ -514,6 +514,40 @@ mod tests {
         );
     }
 
+    /// Parity: go:452dea11:internal/exchangecalendar/manager_boundaries_test.go:333
+    /// TestExtractNYSEHeaderYearsSkipsMalformedRowsBeforeValidHeader.
+    ///
+    /// The NYSE table header is found by scanning rows for one whose first cell
+    /// reads `Holiday` after HTML stripping and whitespace folding, whose
+    /// remaining cells are all plain 4-digit years; malformed rows before it are
+    /// skipped and an all-invalid table reports "no header" (`nil`/`-1` in Go,
+    /// an empty year list here).
+    #[test]
+    fn nyse_header_year_extraction_skips_malformed_rows_before_a_valid_header() {
+        let rows = vec![
+            vec!["Holiday".to_owned()],
+            vec!["Not Holiday".to_owned(), "2026".to_owned()],
+            vec![
+                "<strong>Holiday</strong>".to_owned(),
+                "2026".to_owned(),
+                "TBD".to_owned(),
+            ],
+            vec![
+                " Holiday ".to_owned(),
+                "<span>2027</span>".to_owned(),
+                "2028".to_owned(),
+            ],
+        ];
+        let (years, header_index) = extract_nyse_header_years(&rows);
+        assert_eq!(header_index, 3, "the fourth row is the first valid header");
+        assert_eq!(years, [2027, 2028]);
+
+        let (years, header_index) =
+            extract_nyse_header_years(&[vec!["Holiday".to_owned(), "TBD".to_owned()]]);
+        assert!(years.is_empty(), "an all-invalid header has no years");
+        assert_eq!(header_index, 0);
+    }
+
     #[test]
     fn fetch_range_uses_the_market_local_boundaries() {
         // Every fixture instant is market-anchored (US Eastern in July), which

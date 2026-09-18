@@ -495,3 +495,74 @@ fn schedule(market: &str, date: &str) -> TradingDaySchedule {
         updated_at: None,
     }
 }
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_boundaries_test.go:119
+/// TestHTTPCalendarSourceValidateSnapshotBoundary.
+///
+/// Go's adapter-level `ValidateSnapshot` returns nil for a nil source and for a
+/// source without a validator, and otherwise calls the validator with the exact
+/// `market`/`schedules`/`from`/`to` it was given, propagating the error. Rust's
+/// `HttpCalendarSource` carries `validate: Option<ValidateFn>` with the same
+/// semantics, so this pins the pass-through shape of the validator contract: no
+/// validator means the fetched snapshot is accepted, and a validator sees one
+/// schedule in a non-empty window for the requested market.
+#[test]
+fn adapter_validate_snapshot_boundary_passes_market_schedules_and_window_through() {
+    // No validator installed: the fetch is accepted, mirroring Go's
+    // `(&HTTPCalendarSource{}).ValidateSnapshot(...) == nil`.
+    let unvalidated = source(
+        "no-validator",
+        &["US"],
+        StubClient::ok(US_FIXTURE),
+        default_holiday_override_parser,
+    );
+    let snapshot = fetch(
+        &unvalidated,
+        "US",
+        "2026-01-01T00:00:00Z",
+        "2026-12-31T23:59:59Z",
+    )
+    .expect("a source without a validator accepts its parse");
+    assert_eq!(snapshot.schedules.len(), 1);
+
+    // A validator installed: it receives the market, the parsed schedules and
+    // the window, and its error is the fetch error.
+    let seen: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let recorder = Arc::clone(&seen);
+    let validate: ValidateFn = Arc::new(
+        move |market: &str,
+              schedules: &[TradingDaySchedule],
+              from: Option<WireTimestamp>,
+              to: Option<WireTimestamp>| {
+            recorder.lock().expect("validator recording").push(format!(
+                "{market}|{}|{}|{}",
+                schedules.len(),
+                from.map(|value| value.to_string()).unwrap_or_default(),
+                to.map(|value| value.to_string()).unwrap_or_default()
+            ));
+            Err(CalendarSourceError::Failed(
+                "not enough official holidays".to_owned(),
+            ))
+        },
+    );
+    let validated = source(
+        "validated",
+        &["US"],
+        StubClient::ok(US_FIXTURE),
+        default_holiday_override_parser,
+    )
+    .with_validate(validate);
+    let error = fetch(
+        &validated,
+        "US",
+        "2026-01-01T00:00:00Z",
+        "2026-12-31T23:59:59Z",
+    )
+    .expect_err("the validator error propagates");
+    assert_eq!(error.to_string(), "not enough official holidays");
+    assert_eq!(
+        seen.lock().expect("validator recording").as_slice(),
+        ["US|1|2026-01-01T00:00:00Z|2026-12-31T23:59:59Z"],
+        "the validator sees the requested market, the parsed schedule count and both bounds"
+    );
+}

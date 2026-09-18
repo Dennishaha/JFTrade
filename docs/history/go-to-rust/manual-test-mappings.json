@@ -20776,11 +20776,11 @@
     "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_boundaries_test.go:119:TestHTTPCalendarSourceValidateSnapshotBoundary": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-calendar/src/manager_calendar.rs::tests::validate_snapshot_rejects_the_go_boundary_table",
-    "conclusion": "boundary：Go 把 ValidateSnapshot 放在 HTTPCalendarSource 传输适配器上，nil source / 无 validator 时返回 nil，有 validator 时按 market/schedules/from/to 调用并透传错误；Rust 无该适配器类型，也没有 adapter 级方法或 nil-receiver 语义。等价 owner 是领域内的 validate_snapshot（经 CalendarSourcePort::fetch + refresh/restore 到达），测试以 provider 返回空 schedules 被拒、health_state=unhealthy、last_error 含 no schedules parsed、且不写缓存来锚定替代行为。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "boundary"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-calendar/tests/http_source_boundaries.rs::adapter_validate_snapshot_boundary_passes_market_schedules_and_window_through",
+    "conclusion": "function_exact（边界结论修正）：本行此前记为 boundary，理由是“Rust 无 HTTPCalendarSource 适配器”。该前提在 3ea85dfd 之后已不成立——jftrade-integration-calendar 的 HttpCalendarSource 正是同一 adapter，并带 `validate: Option<ValidateFn>`。Go 断言 nil source 返回 nil（Rust 无 nil receiver，属不可表达项）、无 validator 返回 nil、有 validator 时按 market/schedules/from/to 调用并透传错误。测试用同一 fixture 断言：无 validator 的源接受解析结果（1 条 schedule），有 validator 的源收到 `US`、1 条 schedule 与两端窗口（记录为 2026-01-01T00:00:00Z/2026-12-31T23:59:59Z）并把 not enough official holidays 作为 fetch 错误透传。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-calendar -E 'test(adapter_validate_snapshot_boundary_passes_market_schedules_and_window_through)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_boundaries_test.go:146:TestCalendarSourceAvailabilityNotesAndRefreshTargets": {
     "status": "[x]",
@@ -20818,11 +20818,11 @@
     "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_boundaries_test.go:333:TestExtractNYSEHeaderYearsSkipsMalformedRowsBeforeValidHeader": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-calendar/tests/manager_boundaries.rs::nyse_header_year_extraction_is_a_retired_go_parser_boundary",
-    "conclusion": "boundary：extractNYSEHeaderYears 解析 NYSE HTML 假日表表头（跳过畸形行、去 HTML 标签、trim、只保留 4 位年份，全无效返回 nil/-1）。Rust 没有 HTML 日历 parser，也没有传输侧 scraper，因此不存在等价 owner 可断言。测试锚定替代它的 curated 投影：nyse_official descriptor 的 markets=[\"US\"]、note 仍描述 multi-year holiday table、project_default_sources 在启用后输出 enabled=true 且 note 非空。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "boundary"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-calendar/src/parser_helpers.rs::tests::nyse_header_year_extraction_skips_malformed_rows_before_a_valid_header",
+    "conclusion": "function_exact（边界结论修正）：本行此前记为 boundary，理由是“Rust 没有 HTML 日历 parser”。该前提在 3ea85dfd 之后已不成立——nyse_holiday_schedule_parser 直接解析 NYSE HTML 表，parse_helpers::extract_nyse_header_years 是其表头扫描实现。Go 的 fixture（{Holiday}、{Not Holiday,2026}、{<strong>Holiday</strong>,2026,TBD}、{ Holiday ,<span>2027</span>,2028}）在 Rust 上断言 header_index=3、years=[2027,2028]，以及 {Holiday,TBD} 的 years 为空。差异说明：Rust 用 `(Vec::new(), 0)` 表示“无表头”，Go 用 `nil/-1`；测试按 Rust 语义断言空列表。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-calendar -E 'test(nyse_header_year_extraction_skips_malformed_rows_before_a_valid_header)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_probe_test.go:14:TestManagerProbeMarketWarmupAndSnapshotOrdering": {
     "status": "[x]",
@@ -24927,25 +24927,25 @@
     "evidence_type": "missing"
   },
   "internal/store/exchangecalendar/snapshot_load_failures_test.go:12:TestLoadSnapshotsReportsWalkAndReadFailures": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::tests::load_reports_walk_and_read_failures_without_losing_valid_snapshots",
+    "conclusion": "function_exact：Go 断言缺失 root 时 LoadSnapshots 返回 0 条快照 + 1 条 walk 错误（且不创建 root），以及指向不存在目标的坏软链接产生 1 条 read 错误。Rust 测试断言缺失 root 的 Walk 错误数、错误 kind 与“未创建目录”，并用真实断链软链接断言 Read 错误路径与 kind，同时断言同目录下的有效快照仍被读出（Go 用 besteffort.LogError 说明日志不影响调用方结果，Rust 无该日志层，错误以结构化 kind 呈现）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(load_reports_walk_and_read_failures_without_losing_valid_snapshots)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/exchangecalendar/store_boundaries_test.go:13:TestCalendarStoreRejectsInvalidSnapshotPersistence": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::tests::store_rejects_invalid_snapshot_persistence_with_named_errors",
+    "conclusion": "function_exact：Go 断言四类非法输入各自的消息——nil store(\"store is nil\")、空 root(\"root is empty\")、缺 market/source(\"marketCode and sourceId\")、无年份(\"snapshot year\")。Rust 无 nil receiver，等价边界是空 root：测试断言 EmptyRoot 的消息逐字为 `exchange calendar store root is empty`、缺 source 为 `snapshot marketCode and sourceId are required`、无年份（from/to/schedule 全为零值）为 `snapshot year is required`，并额外断言被拒的写入完全没有触碰文件系统（root 目录仍为空）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(store_rejects_invalid_snapshot_persistence_with_named_errors)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/exchangecalendar/store_boundaries_test.go:31:TestCalendarStoreReportsUnavailableSnapshotDirectory": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::tests::store_reports_an_unavailable_snapshot_directory",
+    "conclusion": "function_exact：Go 把 root 指向一个普通文件，断言 SaveSnapshot 报 \"create exchange calendar snapshot directory\"。Rust 测试同样以文件占据 root、快照只靠 schedule 日期决定年份（from/to 为零值），断言 CreateDirectory 分支的消息前缀一致。与本文件 :214 的区别是此处 Go 用 schedule-only 快照走 snapshotYear 回退分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(store_reports_an_unavailable_snapshot_directory)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/exchangecalendar/store_boundaries_test.go:45:TestCalendarStoreEmptyLoadAndDeleteAreIdempotent": {
     "status": "[x]",
@@ -24955,18 +24955,18 @@
     "evidence_type": "function_exact"
   },
   "internal/store/exchangecalendar/store_snapshot_failures_test.go:31:TestSaveSnapshotUsesAtomicReplacement": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::tests::save_uses_atomic_replacement_that_keeps_the_previous_snapshot_on_failure",
+    "conclusion": "function_exact（含真实测试缝补齐）：Go 覆盖 store.replaceFile 让重命名失败，断言旧文件字节完全不变、目录里没有 `.calendar-snapshot-*.tmp` 残留。Rust 原先没有可注入的写入缝（`write_atomic` 直接调用真实文件系统），因此这条 Go 用例在 Rust 侧无法表达。新增内部 `StoreFaults`（生产恒为全 None，与 Go 的 createTemp/replaceFile 挂钩同形）后，测试注入 persist 失败并断言：报告 `write exchange calendar snapshot`、已提交文件字节不变、无临时文件残留、load 仍是原快照。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(save_uses_atomic_replacement_that_keeps_the_previous_snapshot_on_failure)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/exchangecalendar/store_snapshot_failures_test.go:73:TestStoreRootAndNilSafety": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::tests::store_root_is_trimmed_and_the_empty_root_stays_safe",
+    "conclusion": "function_exact（含真实功能修复）：Go 的 New 对 root 做 strings.TrimSpace，并断言 Root() 返回 trim 后的路径、nil store 的 Root() 为空且 load/delete 安全、save 失败。Rust 原先 `CalendarSnapshotStore::new` 直接保存原样路径，配置里带空格会创建另一个目录，Root() 也不会 trim——这是真实行为差异。现 new() 按 Go 语义 trim（非 UTF-8 路径原样保留），测试断言 `\"  <root>  \"` 归一为 `<root>`；空/全空格 root 仍可 load/delete（空结果、幂等），save 报 EmptyRoot。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(store_root_is_trimmed_and_the_empty_root_stays_safe)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/exchangecalendar/store_snapshot_failures_test.go:95:TestSaveSnapshotValidatesInputsAndResolvesYearFallbacks": {
     "status": "[x]",
@@ -24976,46 +24976,46 @@
     "evidence_type": "function_exact"
   },
   "internal/store/exchangecalendar/store_snapshot_failures_test.go:136:TestDeleteSnapshotIgnoresMissingFilesAndReturnsRealRemoveErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::tests::delete_ignores_missing_files_and_reports_real_remove_errors",
+    "conclusion": "function_exact（含真实功能修复）：Go 断言缺文件删除为 nil、无年份删除为 nil，并把快照路径替换成非空目录以制造真实 remove 失败（消息含 \"delete exchange calendar snapshot\"）。Rust 原先 delete() 对 snapshot_path 的任何错误都直接返回：缺身份或无年份的缓存条目会让 restore 的清理路径多记一条失败（Go 是静默 no-op）。现 delete() 对不可解析身份/年份静默返回 Ok，保留真实 remove 错误，测试覆盖三条分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(delete_ignores_missing_files_and_reports_real_remove_errors)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/exchangecalendar/store_snapshot_failures_test.go:169:TestWriteSnapshotPropagatesTemporaryFileDurabilityFailures": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::tests::write_snapshot_propagates_each_temporary_file_durability_failure",
+    "conclusion": "function_exact：Go 用六个子用例（createTemp 返回错误，以及 chmod/write/sync/close 各自失败）断言 writeSnapshot 逐级透传 sentinel。Rust 的 tempfile 把 close 融进 persist，可注入的等价阶梯是 create_temp/permissions/write/sync/persist/sync_directory 六步；测试逐步注入 other 错误，断言错误经 `write exchange calendar snapshot` 透出、除 sync_directory（重命名已提交，只有持久化保证失败，故快照存在）以外的每一步都不提交快照，且任何一步都不留 `.calendar-snapshot-*` 临时文件。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(write_snapshot_propagates_each_temporary_file_durability_failure)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/exchangecalendar/store_snapshot_failures_test.go:199:TestWriteSnapshotDefaultHooksAndDirectorySyncErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::tests::write_snapshot_default_hooks_and_directory_sync_errors",
+    "conclusion": "function_exact：Go 把 createTemp/replaceFile 置空以走默认实现，断言 writeSnapshot 成功；再断言 syncSnapshotDirectory(missing) 返回错误。Rust 测试用默认 StoreFaults 走完整真实链路（写盘 + fsync + rename + 目录 fsync）并断言内容落盘，再把 sync_directory 提为 pub(crate) 并断言缺失目录报错、存在目录成功。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(write_snapshot_default_hooks_and_directory_sync_errors)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/exchangecalendar/store_snapshot_failures_test.go:214:TestSaveSnapshotReturnsDirectoryCreationError": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::tests::save_returns_the_directory_creation_error",
+    "conclusion": "function_exact：Go 以一个普通文件作为 root，断言 SaveSnapshot 返回含 \"create exchange calendar snapshot directory\" 的错误。Rust 测试同样以文件占位 root 并断言 CreateDirectory 分支消息前缀，确保失败发生在目录创建而不是更晚的编码/写入步骤。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(save_returns_the_directory_creation_error)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/exchangecalendar/store_test.go:12:TestStoreRoundTripsSnapshotsAndIsolatesCorruption": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::tests::store_round_trips_snapshots_and_isolates_corruption",
+    "conclusion": "function_exact：Go 保存一条快照、在同年目录写入坏 JSON，再断言 LoadSnapshots 返回 1 条有效快照 + 1 条错误、sourceID 正确，最后 DeleteSnapshot 后文件消失。Rust 测试同样保存（含 juneteenth schedule）、在同目录写入 `{`、断言 snapshots=1/errors=1 且错误 kind=Decode、内容逐字段一致，删除后断言路径不存在。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(store_round_trips_snapshots_and_isolates_corruption)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/exchangecalendar/store_test.go:58:TestStoreUsesSnapshotLocalYearForPositiveOffsetMarkets": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::tests::store_uses_the_snapshot_local_year_for_positive_offset_markets",
+    "conclusion": "function_exact：Go 用 +08:00（HKT）的 HK 快照断言落盘路径是 `HK/2026/...`，即按 market-local 年份而非 UTC 年份建目录。Rust 测试用 +08:00 锚定的 from/to/schedule 复现同一路径并额外断言 load 能逐字段读回。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(store_uses_the_snapshot_local_year_for_positive_offset_markets)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/research/maintenance_test.go:8:TestResearchMaintenanceCompactsLiveStoreAndFailsClosed": {
     "status": "[~]",

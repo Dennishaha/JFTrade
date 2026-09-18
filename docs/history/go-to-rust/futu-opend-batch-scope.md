@@ -4249,3 +4249,77 @@ clippy `-D clippy::all` 通过；审计 590 → **597 function_exact**，0 条�
 `crates/jftrade-calendar/src/snapshot.rs`（`CalendarSnapshotStore`）承载，
 预计覆盖原子写入、覆盖写、读回失败、坏文件隔离与 `delete` 语义；
 之后队列为 `internal/productfeatures`（含 `predictionPushResult` 5s 缓存 TTL）→ assistant → api。
+
+## 批次：internal/store/exchangecalendar（13 项，含 2 处真实修复）
+
+基线 `go:452dea11`。`store_test.go` / `store_boundaries_test.go` /
+`store_snapshot_failures_test.go` / `snapshot_load_failures_test.go` 全部收口，
+`internal/exchangecalendar` 与 `internal/store/exchangecalendar` 两个目录的清单项
+至此**全部 `[x]`**（`internal/exchangecalendar` 的 2 条 `boundary` 结论同时被修正为
+`function_exact`，见下）。
+
+| Go 测试 | 结论 | Rust 证据 |
+| --- | --- | --- |
+| `store_test.go:12` 往返 + 隔离损坏 | 1 有效 + 1 decode 错误，删除后文件消失 | `snapshot.rs::tests::store_round_trips_snapshots_and_isolates_corruption` |
+| `store_test.go:58` +08:00 本地年份 | `HK/2026/...` 而非 UTC 年份 | `snapshot.rs::tests::store_uses_the_snapshot_local_year_for_positive_offset_markets` |
+| `store_boundaries_test.go:13` 非法输入 | 四类消息逐字对齐 | `snapshot.rs::tests::store_rejects_invalid_snapshot_persistence_with_named_errors` |
+| `store_boundaries_test.go:31` root 不可用 | schedule-only 年份回退 + 目录创建失败 | `snapshot.rs::tests::store_reports_an_unavailable_snapshot_directory` |
+| `store_snapshot_failures_test.go:31` 原子替换 | 失败保留旧字节 + 清理临时文件 | `snapshot.rs::tests::save_uses_atomic_replacement_that_keeps_the_previous_snapshot_on_failure` |
+| `store_snapshot_failures_test.go:73` root/nil 安全 | root trim（修复） | `snapshot.rs::tests::store_root_is_trimmed_and_the_empty_root_stays_safe` |
+| `store_snapshot_failures_test.go:95` 年份回退 | （既有） | `snapshot.rs::tests::test_save_snapshot_validates_inputs_and_resolves_year_fallbacks` |
+| `store_snapshot_failures_test.go:136` 删除语义 | 缺文件/无年份 no-op（修复） | `snapshot.rs::tests::delete_ignores_missing_files_and_reports_real_remove_errors` |
+| `store_snapshot_failures_test.go:169` 耐久性阶梯 | 六步逐级透传 | `snapshot.rs::tests::write_snapshot_propagates_each_temporary_file_durability_failure` |
+| `store_snapshot_failures_test.go:199` 默认挂钩 | 真实链路 + 目录 fsync 报错 | `snapshot.rs::tests::write_snapshot_default_hooks_and_directory_sync_errors` |
+| `store_snapshot_failures_test.go:214` 目录创建错误 | CreateDirectory 分支 | `snapshot.rs::tests::save_returns_the_directory_creation_error` |
+| `snapshot_load_failures_test.go:12` walk/read 失败 | Walk/Read/Decode 结构化 kind | `snapshot.rs::tests::load_reports_walk_and_read_failures_without_losing_valid_snapshots` |
+
+### 本批修的两处真实功能差异
+
+1. **root 未 trim**（`CalendarSnapshotStore::new`）：Go 的 `New` 做
+   `strings.TrimSpace(root)`，Rust 直接保存原样 `PathBuf`。配置里带首尾空格时
+   会在**另一个目录**下建缓存（`"  /data/calendars  "` ≠ `/data/calendars`），
+   运维看到的路径与实际落盘路径不一致。现按 Go 语义 trim（非 UTF-8 路径原样保留，
+   避免有损转换）。
+2. **无年份/无身份的删除被当成错误**（`CalendarSnapshotStore::delete`）：Go 的
+   `DeleteSnapshot` 在 `snapshotYear == 0` 时返回 nil；Rust 之前对
+   `snapshot_path` 的任何错误直接 `?` 返回。恢复路径在拒绝一条**身份缺失**的缓存
+   条目后会调用 delete，于是同一次损坏会多记一条失败（真实的重复告警来源）。
+   现 delete 对不可解析的身份/年份静默 `Ok(())`，真实 remove 错误仍然上报。
+
+### 新增测试缝
+
+`write_atomic` 原先直接调用真实文件系统写链，Go 用可替换的
+`createTemp`/`replaceFile` 字段才能断言 chmod/write/sync/close 每一级的失败。
+Rust 侧新增内部 `StoreFaults`（`create_temp`/`permissions`/`write`/`sync`/
+`persist`/`sync_directory` 六个注入点，生产恒为全 `None`），并保留
+rename 为提交点的语义：`sync_directory` 失败时快照已落盘（Go 亦然），其余任何
+一步都不得提交，且任何一步都不得留下 `.calendar-snapshot-*.tmp`。
+
+### 两处 boundary 结论修正
+
+`internal/exchangecalendar/manager_boundaries_test.go:119`（`ValidateSnapshot`）
+与 `:333`（`extractNYSEHeaderYears`）此前记为 `boundary`，理由是“Rust 没有 HTTP
+适配器 / 没有 HTML parser”。该前提在 `3ea85dfd` 引入
+`crates/jftrade-integration-calendar` 后已失效，两条都改为 `function_exact`：
+前者由 `tests/http_source_boundaries.rs::adapter_validate_snapshot_boundary_passes_market_schedules_and_window_through`
+覆盖，后者由 `src/parser_helpers.rs::tests::nyse_header_year_extraction_skips_malformed_rows_before_a_valid_header`
+覆盖。
+
+### 验证
+
+```bash
+cargo fmt --all
+cargo clippy -p jftrade-calendar -p jftrade-integration-calendar -p jftrade-engine --all-targets --locked
+node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked --no-fail-fast
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-calendar --all-targets --locked --no-fail-fast
+pnpm run check:zero-go / check:rust:architecture
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：`jftrade-calendar` 88/88、`jftrade-integration-calendar` 23/23；clippy 通过；
+审计 597 → **610 function_exact**，0 条失效引用，0 条 `[x]` 缺 `function_exact`。
+
+### 下一批（代办目标）
+
+`internal/productfeatures`（含 `predictionPushResult` 的 5s 缓存 TTL、预测推送结果
+聚合与错误映射），随后是 `internal/api/assistant` → `internal/api`。
