@@ -643,6 +643,12 @@ fn place_order_rounds_us_prices_to_the_venue_tick_before_encoding() {
                 trd_place_order::Request::decode(request.body.as_slice()).expect("request");
             assert_eq!(decoded.c2s.price, expected_price, "wire price");
             assert_eq!(decoded.c2s.aux_price, expected_aux, "wire aux price");
+            assert_eq!(decoded.c2s.session, Some(1), "RTH session is forwarded");
+            assert_eq!(
+                decoded.c2s.fill_outside_rth,
+                Some(true),
+                "fillOutsideRTH is forwarded for US orders"
+            );
             let response = trd_place_order::Response {
                 ret_type: 0,
                 ret_msg: None,
@@ -675,6 +681,11 @@ fn place_order_rounds_us_prices_to_the_venue_tick_before_encoding() {
         request.price = requested_price;
         request.aux_price = requested_aux;
         request.sec_market = Some(sec_market);
+        // Go's `placeOrderRequestFromSubmitOrder` forwards the caller's
+        // US session and RTH flag verbatim onto `Trd_PlaceOrder`. Assert them
+        // on the wire so the normalization does not silently drop them.
+        request.session = Some(1);
+        request.fill_outside_rth = Some(true);
         client.place_order(request).expect("place order");
         session.close().expect("close");
         server.join().expect("server");

@@ -3117,3 +3117,66 @@ python3 scripts/compatibility/audit_test_parity.py
 ```
 
 结果：1755 passed / 1 skipped；审计 OK: 511 function_exact（本批 4 条 `[~]` → `[x]`）。
+
+---
+
+## 批次：pkg/futu/exchange_trade_price_test.go（4 项）
+
+基线：`go:pkg/futu/exchange_trade_price_test.go` 的 4 条 `[~]`/`missing` 用例。
+
+本批为**补齐证据**批次：Rust 生产实现（`trade_price.rs` 的
+`normalize_submit_order_price`/`submit_order_price_step`/`round_price_to_step`/
+`step_rounded_unit`/`count_step_decimals`/`is_finite_positive`，以及
+`trade_session.rs::place_order_command` 的归一化与字段透传）已与 Go 语义一致，
+未发现功能缺口；缺的是逐条断言。
+
+### 补齐的行为证据
+
+1. **`:13 TestFutuRequestLocationUsesMainlandMarketFallback`**
+   新增
+   `crates/jftrade-engine/src/product_production_ports_trade_tests.rs::mainland_trade_market_falls_back_to_the_shanghai_request_location`。
+   Rust 没有 Go 的 `market.ProfileForSymbol` 表，等价链是
+   `trade_market_authority(3) == "CN"` → `normalize_history_time` 的
+   `"CN" | "SH" | "SZ" => "Asia/Shanghai"`，断言
+   `2026-01-01T00:00:00Z` 渲染为 `2026-01-01 08:00:00`（UTC+8），
+   与 Go 的 `TrdMarket_CN → SH profile → time.Location` 回退等价。
+
+2. **`:24 TestNormalizeSubmitOrderPriceForUSMarkets`**
+   既有 `trade_price.rs::tests::normalize_submit_order_price_rounds_us_prices_to_their_tick`
+   已逐条覆盖 Go 的四条断言（US ≥ $1 用 0.01、低于 $1 用 0.0001、
+   `0.12345 → 0.1235` 半值上取整、HK `320.123` 原样），本批仅确认并登记。
+
+3. **`:39 TestPriceStepHelpersCoverEdgeCases`**
+   新增 `trade_price.rs::tests::price_step_helpers_cover_their_edge_cases`，
+   补齐 Go 的边界矩阵：`submitOrderPriceStep(US 150 / US 0.55 / HK 380)`、
+   `roundPriceToStep(0.12344,0.0001)`、`roundPriceToStep(123.456,0.01)`、
+   非十进制 tick `roundPriceToStep(10.03,0.05) → 10.05`、
+   `stepRoundedUnit(4)`、`countStepDecimals`，以及
+   `isFinitePositive` 对 `0 / -1 / NaN / +Inf` 的拒绝与对 `0.01` 的接受。
+   `countStepDecimals` 的既有断言保留在独立的
+   `step_decimals_follow_the_shortest_representation` 中（新增 `0.05 → 2`）。
+
+4. **`:75 TestPlaceOrderRequestFromSubmitOrderNormalizesUSPriceAndFlags`**
+   扩展 `trade_session_tests.rs::place_order_rounds_us_prices_to_the_venue_tick_before_encoding`：
+   在 `Trd_PlaceOrder` 线上字节上，除既有价格/aux 归一化断言外，
+   新增 `session == Some(1)`（RTH）与 `fill_outside_rth == Some(true)` 透传断言，
+   对应 Go 的 `GetSession() == 1` 与 `GetFillOutsideRTH()`。
+   价格部分覆盖 US `123.456→123.46`、`12.3456→12.35`、`0.12345→0.1235`、
+   `0.99994→0.9999`、HK 原样、以及零价不发线字段。
+
+### 探针（改坏实现 → 跑测试 → 确认守卫 → 回滚）
+
+- `submit_order_price_step` 的 US cents 分支改成 `return 0.0`
+  → `price_step_helpers_cover_their_edge_cases` 失败：
+  `assertion left == right failed: left: 0.0, right: 0.01`。
+  探针已回滚并复跑通过。
+
+### 验证
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --no-fail-fast
+cargo fmt --all
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+结果：1757 passed / 1 skipped；审计 OK: 515 function_exact（本批 4 条 → `[x]`）。

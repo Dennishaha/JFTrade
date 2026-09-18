@@ -124,12 +124,33 @@ mod tests {
     }
 
     #[test]
+    fn price_step_helpers_cover_their_edge_cases() {
+        // Parity: go:452dea11:pkg/futu/exchange_trade_price_test.go:39
+        // TestPriceStepHelpersCoverEdgeCases.
+        assert_eq!(submit_order_price_step(SEC_MARKET_US, 150.0), 0.01);
+        assert_eq!(submit_order_price_step(SEC_MARKET_US, 0.55), 0.0001);
+        // HK carries no tick table: the step stays zero and the price is kept.
+        assert_eq!(submit_order_price_step(1, 380.0), 0.0);
+        // Sub-dollar and cent rounding, then a non-decimal tick (0.05).
+        assert_eq!(round_price_to_step(0.12344, 0.0001), 0.1234);
+        assert_eq!(round_price_to_step(123.456, 0.01), 123.46);
+        assert_eq!(round_price_to_step(10.03, 0.05), 10.05);
+        // `step_rounded_unit` follows `10^-decimals`, clamped to >= 1.
+        assert_eq!(step_rounded_unit(4), 0.0001);
+        assert_eq!(step_rounded_unit(0), 1.0);
+        // `isFinitePositive` rejects NaN/Inf and non-positive values.
+        assert!(!is_finite_positive(0.0));
+        assert!(!is_finite_positive(-1.0));
+        assert!(!is_finite_positive(f64::NAN));
+        assert!(!is_finite_positive(f64::INFINITY));
+        assert!(is_finite_positive(0.01));
+    }
+
+    #[test]
     fn step_decimals_follow_the_shortest_representation() {
         assert_eq!(count_step_decimals(0.01), 2);
         assert_eq!(count_step_decimals(0.0001), 4);
         assert_eq!(count_step_decimals(1.0), 0);
-        assert_eq!(submit_order_price_step(SEC_MARKET_US, 0.5), 0.0001);
-        assert_eq!(submit_order_price_step(SEC_MARKET_US, 1.0), 0.01);
-        assert_eq!(submit_order_price_step(1, 123.456), 0.0);
+        assert_eq!(count_step_decimals(0.05), 2);
     }
 }

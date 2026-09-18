@@ -16471,32 +16471,32 @@
     "evidence_type": "boundary"
   },
   "pkg/futu/exchange_trade_price_test.go:13:TestFutuRequestLocationUsesMainlandMarketFallback": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::mainland_trade_market_falls_back_to_the_shanghai_request_location",
+    "conclusion": "function_exact：Rust 的等价链是 trade_market_authority(3)==\"CN\" 再经 normalize_history_time 用 Asia/Shanghai，2026-01-01T00:00:00Z 渲染为 08:00 墙钟，对应 Go futuRequestLocation 的 TrdMarket_CN→SH profile→UTC+8 回退。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(mainland_trade_market_falls_back_to_the_shanghai_request_location)'"
   },
   "pkg/futu/exchange_trade_price_test.go:24:TestNormalizeSubmitOrderPriceForUSMarkets": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/trade_price.rs::tests::normalize_submit_order_price_rounds_us_prices_to_their_tick",
+    "conclusion": "function_exact：US >= $1 用 0.01、低于 $1 用 0.0001，123.456→123.46、0.12344→0.1234、0.12345→0.1235（半值上取整），HK 320.123 原样保留，与 Go 四条断言一一对应。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(trade_price)'"
   },
   "pkg/futu/exchange_trade_price_test.go:39:TestPriceStepHelpersCoverEdgeCases": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/trade_price.rs::tests::price_step_helpers_cover_their_edge_cases",
+    "conclusion": "function_exact：submitOrderPriceStep(US 150/0.55/HK 380)=0.01/0.0001/0；roundPriceToStep 覆盖 0.12344→0.1234、123.456→123.46 与非十进制 tick 10.03→10.05；stepRoundedUnit(4)=0.0001、countStepDecimals(0.0001/1/0.05)=4/0/2；isFinitePositive 拒绝 0/-1/NaN/Inf 并接受 0.01。探针把 US cents 分支改成返回 0.0 即失败（left 0.0 / right 0.01）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(trade_price)'"
   },
   "pkg/futu/exchange_trade_price_test.go:75:TestPlaceOrderRequestFromSubmitOrderNormalizesUSPriceAndFlags": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(client)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "evidence_type": "function_exact",
+    "rust_entry": "crates/jftrade-integration-futu/src/trade_session_tests.rs::place_order_rounds_us_prices_to_the_venue_tick_before_encoding",
+    "conclusion": "function_exact：在 Trd_PlaceOrder 线上字节上断言 US 价格/aux 归一化（123.456→123.46、12.3456→12.35、0.12345→0.1235、HK 原样、0 价不发字段），并新增 session=Some(1)（RTH）与 fill_outside_rth=Some(true) 透传断言，对应 Go 的 GetSession()==1 与 GetFillOutsideRTH()。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding)'"
   },
   "pkg/futu/exchange_trade_push_test.go:9:TestTradeUpdateHandlersCanUnsubscribe": {
     "status": "[~]",

@@ -3348,6 +3348,28 @@ fn history_query_converts_hk_rfc3339_to_local_wall_clock() {
 }
 
 #[test]
+fn mainland_trade_market_falls_back_to_the_shanghai_request_location() {
+    // Parity: go:452dea11:pkg/futu/exchange_trade_price_test.go:13
+    // TestFutuRequestLocationUsesMainlandMarketFallback. Go resolves the
+    // request location from the symbol profile and, when the symbol is empty,
+    // falls back to the trade market's authority; `TrdMarket_CN` maps to the
+    // Shanghai profile, so 2026-01-01T00:00:00Z renders as 08:00 wall clock.
+    // Rust resolves the same authority through `trade_market_authority` and
+    // then `normalize_history_time`, which is the trade-read request path.
+    assert_eq!(trade_market_authority(3), Some("CN"));
+    let request = TradeRequest::parse(
+        "/api/v1/brokers/futu/orders",
+        "scope=HISTORY&startTime=2026-01-01T00:00:00Z",
+    )
+    .expect("request");
+    let filter = request
+        .trade_filter(true, "CN")
+        .expect("filter")
+        .expect("filter present");
+    assert_eq!(filter.begin_time.as_deref(), Some("2026-01-01 08:00:00"));
+}
+
+#[test]
 fn history_query_converts_supported_trade_markets_to_local_wall_clock() {
     let cases = [
         ("SG", "2026-08-01T00:00:00Z", "2026-08-01 08:00:00"),
