@@ -20832,32 +20832,32 @@
     "evidence_type": "missing"
   },
   "internal/exchangecalendar/manager_runtime_test.go:17:TestManagerBackgroundRefreshFollowsSettingsReload": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::background_refresh_follows_an_auto_refresh_settings_reload",
+    "conclusion": "function_exact：Go 在 AutoRefreshEnabled=false 时后台循环不触发任何抓取，settings reload 打开后立刻做一次 warmup refresh，并把新快照变成 Schedule 的结果；Rust 等价断言为：启动后 40ms 内 fixture fetch_count 仍为 0（禁用期空闲），reload_settings 打开 auto refresh 后 wait_for_fetch 观察到抓取，轮询 schedule(now) 直到 source_id=reload-source 且 reason=reload test（Go 用同一 now 查询），close 后 close:<id> 事件恰好 1 次（后台任务被取消且只取消一次）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(background_refresh_follows_an_auto_refresh_settings_reload)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_runtime_test.go:86:TestManagerRefreshKeepsValidSnapshotWhenPersistenceFails": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::persistence_failure_keeps_the_fetched_snapshot_served_from_memory",
+    "conclusion": "function_exact（真实修复）：Go 的 refresh 先 cacheSnapshot 再 SaveSnapshot，落盘失败只计入 failures 并把错误记在 source 上，内存快照继续服务当天。Rust 原先先 save 失败即 continue，把刚拿到的合法远端日历整份丢弃并回退 builtin_rules。现改为先取 persistence_error、仍 cache_snapshot，再按结果记 failure 或 success/updated。测试断言 updated=0/failures=1、store 未写入、schedule 仍是 ephemeral/official 的远端快照 reason、source.last_error=fixture persistence unavailable 且 consecutive_failures=1。探针：恢复「只有成功才 cache」→ schedule 变回 restored，测试失败并已回滚。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(persistence_failure_keeps_the_fetched_snapshot_served_from_memory)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_runtime_test.go:125:TestManagerRestoreReportsMalformedCachedSnapshot": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::restore_reports_malformed_cached_snapshot_with_its_path",
+    "conclusion": "function_exact（真实修复）：Go 在构造时恢复缓存，无法 JSON 解码的文件被记到内置 source 的 LastError，且错误串包含 decode 与出错路径。Rust 的 store 已经产出带 path 的 Decode load error，但 manager 只记录了 message、丢掉了 path。现 record_failure 记录 `路径: message`。测试写入 `US/2026/broken.json`（内容 `{\"sourceId\":`），断言 builtin_rules 的 last_error 同时包含 broken.json 与解码描述，且 schedule 仍由 builtin_rules 提供（坏缓存绝不变成可服务快照）。探针：只记 message → last_error 变成 `EOF while parsing...`，测试失败并已回滚。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(restore_reports_malformed_cached_snapshot_with_its_path)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_runtime_test.go:142:TestManagerStatusReportsManualAndRemoteOverrideModes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::status_reports_manual_and_remote_override_modes_distinctly",
+    "conclusion": "function_exact：Go 的 Status() 在手工 override 拥有当天时给 effectiveMode=manual_override、在新鲜远端快照带有当天特殊日程时给 remote_override，两者必须可区分（前者是操作员决定，后者是 provider 结果）。测试在同一 2026-07-02 交易日上分别构造：手工 override → effectiveSource=manual_override、effectiveMode=manual_override、reason 为 manual override 文案、schedule.source_id=manual_override/status=closed；远端当天快照 → effectiveSource=official-source、effectiveMode=remote_override、reason 为 remote override 文案。探针：把 remote_override 分支改成 remote_covered_day → 测试失败并已回滚。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(status_reports_manual_and_remote_override_modes_distinctly)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:33:TestManagerFailureBackoffUsesHoursAndCapsAtTwentyFour": {
     "status": "[~]",

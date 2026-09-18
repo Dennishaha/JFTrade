@@ -336,7 +336,14 @@ impl ManagerInner {
             }
         }
         for error in loaded.errors {
-            self.record_failure(BUILTIN_SOURCE_ID, error.message)?;
+            // Go's store wraps decode/read failures with the offending path
+            // (`fmt.Errorf("decode %s: %w", path, err)` in
+            // `internal/store/exchangecalendar/store.go`), so an operator can
+            // find the corrupt cache. Keep that context in the recorded error.
+            self.record_failure(
+                BUILTIN_SOURCE_ID,
+                format!("{}: {}", error.path.display(), error.message),
+            )?;
         }
         Ok(())
     }
@@ -412,14 +419,21 @@ impl ManagerInner {
                 self.record_failure(&source_id, error)?;
                 continue;
             }
-            if let Some(persistence) = &self.persistence
-                && let Err(error) = persistence.save(&snapshot)
-            {
+            // Go caches the fetched snapshot before persisting it and keeps it
+            // when the store rejects the write (`refresh` in
+            // `internal/exchangecalendar/manager_refresh.go`): a durable-store
+            // outage must not discard a valid remote calendar, it is reported
+            // as a failure while the in-memory snapshot still serves the day.
+            let persistence_error = self
+                .persistence
+                .as_ref()
+                .and_then(|persistence| persistence.save(&snapshot).err());
+            self.cache_snapshot(snapshot.clone())?;
+            if let Some(error) = persistence_error {
                 result.failures = result.failures.saturating_add(1);
                 self.record_failure(&source_id, error)?;
                 continue;
             }
-            self.cache_snapshot(snapshot.clone())?;
             self.record_success(&snapshot)?;
             result.updated = result.updated.saturating_add(1);
         }

@@ -3720,3 +3720,84 @@ pnpm run check:quick
 ```
 
 结果见下方「批次验证结果」小节；本批无生产代码改动。
+
+---
+
+## 批次：internal/exchangecalendar/manager_runtime_test.go（4 项）
+
+基线 `go:452dea11`。本批是 calendar 领域的第一个子批，按文件切分。
+
+| Go 测试 | 状态 | Rust 证据 |
+| :--- | :--- | :--- |
+| `:17` TestManagerBackgroundRefreshFollowsSettingsReload | `[x]` | `tests/manager_lifecycle.rs::background_refresh_follows_an_auto_refresh_settings_reload` |
+| `:86` TestManagerRefreshKeepsValidSnapshotWhenPersistenceFails | `[x]` | `tests/manager_lifecycle.rs::persistence_failure_keeps_the_fetched_snapshot_served_from_memory` |
+| `:125` TestManagerRestoreReportsMalformedCachedSnapshot | `[x]` | `tests/manager_lifecycle.rs::restore_reports_malformed_cached_snapshot_with_its_path` |
+| `:142` TestManagerStatusReportsManualAndRemoteOverrideModes | `[x]` | `tests/manager_lifecycle.rs::status_reports_manual_and_remote_override_modes_distinctly` |
+
+### 真实功能缺口与修复（2 处，P0/P1）
+
+1. **落盘失败会丢弃刚抓到的合法快照（P0，恢复/回滚 + 唯一写入所有权）**
+   `crates/jftrade-calendar/src/manager.rs`
+
+   Go 的 `refresh`（`internal/exchangecalendar/manager_refresh.go`）顺序是
+   `m.cacheSnapshot(snapshot)` → `m.store.SaveSnapshot(snapshot)`：持久化失败只
+   计 `failures++` 并把错误记到 source 上，**内存快照继续服务当天**。
+   Rust 的 `refresh_market` 是 `persistence.save()` 失败就 `continue`，于是
+   durable store 短暂不可用时，一份完全合法的远端日历被整份丢弃、当天直接
+   回退 `builtin_rules`。
+
+   修复：先求 `persistence_error`，无条件 `cache_snapshot`，再按结果记
+   `record_failure` 或 `record_success + updated++`。
+
+   复现条件：store 拒绝写入 + provider 返回合法快照。
+   预期：`updated=0 / failures=1`，但 `schedule()` 仍返回该远端快照。
+   回归测试：`persistence_failure_keeps_the_fetched_snapshot_served_from_memory`。
+
+2. **恢复损坏缓存时丢失出错路径（P1，可观测性）**
+   `crates/jftrade-calendar/src/manager.rs::restore_snapshots`
+
+   Go 的 store 用 `fmt.Errorf("decode %s: %w", path, err)` 包装读/解码失败，
+   操作员能直接定位坏文件；Rust 的 `CalendarSnapshotStore` 已经产出带
+   `path` 的 `CalendarSnapshotLoadError`，但 manager 只把 `message` 记进
+   `last_error`，路径被丢掉。
+
+   修复：`record_failure(BUILTIN_SOURCE_ID, format!("{}: {}", error.path.display(), error.message))`。
+
+   回归测试：`restore_reports_malformed_cached_snapshot_with_its_path`。
+
+### 其余两项（无生产改动）
+
+- `:17`：Go 的「禁用期不抓取 + reload 立即 warmup + close 只取消一次」在 Rust
+  由 `reload_settings` → `ManagerCommand::Reload` → 后台循环承载，测试用
+  `fetch_count`、`wait_for_fetch` 与 `close:<id>` 事件计数逐条断言。
+- `:142`：`manual_override` 与 `remote_override` 的分流在 Rust 已由
+  `manager_projection::market_status` 实现，测试补上两种模式在同一交易日上
+  必须可区分的断言（含各自的 `effectiveReason` 文案）。
+  注意 fixture 细节：`Status()` 描述的是**当前**交易日，因此手工 override 的
+  date、远端日程的时间戳都要落在 clock 当天；US 的本地日边界使
+  `2026-07-02T16:00:00Z` 才是当天，UTC 午夜会落到前一天。
+
+### 探针（改坏实现 → 跑测试 → 确认守卫 → 回滚）
+
+1. 让 cache 只在落盘成功时发生 → `persistence_failure_keeps_the_fetched_snapshot_served_from_memory`
+   失败：`left: "restored" / right: "remote emergency closure"`。已回滚。
+2. 只记 `error.message` 不记 path → `restore_reports_malformed_cached_snapshot_with_its_path`
+   失败：`last_error = "EOF while parsing a value at line 1 column 12"`
+   （不含 broken.json）。已回滚。
+3. 把 `remote_override` 分支改成 `remote_covered_day` →
+   `status_reports_manual_and_remote_override_modes_distinctly` 失败。已回滚。
+4. 让 `reload_settings` 不再向后台循环发命令 →
+   `background_refresh_follows_an_auto_refresh_settings_reload` 失败：
+   `fixture source was not fetched`。已回滚。
+
+回滚后 `crates/jftrade-calendar` 41/41 通过。
+
+### 验证
+
+```bash
+cargo fmt --all
+node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+审计：539 → 545 function_exact。
