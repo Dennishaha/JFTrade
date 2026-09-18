@@ -3801,3 +3801,78 @@ python3 scripts/compatibility/audit_test_parity.py
 ```
 
 审计：539 → 545 function_exact。
+
+---
+
+## 批次：internal/exchangecalendar/manager_test.go 第一批（8 项）
+
+基线 `go:452dea11`。`manager_test.go` 有 20 条测试，按主题拆成三批；本批是
+「生命周期/策略/状态与覆盖」这一组中不与既有 Rust 测试重复的部分。
+
+| Go 测试 | 状态 | Rust 证据 |
+| :--- | :--- | :--- |
+| `:33` TestManagerFailureBackoffUsesHoursAndCapsAtTwentyFour | `[x]` | `failure_backoff_contracts.rs::source_failure_retry_delay_starts_at_one_hour_and_caps_at_one_day` |
+| `:50` TestDefaultWarmupRefreshTimeoutCoversSequentialRemoteSources | `[x]` | `manager_lifecycle.rs::probe_budget_bounds_one_provider_call_without_hanging_the_manager` |
+| `:64` TestManagerFallsBackToBuiltinWhenOfficialRefreshFails | `[x]` | `manager_lifecycle.rs::failing_provider_falls_back_to_builtin_and_keeps_the_error_visible` |
+| `:119` TestManagerStatusIncludesSnapshotSummariesAndSampleSchedules | `[x]` | `manager_lifecycle.rs::status_summaries_expose_snapshot_metadata_and_non_open_samples` |
+| `:207` TestManagerManualOverridesBeatRemoteAndBuiltin | `[x]` | `manager_lifecycle.rs::manual_override_reopens_a_day_instead_of_the_builtin_closure` |
+| `:235` TestManagerSharedMainlandSourceAppliesToSHAndSZ | `[x]` | `manager_lifecycle.rs::shared_mainland_snapshot_applies_to_shanghai_and_shenzhen` |
+| `:291` TestManagerIgnoresStaleRemoteSnapshots | `[x]` | `manager_lifecycle.rs::stale_remote_snapshot_is_ignored_in_favour_of_builtin_rules` |
+| `:346` TestManagerDiscardInvalidCachedSnapshotOnRestore | `[x]` | `manager_lifecycle.rs::invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules` |
+
+### 新增 Rust 测试（6 条；另 2 条复用既有测试）
+
+`crates/jftrade-calendar/tests/manager_lifecycle.rs` 新增 6 条，覆盖失败回退、
+状态摘要与样例日程、手工 override 优先、沪/深共享内地快照、过期快照忽略、
+以及损坏缓存丢弃；`crates/jftrade-calendar/tests/failure_backoff_contracts.rs`
+与 `manager_test.go:33`、`:50` 分别复用/改写既有证据。
+
+fixture 侧新增 `FixtureSource::descriptor_markets`，使 fixture 可以声明
+`CN/SH/SZ` 覆盖（此前只能声明 `US`）；同时把内部构造函数 `manager(..)`
+改名为 `build_manager(..)`，避免与测试内局部变量 `manager` 同名遮蔽。
+
+### 无生产改动的两个关键结论（已写入 conclusion）
+
+1. **`:33` — Go 的 `NextRefreshAt` 只是状态展示，不是抓取门。**
+   `git grep NextRefreshAt` 显示 Go 只在 `manager_alert.go` 写入、在
+   `manager_status.go` 输出，`manager_refresh.go` 的 `refresh` 从不读它；
+   而 Rust 的 `refresh_market` 会先 `in_backoff()` 命中就
+   `skipped_backoff++` 并跳过抓取。这是 **Rust 侧附加的节流**，不改变公开
+   状态字段语义（`nextRefreshAt` 的计算与 Go 一致：1h 起步、每次 +1h、上限
+   24h），因此本项按「状态语义等价 + 记录差异」标记 `[x]`，差异已写入映射
+   结论与 automation。
+
+2. **`:50` — Rust 没有任何远端 calendar provider。**
+   `impl CalendarSourcePort` 在 `crates/` 里只出现在 3 个测试文件与
+   `product_tests.rs` 的 fixture 中；生产组合
+   （`product_production_ports.rs:574`）用 `CalendarSourceRegistry::default()`
+   注册零个 source，`jftrade-calendar` 也没有 reqwest/ureq 依赖。因此
+   Go 的 `defaultWarmupRefreshTimeout >= 3 * defaultHTTPTimeout` 在 Rust
+   没有可对照的常量；测试改为断言等价的可保证性质（单次 provider 调用受
+   probe 预算约束、不会挂死 warmup）。
+
+### 探针（改坏实现 → 跑测试 → 确认守卫 → 回滚）
+
+1. `take(8)` → `take(99)`（sampleSchedules 上限）：
+   `status_summaries_expose_snapshot_metadata_and_non_open_samples` 失败
+   （`left: 10 / right: 8`）。已回滚。
+2. 注释 `snapshot_fresh` 的 `validUntil` 判断：
+   `stale_remote_snapshot_is_ignored_in_favour_of_builtin_rules` 失败
+   （`left: "nyse_official" / right: "builtin_rules"`）。已回滚。
+   ——这条探针第一次没有失败，因为原 fixture 同时触及 `staleAfterHours`；
+   补了 `staleAfterHours = 0` 的第二段把 `validUntil` 规则单独隔离后，
+   探针才真正被守卫。
+3. 跳过恢复期的持久层删除：`invalid_cached_snapshot_is_discarded_deleted_...`
+   失败（文件仍在磁盘上）。已回滚。
+
+回滚后 `crates/jftrade-calendar` 48/48 通过，`git diff` 对 `src/` 无改动。
+
+### 验证
+
+```bash
+cargo fmt --all
+node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+审计：545 → 553 function_exact。

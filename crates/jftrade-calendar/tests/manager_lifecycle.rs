@@ -18,6 +18,8 @@ use time::{Duration, OffsetDateTime};
 #[derive(Clone)]
 struct FixtureSource {
     descriptor: CalendarSourceDescriptor,
+    /// Overrides `descriptor.markets` so a fixture can declare mainland codes.
+    descriptor_markets: Vec<String>,
     events: Arc<Mutex<Vec<String>>>,
     fetches: Arc<Mutex<VecDeque<Result<CalendarSnapshot, CalendarSourceError>>>>,
     start_error: bool,
@@ -35,6 +37,7 @@ impl FixtureSource {
                 authority: "fixture".to_owned(),
                 markets: vec!["US".to_owned()],
             },
+            descriptor_markets: vec!["US".to_owned()],
             events,
             fetches: Arc::new(Mutex::new(VecDeque::new())),
             start_error: false,
@@ -67,7 +70,9 @@ impl FixtureSource {
 
 impl CalendarSourcePort for FixtureSource {
     fn descriptor(&self) -> CalendarSourceDescriptor {
-        self.descriptor.clone()
+        let mut descriptor = self.descriptor.clone();
+        descriptor.markets = self.descriptor_markets.clone();
+        descriptor
     }
 
     fn start(&self, _cancellation: &CalendarCancellationToken) -> Result<(), CalendarSourceError> {
@@ -184,7 +189,7 @@ fn settings(source_id: &str) -> CalendarManagerSettings {
     }
 }
 
-fn manager(
+fn build_manager(
     source: Arc<FixtureSource>,
     persistence: Option<Arc<dyn CalendarPersistencePort>>,
     settings: CalendarManagerSettings,
@@ -213,7 +218,7 @@ fn registry_snapshot_manual_and_builtin_policy_order_is_stable() {
         )
         .expect("clock"),
     ));
-    let manager = manager(source, None, settings("official"), now);
+    let manager = build_manager(source, None, settings("official"), now);
     manager.start().expect("start manager");
     assert_eq!(manager.refresh_market("US").expect("refresh").updated, 1);
     let sources = manager.sources_snapshot().expect("source projection");
@@ -381,7 +386,7 @@ fn persistence_failure_keeps_the_fetched_snapshot_served_from_memory() {
         )
         .expect("clock"),
     ));
-    let manager = manager(
+    let manager = build_manager(
         source,
         Some(Arc::clone(&persistence) as Arc<dyn CalendarPersistencePort>),
         settings("official"),
@@ -438,7 +443,7 @@ fn source_failures_back_off_and_recover_after_the_clock_advances() {
         )
         .expect("clock"),
     ));
-    let manager = manager(source, None, settings("official"), Arc::clone(&now));
+    let manager = build_manager(source, None, settings("official"), Arc::clone(&now));
     manager.start().expect("start manager");
     assert_eq!(
         manager
@@ -508,7 +513,7 @@ fn settings_reload_starts_auto_refresh_and_close_cancels_it_idempotently() {
         )
         .expect("clock"),
     ));
-    let manager = manager(Arc::clone(&source), None, settings("official"), now);
+    let manager = build_manager(Arc::clone(&source), None, settings("official"), now);
     manager.start().expect("start manager");
     assert_eq!(source.fetch_count.load(Ordering::Acquire), 0);
     let mut automatic = settings("official");
@@ -588,7 +593,7 @@ fn probe_timeout_is_reported_and_close_cancels_an_inflight_probe() {
         )
         .expect("clock"),
     ));
-    let manager = Arc::new(manager(
+    let manager = Arc::new(build_manager(
         Arc::clone(&source),
         None,
         settings("official"),
@@ -626,7 +631,7 @@ fn unknown_market_probe_and_refresh_are_accepted_noops() {
         )
         .expect("clock"),
     ));
-    let manager = manager(source, None, settings("official"), now);
+    let manager = build_manager(source, None, settings("official"), now);
     manager.start().expect("start manager");
     let refresh = manager.refresh_market("MARS").expect("unknown refresh");
     let probe = manager.probe_market("MARS").expect("unknown probe");
@@ -695,7 +700,7 @@ fn calendar_control_wire_matches_the_current_go_owner_fixture() {
         )
         .expect("clock"),
     ));
-    let manager = manager(source, None, settings("fixture_source"), now);
+    let manager = build_manager(source, None, settings("fixture_source"), now);
     manager.start().expect("start manager");
     assert_eq!(
         serde_json::to_value(manager.refresh_all().expect("refresh all")).expect("refresh wire"),
@@ -869,7 +874,7 @@ fn status_reports_manual_and_remote_override_modes_distinctly() {
         "remote holiday",
         "2026-07-02T16:00:00Z",
     )));
-    let remote_manager = manager(source, None, settings("official-source"), now);
+    let remote_manager = build_manager(source, None, settings("official-source"), now);
     remote_manager.start().expect("start remote manager");
     assert_eq!(
         remote_manager
@@ -912,7 +917,7 @@ fn background_refresh_follows_an_auto_refresh_settings_reload() {
     ));
     let mut policy = settings("reload-source");
     policy.auto_refresh_enabled = false;
-    let manager = manager(Arc::clone(&source), None, policy, now);
+    let manager = build_manager(Arc::clone(&source), None, policy, now);
 
     // A started manager with auto refresh disabled never touches the source.
     manager.start().expect("start manager");
@@ -968,4 +973,522 @@ fn background_refresh_follows_an_auto_refresh_settings_reload() {
         1,
         "close must cancel the refresh loop exactly once"
     );
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:50
+/// TestDefaultWarmupRefreshTimeoutCoversSequentialRemoteSources.
+///
+/// Go bounds one background warmup refresh with a 60s deadline sized to cover
+/// three sequential 15s HTTP providers. Rust has no HTTP calendar provider at
+/// all (the `CalendarSourcePort` is implemented only by embedders and tests),
+/// so there is no warmup deadline constant to compare against; the property
+/// that survives is that a single provider call is bounded by the probe budget
+/// instead of being able to hang a warmup.
+///
+/// Deliberate difference: Go's `defaultWarmupRefreshTimeout >= 3 *
+/// defaultHTTPTimeout` guard exists because a warmup may fan out across several
+/// remote sources. With no remote source in the Rust composition there is
+/// nothing to size that budget for, so the equivalent guarantee is asserted at
+/// the call level: `probe_market_with_timeout` returns a bounded failure
+/// instead of hanging.
+#[test]
+fn probe_budget_bounds_one_provider_call_without_hanging_the_manager() {
+    let source = Arc::new(FixtureSource::new(
+        "budget",
+        Arc::new(Mutex::new(Vec::new())),
+    ));
+    let manager = CalendarManager::new(
+        {
+            let mut registry = CalendarSourceRegistry::default();
+            registry.register(source).expect("register source");
+            registry
+        },
+        None,
+        settings("budget"),
+    )
+    .expect("create manager");
+    manager.start().expect("start manager");
+
+    let started = Instant::now();
+    let result = manager
+        .probe_market_with_timeout("US", StdDuration::from_millis(25))
+        .expect("bounded probe");
+    assert_eq!(result.failures, 1, "an exhausted budget is a failure");
+    assert!(
+        started.elapsed() < StdDuration::from_secs(3),
+        "the provider budget must bound one call, not hang the manager"
+    );
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:64
+/// TestManagerFallsBackToBuiltinWhenOfficialRefreshFails.
+///
+/// Go refreshes through a failing provider, counts the failure, and then serves
+/// the builtin rules for the day while the provider's `lastError` stays visible
+/// in the sources projection. The same shape is asserted here against the Rust
+/// manager's refresh result, schedule resolution and source status.
+#[test]
+fn failing_provider_falls_back_to_builtin_and_keeps_the_error_visible() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let source = Arc::new(FixtureSource::new("nyse_official", events));
+    source.push(Err(CalendarSourceError::Failed("boom".to_owned())));
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-19T12:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let mut policy = settings("nyse_official");
+    policy.source_policies[0].stale_after_hours = 24;
+    let manager = build_manager(source, None, policy, now);
+    manager.start().expect("start manager");
+
+    let result = manager.refresh_all().expect("refresh all");
+    assert_eq!((result.updated, result.failures), (0, 1));
+
+    // 2026-06-19 is Juneteenth: the builtin template closes US equities.
+    let schedule = manager
+        .schedule("US", timestamp("2026-06-19T12:00:00Z"))
+        .expect("builtin schedule")
+        .expect("schedule");
+    assert_eq!(schedule.source_id, BUILTIN_SOURCE_ID);
+    assert_eq!(schedule.status, "closed");
+
+    let status = manager
+        .status_snapshot()
+        .expect("status snapshot")
+        .sources
+        .into_iter()
+        .find(|source| source.id == "nyse_official")
+        .expect("provider projection");
+    assert_eq!(status.last_error, "boom");
+    assert_eq!(status.consecutive_failures, 1);
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:119
+/// TestManagerStatusIncludesSnapshotSummariesAndSampleSchedules.
+///
+/// Go's status projection lists one summary per cached snapshot with its
+/// identity, `schedulesParsed` count and checksum, and only the non-open days
+/// become `sampleSchedules` (capped at eight). This pins the same projection
+/// for a provider that returns one open day, one closed holiday and one
+/// early-close day with a shortened regular session.
+#[test]
+fn status_summaries_expose_snapshot_metadata_and_non_open_samples() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let source = Arc::new(FixtureSource::new("nyse_official", events));
+    // One open day plus ten non-open days, so the eight-sample cap is real.
+    let mut schedules = vec![TradingDaySchedule {
+        market_code: "US".to_owned(),
+        date: timestamp("2026-01-02T00:00:00Z"),
+        status: "open".to_owned(),
+        sessions: Vec::new(),
+        reason: String::new(),
+        source_id: "nyse_official".to_owned(),
+        observed: false,
+        updated_at: None,
+    }];
+    for day in 1..=10 {
+        schedules.push(TradingDaySchedule {
+            market_code: "US".to_owned(),
+            date: timestamp(&format!("2026-08-{day:02}T00:00:00Z")),
+            status: "closed".to_owned(),
+            sessions: Vec::new(),
+            reason: format!("closure-{day}"),
+            source_id: "nyse_official".to_owned(),
+            observed: false,
+            updated_at: None,
+        });
+    }
+    // The first two non-open days carry the shapes the console renders
+    // specially: an observed holiday and an early close with a shortened
+    // regular session. Both sit inside the eight-sample window.
+    schedules[1].date = timestamp("2026-01-19T00:00:00Z");
+    schedules[1].reason = "holiday".to_owned();
+    schedules[1].observed = true;
+    schedules[2].date = timestamp("2026-02-20T00:00:00Z");
+    schedules[2].status = "early_close".to_owned();
+    schedules[2].reason = "early close".to_owned();
+    schedules[2].sessions = vec![jftrade_calendar::CalendarSessionWindow {
+        kind: "regular".to_owned(),
+        start_minute: 570,
+        end_minute: 780,
+    }];
+    schedules.sort_by_key(|schedule| schedule.date);
+    source.push(Ok(CalendarSnapshot {
+        market_code: "US".to_owned(),
+        source_id: "nyse_official".to_owned(),
+        from: timestamp("2026-01-01T00:00:00Z"),
+        to: timestamp("2027-12-31T23:59:59Z"),
+        schedules,
+        fetched_at: timestamp("2026-01-02T03:00:00Z"),
+        valid_until: timestamp("2026-01-09T03:00:00Z"),
+        checksum: "checksum-1".to_owned(),
+    }));
+    let mut policy = settings("nyse_official");
+    policy.source_policies[0].stale_after_hours = 72;
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-19T12:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = build_manager(source, None, policy, now);
+    manager.start().expect("start manager");
+    let refreshed = manager.refresh_all().expect("refresh all");
+    assert_eq!((refreshed.updated, refreshed.failures), (1, 0));
+
+    let status = manager.status_snapshot().expect("status snapshot");
+    assert_eq!(status.snapshots.len(), 1, "one cached snapshot");
+    let summary = &status.snapshots[0];
+    assert_eq!(summary.market, "US");
+    assert_eq!(summary.source_id, "nyse_official");
+    assert_eq!(
+        summary.schedules_parsed, 11,
+        "one open day plus ten closures"
+    );
+    assert_eq!(summary.checksum, "checksum-1");
+    assert_eq!(
+        summary.sample_schedules.len(),
+        8,
+        "only non-open days become samples and the list is capped at eight: {:?}",
+        summary.sample_schedules
+    );
+    let holiday = summary
+        .sample_schedules
+        .iter()
+        .find(|sample| sample.date == "2026-01-19")
+        .expect("observed holiday sample");
+    assert_eq!(holiday.status, "closed");
+    assert_eq!(holiday.reason, "holiday");
+    assert!(holiday.observed);
+    let early_close = summary
+        .sample_schedules
+        .iter()
+        .find(|sample| sample.date == "2026-02-20")
+        .expect("early-close sample");
+    assert_eq!(early_close.status, "early_close");
+    assert_eq!(
+        early_close.sessions.as_ref().expect("early-close sessions"),
+        &[jftrade_calendar::CalendarSampleSession {
+            kind: "regular".to_owned(),
+            start_minute: 570,
+            end_minute: 780,
+        }]
+    );
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:207
+/// TestManagerManualOverridesBeatRemoteAndBuiltin.
+///
+/// An operator override reopens a day the builtin template closes, and it wins
+/// over both the remote snapshot and the builtin rules because the schedule is
+/// resolved from the manual entry first.
+#[test]
+fn manual_override_reopens_a_day_instead_of_the_builtin_closure() {
+    let mut policy = settings("official");
+    policy.manual_overrides.push(CalendarManualOverride {
+        market: "US".to_owned(),
+        date: "2026-06-19".to_owned(),
+        status: "open".to_owned(),
+        sessions: vec![CalendarSessionOverride {
+            kind: "regular".to_owned(),
+            start_minute: 570,
+            end_minute: 960,
+        }],
+        reason: "manual_reopen".to_owned(),
+        observed: true,
+    });
+    let manager = CalendarManager::new(CalendarSourceRegistry::default(), None, policy)
+        .expect("create manager");
+    manager.start().expect("start manager");
+
+    let schedule = manager
+        .schedule("US", timestamp("2026-06-19T12:00:00Z"))
+        .expect("manual schedule")
+        .expect("schedule");
+    assert_eq!(schedule.source_id, "manual_override");
+    assert_eq!(schedule.status, "open");
+    assert_eq!(schedule.reason, "manual_reopen");
+    assert_eq!(schedule.sessions.len(), 1);
+    assert_eq!(schedule.sessions[0].start_minute, 570);
+    assert_eq!(schedule.sessions[0].end_minute, 960);
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:235
+/// TestManagerSharedMainlandSourceAppliesToSHAndSZ.
+///
+/// The mainland notice provider declares `CN` and a refresh for `CN` must
+/// answer schedules for `SH` and `SZ` from that one shared snapshot, because
+/// the three codes describe the same mainland session.
+#[test]
+fn shared_mainland_snapshot_applies_to_shanghai_and_shenzhen() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut mainland = FixtureSource::new("mainland_official_notice", events);
+    mainland.descriptor_markets = vec!["CN".to_owned(), "SH".to_owned(), "SZ".to_owned()];
+    let source = Arc::new(mainland);
+    source.push(Ok(CalendarSnapshot {
+        market_code: "CN".to_owned(),
+        source_id: "mainland_official_notice".to_owned(),
+        from: timestamp("2026-01-01T00:00:00+08:00"),
+        to: timestamp("2026-12-31T00:00:00+08:00"),
+        schedules: vec![TradingDaySchedule {
+            market_code: "CN".to_owned(),
+            date: timestamp("2026-10-01T00:00:00+08:00"),
+            status: "closed".to_owned(),
+            sessions: Vec::new(),
+            reason: "national_day".to_owned(),
+            source_id: "mainland_official_notice".to_owned(),
+            observed: false,
+            updated_at: None,
+        }],
+        fetched_at: timestamp("2026-09-15T00:00:00Z"),
+        valid_until: timestamp("2027-01-31T00:00:00Z"),
+        checksum: String::new(),
+    }));
+    let mut policy = settings("mainland_official_notice");
+    policy.warmup_markets = vec!["CN".to_owned()];
+    policy.source_policies[0].market = "CN".to_owned();
+    policy.source_policies[0].stale_after_hours = 24 * 30;
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-10-01T08:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = build_manager(source, None, policy, now);
+    manager.start().expect("start manager");
+    assert_eq!(
+        manager
+            .refresh_market("CN")
+            .expect("mainland refresh")
+            .updated,
+        1
+    );
+
+    for market in ["SH", "SZ"] {
+        let schedule = manager
+            .schedule(market, timestamp("2026-10-01T10:00:00+08:00"))
+            .expect("shared mainland schedule")
+            .expect("schedule");
+        assert_eq!(schedule.source_id, "mainland_official_notice");
+        assert_eq!(schedule.status, "closed");
+        assert_eq!(schedule.reason, "national_day");
+        assert_eq!(
+            schedule.market_code, market,
+            "the shared snapshot is re-labelled for the requested mainland market"
+        );
+    }
+    manager.close().expect("close manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:291
+/// TestManagerIgnoresStaleRemoteSnapshots.
+///
+/// A snapshot whose `ValidUntil` has already passed must not answer the day
+/// even though it covers it: Go falls back to builtin rules, and the builtin
+/// template still knows the real session for that date.
+#[test]
+fn stale_remote_snapshot_is_ignored_in_favour_of_builtin_rules() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let source = Arc::new(FixtureSource::new("nyse_official", events));
+    source.push(Ok(CalendarSnapshot {
+        market_code: "US".to_owned(),
+        source_id: "nyse_official".to_owned(),
+        from: timestamp("2026-01-01T00:00:00-05:00"),
+        to: timestamp("2026-12-31T00:00:00-05:00"),
+        schedules: vec![TradingDaySchedule {
+            market_code: "US".to_owned(),
+            date: timestamp("2026-06-22T00:00:00-05:00"),
+            status: "closed".to_owned(),
+            sessions: Vec::new(),
+            reason: "stale_remote".to_owned(),
+            source_id: "nyse_official".to_owned(),
+            observed: false,
+            updated_at: None,
+        }],
+        fetched_at: timestamp("2026-06-01T00:00:00Z"),
+        // Already expired relative to the injected clock.
+        valid_until: timestamp("2026-06-02T00:00:00Z"),
+        checksum: String::new(),
+    }));
+    let mut policy = settings("nyse_official");
+    policy.source_policies[0].stale_after_hours = 24;
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-22T14:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let manager = build_manager(source, None, policy, now);
+    manager.start().expect("start manager");
+    manager.refresh_all().expect("refresh all");
+
+    let schedule = manager
+        .schedule("US", timestamp("2026-06-22T14:00:00Z"))
+        .expect("builtin schedule")
+        .expect("schedule");
+    assert_eq!(
+        schedule.source_id, BUILTIN_SOURCE_ID,
+        "an expired snapshot must not answer the day"
+    );
+    assert_eq!(schedule.status, "open");
+    assert_ne!(schedule.reason, "stale_remote");
+    manager.close().expect("close manager");
+
+    // Isolate the absolute expiry from the age rule: with `staleAfterHours = 0`
+    // the `fetchedAt` age no longer matters, so only `validUntil` can disqualify
+    // the snapshot. Go checks that field first in `snapshotFresh`.
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let source = Arc::new(FixtureSource::new("nyse_official", events));
+    source.push(Ok(CalendarSnapshot {
+        market_code: "US".to_owned(),
+        source_id: "nyse_official".to_owned(),
+        from: timestamp("2026-01-01T00:00:00-05:00"),
+        to: timestamp("2026-12-31T00:00:00-05:00"),
+        schedules: vec![TradingDaySchedule {
+            market_code: "US".to_owned(),
+            date: timestamp("2026-06-22T00:00:00-05:00"),
+            status: "closed".to_owned(),
+            sessions: Vec::new(),
+            reason: "expired_remote".to_owned(),
+            source_id: "nyse_official".to_owned(),
+            observed: false,
+            updated_at: None,
+        }],
+        // Fresh by age, but past its validity window.
+        fetched_at: timestamp("2026-06-22T13:00:00Z"),
+        valid_until: timestamp("2026-06-22T13:30:00Z"),
+        checksum: String::new(),
+    }));
+    let mut expiry_policy = settings("nyse_official");
+    expiry_policy.source_policies[0].stale_after_hours = 0;
+    let expiry_now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-22T14:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let expiry_manager = build_manager(source, None, expiry_policy, Arc::clone(&expiry_now));
+    expiry_manager.start().expect("start expiry manager");
+    expiry_manager.refresh_all().expect("expiry refresh");
+    let schedule = expiry_manager
+        .schedule("US", timestamp("2026-06-22T14:00:00Z"))
+        .expect("builtin schedule")
+        .expect("schedule");
+    assert_eq!(
+        schedule.source_id, BUILTIN_SOURCE_ID,
+        "an expired validUntil must disqualify an otherwise fresh snapshot"
+    );
+    assert_ne!(schedule.reason, "expired_remote");
+    expiry_manager.close().expect("close expiry manager");
+}
+
+/// Parity: go:452dea11:internal/exchangecalendar/manager_test.go:346
+/// TestManagerDiscardInvalidCachedSnapshotOnRestore.
+///
+/// Go restores cached snapshots at construction and discards one whose schedule
+/// falls outside the snapshot's own range: the manager records the reason on
+/// the owning source, deletes the file from the store, and serves builtin rules
+/// for the day instead. This pins all three effects, including the on-disk
+/// deletion that keeps the bad value from being reconsidered next startup.
+#[test]
+fn invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules() {
+    let directory = std::env::temp_dir().join(format!(
+        "jftrade-calendar-discard-{}-{}",
+        std::process::id(),
+        OffsetDateTime::now_utc().unix_timestamp_nanos()
+    ));
+    let store = jftrade_calendar::CalendarSnapshotStore::new(directory.clone());
+    // 2028 schedule inside a 2026-2027 range: outside the snapshot's own window.
+    let invalid = CalendarSnapshot {
+        market_code: "US".to_owned(),
+        source_id: "nyse_official".to_owned(),
+        from: timestamp("2026-01-01T00:00:00-05:00"),
+        to: timestamp("2027-12-31T23:59:59-05:00"),
+        schedules: vec![TradingDaySchedule {
+            market_code: "US".to_owned(),
+            date: timestamp("2028-07-03T00:00:00-05:00"),
+            status: "early_close".to_owned(),
+            sessions: Vec::new(),
+            reason: String::new(),
+            source_id: "nyse_official".to_owned(),
+            observed: false,
+            updated_at: None,
+        }],
+        fetched_at: timestamp("2026-06-19T15:29:25Z"),
+        valid_until: timestamp("2026-07-03T15:29:25Z"),
+        checksum: String::new(),
+    };
+    let saved_path = store.save(&invalid).expect("seed invalid cached snapshot");
+    assert!(saved_path.exists(), "the invalid snapshot starts on disk");
+
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-19T12:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    // The source is registered so its status row stays visible in the
+    // projection. Auto refresh is off, so it is never fetched here.
+    let mut registry = CalendarSourceRegistry::default();
+    registry
+        .register(Arc::new(FixtureSource::new(
+            "nyse_official",
+            Arc::new(Mutex::new(Vec::new())),
+        )))
+        .expect("register provider");
+    let manager = CalendarManager::with_clock(
+        registry,
+        Some(Arc::new(jftrade_calendar::CalendarSnapshotStore::new(
+            directory.clone(),
+        )) as Arc<dyn CalendarPersistencePort>),
+        settings("nyse_official"),
+        Arc::new(move || *now.lock().expect("fixture clock")),
+    )
+    .expect("create manager");
+    manager.start().expect("start manager");
+
+    // Juneteenth is a builtin US closure, and the bad cache is not served.
+    let schedule = manager
+        .schedule("US", timestamp("2026-06-19T12:00:00Z"))
+        .expect("builtin schedule")
+        .expect("schedule");
+    assert_eq!(schedule.source_id, BUILTIN_SOURCE_ID);
+    assert_eq!(schedule.status, "closed");
+
+    // The corrupt cache is removed so it cannot be reconsidered next startup.
+    assert!(
+        !saved_path.exists(),
+        "an invalid cached snapshot must be deleted: {saved_path:?}"
+    );
+    // The reason is recorded against the snapshot's own source, which is how
+    // Go's `recordOperationFailure(snapshot.SourceID, ...)` attributes it.
+    let discarded = manager
+        .status_snapshot()
+        .expect("status snapshot")
+        .sources
+        .into_iter()
+        .find(|source| source.id == "nyse_official")
+        .expect("provider projection");
+    assert!(
+        discarded
+            .last_error
+            .contains("discard invalid cached snapshot"),
+        "discard reason missing: {:?}",
+        discarded.last_error
+    );
+    assert_eq!(discarded.consecutive_failures, 1);
+    manager.close().expect("close manager");
+    std::fs::remove_dir_all(&directory).expect("clean snapshot root");
 }

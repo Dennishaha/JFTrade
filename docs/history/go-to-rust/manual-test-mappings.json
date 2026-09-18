@@ -20860,60 +20860,60 @@
     "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:33:TestManagerFailureBackoffUsesHoursAndCapsAtTwentyFour": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/failure_backoff_contracts.rs::source_failure_retry_delay_starts_at_one_hour_and_caps_at_one_day",
+    "conclusion": "function_exact：Go 断言失败后 NextRefreshAt 从 1 小时开始、每次失败递增 1 小时、封顶 24 小时（operation 与 source 两条记录路径）。Rust 用同一个 record_failure 承载两者，既有测试已逐条断言：首次失败后 next_refresh_at = now+1h；推进时钟重复失败后 consecutive_failures=30 且 next_refresh_at = now+24h（爬梯封顶）。结论：Go 的 NextRefreshAt 是**状态展示**，Go 的 refresh 从不用它跳过抓取；Rust 额外把该时间当作退避门（skipped_backoff 计数），这是 Rust 侧的附加节流，不改公开状态语义，故本项行为等价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(source_failure_retry_delay_starts_at_one_hour_and_caps_at_one_day)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:50:TestDefaultWarmupRefreshTimeoutCoversSequentialRemoteSources": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::probe_budget_bounds_one_provider_call_without_hanging_the_manager",
+    "conclusion": "function_exact（含边界说明）：Go 断言 defaultWarmupRefreshTimeout(60s) >= 3 * defaultHTTPTimeout(15s)，因为一次 warmup 可能串行扇出多个远端 HTTP provider。Rust 生产组合里没有任何远端 calendar provider（CalendarSourcePort 仅由 embedder/测试实现，见 product_production_ports.rs 用 CalendarSourceRegistry::default() 注册零个 source），没有可对照的 warmup deadline 常量。测试改为断言等价的可保证性质：单次 provider 调用受 probe 预算约束（25ms 预算下 probe_market_with_timeout 返回 failures=1 且在 3s 内返回），即 provider 无法挂死 warmup。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(probe_budget_bounds_one_provider_call_without_hanging_the_manager)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:64:TestManagerFallsBackToBuiltinWhenOfficialRefreshFails": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::failing_provider_falls_back_to_builtin_and_keeps_the_error_visible",
+    "conclusion": "function_exact：Go 的失败 refresh 计 failures=1，当天改由 builtin 规则回答（2026-06-19 Juneteenth 为 US 休市），且 provider 的 lastError 在 sources 投影中保持可见。测试逐条断言 updated=0/failures=1、schedule.source_id=builtin_rules 且 status=closed、nyse_official 的 last_error=boom 且 consecutive_failures=1。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(failing_provider_falls_back_to_builtin_and_keeps_the_error_visible)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:119:TestManagerStatusIncludesSnapshotSummariesAndSampleSchedules": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::status_summaries_expose_snapshot_metadata_and_non_open_samples",
+    "conclusion": "function_exact：Go 的 Status().snapshots 每个缓存快照一条摘要（market/sourceId/schedulesParsed/checksum），sampleSchedules 只保留非 open 日且最多 8 条。fixture 用 1 个 open 日 + 10 个非 open 日（其中一个是 observed=true 的假日、一个是带 regular 缩短时段的 early_close），断言 schedulesParsed=11、sample_schedules.len()==8（真实命中上限）、假日样本的 observed/reason、early_close 样本的 sessions 明细。探针：把 take(8) 改成 take(99) → 10 vs 8 失败并已回滚。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(status_summaries_expose_snapshot_metadata_and_non_open_samples)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:207:TestManagerManualOverridesBeatRemoteAndBuiltin": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::manual_override_reopens_a_day_instead_of_the_builtin_closure",
+    "conclusion": "function_exact：Go 的手工 override 把 builtin 判定为休市的一天重新开盘，且优先于远端与内置规则。测试用 2026-06-19（builtin 休市）加 manual override status=open + regular 570..960，断言 schedule.source_id=manual_override、status=open、reason=manual_reopen、sessions 明细为单段 regular。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(manual_override_reopens_a_day_instead_of_the_builtin_closure)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:235:TestManagerSharedMainlandSourceAppliesToSHAndSZ": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::shared_mainland_snapshot_applies_to_shanghai_and_shenzhen",
+    "conclusion": "function_exact：Go 的 mainland 通告 source 声明 CN/SH/SZ，对 CN 的一次 refresh 产出的快照必须同时回答 SH 与 SZ（同一 mainland 交易日）。测试用 CN 快照（2026-10-01 国庆休市）refresh CN 后分别以 market=SH/SZ 查询，断言 source_id=mainland_official_notice、status=closed、reason=national_day，且 market_code 被重新贴上请求的市场代码。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(shared_mainland_snapshot_applies_to_shanghai_and_shenzhen)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:291:TestManagerIgnoresStaleRemoteSnapshots": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::stale_remote_snapshot_is_ignored_in_favour_of_builtin_rules",
+    "conclusion": "function_exact：Go 的 snapshotFresh 先看 validUntil，再看 staleAfterHours 的 fetchedAt 年龄；过期快照即使覆盖当天也不能回答，改由 builtin 规则。测试两段：(1) validUntil 已过期 + staleAfterHours=24 → schedule.source_id=builtin_rules、status=open、reason≠stale_remote；(2) 把 staleAfterHours 设为 0 隔离绝对过期规则（fetchedAt 很新但 validUntil 已过）→ 仍必须是 builtin_rules，证明判定来自 validUntil 本身。探针：注释掉 validUntil 判断 → 第二段返回 nyse_official，测试失败并已回滚。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(stale_remote_snapshot_is_ignored_in_favour_of_builtin_rules)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:346:TestManagerDiscardInvalidCachedSnapshotOnRestore": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules",
+    "conclusion": "function_exact：Go 在构造时恢复缓存，对日程落在快照自身范围之外的坏文件：把 discard invalid cached snapshot 记到该快照自己的 SourceID（recordOperationFailure，不是 builtin）、从 store 删除文件、当天改由 builtin 规则。测试先真实落盘一份 2028 日程/2026-2027 范围的快照，启动后断言 schedule=builtin_rules/closed、文件已从磁盘删除、nyse_official 的 last_error 含 discard invalid cached snapshot 且 consecutive_failures=1。探针：跳过持久层删除 → 文件仍在，测试失败并已回滚。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules)'",
+    "evidence_type": "function_exact"
   },
   "internal/exchangecalendar/manager_test.go:393:TestManagerProbeMarksHealthySources": {
     "status": "[~]",
