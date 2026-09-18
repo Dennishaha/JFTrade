@@ -22176,32 +22176,32 @@
     "evidence_type": "function_exact"
   },
   "internal/productfeatures/capabilities_evaluation_test.go:11:TestCapabilitiesContextFiltersAndReportsRuntimeEvaluation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs::capabilities_filters_by_broker_market_and_feature_id",
+    "conclusion": "function_exact：Go 按 brokerId/market/featureId 过滤运行时状态并回传 evaluator 自己的 code，同时保留 catalog。Rust 只有 Futu 一个 broker，因此以新测试断言等价可观测行为：brokerId 不匹配时 brokers/runtime 均为空但 catalog 仍完整（Go 的 descriptor 过滤）；market=HK + prediction.depth 为空（prediction 仅 US）；featureId=prediction.depth 恰好 1 条且 market=US、brokerId=futu。本批同时发现并修复一处真实公开契约差异：Go `futuFeatureCapabilities` 对每个 prediction feature 强制 requiresAccount=true（可用性由账户资格决定），Rust 原先按 access=read 输出 requiresAccount=false，会让控制台把未核验的 Moomoo US 账户当作充分条件；修复位置 crates/jftrade-engine/src/product_broker_capabilities_projection.rs::feature_capability（prediction 分支显式置 true），回归测试断言 declared feature 的 requiresAccount=true。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(capabilities_filters_by_broker_market_and_feature_id)'",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/capabilities_evaluation_test.go:64:TestCapabilitiesContextFiltersProductsAndSegments": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs::capabilities_filters_products_and_segments_like_the_catalog",
+    "conclusion": "function_exact：Go 用 productClass/marketSegment 过滤，且 declared capability 的列表非空时才参与匹配。Rust 的 feature_matches_filters 通过 product_classes/market_segments 逐 feature 判断，新测试断言三组等价矩阵：productClass=equity 不含 prediction.*、productClass=event_contract+marketSegment=securities 不含 prediction.depth、event_contract+prediction 命中 prediction.depth 且全部为 US。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(capabilities_filters_products_and_segments_like_the_catalog)'",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/capabilities_evaluation_test.go:99:TestCapabilitiesContextMarksDeclaredButMissingInterfaceUnavailable": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs::capabilities_mark_declared_but_missing_readers_unavailable",
+    "conclusion": "function_exact：Go 在 catalog 声明了 adapter interface 但 broker 未实现时把整个 evaluation 替换为 unavailable/ADAPTER_INTERFACE_UNAVAILABLE。Rust 没有该字符串，等价 owner 是运行时 composition：新测试断言 derivatives.option_chain/research.valuation/research.news/market.depth 在未组合具体 reader 时 evaluation.state=unavailable、quoteRight.code=CAPABILITY_UNAVAILABLE、capability.state/reasonCode 同步为 unavailable/CAPABILITY_UNAVAILABLE；随后组合 microstructure reader 后同一 feature 变为 degraded+QUOTE_RIGHT_UNVERIFIED，证明判定来自 runtime composition 而非 catalog 硬编码。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(capabilities_mark_declared_but_missing_readers_unavailable)'",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/capabilities_evaluation_test.go:118:TestStaticRuntimeEvaluationDistinguishesRequiredDimensions": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs::capability_dimension_requirements_follow_access_and_product_family",
+    "conclusion": "function_exact：Go staticRuntimeEvaluation 的矩阵——三个维度默认 available/NOT_REQUIRED，requiresConnection/RequiresAccount/RequiresQuoteRight 各自替换为 degraded/RUNTIME_STATUS_UNKNOWN，且 available 遇任一 degraded 时改写为 degraded/RUNTIME_STATUS_PARTIAL。Rust 由 feature_capability + aggregate code 承担：新测试断言 read feature（market.snapshot/research.news/prediction.depth）requiresQuoteRight=true、requiresAccount=false、account 维度 code=NOT_REQUIRED；trade feature（execution.order_place）requiresAccount=true、requiresQuoteRight=false、quoteRight 维度 code=NOT_REQUIRED；prediction 的 declared feature 保持 state=degraded + reasonCode=RUNTIME_ELIGIBILITY_REQUIRED。探针验证（已回滚）：注释掉 prediction 的 requiresAccount=true 后本测试立刻以 left=false/right=true 失败，证明断言真实守卫。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(capability_dimension_requirements_follow_access_and_product_family)'",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/earnings_calendar_query_test.go:11:TestValidateResearchCalendarQueryAcceptsSupportedBusinessParameters": {
     "status": "[~]",
@@ -22316,11 +22316,11 @@
     "evidence_type": "missing"
   },
   "internal/productfeatures/provider_capability_alignment_test.go:9:TestEmbeddedResearchFeatureAllowListIsExplicit": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_tests.rs::embedded_research_facade_serves_exactly_the_allowed_feature_set",
+    "conclusion": "function_exact（按 Rust 架构等价重写）：Go 的 embeddedResearchFeatureIDs 是完整可枚举 allow-list（11 项）且测试比较整个集合。Rust 没有按 featureId 的单一 map，facade 的 owner 是 ProductionResearchPort::read 的路由表，因此新测试冻结完全相同的 11 项：显式 ALLOWED_FEATURES 常量 + 逐路由驱动（rankings/industries/calendars/macro/financials/analyst/ownership/corporate-actions/instruments，以及 news/screen 的对应 helper 路径）断言在 helper 未就绪时 fail-closed 且绝不是 Invalid（即路由确实被 facade 承接）；再逐项断言每个 id 都出现在 REVIEWED_READ_ONLY_TOOLS（错拼会掉覆盖），并断言 prediction/derivatives/execution/research.valuation/research.institutions 明确不在该 facade 集合内（Futu 产品族不回落 helper）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(embedded_research_facade_serves_exactly_the_allowed_feature_set)'",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/provider_facade_calendar_test.go:33:TestEmbeddedProviderServesCalendarOperations": {
     "status": "[~]",
@@ -22785,18 +22785,18 @@
     "evidence_type": "missing"
   },
   "internal/productfeatures/typed_queries_test.go:12:TestDocumentResultPreservesFeatureWireShape": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::research_document_read_round_trips_the_feature_result_wire_shape",
+    "conclusion": "function_exact（按 Rust 架构等价重写）：Go 把每个 entry 编成 json.RawMessage、metadata 编成字节，再在 HTTP 边缘还原为 FeatureResult，要求逐字段等价。Rust 的 provider FeatureResult 本身就是一个 Value，document/DocumentResult 中间层不存在，因此新测试用注入的 snapshot port 构造含 provider/asOf/entries/nextCursor/hasMore/total/warnings/partialErrors/metadata 的完整载荷，断言 extension 边界 execute_production(\"research.calendar\") 的返回与原值逐字段相等（不重排、不丢字段、不强制 total/数值类型）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(research_document_read_round_trips_the_feature_result_wire_shape)'",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/typed_queries_test.go:41:TestTypedCapabilityDescriptionsAreDefensive": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::typed_capability_schemas_are_defensive_and_stable_per_lookup",
+    "conclusion": "function_exact（按 Rust 架构等价重写）：Go 的 TypedCapabilityForTool 返回拷贝，改 description.Operations[0] 后再次查询仍是 earnings。Rust 的 typed capability owner 是 MCP schema catalog（product_mcp_schema_catalog_dispatch.rs 的 typed_instrument_schema/typed_collection_schema），因此新测试断言 research.calendar 的 operation enum 恰为 earnings/dividends/economic/ipos/trade_dates、required 省略（Go 的 default operation 语义），随后把返回 schema 的 enum[0] 与 required 改掉，再次 schema_for 仍得到 earnings 且无 required，且未知工具 try_schema_for 返回 None（不伪造 schema）。探针验证（已回滚）：把 schema_for 改成共享模板并原地改 enum[0] 后，本测试立即以 left=mutated/right=earnings 失败，证明断言真实守卫。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(typed_capability_schemas_are_defensive_and_stable_per_lookup)'",
+    "evidence_type": "function_exact"
   },
   "internal/research/presets_test.go:85:TestServiceCreateListGetAndDeletePreset": {
     "status": "[~]",

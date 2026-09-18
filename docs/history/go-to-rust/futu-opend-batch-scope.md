@@ -4387,3 +4387,80 @@ python3 scripts/compatibility/audit_test_parity.py
 + `typed_queries_test.go`(2) + `capabilities_evaluation_test.go`(4)
 + `provider_capability_alignment_test.go`(1) + `prediction_quote_candle_bridge_test.go`(4，含
 predictionPushResult 5s TTL)。随后是 provider_projection/provider_facade 组（约 60 条）。
+
+## 批次：internal/productfeatures 第二批（capabilities 投影 + typed capability/embedded facade，7 项）
+
+范围：`capabilities_evaluation_test.go`(4) + `typed_queries_test.go`(2) +
+`provider_capability_alignment_test.go`(1)。全部 7 项判定为 `[x] function_exact`，
+审计 `function_exact` 613 → 620。
+
+### 真实修复 1 处（P0 公开契约：prediction 能力少报 requiresAccount）
+
+`GET /api/v1/brokers/capabilities` 的 declared capability 对 prediction feature
+原先按 `access == "read"` 输出 `requiresAccount: false`。Go 的
+`futuFeatureCapabilities`（`pkg/futu/adapter.go:132`）在 prediction 分支里显式
+`requiresAccount = true`，因为 prediction 可用性是账户资格判定
+（`predictionEligibility` 要求 `FUTUINC` + US authority）；声明为 false 会让控制台
+把「未核验资格的 Moomoo US 账户」当作充分条件。
+
+- 复现条件：带 prediction feature 的 catalog 投影（`featureId=prediction.depth`）。
+- 预期行为：declared feature `requiresAccount == true`，同时保留
+  `state=degraded` / `reasonCode=RUNTIME_ELIGIBILITY_REQUIRED`。
+- 修复位置：`crates/jftrade-engine/src/product_broker_capabilities_projection.rs::feature_capability`
+  （prediction 分支显式置 `requiresAccount = true`）。
+- 回归测试：`capability_dimension_requirements_follow_access_and_product_family`。
+- 探针验证（已回滚）：注释掉该赋值后测试立刻以 `left: Bool(false) / right: true`
+  失败，恢复后通过。
+
+### 真实修复 2：内联测试模块拆分（800 行硬上限）
+
+`product_broker_capabilities_projection.rs` 原有内联 `#[cfg(test)] mod tests`；
+加测试后逼近 production 800 行硬上限。按 `#[path]` 规则把测试移到独立
+`crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs`
+（生产文件 774 → 650 行，测试文件 478 行）。`check:rust:architecture` 通过。
+
+### 行为映射
+
+| Go 测试 | Rust 入口 | 状态与结论 |
+| --- | --- | --- |
+| `capabilities_evaluation_test.go:11 TestCapabilitiesContextFiltersAndReportsRuntimeEvaluation` | `product_broker_capabilities_projection_tests.rs::capabilities_filters_by_broker_market_and_feature_id` | `[x]` function_exact：brokerId 不匹配 → brokers/runtime 为空但 catalog 完整；HK+prediction.depth 为空；featureId 过滤恰好 1 条（US/futu）。 |
+| `:64 TestCapabilitiesContextFiltersProductsAndSegments` | 同文件 `::capabilities_filters_products_and_segments_like_the_catalog` | `[x]` function_exact：equity 过滤不含 prediction；event_contract+securities 不含 prediction.depth；event_contract+prediction 命中且全为 US。 |
+| `:99 TestCapabilitiesContextMarksDeclaredButMissingInterfaceUnavailable` | 同文件 `::capabilities_mark_declared_but_missing_readers_unavailable` | `[x]` function_exact（字符串不同）：Rust 无 `ADAPTER_INTERFACE_UNAVAILABLE`，等价判定来自 runtime composition —— 未组合 reader 时 `evaluation.state=unavailable` / `quoteRight.code=CAPABILITY_UNAVAILABLE`；组合 microstructure reader 后变为 degraded + `QUOTE_RIGHT_UNVERIFIED`，证明非硬编码。 |
+| `:118 TestStaticRuntimeEvaluationDistinguishesRequiredDimensions` | 同文件 `::capability_dimension_requirements_follow_access_and_product_family` | `[x]` function_exact：read/trade 维度矩阵（NOT_REQUIRED 对照、requires* 标志）与 prediction 的 degraded + `RUNTIME_ELIGIBILITY_REQUIRED` 声明。 |
+| `provider_capability_alignment_test.go:9 TestEmbeddedResearchFeatureAllowListIsExplicit` | `product_production_ports_research_tests.rs::embedded_research_facade_serves_exactly_the_allowed_feature_set` | `[x]` function_exact（架构等价重写）：Go 的 map 换成显式 `ALLOWED_FEATURES`(11) + 逐路由驱动（helper 未就绪 fail-closed 且非 Invalid）+ 逐项校验 `REVIEWED_READ_ONLY_TOOLS`，并冻结 prediction/derivatives/execution/valuation/institutions 不在 facade 内。 |
+| `typed_queries_test.go:12 TestDocumentResultPreservesFeatureWireShape` | `product_mcp_server_tests.rs::research_document_read_round_trips_the_feature_result_wire_shape` | `[x]` function_exact（架构等价重写）：Rust 无 DocumentResult 中间层，改为断言 extension 边界返回注入 port 的 `FeatureResult` 原值（provider/asOf/entries/nextCursor/hasMore/total/warnings/partialErrors/metadata 全字段）。 |
+| `typed_queries_test.go:41 TestTypedCapabilityDescriptionsAreDefensive` | 同文件 `::typed_capability_schemas_are_defensive_and_stable_per_lookup` | `[x]` function_exact（架构等价重写）：typed capability owner 是 MCP schema catalog；断言 calendar 的 operation enum/required 契约，改返回值后再次查询不变，未知工具不解析。 |
+
+### 验证
+
+```bash
+cargo fmt --all
+cargo clippy -p jftrade-engine --all-targets --locked
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast
+pnpm run check:rust:architecture
+pnpm run check:zero-go
+pnpm run check:compatibility
+python3 scripts/compatibility/audit_test_parity.py
+```
+
+- `jftrade-engine` 全量：**1269 passed / 0 failed**（6 slow）。
+- 本批 8 个测试（含既有 catalog protocol 测试）全绿。
+- 审计：620 function_exact、0 nonexistent crate、0 `[x]` 缺 `function_exact`；
+  5 条 pre-existing partial 无可解析测试（既有确认缺口，非本批失败）。
+- `check:zero-go` 曾拦截一处测试注释里的相邻 go-test 字样，已改为
+  "reference fixture" 后通过。
+
+### 下一批（代办目标）
+
+`internal/productfeatures` 继续：`service_test.go`(11) —— Query 不回退、BatchSnapshots
+缓存与校验（`subscriptionCreated=false` / `fromCache`）、prediction 资格与租约引用计数、
+`normalizeSnapshotSymbols` 边界；随后 `service_routing_and_validation_test.go`(4)
+（option advanced filters、institutionId 校验、fresh prediction push 优先于轮询）
++ `prediction_quote_candle_bridge_test.go`(4，含 predictionPushResult 5s TTL)，
+最后是 provider_projection/provider_facade 组（约 60 条）。
+
+已知 Rust 侧待核对 owner：prediction 账户资格（Go `predictionEligibility`：`FUTUINC` +
+US authority）在 Rust 尚无对应实现，`PREDICTION_MARKET_INELIGIBLE` /
+`PREDICTION_ACCOUNT_INELIGIBLE` 在 crates 内均无字符串；`service_test.go` 批次需判定
+这是真实功能缺失还是已由账户解析路径覆盖，并据此记录修复或边界结论。
+

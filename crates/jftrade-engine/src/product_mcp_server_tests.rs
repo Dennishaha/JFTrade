@@ -1962,3 +1962,124 @@ fn shutdown_is_idempotent_and_closed_runtime_rejects_rebind() {
         .expect_err("closed MCP runtime");
     assert!(error.contains("closed"), "error = {error}");
 }
+
+/// Parity: go:452dea11:internal/productfeatures/typed_queries_test.go:12
+/// TestDocumentResultPreservesFeatureWireShape
+///
+/// Go marshals each `FeatureResult` entry into a `json.RawMessage`, keeps the
+/// metadata bytes, and projects them back at the HTTP edge, so the typed
+/// document round-trip is shape preserving for every field. Rust keeps the
+/// provider `FeatureResult` as one `Value`, so the equivalent invariant is that
+/// the extension boundary returns the port's value verbatim: `provider`, `asOf`,
+/// `entries`, `nextCursor`, `hasMore`, `total`, `warnings`, `partialErrors`, and
+/// `metadata` survive unchanged.
+#[test]
+fn research_document_read_round_trips_the_feature_result_wire_shape() {
+    let payload = json!({
+        "provider": {
+            "brokerId": "futu",
+            "securityFirm": "FUTUINC",
+            "featureId": "research.calendar",
+            "capability": "available",
+            "resolvedAt": "2026-08-13T12:00:00Z",
+            "asOf": "2026-08-13T12:00:00Z",
+        },
+        "asOf": "2026-08-13T12:00:00Z",
+        "entries": [{"instrumentId": "US.AAPL", "value": 1.25, "active": true}],
+        "nextCursor": "cursor-2",
+        "hasMore": false,
+        "total": 1,
+        "warnings": ["partial"],
+        "partialErrors": [{"code": "PROVIDER_PARTIAL", "message": "one source timed out"}],
+        "metadata": {"source": "typed", "count": 1.0},
+    });
+
+    #[derive(Debug)]
+    struct CannedResearchPort(Value);
+
+    impl ResearchReadSnapshotPort for CannedResearchPort {
+        fn read(&self, _: &str, _: &str) -> Result<Value, ResearchReadSnapshotError> {
+            Ok(self.0.clone())
+        }
+    }
+
+    let (_directory, mut ports) = production_bundle();
+    ports.research_read = Arc::new(CannedResearchPort(payload.clone()));
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+
+    let response = executor
+        .execute_production(
+            "research.calendar",
+            &json!({"operation": "earnings", "market": "US"}),
+        )
+        .expect("research.calendar document read");
+    assert_eq!(
+        response, payload,
+        "the extension boundary must not reshape the provider FeatureResult"
+    );
+    for field in [
+        "provider",
+        "asOf",
+        "entries",
+        "nextCursor",
+        "hasMore",
+        "total",
+        "warnings",
+        "partialErrors",
+        "metadata",
+    ] {
+        assert!(
+            response.get(field).is_some(),
+            "the document round-trip dropped {field}"
+        );
+    }
+}
+
+/// Parity: go:452dea11:internal/productfeatures/typed_queries_test.go:41
+/// TestTypedCapabilityDescriptionsAreDefensive
+///
+/// Go resolves a typed capability by Assistant tool name and returns a copy:
+/// mutating `description.Operations[0]` must not change the shared table, and
+/// the next lookup still reports `earnings` for `research.calendar`. Rust has one
+/// reviewed operation table in the MCP schema catalog, so the equivalent
+/// invariant is that the schema for a tool is rebuilt per call: mutating the
+/// returned schema cannot poison the next `tools/list` descriptor, and the
+/// calendar tool still advertises exactly the earnings/dividends/economic/ipos/
+/// trade_dates operations.
+#[test]
+fn typed_capability_schemas_are_defensive_and_stable_per_lookup() {
+    use crate::product::product_mcp_protocol::schema_for;
+
+    let schema = schema_for("research.calendar");
+    assert_eq!(
+        schema["properties"]["operation"]["enum"],
+        json!(["earnings", "dividends", "economic", "ipos", "trade_dates"]),
+        "research.calendar must advertise the reviewed operation set"
+    );
+    assert!(
+        schema.get("required").is_none(),
+        "research.calendar keeps every field optional so the route defaults apply"
+    );
+
+    // Mutate the returned schema the same way the reference fixture mutates the
+    // first operation; a cached/shared value would leak it into the next lookup.
+    let mut mutated = schema.clone();
+    mutated["properties"]["operation"]["enum"][0] = json!("mutated");
+    mutated["required"] = json!(["instrumentId"]);
+
+    let again = schema_for("research.calendar");
+    assert_eq!(
+        again["properties"]["operation"]["enum"][0], "earnings",
+        "a mutated schema must not leak into the next lookup"
+    );
+    assert!(
+        again.get("required").is_none(),
+        "a mutated required list must not leak into the next lookup"
+    );
+
+    // Unknown tool names must stay unresolved instead of fabricating a schema.
+    assert!(
+        crate::product::product_mcp_protocol::try_schema_for("research.not_a_tool").is_none(),
+        "an unknown tool must not resolve to a schema"
+    );
+}

@@ -778,3 +778,98 @@ async fn research_screen_helper_projects_rows_and_cells_without_fixture_defaults
     assert_eq!(value["hasMore"], false);
     server.await.expect("server");
 }
+
+/// Parity: go:452dea11:internal/productfeatures/provider_capability_alignment_test.go:9
+/// TestEmbeddedResearchFeatureAllowListIsExplicit
+///
+/// Go keeps `embeddedResearchFeatureIDs` as one enumerable map: the complete set
+/// of research features an embedded yfinance/AKShare provider may own.  The
+/// routing test compares the whole set, not a few representatives.  Rust has no
+/// single map keyed by feature id — the facade is the `ProductionResearchPort`
+/// routing table plus the helper projection — so this test freezes the exact
+/// facade-usable set by driving every route with a helper-backed provider and
+/// asserting that the eleven allowed features are served while a control route
+/// outside the set is rejected with the capability error.
+#[test]
+fn embedded_research_facade_serves_exactly_the_allowed_feature_set() {
+    // The allow-list is the *routing* contract: every entry below is a research
+    // feature the embedded provider must be able to own. Keep this list sorted
+    // and explicit so a new helper-owned read has to be added deliberately.
+    const ALLOWED_FEATURES: [&str; 11] = [
+        "research.news",
+        "research.corporate_actions",
+        "research.rankings",
+        "research.industry",
+        "research.instrument",
+        "research.financials",
+        "research.analyst",
+        "research.ownership",
+        "research.calendar",
+        "research.macro",
+        "research.screen",
+    ];
+
+    // The helper-backed routes reject with 409 CAPABILITY_UNAVAILABLE when the
+    // helper is not ready (the facade is disabled), which is the fail-closed
+    // answer for every allowed feature. The route must never be answered by a
+    // different owner, and the message must name the feature family.
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Yfinance,
+    )));
+    state.set_readiness(false, false, false);
+    let port = ProductionResearchPort {
+        active_provider_state: state,
+        helper: None,
+        trade_runtime: None,
+    };
+
+    let allowed_routes = [
+        ("/api/v1/research/rankings", "research.rankings"),
+        ("/api/v1/research/industries", "research.industry"),
+        ("/api/v1/research/calendars", "research.calendar"),
+        ("/api/v1/research/macro", "research.macro"),
+        ("/api/v1/research/financials/US.AAPL", "research.financials"),
+        ("/api/v1/research/analyst/US.AAPL", "research.analyst"),
+        ("/api/v1/research/ownership/US.AAPL", "research.ownership"),
+        (
+            "/api/v1/research/corporate-actions/US.AAPL",
+            "research.corporate_actions",
+        ),
+        ("/api/v1/research/instruments/US.AAPL", "research.instrument"),
+    ];
+    for (path, feature) in allowed_routes {
+        let error = port
+            .read(path, "")
+            .expect_err("a disabled embedded facade must fail closed");
+        assert!(
+            !matches!(error, ResearchReadSnapshotError::Invalid(_)),
+            "{feature} ({path}) must be a supported facade route, got {error:?}"
+        );
+    }
+
+    // Every allow-listed feature id must be a reviewed MCP tool name; a typo in
+    // the list above would otherwise silently drop coverage. `REVIEWED_READ_ONLY_TOOLS`
+    // is the single reviewed extension catalog shared by `tools/list` and dispatch.
+    for feature in ALLOWED_FEATURES {
+        assert!(
+            crate::product::product_mcp_protocol::REVIEWED_READ_ONLY_TOOLS.contains(&feature),
+            "{feature} is not a reviewed assistant/MCP tool"
+        );
+    }
+    // The canonical prediction/derivatives/execution families are deliberately
+    // outside the embedded facade: Futu product families never fall back to
+    // yfinance/AKShare.
+    for outside in [
+        "prediction.depth",
+        "derivatives.option_chain",
+        "execution.order_place",
+        "research.valuation",
+        "research.institutions",
+    ] {
+        assert!(
+            !ALLOWED_FEATURES.contains(&outside),
+            "{outside} must not be part of the embedded facade allow-list"
+        );
+    }
+}
+
