@@ -197,3 +197,63 @@ jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`
   Go-owned Assistant runtime，本批只覆盖到达 Rust 生产端口的路由投影。
 - `internal/assistant/engine` 的 497 条 `[~]` 尚未逐条映射，是
   Assistant/ADK 领域下一批的主要缺口。
+
+## 第四批：ADK run input-response / cancel 路由错误码与标识符、查询编码边界
+
+范围（`internal/api/assistant`，共 5 条 `[~]` → `[x]`）：
+
+- `input_response_test.go:12 TestRunInputResponseErrorAndRetryContracts`
+- `routes_test.go:101 TestRunInputResponseContract`
+- `adk_routes_test.go:858 TestADKRunNegativeRoutes`
+- `routes_identifier_validation_test.go:12 TestAssistantRoutesRejectBlankDecodedIdentifiers`
+- `query_encoding_contracts_test.go:13 TestAssistantQueryRoutesRejectMalformedEncoding`
+
+### 本轮发现并修复的真实功能差异（3 处）
+
+1. `respond_to_input` 的 run 缺失分支原先返回
+   `404 ADK_INPUT_REQUEST_NOT_FOUND`；Go 的 `ResolveRunInput` 把缺失 run 包成
+   `ErrInputRequestNotFound`，而 `InputRequestErrorKind` 归类为 `not_found`，
+   handler 写成 `404 NOT_FOUND` + 包装消息。现改为
+   `404 NOT_FOUND` / `input request not found: {runId}`。
+   位置：`crates/jftrade-engine/src/product_production_ports_adk_mutation_runtime.rs::respond_to_input`。
+2. 同一函数的 `requestId` 与 run 上任何 input request 都不匹配时，原先返回
+   `404 ADK_INPUT_REQUEST_NOT_FOUND`；Go 的 `resolveRunInputState` 用
+   `ErrInputRequestConflict`，handler 映射为 `409 ADK_INPUT_RESPONSE_CONFLICT`。
+   现已改为 `409 ADK_INPUT_RESPONSE_CONFLICT` / `input request conflict: request does not match run`。
+3. `CancelRun` 的 run 缺失分支原先返回 `404 NOT_FOUND`；Go 的
+   `handleADKCancelRun` 把所有 runtime 错误统一包装为
+   `404 ADK_RUN_CANCEL_FAILED`（与 `GET /runs/{runId}` 保持的 `NOT_FOUND` 不同）。
+   现改为 `404 ADK_RUN_CANCEL_FAILED` / `run not found`。
+   位置：`crates/jftrade-engine/src/product_production_ports_adk_mutation_runs.rs`。
+
+### 新增 Rust 测试（本轮）
+
+- `crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_respond_to_input_maps_the_go_error_codes_and_retries`
+- `crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_run_input_response_route_accepts_then_conflicts`
+- `crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_cancel_run_missing_uses_the_go_cancel_error_code`
+- `crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_reject_blank_decoded_identifiers`
+- `crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_reject_malformed_query_encoding`
+- `crates/jftrade-engine/tests/adk_mutations_compatibility.rs::adk_mutation_routes_reject_blank_decoded_identifiers`
+
+### 探针（临时改坏实现 → 测试转红 → 还原）
+
+- `decode_query(query).map_err(|_| query_failure(route))?` →
+  `decode_query(query).unwrap_or_default()`：`adk_read_routes_reject_malformed_query_encoding` 转红。
+- `validate_path` 去掉 `decoded.trim().is_empty()`：`adk_read_routes_reject_blank_decoded_identifiers` 转红。
+- `decode_identifier` 去掉 `decoded.trim().is_empty()`：`adk_mutation_routes_reject_blank_decoded_identifiers` 转红（首轮探针误改 `raw.is_empty()` 分支，未命中，已重做）。
+- `respond_to_input` 两处错误码分支各自回滚：`adk_respond_to_input_maps_the_go_error_codes_and_retries` 转红。
+- `CancelRun` 回退为 `NOT_FOUND`：`adk_cancel_run_missing_uses_the_go_cancel_error_code` 转红。
+
+### 验证
+
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：1368 passed。
+- `pnpm run check:quick`（首轮因 `target/debug/deps` 的 `.rcgu.o` ≥ 50000 报 target-health 失败；确认无 cargo 进程后清理并重跑通过）
+- `pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`：全部通过。
+- 审计：710 function_exact / 2506 Rust tests；0 条非 function_exact 的 `[x]`，0 条重复 `[x]`。
+
+### 边界与保留
+
+- `internal/api/assistant/adk_integration_test.go:20 TestRealADKChatStreamWithSavedProvider`
+  仍需真实模型 Provider，保持 boundary。
+- `internal/api/assistant` 剩余 `[~]` 行（session/chat/SSE 流式与 approval 负路径等）
+  继续由下一批处理。

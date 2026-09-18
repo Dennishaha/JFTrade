@@ -3408,6 +3408,314 @@ fn adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope() {
     assert_eq!(deleted, json!({"deleted": true, "id": "provider-disabled"}));
 }
 
+/// Parity: go:452dea11:internal/api/assistant/routes_test.go:101
+/// TestRunInputResponseContract.
+///
+/// The route contract only needs a single question with `allowOther: true`:
+/// an unknown option is `400 ADK_INPUT_RESPONSE_INVALID`, the accepted answer
+/// is `200`, and a later different answer is `409 ADK_INPUT_RESPONSE_CONFLICT`.
+#[test]
+fn adk_run_input_response_route_accepts_then_conflicts() {
+    #[derive(Debug)]
+    struct ResumeRuntime;
+    impl AdkChatStreamPort for ResumeRuntime {
+        fn dispatch(
+            &self,
+            _: AdkChatRoute,
+            _: &AdkChatInput,
+        ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+            Ok(AdkChatPortOutput::Json(json!({"synthetic": true})))
+        }
+        fn resume_approval(&self, _: &str) -> Result<(), AdkChatPortError> {
+            Ok(())
+        }
+        fn runtime_ready(&self) -> bool {
+            true
+        }
+    }
+
+    let (port, store, directory) = setup_test_adk_mutation_port(Some(Arc::new(ResumeRuntime)));
+    let run_id = "run-input-contract";
+    let payload = json!({
+        "id": run_id,
+        "agentId": "agent-input-contract",
+        "status": "PENDING_INPUT",
+        "inputRequest": {
+            "id": "input-contract",
+            "status": "PENDING",
+            "questions": [{
+                "id": "q1",
+                "question": "Choose",
+                "allowOther": true,
+                "options": [
+                    {"id": "q1-o1", "label": "A"},
+                    {"id": "q1-o2", "label": "B"}
+                ]
+            }]
+        }
+    });
+    store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: run_id,
+            session_id: "session-input-contract",
+            agent_id: "agent-input-contract",
+            status: "PENDING_INPUT",
+            client_request_id: "client-input-contract",
+            request_fingerprint: "fingerprint-input-contract",
+            payload_json: &payload.to_string(),
+        })
+        .expect("persist pending-input run");
+
+    let respond = |body: Value| AdkMutationInput {
+        operation: AdkMutationOperation::RespondToInput,
+        identifiers: BTreeMap::from([("runId".to_owned(), run_id.to_owned())]),
+        body,
+        webhook_secret: None,
+    };
+
+    let error = port
+        .mutate(&respond(
+            json!({"requestId": "input-contract", "answers": [{"questionId": "q1", "optionId": "missing"}]}),
+        ))
+        .expect_err("an unknown option id must be rejected");
+    match error {
+        AdkMutationPortError::Failed { status, code, .. } => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "ADK_INPUT_RESPONSE_INVALID");
+        }
+        other => panic!("expected 400 ADK_INPUT_RESPONSE_INVALID, got {other:?}"),
+    }
+
+    let accepted = port
+        .mutate(&respond(
+            json!({"requestId": "input-contract", "answers": [{"questionId": "q1", "optionId": "q1-o2"}]}),
+        ))
+        .expect("a valid option must be accepted");
+    assert_eq!(accepted["request"]["status"], "ANSWERED");
+
+    let conflict = port
+        .mutate(&respond(
+            json!({"requestId": "input-contract", "answers": [{"questionId": "q1", "otherText": "different"}]}),
+        ))
+        .expect_err("a different answer must conflict");
+    match conflict {
+        AdkMutationPortError::Failed { status, code, .. } => {
+            assert_eq!(status, 409);
+            assert_eq!(code, "ADK_INPUT_RESPONSE_CONFLICT");
+        }
+        other => panic!("expected 409 ADK_INPUT_RESPONSE_CONFLICT, got {other:?}"),
+    }
+    drop(directory);
+}
+
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:858
+/// TestADKRunNegativeRoutes.
+///
+/// Go's run handlers use two different 404 shapes: `GET /runs/{runId}` answers
+/// the generic `NOT_FOUND` / "run not found", while `POST /runs/{runId}/cancel`
+/// wraps every runtime error under `ADK_RUN_CANCEL_FAILED`. The read route keeps
+/// that `NOT_FOUND` projection; this test pins the cancel route's dedicated code.
+#[test]
+fn adk_cancel_run_missing_uses_the_go_cancel_error_code() {
+    let (port, _directory) = unready_adk_port();
+
+    let error = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CancelRun,
+            identifiers: BTreeMap::from([("runId".to_owned(), "run-missing".to_owned())]),
+            body: json!({}),
+            webhook_secret: None,
+        })
+        .expect_err("cancelling a missing run must fail");
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 404);
+            assert_eq!(code, "ADK_RUN_CANCEL_FAILED");
+            assert_eq!(message, "run not found");
+        }
+        other => panic!("expected 404 ADK_RUN_CANCEL_FAILED, got {other:?}"),
+    }
+
+    // The read route keeps the generic notification code for the same run id.
+    let read_error = port.read("/api/v1/adk/runs/run-missing", "").expect_err(
+        "reading a missing run must fail",
+    );
+    match read_error {
+        AdkReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            ..
+        } => {
+            assert_eq!(status, 404);
+            assert_eq!(code, "NOT_FOUND");
+            assert_eq!(message, "run not found");
+        }
+        other => panic!("expected 404 NOT_FOUND, got {other:?}"),
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/input_response_test.go:12
+/// TestRunInputResponseErrorAndRetryContracts and
+/// internal/api/assistant/routes_test.go:101 TestRunInputResponseContract.
+///
+/// Go's `handleADKInputResponse` maps `InputRequestErrorKind` onto the wire:
+/// `invalid` -> `400 ADK_INPUT_RESPONSE_INVALID`, `not_found` -> a plain
+/// `404 NOT_FOUND` run error, `conflict` -> `409 ADK_INPUT_RESPONSE_CONFLICT`.
+/// A repeated identical submission stays `200` for idempotency.
+#[test]
+fn adk_respond_to_input_maps_the_go_error_codes_and_retries() {
+    #[derive(Debug)]
+    struct ResumeRuntime;
+    impl AdkChatStreamPort for ResumeRuntime {
+        fn dispatch(
+            &self,
+            _: AdkChatRoute,
+            _: &AdkChatInput,
+        ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+            Ok(AdkChatPortOutput::Json(json!({"synthetic": true})))
+        }
+        fn resume_approval(&self, _: &str) -> Result<(), AdkChatPortError> {
+            Ok(())
+        }
+        fn runtime_ready(&self) -> bool {
+            true
+        }
+    }
+
+    let (port, store, directory) =
+        setup_test_adk_mutation_port(Some(Arc::new(ResumeRuntime)));
+
+    // A missing run surfaces the wrapped `ErrInputRequestNotFound` message
+    // under the generic code, exactly like Go's handler switch.
+    let error = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::RespondToInput,
+            identifiers: BTreeMap::from([("runId".to_owned(), "missing-run".to_owned())]),
+            body: json!({"requestId": "input-errors", "answers": []}),
+            webhook_secret: None,
+        })
+        .expect_err("a missing run must not accept an input response");
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 404);
+            assert_eq!(code, "NOT_FOUND");
+            assert_eq!(message, "input request not found: missing-run");
+        }
+        other => panic!("expected 404 NOT_FOUND, got {other:?}"),
+    }
+
+    // A run whose stored payload has no matching input request is an invalid
+    // submission, not a missing resource.
+    let run_id = "run-input-response-errors";
+    let payload = json!({
+        "id": run_id,
+        "agentId": "fixture-agent",
+        "status": "PENDING_INPUT",
+        "inputRequest": {
+            "id": "input-errors",
+            "status": "PENDING",
+            "questions": [{
+                "id": "q1",
+                "question": "Choose",
+                "allowOther": false,
+                "options": [
+                    {"id": "q1-o1", "label": "A"},
+                    {"id": "q1-o2", "label": "B"}
+                ]
+            }]
+        }
+    });
+    store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: run_id,
+            session_id: "session-input-errors",
+            agent_id: "fixture-agent",
+            status: "PENDING_INPUT",
+            client_request_id: "client-input-errors",
+            request_fingerprint: "fingerprint-input-errors",
+            payload_json: &payload.to_string(),
+        })
+        .expect("persist pending-input run");
+
+    // Mismatched requestId -> 409 conflict under the input-response code.
+    let error = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::RespondToInput,
+            identifiers: BTreeMap::from([("runId".to_owned(), run_id.to_owned())]),
+            body: json!({
+                "requestId": "other-input",
+                "answers": [{"questionId": "q1", "optionId": "q1-o1"}],
+            }),
+            webhook_secret: None,
+        })
+        .expect_err("a mismatched request id must conflict");
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 409);
+            assert_eq!(code, "ADK_INPUT_RESPONSE_CONFLICT");
+            assert!(
+                message.contains("does not match"),
+                "unexpected conflict message {message}"
+            );
+        }
+        other => panic!("expected 409 ADK_INPUT_RESPONSE_CONFLICT, got {other:?}"),
+    }
+
+    // An answer the question does not allow -> 400 invalid.
+    let error = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::RespondToInput,
+            identifiers: BTreeMap::from([("runId".to_owned(), run_id.to_owned())]),
+            body: json!({
+                "requestId": "input-errors",
+                "answers": [{"questionId": "q1", "otherText": "custom"}],
+            }),
+            webhook_secret: None,
+        })
+        .expect_err("otherText must be rejected when allowOther is false");
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "ADK_INPUT_RESPONSE_INVALID");
+            assert_eq!(message, "q1 does not allow other text");
+        }
+        other => panic!("expected 400 ADK_INPUT_RESPONSE_INVALID, got {other:?}"),
+    }
+
+    // The accepted answer is idempotent on an identical retry.
+    let valid = AdkMutationInput {
+        operation: AdkMutationOperation::RespondToInput,
+        identifiers: BTreeMap::from([("runId".to_owned(), run_id.to_owned())]),
+        body: json!({
+            "requestId": "input-errors",
+            "answers": [{"questionId": "q1", "optionId": "q1-o2"}],
+        }),
+        webhook_secret: None,
+    };
+    let first = port.mutate(&valid).expect("valid input response");
+    let retry = port.mutate(&valid).expect("identical retry stays 200");
+    assert_eq!(first["request"]["status"], "ANSWERED");
+    assert_eq!(retry["request"]["status"], "ANSWERED");
+    assert_eq!(first, retry, "an identical retry must be idempotent");
+    drop(directory);
+}
 /// An installed external skill is removed together with its install directory,
 /// and a second uninstall reports the frozen missing-file projection instead of
 /// a synthetic 404.

@@ -92,8 +92,11 @@ pub(super) fn dispatch(
             if let Some(runtime) = port.chat_runtime.as_deref() {
                 runtime.cancel_run(&id);
             }
+            // Go's `CancelRun` wraps every runtime error with the dedicated
+            // cancel code, so a missing run answers `404 ADK_RUN_CANCEL_FAILED`
+            // rather than the generic `NOT_FOUND` used by the read route.
             let Some(existing) = port.store.get_run(&id).map_err(storage_mutation_failed)? else {
-                return Err(not_found_mutation("NOT_FOUND", "run not found"));
+                return Err(not_found_mutation("ADK_RUN_CANCEL_FAILED", "run not found"));
             };
             let status = existing.status.trim().to_ascii_uppercase();
             if !matches!(

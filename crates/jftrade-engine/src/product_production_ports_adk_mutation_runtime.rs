@@ -210,7 +210,13 @@ fn respond_to_input(
         .get_run(&run_id)
         .map_err(storage_mutation_failed)?
     else {
-        return Err(not_found_mutation("ADK_RUN_NOT_FOUND", "run not found"));
+        // Go wraps a missing run in `ErrInputRequestNotFound`, which the
+        // handler maps to a plain `404 NOT_FOUND` carrying the wrapped message
+        // instead of a run-specific code.
+        return Err(not_found_mutation(
+            "NOT_FOUND",
+            &format!("input request not found: {run_id}"),
+        ));
     };
     let mut payload = decode_mutation_payload(&existing.payload_json, "run")?;
     let object = payload
@@ -233,8 +239,11 @@ fn respond_to_input(
                     .cloned()
             });
     }
+    // Go treats a submitted `requestId` that matches no input request on the
+    // run as `ErrInputRequestConflict`, so the handler answers
+    // `409 ADK_INPUT_RESPONSE_CONFLICT`.
     let mut request = request.ok_or_else(|| {
-        not_found_mutation("ADK_INPUT_REQUEST_NOT_FOUND", "input request not found")
+        input_response_conflict("input request conflict: request does not match run")
     })?;
 
     let canonical_answers = validate_input_answers(&request, answers)?;

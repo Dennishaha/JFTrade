@@ -248,6 +248,58 @@ fn adk_mutation_leaf_preserves_trailing_json_and_webhook_secret_precedence() {
     assert_eq!(response.body["data"]["webhookSecret"], "legacy-secret");
 }
 
+/// Parity: go:452dea11:internal/api/assistant/routes_identifier_validation_test.go:12
+/// TestAssistantRoutesRejectBlankDecodedIdentifiers.
+///
+/// Go decodes URL parameters before the handler runs, so `%20` must never
+/// reach a persisted ADK identifier. Each identifier-bearing endpoint answers
+/// `400 BAD_REQUEST` before any port call, which keeps the blank-identifier
+/// contract identical across the whole mutation surface.
+#[test]
+fn adk_mutation_routes_reject_blank_decoded_identifiers() {
+    let cases = [
+        ("PUT", "/api/v1/adk/tasks/%20"),
+        ("DELETE", "/api/v1/adk/tasks/%20"),
+        ("DELETE", "/api/v1/adk/memory/%20"),
+        ("POST", "/api/v1/adk/providers/%20/test"),
+        ("POST", "/api/v1/adk/providers/%20/default"),
+        ("DELETE", "/api/v1/adk/providers/%20"),
+        ("PUT", "/api/v1/adk/providers/%20"),
+        ("DELETE", "/api/v1/adk/agents/%20"),
+        ("PUT", "/api/v1/adk/agents/%20"),
+        ("DELETE", "/api/v1/adk/skills/%20"),
+        ("POST", "/api/v1/adk/sessions/%20/context/compact"),
+        ("PATCH", "/api/v1/adk/sessions/%20/composer-state"),
+        ("PUT", "/api/v1/adk/sessions/%20"),
+        ("DELETE", "/api/v1/adk/sessions/%20"),
+        ("PATCH", "/api/v1/adk/runs/%20/objective"),
+        ("POST", "/api/v1/adk/runs/%20/pause"),
+        ("POST", "/api/v1/adk/runs/%20/resume"),
+        ("POST", "/api/v1/adk/runs/%20/input-response"),
+        ("POST", "/api/v1/adk/runs/%20/cancel"),
+        ("POST", "/api/v1/adk/approvals/%20/approve"),
+        ("POST", "/api/v1/adk/approvals/%20/deny"),
+        ("POST", "/api/v1/adk/optimization-tasks/%20/cancel"),
+        ("PUT", "/api/v1/adk/workflows/%20"),
+        ("DELETE", "/api/v1/adk/workflows/%20"),
+        ("POST", "/api/v1/adk/workflows/%20/run"),
+        ("POST", "/api/v1/adk/workflows/%20/triggers"),
+        ("PUT", "/api/v1/adk/workflows/%20/triggers/trigger-1"),
+        ("DELETE", "/api/v1/adk/workflows/%20/triggers/trigger-1"),
+        ("POST", "/api/v1/adk/workflow-triggers/%20/run"),
+        ("POST", "/api/v1/adk/workflow-webhooks/%20"),
+    ];
+    for (method, path) in cases {
+        let req = request_with_body(method, path, br#"{"requestId":"x"}"#);
+        let response = dispatch_adk_mutation(&req, None, FIXTURE_TIMESTAMP);
+        assert_eq!(response.status, 400, "route {method} {path}");
+        assert_eq!(
+            response.body["error"]["code"], "BAD_REQUEST",
+            "route {method} {path} error code"
+        );
+    }
+}
+
 #[test]
 fn adk_provider_save_preserves_request_timeout_ms() {
     // Parity: internal/api/assistant/adk_routes_test.go:597 TestADKProviderSaveReturnsRequestTimeoutMs

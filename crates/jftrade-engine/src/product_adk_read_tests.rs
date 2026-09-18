@@ -853,3 +853,77 @@ fn adk_approvals_route_filters_by_status_and_agent_id() {
     assert_eq!(approvals[0]["id"], "approval-a");
     assert_eq!(value["page"]["total"], 1, "filtered approvals total");
 }
+
+/// Parity: go:452dea11:internal/api/assistant/query_encoding_contracts_test.go:13
+/// TestAssistantQueryRoutesRejectMalformedEncoding.
+///
+/// `net/url` silently drops malformed percent escapes, so Go validates the raw
+/// query before binding it: `%zz` must answer `400 BAD_REQUEST` instead of
+/// looking like an empty filter set. The Rust read surface keeps that contract
+/// for every query-bearing endpoint, before the snapshot port is consulted.
+#[test]
+fn adk_read_routes_reject_malformed_query_encoding() {
+    for (path, resource) in [
+        ("/api/v1/adk/tasks", "tasks"),
+        ("/api/v1/adk/memory", "memory"),
+        ("/api/v1/adk/agents", "agents"),
+        ("/api/v1/adk/workflows", "workflows"),
+        ("/api/v1/adk/workflow-trigger-logs", "workflow trigger logs"),
+        ("/api/v1/adk/audit", "audit"),
+        ("/api/v1/adk/optimization-tasks", "optimization tasks"),
+        ("/api/v1/adk/sessions", "sessions"),
+        ("/api/v1/adk/runs", "runs"),
+        ("/api/v1/adk/approvals", "approvals"),
+    ] {
+        let failure = dispatch_adk_read(Some(&UnreachableAdkReadPort), "GET", path, "%zz")
+            .expect_err("malformed query encoding must fail closed");
+        assert_eq!(failure.status, 400, "path {path}");
+        assert_eq!(failure.code, "BAD_REQUEST", "path {path}");
+        assert_eq!(
+            failure.message,
+            format!("invalid {resource} query"),
+            "path {path}"
+        );
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_identifier_validation_test.go:12
+/// TestAssistantRoutesRejectBlankDecodedIdentifiers (read endpoints).
+///
+/// URL parameters are decoded before the handler runs, so `%20` must never be
+/// treated as a real ADK identifier on the read surface either.
+#[test]
+fn adk_read_routes_reject_blank_decoded_identifiers() {
+    for (path, label) in [
+        ("/api/v1/adk/tasks/%20", "taskId"),
+        ("/api/v1/adk/sessions/%20", "sessionId"),
+        ("/api/v1/adk/sessions/%20/context", "sessionId"),
+        ("/api/v1/adk/streams/%20", "streamId"),
+        ("/api/v1/adk/runs/%20/stream", "runId"),
+        ("/api/v1/adk/runs/%20", "runId"),
+        ("/api/v1/adk/optimization-tasks/%20", "taskId"),
+        ("/api/v1/adk/workflows/%20", "workflowId"),
+        ("/api/v1/adk/workflows/%20/triggers", "workflowId"),
+    ] {
+        let failure = dispatch_adk_read(Some(&UnreachableAdkReadPort), "GET", path, "")
+            .expect_err("a blank decoded identifier must fail closed");
+        assert_eq!(failure.status, 400, "path {path}");
+        assert_eq!(failure.code, "BAD_REQUEST", "path {path}");
+        assert_eq!(
+            failure.message,
+            format!("{label} is invalid"),
+            "path {path}"
+        );
+    }
+}
+
+/// Read port that always answers successfully; any assertion above proves the
+/// route validation ran before the port was consulted.
+#[derive(Debug)]
+struct UnreachableAdkReadPort;
+
+impl AdkReadSnapshotPort for UnreachableAdkReadPort {
+    fn read(&self, _path: &str, _query: &str) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
+        Ok(AdkReadSnapshot::Json(json!({"unexpected": true})))
+    }
+}

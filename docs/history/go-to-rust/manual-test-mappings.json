@@ -273,11 +273,11 @@
     "evidence_type": "partial"
   },
   "internal/api/assistant/adk_routes_test.go:858:TestADKRunNegativeRoutes": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_dynamic_routes_validate_suffixes_and_identifiers；crates/jftrade-engine/src/product_production_assembly_tests.rs::tests::production_adk_goal_pause_and_resume_are_persisted_atomically",
-    "conclusion": "partial：run 缺失 404 NOT_FOUND 与非法标识符 400 有证据，但 Go 的多路由负路径矩阵（detail/stream/input-response 等）未逐条断言。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_cancel_run_missing_uses_the_go_cancel_error_code",
+    "conclusion": "function_exact：Go 的 cancel 路由把所有 runtime 错误包装成 404 ADK_RUN_CANCEL_FAILED，而 GET run 保持 404 NOT_FOUND。原 Rust 两处都用 NOT_FOUND，本轮修复 product_production_ports_adk_mutation_runs.rs::CancelRun 改用 ADK_RUN_CANCEL_FAILED；新测试同时断言 cancel=ADK_RUN_CANCEL_FAILED 与 read=NOT_FOUND 两条 404 形状。非法标识符 400 \"runId is invalid\" 由 adk_mutation_routes_reject_blank_decoded_identifiers 覆盖（apply_patch 探针确认）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:911:TestADKApprovalNegativeAndIdempotentRoutes": {
     "status": "[~]",
@@ -413,18 +413,18 @@
     "evidence_type": "partial"
   },
   "internal/api/assistant/input_response_test.go:12:TestRunInputResponseErrorAndRetryContracts": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_respond_to_input_maps_the_go_error_codes_and_retries",
+    "conclusion": "function_exact：原 Rust 在 run 缺失与 requestId 不匹配时都返回 ADK_INPUT_REQUEST_NOT_FOUND，与 Go 的 InputRequestErrorKind 分派不一致。修复 product_production_ports_adk_mutation_runtime.rs::respond_to_input：run 缺失改为 404 NOT_FOUND/\"input request not found: {runId}\"，requestId 不匹配改为 409 ADK_INPUT_RESPONSE_CONFLICT；同测试覆盖 400 ADK_INPUT_RESPONSE_INVALID（q1 does not allow other text）与相同答案重试幂等 200。探针回滚两处分支均使测试失败。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/query_encoding_contracts_test.go:13:TestAssistantQueryRoutesRejectMalformedEncoding": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_reject_malformed_query_encoding",
+    "conclusion": "function_exact：10 条查询端点上的 %zz 全部 400 BAD_REQUEST，且消息与 Go 保持一致（invalid tasks/approvals/runs/... query）；探针把 decode_query 失败改成 unwrap_or_default 后测试转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_boundary_contracts_test.go:15:TestAssistantRoutesReturnUnavailableWhenRuntimeMissing": {
     "status": "[~]",
@@ -483,11 +483,11 @@
     "evidence_type": "missing"
   },
   "internal/api/assistant/routes_identifier_validation_test.go:12:TestAssistantRoutesRejectBlankDecodedIdentifiers": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/adk_mutations_compatibility.rs::adk_mutation_routes_reject_blank_decoded_identifiers",
+    "conclusion": "function_exact：30 条 mutation 路由在 %20 上全部 400 BAD_REQUEST；读侧 9 条由 crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_reject_blank_decoded_identifiers 覆盖（taskId/sessionId/streamId/runId/workflowId 各自的消息）。探针把 decode_identifier 的 trimmed-empty 判断去掉后测试转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_payload_pagination_test.go:12:TestAssistantChatRoutesRejectMalformedOrUnresolvableRequests": {
     "status": "[~]",
@@ -581,11 +581,11 @@
     "evidence_type": "missing"
   },
   "internal/api/assistant/routes_test.go:101:TestRunInputResponseContract": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_run_input_response_route_accepts_then_conflicts",
+    "conclusion": "function_exact：Go routes_test.go 的 invalid->400 / valid->200 / conflict->409 契约由该测试逐条断言（选项 id 未知、allowOther=true 时用其他答案成功、随后不同答案冲突）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_test.go:136:TestChatStreamHubReplayAndCleanupBoundaries": {
     "status": "[~]",
