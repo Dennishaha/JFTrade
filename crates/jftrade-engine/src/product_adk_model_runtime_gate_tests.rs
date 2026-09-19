@@ -336,3 +336,63 @@ fn agent_unavailable_reason_prefers_status_over_the_delete_marker() {
         "agent is disabled"
     );
 }
+
+/// Go's `FirstToolCallFailure` picks the first TIMED_OUT/FAILED/CANCELLED tool
+/// call and falls back to a status-derived message when the call carries no
+/// error text.  `RUNNING`/`PENDING_APPROVAL` calls are not failures.
+#[test]
+fn first_tool_call_failure_matches_the_go_selection_rules() {
+    let failure = |payload: serde_json::Value| super::first_tool_call_failure(&payload.to_string());
+
+    // A clean run reports no failure, which keeps `degraded` false.
+    assert_eq!(failure(json!({"toolCalls": []})), None);
+    assert_eq!(failure(json!({})), None);
+    assert_eq!(
+        failure(json!({"toolCalls": [
+            {"id": "call-1", "status": "SUCCEEDED"},
+            {"id": "call-2", "status": "RUNNING"},
+            {"id": "call-3", "status": "PENDING_APPROVAL"},
+        ]})),
+        None,
+        "only terminal tool failures mark a run degraded"
+    );
+
+    // The call's own error text wins, matching `ToolCallFailureMessage`.
+    assert_eq!(
+        failure(json!({"toolCalls": [
+            {"id": "call-1", "status": "SUCCEEDED"},
+            {"id": "call-2", "status": "FAILED", "error": "disk full"},
+        ]})),
+        Some("disk full".to_owned())
+    );
+    // The first failing call wins, in list order.
+    assert_eq!(
+        failure(json!({"toolCalls": [
+            {"id": "call-1", "status": "TIMED_OUT", "error": "first"},
+            {"id": "call-2", "status": "FAILED", "error": "second"},
+        ]})),
+        Some("first".to_owned())
+    );
+    // A blank/missing error falls back to the status-derived message.
+    assert_eq!(
+        failure(json!({"toolCalls": [{"id": "c", "status": "FAILED", "error": "   "}]})),
+        Some("tool execution failed".to_owned())
+    );
+    assert_eq!(
+        failure(json!({"toolCalls": [{"id": "c", "status": "TIMED_OUT"}]})),
+        Some("tool execution timed out".to_owned())
+    );
+    assert_eq!(
+        failure(json!({"toolCalls": [{"id": "c", "status": "CANCELLED"}]})),
+        Some("tool execution cancelled".to_owned())
+    );
+    // Status matching is case-insensitive, like Go's ToUpper/TrimSpace.
+    assert_eq!(
+        failure(json!({"toolCalls": [{"id": "c", "status": " failed ", "error": "boom"}]})),
+        Some("boom".to_owned())
+    );
+    assert_eq!(
+        failure(json!({"toolCalls": [{"id": "c", "status": "failed"}]})),
+        Some("tool execution failed".to_owned())
+    );
+}

@@ -13,7 +13,7 @@ equivalence and it never edits the inventory. For each ``missing`` row it
 gathers signals and assigns a review class:
 
 ``anchor_present``
-    A Rust test already carries ``// Parity:`` for this exact Go test. Strongest
+    A Rust test already carries ``// Parity:`` for this exact reference test. Strongest
     signal: the mapping is written in code and only needs review to be recorded.
 ``candidate_test_found``
     Rust tests exist whose names share enough vocabulary to be plausible
@@ -52,7 +52,7 @@ _RUST_TEST = re.compile(
     re.S,
 )
 
-# Words that carry no discriminating power between a Go test name and a Rust
+# Words that carry no discriminating power between a reference test name and a Rust
 # test name; leaving them in would inflate similarity.
 _STOPWORDS = frozenset({
     "test", "tests", "behavior", "behaviour", "case", "cases", "works",
@@ -79,7 +79,7 @@ def rust_test_index() -> dict:
 
 
 def go_name_tokens(go_test: str) -> set:
-    """Split a Go test name into comparable lowercase words."""
+    """Split a reference test name into comparable lowercase words."""
     name = go_test[4:] if go_test.startswith("Test") else go_test
     # CamelCase boundaries, then acronym boundaries (e.g. KLine -> k_line).
     name = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', name)

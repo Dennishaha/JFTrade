@@ -487,14 +487,34 @@ impl ProductionAdkChatRuntime {
             })
             .unwrap_or_else(|| json!({"id": chat.session_id, "agentId": chat.agent_id}));
         let text = model_response.text;
+        // Go's `MarkCompletedChatRun` keeps a run COMPLETED even when a tool
+        // call failed, and records that shape with `degraded: true` derived
+        // from the first TIMED_OUT/FAILED/CANCELLED tool call.  The flag is
+        // what tells the console the reply is usable but partial.
+        let degraded = super::first_tool_call_failure(&run.payload_json).is_some();
+        // Go projects the stored run (including its tool calls) into the chat
+        // envelope, so a failed tool stays visible on the returned run while
+        // the run-level `failureReason`/`errorCode` stay empty.
+        let stored: Value = serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
+        let tool_calls = stored
+            .get("toolCalls")
+            .cloned()
+            .unwrap_or_else(|| Value::Array(Vec::new()));
         let run_value = json!({
             "id": chat.run_id,
             "sessionId": chat.session_id,
             "agentId": chat.agent_id,
             "status": "COMPLETED",
-            "message": text.clone(),
+            // Go's `MarkCompletedChatRun` writes the fixed literal
+            // "completed" to `Run.Message`; the assistant text lives in
+            // `reply`.
+            "message": "completed",
             "reply": text.clone(),
             "pendingApprovals": [],
+            "toolCalls": tool_calls.clone(),
+            "failureReason": "",
+            "errorCode": "",
+            "degraded": degraded,
             "createdAt": run.created_at,
             "updatedAt": now,
         });
@@ -518,8 +538,17 @@ impl ProductionAdkChatRuntime {
         payload["agentId"] = Value::String(chat.agent_id.clone());
         payload["status"] = Value::String("COMPLETED".to_owned());
         payload["reply"] = Value::String(text.clone());
+        payload["message"] = Value::String("completed".to_owned());
+        payload["degraded"] = Value::Bool(degraded);
         if let Some(object) = payload.as_object_mut() {
             object.remove("providerRetry");
+            // `MarkCompletedChatRun` clears the run-level failure projection;
+            // the tool failure remains visible on `toolCalls` only.
+            object.insert("failureReason".to_owned(), Value::String(String::new()));
+            object.insert("errorCode".to_owned(), Value::String(String::new()));
+            object.insert("errorMessage".to_owned(), Value::String(String::new()));
+            object.remove("errorStatus");
+            object.insert("pendingApprovals".to_owned(), Value::Array(Vec::new()));
         }
         payload["response"] = response.clone();
         let mut final_sequence = None;
@@ -663,6 +692,10 @@ impl ProductionAdkChatRuntime {
         payload["errorStatus"] = Value::from(error_status);
         payload["errorCode"] = Value::String(error_code);
         payload["errorMessage"] = Value::String(error_message);
+        // Go's `MarkFailedChatRun` sets `Degraded = true` on every terminal
+        // failure, so the console can distinguish an interrupted run from a
+        // clean one when it renders the failure envelope.
+        payload["degraded"] = Value::Bool(true);
         if let Some(object) = payload.as_object_mut() {
             object.remove("providerRetry");
         }

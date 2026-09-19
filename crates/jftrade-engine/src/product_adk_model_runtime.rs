@@ -50,6 +50,10 @@ mod takeover_tests;
 #[path = "product_adk_model_runtime_gate_tests.rs"]
 mod gate_tests;
 
+#[cfg(test)]
+#[path = "product_adk_model_runtime_tool_failure_tests.rs"]
+mod tool_failure_tests;
+
 const MAX_RESPONSE_BYTES: usize = 4 << 20;
 const DEFAULT_TIMEOUT_MS: u64 = 120_000;
 /// Go `assistantmodel.MaxMessageLength`: a chat message longer than this many

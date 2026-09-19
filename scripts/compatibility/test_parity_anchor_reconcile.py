@@ -56,7 +56,7 @@ class AnchorCollectionTest(unittest.TestCase):
 
     def test_production_file_reference_is_not_an_anchor(self) -> None:
         # `//! Parity: internal/marketdata/service.go::GetCandles` names
-        # implementation, not a Go test, and must be ignored.
+        # implementation, not a reference test, and must be ignored.
         anchors = self.collect("//! Parity: `internal/marketdata/service.go::GetCandles`\n")
         self.assertEqual({}, dict(anchors))
 

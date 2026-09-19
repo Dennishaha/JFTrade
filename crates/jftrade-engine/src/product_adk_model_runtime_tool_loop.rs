@@ -113,8 +113,12 @@ impl ProductionAdkChatRuntime {
                                 if invocation.status.eq_ignore_ascii_case("SUCCEEDED") {
                                     Ok(value)
                                 } else {
-                                    Err(tool_unavailable(format!(
-                                        "tool {} has a persisted failed outcome",
+                                    // Go replays a persisted terminal result
+                                    // verbatim, so a previously failed tool
+                                    // reports the same failure again instead
+                                    // of being retried.
+                                    Err(tool_failed(format!(
+                                        "tool {} returned a persisted failed outcome",
                                         invocation.tool_name
                                     )))
                                 }
@@ -137,10 +141,14 @@ impl ProductionAdkChatRuntime {
                                 return;
                             }
                         };
+                        // Go maps an executor error onto the tool call with
+                        // `ToolCallFailureMessage`, so the plain error text is
+                        // what lands in `ToolCall.Error`; only the caller's
+                        // unavailable/conflict wrappers keep a code prefix.
                         let outcome = self
                             .tool_executor
                             .execute(&name, &arguments)
-                            .map_err(tool_unavailable);
+                            .map_err(tool_failed);
                         if heartbeat.stop() || run_lease.is_lost() {
                             return;
                         }
@@ -185,15 +193,30 @@ impl ProductionAdkChatRuntime {
                         }
                     }
                     Err(error) => {
-                        // Persist an explicit unavailable result before
-                        // transitioning the run; never fake a successful tool.
+                        // Go keeps the run alive when only a tool failed.
+                        // `afterToolCallback` records the FAILED call and
+                        // swallows the error, so the model keeps its turn and
+                        // the run still terminates COMPLETED with
+                        // `degraded: true` derived from `FirstToolCallFailure`.
+                        // Persist the visible failure, then let the loop
+                        // continue instead of failing the run.
+                        // Go's `toolErrorEnvelope` keeps the raw error text on
+                        // `error.message` and classifies it through
+                        // `classifyToolError`, while the model-facing
+                        // `message` carries the verb prefix.  `ToolCall.Error`
+                        // is the raw text on both tool-failure paths.
+                        let failure_text = tool_error_text(&error);
+                        let (failure_code, retryable) = classify_tool_failure(&error);
                         let result = json!({
-                            "ok": false,
+                            "success": false,
+                            "message": format!("工具 {name} 执行失败: {failure_text}"),
                             "error": {
-                                "code": "ADK_TOOL_UNAVAILABLE",
-                                "message": format_adk_error(&error),
-                                "status": 503,
-                            }
+                                "code": failure_code,
+                                "message": failure_text,
+                                "retryable": retryable,
+                            },
+                            "errorCode": failure_code,
+                            "retryable": retryable,
                         });
                         if let Err(commit_error) = self.persist_tool_result(
                             &chat,
@@ -210,10 +233,6 @@ impl ProductionAdkChatRuntime {
                             }
                             return;
                         }
-                        if !is_nonfatal_durable_error(&error) {
-                            let _ = self.persist_failure(&chat, &error, &run_lease);
-                        }
-                        return;
                     }
                 }
             }
@@ -430,13 +449,25 @@ impl ProductionAdkChatRuntime {
                         "completedAt".to_owned(),
                         Value::String(run.updated_at.clone()),
                     );
-                    if status != "SUCCEEDED" {
+                    if status.eq_ignore_ascii_case("SUCCEEDED") {
+                        // A later successful attempt clears the previous
+                        // failure so the projection never mixes both.
+                        item.remove("error");
+                        item.remove("errorCode");
+                    } else {
+                        // Go surfaces the tool failure on the run itself:
+                        // `ToolCall.Error` carries the message and
+                        // `FailureReason`/`ErrorCode` stay empty at run level.
+                        item.insert(
+                            "error".to_owned(),
+                            Value::String(tool_result_error_message(&output)),
+                        );
                         item.insert(
                             "errorCode".to_owned(),
                             Value::String(if status == "UNKNOWN" {
                                 "ADK_TOOL_OUTCOME_UNKNOWN".to_owned()
                             } else {
-                                "ADK_TOOL_UNAVAILABLE".to_owned()
+                                tool_result_error_code(&output)
                             }),
                         );
                     }
@@ -588,4 +619,91 @@ fn tool_unavailable(message: impl Into<String>) -> AdkChatPortError {
         code: "ADK_TOOL_UNAVAILABLE".to_owned(),
         message: message.into(),
     }
+}
+
+/// A tool-level failure that must stay visible on the run without failing it.
+/// Go classifies these through `ClassifyToolError`/`ClassifyToolErrorText` and
+/// records them on the `ToolCall`, so callers read the message from the run's
+/// tool list instead of a run-level error envelope.
+fn tool_failed(message: impl Into<String>) -> AdkChatPortError {
+    AdkChatPortError::Failed {
+        status: 503,
+        code: "TOOL_EXECUTION_FAILED".to_owned(),
+        message: message.into(),
+    }
+}
+
+/// The raw text Go persists on the tool call for any `AdkChatPortError`
+/// variant.  `Unavailable`/`Conflict` carry no code prefix, matching their
+/// `error.Error()` rendering.
+fn tool_error_text(error: &AdkChatPortError) -> String {
+    match error {
+        AdkChatPortError::Unavailable(message) | AdkChatPortError::Conflict(message) => {
+            message.clone()
+        }
+        AdkChatPortError::Failed { message, .. } => message.clone(),
+    }
+}
+
+/// Go's `classifyToolError`: execution failures default to
+/// `TOOL_EXECUTION_FAILED`, while timeouts, cancellations, unknown outcomes
+/// and lost run leases carry their own code and retryability.
+fn classify_tool_failure(error: &AdkChatPortError) -> (&'static str, bool) {
+    match error {
+        AdkChatPortError::Failed { code, .. } => match code.as_str() {
+            "MODEL_CALL_TIMEOUT" => ("TIMEOUT", true),
+            "RUN_CANCELLED" | "CLIENT_DISCONNECTED" => ("CANCELLED", false),
+            "ADK_TOOL_OUTCOME_UNKNOWN" => ("SUBMISSION_UNKNOWN", false),
+            "ADK_RUN_LEASE_LOST" => ("RUN_LEASE_LOST", true),
+            _ => ("TOOL_EXECUTION_FAILED", false),
+        },
+        _ => ("TOOL_EXECUTION_FAILED", false),
+    }
+}
+
+/// The failure text Go records on `ToolCall.Error`.
+///
+/// Go has two tool-failure paths and both end at the raw error text: a tool
+/// executor error is classified through `classifyToolExecutionError`, and a
+/// structured `{"success":false}` response is classified through
+/// `structuredToolErrorEnvelope`, whose nested `error.message` is that same
+/// raw text.  The envelope's top-level `message` is only the model-facing
+/// description (`工具 <name> 执行失败: <raw>`), so the nested value wins here.
+fn tool_result_error_message(output: &Value) -> String {
+    output
+        .pointer("/error/message")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|message| !message.is_empty())
+        .or_else(|| {
+            output
+                .get("message")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|message| !message.is_empty())
+        })
+        .map(str::to_owned)
+        .unwrap_or_else(|| {
+            output
+                .pointer("/error")
+                .filter(|error| error.is_string())
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|message| !message.is_empty())
+                .unwrap_or("tool execution failed")
+                .to_owned()
+        })
+}
+
+/// The persisted tool-call `errorCode`, mirroring Go's `classifyToolError` /
+/// `structuredToolErrorMetadata` projection.
+fn tool_result_error_code(output: &Value) -> String {
+    output
+        .pointer("/error/code")
+        .or_else(|| output.get("errorCode"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|code| !code.is_empty())
+        .map(|code| code.to_ascii_uppercase())
+        .unwrap_or_else(|| "TOOL_EXECUTION_FAILED".to_owned())
 }

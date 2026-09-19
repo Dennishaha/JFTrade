@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Reconcile Rust ``// Parity:`` anchors against the Go→Rust parity inventory.
 
-The inventory in ``manual-test-mappings.json`` records, per Go test, which Rust
+The inventory in ``manual-test-mappings.json`` records, per reference test, which Rust
 test proves the same behaviour. Several Rust tests already carry an explicit
 ``// Parity: <go file>:<line>`` anchor, but the inventory can still list the Go
 test as ``missing`` — the mapping exists in code yet was never recorded. This
@@ -37,7 +37,7 @@ DEFAULT_INVENTORY = "docs/history/go-to-rust/manual-test-mappings.json"
 _PARITY_MARKER = re.compile(r'Parity:\s*')
 
 # Everything after a ``Parity:`` marker is scanned for test references so a
-# single marker listing more than one Go test cannot silently lose anchors.
+# single marker listing more than one reference test cannot silently lose anchors.
 _ANCHOR_REFERENCE = re.compile(
     r'((?:internal|pkg|cmd)/[^\s:]+_test\.go):(\d+)'
     r'(?:\s+(Test[A-Za-z0-9_]+))?'
@@ -47,7 +47,7 @@ _GO_REVISION_PREFIX = re.compile(r'go:[0-9a-f]{6,40}:')
 
 # ``Parity:`` also introduces prose about production files, for example
 # ``//! Parity: `internal/marketdata/service.go::GetCandles```. Those lines name
-# implementation, not a Go test, and must not be treated as anchors.
+# implementation, not a reference test, and must not be treated as anchors.
 _TEST_FILE_SUFFIX = "_test.go"
 
 
@@ -149,7 +149,7 @@ def reconcile(inventory: dict, anchors: dict) -> dict:
 
 
 def anchor_test_matches(entry: dict) -> bool:
-    """Return True when every anchor names the inventory's Go test function.
+    """Return True when every anchor names the inventory's reference test function.
 
     An anchor without an explicit test name cannot be checked, so it counts as
     matching; an anchor naming a different function does not.
