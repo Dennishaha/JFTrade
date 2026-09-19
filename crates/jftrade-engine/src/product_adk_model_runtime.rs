@@ -46,8 +46,21 @@ mod fencing_tests;
 #[path = "product_adk_model_runtime_takeover_tests.rs"]
 mod takeover_tests;
 
+#[cfg(test)]
+#[path = "product_adk_model_runtime_gate_tests.rs"]
+mod gate_tests;
+
 const MAX_RESPONSE_BYTES: usize = 4 << 20;
 const DEFAULT_TIMEOUT_MS: u64 = 120_000;
+/// Go `assistantmodel.MaxMessageLength`: a chat message longer than this many
+/// runes is rejected before any run is created.
+const MAX_MESSAGE_LENGTH: usize = 50_000;
+/// Go `assistantmodel.MaxConcurrentRuns`: the runtime admits at most this many
+/// live chat runs.  Go's `Runtime.prepareChatRequest` uses a non-blocking
+/// channel send, so the request after the limit is rejected with
+/// "maximum concurrent runs (10) reached, please try again later" instead of
+/// queueing behind the current runs.
+const MAX_CONCURRENT_RUNS: usize = 10;
 const DEFAULT_BUILTIN_AGENT_ID: &str = "jftrade-default";
 const DEFAULT_BUILTIN_AGENT_INSTRUCTION: &str = "你是 JFTrade 投资分析 agent。优先使用内部行情、账户、策略和回测工具；涉及安装 skill、保存策略、运行优化或改变自动化状态时遵守当前审批等级。输出必须说明使用了哪些数据来源，不提供保证收益承诺。\n\n对目标明确的任务，要在当前运行中连续完成诊断、结论以及直接相关的可执行方案。安全、只读且能从现有上下文合理推断的下一步，必须直接完成；不得用‘你想先做哪项’、‘你更想看哪部分’、‘是否继续’或‘如果需要我可以继续’把它留给用户。多个安全分支都直接服务原始意图时，采用推荐默认值或合并覆盖，不得仅为减少工作量要求用户选择。\n\n只有三类真正阻塞情况可以调用 interaction.request_user：缺少只有用户才能提供的必要信息、存在无法合并的重大取舍，或继续会越过权限/任务范围边界。提问时必须如实填写 decisionKind 和 blockingReason。实际写操作仍走审批流程，不得用提问工具替代授权。\n\n收到 interaction.request_user 的回答后，回答只是解除阻塞，必须继续完成原始请求，而不是总结或复述计划后结束运行。";
 
@@ -60,6 +73,9 @@ pub(crate) struct ProductionAdkChatRuntime {
     tool_catalog: Arc<crate::product::product_production_ports::ProductionToolCatalog>,
     tool_executor: Arc<dyn AdkToolExecutor>,
     pub(crate) continuation_supervisor: Arc<ContinuationSupervisor>,
+    /// Process-wide admission gate shared by every facade derived from this
+    /// runtime, mirroring Go's single `Runtime.runSem`.
+    run_gate: Arc<RunGate>,
     /// Process-wide supervisor for durable RUNNING runs whose model provider
     /// temporarily failed.  This is optional only on short-lived runtime
     /// facades created by continuation workers; the production root always
@@ -123,6 +139,61 @@ impl RunCancellationRegistry {
                 }
             }
         }
+    }
+}
+
+/// Go's `Runtime.runSem` admission gate for live chat runs.
+///
+/// The gate is deliberately non-blocking: Go's `prepareChatRequest` performs a
+/// `select` with a `default` arm, so an over-limit request fails immediately
+/// with `maximum concurrent runs (N) reached, please try again later` rather
+/// than waiting for a slot.
+#[derive(Debug, Default)]
+pub(crate) struct RunGate {
+    active: Mutex<usize>,
+}
+
+/// RAII slot held for the whole lifetime of one admitted chat run.
+#[derive(Debug)]
+pub(crate) struct RunGateGuard {
+    gate: Arc<RunGate>,
+}
+
+impl RunGate {
+    fn try_acquire(self: &Arc<Self>) -> Result<RunGateGuard, AdkChatPortError> {
+        let mut active = self
+            .active
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if *active >= MAX_CONCURRENT_RUNS {
+            return Err(chat_failed(format!(
+                "maximum concurrent runs ({MAX_CONCURRENT_RUNS}) reached, please try again later"
+            )));
+        }
+        *active += 1;
+        Ok(RunGateGuard {
+            gate: Arc::clone(self),
+        })
+    }
+
+    /// Currently admitted runs; used by the concurrency regression tests.
+    #[cfg(test)]
+    pub(crate) fn active(&self) -> usize {
+        *self
+            .active
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+    }
+}
+
+impl Drop for RunGateGuard {
+    fn drop(&mut self) {
+        let mut active = self
+            .gate
+            .active
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        *active = active.saturating_sub(1);
     }
 }
 
@@ -604,7 +675,9 @@ impl Drop for RunLeaseGuard {
 #[derive(Debug)]
 enum PreparedChat {
     Existing(AdkChatPortOutput),
-    New(ChatExecution, RunLeaseGuard),
+    /// `New` carries the durable run lease plus Go's `Runtime.runSem` slot, so
+    /// the slot stays held for exactly the lifetime of one admitted run.
+    New(ChatExecution, RunLeaseGuard, RunGateGuard),
 }
 
 #[derive(Clone, Debug)]

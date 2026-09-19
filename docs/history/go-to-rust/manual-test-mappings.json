@@ -490,18 +490,18 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_payload_pagination_test.go:12:TestAssistantChatRoutesRejectMalformedOrUnresolvableRequests": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_chat_route_reports_the_go_error_classification",
+    "conclusion": "function_exact：agentId 缺失时走内建 agent 的 Provider 回退（Go DefaultProvider 取第一个 Provider），空 message 报 400 ADK_CHAT_FAILED/message is required，未知 agent 报 agent not found，DISABLED 与 deletedAt 组合按 Go 先判 status 报 agent is disabled，只有 deletedAt 报 agent is deleted；provider 禁用 / 无 key 分别报 agent provider is unavailable 与 agent provider API keys is not configured；50000 rune 边界按 rune 计数。probe A 证明移除长度校验后该测试转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_chat_route_reports_the_go_error_classification)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_payload_pagination_test.go:27:TestAssistantRoutesRejectMalformedMutationPayloads": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/adk_mutations_compatibility.rs::adk_mutation_routes_reject_malformed_mutation_payloads",
+    "conclusion": "function_exact：ADK mutation 路由对畸形 JSON / 缺字段 / 非法标识的 400 形态与 Go 一致（含 trailing JSON 与空 decode 边界）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_mutation_routes_reject_malformed_mutation_payloads)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_payload_pagination_test.go:65:TestAssistantRoutesClampPaginationBeyondAvailableItems": {
     "status": "[~]",
@@ -7497,11 +7497,11 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/adk_runner_edges_test.go:142:TestRunnerChatAndStoreAdditionalBoundaryBranches": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::run_gate_is_shared_across_runtime_facades",
+    "conclusion": "function_exact：Go 的 runSem 是 runtime 级共享闸门；Rust 的 RunGate 由 runtime 持有并被各 facade 共享（同一 runtime 上第 11 次 acquire 以 Go 文案失败）；空消息与超长消息分支由 adk_chat_route_reports_the_go_error_classification 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(run_gate_is_shared_across_runtime_facades)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/adk_runner_edges_test.go:234:TestResumeGoogleADKFakeExecutionBoundaryBranches": {
     "status": "[~]",
@@ -8505,18 +8505,18 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/persistence/provider_selection_test.go:8:TestNormalizeDefaultProviderSelection": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::provider_list_normalizes_default_selection_and_orders_default_first",
+    "conclusion": "function_exact：list_providers 复刻 Go 的 NormalizeDefaultProviderSelection：无 default 标记时把第一个 provider 补为 default 并持久化，重复 default 收敛为第一个，空表不产出 default。probe C 证明禁用修复后测试转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(provider_list_normalizes_default_selection_and_orders_default_first)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/persistence/provider_selection_test.go:29:TestSortProvidersDefaultFirst": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::provider_list_reports_the_repaired_default_selection",
+    "conclusion": "function_exact：list_providers 按 Go 的 SortProvidersDefaultFirst 输出（default 行在前，其余按 created_at ASC, id ASC），并在读取时修复缺失的 default 标记后持久化。probe C 证明停用修复后顺序与标记断言同时转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(provider_list_reports_the_repaired_default_selection)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/persistence/secret_store_test.go:9:TestSecretStoreFileBoundaries": {
     "status": "[~]",
@@ -8988,11 +8988,11 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/runner_chat_test.go:18:TestPrepareChatRequestValidationAndConcurrency": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop",
+    "conclusion": "function_exact：Go prepareChatRequest 的非阻塞并发闸门（MaxConcurrentRuns=10）在 Rust 中补齐：第 11 个并发 run 立即以 400 ADK_CHAT_FAILED + \"maximum concurrent runs (10) reached, please try again later\" 失败，run 结束（guard drop）后重新放行；长度/空消息校验由 adk_chat_route_reports_the_go_error_classification 覆盖。probe B 证明移除闸门后测试转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(run_gate_'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:56:TestRequestedInputEventFailsWithUnsupportedInputCode": {
     "status": "[~]",
@@ -9100,11 +9100,11 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/runner_chat_test.go:670:TestAgentWithoutProviderDynamicallyUsesDefaultProvider": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::resolve_provider_follows_the_default_selection_and_its_repair",
+    "conclusion": "function_exact：providerId 为空的 agent 通过 DefaultProvider 动态解析：无 default 标记时回退到第一个 provider（created_at ASC），SetDefaultProvider 后同一 agent 解析到新默认 provider。修复前 Rust 报 \"default agent provider is not configured\"。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(resolve_provider_follows_the_default_selection_and_its_repair)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:737:TestRunnerChatProjectionPersistenceAndAssistantBoundaries": {
     "status": "[~]",
@@ -9128,11 +9128,11 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/runner_chat_test.go:978:TestResolveAgentCoversDefaultAndProviderValidation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::agent_unavailable_reason_prefers_status_over_the_delete_marker",
+    "conclusion": "function_exact：resolveAgentDefinition 的 agent 状态文案与 Go 一致（先判 status 再判 deletedAt；ENABLED+deletedAt -> agent is deleted，DISABLED+deletedAt -> agent is disabled），provider 侧文案由 adk_chat_route_reports_the_go_error_classification 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(agent_unavailable_reason_prefers_status_over_the_delete_marker)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:1043:TestResolveSessionReusesExistingRejectsMismatchAndCreatesTrimmedSession": {
     "status": "[~]",

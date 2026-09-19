@@ -57,13 +57,15 @@ impl ProductionAdkChatRuntime {
                 let _ = started.send(Ok(output));
                 return;
             }
-            Ok(super::PreparedChat::New(chat, run_lease)) => (chat, run_lease),
+            Ok(super::PreparedChat::New(chat, run_lease, run_slot)) => (chat, run_lease, run_slot),
             Err(error) => {
                 let _ = started.send(Err(error));
                 return;
             }
         };
-        let (chat, run_lease) = chat;
+        // Hold Go's `runSem` slot until the live stream finishes; the binding
+        // is intentionally kept for the whole function scope.
+        let (chat, run_lease, _run_slot) = chat;
         if sender.send(b"retry: 3000\n\n".to_vec()).is_err() {
             let disconnect = client_disconnected();
             let _ = self.persist_cancelled(&chat, &disconnect, &run_lease);

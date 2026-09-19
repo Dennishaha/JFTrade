@@ -55,6 +55,94 @@ fn unready_adk_port() -> (ProductionAdkPort, tempfile::TempDir) {
     (port, directory)
 }
 
+/// Build a production ADK port whose chat runtime passes the readiness gate so
+/// request-level business errors reach the model runtime instead of the
+/// fail-closed `503 ADK_UNAVAILABLE` placeholder path.
+///
+/// The single stored provider is callable (keyed) but no agent points at it, so
+/// an agent-less request exercises Go's `DefaultProvider` fallback: Go's
+/// `StoreCore.ListProviders` repairs the missing `default` flag and
+/// `DefaultProvider` returns the first provider.  Its endpoint is a closed
+/// loopback port, so the fallback resolves provider settings and fails in the
+/// model call instead of being rejected as "not configured".
+fn ready_adk_port_with_fallback_provider() -> (Arc<ProductionAdkPort>, tempfile::TempDir) {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let adk_path = directory.path().join("adk.db");
+    let session_path = directory.path().join("adk-session.db");
+    let artifact_path = directory.path().join("adk-artifact.db");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, "{}").expect("write settings");
+    for (path, component) in [
+        (&adk_path, "adk"),
+        (&session_path, "adk-session"),
+        (&artifact_path, "adk-artifact"),
+    ] {
+        let connection = rusqlite::Connection::open(path).expect("create ADK database");
+        jftrade_store_sqlite::initialize_current(&connection, component)
+            .expect("initialize ADK schema");
+    }
+    std::fs::create_dir_all(directory.path().join("secrets")).expect("create secrets directory");
+    std::fs::write(
+        directory.path().join("secrets/adk-secrets.json"),
+        br#"{"provider-ready":"test-key"}"#,
+    )
+    .expect("write provider secret");
+    let adk_store = Arc::new(AdkStore::open(&adk_path).expect("open adk store"));
+    let session_store =
+        Arc::new(AdkSessionStore::open(&session_path).expect("open adk session store"));
+    let artifact_store =
+        Arc::new(AdkArtifactStore::open(&artifact_path).expect("open adk artifact store"));
+    let bindings = PRODUCTION_TOOL_DEFINITIONS
+        .iter()
+        .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
+        .collect::<BTreeMap<_, _>>();
+    let tool_catalog = Arc::new(
+        ProductionToolCatalog::from_bindings(&bindings).expect("complete tool bindings"),
+    );
+    // A configured provider is what makes the runtime ready; no agent points at
+    // it, so the chat request itself still has to resolve an agent.
+    // A closed loopback port keeps the fallback deterministic: the request
+    // reaches the model call and is refused immediately, with no external
+    // network dependency and no chance of a stray listener answering.
+    let closed_port = std::net::TcpListener::bind("127.0.0.1:0")
+        .expect("bind a loopback port")
+        .local_addr()
+        .expect("read the bound address")
+        .port();
+    adk_store
+        .upsert_provider(
+            "provider-ready",
+            &json!({
+                "displayName": "Ready Provider",
+                "baseUrl": format!("http://127.0.0.1:{closed_port}/v1"),
+                "model": "fixture-model",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    let runtime =
+        crate::product::product_adk_model_runtime::ProductionAdkChatRuntime::new(
+            Arc::clone(&adk_store),
+            Arc::clone(&session_store),
+            &settings_path,
+            Arc::new(
+                crate::product::product_adk_model_runtime::RunCancellationRegistry::default(),
+            ),
+            Arc::clone(&tool_catalog),
+        );
+    assert!(runtime.runtime_ready(), "fixture runtime must be ready");
+    let port = ProductionAdkPort {
+        store: adk_store,
+        session_store,
+        artifact_store,
+        tool_catalog,
+        settings_path,
+        chat_runtime: Some(runtime),
+    };
+    (Arc::new(port), directory)
+}
+
 #[test]
 fn chat_dispatch_rejects_an_installed_but_unready_runtime() {
     let (port, _directory) = unready_adk_port();
@@ -3950,4 +4038,247 @@ fn adk_skill_uninstall_removes_external_installs_and_reports_missing_files() {
         }
         other => panic!("expected a failed uninstall, got {other:?}"),
     }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_payload_pagination_test.go:12
+/// TestAssistantChatRoutesRejectMalformedOrUnresolvableRequests and
+/// go:452dea11:internal/api/assistant/routes_payload_pagination_test.go:65
+/// TestAssistantRoutesClampPaginationBeyondAvailableItems.
+///
+/// Go's chat handler writes every non-conflict `Service.Chat` error as
+/// `400 ADK_CHAT_FAILED` (see `handleADKChat`), so agent resolution, provider
+/// resolution, missing credentials and blank messages all share that status and
+/// code. A blank message reports `message is required`; an unresolvable agent
+/// reports `agent not found`. `BAD_REQUEST` is reserved for a payload the chat
+/// wire port cannot decode or whose `clientRequestId` is not a UUID.
+#[test]
+fn adk_chat_route_reports_the_go_error_classification() {
+    let (port, _directory) = ready_adk_port_with_fallback_provider();
+    port.store
+        .upsert_agent(
+            "agent-disabled",
+            &json!({
+                "id": "agent-disabled",
+                "name": "Disabled Agent",
+                "providerId": "provider-1",
+                "status": "DISABLED",
+            })
+            .to_string(),
+        )
+        .expect("persist disabled agent");
+    port.store
+        .upsert_agent(
+            "agent-deleted",
+            &json!({
+                "id": "agent-deleted",
+                "name": "Deleted Agent",
+                "providerId": "provider-1",
+                "status": "DISABLED",
+                "deletedAt": "2026-09-19T00:00:00Z",
+            })
+            .to_string(),
+        )
+        .expect("persist soft-deleted agent");
+    // A legacy row can carry the delete marker while still reading ENABLED.
+    // Go reports "agent is deleted" for that shape because the status check
+    // passes first.
+    port.store
+        .upsert_agent(
+            "agent-deleted-marker-only",
+            &json!({
+                "id": "agent-deleted-marker-only",
+                "name": "Deleted Marker Agent",
+                "providerId": "provider-missing",
+                "status": "ENABLED",
+                "deletedAt": "2026-09-19T00:00:00Z",
+            })
+            .to_string(),
+        )
+        .expect("persist marker-only deleted agent");
+
+    // Every dispatch claims its own `clientRequestId`, exactly like a fresh
+    // browser request.  A shared id would be replayed as the same run: once the
+    // provider fallback resolves, a repeated id conflicts on the fingerprint
+    // before the branch under test is reached.
+    let dispatch_counter = std::sync::atomic::AtomicU32::new(1);
+    let dispatch = |body: &str| {
+        let sequence = dispatch_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        port.dispatch(
+            AdkChatRoute::Chat,
+            &AdkChatInput {
+                body: body.as_bytes().to_vec(),
+                client_request_id: format!("1111111{sequence}-1111-4111-8111-111111111111"),
+            },
+        )
+        .expect_err("chat must fail closed without a ready provider")
+    };
+    let failed = |error: AdkChatPortError| match error {
+        AdkChatPortError::Failed {
+            status,
+            code,
+            message,
+        } => (status, code, message),
+        other => panic!("expected a failed chat port error, got {other:?}"),
+    };
+
+    // A request with no `agentId` falls back to the built-in agent, whose own
+    // `providerId` is empty.  Go's `DefaultProvider` then returns the first
+    // stored provider even when its `default` flag was never persisted, so the
+    // request reaches the model call instead of reporting a missing default.
+    // The fixture endpoint is a closed loopback port, so the fallback is
+    // observable as a provider-level failure rather than a configuration one.
+    let (status, code, message) = failed(dispatch(r#"{"message":"hello"}"#));
+    assert_eq!(status, 502, "fallback provider call failure: {message}");
+    assert_eq!(code, "MODEL_CALL_FAILED");
+    assert!(
+        message.contains("127.0.0.1"),
+        "the resolved provider endpoint must be the fixture fallback: {message}"
+    );
+
+    assert_eq!(
+        failed(dispatch(
+            r#"{"agentId":"agent-1","message":"   "}"#
+        )),
+        (400, "ADK_CHAT_FAILED".to_owned(), "message is required".to_owned())
+    );
+    assert_eq!(
+        failed(dispatch(
+            r#"{"agentId":"agent-missing","message":"hello"}"#
+        )),
+        (400, "ADK_CHAT_FAILED".to_owned(), "agent not found".to_owned())
+    );
+    assert_eq!(
+        failed(dispatch(
+            r#"{"agentId":"agent-disabled","message":"hello"}"#
+        )),
+        (
+            400,
+            "ADK_CHAT_FAILED".to_owned(),
+            "agent is disabled".to_owned()
+        )
+    );
+    // Go checks the status before the soft-delete marker, so a row that is both
+    // disabled and deleted reports "agent is disabled".
+    assert_eq!(
+        failed(dispatch(
+            r#"{"agentId":"agent-deleted","message":"hello"}"#
+        )),
+        (
+            400,
+            "ADK_CHAT_FAILED".to_owned(),
+            "agent is disabled".to_owned()
+        )
+    );
+    assert_eq!(
+        failed(dispatch(
+            r#"{"agentId":"agent-deleted-marker-only","message":"hello"}"#
+        )),
+        (
+            400,
+            "ADK_CHAT_FAILED".to_owned(),
+            "agent is deleted".to_owned()
+        )
+    );
+    port.store
+        .upsert_provider(
+            "provider-disabled",
+            &json!({
+                "displayName": "Disabled Provider",
+                "baseUrl": "https://example.test/v1",
+                "model": "fixture-model",
+                "enabled": false,
+            })
+            .to_string(),
+        )
+        .expect("persist disabled provider");
+    port.store
+        .upsert_provider(
+            "provider-no-key",
+            &json!({
+                "displayName": "No Key Provider",
+                "baseUrl": "https://example.test/v1",
+                "model": "fixture-model",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist keyless provider");
+    for (agent_id, provider_id) in [
+        ("agent-disabled-provider", "provider-disabled"),
+        ("agent-no-key", "provider-no-key"),
+    ] {
+        port.store
+            .upsert_agent(
+                agent_id,
+                &json!({
+                    "id": agent_id,
+                    "name": agent_id,
+                    "providerId": provider_id,
+                    "status": "ENABLED",
+                })
+                .to_string(),
+            )
+            .expect("persist provider-bound agent");
+    }
+    // Provider resolution keeps Go's two provider messages: a disabled provider
+    // and a provider without stored credentials are both request-level chat
+    // failures, not infrastructure outages.
+    assert_eq!(
+        failed(dispatch(
+            r#"{"agentId":"agent-disabled-provider","message":"hello"}"#
+        )),
+        (
+            400,
+            "ADK_CHAT_FAILED".to_owned(),
+            "agent provider is unavailable".to_owned()
+        )
+    );
+    assert_eq!(
+        failed(dispatch(r#"{"agentId":"agent-no-key","message":"hello"}"#)),
+        (
+            400,
+            "ADK_CHAT_FAILED".to_owned(),
+            "agent provider API keys is not configured".to_owned()
+        )
+    );
+
+
+    // A message at or below the Go rune limit reaches provider resolution; one
+    // rune over the limit is rejected first with the Go wording.
+    let at_limit = "x".repeat(50_000);
+    assert!(matches!(
+        port.dispatch(
+            AdkChatRoute::Chat,
+            &AdkChatInput {
+                body: format!(r#"{{"message":"{at_limit}"}}"#).into_bytes(),
+                client_request_id: "22222222-2222-4222-8222-222222222222".to_owned(),
+            },
+        )
+        .expect_err("a full-length message still needs a provider"),
+        AdkChatPortError::Failed { .. }
+    ));
+    assert_eq!(
+        failed(dispatch(&format!(
+            r#"{{"message":"{}"}}"#,
+            "x".repeat(50_001)
+        ))),
+        (
+            400,
+            "ADK_CHAT_FAILED".to_owned(),
+            "message exceeds maximum length of 50000 characters".to_owned()
+        )
+    );
+    // The limit counts runes, not bytes: 50_001 multibyte runes exceed it even
+    // though Go and Rust both measure the trimmed text.
+    assert_eq!(
+        failed(dispatch(&format!(
+            r#"{{"message":"{}"}}"#,
+            "中".repeat(50_001)
+        ))),
+        (
+            400,
+            "ADK_CHAT_FAILED".to_owned(),
+            "message exceeds maximum length of 50000 characters".to_owned()
+        )
+    );
 }

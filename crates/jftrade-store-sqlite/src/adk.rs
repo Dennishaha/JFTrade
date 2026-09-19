@@ -3514,12 +3514,30 @@ impl AdkStore {
         Ok(())
     }
 
+    /// List providers exactly like Go's `StoreCore.ListProviders`.
+    ///
+    /// Go loads rows `created_at ASC, id ASC`, repairs the default selection
+    /// (`NormalizeDefaultProviderSelection`) and persists the repair when it
+    /// changed anything, then stable-sorts the default row first.  Replaying
+    /// only the read side would leave a legacy table whose rows carry no
+    /// `default` unusable, because provider resolution would find no
+    /// selectable row and report "default agent provider is not configured".
     pub fn list_providers(&self) -> Result<Vec<StoredAdkEntity>, AdkStoreError> {
+        let sorted = self.list_providers_created_first()?;
+        let selected_id = self.selected_default_provider_id(&sorted);
+        let repair = self.persist_provider_default_selection(&sorted, selected_id.as_deref())?;
+        let mut result = repair.unwrap_or(sorted);
+        sort_providers_default_first(&mut result);
+        Ok(result)
+    }
+
+    /// Rows in Go's canonical `created_at ASC, id ASC` provider order.
+    fn list_providers_created_first(&self) -> Result<Vec<StoredAdkEntity>, AdkStoreError> {
         let connection = self.lock_connection()?;
         let mut statement = connection
             .prepare(
                 "SELECT id, payload_json, created_at, updated_at
-                 FROM adk_providers ORDER BY created_at DESC",
+                 FROM adk_providers ORDER BY created_at ASC, id ASC",
             )
             .map_err(AdkStoreError::Query)?;
         let rows = statement
@@ -3537,6 +3555,88 @@ impl AdkStore {
             result.push(row.map_err(AdkStoreError::Query)?);
         }
         Ok(result)
+    }
+
+    /// Provider id Go's `NormalizeDefaultProviderSelection` would keep: the
+    /// first already-default row, otherwise the first row of a non-empty
+    /// table, otherwise nothing.
+    fn selected_default_provider_id(&self, rows: &[StoredAdkEntity]) -> Option<String> {
+        let mut first_row = None;
+        for row in rows {
+            let Ok(value) = serde_json::from_str::<Value>(&row.payload_json) else {
+                // A malformed row cannot be normalized in memory; Go would
+                // have failed while decoding it.  Bailing out here keeps the
+                // caller's own decode error as the single reported failure.
+                return None;
+            };
+            if value
+                .get("default")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+            {
+                return Some(row.id.clone());
+            }
+            first_row.get_or_insert_with(|| row.id.clone());
+        }
+        first_row
+    }
+
+    /// Persist Go's normalized default projection.  Returns `None` when the
+    /// stored rows already satisfy the invariant, so the common read path
+    /// stays read-only.
+    fn persist_provider_default_selection(
+        &self,
+        rows: &[StoredAdkEntity],
+        selected_id: Option<&str>,
+    ) -> Result<Option<Vec<StoredAdkEntity>>, AdkStoreError> {
+        let Some(selected_id) = selected_id else {
+            return Ok(None);
+        };
+        let mut normalized = Vec::with_capacity(rows.len());
+        let mut changed = false;
+        for row in rows {
+            let mut value = Value::Object(decode_json_object(&row.payload_json, "provider")?);
+            let object = value
+                .as_object_mut()
+                .expect("decoded provider payload is an object");
+            let is_default = row.id == selected_id;
+            if object.get("id").and_then(Value::as_str) != Some(row.id.as_str()) {
+                object.insert("id".to_owned(), Value::String(row.id.clone()));
+                changed = true;
+            }
+            if object.get("default").and_then(Value::as_bool) != Some(is_default) {
+                changed = true;
+            }
+            object.insert("default".to_owned(), Value::Bool(is_default));
+            normalized.push((row, value.to_string()));
+        }
+        if !changed {
+            return Ok(None);
+        }
+        let now = Self::now_rfc3339();
+        let mut connection = self.lock_connection()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(AdkStoreError::Query)?;
+        for (row, payload) in &normalized {
+            transaction
+                .execute(
+                    "UPDATE adk_providers SET payload_json = ?1, updated_at = ?2 WHERE id = ?3",
+                    params![payload, now, row.id.as_str()],
+                )
+                .map_err(AdkStoreError::Query)?;
+        }
+        transaction.commit().map_err(AdkStoreError::Query)?;
+        Ok(Some(
+            normalized
+                .into_iter()
+                .map(|(row, payload)| StoredAdkEntity {
+                    payload_json: payload,
+                    updated_at: now.clone(),
+                    ..row.clone()
+                })
+                .collect(),
+        ))
     }
 
     pub fn list_agents(&self) -> Result<Vec<StoredAdkEntity>, AdkStoreError> {
@@ -4718,6 +4818,24 @@ fn ensure_existing_adk_session_event_matches(
             event.id
         ))),
     }
+}
+
+/// Go's `SortProvidersDefaultFirst`: the default provider leads, then rows in
+/// `created_at ASC, id ASC` order.  `slice::sort_by` is stable, so rows that
+/// tie on both keys keep their canonical order.
+fn sort_providers_default_first(rows: &mut [StoredAdkEntity]) {
+    rows.sort_by(|left, right| {
+        let default_rank = |row: &StoredAdkEntity| {
+            serde_json::from_str::<Value>(&row.payload_json)
+                .ok()
+                .and_then(|value| value.get("default").and_then(Value::as_bool))
+                .unwrap_or(false)
+        };
+        default_rank(right)
+            .cmp(&default_rank(left))
+            .then_with(|| left.created_at.cmp(&right.created_at))
+            .then_with(|| left.id.cmp(&right.id))
+    });
 }
 
 fn stored_entity(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredAdkEntity> {

@@ -14,6 +14,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
         let tool_catalog = Arc::clone(&self.tool_catalog);
         let tool_executor = Arc::clone(&self.tool_executor);
         let continuation_supervisor = Arc::clone(&self.continuation_supervisor);
+        let run_gate = Arc::clone(&self.run_gate);
         let input = input.clone();
         if route == AdkChatRoute::Stream {
             let (stream, sender) = ApiStream::channel(32);
@@ -42,6 +43,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
                         tool_catalog: Arc::clone(&tool_catalog),
                         tool_executor: stream_tool_executor,
                         continuation_supervisor: Arc::clone(&continuation_supervisor),
+                        run_gate: Arc::clone(&run_gate),
                         recovery_supervisor: None,
                     };
                     runtime.start_live_stream(
@@ -67,9 +69,15 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
                     tool_catalog,
                     tool_executor,
                     continuation_supervisor,
+                    run_gate,
                     recovery_supervisor: None,
                 };
-                runtime.dispatch_inner(route, &input)
+                let result = runtime.dispatch_inner(route, &input);
+                if route == AdkChatRoute::Chat {
+                    result.map_err(chat_route_error)
+                } else {
+                    result
+                }
             })
             .map_err(|error| AdkChatPortError::Unavailable(error.to_string()))?
             .join()
@@ -124,11 +132,39 @@ fn agent_enabled(payload: &Value) -> bool {
             .is_some_and(|value| !value.is_null())
 }
 
-fn bad_agent(message: &str) -> AdkChatPortError {
+/// Reason text used when a stored agent cannot serve chat, matching Go's
+/// `Runtime.resolveAgentDefinition`, which reports `agent is deleted` for a
+/// soft-deleted row and `agent is disabled` otherwise.
+fn agent_unavailable_reason(payload: &Value) -> &'static str {
+    // Go checks the status before the soft-delete marker, so a row that is both
+    // disabled and deleted reports "agent is disabled".
+    let status = payload
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("ENABLED");
+    if !status.eq_ignore_ascii_case("ENABLED") {
+        return "agent is disabled";
+    }
+    if payload
+        .get("deletedAt")
+        .is_some_and(|value| !value.is_null())
+    {
+        return "agent is deleted";
+    }
+    "agent is disabled"
+}
+
+/// Go's chat handler writes every non-conflict `Service.Chat` error as
+/// `400 ADK_CHAT_FAILED` (see `internal/api/assistant/chat.go`), so the agent
+/// resolution and message validation branches must not report `BAD_REQUEST`.
+/// `BAD_REQUEST` stays reserved for a request that cannot be decoded or whose
+/// `clientRequestId` is not a UUID, which the chat wire port rejects before the
+/// runtime is reached.
+fn chat_failed(message: impl Into<String>) -> AdkChatPortError {
     AdkChatPortError::Failed {
         status: 400,
-        code: "BAD_REQUEST".to_owned(),
-        message: message.to_owned(),
+        code: "ADK_CHAT_FAILED".to_owned(),
+        message: message.into(),
     }
 }
 
@@ -688,6 +724,22 @@ fn stream_from_payload(raw: &str) -> Result<AdkChatPortOutput, AdkChatPortError>
 fn fingerprint(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     digest.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+/// Go's chat handler writes every non-conflict `Service.Chat` error as
+/// `400 ADK_CHAT_FAILED` (see `handleADKChat`), including provider-resolution
+/// and storage failures that the durable recovery scanner keeps as
+/// `Unavailable` internally.  Flattening happens on the JSON chat route only,
+/// so `/chat/stream` and the recovery supervisor keep their own classification.
+fn chat_route_error(error: AdkChatPortError) -> AdkChatPortError {
+    match error {
+        AdkChatPortError::Unavailable(message) => AdkChatPortError::Failed {
+            status: 400,
+            code: "ADK_CHAT_FAILED".to_owned(),
+            message,
+        },
+        other => other,
+    }
 }
 
 fn unavailable(message: impl Into<String>) -> AdkChatPortError {

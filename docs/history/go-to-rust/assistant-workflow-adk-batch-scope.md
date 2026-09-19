@@ -304,3 +304,89 @@ jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`
   记入下一批 MarketData 范围处理，不计入本批通过项。
 - `pnpm run check:zero-go`、`python3 scripts/compatibility/audit_test_parity.py`：通过（712 function_exact / 2508 Rust tests）。
 - ADK 相关子集 124 passed。
+
+## 批次小结：ADK chat 准入闸门与 Provider 默认回退（8 条 [x]）
+
+本批把 `internal/api/assistant` 的 chat 错误分类家族与
+`internal/assistant/engine` 的 Provider 解析家族一起收尾，共关闭 8 条 `[~]`。
+
+### 两个真实功能缺口（先用 Go 探针取得 ground truth，再修 Rust）
+
+1. **Provider 默认选择从未修复**（P0，影响 chat 可用性）
+   - Go：`StoreCore.ListProviders` 按 `created_at ASC, id ASC` 取行 →
+     `NormalizeDefaultProviderSelection`（非空表恰好一个 `default`，重复收敛为第一个，
+     缺失则把第一行补为 default）→ 变更时 `saveProviderDefaultSelection` 持久化 →
+     `SortProvidersDefaultFirst`（default 在前，其余按 `created_at ASC, id ASC`）。
+     `DefaultProvider` 直接取 `ListProviders()[0]`。
+   - Rust 原实现：`list_providers` 用 `ORDER BY created_at DESC`，既不修复也不排序；
+     `resolve_provider` 只在 payload 显式带 `"default": true` 时才选中，
+     否则报 `default agent provider is not configured`。
+   - 影响：agent 未绑定 provider（`providerId` 为空）时，只要表里没有 default 标记，
+     chat 直接 400；Go 会回退到第一个 provider 正常执行。
+   - 探针（`/tmp/go452dea11.niwD1G` 实跑，probe 文件已删除）：
+     - 单 provider 且无 default 标记 + 有 key → Go `200 ok=true`，
+      `providerId="test-provider"`（probe provider_api3）；
+     - 两 provider 且都无标记 → Go 列表 `default=true` 落在第一行，
+      再 `default` 落到它（probe provider_api4）；
+     - 清空 default 后单 provider 列表本身就会写成 `default=true`（probe provider）；
+     - 无 provider → Go `400 ADK_CHAT_FAILED / default agent provider is not configured`
+      （probe provider_api2，与 Rust 原行为一致，作为真实边界保留）。
+   - 修复位置：`crates/jftrade-store-sqlite/src/adk.rs`
+     （`list_providers` / `list_providers_created_first` /
+     `selected_default_provider_id` / `persist_provider_default_selection` /
+     `sort_providers_default_first`，写入走 `Immediate` 事务，未变更时不写库）。
+
+2. **chat 并发闸门完全缺失**（P0，run 生命周期/资源保护）
+   - Go：`Runtime.runSem = make(chan struct{}, MaxConcurrentRuns /* 10 */)`，
+     `prepareChatRequest` 用非阻塞 `select` 取槽，满员报
+     `maximum concurrent runs (10) reached, please try again later`；
+     槽在 run 结束时 `defer <-r.runSem` 释放。
+   - Rust 原实现：`rg 'Semaphore|max_concurrent|MAX_CONCURRENT'` 在 `crates/` 下无命中，
+     即没有等价闸门，并发 run 数不受限。
+   - 修复位置：`crates/jftrade-engine/src/product_adk_model_runtime.rs`
+     （`MAX_CONCURRENT_RUNS`、`RunGate`/`RunGateGuard`，由 runtime 持有并随 facade 共享，
+     `PreparedChat::New` 携带 guard 直到 run 结束；
+     准入点在幂等 replay 判定之后、provider/agent 解析之前，与 Go `runChat` 一致）。
+
+### 本批新增/修正的 Rust 测试
+
+- `crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs`（新文件）
+  - `run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop`
+  - `run_gate_is_shared_across_runtime_facades`
+  - `provider_list_reports_the_repaired_default_selection`
+  - `resolve_provider_follows_the_default_selection_and_its_repair`
+  - `agent_unavailable_reason_prefers_status_over_the_delete_marker`
+- `crates/jftrade-store-sqlite/tests/adk_store_contracts.rs`
+  - `provider_list_normalizes_default_selection_and_orders_default_first`
+- `crates/jftrade-engine/src/product_production_ports_adk_tests.rs`
+  - `adk_chat_route_reports_the_go_error_classification`（在上一批基础上修正 fixture：
+    provider 改为 closed loopback 端口，使 Provider 回退可观察；
+    每次 dispatch 使用独立 `clientRequestId`，避免 idempotency 冲突掩盖分支）
+
+### 探针（退化实现 → 测试转红 → 还原）
+
+- probe A（移除 chat 消息长度校验）：`adk_chat_route_reports_the_go_error_classification`
+  转红（实际得到 `agent provider API keys is not configured`，期望长度错误）。
+- probe B（移除 `RunGate` 满员判定）：两个 `run_gate_*` 测试同时转红
+  （第 11 次 acquire 竟然成功）。
+- probe C（把 `list_providers` 退回 `created_at DESC` 且不做 default 修复）：
+  store 契约测试与 `provider_list_reports_the_repaired_default_selection` 同时转红
+  （顺序变成 `["provider-second","provider-first"]`）。
+
+### 验证
+
+- `cargo fmt --all`
+- `cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`：通过
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：
+  1375 passed
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`：
+  123 passed
+- `pnpm run check:zero-go`、`pnpm run check:compatibility`：通过
+- `python3 scripts/compatibility/audit_test_parity.py`：720 function_exact / 2516 Rust tests，
+  0 条非 function_exact 的 `[x]`，0 条重复 `[x]`，0 条不存在的 crate 引用
+
+### 状态
+
+- `internal/api/assistant`：本批关闭 2 条（`routes_payload_pagination_test.go`），
+  该目录剩余 `[~]` 49 条。
+- `internal/assistant/engine`：本批关闭 5 条，`persistence/provider_selection_test.go` 2 条全部关闭。

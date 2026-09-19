@@ -242,7 +242,7 @@ impl ProductionAdkChatRuntime {
             parsed_providers
                 .iter()
                 .find(|(provider, _)| provider.id == id)
-                .ok_or_else(|| unavailable("assistant model provider is unavailable"))?
+                .ok_or_else(|| unavailable("agent provider is unavailable"))?
         } else {
             parsed_providers
                 .iter()
@@ -252,7 +252,7 @@ impl ProductionAdkChatRuntime {
                         .and_then(Value::as_bool)
                         .unwrap_or(false)
                 })
-                .ok_or_else(|| unavailable("no assistant model provider is configured"))?
+                .ok_or_else(|| unavailable("default agent provider is not configured"))?
         };
         let (selected, value) = selected;
         let enabled = value
@@ -260,14 +260,14 @@ impl ProductionAdkChatRuntime {
             .and_then(Value::as_bool)
             .unwrap_or(true);
         if !enabled {
-            return Err(unavailable("assistant model provider is disabled"));
+            return Err(unavailable("agent provider is unavailable"));
         }
         let endpoint = value
             .get("baseUrl")
             .and_then(Value::as_str)
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .ok_or_else(|| unavailable("assistant model provider baseUrl is not configured"))?;
+            .ok_or_else(|| unavailable("agent provider is unavailable"))?;
         let endpoint = responses_endpoint(endpoint).map_err(|error| AdkChatPortError::Failed {
             status: 502,
             code: "MODEL_PROVIDER_UNAVAILABLE".to_owned(),
@@ -285,7 +285,7 @@ impl ProductionAdkChatRuntime {
             })
             .map(|key| key.trim().to_owned())
             .filter(|key| !key.is_empty())
-            .ok_or_else(|| unavailable("assistant model provider API key is not configured"))?;
+            .ok_or_else(|| unavailable("agent provider API keys is not configured"))?;
         let instruction = agent_payload
             .get("instruction")
             .and_then(Value::as_str)
@@ -329,10 +329,13 @@ impl ProductionAdkChatRuntime {
                 .store
                 .get_agent(&agent_id)
                 .map_err(storage_unavailable)?
-                .ok_or_else(|| bad_agent("agent not found"))?;
+                .ok_or_else(|| chat_failed("agent not found"))?;
             let payload = parse_agent_payload(&entity.payload_json)?;
             if !agent_enabled(&payload) {
-                return Err(bad_agent("agent is unavailable"));
+                // Go distinguishes a soft-deleted agent ("agent is deleted")
+                // from a disabled one ("agent is disabled"); both stay under
+                // the chat handler's `400 ADK_CHAT_FAILED` classification.
+                return Err(chat_failed(agent_unavailable_reason(&payload)));
             }
             return Ok((entity.id, payload));
         }

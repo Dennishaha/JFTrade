@@ -34,6 +34,7 @@ impl ProductionAdkChatRuntime {
                 tool_executor,
                 tool_catalog: Arc::clone(&tool_catalog),
                 continuation_supervisor,
+                run_gate: Arc::new(RunGate::default()),
                 recovery_supervisor: Some(recovery_supervisor),
             }
         });
@@ -63,7 +64,9 @@ impl ProductionAdkChatRuntime {
         let prepared = self.prepare_chat(route, input)?;
         match prepared {
             PreparedChat::Existing(output) => Ok(output),
-            PreparedChat::New(chat, run_lease) => self.execute_chat(chat, run_lease),
+            PreparedChat::New(chat, run_lease, _run_slot) => {
+                self.execute_chat(chat, run_lease)
+            }
         }
     }
 
@@ -90,11 +93,21 @@ impl ProductionAdkChatRuntime {
             })?;
         let session_id = text_field(object, "sessionId")
             .unwrap_or_else(|| format!("session-{}", input.client_request_id));
-        let message = text_field(object, "message").ok_or_else(|| AdkChatPortError::Failed {
-            status: 400,
-            code: "BAD_REQUEST".to_owned(),
-            message: "message is required".to_owned(),
-        })?;
+        // Go's chat handler classifies a blank user message as
+        // `400 ADK_CHAT_FAILED`; `BAD_REQUEST` is only for a payload that cannot
+        // be decoded or carries an invalid `clientRequestId`.
+        let message =
+            text_field(object, "message").ok_or_else(|| chat_failed("message is required"))?;
+        // Go counts runes, not bytes, so a multibyte message at the boundary is
+        // accepted.  The check runs before provider/agent resolution, matching
+        // `Runtime.prepareChatRequest`.
+
+
+        if message.chars().count() > MAX_MESSAGE_LENGTH {
+            return Err(chat_failed(format!(
+                "message exceeds maximum length of {MAX_MESSAGE_LENGTH} characters"
+            )));
+        }
         let fingerprint = fingerprint(&input.body);
         if let Some(existing) = self
             .store
@@ -103,6 +116,11 @@ impl ProductionAdkChatRuntime {
         {
             return self.prepare_existing_run(existing, route, &fingerprint);
         }
+        // Go's `runChat` admits the run here: after the idempotent replay check
+        // (a reused `clientRequestId` never consumes a slot) and before agent or
+        // provider resolution.  The guard is released when the run finishes,
+        // including every later error branch.
+        let run_slot = self.run_gate.try_acquire()?;
         let provider = self.resolve_provider(object)?;
         let agent_id = provider.agent_id.clone();
         let model = text_field(object, "model")
@@ -217,6 +235,7 @@ impl ProductionAdkChatRuntime {
                 },
             },
             run_lease,
+            run_slot,
         ))
     }
 
@@ -464,6 +483,7 @@ impl ProductionAdkChatRuntime {
         let tool_catalog = Arc::clone(&self.tool_catalog);
         let tool_executor = Arc::clone(&self.tool_executor);
         let continuation_supervisor = Arc::clone(&self.continuation_supervisor);
+        let run_gate = Arc::clone(&self.run_gate);
         let continuation_run_id = chat.run_id.clone();
         let supervisor_for_task = Arc::clone(&continuation_supervisor);
         continuation_supervisor.clone().spawn(
@@ -478,6 +498,7 @@ impl ProductionAdkChatRuntime {
                     tool_catalog,
                     tool_executor,
                     continuation_supervisor,
+                    run_gate,
                     recovery_supervisor: None,
                 };
                 let cancellation = runtime

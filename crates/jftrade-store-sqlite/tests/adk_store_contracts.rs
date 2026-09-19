@@ -561,3 +561,121 @@ fn adk_approval_resolution_stages_continuation_and_denial_cas() {
     assert!(!second.changed);
     assert_eq!(second.approval.status, "DENIED");
 }
+
+/// Parity: go:452dea11:internal/assistant/engine/persistence/provider_selection_test.go:8
+/// TestNormalizeDefaultProviderSelection and
+/// go:452dea11:internal/assistant/engine/persistence/provider_selection_test.go:29
+/// TestSortProvidersDefaultFirst.
+///
+/// Go's `StoreCore.ListProviders` loads rows `created_at ASC, id ASC`, repairs
+/// the default selection so a non-empty table always has exactly one default,
+/// persists that repair, and then lists the default provider first.  The Rust
+/// port originally returned `created_at DESC` and never repaired anything, so a
+/// provider table written without the `default` flag left chat reporting
+/// "default agent provider is not configured" instead of falling back to the
+/// first provider.
+#[test]
+fn provider_list_normalizes_default_selection_and_orders_default_first() {
+    let directory = tempdir().expect("temp dir");
+    let db_path = directory.path().join("adk.db");
+    seed_valid_go_adk_database(&db_path);
+    let store = AdkTestCutoverStore::open_existing(&db_path, ADK_TEST_CUTOVER_PROFILE)
+        .expect("open valid store");
+
+    store
+        .upsert_provider(
+            "provider-a",
+            r#"{"displayName":"A","baseUrl":"https://a.example/v1","model":"m-a"}"#,
+        )
+        .expect("upsert provider-a");
+    store
+        .upsert_provider(
+            "provider-b",
+            r#"{"displayName":"B","baseUrl":"https://b.example/v1","model":"m-b"}"#,
+        )
+        .expect("upsert provider-b");
+
+    // A legacy/corrupt table: no row carries the flag at all.
+    let connection = Connection::open(&db_path).expect("open sqlite");
+    connection
+        .execute(
+            "UPDATE adk_providers SET payload_json = json_remove(payload_json, '$.default')",
+            [],
+        )
+        .expect("strip default flags");
+
+    let listed = store.list_providers().expect("list providers");
+    let ids = listed.iter().map(|row| row.id.as_str()).collect::<Vec<_>>();
+    assert_eq!(
+        ids,
+        vec!["provider-a", "provider-b"],
+        "Go lists created_at ASC and puts the repaired default first"
+    );
+    let defaults = listed
+        .iter()
+        .map(|row| {
+            let value: serde_json::Value =
+                serde_json::from_str(&row.payload_json).expect("provider payload");
+            (
+                row.id.clone(),
+                value
+                    .get("default")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        defaults,
+        vec![
+            ("provider-a".to_owned(), true),
+            ("provider-b".to_owned(), false)
+        ],
+        "exactly one provider is repaired as the default"
+    );
+
+    // The repair is durable, so a fresh handle observes the same selection and
+    // a second read does not flip it again.
+    drop(store);
+    let reopened = AdkTestCutoverStore::open_existing(&db_path, ADK_TEST_CUTOVER_PROFILE)
+        .expect("reopen store");
+    let again = reopened.list_providers().expect("list providers again");
+    assert_eq!(again[0].id, "provider-a");
+    let payload: serde_json::Value =
+        serde_json::from_str(&again[0].payload_json).expect("provider payload");
+    assert_eq!(payload["default"], serde_json::json!(true));
+
+    // A duplicate-default table collapses to the first default, matching
+    // `NormalizeDefaultProviderSelection`.
+    connection
+        .execute(
+            "UPDATE adk_providers SET payload_json = json_set(payload_json, '$.default', 1)",
+            [],
+        )
+        .expect("set every provider default");
+    let collapsed = reopened
+        .list_providers()
+        .expect("list after duplicate default");
+    let collapsed_defaults = collapsed
+        .iter()
+        .map(|row| {
+            let value: serde_json::Value =
+                serde_json::from_str(&row.payload_json).expect("provider payload");
+            (
+                row.id.clone(),
+                value
+                    .get("default")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        collapsed_defaults,
+        vec![
+            ("provider-a".to_owned(), true),
+            ("provider-b".to_owned(), false)
+        ],
+        "only the first default survives normalization"
+    );
+}
