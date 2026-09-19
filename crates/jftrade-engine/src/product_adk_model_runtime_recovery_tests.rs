@@ -5,7 +5,7 @@ use super::{
 use crate::product::product_adk_chat_stream_port::{AdkChatPortOutput, AdkChatStreamFrame};
 use jftrade_store_sqlite::{AdkSessionStore, AdkStore, CreateAdkRunParams, initialize_current};
 use rusqlite::Connection;
-use serde_json::json;
+use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::fs::{self, File};
 use std::sync::{Arc, Weak};
@@ -260,4 +260,65 @@ fn recovered_terminal_stream_frame_carries_the_replay_marker() {
     };
     assert_eq!(data["type"], "final");
     assert_eq!(data["replay"], true);
+}
+
+/// Parity: go:452dea11:internal/api/assistant/chat_stream_recovery_contracts_test.go:41
+/// TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun.
+///
+/// Go's `publishTerminalError` first asks `RecoverTerminalChatResponse` for the
+/// persisted terminal run; when that succeeds the stream publishes a single
+/// `final` event and never a second `error`.  The Rust equivalent is the
+/// durable projection: a terminal run whose stream list never received the
+/// terminal frame is recovered as `final` carrying the stored response, and no
+/// `error` frame is fabricated.
+#[test]
+fn persisted_terminal_run_is_published_as_final_instead_of_a_second_error() {
+    let output = super::super::stream_from_payload(
+        &json!({
+            "id": "run-terminal-recovery",
+            "status": "COMPLETED",
+            "streamId": "run-terminal-recovery",
+            "response": {
+                "reply": "recovered reply",
+                "run": {"id": "run-terminal-recovery", "status": "COMPLETED"}
+            },
+            "streamEvents": [
+                {"type": "run", "sequence": 1, "run": {"id": "run-terminal-recovery", "status": "COMPLETED"}},
+                {"type": "timeline", "sequence": 2, "timeline": {"text": "already projected"}}
+            ]
+        })
+        .to_string(),
+    )
+    .expect("terminal projection");
+    let AdkChatPortOutput::Stream(snapshot) = output else {
+        panic!("terminal payload must produce a stream snapshot");
+    };
+    assert!(snapshot.terminal, "a completed run is terminal");
+
+    let types: Vec<&str> = snapshot
+        .frames
+        .iter()
+        .filter_map(|frame| match frame {
+            AdkChatStreamFrame::Event { data, .. } => data.get("type").and_then(Value::as_str),
+            AdkChatStreamFrame::Comment(_) => None,
+        })
+        .collect();
+    assert_eq!(
+        types.last().copied(),
+        Some("final"),
+        "terminal recovery must end with final, got {types:?}"
+    );
+    assert_eq!(
+        types.iter().filter(|kind| **kind == "final").count(),
+        1,
+        "exactly one final frame"
+    );
+    assert!(
+        !types.contains(&"error"),
+        "a persisted terminal run must not publish a second error frame: {types:?}"
+    );
+    let Some(AdkChatStreamFrame::Event { data, .. }) = snapshot.frames.last() else {
+        panic!("snapshot must end with an event frame");
+    };
+    assert_eq!(data["response"]["run"]["id"], "run-terminal-recovery");
 }

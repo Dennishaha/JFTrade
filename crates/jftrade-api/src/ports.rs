@@ -3,6 +3,7 @@ use std::future::Future;
 use std::io;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -105,18 +106,68 @@ impl ApiStream {
     }
 }
 
+/// Upper bound for a producer that cannot block the calling thread because it
+/// runs inside a Tokio runtime.  The consumer normally drains continuously, so
+/// this only expires when the HTTP client stopped reading; reporting `Err` then
+/// cancels the producing run instead of hanging it.
+const STREAM_SEND_BACKPRESSURE_TIMEOUT: Duration = Duration::from_secs(30);
+
 impl ApiStreamSender {
-    /// Blocking send is intentional: production model adapters run their
-    /// provider reader on a dedicated thread and must apply backpressure when
-    /// the HTTP client is slower than the upstream stream.
+    /// Send one body chunk, applying backpressure without panicking.
+    ///
+    /// Outside a Tokio runtime (dedicated producer threads) this blocks, which
+    /// is the documented contract: a slow HTTP client slows the upstream
+    /// reader.  Inside a runtime `blocking_send` would panic, which silently
+    /// killed successful live streams before their terminal frame, so there we
+    /// hand the chunk to the consumer through the channel and yield until it
+    /// makes room.
     #[allow(clippy::result_unit_err)]
     pub fn send(&self, chunk: Vec<u8>) -> Result<(), ()> {
-        self.sender.blocking_send(Ok(chunk)).map_err(|_| ())
+        match self.sender.try_send(Ok(chunk)) {
+            Ok(()) => Ok(()),
+            Err(mpsc::error::TrySendError::Closed(_)) => Err(()),
+            Err(mpsc::error::TrySendError::Full(chunk)) => {
+                if tokio::runtime::Handle::try_current().is_err() {
+                    return self.sender.blocking_send(chunk).map_err(|_| ());
+                }
+                self.send_from_runtime(chunk)
+            }
+        }
     }
 
     #[allow(clippy::result_unit_err)]
     pub fn send_error(&self, error: io::Error) -> Result<(), ()> {
-        self.sender.blocking_send(Err(error)).map_err(|_| ())
+        match self.sender.try_send(Err(error)) {
+            Ok(()) => Ok(()),
+            Err(mpsc::error::TrySendError::Closed(_)) => Err(()),
+            Err(mpsc::error::TrySendError::Full(error)) => {
+                if tokio::runtime::Handle::try_current().is_err() {
+                    return self.sender.blocking_send(error).map_err(|_| ());
+                }
+                self.send_from_runtime(error)
+            }
+        }
+    }
+
+    /// Retry a full channel from inside a runtime.
+    ///
+    /// The consumer lives on another task/thread, so yielding here lets it
+    /// drain and preserves the ordering of the produced frames.
+    fn send_from_runtime(&self, mut message: Result<Vec<u8>, io::Error>) -> Result<(), ()> {
+        let deadline = std::time::Instant::now() + STREAM_SEND_BACKPRESSURE_TIMEOUT;
+        loop {
+            if std::time::Instant::now() >= deadline {
+                return Err(());
+            }
+            match self.sender.try_send(message) {
+                Ok(()) => return Ok(()),
+                Err(mpsc::error::TrySendError::Closed(_)) => return Err(()),
+                Err(mpsc::error::TrySendError::Full(returned)) => {
+                    message = returned;
+                    std::thread::sleep(Duration::from_millis(1));
+                }
+            }
+        }
     }
 
     pub fn is_closed(&self) -> bool {

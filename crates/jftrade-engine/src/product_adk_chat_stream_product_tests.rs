@@ -998,6 +998,123 @@ async fn start_adk_product_with_loopback_provider(
     (directory, handle)
 }
 
+/// A loopback AI Platform-compatible model endpoint that answers one
+/// `response.output_text.delta` plus `response.completed`.  Serves exactly one
+/// connection, then returns; the caller joins the thread.
+fn spawn_loopback_model_provider() -> (String, std::thread::JoinHandle<()>) {
+    let listener =
+        std::net::TcpListener::bind("127.0.0.1:0").expect("bind loopback model provider");
+    let address = listener.local_addr().expect("model provider address");
+    let handle = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept model request");
+        // Drain the whole request before answering.  The production prompt
+        // plus tool schemas exceed one TCP read, and closing early would make
+        // the client observe a broken pipe instead of the SSE body.
+        let mut request = Vec::new();
+        let mut chunk = [0_u8; 4096];
+        let mut expected = None;
+        loop {
+            let count = std::io::Read::read(&mut stream, &mut chunk).expect("read model request");
+            if count == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..count]);
+            if expected.is_none()
+                && let Some(headers_end) = request.windows(4).position(|w| w == b"\r\n\r\n")
+            {
+                let headers_end = headers_end + 4;
+                let headers = String::from_utf8_lossy(&request[..headers_end]).to_ascii_lowercase();
+                let length = headers
+                    .lines()
+                    .find_map(|line| line.strip_prefix("content-length:"))
+                    .and_then(|value| value.trim().parse::<usize>().ok())
+                    .unwrap_or_default();
+                expected = Some(headers_end + length);
+            }
+            if expected.is_some_and(|expected| request.len() >= expected) {
+                break;
+            }
+        }
+        let body = concat!(
+            "data: {\"type\":\"response.output_text.delta\",\"delta\":\"hello from loopback\"}\n\n",
+            "data: {\"type\":\"response.completed\",\"response\":{\"text\":\"hello from loopback\"}}\n\n"
+        );
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            body.len(),
+            body
+        );
+        let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        let _ = std::io::Write::flush(&mut stream);
+        // Give the client a moment to consume the SSE body before the socket
+        // closes, then return so the caller can join this thread.
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    });
+    (
+        format!("http://{}:{}/v1/responses", address.ip(), address.port()),
+        handle,
+    )
+}
+
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:245
+/// TestADKChatStreamEmitsSessionRunAndFinalEvents.
+///
+/// Go runs a real chat against a saved provider and requires the live SSE
+/// response to carry `session`, `run` and `final` frames, with `final.response`
+/// carrying the resolved agent and the configured `maxDurationMs`.  This drives
+/// the real production runtime against a loopback model provider so the whole
+/// provider call and terminal projection are exercised, not a fixture port.
+#[tokio::test]
+async fn production_live_chat_stream_emits_session_run_and_final_events() {
+    let (endpoint, provider) = spawn_loopback_model_provider();
+    let (_directory, handle) = start_adk_product_with_loopback_provider(&endpoint).await;
+    let address = handle.startup_record().address;
+    let body = br#"{"clientRequestId":"66666666-6666-4666-8666-666666666666","agentId":"agent-live","message":"hello"}"#;
+
+    let text = request_sse_until(address, "POST", ADK_CHAT_STREAM_PATH, body, |text| {
+        text.contains("\"type\":\"final\"") || text.contains("\"type\":\"error\"")
+    })
+    .await;
+    provider.join().expect("loopback provider thread");
+
+    for frame in [
+        "\"type\":\"session\"",
+        "\"type\":\"run\"",
+        "\"type\":\"final\"",
+    ] {
+        assert!(
+            text.contains(frame),
+            "live stream must publish {frame}: {text}"
+        );
+    }
+    let session_at = text.find("\"type\":\"session\"").expect("session frame");
+    let run_at = text.find("\"type\":\"run\"").expect("run frame");
+    let final_at = text.find("\"type\":\"final\"").expect("final frame");
+    assert!(
+        session_at < run_at && run_at < final_at,
+        "session must precede run which must precede final: {text}"
+    );
+    // The terminal frame carries the projected response for the resolved agent.
+    let final_frame = text
+        .split("data: ")
+        .map(|rest| rest.split('\n').next().unwrap_or_default())
+        .filter_map(|data| serde_json::from_str::<Value>(data).ok())
+        .find(|value| value["type"] == "final")
+        .expect("final frame JSON");
+    assert_eq!(
+        final_frame["response"]["run"]["agentId"], "agent-live",
+        "final frame must project the resolved agent"
+    );
+    assert!(
+        final_frame["response"]["reply"]
+            .as_str()
+            .is_some_and(|reply| reply.contains("hello from loopback")),
+        "final frame must carry the model reply: {final_frame}"
+    );
+
+    handle.shutdown().await.expect("shutdown product");
+}
+
 /// A closed loopback port used as the model endpoint.  The provider refuses the
 /// request immediately, which keeps the assertion deterministic while still
 /// driving the real `start_live_stream` path (no fixture port, no network).

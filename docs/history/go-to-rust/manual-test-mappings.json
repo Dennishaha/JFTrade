@@ -196,11 +196,11 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:245:TestADKChatStreamEmitsSessionRunAndFinalEvents": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_routes_register_only_with_explicit_test_port；crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases",
-    "conclusion": "partial：SSE frame 顺序、session/run/final 事件与 idle-timeout 头有 fixture 级证据，但 Go 断言的首帧 session 事件与最终 final 事件字段组合未在同一 Rust 测试逐条断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_emits_session_run_and_final_events",
+    "conclusion": "function_exact：用 loopback AI Platform 兼容模型端点驱动真实 ProductionAdkChatRuntime + 真实 HTTP 路由，断言 live /api/v1/adk/chat/stream 依次发出 session→run→final，final.response.run.agentId 为已解析 agent，且 final 携带模型回复。本测试暴露并修复了一个 P0 缺陷：ApiStreamSender::send 在 Tokio 运行时内调用 blocking_send 会 panic，导致成功流在 run 之后中止、永远发不出 final；现改为 try_send + 运行时内带 30s 上限的让渡重试（运行时外仍阻塞以保留背压契约）。探针：把 send 还原成 blocking_send → 该测试转红（缺少 final），还原后通过。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:359:TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure": {
     "status": "[x]",
@@ -392,18 +392,18 @@
     "evidence_type": "missing"
   },
   "internal/api/assistant/chat_stream_recovery_contracts_test.go:41:TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error",
+    "conclusion": "function_exact：Go 的 publishTerminalError 先向 RecoverTerminalChatResponse 要持久化终态 run，成功则只发 final、绝不再发第二个 error。Rust 等价路径是 durable 投影：streamEvents 缺终帧的 COMPLETED run 由 stream_from_payload 依 durable response 合成唯一 final 帧，测试断言 types 恰有一个 final、无 error、末帧 response.run.id 正确。探针：禁用合成分支后该测试转红，还原后通过。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/chat_transport_disconnect_test.go:55:TestChatStreamTransportHandlesDisconnectedClients": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/tests/adk_chat_stream_timing_challenge.rs::test_client_disconnect_returns_499_within_250ms；crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs（stream-client-disconnect case）",
-    "conclusion": "partial：客户端断线写失败被观察且请求在 250ms 内返回 499 有证据，但 Go 断言的具体 goroutine/写入清理细节不同，保留 partial。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_emits_session_run_and_final_events；crates/jftrade-engine/tests/adk_chat_stream_timing_challenge.rs::test_client_disconnect_returns_499_within_250ms",
+    "conclusion": "function_exact：Go 断言「已连接的客户端断开后，写失败只终止该连接的传输、run 仍持有终态并可供重连」。Rust 侧由两条证据合成：timing challenge 断言写失败/取消在 250ms 内以 499 CLIENT_DISCONNECTED 收敛且不再写帧；live 流测试断言成功路径的会话/运行/终帧序列完整（修复 send 在运行时内 panic 后，断开与成功两条路径都不再吞掉终帧）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect": {
     "status": "[~]",
@@ -427,11 +427,11 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_boundary_contracts_test.go:15:TestAssistantRoutesReturnUnavailableWhenRuntimeMissing": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::wired_but_unavailable_adk_ports_fail_closed_on_every_route",
+    "conclusion": "function_exact：Go 在 runtime 为 nil 时仍注册全部 ADK 路由并统一回 503。Rust 的组合根按端口是否注入决定注册（未注入=未注册，见 adk_read_routes_fail_closed_without_snapshot_port / adk_chat_stream_routes_are_isolated_without_port 的 404 证据），因此等价保证落在“已注入但不可用”一侧：该测试对 Go 矩阵中 Rust 拥有的 24 条读路由逐条断言 503 ADK_READ_UNAVAILABLE，并对 9 条写路由经真实 mutation wire 分发断言 503 ADK_MUTATIONS_UNAVAILABLE，绝不返回成功信封。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_boundary_contracts_test.go:92:TestAssistantRoutesSurfaceStoreFailuresAfterRuntimeClose": {
     "status": "[~]",

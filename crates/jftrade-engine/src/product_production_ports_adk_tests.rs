@@ -4628,6 +4628,118 @@ fn adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed() {
     }
 }
 
+/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:15
+/// TestAssistantRoutesReturnUnavailableWhenRuntimeMissing.
+///
+/// Go registers every ADK route even when the runtime is nil and answers `503`
+/// for all of them.  Rust's composition root gates registration on the port
+/// being wired, so the equivalent guarantee is split: an unwired surface is
+/// plainly not registered (404, covered by
+/// `adk_read_routes_fail_closed_without_snapshot_port` and
+/// `adk_chat_stream_routes_are_isolated_without_port`), and a *wired but
+/// unavailable* surface must fail closed on every ADK route instead of
+/// answering a success envelope.
+#[test]
+fn wired_but_unavailable_adk_ports_fail_closed_on_every_route() {
+    #[derive(Debug)]
+    struct UnavailableSnapshotPort;
+
+    impl AdkReadSnapshotPort for UnavailableSnapshotPort {
+        fn read(
+            &self,
+            _path: &str,
+            _query: &str,
+        ) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
+            Err(AdkReadSnapshotError::Unavailable(
+                "ADK runtime is unavailable".to_owned(),
+            ))
+        }
+    }
+
+    // Every read route in the Go matrix that Rust owns must answer 503 rather
+    // than an unclassified error or a fabricated success.
+    for path in [
+        "/api/v1/adk",
+        "/api/v1/adk/tools",
+        "/api/v1/adk/audit",
+        "/api/v1/adk/metrics",
+        "/api/v1/adk/workflows",
+        "/api/v1/adk/workflows/workflow-1",
+        "/api/v1/adk/workflows/workflow-1/triggers",
+        "/api/v1/adk/workflow-trigger-logs",
+        "/api/v1/adk/tasks",
+        "/api/v1/adk/tasks/task-1",
+        "/api/v1/adk/memory",
+        "/api/v1/adk/optimization-tasks",
+        "/api/v1/adk/optimization-tasks/task-1",
+        "/api/v1/adk/providers",
+        "/api/v1/adk/agents",
+        "/api/v1/adk/sessions",
+        "/api/v1/adk/sessions/session-1",
+        "/api/v1/adk/sessions/session-1/context",
+        "/api/v1/adk/runs",
+        "/api/v1/adk/runs/run-1",
+        "/api/v1/adk/runs/run-1/stream",
+        "/api/v1/adk/approvals",
+        "/api/v1/adk/skills",
+        "/api/v1/adk/streams/stream-1",
+    ] {
+        let failure = crate::product::dispatch_adk_read(
+            Some(&UnavailableSnapshotPort),
+            "GET",
+            path,
+            "",
+        )
+            .expect_err("GET {path} must fail closed");
+        assert_eq!(failure.status, 503, "GET {path}");
+        assert_eq!(failure.code, "ADK_READ_UNAVAILABLE", "GET {path}");
+    }
+
+    // Mutations are the same shape: the port reports unavailable instead of
+    // letting the handler synthesise a success envelope.
+    #[derive(Debug)]
+    struct UnavailableMutationPort;
+
+    impl AdkMutationPort for UnavailableMutationPort {
+        fn mutate(
+            &self,
+            _input: &AdkMutationInput,
+        ) -> Result<Value, AdkMutationPortError> {
+            Err(AdkMutationPortError::Unavailable(
+                "ADK runtime is unavailable".to_owned(),
+            ))
+        }
+    }
+
+    for (method, path, body) in [
+        ("POST", "/api/v1/adk/workflows", r#"{"name":"Missing Runtime"}"#),
+        ("POST", "/api/v1/adk/workflows/workflow-1/run", r#"{"symbol":"US.AAPL"}"#),
+        ("POST", "/api/v1/adk/tasks", r#"{"title":"Task"}"#),
+        ("POST", "/api/v1/adk/memory", r#"{"key":"note","value":"v"}"#),
+        ("POST", "/api/v1/adk/providers", r#"{"displayName":"Provider"}"#),
+        ("POST", "/api/v1/adk/agents", r#"{"name":"Agent"}"#),
+        ("POST", "/api/v1/adk/sessions", r#"{"agentId":"agent-1"}"#),
+        ("POST", "/api/v1/adk/approvals/approval-1/approve", ""),
+        ("POST", "/api/v1/adk/skills", r#"{"source":"local"}"#),
+    ] {
+        let response = crate::product::product_adk_mutation_port::dispatch_adk_mutation(
+            &crate::product::product_adk_mutation_port::AdkMutationRequest {
+                method: method.to_owned(),
+                path: path.to_owned(),
+                body: (!body.is_empty()).then(|| body.as_bytes().to_vec()),
+                headers: BTreeMap::new(),
+            },
+            Some(&UnavailableMutationPort),
+            "2026-09-19T00:00:00Z",
+        );
+        assert_eq!(response.status, 503, "{method} {path}");
+        assert_eq!(
+            response.body["error"]["code"], "ADK_MUTATIONS_UNAVAILABLE",
+            "{method} {path}"
+        );
+    }
+}
+
 /// Parity: go:452dea11:internal/api/assistant/routes_test.go:29
 /// TestCatalogSessionRunAndObservabilityContracts.
 ///

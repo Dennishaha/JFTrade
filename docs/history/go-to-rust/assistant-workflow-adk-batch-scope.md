@@ -644,3 +644,67 @@ RUSTSEC-2026-0285 / rustls 0.23.44），本批未改 `Cargo.lock` 规避。
 - `internal/api/assistant`：剩余 `[~]` 34 条，集中在 `adk_ops_test.go`、
   `adk_sessions_test.go`、`chat_stream_recovery_contracts_test.go`、
   `routes_resource_contracts_test.go` 其余资源契约与 `service_*_test.go`。
+
+## 第九批：stream 成功路径 P0 修复 + 边界/恢复契约（6 条 [x]）
+
+批次范围（`internal/api/assistant/`，go:452dea11）：`adk_routes_test.go:245`、
+`adk_approval_test.go` 之外的首批 P0/P1 边界项，以及
+`routes_boundary_contracts_test.go:15`、`chat_transport_disconnect_test.go:55`、
+`chat_stream_recovery_contracts_test.go:41`。
+
+### 功能差异与修复
+
+1. **成功 live 流在 `run` 之后中止，永不发 `final`（P0，本批最重要）**
+   - 复现：真实 provider（loopback AI Platform 兼容端点返回
+     `response.output_text.delta` + `response.completed`）驱动
+     `POST /api/v1/adk/chat/stream`，SSE 只到 `session`、`run` 两帧就结束。
+   - 根因：`jftrade-api` 的 `ApiStreamSender::send` 无条件调用
+     `blocking_send`。provider 读线程运行在 Tokio 运行时内（嵌套 current-thread
+     runtime），`blocking_send` 在该上下文 panic，生产者的终帧写入被 panic 吞掉。
+   - 预期行为：`session → run → final` 三帧齐全，`final.response.run.agentId`
+     为已解析 agent、`reply` 携带模型文本。
+   - 修复位置：`crates/jftrade-api/src/ports.rs`。发送改为 `try_send` 优先；
+     运行时**外**仍用 `blocking_send` 保留背压契约；运行时**内**改为让渡重试，
+     上限 30s，超时或通道关闭返回 `Err` 以取消生产 run，而不是 panic 或永久阻塞。
+   - 回归测试：
+     `product_adk_chat_stream_product_tests.rs::production_live_chat_stream_emits_session_run_and_final_events`
+     （新增 `spawn_loopback_model_provider`，按 `Content-Length` 读完请求再回 SSE，
+     `join()` provider 线程）。
+   - 探针：把 `send()` 还原为 `blocking_send` → 测试转红（缺 `final`），还原后通过。
+
+2. **已注入但不可用的 ADK 端口必须全线失败关闭**
+   - Go 在 runtime 为 nil 时仍注册全部 ADK 路由并统一回 503。
+   - Rust 组合根按端口注入决定注册（未注入=未注册），等价保证落在「已注入但不可用」：
+     新增 `wired_but_unavailable_adk_ports_fail_closed_on_every_route`，对 Go 矩阵中
+     Rust 拥有的 24 条读路由逐条断言 `503 ADK_READ_UNAVAILABLE`，并对 9 条写路由经
+     真实 mutation wire 分发断言 `503 ADK_MUTATIONS_UNAVAILABLE`。
+   - 探针：把 `snapshot_failure` 的 Unavailable 状态码改成 200 → 测试转红，还原后通过。
+
+3. **持久化终态 run 必须以 `final` 恢复、不得再发第二个 `error`**
+   - 新增
+     `product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error`，
+     断言终态投影中 `types` 恰有一个 `final`、无 `error`、末帧 `response.run.id` 正确。
+   - 探针：禁用 `stream_from_payload` 的终帧合成分支 → 测试转红，还原后通过。
+
+### 边界判定
+
+- `TestChatStreamHubKeepsEventAndTimelineContracts` 的「不可序列化 tool output 不得
+  丢弃事件」判定为边界保留：Go 侧 `cloneADKChatStreamEvent` 是进程内 hub 的
+  JSON 往返克隆兜底，Rust 的事件在写入时已是 `serde_json::Value`（无 Go 的
+  `func()` 字段），不存在同等结构；对应保证由 durable 事件写入路径覆盖。
+
+### 验证
+
+- `cargo fmt --all`；`cargo clippy -p jftrade-engine -p jftrade-api --all-targets --locked` 通过
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked --no-fail-fast`：
+  1454 + 54 passed / 0 failed
+- `python3 scripts/compatibility/audit_test_parity.py`：741 function_exact，
+  0 条缺 `function_exact` 的 `[x]`，0 条重复 `rust_entry`
+- `git diff --check` 通过
+
+### 状态
+
+- `internal/api/assistant` 剩余 30 条 `[~]`（adk_approval 2、adk_integration 1、
+  adk_routes 3、catalog_failure 1、chat_helpers 8、chat_stream_lifecycle 1、
+  chat_stream_recovery 1、chat_transport_disconnect 1、routes_boundary 5、
+  routes_payload_pagination 3、routes_resource_contracts 4）。
