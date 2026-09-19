@@ -702,9 +702,38 @@ RUSTSEC-2026-0285 / rustls 0.23.44），本批未改 `Cargo.lock` 规避。
   0 条缺 `function_exact` 的 `[x]`，0 条重复 `rust_entry`
 - `git diff --check` 通过
 
+### 并发 wakeup 修复（本轮追加）
+
+`pnpm run check:rust:workspace` 并行跑 engine 时暴露出
+`adk_approval_negative_and_idempotent_routes_match_the_go_envelopes` 的间歇失败，
+根因是真实功能差异而不是测试抖动：
+
+- 复现条件：`resolve_and_stage_approval` 已把 run 从 `PENDING` 提交为
+  `RUNNING`，但路由尚未调用 `runtime.resume_approval`；此时 durable recovery
+  scanner（或浏览器重试）先 claim 了同一条 continuation。
+- 预期行为（Go `ResolveApprovalAsync`）：`claimApprovalContinuation` 失败即
+  “已有 owner 在飞”，属于幂等 no-op，路由仍返回 resolution envelope；在飞
+  owner 重读已 resolve 的 run 并执行释放的 tool call，approved tool 只执行一次。
+- Rust 现状（修复前）：`resume_approval` 返回 `Conflict`，approve/deny 分支
+  无条件 `rollback_staged_approval` 后回 `503 ADK_CONTINUATION_UNAVAILABLE`，
+  把正在继续的 run 误报为不可用。
+- 修复位置：`crates/jftrade-engine/src/product_production_ports_adk_mutation_runs.rs`
+  的 approve/deny 分支——仅对真正的启动失败（`Unavailable`/`Failed`）回滚，
+  `Conflict`（已有 in-flight claim）照常投影 resolution envelope。
+- 回归测试：`product_production_ports_adk_tests.rs::adk_approval_wakeup_accepts_an_already_claimed_continuation`
+  （冲突 runtime + 真实 store，断言 envelope 与 approval 不回退 PENDING）。
+  探针：把 `Conflict` 分支恢复为无条件回滚，该测试转红。
+- 同时把 `adk_approval_approve_returns_the_running_resolution_envelope` 的
+  fixture 改成记录型 continuation runtime，消除真实 provider 调用覆写
+  `resumeState` 造成的抖动；真实 provider 端到端仍由
+  `production_live_chat_stream_emits_session_run_and_final_events` 覆盖。
+
 ### 状态
 
 - `internal/api/assistant` 剩余 30 条 `[~]`（adk_approval 2、adk_integration 1、
   adk_routes 3、catalog_failure 1、chat_helpers 8、chat_stream_lifecycle 1、
   chat_stream_recovery 1、chat_transport_disconnect 1、routes_boundary 5、
   routes_payload_pagination 3、routes_resource_contracts 4）。
+- 本轮追加关闭 `internal/assistant/engine/runner_approval_concurrency_test.go:119`
+  `TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation`（同批修复的并发
+  wakeup 语义）。

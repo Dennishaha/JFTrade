@@ -26,9 +26,12 @@ pub(super) fn compact_session_context(
         .into_iter()
         .any(|run| run.session_id == session_id && run.status.eq_ignore_ascii_case("RUNNING"))
     {
+        // Go's `handleADKCompactSessionContext` keeps the route's own code
+        // and only escalates the status to 409 when the service reports an
+        // active run.
         return Err(AdkMutationPortError::Failed {
             status: 409,
-            code: "ADK_SESSION_ACTIVE_RUN".to_owned(),
+            code: "ADK_SESSION_CONTEXT_COMPACT_FAILED".to_owned(),
             message: "session has an active run".to_owned(),
         });
     }

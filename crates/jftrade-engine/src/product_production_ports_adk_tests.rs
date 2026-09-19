@@ -4500,6 +4500,1783 @@ fn adk_chat_approval_is_listed_as_pending_and_denied_with_ok_envelope() {
     );
 }
 
+/// Seed a `PENDING` run plus its staged approval so the approval-resolution
+/// envelope can be exercised end to end.  The runtime is the real production
+/// chat runtime (required: Go resolves and stages the approval, then enqueues
+/// the background continuation before answering); its provider points at a
+/// closed loopback port so the continuation fails deterministically without
+/// touching the network.
+fn seed_pending_approval_run(
+    suffix: &str,
+    tool_call_id: &str,
+    tool_name: &str,
+) -> (Arc<ProductionAdkPort>, tempfile::TempDir, String, String) {
+    let (port, directory) = ready_adk_port_with_fallback_provider();
+    let (run_id, approval_id) =
+        seed_pending_approval_rows(&port.store, suffix, tool_call_id, tool_name);
+    (port, directory, run_id, approval_id)
+}
+
+/// Persist the `PENDING` run, its staged approval, and the session/agent rows
+/// the resolution routes resolve, so any runtime fixture can exercise the
+/// approval envelope without depending on the production provider fixture.
+fn seed_pending_approval_rows(
+    store: &Arc<AdkStore>,
+    suffix: &str,
+    tool_call_id: &str,
+    tool_name: &str,
+) -> (String, String) {
+    let run_id = format!("run-approval-{suffix}");
+    let approval_id = format!("approval-{suffix}");
+    let session_id = format!("session-approval-{suffix}");
+    let payload = json!({
+        "id": run_id,
+        "sessionId": session_id,
+        "agentId": "agent-approval",
+        "status": "PENDING",
+        "workMode": "chat",
+        "requestMessage": "run the gated tool",
+        "reply": "",
+        "toolCalls": [{
+            "id": tool_call_id,
+            "runId": run_id,
+            "name": tool_name,
+            "toolName": tool_name,
+            "status": "PENDING_APPROVAL",
+            "requiresUser": true,
+        }],
+        "pendingApprovals": [{
+            "id": approval_id,
+            "runId": run_id,
+            "agentId": "agent-approval",
+            "toolName": tool_name,
+            "status": "PENDING",
+        }],
+    });
+    // The approved continuation resolves the agent + provider before it
+    // enqueues the background model call, so the fixture needs a real enabled
+    // agent row; the denial path short-circuits before provider resolution.
+    store
+        .upsert_agent(
+            "agent-approval",
+            &json!({
+                "id": "agent-approval",
+                "name": "Approval Agent",
+                "providerId": "provider-ready",
+                "status": "ENABLED",
+                "permissionMode": "approval",
+            })
+            .to_string(),
+        )
+        .expect("seed approval agent");
+    // The session row is what the session detail route resolves before it
+    // reads the transcript, so the fixture has to create it explicitly.
+    store
+        .upsert_session(&session_id, "agent-approval", "{}")
+        .expect("seed approval session");
+    store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: &run_id,
+            session_id: &session_id,
+            agent_id: "agent-approval",
+            status: "PENDING",
+            client_request_id: &format!("{suffix}-request"),
+            request_fingerprint: &format!("{suffix}-fingerprint"),
+            payload_json: &payload.to_string(),
+        })
+        .expect("seed pending approval run");
+    store
+        .create_approval(
+            &approval_id,
+            &run_id,
+            "agent-approval",
+            "PENDING",
+            &json!({
+                "id": approval_id,
+                "runId": run_id,
+                "agentId": "agent-approval",
+                "toolName": tool_name,
+                "status": "PENDING",
+            })
+            .to_string(),
+        )
+        .expect("seed pending approval");
+    (run_id, approval_id)
+}
+
+/// Parity: go:452dea11:internal/api/assistant/adk_approval_test.go:16
+/// TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope.
+///
+/// Go answers `200 ok=true` with the resolution envelope while the approved
+/// continuation runs in the background: the approval is `APPROVED`, the run is
+/// `RUNNING` with `resumeState=approval_resuming`, its tool call is already
+/// `RUNNING`, and the session detail exposes a running tool group for that run
+/// before the tool itself finishes.
+///
+/// The route's own responsibility is the durable staging plus the continuation
+/// wakeup.  The fixture therefore records the wakeup for the resolved run and
+/// returns immediately, which keeps the staged `RUNNING` projection observable
+/// (a real provider call would immediately overwrite `resumeState`); the live
+/// model-call path is covered end to end by
+/// `production_live_chat_stream_emits_session_run_and_final_events`.
+#[test]
+fn adk_approval_approve_returns_the_running_resolution_envelope() {
+    #[derive(Debug, Default)]
+    struct RecordingContinuationRuntime {
+        resumed: std::sync::Mutex<Vec<String>>,
+    }
+
+    impl AdkChatStreamPort for RecordingContinuationRuntime {
+        fn dispatch(
+            &self,
+            _: AdkChatRoute,
+            _: &AdkChatInput,
+        ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+            Ok(AdkChatPortOutput::Json(json!({"synthetic": true})))
+        }
+        fn resume_approval(&self, run_id: &str) -> Result<(), AdkChatPortError> {
+            self.resumed
+                .lock()
+                .expect("resume log")
+                .push(run_id.to_owned());
+            Ok(())
+        }
+        fn runtime_ready(&self) -> bool {
+            true
+        }
+    }
+
+    let runtime = Arc::new(RecordingContinuationRuntime::default());
+    let (port, store, _directory) =
+        setup_test_adk_mutation_port(Some(Arc::clone(&runtime) as Arc<dyn AdkChatStreamPort>));
+    let (run_id, approval_id) =
+        seed_pending_approval_rows(&store, "approve-running", "call-approve-running", "contract.write");
+
+    let resolution = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::Approve,
+            identifiers: BTreeMap::from([("approvalId".to_owned(), approval_id.clone())]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect("approve must answer the resolution envelope");
+
+    assert_eq!(resolution["approval"]["id"], approval_id);
+    assert_eq!(resolution["approval"]["status"], "APPROVED");
+    let run = &resolution["run"];
+    assert_eq!(run["id"], run_id, "resolution envelope: {resolution}");
+    assert_eq!(run["status"], "RUNNING");
+    assert_eq!(run["resumeState"], "approval_resuming");
+    let tool_calls = run["toolCalls"].as_array().expect("toolCalls array");
+    assert_eq!(tool_calls.len(), 1, "resolution toolCalls: {tool_calls:?}");
+    assert_eq!(tool_calls[0]["status"], "RUNNING");
+    assert_eq!(tool_calls[0]["requiresUser"], false);
+    assert_eq!(
+        runtime.resumed.lock().expect("resume log").as_slice(),
+        std::slice::from_ref(&run_id),
+        "the route must wake exactly the resolved run's continuation"
+    );
+
+    // The durable run carries the same running projection, which is what the
+    // session detail and run detail routes read back.
+    let stored = port
+        .store
+        .get_run(&run_id)
+        .expect("read run")
+        .expect("run exists");
+    let payload: Value = serde_json::from_str(&stored.payload_json).expect("run payload");
+    assert_eq!(payload["status"], "RUNNING");
+    assert_eq!(payload["resumeState"], "approval_resuming");
+    assert_eq!(
+        payload["toolCalls"][0]["status"], "RUNNING",
+        "a released approval must not leave its tool call pending: {payload}"
+    );
+
+    // Once resolved the approval leaves the PENDING filter.
+    let AdkReadSnapshot::Json(value) = port
+        .read("/api/v1/adk/approvals", "status=PENDING")
+        .expect("approvals read")
+    else {
+        panic!("approvals route must answer JSON");
+    };
+    assert!(
+        value["approvals"]
+            .as_array()
+            .expect("approvals array")
+            .iter()
+            .all(|approval| approval["id"] != approval_id),
+        "an approved approval must not stay PENDING: {value}"
+    );
+}
+
+/// Parity: go:452dea11:internal/api/assistant/adk_approval_test.go:183
+/// TestADKApprovalRouteReturnsResolutionEnvelope.
+///
+/// Go's denial path keeps the same envelope shape: `200 ok=true`, approval
+/// `DENIED`, run `RUNNING` with `resumeState=approval_resuming`, and no
+/// synchronous assistant `message` (the background continuation owns the
+/// terminal state).
+#[test]
+fn adk_approval_deny_returns_the_resolution_envelope_without_a_sync_message() {
+    let (port, _directory, run_id, approval_id) =
+        seed_pending_approval_run("deny-running", "call-deny-running", "contract.write");
+
+    let resolution = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::Deny,
+            identifiers: BTreeMap::from([("approvalId".to_owned(), approval_id.clone())]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect("deny must answer the resolution envelope");
+
+    assert_eq!(resolution["approval"]["id"], approval_id);
+    assert_eq!(resolution["approval"]["status"], "DENIED");
+    assert!(
+        resolution.get("message").is_none(),
+        "Go does not emit a synchronous assistant summary: {resolution}"
+    );
+    let run = &resolution["run"];
+    assert_eq!(run["id"], run_id, "resolution envelope: {resolution}");
+    assert_eq!(run["status"], "RUNNING");
+    assert_eq!(run["resumeState"], "approval_resuming");
+
+    // The denial is durable: the run reaches DENIED and the tool call is
+    // rejected rather than left pending.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let stored = port
+            .store
+            .get_run(&run_id)
+            .expect("read run")
+            .expect("run exists");
+        if stored.status == "DENIED" {
+            let payload: Value =
+                serde_json::from_str(&stored.payload_json).expect("denied run payload");
+            assert_eq!(payload["toolCalls"][0]["status"], "DENIED");
+            assert_eq!(payload["toolCalls"][0]["requiresUser"], false);
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "denied run did not converge: {stored:?}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:261
+/// TestProviderDefaultContract.
+///
+/// Go creates two providers, promotes the second to default, and requires the
+/// list route to return the default first; promoting a missing provider is
+/// `404 ADK_PROVIDER_DEFAULT_FAILED` (the route's own code, not the entity
+/// not-found code used by provider updates).
+#[test]
+fn provider_default_contract_orders_the_default_first_and_keeps_the_route_code() {
+    let (port, _directory) = agent_validation_port();
+    for id in ["provider-default-a", "provider-default-b"] {
+        port.mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateProvider,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "id": id,
+                "displayName": id,
+                "baseUrl": "https://example.test/v1",
+                "model": "fixture-model",
+                "enabled": true,
+            }),
+            webhook_secret: None,
+        })
+        .expect("create provider");
+    }
+
+    let promoted = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::SetDefaultProvider,
+            identifiers: BTreeMap::from([(
+                "providerId".to_owned(),
+                "provider-default-b".to_owned(),
+            )]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect("promote provider-default-b");
+    assert_eq!(promoted["id"], "provider-default-b");
+    assert_eq!(promoted["default"], true);
+
+    let AdkReadSnapshot::Json(listed) = port
+        .read("/api/v1/adk/providers", "")
+        .expect("providers read")
+    else {
+        panic!("providers route must answer JSON");
+    };
+    let ids = listed["providers"]
+        .as_array()
+        .expect("providers array")
+        .iter()
+        .filter_map(|provider| provider["id"].as_str())
+        .collect::<Vec<_>>();
+    let default_index = ids
+        .iter()
+        .position(|id| *id == "provider-default-b")
+        .expect("default provider must be listed");
+    let other_index = ids
+        .iter()
+        .position(|id| *id == "provider-default-a")
+        .expect("other provider must be listed");
+    assert!(
+        default_index < other_index,
+        "the default provider must be listed first: {ids:?}"
+    );
+
+    let missing = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::SetDefaultProvider,
+            identifiers: BTreeMap::from([(
+                "providerId".to_owned(),
+                "provider-default-missing".to_owned(),
+            )]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect_err("promoting a missing provider must fail closed");
+    match missing {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 404);
+            assert_eq!(
+                code, "ADK_PROVIDER_DEFAULT_FAILED",
+                "Go keeps the route's own code; message {message}"
+            );
+            assert_eq!(message, "provider not found");
+        }
+        other => panic!("expected 404 ADK_PROVIDER_DEFAULT_FAILED, got {other:?}"),
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:787
+/// TestADKSessionNegativeRoutes.
+///
+/// Go keeps a dedicated error envelope per session negative case: a missing or
+/// disabled agent on create is `400 BAD_REQUEST` / "enabled agent is
+/// required", a blank/undecodable `sessionId` is `400 BAD_REQUEST` /
+/// "sessionId is invalid", a missing session detail is `404 NOT_FOUND` /
+/// "session not found", and a malformed rename payload is
+/// `400 BAD_REQUEST` / "invalid session payload".
+#[test]
+fn adk_session_negative_routes_keep_the_go_error_envelopes() {
+    let (port, _directory) = unready_adk_port();
+
+    // Missing agent on create.
+    match port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::CreateSession,
+        identifiers: BTreeMap::new(),
+        body: json!({"agentId": "missing-agent", "title": "x"}),
+        webhook_secret: None,
+    }) {
+        Err(AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        }) => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "BAD_REQUEST");
+            assert_eq!(message, "enabled agent is required");
+        }
+        other => panic!("expected 400 BAD_REQUEST for missing agent, got {other:?}"),
+    }
+
+    // Missing session detail.
+    match port.read("/api/v1/adk/sessions/session-missing", "") {
+        Err(AdkReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            ..
+        }) => {
+            assert_eq!(status, 404);
+            assert_eq!(code, "NOT_FOUND");
+            assert_eq!(message, "session not found");
+        }
+        other => panic!("expected 404 NOT_FOUND for a missing session, got {other:?}"),
+    }
+
+    // Malformed rename payload against an existing session.
+    port.store
+        .upsert_agent(
+            "session-negative-agent",
+            r#"{"id":"session-negative-agent","name":"Session Negative Agent","status":"ENABLED","permissionMode":"approval"}"#,
+        )
+        .expect("seed agent");
+    port.store
+        .upsert_session("session-negative", "session-negative-agent", "{}")
+        .expect("seed session");
+    let malformed = crate::product::product_adk_mutation_port::dispatch_adk_mutation(
+        &crate::product::product_adk_mutation_port::AdkMutationRequest {
+            method: "PUT".to_owned(),
+            path: "/api/v1/adk/sessions/session-negative".to_owned(),
+            body: Some(br#"{"title":"#.to_vec()),
+            headers: BTreeMap::new(),
+        },
+        Some(&port),
+        "2026-09-19T00:00:00Z",
+    );
+    assert_eq!(malformed.status, 400, "malformed rename: {malformed:?}");
+    assert_eq!(malformed.body["error"]["code"], "BAD_REQUEST");
+    assert_eq!(malformed.body["error"]["message"], "invalid session payload");
+}
+
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:911
+/// TestADKApprovalNegativeAndIdempotentRoutes.
+///
+/// An unknown approval is idempotent in Go: approving a missing id answers
+/// `200 ok=true` with an empty resolution (`approval.id`/`status` blank and no
+/// run/message), approving the same real approval twice stays
+/// `200`/`APPROVED`, and the blank-identifier branch answers
+/// `400 BAD_REQUEST` / "approvalId is invalid".
+#[test]
+fn adk_approval_negative_and_idempotent_routes_match_the_go_envelopes() {
+    let (port, _directory, _run_id, approval_id) =
+        seed_pending_approval_run("idempotent", "call-idempotent", "contract.write");
+
+    let missing = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::Approve,
+            identifiers: BTreeMap::from([(
+                "approvalId".to_owned(),
+                "approval-missing".to_owned(),
+            )]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect("approving an unknown approval is idempotent in Go");
+    assert_eq!(missing["approval"]["id"], "");
+    assert!(missing.get("run").is_none(), "missing resolution run: {missing}");
+    assert!(
+        missing.get("message").is_none(),
+        "missing resolution message: {missing}"
+    );
+
+    let first = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::Approve,
+            identifiers: BTreeMap::from([("approvalId".to_owned(), approval_id.clone())]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect("first approve");
+    assert_eq!(first["approval"]["status"], "APPROVED");
+
+    let second = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::Approve,
+            identifiers: BTreeMap::from([("approvalId".to_owned(), approval_id.clone())]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect("second approve must be idempotent");
+    assert_eq!(
+        second["approval"]["status"], "APPROVED",
+        "a repeated approve keeps the resolved projection: {second}"
+    );
+
+    // The blank identifier is rejected at the wire edge before the port runs.
+    let blank = crate::product::product_adk_mutation_port::dispatch_adk_mutation(
+        &crate::product::product_adk_mutation_port::AdkMutationRequest {
+            method: "POST".to_owned(),
+            path: "/api/v1/adk/approvals/%20/approve".to_owned(),
+            body: None,
+            headers: BTreeMap::new(),
+        },
+        Some(port.as_ref()),
+        "2026-09-19T00:00:00Z",
+    );
+    assert_eq!(blank.status, 400, "blank approvalId: {blank:?}");
+    assert_eq!(blank.body["error"]["code"], "BAD_REQUEST");
+    assert_eq!(blank.body["error"]["message"], "approvalId is invalid");
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/runner_approval_concurrency_test.go:105
+/// TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation.
+///
+/// Go claims the continuation before starting it, so a second wakeup for a run
+/// whose continuation is already in flight returns the resolution envelope
+/// instead of an error: the owner in flight rereads the resolved run and
+/// executes the released tool call exactly once.  Rust reaches the same
+/// window through the durable recovery scanner (the `PENDING`->`RUNNING`
+/// stage commits before the route asks the runtime to resume), so an
+/// already-claimed continuation must answer the envelope rather than
+/// `503 ADK_CONTINUATION_UNAVAILABLE`.
+#[test]
+fn adk_approval_wakeup_accepts_an_already_claimed_continuation() {
+    #[derive(Debug)]
+    struct ClaimedContinuationRuntime;
+
+    impl AdkChatStreamPort for ClaimedContinuationRuntime {
+        fn dispatch(
+            &self,
+            _: AdkChatRoute,
+            _: &AdkChatInput,
+        ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+            Ok(AdkChatPortOutput::Json(json!({"synthetic": true})))
+        }
+        fn resume_approval(&self, _: &str) -> Result<(), AdkChatPortError> {
+            Err(AdkChatPortError::Conflict(
+                "assistant continuation is already running".to_owned(),
+            ))
+        }
+        fn runtime_ready(&self) -> bool {
+            true
+        }
+    }
+
+    let (port, store, _directory) = setup_test_adk_mutation_port(Some(Arc::new(
+        ClaimedContinuationRuntime,
+    )));
+    let (run_id, approval_id) =
+        seed_pending_approval_rows(&store, "claimed", "call-claimed", "contract.write");
+
+    let approval_resolution = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::Approve,
+            identifiers: BTreeMap::from([("approvalId".to_owned(), approval_id.clone())]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect("an already-claimed continuation must still answer the envelope");
+
+    assert_eq!(approval_resolution["approval"]["id"], approval_id);
+    assert_eq!(approval_resolution["approval"]["status"], "APPROVED");
+    let run = &approval_resolution["run"];
+    assert_eq!(run["id"], run_id, "resolution envelope: {approval_resolution}");
+    assert_eq!(run["status"], "RUNNING");
+    assert_eq!(run["resumeState"], "approval_resuming");
+    assert_eq!(run["toolCalls"][0]["status"], "RUNNING");
+    assert_eq!(run["toolCalls"][0]["requiresUser"], false);
+
+    // The staged resolution stays durable: the in-flight owner (or the next
+    // recovery pass) still finds the released tool call.
+    let stored = store
+        .get_run(&run_id)
+        .expect("read run")
+        .expect("run exists");
+    let payload: Value = serde_json::from_str(&stored.payload_json).expect("run payload");
+    assert_eq!(payload["status"], "RUNNING");
+    assert_eq!(payload["toolCalls"][0]["status"], "RUNNING");
+
+    let recovered = store
+        .list_approvals()
+        .expect("list approvals")
+        .into_iter()
+        .find(|approval| approval.id == approval_id)
+        .expect("approval exists");
+    assert_eq!(
+        recovered.status, "APPROVED",
+        "a claimed continuation must not roll the approval back to PENDING"
+    );
+}
+
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:26
+/// TestADKSessionDetailOmitsResolvedApprovalGroups.
+///
+/// Once an approval is resolved, Go's session detail no longer carries an
+/// approval-group timeline entry and the pending-approval filter no longer
+/// lists it.  Rust's session timeline only projects user/assistant messages
+/// (there is no `approvalGroup` kind), so the guarantee is asserted through
+/// both surfaces: no timeline entry references the resolved approval, and the
+/// `status=PENDING` list excludes it.
+#[test]
+fn adk_session_detail_omits_resolved_approval_groups() {
+    let (port, _directory, run_id, approval_id) =
+        seed_pending_approval_run("resolved-group", "call-resolved-group", "contract.write");
+
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::Approve,
+        identifiers: BTreeMap::from([("approvalId".to_owned(), approval_id.clone())]),
+        body: Value::Null,
+        webhook_secret: None,
+    })
+    .expect("approve the staged approval");
+
+    let AdkReadSnapshot::Json(detail) = port
+        .read("/api/v1/adk/sessions/session-approval-resolved-group", "")
+        .expect("session detail")
+    else {
+        panic!("session detail must answer JSON");
+    };
+    let timeline = detail["timeline"].as_array().expect("timeline array");
+    for entry in timeline {
+        let kind = entry["kind"].as_str().unwrap_or_default();
+        assert_ne!(
+            kind, "approval_group",
+            "a resolved approval must not leave an approval group: {entry}"
+        );
+        assert!(
+            entry.to_string().find(&approval_id).is_none(),
+            "a resolved approval must not be referenced by the timeline: {entry}"
+        );
+    }
+
+    let AdkReadSnapshot::Json(pending) = port
+        .read("/api/v1/adk/approvals", "status=PENDING")
+        .expect("pending approvals")
+    else {
+        panic!("approvals route must answer JSON");
+    };
+    assert!(
+        pending["approvals"]
+            .as_array()
+            .expect("approvals array")
+            .iter()
+            .all(|approval| approval["id"] != approval_id),
+        "resolved approval {approval_id} must not stay pending: {pending}"
+    );
+
+    // The run itself is still reachable from the session detail.
+    let runs = detail["runs"].as_array().expect("runs array");
+    assert!(
+        runs.iter().any(|run| run["id"] == run_id),
+        "session detail must keep the resolved run: {runs:?}"
+    );
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:278
+/// TestAssistantCatalogBoundaryStatusCodes.
+///
+/// The catalog boundary matrix keeps one status per branch: `400` for an
+/// unknown task status or an invalid memory scope, `404` for missing task /
+/// memory / default-provider targets, `409` for a provider still referenced by
+/// an agent or for the protected built-in agent, and `400` for malformed
+/// provider / agent / skill payloads.
+#[test]
+fn adk_catalog_boundary_status_codes_match_the_go_matrix() {
+    let (port, _directory) = agent_validation_port();
+    port.store
+        .upsert_agent(
+            "agent-uses-provider",
+            r#"{"id":"agent-uses-provider","name":"Provider User","providerId":"provider-enabled","status":"ENABLED"}"#,
+        )
+        .expect("seed referencing agent");
+    port.store
+        .upsert_task(
+            "task-invalid-patch",
+            "TODO",
+            "",
+            "",
+            r#"{"id":"task-invalid-patch","title":"Valid title","status":"TODO"}"#,
+        )
+        .expect("seed task");
+
+    for (path, query, status, code) in [
+        ("/api/v1/adk/tasks", "status=BAD", 400, "ADK_TASK_LIST_FAILED"),
+        (
+            "/api/v1/adk/memory",
+            "scope=private",
+            400,
+            "ADK_MEMORY_LIST_FAILED",
+        ),
+    ] {
+        match port.read(path, query) {
+            Err(AdkReadSnapshotError::Failed {
+                status: actual_status,
+                code: actual_code,
+                ..
+            }) => {
+                assert_eq!(actual_status, status, "{path}?{query}");
+                assert_eq!(actual_code, code, "{path}?{query}");
+            }
+            other => panic!("expected {status} {code} for {path}?{query}, got {other:?}"),
+        }
+    }
+
+    for (path, code, message) in [
+        (
+            "/api/v1/adk/tasks/missing-task",
+            "ADK_TASK_NOT_FOUND",
+            "task not found",
+        ),
+        (
+            "/api/v1/adk/sessions/missing-session/context",
+            "ADK_SESSION_CONTEXT_FAILED",
+            "session not found",
+        ),
+    ] {
+        match port.read(path, "") {
+            Err(AdkReadSnapshotError::Failed {
+                status,
+                code: actual_code,
+                message: actual_message,
+                ..
+            }) => {
+                assert_eq!(status, 404, "{path}");
+                assert_eq!(actual_code, code, "{path}");
+                assert_eq!(actual_message, message, "{path}");
+            }
+            other => panic!("expected 404 {code} for {path}, got {other:?}"),
+        }
+    }
+
+    // Task mutations keep the task-specific 404 and blank-title 400.
+    match port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::UpdateTask,
+        identifiers: BTreeMap::from([("taskId".to_owned(), "missing-task".to_owned())]),
+        body: json!({"title": "patched"}),
+        webhook_secret: None,
+    }) {
+        Err(AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        }) => {
+            assert_eq!(status, 404);
+            assert_eq!(code, "ADK_TASK_NOT_FOUND");
+            assert_eq!(message, "task not found");
+        }
+        other => panic!("expected 404 ADK_TASK_NOT_FOUND, got {other:?}"),
+    }
+    match port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::CreateTask,
+        identifiers: BTreeMap::new(),
+        body: json!({"title": " "}),
+        webhook_secret: None,
+    }) {
+        Err(AdkMutationPortError::Failed { status, code, .. }) => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "ADK_TASK_SAVE_FAILED");
+        }
+        other => panic!("expected 400 ADK_TASK_SAVE_FAILED, got {other:?}"),
+    }
+
+    // Deleting a missing memory keeps the memory-specific 404.
+    match port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::DeleteMemory,
+        identifiers: BTreeMap::from([("memoryId".to_owned(), "missing-memory".to_owned())]),
+        body: Value::Null,
+        webhook_secret: None,
+    }) {
+        Err(AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        }) => {
+            assert_eq!(status, 404);
+            assert_eq!(code, "ADK_MEMORY_NOT_FOUND");
+            assert_eq!(message, "memory not found");
+        }
+        other => panic!("expected 404 ADK_MEMORY_NOT_FOUND, got {other:?}"),
+    }
+
+    // A referenced provider cannot be deleted; the built-in agent is protected.
+    match port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::DeleteProvider,
+        identifiers: BTreeMap::from([(
+            "providerId".to_owned(),
+            "provider-enabled".to_owned(),
+        )]),
+        body: Value::Null,
+        webhook_secret: None,
+    }) {
+        Err(AdkMutationPortError::Failed { status, code, .. }) => {
+            assert_eq!(status, 409);
+            assert_eq!(code, "ADK_PROVIDER_DELETE_FAILED");
+        }
+        other => panic!("expected 409 ADK_PROVIDER_DELETE_FAILED, got {other:?}"),
+    }
+    for operation in [
+        AdkMutationOperation::DeleteAgent,
+        AdkMutationOperation::UpdateAgent,
+    ] {
+        let body = if operation == AdkMutationOperation::UpdateAgent {
+            json!({"status": "DISABLED"})
+        } else {
+            Value::Null
+        };
+        match port.mutate(&AdkMutationInput {
+            operation,
+            identifiers: BTreeMap::from([("agentId".to_owned(), "jftrade-default".to_owned())]),
+            body,
+            webhook_secret: None,
+        }) {
+            Err(AdkMutationPortError::Failed { status, code, .. }) => {
+                assert_eq!(status, 409, "{operation:?}");
+                assert_eq!(code, "ADK_AGENT_PROTECTED", "{operation:?}");
+            }
+            other => panic!("expected 409 ADK_AGENT_PROTECTED, got {other:?}"),
+        }
+    }
+
+    // Malformed payloads stay 400 BAD_REQUEST on the mutation wire.
+    for (method, path) in [
+        ("POST", "/api/v1/adk/providers"),
+        ("POST", "/api/v1/adk/agents"),
+        ("POST", "/api/v1/adk/skills"),
+    ] {
+        let response = crate::product::product_adk_mutation_port::dispatch_adk_mutation(
+            &crate::product::product_adk_mutation_port::AdkMutationRequest {
+                method: method.to_owned(),
+                path: path.to_owned(),
+                body: Some(b"{".to_vec()),
+                headers: BTreeMap::new(),
+            },
+            Some(&port),
+            "2026-09-19T00:00:00Z",
+        );
+        assert_eq!(response.status, 400, "{method} {path}: {response:?}");
+        assert_eq!(response.body["error"]["code"], "BAD_REQUEST", "{path}");
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:329
+/// TestAssistantSessionRunBoundaryStatusCodes.
+///
+/// The session/run boundary matrix fixes one status per branch: `400` for a
+/// missing create-agent, malformed payloads and an invalid `after`, `404` for
+/// missing sessions, runs and streams, and `200` for the idempotent
+/// approve-missing-approval branch.
+#[test]
+fn adk_session_run_boundary_status_codes_match_the_go_matrix() {
+    let (port, _directory) = unready_adk_port();
+
+    match port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::CreateSession,
+        identifiers: BTreeMap::new(),
+        body: json!({"agentId": "missing-agent"}),
+        webhook_secret: None,
+    }) {
+        Err(AdkMutationPortError::Failed { status, code, .. }) => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "BAD_REQUEST");
+        }
+        other => panic!("expected 400 BAD_REQUEST, got {other:?}"),
+    }
+
+    for path in [
+        "/api/v1/adk/sessions/missing-session",
+        "/api/v1/adk/runs/missing-run",
+        "/api/v1/adk/streams/missing-stream",
+        "/api/v1/adk/runs/missing-run/stream",
+    ] {
+        match port.read(path, "") {
+            Err(AdkReadSnapshotError::Failed { status, .. }) => {
+                assert_eq!(status, 404, "{path}");
+            }
+            other => panic!("expected 404 for {path}, got {other:?}"),
+        }
+    }
+
+    for path in [
+        "/api/v1/adk/streams/missing-stream",
+        "/api/v1/adk/runs/missing-run/stream",
+    ] {
+        let failure = crate::product::dispatch_adk_read(Some(&port), "GET", path, "after=abc")
+            .expect_err("an invalid after must fail closed");
+        assert_eq!(failure.status, 400, "{path}");
+        assert_eq!(failure.code, "BAD_REQUEST", "{path}");
+        assert_eq!(failure.message, "after is invalid", "{path}");
+    }
+
+    // Missing mutation targets keep their route statuses.
+    for (operation, identifiers, status, code) in [
+        (
+            AdkMutationOperation::CancelRun,
+            BTreeMap::from([("runId".to_owned(), "missing-run".to_owned())]),
+            404,
+            "ADK_RUN_CANCEL_FAILED",
+        ),
+        (
+            AdkMutationOperation::PauseRun,
+            BTreeMap::from([("runId".to_owned(), "missing-run".to_owned())]),
+            404,
+            "NOT_FOUND",
+        ),
+        (
+            AdkMutationOperation::ResumeRun,
+            BTreeMap::from([("runId".to_owned(), "missing-run".to_owned())]),
+            404,
+            "NOT_FOUND",
+        ),
+    ] {
+        match port.mutate(&AdkMutationInput {
+            operation,
+            identifiers,
+            body: Value::Null,
+            webhook_secret: None,
+        }) {
+            Err(AdkMutationPortError::Failed {
+                status: actual_status,
+                code: actual_code,
+                ..
+            }) => {
+                assert_eq!(actual_status, status, "{operation:?}");
+                assert_eq!(actual_code, code, "{operation:?}");
+            }
+            other => panic!("expected {status} {code} for {operation:?}, got {other:?}"),
+        }
+    }
+
+    // Missing approval approve is idempotent rather than 404.
+    let missing = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::Approve,
+            identifiers: BTreeMap::from([(
+                "approvalId".to_owned(),
+                "missing-approval".to_owned(),
+            )]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect("approving a missing approval must answer the empty success envelope");
+    assert_eq!(missing["approval"]["id"], "");
+
+    // A valid payload against a missing session is 404, while malformed
+    // payloads for the session/run surface stay 400 BAD_REQUEST (the body is
+    // validated before the target is resolved, exactly as in Go).
+    let missing_compact = crate::product::product_adk_mutation_port::dispatch_adk_mutation(
+        &crate::product::product_adk_mutation_port::AdkMutationRequest {
+            method: "POST".to_owned(),
+            path: "/api/v1/adk/sessions/missing-session/context/compact".to_owned(),
+            body: Some(br#"{"mode":"summary"}"#.to_vec()),
+            headers: BTreeMap::new(),
+        },
+        Some(&port),
+        "2026-09-19T00:00:00Z",
+    );
+    assert_eq!(missing_compact.status, 404, "{missing_compact:?}");
+
+    for (method, path, body) in [
+        (
+            "POST",
+            "/api/v1/adk/sessions",
+            br#"{"agentId":"missing-agent"}"#.to_vec(),
+        ),
+        (
+            "POST",
+            "/api/v1/adk/sessions/missing-session/context/compact",
+            b"{".to_vec(),
+        ),
+        (
+            "PUT",
+            "/api/v1/adk/sessions/missing-session",
+            b"{".to_vec(),
+        ),
+        (
+            "PATCH",
+            "/api/v1/adk/sessions/missing-session/composer-state",
+            b"{".to_vec(),
+        ),
+        (
+            "PATCH",
+            "/api/v1/adk/runs/missing-run/objective",
+            b"{".to_vec(),
+        ),
+    ] {
+        let response = crate::product::product_adk_mutation_port::dispatch_adk_mutation(
+            &crate::product::product_adk_mutation_port::AdkMutationRequest {
+                method: method.to_owned(),
+                path: path.to_owned(),
+                body: Some(body),
+                headers: BTreeMap::new(),
+            },
+            Some(&port),
+            "2026-09-19T00:00:00Z",
+        );
+        assert_eq!(response.status, 400, "{method} {path}: {response:?}");
+        assert_eq!(response.body["error"]["code"], "BAD_REQUEST", "{path}");
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:295
+/// TestSessionRunAndOptimizationRouteContracts.
+///
+/// Go seeds a disabled and an enabled agent, then walks the session/run/
+/// optimization surface: creating a session for a disabled agent is
+/// `400 BAD_REQUEST` / "enabled agent is required"; missing session detail,
+/// context, composer state and compact targets are `404`; a compact against a
+/// session with an active run is `409`; the objective update succeeds for a
+/// loop run; missing pause/resume targets are `404`; a pending run cancels to
+/// `CANCELLED`; and a missing optimization task is `404` on both get and
+/// cancel.
+#[test]
+fn adk_session_run_and_optimization_route_contracts_match_go() {
+    let (port, _directory) = unready_adk_port();
+
+    // Disabled agent cannot own a session.
+    port.store
+        .upsert_agent(
+            "agent-session-disabled",
+            r#"{"id":"agent-session-disabled","name":"Disabled Agent","status":"DISABLED"}"#,
+        )
+        .expect("seed disabled agent");
+    match port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::CreateSession,
+        identifiers: BTreeMap::new(),
+        body: json!({"agentId": "agent-session-disabled", "title": "should fail"}),
+        webhook_secret: None,
+    }) {
+        Err(AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        }) => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "BAD_REQUEST");
+            assert_eq!(message, "enabled agent is required");
+        }
+        other => panic!("expected 400 BAD_REQUEST, got {other:?}"),
+    }
+
+    // Enabled agent + session for the remaining branches.
+    port.store
+        .upsert_agent(
+            "agent-session-enabled",
+            r#"{"id":"agent-session-enabled","name":"Enabled Agent","status":"ENABLED","workMode":"loop"}"#,
+        )
+        .expect("seed enabled agent");
+    port.store
+        .upsert_session(
+            "session-contract",
+            "agent-session-enabled",
+            r#"{"id":"session-contract","agentId":"agent-session-enabled","title":"Session Contract"}"#,
+        )
+        .expect("seed session");
+
+    for path in [
+        "/api/v1/adk/sessions/session-missing",
+        "/api/v1/adk/sessions/session-missing/context",
+    ] {
+        match port.read(path, "") {
+            Err(AdkReadSnapshotError::Failed { status, .. }) => {
+                assert_eq!(status, 404, "{path}");
+            }
+            other => panic!("expected 404 for {path}, got {other:?}"),
+        }
+    }
+
+    for (operation, identifiers, body, status) in [
+        (
+            AdkMutationOperation::UpdateSessionComposerState,
+            BTreeMap::from([("sessionId".to_owned(), "session-missing".to_owned())]),
+            json!({"workModeOverride": "loop"}),
+            404,
+        ),
+        (
+            AdkMutationOperation::CompactSessionContext,
+            BTreeMap::from([("sessionId".to_owned(), "session-missing".to_owned())]),
+            json!({"mode": "normal"}),
+            404,
+        ),
+        (
+            AdkMutationOperation::ResumeRun,
+            BTreeMap::from([("runId".to_owned(), "run-missing".to_owned())]),
+            Value::Null,
+            404,
+        ),
+        (
+            AdkMutationOperation::PauseRun,
+            BTreeMap::from([("runId".to_owned(), "run-missing".to_owned())]),
+            Value::Null,
+            404,
+        ),
+    ] {
+        match port.mutate(&AdkMutationInput {
+            operation,
+            identifiers,
+            body,
+            webhook_secret: None,
+        }) {
+            Err(AdkMutationPortError::Failed {
+                status: actual, ..
+            }) => assert_eq!(actual, status, "{operation:?}"),
+            other => panic!("expected {status} for {operation:?}, got {other:?}"),
+        }
+    }
+
+    // Rename succeeds on the real session.
+    let renamed = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::RenameSession,
+            identifiers: BTreeMap::from([("sessionId".to_owned(), "session-contract".to_owned())]),
+            body: json!({"title": "Renamed Session Contract"}),
+            webhook_secret: None,
+        })
+        .expect("rename existing session");
+    assert_eq!(renamed["title"], "Renamed Session Contract");
+
+    // Active run blocks compaction with the route's own 409 code.
+    port.store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: "run-active-compact",
+            session_id: "session-contract",
+            agent_id: "agent-session-enabled",
+            status: "RUNNING",
+            client_request_id: "active-compact-request",
+            request_fingerprint: "active-compact-fingerprint",
+            payload_json: r#"{"id":"run-active-compact","sessionId":"session-contract","agentId":"agent-session-enabled","status":"RUNNING","workMode":"loop","objective":"monitor market"}"#,
+        })
+        .expect("seed active run");
+    match port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::CompactSessionContext,
+        identifiers: BTreeMap::from([("sessionId".to_owned(), "session-contract".to_owned())]),
+        body: json!({"mode": "normal", "reason": "manual"}),
+        webhook_secret: None,
+    }) {
+        Err(AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        }) => {
+            assert_eq!(status, 409);
+            assert_eq!(code, "ADK_SESSION_CONTEXT_COMPACT_FAILED");
+            assert!(
+                message.contains("active run"),
+                "the active-run reason is part of the envelope: {message}"
+            );
+        }
+        other => panic!("expected 409 ADK_SESSION_CONTEXT_COMPACT_FAILED, got {other:?}"),
+    }
+
+    // The objective update succeeds on a loop run.
+    let updated = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::UpdateRunObjective,
+            identifiers: BTreeMap::from([("runId".to_owned(), "run-active-compact".to_owned())]),
+            body: json!({"objective": "watch premarket liquidity"}),
+            webhook_secret: None,
+        })
+        .expect("update objective on a loop run");
+    assert_eq!(updated["objective"], "watch premarket liquidity");
+
+    // A pending run cancels to CANCELLED.
+    port.store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: "run-cancel-route",
+            session_id: "session-contract",
+            agent_id: "agent-session-enabled",
+            status: "PENDING",
+            client_request_id: "cancel-route-request",
+            request_fingerprint: "cancel-route-fingerprint",
+            payload_json: r#"{"id":"run-cancel-route","sessionId":"session-contract","agentId":"agent-session-enabled","status":"PENDING"}"#,
+        })
+        .expect("seed pending run");
+    let cancelled = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CancelRun,
+            identifiers: BTreeMap::from([("runId".to_owned(), "run-cancel-route".to_owned())]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect("cancel a pending run");
+    assert_eq!(cancelled["status"], "CANCELLED");
+
+    // Optimization list + missing-target routes.
+    port.store
+        .upsert_optimization_task(
+            "optimization-route",
+            r#"{"id":"optimization-route","status":"queued","objective":"maximize sharpe"}"#,
+        )
+        .expect("seed optimization task");
+    let AdkReadSnapshot::Json(listed) = port
+        .read("/api/v1/adk/optimization-tasks", "limit=1&offset=0")
+        .expect("optimization list")
+    else {
+        panic!("optimization list must answer JSON");
+    };
+    assert!(
+        listed["tasks"]
+            .as_array()
+            .expect("tasks array")
+            .iter()
+            .any(|task| task["id"] == "optimization-route"),
+        "seeded optimization task must be listed: {listed}"
+    );
+    match port.read("/api/v1/adk/optimization-tasks/task-missing", "") {
+        Err(AdkReadSnapshotError::Failed { status, .. }) => assert_eq!(status, 404),
+        other => panic!("expected 404 for a missing optimization task, got {other:?}"),
+    }
+    match port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::CancelOptimizationTask,
+        identifiers: BTreeMap::from([("taskId".to_owned(), "task-missing".to_owned())]),
+        body: Value::Null,
+        webhook_secret: None,
+    }) {
+        Err(AdkMutationPortError::Failed { status, code, .. }) => {
+            assert_eq!(status, 404);
+            assert_eq!(code, "NOT_FOUND");
+        }
+        other => panic!("expected 404 NOT_FOUND for cancel, got {other:?}"),
+    }
+
+    // Deleting the session removes it from the detail read.
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::DeleteSession,
+        identifiers: BTreeMap::from([("sessionId".to_owned(), "session-contract".to_owned())]),
+        body: Value::Null,
+        webhook_secret: None,
+    })
+    .expect("delete session");
+    match port.read("/api/v1/adk/sessions/session-contract", "") {
+        Err(AdkReadSnapshotError::Failed { status, .. }) => assert_eq!(status, 404),
+        other => panic!("expected 404 after delete, got {other:?}"),
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:15
+/// TestTaskAndMemoryCRUDContracts.
+///
+/// Go creates a task with `childProviderId`/`childModel`, filters the list by
+/// status, patches it to `DONE` with a new child model and a result summary,
+/// reads it back, deletes it, and then sees `404`; memory is saved with a
+/// Chinese key, filtered by agent + normalized key, deleted, and a second
+/// delete is `404`.
+#[test]
+fn adk_task_and_memory_crud_contracts_match_go() {
+    let (port, _directory) = unready_adk_port();
+    port.store
+        .upsert_agent(
+            "agent-contract-crud",
+            r#"{"id":"agent-contract-crud","name":"CRUD Agent","status":"ENABLED"}"#,
+        )
+        .expect("seed agent");
+
+    let created = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateTask,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "title": "检查盘前准备",
+                "status": "IN_PROGRESS",
+                "agentId": "agent-contract-crud",
+                "message": "补齐观察清单",
+                "childProviderId": "provider-child",
+                "childModel": "model-child-a",
+            }),
+            webhook_secret: None,
+        })
+        .expect("create task");
+    let task_id = created["id"].as_str().expect("task id").to_owned();
+    assert!(!task_id.is_empty());
+    assert_eq!(created["childProviderId"], "provider-child");
+    assert_eq!(created["childModel"], "model-child-a");
+
+    let AdkReadSnapshot::Json(listed) = port
+        .read("/api/v1/adk/tasks", "status=IN_PROGRESS")
+        .expect("task list")
+    else {
+        panic!("task list must answer JSON");
+    };
+    assert!(
+        listed["tasks"]
+            .as_array()
+            .expect("tasks array")
+            .iter()
+            .any(|task| task["id"] == task_id.as_str()),
+        "the created task must be listed under IN_PROGRESS: {listed}"
+    );
+
+    let patched = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::UpdateTask,
+            identifiers: BTreeMap::from([("taskId".to_owned(), task_id.clone())]),
+            body: json!({
+                "status": "DONE",
+                "resultSummary": "已完成",
+                "childProviderId": "provider-child-updated",
+                "childModel": "model-child-b",
+            }),
+            webhook_secret: None,
+        })
+        .expect("patch task");
+    assert_eq!(patched["status"], "DONE");
+    assert_eq!(patched["childModel"], "model-child-b");
+
+    let AdkReadSnapshot::Json(read_back) = port
+        .read(&format!("/api/v1/adk/tasks/{task_id}"), "")
+        .expect("task read")
+    else {
+        panic!("task detail must answer JSON");
+    };
+    assert_eq!(read_back["resultSummary"], "已完成");
+    assert_eq!(read_back["childProviderId"], "provider-child-updated");
+
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::DeleteTask,
+        identifiers: BTreeMap::from([("taskId".to_owned(), task_id.clone())]),
+        body: Value::Null,
+        webhook_secret: None,
+    })
+    .expect("delete task");
+    match port.read(&format!("/api/v1/adk/tasks/{task_id}"), "") {
+        Err(AdkReadSnapshotError::Failed { status, code, .. }) => {
+            assert_eq!(status, 404);
+            assert_eq!(code, "ADK_TASK_NOT_FOUND");
+        }
+        other => panic!("expected 404 after task delete, got {other:?}"),
+    }
+
+    // Memory: save a Chinese key, filter by agent + key, delete, then 404.
+    let memory = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateMemory,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "agentId": "agent-contract-crud",
+                "key": "watch-note",
+                "value": "关注开盘波动",
+                "scope": "agent",
+            }),
+            webhook_secret: None,
+        })
+        .expect("save memory");
+    let memory_id = memory["id"].as_str().expect("memory id").to_owned();
+    assert!(!memory_id.is_empty());
+
+    let AdkReadSnapshot::Json(memories) = port
+        .read(
+            "/api/v1/adk/memory",
+            "agentId=agent-contract-crud&key=watch-note",
+        )
+        .expect("memory list")
+    else {
+        panic!("memory list must answer JSON");
+    };
+    assert!(
+        memories["entries"]
+            .as_array()
+            .expect("entries array")
+            .iter()
+            .any(|entry| entry["id"] == memory_id.as_str()),
+        "the saved memory must be listed: {memories}"
+    );
+
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::DeleteMemory,
+        identifiers: BTreeMap::from([("memoryId".to_owned(), memory_id.clone())]),
+        body: Value::Null,
+        webhook_secret: None,
+    })
+    .expect("delete memory");
+    match port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::DeleteMemory,
+        identifiers: BTreeMap::from([("memoryId".to_owned(), memory_id.clone())]),
+        body: Value::Null,
+        webhook_secret: None,
+    }) {
+        Err(AdkMutationPortError::Failed { status, code, .. }) => {
+            assert_eq!(status, 404);
+            assert_eq!(code, "ADK_MEMORY_NOT_FOUND");
+        }
+        other => panic!("expected 404 ADK_MEMORY_NOT_FOUND, got {other:?}"),
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_payload_pagination_test.go:134
+/// TestAssistantRoutesClassifyMissingMutationTargets.
+///
+/// Go classifies three distinct missing-target failures at the route edge: a
+/// missing task patch is `404 ADK_TASK_NOT_FOUND`, a missing run objective is
+/// `404 NOT_FOUND`, and a blank title on an existing task is
+/// `400 ADK_TASK_SAVE_FAILED`.  This witness keeps the exact three-way
+/// classification separate from the broader read/mutation error table used by
+/// `routes_error_contracts_test.go:14`.
+#[test]
+fn adk_missing_mutation_targets_keep_the_go_classification() {
+    let (port, _directory) = unready_adk_port();
+    port.store
+        .upsert_task(
+            "task-invalid-patch",
+            "TODO",
+            "",
+            "",
+            r#"{"id":"task-invalid-patch","title":"Valid title","status":"TODO"}"#,
+        )
+        .expect("seed task");
+
+    match port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::UpdateTask,
+        identifiers: BTreeMap::from([("taskId".to_owned(), "task-missing".to_owned())]),
+        body: json!({"status": "DONE"}),
+        webhook_secret: None,
+    }) {
+        Err(AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        }) => {
+            assert_eq!(status, 404);
+            assert_eq!(code, "ADK_TASK_NOT_FOUND");
+            assert_eq!(message, "task not found");
+        }
+        other => panic!("expected 404 ADK_TASK_NOT_FOUND, got {other:?}"),
+    }
+
+    match port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::UpdateRunObjective,
+        identifiers: BTreeMap::from([("runId".to_owned(), "run-missing".to_owned())]),
+        body: json!({"objective": "new objective"}),
+        webhook_secret: None,
+    }) {
+        Err(AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        }) => {
+            assert_eq!(status, 404);
+            assert_eq!(code, "NOT_FOUND");
+            assert_eq!(message, "run not found");
+        }
+        other => panic!("expected 404 NOT_FOUND, got {other:?}"),
+    }
+
+    match port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::UpdateTask,
+        identifiers: BTreeMap::from([("taskId".to_owned(), "task-invalid-patch".to_owned())]),
+        body: json!({"title": "   "}),
+        webhook_secret: None,
+    }) {
+        Err(AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        }) => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "ADK_TASK_SAVE_FAILED");
+            assert_eq!(message, "task title is required");
+        }
+        other => panic!("expected 400 ADK_TASK_SAVE_FAILED, got {other:?}"),
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:178
+/// TestAssistantCatalogSessionAndObservabilitySuccessContracts.
+///
+/// Go seeds a provider, an enabled agent, a session, a loop run, a pending
+/// approval, a task, a workspace memory, an optimization task and an audit
+/// event, then requires the whole catalog / session / run / observability /
+/// mutation success surface to answer `200`.  Rust reaches the same composed
+/// state through the production port and asserts one success per route family
+/// (the per-route detail is already pinned by
+/// `catalog_session_run_and_observability_routes_answer_ok` for the read
+/// surface and `adk_task_and_memory_crud_contracts_match_go` for mutations).
+#[test]
+fn adk_catalog_session_and_observability_success_contracts_hold() {
+    let (port, _directory) = agent_validation_port();
+    port.store
+        .upsert_agent(
+            "success-agent",
+            r#"{"id":"success-agent","name":"Success Agent","providerId":"provider-enabled","status":"ENABLED","workMode":"loop"}"#,
+        )
+        .expect("seed agent");
+    port.store
+        .upsert_session(
+            "success-session",
+            "success-agent",
+            r#"{"id":"success-session","agentId":"success-agent","title":"Success Session"}"#,
+        )
+        .expect("seed session");
+    port.store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: "success-run",
+            session_id: "success-session",
+            agent_id: "success-agent",
+            status: "RUNNING",
+            client_request_id: "success-run-request",
+            request_fingerprint: "success-run-fingerprint",
+            payload_json: r#"{"id":"success-run","sessionId":"success-session","agentId":"success-agent","status":"RUNNING","workMode":"loop","objective":"hold","toolCalls":[],"pendingApprovals":[]}"#,
+        })
+        .expect("seed run");
+    port.store
+        .create_approval(
+            "success-approval",
+            "success-run",
+            "success-agent",
+            "PENDING",
+            r#"{"id":"success-approval","runId":"success-run","agentId":"success-agent","toolName":"contract.write","status":"PENDING"}"#,
+        )
+        .expect("seed approval");
+    port.store
+        .upsert_task(
+            "success-task",
+            "TODO",
+            "success-agent",
+            "success-run",
+            r#"{"id":"success-task","title":"Do work","status":"TODO"}"#,
+        )
+        .expect("seed task");
+    port.store
+        .upsert_memory(
+            "workspace-success-note",
+            "",
+            "workspace",
+            "success-note",
+            r#"{"id":"workspace-success-note","key":"success-note","value":"remember this","scope":"workspace"}"#,
+        )
+        .expect("seed memory");
+    port.store
+        .upsert_optimization_task(
+            "success-optimization",
+            r#"{"id":"success-optimization","status":"RUNNING","objective":"Improve returns"}"#,
+        )
+        .expect("seed optimization task");
+    port.store
+        .record_audit_event(
+            "audit-success",
+            "provider_saved",
+            "provider-enabled",
+            r#"{"id":"audit-success","detail":"saved"}"#,
+        )
+        .expect("seed audit event");
+
+    for (path, query) in [
+        ("/api/v1/adk", ""),
+        ("/api/v1/adk/providers", ""),
+        ("/api/v1/adk/agents", "status=ENABLED&limit=1&offset=0"),
+        ("/api/v1/adk/skills", ""),
+        ("/api/v1/adk/sessions", "agentId=success-agent&query=success"),
+        ("/api/v1/adk/sessions/success-session", ""),
+        ("/api/v1/adk/runs", "status=RUNNING&agentId=success-agent&sessionId=success-session"),
+        ("/api/v1/adk/runs/success-run", ""),
+        ("/api/v1/adk/approvals", "status=PENDING&agentId=success-agent"),
+        ("/api/v1/adk/tasks", "status=TODO&agentId=success-agent&runId=success-run"),
+        ("/api/v1/adk/tasks/success-task", ""),
+        ("/api/v1/adk/memory", "scope=workspace&key=success-note"),
+        ("/api/v1/adk/audit", "kind=provider_saved&subjectId=provider-enabled"),
+        ("/api/v1/adk/metrics", ""),
+        ("/api/v1/adk/optimization-tasks", ""),
+        (
+            "/api/v1/adk/optimization-tasks/success-optimization",
+            "",
+        ),
+    ] {
+        match port.read(path, query) {
+            Ok(AdkReadSnapshot::Json(value)) => {
+                assert!(
+                    value.is_object(),
+                    "GET {path}?{query} must answer a JSON object"
+                );
+            }
+            other => panic!("GET {path}?{query} failed: {other:?}"),
+        }
+    }
+
+    // Every mutation family in the Go success matrix answers a JSON body.
+    for (operation, identifiers, body) in [
+        (
+            AdkMutationOperation::UpdateProvider,
+            BTreeMap::from([("providerId".to_owned(), "provider-enabled".to_owned())]),
+            json!({"displayName": "Updated Provider", "baseUrl": "https://example.test/v1", "model": "fixture-model", "enabled": true}),
+        ),
+        (
+            AdkMutationOperation::UpdateAgent,
+            BTreeMap::from([("agentId".to_owned(), "success-agent".to_owned())]),
+            json!({"name": "Updated Agent", "providerId": "provider-enabled", "status": "ENABLED"}),
+        ),
+        (
+            AdkMutationOperation::RenameSession,
+            BTreeMap::from([("sessionId".to_owned(), "success-session".to_owned())]),
+            json!({"title": "Renamed Session"}),
+        ),
+        (
+            AdkMutationOperation::UpdateRunObjective,
+            BTreeMap::from([("runId".to_owned(), "success-run".to_owned())]),
+            json!({"objective": "new objective"}),
+        ),
+        (
+            AdkMutationOperation::CreateTask,
+            BTreeMap::new(),
+            json!({"id": "created-task", "title": "Created Task", "status": "TODO", "agentId": "success-agent", "runId": "success-run"}),
+        ),
+        (
+            AdkMutationOperation::UpdateTask,
+            BTreeMap::from([("taskId".to_owned(), "success-task".to_owned())]),
+            json!({"title": "Updated Task", "status": "IN_PROGRESS"}),
+        ),
+        (
+            AdkMutationOperation::DeleteTask,
+            BTreeMap::from([("taskId".to_owned(), "success-task".to_owned())]),
+            Value::Null,
+        ),
+        (
+            AdkMutationOperation::CreateMemory,
+            BTreeMap::new(),
+            json!({"key": "Created Note", "value": "created", "scope": "workspace"}),
+        ),
+        (
+            AdkMutationOperation::DeleteMemory,
+            BTreeMap::from([("memoryId".to_owned(), "workspace-success-note".to_owned())]),
+            Value::Null,
+        ),
+        (
+            AdkMutationOperation::DeleteProvider,
+            BTreeMap::from([("providerId".to_owned(), "provider-disabled".to_owned())]),
+            Value::Null,
+        ),
+        (
+            AdkMutationOperation::DeleteSession,
+            BTreeMap::from([("sessionId".to_owned(), "success-session".to_owned())]),
+            Value::Null,
+        ),
+    ] {
+        let result = port
+            .mutate(&AdkMutationInput {
+                operation,
+                identifiers,
+                body,
+                webhook_secret: None,
+            })
+            .unwrap_or_else(|error| panic!("{operation:?} must succeed: {error:?}"));
+        assert!(
+            result.is_object(),
+            "{operation:?} must answer a JSON object: {result}"
+        );
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:92
+/// TestAssistantRoutesSurfaceStoreFailuresAfterRuntimeClose.
+///
+/// Go closes the Assistant runtime while the router stays registered and then
+/// requires every administrative route to surface the storage failure instead
+/// of answering an apparently successful empty list.  Rust has no equivalent
+/// "closed runtime" state - the composition root wires ports on startup - so
+/// the same guarantee is pinned against the closest structural analogue: the
+/// ADK schema is dropped after the port opened its connections and every route
+/// family must fail closed (never `200 ok=true`).  The per-resource codes for
+/// the catalog reads are pinned exactly by
+/// `catalog_read_faults_expose_the_go_resource_error_codes`, and the agent
+/// mutation code by `agent_save_storage_failure_is_not_client_classified`.
+#[test]
+fn adk_routes_surface_durable_store_failures_instead_of_empty_success() {
+    let (port, directory) = unready_adk_port();
+    port.store
+        .upsert_agent(
+            "agent-store-failure",
+            r#"{"id":"agent-store-failure","name":"Store Failure","status":"ENABLED"}"#,
+        )
+        .expect("seed agent before the fault");
+    port.store
+        .upsert_session("session-store-failure", "agent-store-failure", "{}")
+        .expect("seed session before the fault");
+    port.store
+        .upsert_provider(
+            "provider-store-failure",
+            r#"{"displayName":"Store Failure","baseUrl":"https://example.test/v1","model":"fixture-model","enabled":true}"#,
+        )
+        .expect("seed provider before the fault");
+
+    // Drop the tables the administrative reads depend on.  Reads and writes
+    // both start failing at the store boundary from here on.
+    let adk_path = directory.path().join("adk.db");
+    let connection = rusqlite::Connection::open(&adk_path).expect("open ADK database");
+    connection
+        .execute_batch(
+            "DROP TABLE adk_agents;
+             DROP TABLE adk_providers;
+             DROP TABLE adk_sessions;
+             DROP TABLE adk_tasks;
+             DROP TABLE adk_memory;
+             DROP TABLE adk_runs;
+             DROP TABLE adk_approvals;
+             DROP TABLE adk_workflows;
+             DROP TABLE adk_audit_events;
+             DROP TABLE adk_optimization_tasks;
+             DROP TABLE adk_workflow_trigger_logs;",
+        )
+        .expect("drop administrative ADK tables");
+    drop(connection);
+
+    for (path, query) in [
+        ("/api/v1/adk", ""),
+        ("/api/v1/adk/agents", ""),
+        ("/api/v1/adk/providers", ""),
+        ("/api/v1/adk/sessions", ""),
+        ("/api/v1/adk/sessions/session-store-failure", ""),
+        ("/api/v1/adk/runs", ""),
+        ("/api/v1/adk/approvals", ""),
+        ("/api/v1/adk/tasks", ""),
+        ("/api/v1/adk/memory", ""),
+        ("/api/v1/adk/audit", ""),
+        ("/api/v1/adk/metrics", ""),
+        ("/api/v1/adk/optimization-tasks", ""),
+        ("/api/v1/adk/workflows", ""),
+        ("/api/v1/adk/workflow-trigger-logs", ""),
+    ] {
+        match port.read(path, query) {
+            Err(error) => {
+                // Fail closed: never a fabricated success envelope.  The
+                // concrete code is asserted by the per-resource witnesses.
+                match error {
+                    AdkReadSnapshotError::Unavailable(message)
+                    | AdkReadSnapshotError::Failed { message, .. } => assert!(
+                        !message.trim().is_empty(),
+                        "GET {path} must carry a diagnostic message"
+                    ),
+                }
+            }
+            Ok(output) => panic!("GET {path} must fail closed after the store fault, got {output:?}"),
+        }
+    }
+
+    // Mutation families must fail closed as well rather than reporting a
+    // fabricated success after the write target disappeared.
+    for (operation, identifiers, body) in [
+        (
+            AdkMutationOperation::CreateAgent,
+            BTreeMap::new(),
+            json!({"id": "agent-after-fault", "name": "Agent After Fault"}),
+        ),
+        (
+            AdkMutationOperation::DeleteAgent,
+            BTreeMap::from([("agentId".to_owned(), "agent-store-failure".to_owned())]),
+            Value::Null,
+        ),
+        (
+            AdkMutationOperation::CreateTask,
+            BTreeMap::new(),
+            json!({"title": "Task After Fault"}),
+        ),
+        (
+            AdkMutationOperation::CreateMemory,
+            BTreeMap::new(),
+            json!({"key": "after-fault", "value": "v", "scope": "workspace"}),
+        ),
+        (
+            AdkMutationOperation::RenameSession,
+            BTreeMap::from([("sessionId".to_owned(), "session-store-failure".to_owned())]),
+            json!({"title": "Renamed After Fault"}),
+        ),
+        (
+            AdkMutationOperation::CreateSession,
+            BTreeMap::new(),
+            json!({"agentId": "agent-store-failure", "title": "After Fault"}),
+        ),
+        (
+            AdkMutationOperation::UpdateProvider,
+            BTreeMap::from([(
+                "providerId".to_owned(),
+                "provider-store-failure".to_owned(),
+            )]),
+            json!({"displayName": "After Fault"}),
+        ),
+    ] {
+        match port.mutate(&AdkMutationInput {
+            operation,
+            identifiers,
+            body,
+            webhook_secret: None,
+        }) {
+            Err(AdkMutationPortError::Failed { .. })
+            | Err(AdkMutationPortError::Unavailable(_)) => {}
+            Ok(value) => panic!(
+                "{operation:?} must fail closed after the store fault, got {value}"
+            ),
+        }
+    }
+}
+
 /// Parity: go:452dea11:internal/api/assistant/routes_test.go:348
 /// TestChatRequestUsesDeclaredMessageFieldOnly.
 ///
@@ -4825,4 +6602,69 @@ fn catalog_session_run_and_observability_routes_answer_ok() {
         webhook_secret: None,
     })
     .expect("DELETE provider must succeed");
+}
+
+/// Parity: go:452dea11:internal/api/assistant/catalog_failure_contracts_test.go:17
+/// TestCatalogReadFaultsExposeStableAPIContracts.
+///
+/// Go drops one ADK table at a time while the runtime stays up and requires
+/// every administrative catalog read to keep its own error code instead of
+/// masquerading as an empty list: `500 ADK_TASK_LIST_FAILED`,
+/// `400 ADK_MEMORY_LIST_FAILED`, `500 ADK_AGENT_LIST_FAILED` and
+/// `500 ADK_PROVIDER_LIST_FAILED`.  The Rust port previously folded all four
+/// durable faults into the transport-level `503 ADK_READ_UNAVAILABLE`, which
+/// hid a damaged database behind an unchanged-runtime signal.
+#[test]
+fn catalog_read_faults_expose_the_go_resource_error_codes() {
+    for (table, path, status, code) in [
+        ("adk_tasks", "/api/v1/adk/tasks", 500, "ADK_TASK_LIST_FAILED"),
+        ("adk_memory", "/api/v1/adk/memory", 400, "ADK_MEMORY_LIST_FAILED"),
+        ("adk_agents", "/api/v1/adk/agents", 500, "ADK_AGENT_LIST_FAILED"),
+        (
+            "adk_providers",
+            "/api/v1/adk/providers",
+            500,
+            "ADK_PROVIDER_LIST_FAILED",
+        ),
+    ] {
+        let (port, directory) = unready_adk_port();
+        let adk_path = directory.path().join("adk.db");
+        // Schema faults are injected after the port opened its connection,
+        // matching an operator serving a damaged or partially migrated
+        // database.
+        let connection = rusqlite::Connection::open(&adk_path).expect("open ADK database");
+        connection
+            .execute_batch(&format!("DROP TABLE {table};"))
+            .unwrap_or_else(|error| panic!("drop {table}: {error}"));
+        drop(connection);
+
+        match port.read(path, "") {
+            Err(AdkReadSnapshotError::Failed {
+                status: actual_status,
+                code: actual_code,
+                ..
+            }) => {
+                assert_eq!(actual_status, status, "path {path}");
+                assert_eq!(actual_code, code, "path {path}");
+            }
+            other => panic!("expected {status} {code} for {path}, got {other:?}"),
+        }
+    }
+
+    // The invalid-scope branch shares the memory listing code instead of the
+    // generic `BAD_REQUEST` it used to return.
+    let (port, _directory) = unready_adk_port();
+    match port.read("/api/v1/adk/memory", "scope=private") {
+        Err(AdkReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            ..
+        }) => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "ADK_MEMORY_LIST_FAILED");
+            assert_eq!(message, "memory scope must be workspace or agent");
+        }
+        other => panic!("expected 400 ADK_MEMORY_LIST_FAILED, got {other:?}"),
+    }
 }

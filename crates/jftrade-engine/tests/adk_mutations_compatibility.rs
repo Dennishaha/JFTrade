@@ -368,6 +368,37 @@ fn adk_mutation_routes_reject_malformed_mutation_payloads() {
     }
 }
 
+/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:369
+/// TestAssistantMutationRoutesRejectMalformedJSON.
+///
+/// Go's boundary matrix pins six mutation routes that must answer
+/// `400 BAD_REQUEST` for the truncated body `{"`: task update, memory create,
+/// workflow create, workflow run, workflow trigger create and composer-state.
+/// This is the subset assertion kept separate from the 21-route malformed
+/// matrix so each baseline test keeps its own Rust witness.
+#[test]
+fn adk_go_boundary_malformed_json_subset_rejects_at_the_wire() {
+    for (method, path) in [
+        ("PUT", "/api/v1/adk/tasks/task-1"),
+        ("POST", "/api/v1/adk/memory"),
+        ("POST", "/api/v1/adk/workflows"),
+        ("POST", "/api/v1/adk/workflows/workflow-1/run"),
+        ("POST", "/api/v1/adk/workflows/workflow-1/triggers"),
+        ("PATCH", "/api/v1/adk/sessions/session-1/composer-state"),
+    ] {
+        let request = request_with_body(method, path, br#"{"#);
+        let response = dispatch_adk_mutation(&request, None, FIXTURE_TIMESTAMP);
+        assert_eq!(
+            response.status, 400,
+            "{method} {path} must reject the truncated body"
+        );
+        assert_eq!(
+            response.body["error"]["code"], "BAD_REQUEST",
+            "{method} {path}"
+        );
+    }
+}
+
 fn fixture() -> Fixture {
     let fixture: Fixture = serde_json::from_str(include_str!(
         "../../../tests/fixtures/compatibility/api-transport/adk-mutations.json"

@@ -4,8 +4,10 @@ import importlib.util
 import json
 import os
 import pathlib
+import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 
 SCRIPT_PATH = pathlib.Path(__file__).with_name("audit_test_parity.py")
@@ -209,6 +211,106 @@ class CrateQualifiedReferenceTest(unittest.TestCase):
             self.mapping("`jftrade-desktop::desktop_contracts::missing_case`")
         )
         self.assertEqual(1, len(approvals))
+
+
+class CargoPackageCacheTest(unittest.TestCase):
+    """Workspace package resolution must not re-run cargo metadata per mapping."""
+
+    def setUp(self) -> None:
+        AUDIT._cargo_package_names_cache = None
+        self.addCleanup(setattr, AUDIT, "_cargo_package_names_cache", None)
+
+    def cargo_result(self, returncode: int, stdout: str = "") -> subprocess.CompletedProcess:
+        return subprocess.CompletedProcess(
+            args=["cargo", "metadata"], returncode=returncode, stdout=stdout, stderr=""
+        )
+
+    def test_repeated_lookups_run_cargo_metadata_once(self) -> None:
+        payload = json.dumps({"packages": [{"name": "jftrade-demo"}]})
+        with mock.patch.object(
+            AUDIT.subprocess, "run", return_value=self.cargo_result(0, payload)
+        ) as run:
+            self.assertTrue(AUDIT._is_known_cargo_package("jftrade-demo"))
+            self.assertFalse(AUDIT._is_known_cargo_package("jftrade-missing"))
+        self.assertEqual(1, run.call_count)
+
+    def test_cargo_failure_falls_back_to_path_probe(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "crates" / "jftrade-demo").mkdir(parents=True)
+            original = os.getcwd()
+            os.chdir(root)
+            try:
+                with mock.patch.object(
+                    AUDIT.subprocess, "run", return_value=self.cargo_result(1)
+                ):
+                    self.assertTrue(AUDIT._is_known_cargo_package("jftrade-demo"))
+                    self.assertFalse(AUDIT._is_known_cargo_package("jftrade-missing"))
+            finally:
+                os.chdir(original)
+
+
+class AssertionlessApprovalTest(unittest.TestCase):
+    """Approvals citing assertion-free tests are the cheapest way to inflate coverage."""
+
+    def setUp(self) -> None:
+        self._original_cwd = os.getcwd()
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = pathlib.Path(self._tmp.name)
+        (self.root / "crates" / "jftrade-demo" / "src" / "lib.rs").parent.mkdir(parents=True)
+        (self.root / "crates" / "jftrade-demo" / "src" / "lib.rs").write_text(
+            "#[test]\nfn empty_case() {}\n"
+            "#[test]\nfn asserting_case() { assert_eq!(1, 1); }\n",
+            encoding="utf-8",
+        )
+        os.chdir(self.root)
+
+    def tearDown(self) -> None:
+        os.chdir(self._original_cwd)
+
+    def mapping(self, evidence: str, rust_entry: str) -> dict:
+        return {
+            "go_test.go:1:TestX": {
+                "status": "[x]" if evidence == "function_exact" else "[~]",
+                "rust_entry": rust_entry,
+                "conclusion": "conclusion",
+                "command": "command",
+                "evidence_type": evidence,
+            }
+        }
+
+    def test_approval_citing_assertion_free_test_is_listed(self) -> None:
+        warnings = AUDIT.assertionless_approved_references(
+            self.mapping(
+                "function_exact",
+                "crates/jftrade-demo/src/lib.rs::empty_case",
+            )
+        )
+        self.assertEqual(1, len(warnings))
+
+    def test_approval_citing_asserting_test_is_not_listed(self) -> None:
+        warnings = AUDIT.assertionless_approved_references(
+            self.mapping(
+                "function_exact",
+                "crates/jftrade-demo/src/lib.rs::asserting_case",
+            )
+        )
+        self.assertEqual([], warnings)
+
+    def test_partial_rows_are_not_checked(self) -> None:
+        warnings = AUDIT.assertionless_approved_references(
+            self.mapping("partial", "crates/jftrade-demo/src/lib.rs::empty_case")
+        )
+        self.assertEqual([], warnings)
+
+    def test_unresolvable_approval_is_left_to_reference_check(self) -> None:
+        # A reference that names no test at all already fails the audit via
+        # unresolved_parity_references; the assertion heuristic stays silent.
+        warnings = AUDIT.assertionless_approved_references(
+            self.mapping("function_exact", "crates/jftrade-demo/src/lib.rs::ghost_case")
+        )
+        self.assertEqual([], warnings)
 
 
 if __name__ == "__main__":

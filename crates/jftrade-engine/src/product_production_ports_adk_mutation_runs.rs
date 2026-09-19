@@ -44,8 +44,19 @@ pub(super) fn dispatch(
             if resolution.should_continue {
                 if let Some(runtime) = port.chat_runtime.as_deref() {
                     if let Err(error) = runtime.resume_approval(&resolution.approval.run_id) {
-                        rollback_staged_approval(port, &resolution)?;
-                        return Err(continuation_unavailable(error));
+                        // The original runtime claims each continuation before
+                        // starting it, so a concurrent claim (a browser retry,
+                        // the recovery scanner or a duplicate approve) is a
+                        // silent no-op there: the owner in flight rereads the
+                        // resolved run and executes the released tool call.
+                        // Rolling the staged resolution back here would answer
+                        // `503 ADK_CONTINUATION_UNAVAILABLE` for a run that is
+                        // in fact continuing, so only real start failures are
+                        // compensated.
+                        if !matches!(error, AdkChatPortError::Conflict(_)) {
+                            rollback_staged_approval(port, &resolution)?;
+                            return Err(continuation_unavailable(error));
+                        }
                     }
                 } else {
                     rollback_staged_approval(port, &resolution)?;
@@ -70,8 +81,13 @@ pub(super) fn dispatch(
             if resolution.should_continue {
                 if let Some(runtime) = port.chat_runtime.as_deref() {
                     if let Err(error) = runtime.resume_approval(&resolution.approval.run_id) {
-                        rollback_staged_approval(port, &resolution)?;
-                        return Err(continuation_unavailable(error));
+                        // See the approve branch: an already-claimed
+                        // continuation is Go's idempotent wakeup, not a
+                        // failure to start one.
+                        if !matches!(error, AdkChatPortError::Conflict(_)) {
+                            rollback_staged_approval(port, &resolution)?;
+                            return Err(continuation_unavailable(error));
+                        }
                     }
                 } else {
                     rollback_staged_approval(port, &resolution)?;
@@ -99,9 +115,12 @@ pub(super) fn dispatch(
                 return Err(not_found_mutation("ADK_RUN_CANCEL_FAILED", "run not found"));
             };
             let status = existing.status.trim().to_ascii_uppercase();
+            // Go's `Runtime.CancelRun` cancels RUNNING, PENDING,
+            // PENDING_INPUT and PAUSED runs; every other status is a no-op
+            // that returns the unchanged projection.
             if !matches!(
                 status.as_str(),
-                "RUNNING" | "PENDING_APPROVAL" | "PENDING_INPUT" | "PAUSED"
+                "RUNNING" | "PENDING" | "PENDING_APPROVAL" | "PENDING_INPUT" | "PAUSED"
             ) {
                 return run_entity_value(&existing);
             }

@@ -1,12 +1,12 @@
 # 永久产品门禁
 
-更新时间：2026-09-03。
+更新时间：2026-09-19。
 
 JFTrade 的质量门禁面向当前 Rust/Tauri 产品，不使用迁移阶段作为调度或通过条件。
 
 ## 固定入口
 
-- `check:policy`：零 Go、workspace 架构、生产路由策略、测试命名、AI 上下文和 workflow policy。
+- `check:policy`：零 Go、workspace 架构、生产路由策略、测试命名、AI 上下文、workflow policy，以及 scripts 的 policy 与 compatibility 套件单测（含 Go→Rust parity 审计脚本的 Python 单测；只保证迁移期工具可用，审计结论不参与门禁判定）。
 - `check:contracts`：OpenAPI、生成物、278 条 Rust 路由与认证策略。
 - `check:clippy`：独立只读 Clippy 门禁，始终固定 `--all-targets --all-features --locked -- -D warnings` 并由统一 runner 注入非打包 Rust 编译环境；`check:rust:clippy` 与 `lint:rust` 为兼容别名。
 - `check:rust:static`：target health、fmt、`check:clippy`、workspace architecture、production policy 和 `cargo deny`。

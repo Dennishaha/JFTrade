@@ -2350,6 +2350,138 @@ mod product_production_assembly_tests {
         }
     }
 
+    /// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:115
+    /// TestCatalogSnapshotToolsTemplatesAndDeleteAgentContracts.
+    ///
+    /// Go requires `GET /api/v1/adk` to expose `runtimeSettings`,
+    /// `GET /api/v1/adk/tools` to include `tools.search`,
+    /// `GET /api/v1/adk/agent-templates` to serve the 默认助手 template and
+    /// never the legacy `investment-analyst` row, the built-in agent to be
+    /// protected on both update and delete (`409 ADK_AGENT_PROTECTED`), and a
+    /// user agent to delete cleanly and disappear from the list.
+    #[tokio::test]
+    async fn production_adk_catalog_templates_and_delete_agent_contracts_hold() {
+        let (_temp_dir, _settings_path, config, _security) = setup_test_env();
+        let handle = start_product(config).await.expect("start product");
+        let address = handle.startup_record().address;
+        let authorization = "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+        let (snapshot_status, snapshot) = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/adk",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(snapshot_status, 200, "snapshot: {snapshot}");
+        assert!(
+            snapshot["data"]["runtimeSettings"].is_object(),
+            "snapshot must expose runtimeSettings: {snapshot}"
+        );
+
+        let (tools_status, tools) = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/adk/tools",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(tools_status, 200, "tools: {tools}");
+        assert!(
+            tools["data"]["tools"]
+                .as_array()
+                .expect("tools array")
+                .iter()
+                .any(|tool| tool["id"] == "tools.search"),
+            "tools.search must be part of the catalog: {tools}"
+        );
+
+        let (templates_status, templates) = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/adk/agent-templates",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(templates_status, 200, "templates: {templates}");
+        let serialized = templates.to_string();
+        assert!(
+            serialized.contains("默认助手"),
+            "the built-in template must be present: {templates}"
+        );
+        assert!(
+            !serialized.contains("investment-analyst"),
+            "the removed legacy template must not resurface: {templates}"
+        );
+
+        for (method, path, body) in [
+            (
+                "PUT",
+                "/api/v1/adk/agents/jftrade-default",
+                Some(r#"{"name":"Edited Default","status":"ENABLED"}"#),
+            ),
+            ("DELETE", "/api/v1/adk/agents/jftrade-default", None),
+        ] {
+            let (status, response) = request_json_with_status(
+                address,
+                method,
+                path,
+                body,
+                &[("Authorization", authorization)],
+            )
+            .await;
+            assert_eq!(status, 409, "{method} {path}: {response}");
+            assert_eq!(
+                response["error"]["code"], "ADK_AGENT_PROTECTED",
+                "{method} {path}"
+            );
+        }
+
+        let (create_status, created) = request_json_with_status(
+            address,
+            "POST",
+            "/api/v1/adk/agents",
+            Some(r#"{"id":"agent-delete-route","name":"Delete Route","status":"ENABLED"}"#),
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(create_status, 200, "create agent: {created}");
+        assert_eq!(created["data"]["id"], "agent-delete-route");
+
+        let (delete_status, deleted) = request_json_with_status(
+            address,
+            "DELETE",
+            "/api/v1/adk/agents/agent-delete-route",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(delete_status, 200, "delete agent: {deleted}");
+
+        let (list_status, agents) = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/adk/agents",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(list_status, 200, "agents: {agents}");
+        assert!(
+            !agents["data"]["agents"]
+                .as_array()
+                .expect("agents array")
+                .iter()
+                .any(|agent| agent["id"] == "agent-delete-route"),
+            "a deleted agent must leave the list: {agents}"
+        );
+
+        handle.shutdown().await.expect("shutdown cleanly");
+    }
+
     #[tokio::test]
     async fn production_adk_public_sessions_use_main_store_and_support_crud() {
         let (_temp_dir, _settings_path, config, _security) = setup_test_env();

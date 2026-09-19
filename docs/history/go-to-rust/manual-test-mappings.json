@@ -70,18 +70,18 @@
     "evidence_type": "boundary"
   },
   "internal/api/assistant/adk_approval_test.go:16:TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_respond_to_input_enriches_response_and_unblocks_run；crates/jftrade-engine/src/product_production_assembly_tests.rs::tests::production_adk_approval_resolution_is_persisted_and_idempotent；crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::approval_resolution_is_idempotent_and_conflict_safe",
-    "conclusion": "partial：approve 后 run 进入 RUNNING/resumeState=approval_resuming 与异步续跑由 production_adk_approval_resolution_is_persisted_and_idempotent 与 CAS 契约覆盖，但 Go 额外断言 resolution envelope 内 toolCalls[0].status=RUNNING 与 session timeline 的 running tool group；Rust 未对同一 HTTP 响应逐条断言该组合，保留 partial。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_approval_approve_returns_the_running_resolution_envelope",
+    "conclusion": "function_exact：approve 同一响应断言 approval=APPROVED、run.status=RUNNING、resumeState=approval_resuming、toolCalls[0].status=RUNNING/requiresUser=false，断言 route 恰好 wake 一次已解析 run 的 continuation，并回读持久化 run 与 approvals?status=PENDING 不再包含该审批。fixture 用记录型 continuation runtime（真实 model 调用会立刻覆写 resumeState，而 Go 用例用阻塞工具保持 RUNNING），因此 staged 投影是确定性的；真实 provider 端到端由 product_adk_chat_stream_product_tests::production_live_chat_stream_emits_session_run_and_final_events 覆盖。Go 用例还额外断言 session timeline 的 running tool group；Rust session detail 的 timeline 只投影 user/assistant 消息（product_production_ports_adk_projection.rs::timeline_value），没有 approvalGroup 条目，该子断言按结构边界在结论中说明。探针：删除 store 的 PENDING_APPROVAL→RUNNING 转换后该测试转红。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_approval_test.go:183:TestADKApprovalRouteReturnsResolutionEnvelope": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::test_adk_resume_approval_cas_rejection；crates/jftrade-engine/src/product_production_assembly_tests.rs::tests::production_adk_approval_resolution_is_persisted_and_idempotent",
-    "conclusion": "partial：deny 解析为 DENIED 且异步收敛到 RunStatusDenied 的持久化路径有证据（含 CAS 拒绝），但 Go 断言 Message==nil 的“无同步摘要”为独立字段级断言，Rust 未在同测试中断言。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_approval_deny_returns_the_resolution_envelope_without_a_sync_message",
+    "conclusion": "function_exact：deny 同一响应断言 approval=DENIED、run.status=RUNNING、resumeState=approval_resuming 且响应无同步 message 字段，随后轮询持久化 run 收敛到 DENIED 并把 toolCall 标为 DENIED/requiresUser=false。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_approval_test.go:282:TestADKProviderDeleteRejectsReferencedProvider": {
     "status": "[x]",
@@ -114,8 +114,8 @@
   "internal/api/assistant/adk_integration_test.go:20:TestRealADKChatStreamWithSavedProvider": {
     "status": "[~]",
     "rust_entry": "不适用：真实模型 Provider live 调用；Rust 仅在显式 live workflow 中验证",
-    "conclusion": "boundary：Go 该测试连接真实已保存 Provider 进行端到端 chat stream；Rust 契约要求普通测试不连接真实模型 Provider，真实依赖只在显式 live workflow 验证，因此归档为边界保留。",
-    "command": "`pnpm run check:compatibility`",
+    "conclusion": "boundary：Go 直接连接已保存的真实 Provider 完成端到端 chat stream；Rust 契约要求普通 nextest 不访问真实模型 Provider（loopback fixture 除外），真实依赖只在显式 live workflow 下验证。等价的可重复证据是 product_adk_chat_stream_product_tests 的 loopback provider 端到端测试（session→run→final）与 adk_chat_stream_timing_challenge 的 499 断线分支。",
+    "command": "pnpm run check:compatibility:assistant-runtime",
     "evidence_type": "boundary"
   },
   "internal/api/assistant/adk_normalize_test.go:15:TestADKRoutesSerializeEmptySlicesAsArrays": {
@@ -175,11 +175,11 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:26:TestADKSessionDetailOmitsResolvedApprovalGroups": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_fixture_preserves_empty_collections_as_json_arrays；crates/jftrade-engine/src/product_production_ports_adk_projection.rs::timeline_value",
-    "conclusion": "partial：session timeline 只投影 user/assistant 消息、不产生 approvalGroup 条目（结构上已解析审批不会出现），但 Rust 未以“resolve 后 GET session detail 与 approvals?status=PENDING 均不再包含该 approval”的端到端断言验证，保留 partial。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_session_detail_omits_resolved_approval_groups",
+    "conclusion": "function_exact：approve 后在真实生产端口断言 session detail 的 timeline 不含 approval_group（Rust 的 timeline_value 只投影 user/assistant 消息）且没有任何条目引用该 approval id，`approvals?status=PENDING` 也不再列出它，同时 session detail 仍保留该 run。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:165:TestADKAuditRouteFiltersByKindAndSubjectID": {
     "status": "[x]",
@@ -266,11 +266,11 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:787:TestADKSessionNegativeRoutes": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_dynamic_routes_validate_suffixes_and_identifiers；crates/jftrade-engine/src/product_production_assembly_tests.rs::tests::production_adk_public_sessions_use_main_store_and_support_crud",
-    "conclusion": "partial：非法标识符矩阵与缺失 session 404 有证据，但 Go 覆盖的 whole negative route 集合（含 malformed rename/composer-state 分支）未逐条对齐。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_session_negative_routes_keep_the_go_error_envelopes",
+    "conclusion": "function_exact：逐条断言 Go 的四个 session 负路径 envelope：missing/disabled agent create 400 BAD_REQUEST/\"enabled agent is required\"、missing session detail 404 NOT_FOUND/\"session not found\"、对已存在 session 的 malformed rename payload 400 BAD_REQUEST/\"invalid session payload\"。非法 %zz 标识符分支由 product_adk_read_tests::adk_read_routes_reject_blank_decoded_identifiers 覆盖。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:858:TestADKRunNegativeRoutes": {
     "status": "[x]",
@@ -280,11 +280,11 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:911:TestADKApprovalNegativeAndIdempotentRoutes": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_mutation_port.rs（\"approvalId is invalid\"）；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_respond_to_input_strict_validation_idempotency_and_conflict",
-    "conclusion": "partial：approvalId 非法 400 文案与 idempotent/conflict CAS 语义在生产代码与输入幂等测试中有证据，但“缺失 approval approve 返回 200 空成功结果”与二次 approve 幂等 envelope 未在同一 Rust 测试断言。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_approval_negative_and_idempotent_routes_match_the_go_envelopes",
+    "conclusion": "function_exact：断言 missing approval approve 返回空成功 envelope（approval.id 为空、无 run/message）、同一 approval 二次 approve 保持 APPROVED、空白 approvalId 经真实 wire 分发得到 400 BAD_REQUEST/\"approvalId is invalid\"。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_sessions_test.go:15:TestADKSessionsCRUDAndFilteringRoutes": {
     "status": "[x]",
@@ -315,81 +315,81 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/catalog_failure_contracts_test.go:17:TestCatalogReadFaultsExposeStableAPIContracts": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::catalog_read_faults_expose_the_go_resource_error_codes",
+    "conclusion": "function_exact：逐个 DROP adk_tasks/adk_memory/adk_agents/adk_providers 后在真实生产端口断言 Go 的四条资源级错误码（500 ADK_TASK_LIST_FAILED、400 ADK_MEMORY_LIST_FAILED、500 ADK_AGENT_LIST_FAILED、500 ADK_PROVIDER_LIST_FAILED）与 invalid memory scope 的 400 ADK_MEMORY_LIST_FAILED。原 Rust 把四类持久化故障折叠成 503 ADK_READ_UNAVAILABLE，本轮修复 product_production_ports_adk_read.rs 的 agents/providers/tasks/memories 映射（新增 resource_list_failed）。探针：把帮助函数还原为 AdkReadSnapshotError::Unavailable 时该测试转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/chat_helpers_test.go:13:TestTimelineStreamStateTracksSessionRunAndToolTiming": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Go 进程内 adkTimelineStreamState（hub helper）",
+    "conclusion": "boundary：该测试针对 Go 进程内 hub 的 `adkTimelineStreamState`（observeSession/observeRun/appendReasoning/appendMessage/firstTimelineToolTime）。Rust 没有等价结构：timeline 由 durable run payload 的 streamEvents 与 session transcript 事件直接投影（product_adk_model_runtime_stream_events.rs::emit_stream_event / product_production_ports_adk_projection.rs::timeline_value），不存在需要维护的进程内 sequence/toolGroup 状态机。对应行为契约由 adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart（重放保留 timeline 帧）与 production_live_chat_stream_emits_session_run_and_final_events（session→run→final 顺序）覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/api/assistant/chat_helpers_test.go:49:TestChatStreamRecordCurrentRunID": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Go 进程内 hub 的 record.currentRunID()",
+    "conclusion": "boundary：`record.currentRunID()` 是 Go 内存 hub 为 SSE 重连维护的当前 run 索引。Rust 的等价契约是 durable 的 run/stream 关联：stream_snapshot 既按 run id、也按 payload 中的 streamId 解析（product_production_ports_adk_read.rs::stream_snapshot），由 adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart 与 adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed 逐条断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/api/assistant/chat_helpers_test.go:59:TestTimelineStreamStateEmptyAndCloneBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Go 进程内 timeline clone 兜底",
+    "conclusion": "boundary：`appendReasoning/appendMessage/cloneTimelineEntry/defaultTimelineRunID` 都是 Go 内存 hub 的防御性拷贝与缺省值逻辑。Rust 的 timeline 条目在写入时即为 serde_json::Value 并从 SQLite 读回（timeline_value），不存在共享指针可变别名，也不需要 `defaultTimelineRunID(\"  \")==\"stream\"` 这类仅服务内存 hub 的缺省。空 delta 不产生条目由 durable 事件写入路径保证：emit_stream_event 只在有内容时写入 streamEvents。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/api/assistant/chat_helpers_test.go:87:TestChatStreamHubRetentionRunLookupAndCloneBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Go 进程内 hub 的 2000 事件上限 / 30 分钟 TTL",
+    "conclusion": "boundary：Go 的 `adkChatStreamHub` 是进程内缓存，因此需要 2000 事件截断、30 分钟 retention、expiresAt 清理与 nil-safe publish。Rust 的 stream 历史是 SQLite 中 run payload 的 streamEvents（durable），生命周期由 run 记录本身决定，不存在进程内 TTL/事件上限；重连读取由 stream_snapshot 的 after 游标切片表达，并由 adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/api/assistant/chat_helpers_test.go:151:TestStreamHelpersRunIDAndBestEffortLogging": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Go 进程内 streamEventRunID / besteffort 日志 helper",
+    "conclusion": "boundary：`streamEventRunID`（response.run.id → timeline.runId → event.RunID 的取值优先级）与 `besteffort.LogError` 都是 Go hub 的辅助函数。Rust 的 run 关联在事件写入时由 emit_stream_event/emit_post_terminal_event 显式写入 `runId`/`streamId`，无需按响应结构回退推导；best-effort 日志在 Rust 侧由 tracing 结构化日志承接，不是公开契约。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/api/assistant/chat_helpers_test.go:167:TestChatStreamExecutionPublishesDeltaAndFinalVariants": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
+    "conclusion": "function_exact：Go 的 delta→timeline/run 投影与 final 终帧在 Rust 由 durable streamEvents + 终帧恢复承接：本测试断言重放保留的终局事件后 ADK read 仍返回 final 帧、且终帧 response.run.id 正确；Go 的「final 前裁剪 tool output」由 persisted_terminal_run_is_published_as_final_instead_of_a_second_error 覆盖（终态 run 只产生一个 final、无第二个 error）。live delta 顺序的端到端断言见 production_live_chat_stream_emits_session_run_and_final_events。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/chat_helpers_test.go:216:TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_routes_are_isolated_without_port",
+    "conclusion": "function_exact：无效请求的终局错误帧、缺端口时的 fail-closed SSE 与 missing-agent 不产生 preview frame 由 adk_chat_stream_routes_register_only_with_explicit_test_port / adk_chat_stream_routes_are_isolated_without_port 覆盖；Go 的 `executeADKChatStream` 是进程内 hub helper，Rust 用 durable run + 终局 error 帧表达同一行为。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/chat_helpers_test.go:260:TestAssistantRequestHelpersCoverInvalidAndBoundaryInputs": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_reports_the_go_validation_messages",
+    "conclusion": "function_exact：Go 的 `bearerToken` 解析与 `isADKAgentValidationError` 白名单在 Rust 分别由 api 层 Bearer 解析与 validate_agent_write 的 400 分类承接，对应行为由本测试逐条断言（provider not found / provider is disabled / 内置 agent 保护 / unknown ADK tool / unknown ADK skill 均为 400）。非校验文本不得 client-classified 的反向分支由 agent_save_storage_failure_is_not_client_classified 覆盖（500 ADK_MUTATION_FAILED）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/chat_stream_lifecycle_test.go:9:TestHandlerCloseCancelsAndJoinsBackgroundExecutions": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle.rs；crates/jftrade-engine/tests/adk_chat_stream_timing_challenge.rs::test_immediate_cancellation_returns_instantly",
-    "conclusion": "partial：取消与即时返回有证据，但 Go 的 handler Close 必须 cancel 并 join 所有后台执行的“关闭即汇合”断言在 Rust 无等价测试。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_shutdown_blocks_for_all_tasks",
+    "conclusion": "function_exact：Go 的 Handler.Close 语义（取消后台执行、等待其退出、关闭后拒绝再启动、重复 Close 幂等）在 Rust 由 ContinuationSupervisor 承接：shutdown 阻塞到全部任务完成、所有任务观测取消信号、关闭后 spawn 失败、并发 spawn/shutdown 竞态不泄漏；配套 witness 为 challenge_continuation_supervisor_cancellation_signal_propagates 与 challenge_continuation_supervisor_concurrent_spawn_shutdown_race。Rust 没有 Go 的独立 background context/WaitGroup 结构，等价保证落在 supervisor 的 stopping 闸门 + CompletionBarrier join。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/chat_stream_recovery_contracts_test.go:12:TestChatStreamHubKeepsEventAndTimelineContracts": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：cloneADKChatStreamEvent 的 JSON 往返兜底",
+    "conclusion": "boundary：Go 的 `cloneADKChatStreamEvent` 用 JSON 往返克隆事件，并在 `func()` 这类不可序列化 tool output 上保留原事件（防止 live 事件被丢弃）。Rust 的事件在构造时就是 serde_json::Value，不可能出现不可序列化字段，因此不存在同等结构；timeline-only delta 不产生叙事重复的契约由 durable 投影承接——流事件写入 payload 的 `streamEvents` 且 final 只追加一帧（persisted_terminal_run_is_published_as_final_instead_of_a_second_error 断言终态只产生一个 final、无第二个 error）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/api/assistant/chat_stream_recovery_contracts_test.go:41:TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun": {
     "status": "[x]",
@@ -407,8 +407,8 @@
   },
   "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
-    "conclusion": "partial：断线后经 /api/v1/adk/streams/{id}?after= 重放与重启后终态保留有证据，但 Go 的“重连期间客户端再次断线”时序未在 Rust 覆盖。",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart；crates/jftrade-engine/tests/adk_chat_stream_timing_challenge.rs::test_client_disconnect_returns_499_within_250ms",
+    "conclusion": "partial：Rust 已覆盖断线语义的核心：客户端断线后 250ms 内返回 499 CLIENT_DISCONNECTED（adk_chat_stream_timing_challenge），以及终局事件在重连时以 replay 标记重放（adk_chat_stream_product_tests / adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed）。Go 该用例额外断言“重连 SSE 写失败时只写一次 retry 指令并立即退出（writer.writes==1）”以及 X-ADK-Stream-ID 头，这是 Go gin SSEWriter 的分层写失败计数；Rust 的 ApiStreamSender 用 closed 状态 + 单次 send 错误表达，本轮未在同一测试中重建 gin 的 writes 计数，保留 partial 记录该 wire 层差异。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -434,39 +434,39 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_boundary_contracts_test.go:92:TestAssistantRoutesSurfaceStoreFailuresAfterRuntimeClose": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_routes_surface_durable_store_failures_instead_of_empty_success",
+    "conclusion": "function_exact：在端口打开后逐个 DROP 行政表，断言 14 条读路由全部 fail-closed（绝不返回 fabricated 空成功）与 7 条写路由同样失败；资源级错误码由 catalog_read_faults_expose_the_go_resource_error_codes 逐条钉死，agent 写故障码由 agent_save_storage_failure_is_not_client_classified 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_boundary_contracts_test.go:178:TestAssistantCatalogSessionAndObservabilitySuccessContracts": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_catalog_session_and_observability_success_contracts_hold",
+    "conclusion": "function_exact：真实生产端口预置 provider/agent/session/run/approval/task/memory/optimization/audit 后，逐条断言 16 条读路由返回 JSON 对象（snapshot/providers/agents/skills/sessions/session detail/runs/run detail/approvals/tasks/task detail/memory/audit/metrics/optimization list+detail），并对 11 条写路由（provider/agent update、session rename、objective、task create/update/delete、memory create/delete、provider delete、session delete）断言成功且返回对象。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_boundary_contracts_test.go:278:TestAssistantCatalogBoundaryStatusCodes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_catalog_boundary_status_codes_match_the_go_matrix",
+    "conclusion": "function_exact：覆盖 Go 的 catalog 边界矩阵：未知 task status 400 ADK_TASK_LIST_FAILED、非法 memory scope 400 ADK_MEMORY_LIST_FAILED、缺失 task 404 ADK_TASK_NOT_FOUND、缺失 memory delete 404 ADK_MEMORY_NOT_FOUND、provider-in-use delete 409 ADK_PROVIDER_DELETE_FAILED、内置 agent update/delete 409 ADK_AGENT_PROTECTED、空白 task title 400 ADK_TASK_SAVE_FAILED、provider/agent/skill malformed payload 400 BAD_REQUEST。本轮同时修复 task create 与 memory save 的校验错误码（原为 BAD_REQUEST）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_boundary_contracts_test.go:329:TestAssistantSessionRunBoundaryStatusCodes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_session_run_boundary_status_codes_match_the_go_matrix",
+    "conclusion": "function_exact：覆盖 Go 的 session/run 边界矩阵：missing agent create 400、missing session/run/stream 404、stream after=abc 400 BAD_REQUEST/\"after is invalid\"、missing cancel 404 ADK_RUN_CANCEL_FAILED、missing pause/resume 404 NOT_FOUND、missing approval approve 200、以及 session/run malformed payload 400 BAD_REQUEST。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_boundary_contracts_test.go:369:TestAssistantMutationRoutesRejectMalformedJSON": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/adk_mutations_compatibility.rs::adk_go_boundary_malformed_json_subset_rejects_at_the_wire",
+    "conclusion": "function_exact：对 Go 的 6 条 malformed JSON 用例逐条经真实 mutation wire 分发，断言 400 BAD_REQUEST；更大的 21 路由矩阵保留在 adk_mutation_routes_reject_malformed_mutation_payloads。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_error_contracts_test.go:14:TestAssistantRoutesRejectInvalidQueriesPayloadsAndMissingResources": {
     "status": "[x]",
@@ -504,39 +504,39 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_payload_pagination_test.go:65:TestAssistantRoutesClampPaginationBeyondAvailableItems": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_clamp_pagination_beyond_available_items",
-    "conclusion": "部分覆盖：Rust 对 audit/agents/optimization-tasks 三个路径直接 dispatch 并断言 returned=0、hasMore=false、空数组；Go 通过真实 HTTP router 仅断言 200 与 returned=0，测试装配不同",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_read_routes_clamp_pagination_beyond_available_items)'",
-    "evidence_type": "partial"
+    "conclusion": "function_exact：对 audit/agents/optimization-tasks 三条路径以 limit=1&offset=10000 分发真实生产端口，断言 200、returned=0、hasMore=false 与空数组；Go 只额外断言 HTTP 200 + returned=0。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_payload_pagination_test.go:80:TestAssistantRunMutationRoutesEnforceGoalLifecycleRules": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::assistant_run_mutation_routes_enforce_goal_lifecycle_rules",
+    "conclusion": "function_exact：真实生产端口 + HTTP 分发逐条断言 Go 的四个分支：goal RUNNING loop run pause 返回 200 且 resumeState=user_pause_requested；chat run 的 pause/resume 分别 400 ADK_RUN_PAUSE_FAILED / ADK_RUN_RESUME_FAILED；chat run objective 更新 400 ADK_RUN_OBJECTIVE_UPDATE_FAILED。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_payload_pagination_test.go:134:TestAssistantRoutesClassifyMissingMutationTargets": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_missing_mutation_targets_keep_the_go_classification",
+    "conclusion": "function_exact：三类缺失目标各自断言：missing task patch 404 ADK_TASK_NOT_FOUND/\"task not found\"、missing run objective 404 NOT_FOUND/\"run not found\"、已存在 task 的空白 title 400 ADK_TASK_SAVE_FAILED/\"task title is required\"（本轮修复 create/update 两条空白 title 分支的错误码，原来返回 BAD_REQUEST）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_resource_contracts_test.go:15:TestTaskAndMemoryCRUDContracts": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_task_and_memory_crud_contracts_match_go",
+    "conclusion": "function_exact：完整 CRUD 闭环：创建任务并保留 childProviderId/childModel、按 status=IN_PROGRESS 过滤列表、patch 到 DONE 并更新 child model 与 resultSummary、回读、删除后 404 ADK_TASK_NOT_FOUND；memory 以 agent scope 保存中文值、按 agentId+key 过滤、删除后二次删除 404 ADK_MEMORY_NOT_FOUND。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_resource_contracts_test.go:115:TestCatalogSnapshotToolsTemplatesAndDeleteAgentContracts": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::tests::production_adk_catalog_templates_and_delete_agent_contracts_hold",
+    "conclusion": "function_exact：真实 HTTP 端点上断言 snapshot 带 runtimeSettings、tools 含 tools.search、agent-templates 含「默认助手」且不含 investment-analyst、内置 agent 的 PUT/DELETE 都是 409 ADK_AGENT_PROTECTED、普通 agent 删除后从列表消失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_resource_contracts_test.go:159:TestProviderAndAgentValidationContracts": {
     "status": "[x]",
@@ -546,18 +546,18 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_resource_contracts_test.go:261:TestProviderDefaultContract": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::provider_default_contract_orders_the_default_first_and_keeps_the_route_code",
+    "conclusion": "function_exact：创建两个 provider 后 promote 第二个，断言 providers 读路由返回顺序把 default 排在前（并回读 default=true），以及缺失 provider 的 set-default 返回 404 ADK_PROVIDER_DEFAULT_FAILED。原 Rust 在缺失分支使用 ADK_PROVIDER_NOT_FOUND，本轮修复 product_production_ports_adk_mutation_entities.rs 的两处错误码为 Go 的路由码。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_resource_contracts_test.go:295:TestSessionRunAndOptimizationRouteContracts": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_session_run_and_optimization_route_contracts_match_go",
+    "conclusion": "function_exact：覆盖 disabled agent 建 session 400、missing session/context 404、missing composer-state/compact 404、active-run compact 409 ADK_SESSION_CONTEXT_COMPACT_FAILED、rename 成功、loop run objective 更新、missing pause/resume 404、PENDING run cancel 到 CANCELLED、optimization list 与 missing get/cancel 404、删除 session 后 404。本轮修复两处真实差异：compact 活动 run 的错误码（原 ADK_SESSION_ACTIVE_RUN）与 CancelRun 漏掉 PENDING 状态。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_resource_contracts_test.go:410:TestStreamReconnectAndSkillContracts": {
     "status": "[x]",
@@ -8911,11 +8911,11 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/runner_approval_concurrency_test.go:119:TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_approval_wakeup_accepts_an_already_claimed_continuation；crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit",
+    "conclusion": "function_exact：Go 在启动前先 claim continuation（`approvalRuns[runID]`），因此第二个并发/重试的 wakeup 直接返回 resolution envelope 而不是错误，并保证 approved tool 只执行一次。本轮修复 product_production_ports_adk_mutation_runs.rs：approve/deny 遇到 `AdkChatPortError::Conflict`（\"assistant continuation is already running\"，即已有 owner 在飞）时不再 rollback staged resolution，也不再返回 503 `ADK_CONTINUATION_UNAVAILABLE`，而是照常投影 `APPROVED`/`RUNNING`/`approval_resuming`/toolCall RUNNING envelope；只有真正的启动失败（Unavailable/Failed）才回滚。回归测试 `adk_approval_wakeup_accepts_an_already_claimed_continuation` 用冲突 runtime 断言 envelope 与「approval 不回退 PENDING、run 保持 RUNNING」。单次执行的 fencing 由 `fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit` 覆盖。探针：把 Conflict 分支恢复为无条件 rollback 时该测试转红（503 ADK_CONTINUATION_UNAVAILABLE）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_approval_concurrency_test.go:154:TestAsyncApprovalWaitsForLocalInputContinuationLease": {
     "status": "[~]",

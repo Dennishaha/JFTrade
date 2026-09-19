@@ -450,6 +450,106 @@ async fn optimization_task_negative_routes_match_the_reference_matrix() {
 /// run (`parentRunId` set) is rejected with `400`, while resume of a missing
 /// run is `404 NOT_FOUND`.  The child branch is what stops a workflow child
 /// from pausing itself out of its parent's control.
+/// Parity: go:452dea11:internal/api/assistant/routes_payload_pagination_test.go:80
+/// TestAssistantRunMutationRoutesEnforceGoalLifecycleRules.
+///
+/// The same production port accepts a goal pause (`RUNNING` loop run returns
+/// `resumeState=user_pause_requested`) while rejecting chat runs on all three
+/// lifecycle mutations with their own route codes.  This witness keeps the Go
+/// test's exact assertion set in one place, separate from the child-run
+/// rejection witness used by `adk_approval_test.go:450`.
+#[tokio::test]
+async fn assistant_run_mutation_routes_enforce_goal_lifecycle_rules() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, b"{}\n").expect("seed settings");
+    let port = production_optimization_port(directory.path(), true);
+    port.store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: "run-route-pause",
+            session_id: "session-1",
+            agent_id: "agent-1",
+            status: "RUNNING",
+            client_request_id: "goal-pause-request",
+            request_fingerprint: "goal-pause-fingerprint",
+            payload_json: r#"{
+                "id":"run-route-pause",
+                "sessionId":"session-1",
+                "agentId":"agent-1",
+                "status":"RUNNING",
+                "workMode":"loop",
+                "workflowStatus":"running",
+                "toolCalls":[],
+                "pendingApprovals":[]
+            }"#,
+        })
+        .expect("seed goal run");
+    port.store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: "run-route-chat",
+            session_id: "session-1",
+            agent_id: "agent-1",
+            status: "RUNNING",
+            client_request_id: "goal-chat-request",
+            request_fingerprint: "goal-chat-fingerprint",
+            payload_json: r#"{
+                "id":"run-route-chat",
+                "sessionId":"session-1",
+                "agentId":"agent-1",
+                "status":"RUNNING",
+                "workMode":"chat",
+                "toolCalls":[],
+                "pendingApprovals":[]
+            }"#,
+        })
+        .expect("seed chat run");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_adk_read_snapshot_port(port.clone())
+            .with_adk_mutation_port(port);
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+
+    let (status, paused) = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/adk/runs/run-route-pause/pause",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200, "goal pause: {paused}");
+    assert_eq!(paused["data"]["resumeState"], "user_pause_requested");
+
+    for (path, code) in [
+        (
+            "/api/v1/adk/runs/run-route-chat/pause",
+            "ADK_RUN_PAUSE_FAILED",
+        ),
+        (
+            "/api/v1/adk/runs/run-route-chat/resume",
+            "ADK_RUN_RESUME_FAILED",
+        ),
+    ] {
+        let (status, response) = request_json_with_status(address, "POST", path, None, &[]).await;
+        assert_eq!(status, 400, "{path}: {response}");
+        assert_eq!(response["error"]["code"], code, "{path}");
+    }
+    let (status, response) = request_json_with_status(
+        address,
+        "PATCH",
+        "/api/v1/adk/runs/run-route-chat/objective",
+        Some(r#"{"objective":"should be rejected"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(status, 400, "chat objective: {response}");
+    assert_eq!(response["error"]["code"], "ADK_RUN_OBJECTIVE_UPDATE_FAILED");
+
+    handle.shutdown().await.expect("shutdown product");
+}
+
 #[tokio::test]
 async fn goal_pause_rejects_child_runs_and_resume_reports_missing_runs() {
     let directory = tempdir().expect("temporary directory");

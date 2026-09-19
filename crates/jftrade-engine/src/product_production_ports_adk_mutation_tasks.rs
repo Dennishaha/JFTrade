@@ -133,7 +133,13 @@ pub(super) fn dispatch(
             };
             let title = normalized_string(body.get("title"));
             if title.is_empty() {
-                return Err(invalid_mutation_input("task title is required"));
+                // Go's `handleADKSaveTask` reports every `SaveTask` failure -
+                // including the blank-title business rule - through the
+                // route's own `ADK_TASK_SAVE_FAILED` code.
+                return Err(invalid_mutation_with_code(
+                    "ADK_TASK_SAVE_FAILED",
+                    "task title is required",
+                ));
             }
             let status = task_status(body.get("status"))?;
             let depends_on = string_slice(body.get("dependsOn"), "dependsOn")?;

@@ -13,6 +13,9 @@ test("policy and contract layers contain only their permanent product gates", ()
   assert.deepEqual(executionStagesForLayer("policy"), [{ mode: "parallel", commands: policyChecks }]);
   assert.deepEqual(executionStagesForLayer("contracts"), [{ mode: "parallel", commands: contractChecks }]);
   assert.equal(commandStrings(commandsForLayer("policy")).some((value) => /stage[2-9]|differential|go-retirement/i.test(value)), false);
+  // The parity audit Python tests ride the compatibility script suite; they
+  // must run in every layer instead of only when someone runs them by hand.
+  assert.ok(commandStrings(commandsForLayer("policy")).includes("pnpm run test:scripts -- compatibility"));
 });
 
 test("preflight fans independent product lanes out in parallel", () => {

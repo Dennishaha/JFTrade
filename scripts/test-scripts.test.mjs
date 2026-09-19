@@ -5,7 +5,10 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  pythonScriptTestSuites,
+  resolvePythonScriptTestFiles,
   resolveScriptTestFiles,
+  runPythonScriptTests,
   scriptTestSuites,
   scriptTestUsage,
 } from "./test-scripts.mjs";
@@ -50,6 +53,21 @@ test("CLI accepts pnpm's explicit argument separator", () => {
   const listed = run("--", "--list");
   assert.equal(listed.status, 0, listed.stderr);
   assert.match(listed.stdout, /^all\npolicy\ncompatibility\nrelease\ndesktop\n/m);
+});
+
+test("compatibility suite also selects the parity audit Python tests", () => {
+  const pythonFiles = resolvePythonScriptTestFiles(["compatibility"]);
+  assert.deepEqual(pythonFiles, [...pythonScriptTestSuites.compatibility]);
+  assert.ok(pythonFiles.includes("scripts/compatibility/test_audit_test_parity.py"));
+  assert.ok(pythonFiles.includes("scripts/compatibility/test_parity_anchor_reconcile.py"));
+  assert.ok(pythonFiles.includes("scripts/compatibility/test_parity_gap_triage.py"));
+  assert.deepEqual(resolvePythonScriptTestFiles(["desktop"]), []);
+  assert.deepEqual(resolvePythonScriptTestFiles(), pythonFiles);
+});
+
+test("parity audit Python tests pass through unittest discovery", () => {
+  const status = runPythonScriptTests(resolvePythonScriptTestFiles(["compatibility"]), { stdio: "pipe" });
+  assert.equal(status, 0);
 });
 
 function discoverTests(directory) {

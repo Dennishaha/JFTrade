@@ -281,8 +281,12 @@ pub(super) fn dispatch(
                 .map_err(storage_mutation_failed)?
                 .is_none()
             {
+                // Go's `handleADKSetDefaultProvider` keeps the route's own
+                // code (`ADK_PROVIDER_DEFAULT_FAILED`) and only escalates the
+                // status to 404; it never falls back to the entity-not-found
+                // code used by the provider update route.
                 return Err(not_found_mutation(
-                    "ADK_PROVIDER_NOT_FOUND",
+                    "ADK_PROVIDER_DEFAULT_FAILED",
                     "provider not found",
                 ));
             }
@@ -312,7 +316,7 @@ pub(super) fn dispatch(
                 updates.push((provider.id, payload));
             }
             let selected_id = selected.ok_or_else(|| {
-                not_found_mutation("ADK_PROVIDER_NOT_FOUND", "provider not found")
+                not_found_mutation("ADK_PROVIDER_DEFAULT_FAILED", "provider not found")
             })?;
             let update_refs = updates
                 .iter()
@@ -338,14 +342,20 @@ pub(super) fn dispatch(
                 .unwrap_or("workspace")
                 .to_ascii_lowercase();
             if scope != "workspace" && scope != "agent" {
-                return Err(invalid_mutation_input(
+                // Go's `handleADKSaveMemory` maps every save failure to
+                // `400 ADK_MEMORY_SAVE_FAILED`, including validation.
+                return Err(invalid_mutation_with_code(
+                    "ADK_MEMORY_SAVE_FAILED",
                     "memory scope must be workspace or agent",
                 ));
             }
             let agent_id = normalized_string(body.get("agentId"));
             if scope == "agent" {
                 if agent_id.is_empty() {
-                    return Err(invalid_mutation_input("agent memory requires agentId"));
+                    return Err(invalid_mutation_with_code(
+                        "ADK_MEMORY_SAVE_FAILED",
+                        "agent memory requires agentId",
+                    ));
                 }
                 if port
                     .store
@@ -358,7 +368,10 @@ pub(super) fn dispatch(
             }
             let key = normalize_memory_key(&normalized_string(body.get("key")));
             if key.is_empty() {
-                return Err(invalid_mutation_input("memory key is required"));
+                return Err(invalid_mutation_with_code(
+                    "ADK_MEMORY_SAVE_FAILED",
+                    "memory key is required",
+                ));
             }
             let value = bounded_text(&normalized_string(body.get("value")));
             let id = normalize_id(&format!("{scope}-{agent_id}-{key}"));

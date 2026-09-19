@@ -17,6 +17,9 @@ export const policyChecks = Object.freeze([
   pnpmRun("check:test-names"),
   pnpmRun("check:ai-context"),
   pnpmRun("test:scripts", "--", "policy"),
+  // The compatibility suite also carries the Go→Rust parity audit Python
+  // tests; without a gate slot they silently rot between manual runs.
+  pnpmRun("test:scripts", "--", "compatibility"),
   pnpmRun("check:actionlint"),
 ]);
 

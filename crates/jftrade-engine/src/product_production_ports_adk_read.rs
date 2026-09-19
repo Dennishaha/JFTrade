@@ -8,7 +8,7 @@ mod read_helpers;
 use context_projection::rebuild_context_snapshot;
 use read_helpers::{
     context_status_for_read, estimate_context_tokens, is_context_user_event,
-    protected_context_event_start, recent_context_event_start,
+    protected_context_event_start, recent_context_event_start, resource_list_failed,
     sanitize_provider,
 };
 
@@ -113,7 +113,14 @@ impl ProductionAdkPort {
     }
 
     fn agents(&self, query: &str) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
-        let mut items = self.entities(self.store.list_agents()?, "agent")?;
+        // Go reports a listing fault as `500 ADK_AGENT_LIST_FAILED` instead of
+        // a generic bad request or a transport-level unavailability, and the
+        // console keys its retry affordance off that code.
+        let rows = self
+            .store
+            .list_agents()
+            .map_err(|error| resource_list_failed(500, "ADK_AGENT_LIST_FAILED", error))?;
+        let mut items = self.entities(rows, "agent")?;
         if items.is_empty() {
             items.push(builtin_agent(&self.tool_catalog));
         }
@@ -121,8 +128,14 @@ impl ProductionAdkPort {
     }
 
     fn providers(&self) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
+        // Go reports a provider listing fault as
+        // `500 ADK_PROVIDER_LIST_FAILED`.
+        let rows = self
+            .store
+            .list_providers()
+            .map_err(|error| resource_list_failed(500, "ADK_PROVIDER_LIST_FAILED", error))?;
         Ok(AdkReadSnapshot::Json(json!({
-            "providers": self.entities(self.store.list_providers()?, "provider")?
+            "providers": self.entities(rows, "provider")?
         })))
     }
 
@@ -135,9 +148,13 @@ impl ProductionAdkPort {
     }
 
     fn tasks(&self, query: &str) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
-        let values = self
+        // Go maps every `ListTasks` fault to `ADK_TASK_LIST_FAILED`; an invalid
+        // status narrows the status to `400`, anything else stays `500`.
+        let rows = self
             .store
-            .list_tasks()?
+            .list_tasks()
+            .map_err(|error| resource_list_failed(500, "ADK_TASK_LIST_FAILED", error))?;
+        let values = rows
             .into_iter()
             .map(|row| {
                 payload(
@@ -349,9 +366,11 @@ impl ProductionAdkPort {
             && scope != "workspace"
             && scope != "agent"
         {
+            // Go's `handleADKMemory` reports an invalid scope through the
+            // same `ADK_MEMORY_LIST_FAILED` code it uses for store faults.
             return Err(AdkReadSnapshotError::Failed {
                 status: 400,
-                code: "BAD_REQUEST".to_owned(),
+                code: "ADK_MEMORY_LIST_FAILED".to_owned(),
                 message: "memory scope must be workspace or agent".to_owned(),
                 retry_after_seconds: None,
             });
@@ -362,9 +381,13 @@ impl ProductionAdkPort {
         let key = query_param(query, "key")
             .map(|value| normalize_memory_key(&value))
             .filter(|value| !value.is_empty());
-        let values = self
+        // Go maps every `ListMemory` fault to `400 ADK_MEMORY_LIST_FAILED`,
+        // including the invalid-scope branch above.
+        let rows = self
             .store
-            .list_memories()?
+            .list_memories()
+            .map_err(|error| resource_list_failed(400, "ADK_MEMORY_LIST_FAILED", error))?;
+        let values = rows
             .into_iter()
             .map(|row| {
                 payload(

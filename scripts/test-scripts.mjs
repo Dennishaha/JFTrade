@@ -13,7 +13,16 @@ function discoverTests(directory = path.join(repositoryRoot, "scripts")) {
     .sort();
 }
 
+function discoverPythonTests(directory = path.join(repositoryRoot, "scripts", "compatibility")) {
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && /^test_.*\.py$/.test(entry.name))
+    .map((entry) => path.relative(repositoryRoot, path.join(directory, entry.name)).split(path.sep).join("/"))
+    .sort();
+}
+
 const allTests = discoverTests();
+const allPythonTests = discoverPythonTests();
 const rootPolicyNames = new Set([
   "check-ai-context.test.mjs",
   "check-diff.test.mjs",
@@ -64,12 +73,46 @@ export const scriptTestSuites = Object.freeze({
   ]),
 });
 
+export const pythonScriptTestSuites = Object.freeze({
+  compatibility: Object.freeze(allPythonTests),
+});
+
 export function resolveScriptTestFiles(requestedSuites = []) {
   const suites = requestedSuites.length === 0 ? ["all"] : requestedSuites;
   const unknown = suites.filter((name) => name !== "all" && !(name in scriptTestSuites));
   if (unknown.length > 0) throw new Error(`unknown script test suite: ${unknown.join(", ")}`);
   if (suites.includes("all")) return [...allTests];
   return [...new Set(suites.flatMap((name) => scriptTestSuites[name]))];
+}
+
+export function resolvePythonScriptTestFiles(requestedSuites = []) {
+  const suites = requestedSuites.length === 0 ? ["all"] : requestedSuites;
+  if (suites.includes("all")) return [...allPythonTests];
+  return [...new Set(suites.flatMap((name) => pythonScriptTestSuites[name] ?? []))];
+}
+
+function resolvePythonInterpreter() {
+  for (const candidate of ["python3", "python"]) {
+    const probe = spawnSync(candidate, ["--version"], { stdio: "ignore" });
+    if (!probe.error && probe.status === 0) return candidate;
+  }
+  throw new Error("python3 is required to run the scripts/compatibility Python tests");
+}
+
+export function runPythonScriptTests(files, options = {}) {
+  if (files.length === 0) return 0;
+  const python = resolvePythonInterpreter();
+  const directories = [...new Set(files.map((file) => path.dirname(file)))];
+  for (const directory of directories) {
+    const result = spawnSync(python, ["-m", "unittest", "discover", "-s", directory, "-p", "test_*.py"], {
+      cwd: options.cwd ?? repositoryRoot,
+      env: options.env ?? process.env,
+      stdio: options.stdio ?? "inherit",
+    });
+    if (result.error) throw result.error;
+    if ((result.status ?? 1) !== 0) return result.status ?? 1;
+  }
+  return 0;
 }
 
 export function runScriptTests(requestedSuites = [], options = {}) {
@@ -80,7 +123,8 @@ export function runScriptTests(requestedSuites = [], options = {}) {
     stdio: options.stdio ?? "inherit",
   });
   if (result.error) throw result.error;
-  return result.status ?? 1;
+  if ((result.status ?? 1) !== 0) return result.status ?? 1;
+  return runPythonScriptTests(resolvePythonScriptTestFiles(requestedSuites), options);
 }
 
 export function scriptTestUsage() {

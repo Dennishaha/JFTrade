@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Triage parity rows still marked ``missing`` into reviewable evidence classes.
 
-The inventory records 4451 Go tests against Rust evidence. Rows marked
+The inventory records the frozen Go baseline tests against Rust evidence.
+Rows marked
 ``missing`` all look alike, but they are not: some describe behaviour Rust
 already implements and tests (the mapping was simply never recorded), some
 describe behaviour that exists but has no test, and some have no Rust
@@ -45,11 +46,12 @@ import sys
 
 DEFAULT_INVENTORY = "docs/history/go-to-rust/manual-test-mappings.json"
 
+# Keep in sync with ``audit_test_parity._RUST_TEST_FN``: both tools must agree
+# on what counts as a Rust test, otherwise candidates and approvals diverge.
 _RUST_TEST = re.compile(
-    r'#\[(?:tokio::)?test(?:\s*\([^)]*\))?\]'
+    r'#\[(?:tokio::)?test(?:\([^\]]*\))?\]'
     r'(?:(?:\s*#\[[^\]]*\])|(?:\s*//[^\n]*)|(?:\s*\n\s*))*'
-    r'\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?fn\s+([A-Za-z0-9_]+)',
-    re.S,
+    r'\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?fn\s+([A-Za-z0-9_]+)'
 )
 
 # Words that carry no discriminating power between a reference test name and a Rust

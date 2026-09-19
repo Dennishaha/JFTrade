@@ -20,6 +20,38 @@ def branch_revision(branch: str) -> str:
     return result.stdout.strip() if result.returncode == 0 else "unknown"
 
 
+_cargo_package_names_cache = None
+
+
+def _cargo_package_names():
+    """Return workspace package names, or None when cargo metadata is unusable.
+
+    The audit checks every ``-p <crate>`` reference in the mappings; without
+    caching, each check would re-run ``cargo metadata`` and the audit would
+    spend most of its time forking subprocesses.
+    """
+    global _cargo_package_names_cache
+    if _cargo_package_names_cache is None:
+        result = subprocess.run(
+            ["cargo", "metadata", "--no-deps", "--format-version", "1"],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            _cargo_package_names_cache = False
+        else:
+            try:
+                packages = json.loads(result.stdout).get("packages", [])
+                _cargo_package_names_cache = {
+                    package.get("name") for package in packages
+                }
+            except json.JSONDecodeError:
+                _cargo_package_names_cache = False
+    if _cargo_package_names_cache is False:
+        return None
+    return _cargo_package_names_cache
+
+
 def _is_known_cargo_package(name: str) -> bool:
     """Return True when ``name`` is a cargo package in this workspace.
 
@@ -28,26 +60,18 @@ def _is_known_cargo_package(name: str) -> bool:
     for ``cargo nextest run -p``, so resolve through cargo metadata instead of
     assuming a ``crates/<name>`` directory exists.
     """
-    result = subprocess.run(
-        ["cargo", "metadata", "--no-deps", "--format-version", "1"],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
+    names = _cargo_package_names()
+    if names is None:
         # Fall back to the historical path probe when cargo is unavailable.
         return os.path.isdir(os.path.join("crates", name))
-    try:
-        packages = json.loads(result.stdout).get("packages", [])
-    except json.JSONDecodeError:
-        return os.path.isdir(os.path.join("crates", name))
-    return any(package.get("name") == name for package in packages)
+    return name in names
 
 
 # Matches a ``#[test]`` / ``#[tokio::test]`` attribute followed by the test
 # function name. Attributes, ``// Parity:`` comments, and blank lines may sit
 # between the attribute and ``fn``; without allowing them the resolver misses
 # the common ``#[test]`` + anchor-comment + ``fn`` layout used across this
-# workspace.
+# workspace. Keep in sync with ``parity_gap_triage._RUST_TEST``.
 _RUST_TEST_FN = re.compile(
     r'#\[(?:tokio::)?test(?:\([^\]]*\))?\]'
     r'(?:(?:\s*#\[[^\]]*\])|(?:\s*//[^\n]*)|(?:\s*\n\s*))*'
@@ -197,6 +221,54 @@ def unresolved_parity_references(manual_details: dict) -> tuple:
     return broken_approvals, stale_references
 
 
+def _rust_test_bodies() -> dict:
+    """Map ``(path, fn_name)`` to the source slice following the fn signature.
+
+    The slice runs to the next ``#[test]`` in the same file (or EOF), which is
+    enough for a heuristic content check without parsing Rust.
+    """
+    bodies = {}
+    for path in _workspace_rust_files():
+        with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+            content = handle.read()
+        matches = list(_RUST_TEST_FN.finditer(content))
+        for index, match in enumerate(matches):
+            end = matches[index + 1].start() if index + 1 < len(matches) else len(content)
+            bodies[(path, match.group(1))] = content[match.end():end]
+    return bodies
+
+
+def assertionless_approved_references(manual_details: dict) -> list:
+    """List ``function_exact`` rows whose cited Rust tests contain no assertion.
+
+    Existence alone is a weak approval: an empty ``#[test]`` resolves just as
+    well as a real behavior test. Rows listed here are not audit failures —
+    the assertion may live in a shared helper — but they are the cheapest
+    place to inflate the ``function_exact`` count, so they are surfaced for
+    manual review.
+    """
+    bodies = _rust_test_bodies()
+    known_test_names = {name for (_path, name) in bodies}
+    names_with_assert = {
+        name for (_path, name), body in bodies.items() if "assert" in body
+    }
+    warnings = []
+    for key, item in manual_details.items():
+        if item.get("evidence_type") != "function_exact":
+            continue
+        entry = item.get("rust_entry", "")
+        referenced = [
+            module.split("::")[-1] for _path, module in _RUST_REF.findall(entry)
+        ] + [
+            module_path.split("::")[-1]
+            for _crate, module_path in _CRATE_QUALIFIED_REF.findall(entry)
+        ]
+        resolvable = [name for name in referenced if name in known_test_names]
+        if resolvable and not any(name in names_with_assert for name in resolvable):
+            warnings.append((key, entry))
+    return warnings
+
+
 DOMAIN_MAPPING = [
     # (domain_key, domain_label, go_path_prefixes, rust_crates_or_paths)
     (
@@ -314,7 +386,9 @@ def extract_go_tests():
 
 def extract_rust_tests():
     tests = []
-    test_pattern = re.compile(r'#\[(?:tokio::)?test(?:\([^\]]*\))?\](?:\s*#\[[^\]]+\])*\s*(?:pub(?:\([^\)]+\))?\s+)?(?:async\s+)?fn\s+([a-zA-Z0-9_]+)')
+    # Count with the same regex the reference resolver uses, so the totals in
+    # the report and the resolvable reference set cannot drift apart.
+    test_pattern = _RUST_TEST_FN
     
     for f in glob.glob('crates/**/*.rs', recursive=True):
         crate_name = f.split('/')[1]
@@ -506,6 +580,14 @@ def main():
         )
     approved = sum(1 for item in mapping_values if item.get("evidence_type") == "function_exact")
     print(f"OK: {approved} function_exact mappings cite existing workspace tests")
+    assertionless = assertionless_approved_references(manual_details)
+    if assertionless:
+        listing = "\n".join(f"  - {key}" for key, _entry in assertionless)
+        print(
+            f"WARNING: {len(assertionless)} function_exact mappings cite tests whose "
+            "bodies contain no assertion (helper-based or empty); review manually:\n"
+            f"{listing}"
+        )
 
     exact_entries = [item.get("rust_entry") for item in mapping_values if item.get("status") == "[x]"]
     duplicate_entries = len(exact_entries) - len(set(exact_entries))

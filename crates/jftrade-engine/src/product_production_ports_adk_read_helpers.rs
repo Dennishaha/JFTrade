@@ -5,6 +5,23 @@ use std::fs;
 
 use super::*;
 
+/// Map a durable catalog listing fault onto the per-resource error code the
+/// original handlers publish.  The transport-level `Unavailable` variant stays
+/// reserved for a missing or unready port; a live store that fails to answer a
+/// listing must never collapse into it.
+pub(super) fn resource_list_failed(
+    status: u16,
+    code: &str,
+    error: AdkStoreError,
+) -> AdkReadSnapshotError {
+    AdkReadSnapshotError::Failed {
+        status,
+        code: code.to_owned(),
+        message: error.to_string(),
+        retry_after_seconds: None,
+    }
+}
+
 pub(super) fn estimate_context_tokens(value: &str) -> usize {
     let bytes = value.trim().len();
     if bytes == 0 {
