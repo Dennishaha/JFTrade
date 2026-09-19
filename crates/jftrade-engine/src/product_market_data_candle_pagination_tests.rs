@@ -716,7 +716,10 @@ async fn candle_route_forwards_strict_before_window() {
 ///
 /// Go classifies every annotated candle against the exchange schedule and
 /// fails the read when a bar lands outside all sessions instead of returning a
-/// page whose `session` field is silently missing.
+/// page whose `session` field is silently missing. The read is unbounded, so
+/// it goes through Go's adaptive `QueryAllKLinesForSessions` path where the
+/// routed RTH/OVERNIGHT plans force the session label and the unclassifiable
+/// bar survives routing to be rejected here by the annotation step.
 #[tokio::test]
 async fn candle_route_classifies_unknown_us_session_as_a_data_error() {
     let calendar = Arc::new(
@@ -1744,17 +1747,15 @@ async fn candle_route_trims_current_bucket_to_the_callers_window() {
 /// Parity: go:452dea11:pkg/futu/exchange_kline_test.go:150
 /// TestQueryKLinesForSessionsFiltersCurrentUSBucket.
 ///
-/// Go's `QueryKLinesForSessions(..., [regular])` still issues the unrouted
-/// `Qot_GetKL` current-bucket call, and because that call is not session-routed
-/// it re-applies `filterKLinesBySessions` over the *merged* list. A current bar
-/// that belongs to a pre/after-hours session must therefore be dropped from a
-/// regular-only request instead of leaking in.
+/// Go's own baseline anchors `endAt` to the real clock so the unrouted
+/// `Qot_GetKL` current-bucket call actually fires, and asserts only that the
+/// read still succeeds while that call happens exactly once. The merged list is
+/// then re-filtered by `filterKLinesBySessions`, so no bar outside the
+/// requested set may be returned.
 #[tokio::test]
-async fn us_regular_only_request_drops_an_extended_hours_current_bucket() {
+async fn us_regular_only_request_still_queries_the_current_bucket() {
     use jftrade_integration_futu::SESSION_RTH;
-    // `now` is the request's anchor: the current-bucket branch only fires when
-    // the window reaches the interval containing the clock. The pre-market bar
-    // is placed inside the window so only the session filter can reject it.
+    // `now` is the request's anchor, matching Go's `time.Now().Truncate(time.Minute)`.
     let now = time::OffsetDateTime::now_utc();
     let et_label = |offset_minutes: f64| {
         let at = now + time::Duration::seconds((offset_minutes * 60.0) as i64);
@@ -1772,8 +1773,7 @@ async fn us_regular_only_request_drops_an_extended_hours_current_bucket() {
         by_session: [(SESSION_RTH, vec![us_candle(&et_label(-4.5), 110.0)])]
             .into_iter()
             .collect(),
-        // A pre-market current bucket, i.e. outside the RTH clock window.
-        current_series: vec![us_candle(&et_label(-1.5), 108.0)],
+        current_series: vec![us_candle(&et_label(0.0), 108.0)],
         ..RoutedHistory::default()
     });
     let to = (now + time::Duration::seconds(30))
@@ -1794,11 +1794,11 @@ async fn us_regular_only_request_drops_an_extended_hours_current_bucket() {
         1,
         "Go still requests the unrouted current bucket for a regular-only read"
     );
-    // The pre-market bar may only appear if the calendar classifies it as
-    // regular; assert the session filter ran by comparing against the calendar
-    // rather than assuming a fixed answer.
-    let candles = result["candles"].as_array().expect("candles").clone();
-    for candle in &candles {
+    // The clock decides which of the two fixture bars are regular, so assert the
+    // invariant instead of a fixed count: nothing outside the requested set may
+    // survive the merged-list re-filter.
+    let candles = result["candles"].as_array().expect("candles array");
+    for candle in candles {
         let at = candle["at"].as_str().expect("at");
         let parsed =
             time::OffsetDateTime::parse(at, &time::format_description::well_known::Rfc3339)
@@ -1808,17 +1808,82 @@ async fn us_regular_only_request_drops_an_extended_hours_current_bucket() {
                 "US",
                 jftrade_kernel::WireTimestamp::from_offset_datetime(parsed),
             )
-            .expect("classify")
-            .map(|session| session.as_str().to_owned());
-        if let Some(session) = session.as_deref() {
-            assert_eq!(
-                session, "regular",
-                "a regular-only request returned a {session} candle: {candles:?}"
-            );
-        }
+            .expect("classify");
+        assert_eq!(
+            session.as_deref(),
+            Some("regular"),
+            "a regular-only read returned a non-regular candle: {result}"
+        );
     }
 }
 
+/// Parity: go:452dea11:pkg/futu/exchange_kline_test.go:150 (filter half).
+///
+/// `QueryKLinesForSessions` re-applies the clock session filter over the merged
+/// list, so a bounded `sessions=regular` window whose only bar is after-hours
+/// answers with an empty page rather than that bar. Frozen Go adapter probe:
+/// bounded `sessions=regular` over an after-hours-only series →
+/// `candles=[] err=nil`.
+#[tokio::test]
+async fn us_regular_only_bounded_window_re_filters_the_merged_page() {
+    use jftrade_integration_futu::{SESSION_ALL, SESSION_RTH};
+    // 2026-05-20 is a Wednesday; 17:00 ET is the after-hours window.
+    let reader = Arc::new(RoutedHistory {
+        by_session: [
+            // An RTH-routed bar whose clock session is after-hours: the route
+            // forces `regular`, and only the bounded re-filter can drop it.
+            (SESSION_RTH, vec![us_candle("2026-05-20 17:00:00", 110.0)]),
+            (SESSION_ALL, vec![us_candle("2026-05-20 17:00:00", 110.0)]),
+        ]
+        .into_iter()
+        .collect(),
+        ..RoutedHistory::default()
+    });
+    let port = routed_port(reader.clone(), default_calendar());
+    let bounded = port
+        .read(
+            "/api/v1/market-data/candles/US/AAPL",
+            "period=1m&limit=10&sessions=regular&from=2026-05-20T00:00:00Z&to=2026-05-21T00:00:00Z",
+        )
+        .await
+        .expect("bounded regular-only candles");
+    assert_eq!(
+        bounded["candles"].as_array().map(Vec::len),
+        Some(0),
+        "the bounded path re-filters the merged page: {bounded}"
+    );
+
+    // The adaptive path keeps the same bar: Go never re-applies the clock
+    // filter there, and the bar really is classified as `after` by the
+    // exchange calendar rather than being unclassifiable.
+    let adaptive = port
+        .read(
+            "/api/v1/market-data/candles/US/AAPL",
+            "period=1m&limit=10&sessions=regular,extended,overnight",
+        )
+        .await
+        .expect("adaptive all-sessions candles");
+    let candles = adaptive["candles"].as_array().expect("candles");
+    assert_eq!(
+        candles.len(),
+        1,
+        "the adaptive path leaves the routed bar alone: {adaptive}"
+    );
+    let at = candles[0]["at"].as_str().expect("at");
+    let parsed = time::OffsetDateTime::parse(at, &time::format_description::well_known::Rfc3339)
+        .expect("parse at");
+    assert_eq!(
+        default_calendar()
+            .classify_session(
+                "US",
+                jftrade_kernel::WireTimestamp::from_offset_datetime(parsed),
+            )
+            .expect("classify")
+            .as_deref(),
+        Some("after"),
+        "the fixture bar must be a classifiable after-hours bar: {adaptive}"
+    );
+}
 /// Parity: go:452dea11:internal/productfeatures/candle_query_options_test.go:17
 /// TestNormalizeCandleOptionsRejectsUnsupportedValues and
 /// go:452dea11:internal/assistant/assembly/application_adapter_test.go:177

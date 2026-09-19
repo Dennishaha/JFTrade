@@ -13,6 +13,11 @@ struct CurrentBucketMerge<'a> {
     window_end: &'a str,
     sessions: &'a [&'a str],
     route_sessions: bool,
+    /// The caller supplied `from`/`to`, so the read goes through Go's windowed
+    /// `QueryKLinesForSessions` path. Only that path re-applies the clock-based
+    /// session filter over the merged list; the adaptive path used for
+    /// `before` and unbounded reads (`QueryAllKLinesForSessions`) never does.
+    bounded_window: bool,
     calendar: Option<&'a jftrade_calendar::CalendarManager>,
 }
 
@@ -20,10 +25,15 @@ struct CurrentBucketMerge<'a> {
 ///
 /// Go calls `filterKLinesByWindow(currentKLines, beginAt, endAt)` before the
 /// merge because `Qot_GetKL` can only ask for a bucket *count*, so the caller's
-/// explicit window has to be enforced on the response. It then re-runs
-/// `filterKLinesBySessions` over the merged list: the routed history pages were
+/// explicit window has to be enforced on the response.
+///
+/// The clock-based `filterKLinesBySessions` re-run over the merged list is part
+/// of Go's windowed `QueryKLinesForSessions`: the routed history pages are
 /// already filtered per route, but the current-bucket call is not routed, so a
 /// `regular`-only request could otherwise answer with a pre/after-hours bar.
+/// The adaptive path (`before`/unbounded → `QueryAllKLinesForSessions`) never
+/// re-filters; there an unclassifiable bar reaches the candle projection, which
+/// reports Go's `unable to classify K-line session` data error.
 fn merge_current_bucket(
     result: &mut jftrade_integration_futu::HistoricalKlineResult,
     runtime: &crate::product::product_production_ports::SharedTradeReadRuntime,
@@ -53,7 +63,7 @@ fn merge_current_bucket(
     if result.name.is_none() {
         result.name = current_res.name;
     }
-    if request.route_sessions {
+    if request.route_sessions && request.bounded_window {
         result.klines = quote_reads_futu::filter_klines_by_sessions(
             &result.klines,
             request.calendar,

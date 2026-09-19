@@ -4722,3 +4722,67 @@ python3 scripts/compatibility/audit_test_parity.py
 2. `internal/api/productfeatures/provider_research_routes_test.go`（9 条）、
    `research_screen_test.go`（10 条）、`routes_test.go`（4 条）、`prediction_combo_routes_test.go`（1 条）。
 3. 之后依次：`internal/api/assistant`（ADK）→ `internal/api` → `pkg/futu/live_opend_test.go`（8 条，需真实 OpenD，列最后）。
+
+## 批次：US intraday candle session routing（窗口化 vs adaptive 路径区分，2 条 Go 测试）
+
+范围：`internal/app/apiserver/marketdataapp/market_http_test.go:150`
+`TestMarketCandlesResponseClassifiesUnknownUSSessionAsDataError` 与
+`pkg/futu/exchange_kline_test.go:150` `TestQueryKLinesForSessionsFiltersCurrentUSBucket`。
+两条既有 `[x]` 行的 Rust 测试在上一轮被改成互相矛盾的期望，本轮以冻结 Go 分支
+（`452dea11`，`/tmp` 解包实跑）为准重新对齐并修复生产实现。
+
+### 冻结 Go 行为（实跑探针，非静态推断）
+
+| 场景 | Go 结果 |
+| --- | --- |
+| unbounded US intraday，bar 落在所有 session 之外（周日/周六 12:00Z，显式 `sessions=regular` 亦然） | `candle 0: unable to classify K-line session at <ts>`（adapters 返回 nil response） |
+| bounded `from`/`to` + 只有 after-hours bar + `sessions=regular` | `candles=[]`、`err=nil` |
+| 同上但走 adaptive（`QueryKLinesForSessions` 无窗口） | 该 bar 以 `session="after"` 返回 |
+| `QueryKLinesForSessions(..., [regular])`（`endAt` 锚定真实时钟） | 仍发起一次 `Qot_GetKL` 当前桶，读取成功 |
+
+根因：Go 有两条历史读取路径。窗口化 `QueryKLinesForSessions` 会在合并当前桶之后
+对整表重跑 `filterKLinesBySessions`；adaptive `QueryAllKLinesForSessions`
+从不重过滤，只由路由计划过滤，而 RTH/OVERNIGHT 计划会**强制** session 标签，
+因此无法分类的 bar 会穿到逐根标注步骤，由 `brokerKLineSession` 报数据错误。
+
+### Rust 修复
+
+1. `product_route_session_helper.rs::filter_routed_page`：无法分类的 bar **保留**
+   （否则静默返回空页而不是 Go 的数据错误），由标注步骤负责报错。
+2. `product_production_ports_market_data_quote_reads_futu.rs::filter_klines_by_sessions`：
+   无法分类的 bar 在合并列表重过滤时**丢弃**（对应 Go `slices.Contains` 不含
+   `SessionUnknown`/`closed`）。
+3. `product_route_current_bucket_helper.rs::merge_current_bucket`：新增 `bounded_window`
+   门，仅 `from`/`to` 路径重过滤当前桶，adaptive 路径不重过滤。
+4. `product_production_ports_market_data_quote_reads.rs`：仅在 `route_sessions` 且
+   `bounded_window` 时对历史页重过滤。
+
+### 测试
+
+- `product_market_data_candle_pagination_tests.rs::candle_route_classifies_unknown_us_session_as_a_data_error`
+  （unbounded → 保留 + 标注报错）。
+- `...::us_regular_only_request_still_queries_the_current_bucket`（`current_calls==1`，
+  按时钟断言不变量而非固定答案）。
+- `...::us_regular_only_bounded_window_re_filters_the_merged_page`（bounded → 空页；
+  adaptive → 保留且日历判定为 `after`）。
+- 原 `us_regular_only_request_drops_an_extended_hours_current_bucket` 因依赖真实时钟并
+  在 adaptive 路径上断言 Go 不成立的行为，已按 Go 语义拆为上面两条。
+
+三条生产分支各自探针回退均使对应测试转红：`filter_routed_page` 保留分支 →
+`candle_route_classifies_unknown_us_session_as_a_data_error`；bounded 历史重过滤 →
+`us_regular_only_bounded_window_re_filters_the_merged_page`；`bounded_window` 门 →
+`candle_route_classifies_unknown_us_session_as_a_data_error`。
+
+### 验证
+
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` → 1371 passed，0 failed。
+- `pnpm run check:zero-go` → passed。
+- `python3 scripts/compatibility/audit_test_parity.py` → 712 function_exact、0 未解析引用。
+- `pnpm run check:quick` → passed。
+
+### 后续边界
+
+`internal/marketdata/broker_candles.go::brokerKLineCandle` 在 `includeSession` 为真且
+标注出的 session 分组不属于请求集合时会报 `k-line session "after" was not requested`，
+Rust 目前没有对应拒绝（Go 探针：adaptive + `sessions=regular` 只有 after-hours bar →
+该错误）。这属于 `internal/marketdata` 批次范围，已记入下一批目标。

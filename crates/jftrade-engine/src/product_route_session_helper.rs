@@ -4,8 +4,7 @@
 // resolves against the authoritative calendar.
 
 /// Resolves the exchange-calendar session used by the routed-history
-/// keep-filter. Bars the schedule cannot classify are dropped from a routed
-/// page; the per-candle annotation path still reports them as data errors.
+/// keep-filter.
 pub(super) fn calendar_session_for_route(
     calendar: Option<&jftrade_calendar::CalendarManager>,
     market: &str,
@@ -31,9 +30,12 @@ pub(super) fn calendar_session_for_route(
 
 /// Applies the routed-history keep-filter for one returned page.
 ///
-/// Bars the schedule cannot classify are retained so the per-candle
-/// annotation path still surfaces Go's `unable to classify K-line session`
-/// data error instead of being silently dropped by routing.
+/// Go's plan filter only drops a bar when `resolveMarketSession` produces a
+/// market session the route does not keep. For RTH and OVERNIGHT routes the
+/// plan *forces* the label, so an unclassifiable bar is retained here and the
+/// per-candle annotation step is what reports Go's
+/// `unable to classify K-line session at <ts>` data error. Dropping the bar
+/// here would silently answer an empty page instead of that error.
 pub(super) fn filter_routed_page(
     plan: &jftrade_integration_futu::HistoricalKlineRequestPlan,
     result: &mut jftrade_integration_futu::HistoricalKlineResult,

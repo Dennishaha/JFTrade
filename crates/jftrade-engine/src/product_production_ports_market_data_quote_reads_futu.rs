@@ -229,8 +229,11 @@ pub(super) fn filter_klines_by_sessions(
         .iter()
         .filter(|kline| {
             let at = canonical_candle_time(&kline.time, market);
+            // Go's `filterKLinesBySessions` compares the clock session against
+            // the requested set, so a bar the calendar cannot classify is not
+            // a member of any requested session and must be dropped.
             let Some(session) = calendar_session_for_route(Some(calendar), market, &at) else {
-                return true;
+                return false;
             };
             keep(session)
         })

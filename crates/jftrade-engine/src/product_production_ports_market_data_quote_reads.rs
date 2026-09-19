@@ -327,6 +327,11 @@ impl ProductionMarketDataQuotePort {
             // The window filter below still needs the bounds after the
             // historical request takes ownership of them.
             let (window_begin, window_end) = (begin_time.clone(), end_time.clone());
+            // Go reaches its windowed `QueryKLinesForSessions` only when the
+            // caller supplied `from`/`to`; `before` and unbounded reads go
+            // through the adaptive `QueryAllKLinesForSessions`, which never
+            // re-applies the clock-based session filter over the merged list.
+            let bounded_window = from_time.is_some() || to_time.is_some();
             let extended_hours = sessions
                 .iter()
                 .any(|s| *s == "extended" || *s == "overnight");
@@ -426,6 +431,22 @@ impl ProductionMarketDataQuotePort {
                 }
             };
 
+            // Go's windowed `QueryKLinesForSessions` re-applies the clock-based
+            // session filter over the merged routed pages, so a bar the route
+            // forced into a requested label (RTH → `regular`) is still dropped
+            // when the exchange schedule puts it outside the requested set. The
+            // unbounded/`before` adaptive path never does this, which is why an
+            // unclassifiable bar reaches the annotation step there.
+            if route_sessions.is_some() && (from_time.is_some() || to_time.is_some()) {
+                result.klines = quote_reads_futu::filter_klines_by_sessions(
+                    &result.klines,
+                    self.calendar.as_deref(),
+                    &market,
+                    period,
+                    &sessions,
+                );
+            }
+
             if query_current {
                 merge_current_bucket(
                     &mut result,
@@ -439,6 +460,7 @@ impl ProductionMarketDataQuotePort {
                         window_end: &window_end,
                         sessions: &sessions,
                         route_sessions: route_sessions.is_some(),
+                        bounded_window,
                         calendar: self.calendar.as_deref(),
                     },
                 );
