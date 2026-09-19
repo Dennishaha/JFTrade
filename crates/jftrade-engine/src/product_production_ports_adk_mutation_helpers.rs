@@ -187,3 +187,50 @@ pub(super) fn is_deleted_payload(raw: &str) -> Result<bool, AdkMutationPortError
                 .is_none_or(|value| !value.is_empty())
     }))
 }
+
+/// Trim, drop blanks, deduplicate and sort a string list exactly like the
+/// reference `NormalizeStringSlice`.  Task dependencies and planner warnings
+/// are persisted in that canonical order, so the stored payload is stable no
+/// matter how the caller ordered or repeated its input.
+pub(super) fn normalized_string_slice(values: Vec<String>) -> Vec<String> {
+    let mut values = values
+        .into_iter()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    values.sort();
+    values.dedup();
+    values
+}
+
+pub(super) fn string_slice(value: Option<&Value>, field: &str) -> Result<Vec<String>, AdkMutationPortError> {
+    let Some(value) = value else {
+        return Ok(Vec::new());
+    };
+    let Some(values) = value.as_array() else {
+        return Err(invalid_mutation_input(&format!("{field} must be an array")));
+    };
+    values
+        .iter()
+        .map(|item| {
+            // A blank entry is not an error: the reference
+            // `NormalizeStringSlice` silently drops it.  Only a non-string
+            // member is a malformed payload.
+            item.as_str()
+                .map(str::trim)
+                .map(str::to_owned)
+                .ok_or_else(|| invalid_mutation_input(&format!("{field} must contain strings")))
+        })
+        .collect()
+}
+
+pub(super) fn reject_self_dependency(id: &str, depends_on: &[String]) -> Result<(), AdkMutationPortError> {
+    if depends_on
+        .iter()
+        .any(|dependency| normalize_id(dependency) == id)
+    {
+        Err(invalid_mutation_input("task cannot depend on itself"))
+    } else {
+        Ok(())
+    }
+}

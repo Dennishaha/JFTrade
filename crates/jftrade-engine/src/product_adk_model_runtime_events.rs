@@ -52,6 +52,7 @@ impl ProductionAdkChatRuntime {
                 .stopping
                 .store(true, std::sync::atomic::Ordering::Release);
         }
+        runtime.reconcile_orphaned_pending_runs();
         runtime.recover_approval_continuations();
         runtime
     }
@@ -246,6 +247,7 @@ impl ProductionAdkChatRuntime {
                 run_id,
                 session_id,
                 agent_id,
+                resumed: false,
                 request: ModelRequest {
                     endpoint: provider.endpoint,
                     api_key: provider.api_key,
@@ -486,6 +488,7 @@ impl ProductionAdkChatRuntime {
             run_id: resumed_run_id.clone(),
             session_id: resumed_session_id.clone(),
             agent_id: run.agent_id,
+            resumed: true,
             request: ModelRequest {
                 endpoint: provider.endpoint,
                 api_key: provider.api_key,

@@ -679,3 +679,125 @@ fn provider_list_normalizes_default_selection_and_orders_default_first() {
         "only the first default survives normalization"
     );
 }
+
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:452
+/// TestStoreResolvePendingApprovalMissingAndIdempotent.
+///
+/// The reference store answers a missing approval id with the zero-value
+/// approval plus `changed=false` instead of an error, and a resolve against a
+/// row that left `PENDING` is a pure no-op: the first terminal verdict wins and
+/// the stored status is not overwritten.  The Rust store already modelled the
+/// first half after the CAS rewrite; this test freezes both halves so a future
+/// "resolve always overwrites" regression fails here.
+#[test]
+fn adk_approval_resolution_missing_and_non_pending_rows_are_idempotent() {
+    let dir = tempdir().expect("tempdir");
+    let path = dir.path().join("adk.db");
+    seed_valid_go_adk_database(&path);
+    let store = jftrade_store_sqlite::AdkStore::open_existing(&path, ADK_TEST_CUTOVER_PROFILE)
+        .expect("store");
+
+    // A missing approval is not an error and reports no change.
+    let missing = store
+        .resolve_and_stage_approval("approval-missing", "APPROVED")
+        .expect("missing approval resolve");
+    assert!(
+        missing.is_none(),
+        "a missing approval resolves to no row instead of an error: {missing:?}"
+    );
+
+    // Seed an approval that is already terminal.  Resolving it in the other
+    // direction must neither flip the status nor report a change.
+    // `create_approval` fences on the owning run, so the terminal fixture needs
+    // its run row first.
+    store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: "run-1",
+            session_id: "sess-1",
+            agent_id: "agent-1",
+            status: "RUNNING",
+            client_request_id: "req-1",
+            request_fingerprint: "fp-1",
+            payload_json:
+                r#"{"id":"run-1","sessionId":"sess-1","agentId":"agent-1","status":"RUNNING"}"#,
+        })
+        .expect("create run-1");
+    store
+        .create_approval(
+            "approval-approved",
+            "run-1",
+            "agent-1",
+            "APPROVED",
+            r#"{"id":"approval-approved","runId":"run-1","agentId":"agent-1","status":"APPROVED"}"#,
+        )
+        .expect("seed approved approval");
+    let resolved = store
+        .resolve_and_stage_approval("approval-approved", "DENIED")
+        .expect("resolve approved approval")
+        .expect("existing approval resolves");
+    assert!(
+        !resolved.changed,
+        "a non-pending approval never reports changed=true"
+    );
+    assert_eq!(
+        resolved.approval.status, "APPROVED",
+        "the first terminal verdict stays authoritative"
+    );
+    let reread = store
+        .list_approvals()
+        .expect("list approvals")
+        .into_iter()
+        .find(|row| row.id == "approval-approved")
+        .expect("approval row");
+    assert_eq!(
+        reread.status, "APPROVED",
+        "the durable row keeps the original verdict"
+    );
+
+    // An approval whose run already reached `PENDING` only stages the run once;
+    // a second resolution of the same row stays a no-op.
+    let run_payload = r#"{"id":"run-pending","sessionId":"sess-pending","agentId":"agent-1","status":"PENDING","pendingApprovals":[{"id":"approval-pending","status":"PENDING","functionCallId":"call-pending","confirmationCallId":"call-pending:confirmation"}],"toolCalls":[{"id":"call-pending","status":"PENDING_APPROVAL","requiresUser":true}]}"#;
+    store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: "run-pending",
+            session_id: "sess-pending",
+            agent_id: "agent-1",
+            status: "PENDING",
+            client_request_id: "req-pending",
+            request_fingerprint: "fp-pending",
+            payload_json: run_payload,
+        })
+        .expect("create pending run");
+    store
+        .create_approval(
+            "approval-pending",
+            "run-pending",
+            "agent-1",
+            "PENDING",
+            r#"{"id":"approval-pending","runId":"run-pending","agentId":"agent-1","status":"PENDING","functionCallId":"call-pending","confirmationCallId":"call-pending:confirmation"}"#,
+        )
+        .expect("seed pending approval");
+
+    let first = store
+        .resolve_and_stage_approval("approval-pending", "APPROVED")
+        .expect("first resolve")
+        .expect("pending approval resolves");
+    assert!(first.changed, "the first resolution changes the row");
+    assert!(
+        first.should_continue,
+        "the released tool call asks the runtime to continue"
+    );
+    let second = store
+        .resolve_and_stage_approval("approval-pending", "DENIED")
+        .expect("duplicate resolve")
+        .expect("duplicate resolution returns the row");
+    assert!(
+        !second.changed,
+        "a duplicate resolution is a no-op: {second:?}"
+    );
+    assert_eq!(second.approval.status, "APPROVED");
+    assert!(
+        !second.should_continue,
+        "a no-op resolution must not stage a second continuation"
+    );
+}

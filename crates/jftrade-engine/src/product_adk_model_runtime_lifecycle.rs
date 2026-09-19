@@ -1,4 +1,79 @@
 impl ProductionAdkChatRuntime {
+    /// Marks durable `PENDING` runs that lost their resumable approval context
+    /// as `FAILED/RUN_ORPHANED` on startup.
+    ///
+    /// The reference runtime only keeps a pending run resumable while its
+    /// approval rows still carry the ADK confirmation identifiers.  A pending
+    /// run without those identifiers (for example after a partial restore)
+    /// can never be woken again, so the startup reconcile marks it orphaned
+    /// instead of leaving it pending forever.
+    fn reconcile_orphaned_pending_runs(&self) {
+        let Ok(runs) = self.store.list_runs() else {
+            return;
+        };
+        for run in runs {
+            if !run.status.eq_ignore_ascii_case("PENDING") {
+                continue;
+            }
+            let Ok(mut payload) = serde_json::from_str::<Value>(&run.payload_json) else {
+                continue;
+            };
+            let Some(pending) = payload
+                .get("pendingApprovals")
+                .and_then(Value::as_array)
+                .filter(|approvals| {
+                    approvals.iter().any(|approval| {
+                        approval
+                            .get("status")
+                            .and_then(Value::as_str)
+                            .is_some_and(|status| status.eq_ignore_ascii_case("PENDING"))
+                    })
+                })
+            else {
+                continue;
+            };
+            let resumable = pending.iter().any(|approval| {
+                approval
+                    .get("functionCallId")
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| !value.trim().is_empty())
+                    && approval
+                        .get("confirmationCallId")
+                        .and_then(Value::as_str)
+                        .is_some_and(|value| !value.trim().is_empty())
+            });
+            if resumable {
+                continue;
+            }
+            let message = "pending approval run lost its resumable approval context";
+            payload["status"] = Value::String("FAILED".to_owned());
+            payload["errorCode"] = Value::String("RUN_ORPHANED".to_owned());
+            payload["errorMessage"] = Value::String(message.to_owned());
+            payload["message"] = Value::String(message.to_owned());
+            payload["resumeState"] = Value::String("approval_context_missing".to_owned());
+            match self.store.update_run_state_if_status_and_revision(
+                &run.id,
+                "PENDING",
+                &run.updated_at,
+                "FAILED",
+                &payload.to_string(),
+            ) {
+                Ok(true) => eprintln!(
+                    "ADK run {} had no resumable approval context and was marked FAILED ({message})",
+                    run.id
+                ),
+                Ok(false) => eprintln!(
+                    "ADK run {} had no resumable approval context but changed before failure marking",
+                    run.id
+                ),
+                Err(error) => eprintln!(
+                    "ADK run {} had no resumable approval context; failed to persist failure state: {error}",
+                    run.id
+                ),
+            }
+        }
+    }
+
     fn recover_approval_continuations(&self) {
         let Ok(runs) = self.store.list_runs() else {
             return;
@@ -470,307 +545,5 @@ impl ProductionAdkChatRuntime {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use jftrade_store_sqlite::RecordAdkEventParams;
-    use jftrade_store_sqlite::initialize_current;
-    use rusqlite::Connection;
-    use std::fs::File;
-    use std::sync::Barrier;
-    use std::thread;
-    use tempfile::tempdir;
-
-    fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStore>) {
-        let directory = tempdir().expect("temporary directory");
-        let adk_path = directory.path().join("adk.db");
-        let session_path = directory.path().join("adk-session.db");
-        File::create(&adk_path).expect("create ADK database");
-        File::create(&session_path).expect("create ADK session database");
-        initialize_current(
-            &Connection::open(&adk_path).expect("initialize ADK database"),
-            "adk",
-        )
-        .expect("initialize ADK schema");
-        initialize_current(
-            &Connection::open(&session_path).expect("initialize ADK session database"),
-            "adk-session",
-        )
-        .expect("initialize ADK session schema");
-        (
-            directory,
-            Arc::new(AdkStore::open(&adk_path).expect("open ADK store")),
-            Arc::new(AdkSessionStore::open(&session_path).expect("open session store")),
-        )
-    }
-
-    #[test]
-    fn concurrent_first_delivery_creates_one_durable_run_and_event() {
-        let (_directory, store, session_store) = initialized_stores();
-        session_store
-            .upsert_session("jftrade", "local", "session-race", "{}")
-            .expect("seed session");
-        let barrier = Arc::new(Barrier::new(2));
-        let workers = ["run-race-a", "run-race-b"].map(|run_id| {
-            let store = Arc::clone(&store);
-            let session_store = Arc::clone(&session_store);
-            let barrier = Arc::clone(&barrier);
-            thread::spawn(move || {
-                barrier.wait();
-                let event_id = format!("{run_id}:user");
-                store
-                    .create_run_with_event_idempotent(
-                        CreateAdkRunParams {
-                            id: run_id,
-                            session_id: "session-race",
-                            agent_id: "agent-race",
-                            status: "RUNNING",
-                            client_request_id: "request-race",
-                            request_fingerprint: "fingerprint-race",
-                            payload_json: "{\"status\":\"RUNNING\"}",
-                        },
-                        session_store.as_ref(),
-                        &AdkRunEvent {
-                            id: &event_id,
-                            session_id: "session-race",
-                            invocation_id: run_id,
-                            author: "user",
-                            content: "hello",
-                        },
-                        run_id,
-                        Duration::from_secs(1),
-                    )
-                    .expect("create or load run")
-            })
-        });
-        let outcomes = workers.map(|worker| worker.join().expect("join first delivery"));
-        assert_eq!(
-            outcomes.iter().filter(|(_, lease)| lease.is_some()).count(),
-            1
-        );
-        assert_eq!(outcomes[0].0.id, outcomes[1].0.id);
-        assert_eq!(
-            session_store
-                .list_events("session-race")
-                .expect("list initial events")
-                .len(),
-            1
-        );
-    }
-
-    #[test]
-    fn tool_claim_heartbeat_is_live_then_becomes_fenced_takeover() {
-        let (_directory, store, _session_store) = initialized_stores();
-        let run = store
-            .create_run(CreateAdkRunParams {
-                id: "run-claim",
-                session_id: "session-claim",
-                agent_id: "agent-claim",
-                status: "RUNNING",
-                client_request_id: "request-claim",
-                request_fingerprint: "fingerprint-claim",
-                payload_json: "{\"status\":\"RUNNING\"}",
-            })
-            .expect("create claim run");
-        let first_lease = store
-            .claim_run_lease("run-claim", "owner-first", Duration::from_secs(1))
-            .expect("claim first run lease");
-        let first_claim = match store
-            .claim_tool_invocation_if_status_and_revision(
-                "run-claim",
-                "call-claim",
-                "tools.search",
-                "{}",
-                "RUNNING",
-                &run.updated_at,
-                "owner-first",
-                first_lease.fencing_token,
-                Duration::from_millis(100),
-                false,
-            )
-            .expect("claim first tool invocation")
-        {
-            AdkToolInvocationClaim::Execute(invocation) => invocation,
-            other => panic!("unexpected first claim: {other:?}"),
-        };
-        let first_claim = store
-            .heartbeat_tool_invocation(&first_claim, Duration::from_millis(250))
-            .expect("heartbeat tool claim");
-        assert!(
-            store
-                .release_run_lease(&first_lease)
-                .expect("release first lease")
-        );
-        let second_lease = store
-            .claim_run_lease("run-claim", "owner-second", Duration::from_secs(1))
-            .expect("claim second run lease");
-        assert!(matches!(
-            store
-                .claim_tool_invocation_if_status_and_revision(
-                    "run-claim",
-                    "call-claim",
-                    "tools.search",
-                    "{}",
-                    "RUNNING",
-                    &run.updated_at,
-                    "owner-second",
-                    second_lease.fencing_token,
-                    Duration::from_millis(100),
-                    false,
-                )
-                .expect("observe live claim"),
-            AdkToolInvocationClaim::Live(_)
-        ));
-        let remaining = first_claim
-            .lease_expires_at_unix_ms
-            .saturating_sub(unix_now_ms())
-            .max(0) as u64;
-        thread::sleep(Duration::from_millis(remaining.saturating_add(25)));
-        let takeover = store
-            .claim_tool_invocation_if_status_and_revision(
-                "run-claim",
-                "call-claim",
-                "tools.search",
-                "{}",
-                "RUNNING",
-                &run.updated_at,
-                "owner-second",
-                second_lease.fencing_token,
-                Duration::from_millis(100),
-                false,
-            )
-            .expect("take over expired claim");
-        let AdkToolInvocationClaim::Execute(takeover) = takeover else {
-            panic!("expired claim was not executable");
-        };
-        assert!(takeover.fencing_token > first_claim.fencing_token);
-        assert_eq!(takeover.run_lease_token, second_lease.fencing_token);
-    }
-
-    #[test]
-    fn durable_error_classification_keeps_invariants_fatal() {
-        assert_eq!(
-            classify_durable_store_error(&AdkStoreError::LeaseLost("lost".to_owned())),
-            DurableErrorClass::LeaseHeldOrLost
-        );
-        assert_eq!(
-            classify_durable_store_error(&AdkStoreError::Invariant("mismatch".to_owned())),
-            DurableErrorClass::InvariantViolation
-        );
-        assert!(matches!(
-            runtime_store_error(AdkStoreError::Invariant("mismatch".to_owned())),
-            AdkChatPortError::Failed { ref code, .. } if code == "ADK_STORAGE_CORRUPT"
-        ));
-    }
-
-    #[test]
-    fn cancellation_registry_fans_out_and_unregisters_exact_token() {
-        let registry = RunCancellationRegistry::default();
-        let first = registry.register("run-fanout");
-        let second = registry.register("run-fanout");
-
-        registry.unregister("run-fanout", &first);
-        assert!(registry.cancel("run-fanout"));
-        assert!(!first.load(Ordering::Acquire));
-        assert!(second.load(Ordering::Acquire));
-
-        registry.unregister("run-fanout", &second);
-        assert!(!registry.cancel("run-fanout"));
-    }
-
-    #[test]
-    fn compacted_context_survives_restart_and_precedes_current_user_message() {
-        let directory = tempdir().expect("temporary directory");
-        let adk_path = directory.path().join("adk.db");
-        let session_path = directory.path().join("adk-session.db");
-        File::create(&adk_path).expect("create ADK database");
-        File::create(&session_path).expect("create ADK session database");
-        initialize_current(
-            &Connection::open(&adk_path).expect("initialize ADK database"),
-            "adk",
-        )
-        .expect("initialize ADK schema");
-        initialize_current(
-            &Connection::open(&session_path).expect("initialize ADK session database"),
-            "adk-session",
-        )
-        .expect("initialize ADK session schema");
-
-        {
-            let store = AdkStore::open(&adk_path).expect("open ADK store");
-            let session_store = AdkSessionStore::open(&session_path).expect("open session store");
-            session_store
-                .upsert_session("jftrade", "local", "session-1", "{}")
-                .expect("seed session");
-            for (id, invocation_id, author, content) in [
-                ("event-01", "run-old-1", "user", "first question"),
-                ("event-02", "run-old-1", "assistant", "first answer"),
-                ("event-03", "run-old-2", "user", "latest durable question"),
-                ("event-04", "run-current", "user", "current request"),
-            ] {
-                session_store
-                    .record_event(RecordAdkEventParams {
-                        id,
-                        app_name: "jftrade",
-                        user_id: "local",
-                        session_id: "session-1",
-                        invocation_id,
-                        author,
-                        content,
-                    })
-                    .expect("seed session event");
-            }
-            store
-                .upsert_session_context(
-                    "session-1",
-                    r#"{"contextRevisionId":"revision-1","compactedEventCount":2,"summaryPreview":"compacted summary"}"#,
-                )
-                .expect("persist compacted context");
-            store
-                .save_handoff_segment(
-                    "session-1",
-                    "handoff-1",
-                    1,
-                    r#"{"endEventIndex":2,"summary":"handoff summary"}"#,
-                )
-                .expect("persist handoff segment");
-        }
-
-        // Reopen both stores to prove the model payload is rebuilt from the
-        // durable compaction rows rather than process-local state.
-        let store = AdkStore::open(&adk_path).expect("reopen ADK store");
-        let session_store = AdkSessionStore::open(&session_path).expect("reopen session store");
-        let context =
-            durable_context_items(&store, &session_store, "session-1", Some("run-current"))
-                .expect("build durable context");
-        let request = ModelRequest {
-            endpoint: Url::parse("https://example.test/responses").expect("endpoint"),
-            api_key: "secret".to_owned(),
-            model: "fixture-model".to_owned(),
-            instruction: Some("system instruction".to_owned()),
-            message: "current request".to_owned(),
-            durable_context: context,
-            tool_context: Vec::new(),
-            timeout: Duration::from_secs(1),
-            tools: Vec::new(),
-        };
-
-        let input = model_input(&request);
-        assert_eq!(
-            input[0],
-            json!({"role":"system","content":"system instruction"})
-        );
-        assert_eq!(
-            input[1],
-            json!({
-                "role":"system",
-                "content":"Durable session context:\nhandoff summary\n\ncompacted summary"
-            })
-        );
-        assert_eq!(
-            input[2],
-            json!({"role":"user","content":"latest durable question"})
-        );
-        assert_eq!(input[3], json!({"role":"user","content":"current request"}));
-        assert_eq!(input.len(), 4, "current event must not be duplicated");
-    }
-}
+#[path = "product_adk_model_runtime_lifecycle_tests.rs"]
+mod lifecycle_tests;

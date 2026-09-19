@@ -25,6 +25,10 @@ use crate::product::product_adk_input_canonical::{
 #[path = "product_production_ports_adk_mutation_skill_helpers.rs"]
 mod skill_helpers;
 
+#[cfg(test)]
+#[path = "product_production_ports_adk_mutation_skill_tests.rs"]
+mod skill_tests;
+
 use skill_helpers::{parsed_for_download_host, skill_frontmatter, unsafe_skill_ip};
 
 pub(super) fn handles(operation: AdkMutationOperation) -> bool {

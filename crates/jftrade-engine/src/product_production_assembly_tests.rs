@@ -2944,8 +2944,20 @@ mod product_production_assembly_tests {
                 "route":"chat",
                 "model":"test-model",
                 "requestMessage":"approve the market.write request",
-                "toolCalls":[{"id":"approval-call","status":"PENDING_APPROVAL","requiresUser":true}],
-                "pendingApprovals":[{"id":"production-approval","status":"PENDING","toolName":"market.write"}]
+                "toolCalls":[{
+                    "id":"approval-call",
+                    "functionCallId":"approval-call",
+                    "confirmationCallId":"approval-call:confirmation",
+                    "status":"PENDING_APPROVAL",
+                    "requiresUser":true
+                }],
+                "pendingApprovals":[{
+                    "id":"production-approval",
+                    "status":"PENDING",
+                    "toolName":"market.write",
+                    "functionCallId":"approval-call",
+                    "confirmationCallId":"approval-call:confirmation"
+                }]
             }"#,
         })
         .expect("seed pending approval run");
@@ -2954,12 +2966,17 @@ mod product_production_assembly_tests {
             "production-approval-run",
             "jftrade-default",
             "PENDING",
+            // A resumable pending approval must carry the ADK confirmation
+            // identifiers; without them the startup reconcile marks the run
+            // `FAILED/RUN_ORPHANED` instead of leaving it pending forever.
             r#"{
                 "id":"production-approval",
                 "runId":"production-approval-run",
                 "agentId":"jftrade-default",
                 "toolName":"market.write",
-                "status":"PENDING"
+                "status":"PENDING",
+                "functionCallId":"approval-call",
+                "confirmationCallId":"approval-call:confirmation"
             }"#,
         )
         .expect("seed approval");

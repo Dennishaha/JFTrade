@@ -168,10 +168,49 @@ impl ProductionAdkPort {
     }
 
     fn skills(&self) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
+        // Go syncs the builtin bundles into the skills directory at runtime
+        // construction, so `ListSkills` always returns them next to any
+        // externally installed skill.  Rust projects the builtins from the
+        // tool catalog instead of duplicating files, so the projection has to
+        // merge both sources: a stored install must never hide the builtins.
         let mut skills = self.entities(self.store.list_skills()?, "skill")?;
-        if skills.is_empty() {
-            skills = builtin_skills(&self.tool_catalog);
+        let stored_ids = skills
+            .iter()
+            .filter_map(|skill| skill.get("id").and_then(Value::as_str))
+            .map(str::to_owned)
+            .collect::<std::collections::BTreeSet<_>>();
+        for builtin in builtin_skills(&self.tool_catalog) {
+            let id = builtin
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_owned();
+            if !stored_ids.contains(&id) {
+                skills.push(builtin);
+            }
         }
+        // Go sorts builtin rows first, then by display name within each group.
+        skills.sort_by(|left, right| {
+            let left_builtin = left
+                .get("builtin")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let right_builtin = right
+                .get("builtin")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            right_builtin.cmp(&left_builtin).then_with(|| {
+                left.get("displayName")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .cmp(
+                        right
+                            .get("displayName")
+                            .and_then(Value::as_str)
+                            .unwrap_or_default(),
+                    )
+            })
+        });
         Ok(AdkReadSnapshot::Json(json!({"skills": skills})))
     }
 

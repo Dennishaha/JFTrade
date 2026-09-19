@@ -30,7 +30,6 @@ fn install_skill(
         .map_err(|_| skill_install_failed("valid http/https skill URL is required"))?;
     validate_skill_url_shape(&parsed).map_err(|message| skill_install_failed(&message))?;
     let url = raw_url.to_owned();
-    const MAX_SKILL_FILE_BYTES: usize = 512 << 10;
     const MAX_SKILL_ARCHIVE_BYTES: usize = 4 << 20;
     let parsed_for_download = parsed.clone();
     let bytes = std::thread::spawn(move || {
@@ -101,12 +100,28 @@ fn install_skill(
         message,
     })?;
     let (body, content_type) = bytes;
-    let archive = is_skill_archive(raw_url, &content_type, Some(body.len() as u64))
+    install_skill_document(port, raw_url, &parsed, &body, &content_type)
+}
+
+/// Persist a downloaded skill document or archive.
+///
+/// Split out from [`install_skill`] so the download/URL-safety half and the
+/// registry/filesystem half stay independently testable; the split is pure
+/// refactoring, the wire behavior is unchanged.
+fn install_skill_document(
+    port: &ProductionAdkPort,
+    raw_url: &str,
+    parsed: &Url,
+    body: &[u8],
+    content_type: &str,
+) -> Result<Value, AdkMutationPortError> {
+    const MAX_SKILL_FILE_BYTES: usize = 512 << 10;
+    let archive = is_skill_archive(raw_url, content_type, Some(body.len() as u64))
         || body.starts_with(b"PK\x03\x04")
         || body.starts_with(b"PK\x05\x06")
         || body.starts_with(b"PK\x07\x08");
     let (text, files) = if archive {
-        extract_skill_archive(&body).map_err(|message| AdkMutationPortError::Failed {
+        extract_skill_archive(body).map_err(|message| AdkMutationPortError::Failed {
             status: 400,
             code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
             message,
@@ -119,12 +134,12 @@ fn install_skill(
                 message: "skill file exceeds 512 KiB".to_owned(),
             });
         }
-        let text = String::from_utf8(body.clone()).map_err(|_| AdkMutationPortError::Failed {
+        let text = String::from_utf8(body.to_vec()).map_err(|_| AdkMutationPortError::Failed {
             status: 400,
             code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
             message: "skill document must be UTF-8".to_owned(),
         })?;
-        (text, vec![("SKILL.md".to_owned(), body.clone())])
+        (text, vec![("SKILL.md".to_owned(), body.to_vec())])
     };
     let id = normalize_id(
         skill_frontmatter(&text, "name")
@@ -153,7 +168,7 @@ fn install_skill(
         });
     }
     let mut digest = Sha256::new();
-    digest.update(&body);
+    digest.update(body);
     let content_hash = encode_hex(&digest.finalize());
     let skills_root = std::env::var_os("JFTRADE_ADK_SKILLS")
         .map(PathBuf::from)

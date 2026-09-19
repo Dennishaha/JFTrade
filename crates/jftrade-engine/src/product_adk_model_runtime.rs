@@ -717,6 +717,10 @@ struct ChatExecution {
     run_id: String,
     session_id: String,
     agent_id: String,
+    /// True when this execution is a continuation of a resolved approval, so
+    /// the terminal projection records `resumeState=adk_confirmation_resolved`
+    /// exactly like the reference runtime's `hydrateResumedRun`.
+    resumed: bool,
     request: ModelRequest,
 }
 

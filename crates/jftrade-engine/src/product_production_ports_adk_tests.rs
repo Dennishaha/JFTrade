@@ -4930,6 +4930,55 @@ fn adk_session_negative_routes_keep_the_go_error_envelopes() {
     assert_eq!(malformed.body["error"]["message"], "invalid session payload");
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:436
+/// TestResolveApprovalMissingReturnsIdempotentEmptyResult.
+///
+/// `Runtime.ResolveApproval` answers an unknown approval id with the zero
+/// resolution: `approval.id` and `approval.status` stay empty and both `run`
+/// and `message` are unset.  The reference is explicit that this is *not* an
+/// error, so the Rust port must not upgrade a missing row into a 404.  This is
+/// the narrow missing-target companion to
+/// `adk_approval_negative_and_idempotent_routes_match_the_go_envelopes` (which
+/// also covers the resolved-twice path); the store side is frozen separately by
+/// `adk_store_contracts::adk_approval_resolution_missing_and_non_pending_rows_are_idempotent`.
+#[test]
+fn adk_resolve_approval_missing_returns_the_idempotent_empty_envelope() {
+    let (port, _directory) = unready_adk_port();
+
+    for operation in [AdkMutationOperation::Approve, AdkMutationOperation::Deny] {
+        let resolution = port
+            .mutate(&AdkMutationInput {
+                operation,
+                identifiers: BTreeMap::from([(
+                    "approvalId".to_owned(),
+                    "approval-missing".to_owned(),
+                )]),
+                body: Value::Null,
+                webhook_secret: None,
+            })
+            .unwrap_or_else(|error| panic!("{operation:?} on a missing approval: {error:?}"));
+        assert_eq!(
+            resolution,
+            json!({"approval": {"id": ""}}),
+            "a missing approval resolves to the zero envelope, not an error: {resolution}"
+        );
+        assert!(
+            resolution.get("run").is_none() && resolution.get("message").is_none(),
+            "the missing resolution carries no run or message: {resolution}"
+        );
+    }
+
+    // The zero envelope is the whole response; neither branch may fabricate a
+    // row or a continuation for an id that was never persisted.
+    assert!(
+        port.store
+            .list_approvals()
+            .expect("list approvals")
+            .is_empty(),
+        "resolving a missing approval must not create a row"
+    );
+}
+
 /// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:911
 /// TestADKApprovalNegativeAndIdempotentRoutes.
 ///
@@ -6919,4 +6968,705 @@ fn cancelling_a_run_denies_its_pending_approvals() {
         .expect("read cancelled run")
         .expect("run present");
     assert_eq!(stored_run.status, "CANCELLED");
+}
+
+
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:844
+/// TestADKTaskUpdateDeleteAndValidation.
+///
+/// Go's `SaveTask` funnels every write through `NormalizeTaskDependsOn` /
+/// `NormalizeStringSlice`, which trims, drops blanks, deduplicates and sorts;
+/// the same normalization applies to `PlannerWarnings` on create and patch.
+/// The Rust port stored the caller's list verbatim, so `["task-b","task-b"]`
+/// stayed duplicated and unsorted and a blank member was rejected instead of
+/// dropped.
+#[test]
+fn adk_task_normalization_and_validation_match_go() {
+    let (port, _directory) = unready_adk_port();
+    port.store
+        .upsert_agent(
+            "agent-normalize",
+            r#"{"id":"agent-normalize","name":"Normalize Agent","status":"ENABLED"}"#,
+        )
+        .expect("seed agent");
+
+    let created = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateTask,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "id": "task-normalize",
+                "title": "  Normalize  ",
+                "status": "todo",
+                "agentId": "agent-normalize",
+                "dependsOn": ["task-z", "task-a", "task-z", "  "],
+                "order": 2,
+                "modeHint": "loop",
+                "agentRole": "实现 Agent",
+                "plannerStepId": "__planner_step_2",
+                "planSource": "planner",
+                "workflowMode": "loop",
+                "objective": "完成目标",
+                "plannerWarnings": ["警告 B", "警告 A", "警告 A"],
+            }),
+            webhook_secret: None,
+        })
+        .expect("create task");
+    assert_eq!(created["status"], "TODO", "status normalizes to upper case");
+    assert_eq!(
+        created["dependsOn"],
+        json!(["task-a", "task-z"]),
+        "dependencies are trimmed, deduplicated and sorted: {created}"
+    );
+    assert_eq!(
+        created["plannerWarnings"],
+        json!(["警告 A", "警告 B"]),
+        "planner warnings use the same normalization: {created}"
+    );
+    assert_eq!(created["order"], 2);
+    assert_eq!(created["modeHint"], "loop");
+    assert_eq!(created["agentRole"], "实现 Agent");
+    assert_eq!(created["plannerStepId"], "__planner_step_2");
+    assert_eq!(created["planSource"], "planner");
+    assert_eq!(created["workflowMode"], "loop");
+    assert_eq!(created["objective"], "完成目标");
+
+    let patched = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::UpdateTask,
+            identifiers: BTreeMap::from([("taskId".to_owned(), "task-normalize".to_owned())]),
+            body: json!({
+                "description": "kept details",
+                "status": "in_progress",
+                "order": 3,
+                "agentRole": "验证 Agent",
+                "plannerWarnings": ["planner warning"],
+            }),
+            webhook_secret: None,
+        })
+        .expect("patch task");
+    assert_eq!(patched["title"], "Normalize", "patch preserves the title");
+    assert_eq!(patched["description"], "kept details");
+    assert_eq!(patched["status"], "IN_PROGRESS");
+    assert_eq!(patched["order"], 3);
+    assert_eq!(patched["agentRole"], "验证 Agent");
+    assert_eq!(patched["plannerWarnings"], json!(["planner warning"]));
+
+    // Invalid status and self-dependency are the frozen `SaveTask` failures.
+    for (body, expected) in [
+        (
+            json!({"id": "bad-status", "title": "Bad", "status": "NOPE"}),
+            "invalid task status",
+        ),
+        (
+            json!({"id": "self", "title": "Self", "dependsOn": ["self"]}),
+            "task cannot depend on itself",
+        ),
+    ] {
+        match port.mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateTask,
+            identifiers: BTreeMap::new(),
+            body,
+            webhook_secret: None,
+        }) {
+            Err(AdkMutationPortError::Failed { status, message, .. }) => {
+                assert_eq!(status, 400, "{expected}");
+                assert!(
+                    message.contains(expected),
+                    "message {message:?} must contain {expected:?}"
+                );
+            }
+            other => panic!("expected 400 {expected}, got {other:?}"),
+        }
+    }
+
+    // The filtered page narrows by the normalized status and agent.
+    let AdkReadSnapshot::Json(listed) = port
+        .read("/api/v1/adk/tasks", "status=IN_PROGRESS&agentId=agent-normalize")
+        .expect("task list")
+    else {
+        panic!("task list must answer JSON");
+    };
+    let tasks = listed["tasks"].as_array().expect("tasks array");
+    assert_eq!(tasks.len(), 1, "one IN_PROGRESS task: {listed}");
+    assert_eq!(tasks[0]["id"], "task-normalize");
+
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::DeleteTask,
+        identifiers: BTreeMap::from([("taskId".to_owned(), "task-normalize".to_owned())]),
+        body: Value::Null,
+        webhook_secret: None,
+    })
+    .expect("delete task");
+    assert!(
+        port.store
+            .get_task("task-normalize")
+            .expect("read deleted task")
+            .is_none(),
+        "a deleted task is gone"
+    );
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:899
+/// TestADKMemoryFiltersDeleteAndAgentValidation.
+///
+/// Go requires an `agentId` for `scope=agent` (`400 ADK_MEMORY_SAVE_FAILED`),
+/// normalizes memory keys to lower case, keeps workspace rows in a per-agent
+/// listing alongside that agent's own rows, and makes a deleted row vanish.
+#[test]
+fn adk_memory_filters_and_agent_validation_match_go() {
+    let (port, _directory) = unready_adk_port();
+    port.store
+        .upsert_agent(
+            "agent-normalize",
+            r#"{"id":"agent-normalize","name":"Normalize Agent","status":"ENABLED"}"#,
+        )
+        .expect("seed agent");
+
+    // Memory: workspace + agent scoping, the agentId requirement and delete.
+    let workspace = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateMemory,
+            identifiers: BTreeMap::new(),
+            body: json!({"scope": "workspace", "key": "Market", "value": "HK"}),
+            webhook_secret: None,
+        })
+        .expect("save workspace memory");
+    let workspace_id = workspace["id"].as_str().expect("memory id").to_owned();
+    assert_eq!(workspace["key"], "market", "memory keys normalize");
+    let agent_entry = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateMemory,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "scope": "agent",
+                "agentId": "agent-normalize",
+                "key": "Style",
+                "value": "risk first",
+            }),
+            webhook_secret: None,
+        })
+        .expect("save agent memory");
+    let agent_entry_id = agent_entry["id"].as_str().expect("memory id").to_owned();
+    assert_eq!(agent_entry["key"], "style");
+
+    match port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::CreateMemory,
+        identifiers: BTreeMap::new(),
+        body: json!({"scope": "agent", "key": "missing", "value": "bad"}),
+        webhook_secret: None,
+    }) {
+        Err(AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        }) => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "ADK_MEMORY_SAVE_FAILED");
+            assert_eq!(message, "agent memory requires agentId");
+        }
+        other => panic!("expected 400 ADK_MEMORY_SAVE_FAILED, got {other:?}"),
+    }
+
+    let AdkReadSnapshot::Json(filtered) = port
+        .read(
+            "/api/v1/adk/memory",
+            "scope=agent&agentId=agent-normalize&key=style",
+        )
+        .expect("filtered memory list")
+    else {
+        panic!("memory list must answer JSON");
+    };
+    let entries = filtered["entries"].as_array().expect("entries array");
+    assert_eq!(entries.len(), 1, "only the agent style entry: {filtered}");
+    assert_eq!(entries[0]["id"], agent_entry_id.as_str());
+
+    let AdkReadSnapshot::Json(prompt_entries) = port
+        .read("/api/v1/adk/memory", "agentId=agent-normalize")
+        .expect("prompt memory list")
+    else {
+        panic!("memory list must answer JSON");
+    };
+    let entries = prompt_entries["entries"].as_array().expect("entries array");
+    assert_eq!(
+        entries.len(),
+        2,
+        "an agent-scoped listing keeps workspace plus its own rows: {prompt_entries}"
+    );
+    assert!(entries.iter().any(|entry| entry["id"] == workspace_id.as_str()));
+    assert!(entries.iter().any(|entry| entry["id"] == agent_entry_id.as_str()));
+
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::DeleteMemory,
+        identifiers: BTreeMap::from([("memoryId".to_owned(), workspace_id.clone())]),
+        body: Value::Null,
+        webhook_secret: None,
+    })
+    .expect("delete memory");
+    assert!(
+        port.store
+            .get_memory(&workspace_id)
+            .expect("read deleted memory")
+            .is_none(),
+        "a deleted memory entry is gone"
+    );
+}
+
+
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:788
+/// TestMultipleApprovalsExecuteOnlyAfterAllApproved.
+///
+/// A run with two pending approvals stays `PENDING` until *both* are approved:
+/// the first approval resolves and stages without continuing, the second one
+/// flips the run to `RUNNING`/`approval_resuming` with both tool calls
+/// released.
+#[test]
+fn adk_multiple_approvals_continue_only_after_all_are_approved() {
+    let (_port, store, _directory) = setup_test_adk_mutation_port(None);
+    store
+        .upsert_agent(
+            "agent-approvals",
+            &json!({
+                "id": "agent-approvals",
+                "name": "Approval Agent",
+                "providerId": "provider-approvals",
+                "status": "ENABLED",
+                "permissionMode": "approval",
+            })
+            .to_string(),
+        )
+        .expect("seed agent");
+    let run_id = "run-approvals";
+    let payload = json!({
+        "id": run_id,
+        "sessionId": "session-approvals",
+        "agentId": "agent-approvals",
+        "status": "PENDING",
+        "workMode": "chat",
+        "toolCalls": [
+            {"id": "call-one", "name": "approval.required.one", "status": "PENDING_APPROVAL", "requiresUser": true},
+            {"id": "call-two", "name": "approval.required.two", "status": "PENDING_APPROVAL", "requiresUser": true},
+        ],
+        "pendingApprovals": [
+            {
+                "id": "approval-one",
+                "runId": run_id,
+                "agentId": "agent-approvals",
+                "toolName": "approval.required.one",
+                "status": "PENDING",
+                "functionCallId": "call-one",
+                "confirmationCallId": "call-one:confirmation",
+            },
+            {
+                "id": "approval-two",
+                "runId": run_id,
+                "agentId": "agent-approvals",
+                "toolName": "approval.required.two",
+                "status": "PENDING",
+                "functionCallId": "call-two",
+                "confirmationCallId": "call-two:confirmation",
+            },
+        ],
+    });
+    store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: run_id,
+            session_id: "session-approvals",
+            agent_id: "agent-approvals",
+            status: "PENDING",
+            client_request_id: "request-approvals",
+            request_fingerprint: "fingerprint-approvals",
+            payload_json: &payload.to_string(),
+        })
+        .expect("seed approval run");
+    for (id, call_id, tool) in [
+        ("approval-one", "call-one", "approval.required.one"),
+        ("approval-two", "call-two", "approval.required.two"),
+    ] {
+        store
+            .create_approval(
+                id,
+                run_id,
+                "agent-approvals",
+                "PENDING",
+                &json!({
+                    "id": id,
+                    "runId": run_id,
+                    "agentId": "agent-approvals",
+                    "toolName": tool,
+                    "status": "PENDING",
+                    "functionCallId": call_id,
+                    "confirmationCallId": format!("{call_id}:confirmation"),
+                })
+                .to_string(),
+            )
+            .expect("seed approval");
+    }
+
+    // First approval resolves, but the run must stay PENDING while the sibling
+    // is still unresolved.
+    let first = store
+        .resolve_and_stage_approval("approval-one", "APPROVED")
+        .expect("resolve first approval")
+        .expect("first resolution");
+    assert!(first.changed, "the first resolution commits");
+    assert!(
+        !first.should_continue,
+        "a run with an unresolved sibling must not continue: {first:?}"
+    );
+    let staged = first.run.as_ref().expect("staged run");
+    assert_eq!(staged.status, "PENDING");
+    let staged_payload: Value = serde_json::from_str(&staged.payload_json).expect("run payload");
+    assert_eq!(
+        staged_payload["toolCalls"][0]["status"], "PENDING_APPROVAL",
+        "a waiting sibling keeps its tool call gated: {staged_payload}"
+    );
+
+    // The second approval releases the continuation: the run flips to RUNNING
+    // with `approval_resuming` and both tool calls become RUNNING.
+    let second = store
+        .resolve_and_stage_approval("approval-two", "APPROVED")
+        .expect("resolve second approval")
+        .expect("second resolution");
+    assert!(second.changed);
+    assert!(
+        second.should_continue,
+        "the last approval releases the continuation: {second:?}"
+    );
+    let resumed = second.run.as_ref().expect("resumed run");
+    assert_eq!(resumed.status, "RUNNING");
+    let resumed_payload: Value = serde_json::from_str(&resumed.payload_json).expect("run payload");
+    assert_eq!(resumed_payload["resumeState"], "approval_resuming");
+    for (index, call) in resumed_payload["toolCalls"]
+        .as_array()
+        .expect("tool calls")
+        .iter()
+        .enumerate()
+    {
+        assert_eq!(call["status"], "RUNNING", "call {index} was released");
+        assert_eq!(call["requiresUser"], false, "call {index} clears requiresUser");
+    }
+
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:527
+/// TestDuplicateApprovalResolutionDoesNotExecuteTwice.
+///
+/// Go resolves an approval through the store CAS before waking the
+/// continuation, so a browser retry (or a duplicate worker) observing an
+/// already-resolved row must be a pure no-op: `changed` stays false, the run
+/// is not staged a second time, and the release happens exactly once.  The
+/// route layer answers the same way for both the duplicate and the first
+/// resolution.
+#[test]
+fn adk_duplicate_approval_resolution_is_a_noop() {
+    #[derive(Debug, Default)]
+    struct CountingContinuationRuntime {
+        resumed: std::sync::Mutex<Vec<String>>,
+    }
+
+    impl AdkChatStreamPort for CountingContinuationRuntime {
+        fn dispatch(
+            &self,
+            _: AdkChatRoute,
+            _: &AdkChatInput,
+        ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+            Ok(AdkChatPortOutput::Json(json!({"synthetic": true})))
+        }
+        fn resume_approval(&self, run_id: &str) -> Result<(), AdkChatPortError> {
+            self.resumed
+                .lock()
+                .expect("resume log")
+                .push(run_id.to_owned());
+            Ok(())
+        }
+        fn runtime_ready(&self) -> bool {
+            true
+        }
+    }
+
+    let runtime = Arc::new(CountingContinuationRuntime::default());
+    let (port, store, _directory) =
+        setup_test_adk_mutation_port(Some(runtime.clone() as Arc<dyn AdkChatStreamPort>));
+    let (run_id, approval_id) =
+        seed_pending_approval_rows(&store, "duplicate", "call-duplicate", "contract.write");
+
+    for attempt in 0..2 {
+        let resolution = port
+            .mutate(&AdkMutationInput {
+                operation: AdkMutationOperation::Approve,
+                identifiers: BTreeMap::from([("approvalId".to_owned(), approval_id.clone())]),
+                body: Value::Null,
+                webhook_secret: None,
+            })
+            .unwrap_or_else(|error| panic!("approve attempt {attempt}: {error:?}"));
+        assert_eq!(resolution["approval"]["status"], "APPROVED");
+    }
+
+    let resumed = runtime.resumed.lock().expect("resume log").clone();
+    assert_eq!(
+        resumed,
+        vec![run_id.clone()],
+        "the continuation is woken exactly once across both approve calls"
+    );
+    let stored = store
+        .get_run(&run_id)
+        .expect("read run")
+        .expect("run exists");
+    let payload: Value = serde_json::from_str(&stored.payload_json).expect("run payload");
+    assert_eq!(payload["status"], "RUNNING");
+    assert_eq!(
+        payload["toolCalls"]
+            .as_array()
+            .expect("tool calls")
+            .iter()
+            .filter(|call| call["status"] == "RUNNING")
+            .count(),
+        1,
+        "the released tool call is staged once: {payload}"
+    );
+    assert!(
+        payload["pendingApprovals"]
+            .as_array()
+            .expect("pending approvals")
+            .iter()
+            .all(|approval| approval["status"] == "APPROVED"),
+        "a duplicate resolution cannot resurrect the pending row: {payload}"
+    );
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:486
+/// TestListRunsPageFiltersAndSortsNewestFirst.
+///
+/// Go's `ListRunsPage` filters by status/agent/session and orders
+/// `created_at DESC, id ASC`, so the newest matching run is first; the filtered
+/// total and the returned page agree with the request.
+#[test]
+fn adk_run_listing_filters_and_sorts_newest_first() {
+    let (port, store, _directory) = setup_test_adk_mutation_port(None);
+    for (id, session, status, created_at) in [
+        ("run-older", "session-a", "FAILED", "2024-01-01T00:00:00Z"),
+        ("run-newer", "session-a", "FAILED", "2024-01-02T00:00:00Z"),
+        ("run-other-session", "session-b", "FAILED", "2024-01-03T00:00:00Z"),
+        ("run-other-status", "session-a", "COMPLETED", "2024-01-04T00:00:00Z"),
+    ] {
+        let payload = json!({
+            "id": id,
+            "sessionId": session,
+            "agentId": "agent-a",
+            "status": status,
+            "createdAt": created_at,
+            "updatedAt": created_at,
+        });
+        store
+            .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+                id,
+                session_id: session,
+                agent_id: "agent-a",
+                status,
+                client_request_id: &format!("request-{id}"),
+                request_fingerprint: &format!("fingerprint-{id}"),
+                payload_json: &payload.to_string(),
+            })
+            .expect("seed run");
+    }
+
+    let AdkReadSnapshot::Json(listed) = port
+        .read(
+            "/api/v1/adk/runs",
+            "status=FAILED&agentId=agent-a&sessionId=session-a",
+        )
+        .expect("filtered run list")
+    else {
+        panic!("run list must answer JSON");
+    };
+    let runs = listed["runs"].as_array().expect("runs array");
+    let ids = runs
+        .iter()
+        .filter_map(|run| run["id"].as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        ids,
+        vec!["run-newer", "run-older"],
+        "the store query narrows to the requested session and orders newest first: {listed}"
+    );
+    assert_eq!(listed["page"]["total"], 2);
+    assert_eq!(listed["page"]["returned"], 2);
+    assert_eq!(listed["page"]["hasMore"], false);
+
+    // The store-level page applies the same filter/order contract.
+    let page = store.list_runs().expect("list runs");
+    let filtered = page
+        .iter()
+        .filter(|run| run.status == "FAILED" && run.session_id == "session-a")
+        .map(|run| run.id.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        filtered,
+        vec!["run-newer", "run-older"],
+        "store listing keeps newest-first order"
+    );
+
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:426
+/// TestCancelRunMissingReturnsNotFound.
+///
+/// Go's `Runtime.CancelRun` reports a missing run as "run not found"; the
+/// cancel route wraps that into `404 ADK_RUN_CANCEL_FAILED` while the read
+/// route keeps the generic `404 NOT_FOUND`.
+#[test]
+fn adk_cancel_run_missing_is_the_dedicated_cancel_failure() {
+    let (port, _directory) = unready_adk_port();
+
+    let error = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CancelRun,
+            identifiers: BTreeMap::from([("runId".to_owned(), "run-missing".to_owned())]),
+            body: json!({}),
+            webhook_secret: None,
+        })
+        .expect_err("cancelling a missing run must fail");
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 404);
+            assert_eq!(code, "ADK_RUN_CANCEL_FAILED");
+            assert_eq!(message, "run not found");
+        }
+        other => panic!("expected 404 ADK_RUN_CANCEL_FAILED, got {other:?}"),
+    }
+
+    // The read route keeps the generic notification code for the same id.
+    match port.read("/api/v1/adk/runs/run-missing", "") {
+        Err(AdkReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            ..
+        }) => {
+            assert_eq!(status, 404);
+            assert_eq!(code, "NOT_FOUND");
+            assert_eq!(message, "run not found");
+        }
+        other => panic!("expected 404 NOT_FOUND, got {other:?}"),
+    }
+}
+
+
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:21
+/// TestStoreBuiltinSkillsSplitStrategySkill,
+/// go:452dea11:internal/assistant/engine/store_ops_test.go:36
+/// TestBuiltinSkillStoreMetadataComesFromBundleRegistry and
+/// go:452dea11:internal/assistant/engine/store_ops_test.go:147
+/// TestBuiltinRefreshDoesNotOverrideNonBuiltinSkill.
+///
+/// Go's store registry exposes every builtin bundle through `Skill` with
+/// `builtin=true` / `source=builtin`, including the split strategy research and
+/// publish skills, and the product skill set (`jftrade-market`, `-derivatives`,
+/// `-research`, `-prediction`, `-trading`) is always registered.  An externally
+/// installed skill is a registry row, not a replacement: `ListSkills` still
+/// returns the builtins alongside it, and a non-builtin `SKILL.md` on disk is
+/// never rewritten by `ensureBuiltins`.
+#[test]
+fn builtin_skill_catalog_stays_registered_alongside_external_installs() {
+    let (port, _directory) = agent_validation_port();
+
+    let AdkReadSnapshot::Json(only_builtins) = port.read("/api/v1/adk/skills", "").expect("skills")
+    else {
+        panic!("skills route must answer JSON");
+    };
+    let builtin_skills = only_builtins["skills"].as_array().expect("skills array");
+    let builtin_ids = builtin_skills
+        .iter()
+        .filter_map(|skill| skill["id"].as_str())
+        .collect::<Vec<_>>();
+    for required in [
+        "jftrade-market",
+        "jftrade-derivatives",
+        "jftrade-research",
+        "jftrade-prediction",
+        "jftrade-trading",
+        "jftrade-strategy-research",
+        "jftrade-strategy-publish",
+    ] {
+        assert!(
+            builtin_ids.contains(&required),
+            "the builtin registry must expose {required}: {builtin_ids:?}"
+        );
+    }
+    for skill in builtin_skills {
+        assert_eq!(
+            skill["source"], "builtin",
+            "a builtin projection reports its bundle source: {skill}"
+        );
+        assert_eq!(skill["builtin"], true);
+        assert_eq!(
+            skill["validationStatus"], "VALID",
+            "a builtin bundle validates: {skill}"
+        );
+        assert!(
+            skill["version"].as_str().is_some_and(|v| !v.is_empty()),
+            "the bundle metadata carries a version: {skill}"
+        );
+    }
+    let strategy_research = builtin_skills
+        .iter()
+        .find(|skill| skill["id"] == "jftrade-strategy-research")
+        .expect("strategy research skill");
+    assert!(
+        strategy_research["tools"]
+            .as_array()
+            .is_some_and(|tools| !tools.is_empty()),
+        "the strategy research bundle documents its tools: {strategy_research}"
+    );
+
+    // An external install is an additional row, not a replacement for the
+    // builtin catalogue.
+    port.store
+        .upsert_skill(
+            "neodata-financial-search",
+            &json!({
+                "id": "neodata-financial-search",
+                "displayName": "NeoData Financial Search",
+                "source": "https://example.test/neodata.zip",
+                "enabled": true,
+                "builtin": false,
+                "validationStatus": "VALID",
+            })
+            .to_string(),
+        )
+        .expect("persist installed skill");
+    let AdkReadSnapshot::Json(merged) = port.read("/api/v1/adk/skills", "").expect("skills")
+    else {
+        panic!("skills route must answer JSON");
+    };
+    let merged_skills = merged["skills"].as_array().expect("skills array");
+    let merged_ids = merged_skills
+        .iter()
+        .filter_map(|skill| skill["id"].as_str())
+        .collect::<Vec<_>>();
+    assert!(
+        merged_ids.contains(&"neodata-financial-search"),
+        "the external install is listed: {merged_ids:?}"
+    );
+    for required in [
+        "jftrade-market",
+        "jftrade-strategy-research",
+        "external-http",
+    ] {
+        assert!(
+            merged_ids.contains(&required),
+            "an external install must not hide {required}: {merged_ids:?}"
+        );
+    }
+    for skill in merged_skills {
+        if skill["id"] == "neodata-financial-search" {
+            assert_eq!(skill["builtin"], false, "the external row stays external");
+            assert_eq!(skill["source"], "https://example.test/neodata.zip");
+        }
+    }
 }

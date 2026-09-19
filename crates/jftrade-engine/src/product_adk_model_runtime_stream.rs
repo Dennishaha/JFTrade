@@ -418,6 +418,17 @@ impl ProductionAdkChatRuntime {
             .get("toolCalls")
             .cloned()
             .unwrap_or_else(|| Value::Array(Vec::new()));
+        // Go's `hydrateResumedRun` finishes an approval continuation with
+        // `resumeState=adk_confirmation_resolved` and a `completedAt` stamp, so
+        // the console can tell a resumed run from a plain chat run.  The
+        // reference writes the state before the run becomes terminal, so the
+        // projection must carry both fields on the terminal envelope too.
+        let completed_at = now.clone();
+        let resume_state = Value::String(if chat.resumed {
+            "adk_confirmation_resolved".to_owned()
+        } else {
+            String::new()
+        });
         let run_value = json!({
             "id": chat.run_id,
             "sessionId": chat.session_id,
@@ -433,6 +444,8 @@ impl ProductionAdkChatRuntime {
             "failureReason": "",
             "errorCode": "",
             "degraded": degraded,
+            "resumeState": resume_state,
+            "completedAt": completed_at,
             "createdAt": run.created_at,
             "updatedAt": now,
         });
@@ -458,6 +471,10 @@ impl ProductionAdkChatRuntime {
         payload["reply"] = Value::String(text.clone());
         payload["message"] = Value::String("completed".to_owned());
         payload["degraded"] = Value::Bool(degraded);
+        payload["completedAt"] = Value::String(completed_at);
+        if chat.resumed {
+            payload["resumeState"] = Value::String("adk_confirmation_resolved".to_owned());
+        }
         if let Some(object) = payload.as_object_mut() {
             object.remove("providerRetry");
             // `MarkCompletedChatRun` clears the run-level failure projection;

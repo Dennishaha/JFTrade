@@ -588,6 +588,7 @@ fn persist_success_marks_a_run_degraded_from_its_failed_tool_calls() {
         run_id: "run-persist-success".to_owned(),
         session_id: "session-persist-success".to_owned(),
         agent_id: "agent-persist-success".to_owned(),
+        resumed: false,
         request: super::ModelRequest {
             endpoint: reqwest::Url::parse("http://127.0.0.1:1/v1/responses").expect("fixture url"),
             api_key: "sk-fixture".to_owned(),
@@ -707,4 +708,119 @@ fn tool_failure_classification_matches_the_reference_table() {
         )),
         "runtime down"
     );
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:565
+/// TestPendingApprovalResumesThroughGoogleADKAfterRuntimeRestart.
+///
+/// Go persists the resolved approval, rehydrates the run on the restarted
+/// runtime, executes the released tool exactly once, and finishes the run
+/// `COMPLETED` with `resumeState=adk_confirmation_resolved`.  The Rust terminal
+/// projection dropped that resume state, so a resumed run looked like a plain
+/// chat run in the console and in the metrics `resumed` counter.
+#[test]
+fn a_resumed_approval_run_completes_with_the_confirmation_resolved_state() {
+    let (_directory, store, session_store) = initialized_stores();
+    let settings_path = _directory.path().join("settings.json");
+    std::fs::write(&settings_path, "{}").expect("write settings");
+    store
+        .create_run(CreateAdkRunParams {
+            id: "run-resumed-projection",
+            session_id: "session-resumed-projection",
+            agent_id: "agent-resumed-projection",
+            status: "RUNNING",
+            client_request_id: "request-resumed-projection",
+            request_fingerprint: "fingerprint-resumed-projection",
+            payload_json: &json!({
+                "id": "run-resumed-projection",
+                "sessionId": "session-resumed-projection",
+                "agentId": "agent-resumed-projection",
+                "status": "RUNNING",
+                "route": "chat",
+                "resumeState": "approval_resuming",
+                "requestMessage": "resume the gated tool",
+                "toolCalls": [{
+                    "id": "call-resumed",
+                    "name": "strategy.save_draft",
+                    "arguments": {"name": "draft"},
+                    "status": "RUNNING",
+                    "requiresUser": false,
+                }],
+                "toolResults": [],
+                "pendingApprovals": [],
+            })
+            .to_string(),
+        })
+        .expect("create resumed run");
+
+    let runtime = ProductionAdkChatRuntime::new(
+        Arc::clone(&store),
+        session_store,
+        &settings_path,
+        Arc::new(RunCancellationRegistry::default()),
+        Arc::new(crate::product::product_production_ports::ProductionToolCatalog::empty_for_test()),
+    );
+    let lease = store
+        .claim_run_lease(
+            "run-resumed-projection",
+            "owner-resumed-projection",
+            Duration::from_secs(30),
+        )
+        .expect("claim run lease");
+    let chat = super::ChatExecution {
+        route: crate::product::product_adk_chat_stream_port::AdkChatRoute::Chat,
+        run_id: "run-resumed-projection".to_owned(),
+        session_id: "session-resumed-projection".to_owned(),
+        agent_id: "agent-resumed-projection".to_owned(),
+        resumed: true,
+        request: super::ModelRequest {
+            endpoint: reqwest::Url::parse("http://127.0.0.1:1/v1/responses").expect("endpoint"),
+            api_key: "sk-fixture".to_owned(),
+            model: "fixture-model".to_owned(),
+            instruction: None,
+            message: "resume the gated tool".to_owned(),
+            durable_context: Vec::new(),
+            tool_context: Vec::new(),
+            timeout: Duration::from_secs(1),
+            tools: Vec::new(),
+        },
+    };
+    let run_lease =
+        super::RunLeaseGuard::from_lease(Arc::clone(&store), lease).expect("wrap run lease");
+    let response = runtime
+        .persist_success(
+            &chat,
+            super::ModelResponse {
+                text: "resumed reply".to_owned(),
+                tool_calls: Vec::new(),
+            },
+            &run_lease,
+        )
+        .expect("persist resumed success");
+    assert_eq!(
+        response["run"]["status"], "COMPLETED",
+        "a resumed run still completes: {response}"
+    );
+    assert_eq!(
+        response["run"]["resumeState"], "adk_confirmation_resolved",
+        "the terminal envelope records the confirmation resume: {response}"
+    );
+    assert!(
+        response["run"]["completedAt"].is_string(),
+        "the terminal projection stamps completedAt: {response}"
+    );
+
+    let stored = store
+        .get_run("run-resumed-projection")
+        .expect("read completed run")
+        .expect("run row");
+    let payload: Value = serde_json::from_str(&stored.payload_json).expect("run payload");
+    assert_eq!(payload["status"], "COMPLETED");
+    assert_eq!(
+        payload["resumeState"], "adk_confirmation_resolved",
+        "the durable payload keeps the confirmation state: {payload}"
+    );
+    assert!(payload["completedAt"].is_string());
+    drop(run_lease);
+    let _ = runtime;
 }

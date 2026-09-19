@@ -142,10 +142,14 @@ pub(super) fn dispatch(
                 ));
             }
             let status = task_status(body.get("status"))?;
-            let depends_on = string_slice(body.get("dependsOn"), "dependsOn")?;
+            let depends_on = normalized_string_slice(string_slice(body.get("dependsOn"), "dependsOn")?);
             reject_self_dependency(&id, &depends_on)?;
             let agent_id = normalized_string(body.get("agentId"));
             let run_id = normalized_string(body.get("runId"));
+            // `SaveTask` normalizes `PlannerWarnings` with the same helper it
+            // uses for `DependsOn`, so a create trims/dedupes/sorts too.
+            let planner_warnings =
+                normalized_string_slice(string_slice(body.get("plannerWarnings"), "plannerWarnings")?);
             let mut payload = Value::Object(body);
             let object = payload.as_object_mut().expect("object payload");
             object.insert("id".to_owned(), Value::String(id.clone()));
@@ -156,6 +160,10 @@ pub(super) fn dispatch(
             object.insert(
                 "dependsOn".to_owned(),
                 Value::Array(depends_on.into_iter().map(Value::String).collect()),
+            );
+            object.insert(
+                "plannerWarnings".to_owned(),
+                Value::Array(planner_warnings.into_iter().map(Value::String).collect()),
             );
             let stored = port
                 .store
@@ -197,7 +205,7 @@ pub(super) fn dispatch(
             if let Some(depends_on) = body.get("dependsOn")
                 && !depends_on.is_null()
             {
-                let values = string_slice(Some(depends_on), "dependsOn")?;
+                let values = normalized_string_slice(string_slice(Some(depends_on), "dependsOn")?);
                 reject_self_dependency(&id, &values)?;
                 object.insert(
                     "dependsOn".to_owned(),
@@ -234,7 +242,7 @@ pub(super) fn dispatch(
             if let Some(warnings) = body.get("plannerWarnings")
                 && !warnings.is_null()
             {
-                let values = string_slice(Some(warnings), "plannerWarnings")?;
+                let values = normalized_string_slice(string_slice(Some(warnings), "plannerWarnings")?);
                 object.insert(
                     "plannerWarnings".to_owned(),
                     Value::Array(values.into_iter().map(Value::String).collect()),

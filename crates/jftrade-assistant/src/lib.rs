@@ -19,6 +19,11 @@ pub use claims::{
     ClaimCheckpoint, ClaimError, ClaimStore, RunLease, ToolClaimRequest, ToolInvocation,
     ToolInvocationStatus, ToolInvocationTicket,
 };
+pub use model::tool_policy::{
+    ALL_PERMISSION_MODES, PERMISSION_MODE_ALL, PERMISSION_MODE_APPROVAL,
+    PERMISSION_MODE_LESS_APPROVAL, normalize_permission_mode, tool_allowed_in_mode,
+    tool_requires_approval,
+};
 pub use model::{
     Approval, ApprovalStatus, AssistantCheckpoint, AuditEvent, ChatDelta, InputAnswer,
     InputDecisionKind, InputOption, InputOptionDraft, InputQuestion, InputQuestionDraft,

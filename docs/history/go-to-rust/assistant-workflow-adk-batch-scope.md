@@ -832,3 +832,155 @@ JFTrade memory:
 - `internal/assistant/engine/store_ops_test.go` 剩余 19 条 `[~]`；下一批继续该
   文件（run/approval 恢复族与 task/memory/tool 审批族），随后转入
   `store_test.go` / `runner_chat_test.go` / `tools_test.go`。
+
+## 第十二批：store_ops_test.go 收尾（26 条全部结清；14 条 [x]、5 条边界/partial、7 条复检）
+
+范围：`internal/assistant/engine/store_ops_test.go` 剩余 19 条 `[~]`，外加本批修完
+功能缺口后顺带结清的 `internal/assistant/engine/tools_test.go` 5 条审批策略用例。
+本批结束时该文件的 26 条全部有结论，`[x]` 从 771 → 790（净增 19）。
+
+### 真实功能缺口与修复（4 处）
+
+1. **approval continuation 的终局 resumeState（P1，控制台/指标正确性）**
+   - Go：`hydrateResumedRun` 把续跑收尾的 run 标成 `resumeState=adk_confirmation_resolved`
+     并写 `completedAt`；`service_metrics.go` 用该字段统计 `resumed`。
+   - Rust 现状（修复前）：`persist_success` 完全丢弃 resume state，续跑与普通 chat
+     在控制台和指标里无法区分。修复：`ChatExecution` 新增 `resumed: bool`
+     （`product_adk_model_runtime.rs`），新 run 传 `false`、resume 路径传 `true`
+     （`product_adk_model_runtime_events.rs`），`persist_success` 据此写
+     `resumeState` 与 `completedAt`（`product_adk_model_runtime_stream.rs`）。
+   - 回归：`product_adk_model_runtime_tool_failure_tests.rs::a_resumed_approval_run_completes_with_the_confirmation_resolved_state`。
+
+2. **孤立 pending run 的启动期 reconcile（P0，恢复/回滚）**
+   - Go：`reconcileStaleRuns` 把“PENDING 但审批行没有 ADK confirmation id”的 run
+     标成 `FAILED/RUN_ORPHANED` + `resumeState=approval_context_missing`；带 id 的
+     pending run 继续留给审批续跑。
+   - Rust 现状（修复前）：这类 run 永远停在 PENDING，控制台显示为“等待审批”，
+     实际再也没有唤醒路径。修复：`product_adk_model_runtime_lifecycle.rs` 新增
+     `reconcile_orphaned_pending_runs()`，在构造函数里于
+     `recover_approval_continuations()` **之前**调用；写状态走既有
+     `update_run_state_if_status_and_revision` CAS，不引入第二个写入者。
+   - 回归：`product_adk_model_runtime_lifecycle_tests.rs::orphaned_pending_approval_runs_are_failed_on_startup_reconcile`
+     （同时断言可恢复的兄弟 run 保持 PENDING）。
+   - 探针：移除该 reconcile 调用 → 孤立 run 停在 PENDING，测试转红。
+
+3. **task 依赖/planner warnings 的规范化（P1，数据一致性）**
+   - Go：`SaveTask` 对 `DependsOn` 与 `PlannerWarnings` 走 `NormalizeStringSlice`
+     （trim、丢空、去重、排序），create 与 patch 都适用。
+   - Rust 现状（修复前）：原样保存调用方列表，并且**拒绝**空白项——与 Go 的
+     “静默丢空”相反。修复：新增 `normalized_string_slice()` 并在 create/patch 的
+     `dependsOn`/`plannerWarnings` 两处调用；`string_slice` 不再把空串当错误。
+   - 回归：`product_production_ports_adk_tests.rs::adk_task_normalization_and_validation_match_go`。
+   - 探针：把 create 的 `depends_on` 改回 `string_slice` → 断言 `["task-a","task-z"]`
+     得到 `["task-z","task-a","task-z",""]`，测试转红。
+
+4. **builtin skill 被外部安装隐藏（P1，目录投影）**
+   - Go：`ListSkills` 始终把内置 bundle 与外部安装一起返回。
+   - Rust 现状（修复前）：`skills()` 只在 store 为空时投影 builtins，任何一次外部
+     安装都会让内置技能从 `GET /api/v1/adk/skills` 消失（Agent 面板随即丢失
+     `jftrade-market` 等条目）。修复：按 id 合并两个来源，并按 Go 的顺序
+     （builtin 优先、组内按 displayName）排序。
+   - 回归：`product_production_ports_adk_tests.rs::builtin_skill_catalog_stays_registered_alongside_external_installs`。
+   - 探针：恢复修复前的 `if skills.is_empty()` 分支 → `an external install must not
+     hide jftrade-market: ["neodata-financial-search"]`，测试转红。
+
+### 补齐的纯函数：ToolRequiresApproval（P1，审批策略）
+
+`internal/assistant/engine/store_ops_test.go:998` 与 `tools_test.go` 的 5 条审批策略
+用例都锚定 `assistantmodel.ToolRequiresApproval`。Rust 侧此前**没有这个函数**，
+`permissionMode` 在整个 runtime 里没有任何读取点。
+
+本批把它按 Go 语义补进 `crates/jftrade-assistant`（assistant 领域唯一 owner）的
+`model::tool_policy`：`normalize_permission_mode`、`tool_requires_approval`、
+`tool_allowed_in_mode`，覆盖显式豁免名单、`RequiresApprovalIn`、medium/high/critical
+风险、五类写权限、`create_strategy_instance`、`live_trading`，并对未知/空模式
+归一化为 `approval`（fail-closed）。7 条单元测试逐项冻结。
+
+**遗留接线（下一批 P0）**：runtime 的 `prepare_chat`/`resume_approval` 目前仍对所有
+`tool_executor.supports()` 的工具一律 stage 成 `PENDING_APPROVAL`，尚未读取
+`provider.agent_payload["permissionMode"]` 与 descriptor 的 risk/permission 做分流。
+因此 `docs/adk.md` 承诺的“低风险读取自动执行 / `less_approval` 减少普通写入审批 /
+`all` 尽量自动执行”在 Rust 侧还没有生效——这是功能缺口而不是测试缺口，需要把
+`tool_policy` 接进 `product_adk_model_runtime_tool_persistence.rs` 的 staging 判定，
+并按 Go 在无审批时直接进入工具执行循环（`run_approval_continuation` 的等价路径）。
+
+### 边界/partial 结论（5 条）
+
+- `TestStoreBuiltinSkillsSplitStrategySkill`、`TestBuiltinSkillStoreMetadataComesFromBundleRegistry`、
+  `TestBuiltinStrategySkillRefreshesOutdatedBundle`、`TestBuiltinRefreshDoesNotOverrideNonBuiltinSkill`
+  记为 boundary：Go 的 builtin 技能是文件系统 bundle registry 物化出的持久行
+  （有 `contentHash`/`InstallPath`，会依据版本刷新磁盘文件），Rust builtin 是
+  `BUILTIN_SKILL_DEFINITIONS` 的纯投影、没有磁盘副本，因此“store 里有该行”
+  “刷新过期 bundle”“外部文件不被覆盖”这三类断言在 Rust 结构上不适用。可迁移的
+  部分（内置目录存在、source/builtin/validationStatus/version、tools 来自 bundle
+  分类映射、外部安装是追加而非替换）已由 `builtin_skill_catalog_stays_registered_alongside_external_installs`
+  覆盖。
+- `TestInstallSkillURLInstallsNeodataFinancialSearch` 记为 partial：Rust 覆盖
+  frontmatter 解析、URL 形状校验、`SKILL.md` 落盘与 catalog 注册；Go 额外用
+  httptest 服务器 + 临时清空 `SkillInstallHostValidator` 验证真实 HTTP 下载，
+  Rust 没有在测试里起回环 HTTP 服务器（下载前半由 `parsed_for_download_host`
+  纯函数测试承担）。
+
+### 新增/迁移的 Rust 测试
+
+- `crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs`（新文件）：
+  从 `product_adk_model_runtime_lifecycle.rs` 拆出原 `mod tests`，新增
+  `orphaned_pending_approval_runs_are_failed_on_startup_reconcile` 与
+  `an_approval_resuming_run_is_recovered_after_a_runtime_restart`；后者用 loopback
+  provider 驱动真实 provider 调用，断言被释放的工具恰好执行一次、run 收尾为
+  `COMPLETED`/`adk_confirmation_resolved`，且已解析审批不再出现在 session timeline。
+- `crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs`：
+  `a_resumed_approval_run_completes_with_the_confirmation_resolved_state`。
+- `crates/jftrade-engine/src/product_production_ports_adk_tests.rs`：
+  `adk_resolve_approval_missing_returns_the_idempotent_empty_envelope`、
+  `adk_run_listing_filters_and_sorts_newest_first`、
+  `adk_duplicate_approval_resolution_is_a_noop`、
+  `adk_multiple_approvals_continue_only_after_all_are_approved`、
+  `adk_task_normalization_and_validation_match_go`、
+  `adk_memory_filters_and_agent_validation_match_go`、
+  `adk_cancel_run_missing_is_the_dedicated_cancel_failure`、
+  `builtin_skill_catalog_stays_registered_alongside_external_installs`。
+- `crates/jftrade-engine/src/product_production_ports_adk_mutation_skill_tests.rs`（新文件）：
+  `skill_archive_install_preserves_resources_and_metadata`、
+  `skill_document_install_registers_the_parsed_document`、
+  `skill_install_is_exclusive_per_id`、
+  `skill_archive_rejects_unsafe_paths_and_symlinks`、
+  `skill_install_projection_is_durable`；`install_skill` 拆出纯下载半段
+  `install_skill_document` 以便独立测试。
+- `crates/jftrade-store-sqlite/tests/adk_store_contracts.rs`：
+  `adk_approval_resolution_missing_and_non_pending_rows_are_idempotent`（store 层
+  缺失 → `Ok(None)`、终态不回退、重复 resolve 不二次 stage）。
+- `crates/jftrade-assistant/src/model.rs`：`tool_policy` 模块 + 7 条策略测试。
+
+### 结构整理
+
+- `product_adk_model_runtime_lifecycle.rs` 因新增 reconcile 逻辑超过 800 行，
+  测试模块按仓库既有 `#[path]` 约定拆到
+  `product_adk_model_runtime_lifecycle_tests.rs`。
+- `product_production_ports_adk_mutation.rs` 超过 800 行，`normalized_string_slice` /
+  `string_slice` / `reject_self_dependency` 三个字符串规范化辅助迁移到已有的
+  `product_production_ports_adk_mutation_helpers.rs`。
+
+### 验证
+
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite -p jftrade-assistant --all-targets --locked --no-fail-fast`：
+  1606 passed，0 failed（修改前基线 1564）。
+- `cargo clippy -p jftrade-engine -p jftrade-store-sqlite -p jftrade-assistant --all-targets --locked`：通过。
+- `cargo fmt --all -- --check`：通过。
+- `python3 scripts/compatibility/audit_test_parity.py`：4451 条，`[x]` 790
+  （本批净增 19），0 非 function_exact 的 `[x]`，0 重复引用，`function_exact`
+  引用全部可解析。
+- `pnpm run check:rust:architecture`：通过。
+- `pnpm run check:zero-go`、`pnpm run check:compatibility`、`pnpm run check:quick`、
+  `git diff --check`：通过。
+
+### 状态
+
+- `internal/assistant/engine/store_ops_test.go`：26/26 已结清（21 `[x]`、4 boundary、
+  1 partial）。
+- `internal/assistant/engine/tools_test.go`：`[x]` 6/21（本批新增 5 条审批策略），
+  剩余 15 条集中在 `workflow.wait`、`http.fetch` 安全分类、task schema 字段、
+  account.orders 慢端口与 stream 边界，下一批继续该文件后再转入 `store_test.go` /
+  `runner_chat_test.go`。
+- 下一批 P0：把 `tool_policy` 接进 `product_adk_model_runtime_tool_persistence.rs`，
+  让 `permissionMode` 真正决定哪些工具直接执行、哪些进入审批。

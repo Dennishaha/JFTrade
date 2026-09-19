@@ -10235,52 +10235,52 @@
   },
   "internal/assistant/engine/store_ops_test.go:21:TestStoreBuiltinSkillsSplitStrategySkill": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::builtin_skill_catalog_stays_registered_alongside_external_installs",
+    "conclusion": "boundary：Go 的 builtin skill 是从文件系统 bundle registry 物化出的持久行（`Store.Skill(name)` 读 `SkillsPath()/SKILL.md`），Rust builtin 是**纯投影**、没有文件系统 registry 与 installed row 表，因此“store 里存在该 builtin 行”这个具体断言不可迁移。Rust 等价证据是 `GET /api/v1/adk/skills` 的投影：`jftrade-strategy-research` 与 `jftrade-strategy-publish` 都在内置目录中、`source=builtin`、`builtin=true`、`validationStatus=VALID`、`version` 非空、`tools` 非空，并且外部安装（`source=https://…`）只是追加行而不替换内置目录。旧 owner（Go skillsruntime 文件树）不恢复。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/store_ops_test.go:36:TestBuiltinSkillStoreMetadataComesFromBundleRegistry": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::builtin_skill_catalog_stays_registered_alongside_external_installs",
+    "conclusion": "boundary：Go 逐条比对 `skillsruntime.BuiltinSkillSpecs` 的 bundle 元数据（displayName/description/source/builtin/version/contentHash/tools）以及 `InstallPath` 后缀。Rust 没有 bundle registry 也没有 `contentHash`/`InstallPath` 字段（内置技能是代码内 `BUILTIN_SKILL_DEFINITIONS` 的投影，磁盘上不存在 SKILL.md），所以这些子断言是结构性边界。可迁移的部分已覆盖：Rust 断言五个必须存在的产品技能（`jftrade-market`、`jftrade-derivatives`、`jftrade-research`、`jftrade-prediction`、`jftrade-trading`）以及 `jftrade-strategy-research` 的 tools 来自 bundle 分类映射（非空），并对每一行断言 source/builtin/validationStatus/version。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/store_ops_test.go:88:TestBuiltinStrategySkillRefreshesOutdatedBundle": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无文件系统 builtin bundle registry",
+    "conclusion": "boundary（旧 owner）：该用例改坏磁盘上的 `SkillsPath()/jftrade-strategy-research/SKILL.md`（version=1、删掉 `references/pine-v6-spec.md`），再调 `ensureBuiltins()` 要求 bundle 被重新物化、恢复参考文件并回到 `BuiltinSkillVersion`。Rust 的 builtin 技能不是文件系统 bundle：`product_production_ports_adk_projection.rs` 的 `BUILTIN_SKILL_DEFINITIONS` 直接产出 catalog 投影（`jftrade-strategy-research` 当前 version=12），磁盘上既没有可被改坏的 SKILL.md，也没有 references 目录，因此不存在“刷新过期 bundle”这条路径。保留 Go/Wails 旧 owner 语义，不在 Rust 重建文件同步器。探针：Rust 侧唯一的对应保障是上一条投影测试对 version 非空与内容来源的断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/store_ops_test.go:128:TestBuiltinAgentTemplatesOnlyExposeDefaultAgent": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_adk_catalog_templates_and_delete_agent_contracts_hold",
+    "conclusion": "function_exact：`GET /api/v1/adk/agent-templates` 只暴露内置默认助手模板（响应含“默认助手”），已下线的旧模板 id（`investment-analyst` 等）不再出现；同一测试随后对 `PUT/DELETE /api/v1/adk/agents/jftrade-default` 断言内置 agent 不可编辑/不可删除。Go 该用例的默认模板 + 退役模板集合两个断言都由此覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:147:TestBuiltinRefreshDoesNotOverrideNonBuiltinSkill": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::builtin_skill_catalog_stays_registered_alongside_external_installs",
+    "conclusion": "boundary（旧 owner）：Go 在磁盘上把 `jftrade-strategy-research/SKILL.md` 换成 `metadata.source=https://example.com/...` 的外部技能，再调 `ensureBuiltins()` 断言外部内容一个字节都没被覆盖。Rust 没有“内置同步覆盖磁盘文件”的步骤（builtin 是投影，外部技能是 `adk_skills` 表中的独立行），所以“覆盖”这一失败模式在 Rust 结构上不存在。Rust 等价断言是外部安装必须以独立行追加：测试先 upsert `source=https://example.test/neodata.zip` 的 `neodata-financial-search`，再断言内置目录 id 与外部 id 同时在 `GET /api/v1/adk/skills` 中，且内置行仍是 `builtin=true`。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/store_ops_test.go:184:TestInstallSkillArchivePreservesResources": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill_tests.rs::skill_archive_install_preserves_resources_and_metadata",
+    "conclusion": "function_exact：zip 安装保留 `references/playbook.md` 等资源文件并把 `source` 记为原始 URL；同一文件另有 `skill_document_install_registers_the_parsed_document`、`skill_install_is_exclusive_per_id`、`skill_archive_rejects_unsafe_paths_and_symlinks`、`skill_install_projection_is_durable` 四例覆盖单文档安装、同 id 幂等、路径穿越/符号链接拒绝与投影持久化。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:224:TestInstallSkillURLInstallsNeodataFinancialSearch": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill_tests.rs::skill_document_install_registers_the_parsed_document",
+    "conclusion": "partial：Rust 覆盖 URL 文档安装的全链路——`install_skill_document` 解析 frontmatter（name/description/allowed-tools）、拒绝非 http(s) 与不安全 URL、按 `SKILL.md` 落盘并注册 catalog 行，`skill_document_install_registers_the_parsed_document` 冻结该行为。Go 该用例额外挂了一个 httptest 服务器并临时把 `skillsruntime.SkillInstallHostValidator` 置空以验证真实 HTTP 下载；Rust 的 `install_skill_document` 只覆盖下载之后的解析/落盘一半，下载前半由 `parsed_for_download_host`/`unsafe_skill_ip` 的纯函数测试与 `skill_archive_rejects_unsafe_paths_and_symlinks` 覆盖，没有在测试里起回环 HTTP 服务器。保留 partial 记录该 wire 层差异（不是功能缺口）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/store_ops_test.go:281:TestResolveSessionRejectsDifferentAgent": {
     "status": "[x]",
@@ -10318,81 +10318,81 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:426:TestCancelRunMissingReturnsNotFound": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_cancel_run_missing_is_the_dedicated_cancel_failure",
+    "conclusion": "function_exact：取消一个不存在的 run 走 `AdkMutationOperation::CancelRun` 的专用失败分支——Rust 返回 `404 ADK_RUN_NOT_FOUND`（Go 的 `run not found` 错误文本经 route 层分类后的等价物），而 approve/deny 的缺失目标仍返回幂等空 envelope。测试同时断言该分支不写入 run/approval 行，因此“缺失目标是共享 404”这个回归会在这里转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:436:TestResolveApprovalMissingReturnsIdempotentEmptyResult": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_resolve_approval_missing_returns_the_idempotent_empty_envelope",
+    "conclusion": "function_exact：approve 与 deny 两条缺失路径都返回 Go 的零值 resolution —— `{\"approval\":{\"id\":\"\"}}`，没有 `run`、没有 `message`，且不创建任何 approval 行。Go 该用例明确“缺失不是错误”，因此 Rust 不得把它升级成 404；store 层（`Ok(None)`、`changed=false`）由 crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_approval_resolution_missing_and_non_pending_rows_are_idempotent 单独冻结。route 层的 resolved-twice 幂等由 adk_approval_negative_and_idempotent_routes_match_the_go_envelopes 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:452:TestStoreResolvePendingApprovalMissingAndIdempotent": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_approval_resolution_missing_and_non_pending_rows_are_idempotent",
+    "conclusion": "function_exact：store 层逐条冻结 Go 的语义——`resolve_and_stage_approval(\"approval-missing\", …)` 返回 `Ok(None)`（`changed=false` 的零值等价物）而不是错误；已 `APPROVED` 的行再用 `DENIED` resolve 时 `changed=false`、`should_continue=false`，且回读的持久化状态仍是 `APPROVED`（首个终态判决权威）；同一审批重复 resolve 不会二次 stage continuation。探针：把 resolve 改为“总是覆盖状态”后该测试转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:486:TestListRunsPageFiltersAndSortsNewestFirst": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_run_listing_filters_and_sorts_newest_first",
+    "conclusion": "function_exact：`/api/v1/adk/runs?status=…&agentId=…&sessionId=…` 按 status/agent/session 过滤并按 `createdAt DESC, id ASC` 排序（Go `ListRunsPage` 的顺序），返回页与过滤后的 total 一致；不同 session/status 的行被排除。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:527:TestDuplicateApprovalResolutionDoesNotExecuteTwice": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_duplicate_approval_resolution_is_a_noop",
+    "conclusion": "function_exact：用记录型 continuation runtime 断言 approve 调用两次只唤醒一次（`resumed == [run_id]`），释放的 tool call 只 stage 一次（RUNNING 计数为 1），且 pendingApprovals 不会从 APPROVED 回退。Go 同用例的核心断言（重复 resolve 不产生第二次执行）由此覆盖；跨进程 fencing 由 fencing/takeover 测试族补充。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:565:TestPendingApprovalResumesThroughGoogleADKAfterRuntimeRestart": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_resumed_approval_run_completes_with_the_confirmation_resolved_state",
+    "conclusion": "function_exact：审批续跑在终局投影里保留 Go `hydrateResumedRun` 的 `resumeState=adk_confirmation_resolved` 与 `completedAt`，run 进入 COMPLETED；Rust 原先把续跑与普通 chat 混同（resumeState 丢失），控制台和 `resumed` 指标都会误判。测试同时断言持久化 payload 保留该状态。探针：删除 stream 的 resumeState 写入后本用例与 restart 恢复用例同时转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:621:TestApprovalResumingRunIsRecoveredAfterRuntimeRestart": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::an_approval_resuming_run_is_recovered_after_a_runtime_restart",
+    "conclusion": "function_exact：持久化 `status=RUNNING` + `resumeState=approval_resuming` + `RUNNING` tool call 后重建 runtime，启动期 reconcile 重新接管并让被释放的工具恰好执行一次（toolResults 长度 1、callId/name/status 断言），run 收尾为 COMPLETED 且携带 `adk_confirmation_resolved`。用真实 loopback provider 驱动整条 provider 调用与终局投影，不是 fixture port。已解析的审批不会作为 timeline approval group 复现（Rust session timeline 只投影 user/assistant 消息）。探针：禁用 `recover_approval_continuations()` 后 run 停在 RUNNING、用例超时转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:745:TestUnrecoverablePendingApprovalRunIsMarkedOrphanedOnRestart": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::orphaned_pending_approval_runs_are_failed_on_startup_reconcile",
+    "conclusion": "function_exact：启动期 `reconcile_orphaned_pending_runs()` 把“PENDING 但审批行缺少 ADK confirmation id”的 run 标成 `FAILED`，写入 `errorCode=RUN_ORPHANED`、`resumeState=approval_context_missing` 与专用 message；同一轮里带 `functionCallId`/`confirmationCallId` 的兄弟 run 保持 PENDING 可恢复。探针：移除该 reconcile 调用后孤立 run 永远停在 PENDING，测试转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:788:TestMultipleApprovalsExecuteOnlyAfterAllApproved": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_multiple_approvals_continue_only_after_all_are_approved",
+    "conclusion": "function_exact：run 有两个 pending approval 时，第一个 resolved 后 run 保持 PENDING 且不续跑；第二个通过后 run 转 RUNNING/`approval_resuming`，两个 tool call 都被释放为 RUNNING/requiresUser=false。这正是 Go “全部批准后才执行”的门禁。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:844:TestADKTaskUpdateDeleteAndValidation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_task_normalization_and_validation_match_go",
+    "conclusion": "function_exact：create/patch 走 Go `NormalizeStringSlice` 语义——dependsOn 与 plannerWarnings 去空白、去重、排序后持久化（`[\"task-z\",\"task-a\",\"task-z\",\"  \"]` → `[\"task-a\",\"task-z\"]`），status 大写归一并回读校验，`invalid task status` 与自依赖 `task cannot depend on itself` 都是 400，过滤分页按归一化后的 status/agent 命中，删除后行消失。Rust 原先原样保存调用方列表并拒绝空白项，是真实功能差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:899:TestADKMemoryFiltersDeleteAndAgentValidation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_memory_filters_and_agent_validation_match_go",
+    "conclusion": "function_exact：workspace 与 agent 两种 scope 的写入/筛选/删除；memory key 归一化为小写；`scope=agent` 缺少 agentId 时按 Go 返回 `400 ADK_MEMORY_SAVE_FAILED agent memory requires agentId`（参数校验抛错，不落到 storage 失败）；按 agentId 列出时 workspace 行与该 agent 自己的行同时出现且仅这两行；删除后行消失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:939:TestPrepareAgentInjectsMemoryOnlyWhenEnabled": {
     "status": "[x]",
@@ -10409,11 +10409,11 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:998:TestWorkflowWriteToolsRequireApprovalExceptLowRiskTaskWrites": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/src/model.rs::tests::low_risk_workflow_writes_skip_approval_in_approval_mode",
+    "conclusion": "function_exact：Go 该用例的核心是 `assistantmodel.ToolRequiresApproval` 的“低风险工作流写入豁免”规则——`tasks.create/update/delete`、`memory.remember/forget`、`strategy.save_draft` 在 `approval` 模式下不要求审批（用户消息显式要求执行这些工具时不应产生 PendingApprovals）。Rust 侧此前没有这个纯函数，runtime 也完全不读 agent 的 `permissionMode`；本批按 Go 语义把它补进 jftrade-assistant（唯一 assistant 领域 owner）的 `tool_policy` 模块，并由同模块 7 条测试覆盖全部风险/权限类/模式组合。runtime 的 `permissionMode` 接线是该策略函数的下一个消费点，已记入 assistant-workflow-adk-batch-scope.md 的下一批清单。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_recover_test.go:9:TestStoreListProvidersRepairsPersistedDefaultSelection": {
     "status": "[~]",
@@ -10696,32 +10696,32 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/tools_test.go:87:TestTaskWriteToolsMarkedLowRiskCanSkipApproval": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/src/model.rs::tests::task_write_tools_are_low_risk_and_skip_approval",
+    "conclusion": "function_exact：`tasks.create/update/delete`（write_task，low）在 approval 模式下不要求审批；测试同时断言豁免是按 tool name 生效而不是按权限类——同名加后缀的非豁免 write_task 仍要求审批。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:106:TestLowRiskWriteToolsCanSkipApproval": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/src/model.rs::tests::memory_and_draft_writes_skip_approval_in_approval_mode",
+    "conclusion": "function_exact：`memory.remember`/`memory.forget`（write_memory）与 `strategy.save_draft`（write_strategy）在 approval 模式下不要求审批，且在 less_approval/all 同样直接执行。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:129:TestApprovalModeRequiresMediumAndHigherRiskApproval": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/src/model.rs::tests::medium_and_higher_risk_require_approval_only_in_approval_mode",
+    "conclusion": "function_exact：medium/high/critical 在 approval 模式要求审批、all 模式不要求；low risk 在 approval 模式不要求审批；额外断言 `\" HIGH \"` 经 trim/case-fold 仍判为高风险。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:145:TestResearchBacktestExplicitlySkipsApproval": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/src/model.rs::tests::permission_classes_keep_their_mode_specific_gates",
+    "conclusion": "function_exact：`strategy.research_backtest`（optimize_strategy + 显式 RequiresApprovalIn=[approval]）在三种模式下都不要求审批且 allowed，验证“显式 skip 名单压过 permission class 与 requiresApprovalIn”的优先级；同一测试另覆盖 live_trading 与 create_strategy_instance 与五类写权限的模式门禁。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:163:TestWorkflowWaitToolWaitsAndDoesNotRequireApproval": {
     "status": "[~]",
@@ -10787,11 +10787,11 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/tools_test.go:700:TestLiveTradingToolsAreAvailableInAllModesWithApproval": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/src/model.rs::tests::live_trading_tools_stay_available_and_gated_in_every_mode",
+    "conclusion": "function_exact：`permission=live_trading` 在 approval/less_approval/all 三种模式都 allowed，且三种模式都要求审批（含 all）。Go 的 `ToolAllowedInMode` 由同一策略模块的 `tool_allowed_in_mode` 承担。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:726:TestBacktestToolsIncludeRequiredKLineSyncStatusCompanion": {
     "status": "[~]",

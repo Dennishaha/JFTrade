@@ -638,36 +638,6 @@ fn task_status(value: Option<&Value>) -> Result<String, AdkMutationPortError> {
     }
 }
 
-fn string_slice(value: Option<&Value>, field: &str) -> Result<Vec<String>, AdkMutationPortError> {
-    let Some(value) = value else {
-        return Ok(Vec::new());
-    };
-    let Some(values) = value.as_array() else {
-        return Err(invalid_mutation_input(&format!("{field} must be an array")));
-    };
-    values
-        .iter()
-        .map(|item| {
-            item.as_str()
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .map(str::to_owned)
-                .ok_or_else(|| invalid_mutation_input(&format!("{field} must contain strings")))
-        })
-        .collect()
-}
-
-fn reject_self_dependency(id: &str, depends_on: &[String]) -> Result<(), AdkMutationPortError> {
-    if depends_on
-        .iter()
-        .any(|dependency| normalize_id(dependency) == id)
-    {
-        Err(invalid_mutation_input("task cannot depend on itself"))
-    } else {
-        Ok(())
-    }
-}
-
 fn normalize_trigger_type(value: Option<&Value>, fallback: &str) -> String {
     let candidate = value
         .and_then(Value::as_str)
