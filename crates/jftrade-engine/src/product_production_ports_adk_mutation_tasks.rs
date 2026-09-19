@@ -287,8 +287,13 @@ pub(super) fn dispatch(
                 .get_optimization_task(&id)
                 .map_err(storage_mutation_failed)?
             else {
+                // Go's `handleADKOptimizationTaskCancel` normalises every
+                // "not found" service error to the generic
+                // `404 NOT_FOUND` / "optimization task not found" envelope,
+                // the same one `handleADKOptimizationTask` returns on the
+                // read surface.
                 return Err(not_found_mutation(
-                    "ADK_OPTIMIZATION_TASK_NOT_FOUND",
+                    "NOT_FOUND",
                     "optimization task not found",
                 ));
             };
@@ -324,10 +329,7 @@ pub(super) fn dispatch(
                     .get_optimization_task(&id)
                     .map_err(storage_mutation_failed)?
                     .ok_or_else(|| {
-                        not_found_mutation(
-                            "ADK_OPTIMIZATION_TASK_NOT_FOUND",
-                            "optimization task not found",
-                        )
+                        not_found_mutation("NOT_FOUND", "optimization task not found")
                     })?;
                 return optimization_payload(&current);
             }
@@ -336,10 +338,7 @@ pub(super) fn dispatch(
                 .get_optimization_task(&id)
                 .map_err(storage_mutation_failed)?
                 .ok_or_else(|| {
-                    not_found_mutation(
-                        "ADK_OPTIMIZATION_TASK_NOT_FOUND",
-                        "optimization task not found",
-                    )
+                    not_found_mutation("NOT_FOUND", "optimization task not found")
                 })?;
             optimization_payload(&updated)
         }

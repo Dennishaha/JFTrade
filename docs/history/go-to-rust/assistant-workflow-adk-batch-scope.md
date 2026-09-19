@@ -492,3 +492,52 @@ RUSTSEC-2026-0285 / rustls 0.23.44），本批未改 `Cargo.lock` 规避。
 `adk_approval_test.go:450`、`adk_ops_test.go:468`，以及
 `internal/api/assistant` 其余 `[~]` 行；下一批进入
 `internal/assistant/engine`。
+
+## 第七批：ADK 负路径 follow-up 闭环（optimization task / child run / snapshot 组合，3 条 [x]）
+
+范围：上一批挂账的三条 follow-up，逐条决断为「修实现 + 回归测试」：
+
+1. `internal/api/assistant/adk_ops_test.go:394 TestADKOptimizationTaskNegativeRoutes`
+   - Go 行为（`internal/api/assistant/observability.go`）：读取与取消两个
+     handler 都把 service 的 "not found" 归一化为
+     `404 NOT_FOUND` / "optimization task not found"；`%zz` 这种无法解码的
+     `:taskId` 在 handler 入口即 `400 BAD_REQUEST` / "taskId is invalid"。
+   - 发现的真实差异：Rust cancel 分支返回 `ADK_OPTIMIZATION_TASK_NOT_FOUND`，
+     与同一条 Go handler 的通用 `NOT_FOUND` 不一致。
+     修复位置：`product_production_ports_adk_mutation_tasks.rs` 的
+     `AdkMutationOperation::CancelOptimizationTask` 三个 not-found 分支。
+   - 回归测试：`product_adk_mutation_product_tests.rs::optimization_task_negative_routes_match_the_reference_matrix`，
+     在真实产品装配下单测试断言 GET 与 cancel 两条错误矩阵（400/404 × code/message）。
+   - 探针：把 cancel 的 code 改回 `ADK_OPTIMIZATION_TASK_NOT_FOUND` → 测试转红（缺任务断言），还原后通过。
+
+2. `internal/api/assistant/adk_approval_test.go:450 TestADKRunPauseResumeRoutesRejectInvalidRuns`
+   - Go 行为：loop 模式 child run（`parentRunId` 非空）pause 返回 400；
+     缺失 run 的 resume 返回 `404 NOT_FOUND`。
+   - Rust 此前只在 `validate_goal_run` 中实现 child 分支，没有独立回归测试。
+   - 回归测试：`product_adk_mutation_product_tests.rs::goal_pause_rejects_child_runs_and_resume_reports_missing_runs`，
+     种子 child run 走真实 HTTP 路由，断言
+     `400 ADK_RUN_PAUSE_FAILED` / "only root goal runs can be paused"
+     与 `404 NOT_FOUND` / "run not found"。
+   - 探针：令 `validate_goal_run` 的 `parentRunId` 判定恒不成立 → 测试转红（期望 400 实得 200），还原后通过。
+
+3. `internal/api/assistant/adk_ops_test.go:468 TestADKSnapshotAndToolsRoutesReturnCatalogData`
+   - Go 行为：`/api/v1/adk` 一次返回 providers/agents/skills/tools 与持久化
+     runtimeSettings，`/api/v1/adk/tools` 返回同一工具目录。
+   - 回归测试：`product_production_assembly_tests.rs::adk_snapshot_and_tools_routes_return_the_composed_catalog`，
+     在生产端口装配下同时断言两个路由：snapshot 四个集合非空、种子 provider
+     的 `requestTimeoutMs=240000` 保留、`PUT /api/v1/settings/adk` 写入的
+     `runTimeoutMs=660000`/`streamIdleTimeoutMs=420000` 回读一致、
+     以及 `/api/v1/adk/tools` 与 `snapshot.tools` 的 id 集合完全相等。
+   - 探针：令 snapshot 的 `tools` 恒为空数组 → 测试转红（非空数组断言），还原后通过。
+
+### 验证
+
+- `cargo fmt --all`
+- `python3 scripts/compatibility/audit_test_parity.py`：728 function_exact，
+  0 条非 function_exact 的 `[x]`，0 条重复 `[x]`
+- 三条回归测试在还原实现后全部通过（见上）
+
+### 状态
+
+- `internal/api/assistant`：本批关闭 3 条 follow-up；`adk_ops_test.go` 与
+  `adk_approval_test.go` 的已知挂账已清空，该目录剩余 `[~]` 43 条。

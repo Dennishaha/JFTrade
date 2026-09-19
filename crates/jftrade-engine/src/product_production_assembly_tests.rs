@@ -5175,4 +5175,140 @@ mod product_production_assembly_tests {
 
         handle.shutdown().await.expect("shutdown");
     }
+
+    /// Parity: go:452dea11:internal/api/assistant/adk_ops_test.go:468
+    /// TestADKSnapshotAndToolsRoutesReturnCatalogData.
+    ///
+    /// Go's snapshot handler returns the whole ADK catalog in one payload:
+    /// providers, agents, skills, tools and the persisted runtime settings, and
+    /// `/api/v1/adk/tools` returns the same tool catalog.  Reading the snapshot and
+    /// the tools route in one test pins the composition, not just the pieces:
+    /// a seeded provider keeps its `requestTimeoutMs`, the saved
+    /// `runTimeoutMs`/`streamIdleTimeoutMs` survive the settings-file round trip,
+    /// and both surfaces agree on the tool set.
+    #[tokio::test]
+    async fn adk_snapshot_and_tools_routes_return_the_composed_catalog() {
+        let (_temp_dir, settings_path, config, _security) = setup_test_env();
+        let descriptors =
+            product_data_management::managed_database_runtime_descriptors(&settings_path);
+        let adk_path = &descriptors
+            .iter()
+            .find(|descriptor| descriptor.id == DATABASE_ADK)
+            .expect("ADK descriptor")
+            .path;
+        let adk =
+            AdkStore::open_existing(adk_path, ADK_PRODUCTION_PROFILE).expect("open ADK store");
+        adk.upsert_provider(
+            "provider-snapshot",
+            &json!({
+                "id": "provider-snapshot",
+                "displayName": "Snapshot Provider",
+                "baseUrl": "https://api.example.com/v1",
+                "model": "gpt-4o-mini",
+                "requestTimeoutMs": 240_000,
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("seed provider");
+        adk.upsert_agent(
+            "agent-snapshot",
+            &json!({
+                "id": "agent-snapshot",
+                "name": "Snapshot Agent",
+                "providerId": "provider-snapshot",
+                "permissionMode": "approval",
+                "status": "ENABLED",
+            })
+            .to_string(),
+        )
+        .expect("seed agent");
+        drop(adk);
+
+        let handle = start_product(config).await.expect("start product");
+        let address = handle.startup_record().address;
+        let authorization = "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let (settings_status, settings_response) = request_json_with_status(
+            address,
+            "PUT",
+            "/api/v1/settings/adk",
+            Some(r#"{"runTimeoutMs":660000,"streamIdleTimeoutMs":420000}"#),
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(
+            settings_status, 200,
+            "save runtime settings: {settings_response}"
+        );
+
+        let (status, snapshot) = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/adk",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(status, 200, "snapshot response: {snapshot}");
+        assert_eq!(snapshot["ok"], true);
+        let data = &snapshot["data"];
+        for field in ["providers", "agents", "skills", "tools"] {
+            assert!(
+                data[field]
+                    .as_array()
+                    .is_some_and(|items| !items.is_empty()),
+                "snapshot {field} must be a non-empty array: {data}"
+            );
+        }
+        let provider = data["providers"]
+            .as_array()
+            .expect("providers array")
+            .iter()
+            .find(|item| item["id"] == "provider-snapshot")
+            .unwrap_or_else(|| panic!("seeded provider missing from snapshot: {data}"));
+        assert_eq!(
+            provider["requestTimeoutMs"], 240_000,
+            "the seeded provider must round-trip through the snapshot"
+        );
+        assert!(
+            data["agents"]
+                .as_array()
+                .expect("agents array")
+                .iter()
+                .any(|item| item["id"] == "agent-snapshot"),
+            "seeded agent missing from snapshot: {data}"
+        );
+        assert_eq!(data["runtimeSettings"]["runTimeoutMs"], 660_000);
+        assert_eq!(data["runtimeSettings"]["streamIdleTimeoutMs"], 420_000);
+
+        let (status, tools) = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/adk/tools",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(status, 200, "tools response: {tools}");
+        assert_eq!(tools["ok"], true);
+        let tools_from_route = tools["data"]["tools"]
+            .as_array()
+            .expect("tools array")
+            .iter()
+            .filter_map(|tool| tool["id"].as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert!(!tools_from_route.is_empty(), "tools route returned nothing");
+        let tools_from_snapshot = data["tools"]
+            .as_array()
+            .expect("snapshot tools array")
+            .iter()
+            .filter_map(|tool| tool["id"].as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            tools_from_route, tools_from_snapshot,
+            "the snapshot and tools routes must expose the same catalog"
+        );
+
+        handle.shutdown().await.expect("shutdown product");
+    }
 }

@@ -105,11 +105,11 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_approval_test.go:450:TestADKRunPauseResumeRoutesRejectInvalidRuns": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation.rs::validate_goal_run（仅 root loop goal）；crates/jftrade-engine/src/product_production_assembly_tests.rs::tests::production_adk_goal_pause_and_resume_are_persisted_atomically",
-    "conclusion": "partial：Rust 覆盖 chat 模式 400 ADK_RUN_PAUSE_FAILED/ADK_RUN_RESUME_FAILED 与缺失 run 404 NOT_FOUND，但 Go 的“child run（parentRunId）暂停 400”分支没有独立回归测试，只在 validate_goal_run 中实现。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::goal_pause_rejects_child_runs_and_resume_reports_missing_runs",
+    "conclusion": "completed：loop 模式 child run（parentRunId 非空）pause 返回 400 ADK_RUN_PAUSE_FAILED / \"only root goal runs can be paused\"，缺失 run 的 resume 返回 404 NOT_FOUND / \"run not found\"；两条断言在生产装配下走真实 HTTP 路由，补上了此前只在 validate_goal_run 中实现、无独立回归测试的 child 分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_integration_test.go:20:TestRealADKChatStreamWithSavedProvider": {
     "status": "[~]",
@@ -154,11 +154,11 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_ops_test.go:394:TestADKOptimizationTaskNegativeRoutes": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_mutation_port.rs（taskId is invalid 400）；crates/jftrade-engine/src/product_production_ports_adk_mutation_tasks.rs",
-    "conclusion": "partial：taskId 非法 400 BAD_REQUEST 与缺失 task 404 NOT_FOUND 的映射在生产代码中存在，但 Rust 侧无独立负路径测试同时断言 GET 与 cancel 两条错误矩阵。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::optimization_task_negative_routes_match_the_reference_matrix",
+    "conclusion": "completed：GET /api/v1/adk/optimization-tasks/{id} 与 POST .../{id}/cancel 的负路径矩阵逐条对齐 Go：(a) `%zz` 非法百分号转义在两侧都于 port 调用前返回 400 BAD_REQUEST / \"taskId is invalid\"；(b) 缺失任务在读取与取消两侧都返回 404 NOT_FOUND / \"optimization task not found\"。修复前 Rust cancel 分支返回 ADK_OPTIMIZATION_TASK_NOT_FOUND，已改为 Go 的通用 NOT_FOUND 并加回归测试。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(optimization_task_negative_routes_match_the_reference_matrix)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_ops_test.go:448:TestAssistantChatCompatibilityRouteIsGone": {
     "status": "[x]",
@@ -168,11 +168,11 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_ops_test.go:468:TestADKSnapshotAndToolsRoutesReturnCatalogData": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::tool_catalog_marks_external_unavailable_tools_non_callable；crates/jftrade-engine/src/product_adk_read_tests.rs::tests::adk_read_routes_match_group_fixture_in_cutover_only",
-    "conclusion": "partial：tools catalog 与 /api/v1/adk snapshot 的 agents/providers/skills/tools/runtimeSettings 由 fixture 与 catalog 测试覆盖，但 Go 断言的是 HTTP 层组合响应，Rust 未在单测试内同时断言 /api/v1/adk 与 /api/v1/adk/tools。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::adk_snapshot_and_tools_routes_return_the_composed_catalog",
+    "conclusion": "completed：单测试内同时断言 GET /api/v1/adk 与 GET /api/v1/adk/tools：snapshot 的 providers/agents/skills/tools 均为非空数组，种子 provider 保留 requestTimeoutMs=240000，PUT /api/v1/settings/adk 写入的 runTimeoutMs=660000/streamIdleTimeoutMs=420000 经 settings 文件回读一致，且 /api/v1/adk/tools 与 snapshot.tools 的工具 id 集合完全相同（组合响应而非分片证据）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(adk_snapshot_and_tools_routes_return_the_composed_catalog)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:26:TestADKSessionDetailOmitsResolvedApprovalGroups": {
     "status": "[~]",

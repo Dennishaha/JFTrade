@@ -381,3 +381,138 @@ async fn optimization_task_http_cancellation_persists_through_production_port_re
     assert_eq!(restored["data"], response["data"]);
     handle.shutdown().await.expect("shutdown restarted product");
 }
+
+/// Parity: go:452dea11:internal/api/assistant/adk_ops_test.go:394
+/// TestADKOptimizationTaskNegativeRoutes.
+///
+/// Go answers the optimization-task negative matrix through two handlers that
+/// both normalise a "not found" service error to `404 NOT_FOUND` /
+/// "optimization task not found", and reject an undecodable `:taskId` with
+/// `400 BAD_REQUEST` / "taskId is invalid" before the service is consulted.
+/// The read and cancel surfaces must agree on all four responses.
+#[tokio::test]
+async fn optimization_task_negative_routes_match_the_reference_matrix() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, b"{}\n").expect("seed settings");
+    let port = production_optimization_port(directory.path(), true);
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_adk_read_snapshot_port(port.clone())
+            .with_adk_mutation_port(port);
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+
+    // `%zz` is not a valid percent escape, so the identifier never reaches the
+    // store on either surface.
+    for (method, path) in [
+        ("GET", "/api/v1/adk/optimization-tasks/%zz"),
+        ("POST", "/api/v1/adk/optimization-tasks/%zz/cancel"),
+    ] {
+        let (status, response) = request_json_with_status(address, method, path, None, &[]).await;
+        assert_eq!(status, 400, "route {method} {path}: {response}");
+        assert_eq!(response["ok"], false, "route {method} {path}");
+        assert_eq!(
+            response["error"]["code"], "BAD_REQUEST",
+            "route {method} {path}"
+        );
+        assert_eq!(
+            response["error"]["message"], "taskId is invalid",
+            "route {method} {path}"
+        );
+    }
+
+    for (method, path) in [
+        ("GET", "/api/v1/adk/optimization-tasks/missing-task"),
+        ("POST", "/api/v1/adk/optimization-tasks/missing-task/cancel"),
+    ] {
+        let (status, response) = request_json_with_status(address, method, path, None, &[]).await;
+        assert_eq!(status, 404, "route {method} {path}: {response}");
+        assert_eq!(response["ok"], false, "route {method} {path}");
+        assert_eq!(
+            response["error"]["code"], "NOT_FOUND",
+            "route {method} {path}"
+        );
+        assert_eq!(
+            response["error"]["message"], "optimization task not found",
+            "route {method} {path}"
+        );
+    }
+
+    handle.shutdown().await.expect("shutdown product");
+}
+
+/// Parity: go:452dea11:internal/api/assistant/adk_approval_test.go:450
+/// TestADKRunPauseResumeRoutesRejectInvalidRuns.
+///
+/// Go's pause handler validates the run before mutating it: a loop-mode child
+/// run (`parentRunId` set) is rejected with `400`, while resume of a missing
+/// run is `404 NOT_FOUND`.  The child branch is what stops a workflow child
+/// from pausing itself out of its parent's control.
+#[tokio::test]
+async fn goal_pause_rejects_child_runs_and_resume_reports_missing_runs() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, b"{}\n").expect("seed settings");
+    let port = production_optimization_port(directory.path(), true);
+    port.store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: "run-child-pause",
+            session_id: "session-1",
+            agent_id: "agent-1",
+            status: "RUNNING",
+            client_request_id: "child-pause-request",
+            request_fingerprint: "child-pause-fingerprint",
+            payload_json: r#"{
+                "id":"run-child-pause",
+                "sessionId":"session-1",
+                "agentId":"agent-1",
+                "status":"RUNNING",
+                "workMode":"loop",
+                "parentRunId":"run-parent",
+                "workflowStatus":"RUNNING",
+                "toolCalls":[],
+                "pendingApprovals":[]
+            }"#,
+        })
+        .expect("seed child run");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_adk_read_snapshot_port(port.clone())
+            .with_adk_mutation_port(port);
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+
+    let (status, response) = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/adk/runs/run-child-pause/pause",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 400, "child pause response: {response}");
+    assert_eq!(response["ok"], false);
+    assert_eq!(response["error"]["code"], "ADK_RUN_PAUSE_FAILED");
+    assert_eq!(
+        response["error"]["message"], "only root goal runs can be paused",
+        "child run pause must not reach the mutation"
+    );
+
+    let (status, response) = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/adk/runs/missing-run/resume",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 404, "missing resume response: {response}");
+    assert_eq!(response["ok"], false);
+    assert_eq!(response["error"]["code"], "NOT_FOUND");
+    assert_eq!(response["error"]["message"], "run not found");
+
+    handle.shutdown().await.expect("shutdown product");
+}
