@@ -4147,6 +4147,26 @@ fn adk_chat_route_reports_the_go_error_classification() {
         )),
         (400, "ADK_CHAT_FAILED".to_owned(), "agent not found".to_owned())
     );
+    // Parity: go:452dea11:internal/api/assistant/routes_test.go:348
+    // TestChatRequestUsesDeclaredMessageFieldOnly.  Go decodes the declared
+    // `ADKChatRequest` fields, so the legacy `prompt`/`text` aliases never
+    // populate the message: a payload carrying only those aliases is a blank
+    // message and is rejected exactly like `{"message":""}`.
+    for legacy in [
+        r#"{"agentId":"agent-1","prompt":"legacy"}"#,
+        r#"{"agentId":"agent-1","text":"legacy-text"}"#,
+        r#"{"agentId":"agent-1","prompt":"legacy","text":"legacy-text"}"#,
+    ] {
+        assert_eq!(
+            failed(dispatch(legacy)),
+            (
+                400,
+                "ADK_CHAT_FAILED".to_owned(),
+                "message is required".to_owned()
+            ),
+            "legacy alias payload {legacy} must not populate the declared message field"
+        );
+    }
     assert_eq!(
         failed(dispatch(
             r#"{"agentId":"agent-disabled","message":"hello"}"#
@@ -4281,4 +4301,416 @@ fn adk_chat_route_reports_the_go_error_classification() {
             "message exceeds maximum length of 50000 characters".to_owned()
         )
     );
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_test.go:180
+/// TestSessionTimelineFailureKeepsLegacyErrorCode.
+///
+/// Go wraps a transcript-read failure in `ErrSessionTimelineFailed`, and
+/// `handleADKSession` maps that sentinel to the legacy
+/// `500 ADK_MESSAGES_GET_FAILED` envelope before the generic
+/// `ADK_SESSION_GET_FAILED` fallback.  The distinction matters: the console
+/// keys its "reload the transcript" affordance off that code, so a timeline
+/// failure must not collapse into the generic read-unavailable error.
+#[test]
+fn session_timeline_failure_keeps_the_legacy_messages_error_code() {
+    let (port, directory) = unready_adk_port();
+    port.store
+        .upsert_agent(
+            "agent-timeline-fail",
+            r#"{"id":"agent-timeline-fail","name":"Timeline Fail","status":"ENABLED"}"#,
+        )
+        .expect("seed agent");
+    port.store
+        .upsert_session("session-timeline-fail", "agent-timeline-fail", "{}")
+        .expect("seed session");
+    // Go's fixture drops `adk_runs`, which is the table its SessionTimeline
+    // reads.  The Rust session detail reads the transcript events table
+    // through the session store, so dropping `events` is the equivalent
+    // durable failure: the session row still exists, only the timeline read
+    // fails.
+    let session_path = directory.path().join("adk-session.db");
+    let connection = rusqlite::Connection::open(&session_path).expect("open session database");
+    connection
+        .execute_batch("DROP TABLE events;")
+        .expect("drop transcript table");
+    drop(connection);
+
+    let failure = port
+        .read("/api/v1/adk/sessions/session-timeline-fail", "")
+        .expect_err("a broken transcript table must fail the session detail read");
+    match failure {
+        AdkReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            ..
+        } => {
+            assert_eq!(status, 500, "message: {message}");
+            assert_eq!(
+                code, "ADK_MESSAGES_GET_FAILED",
+                "the legacy timeline error code is a public contract"
+            );
+        }
+        other => panic!("expected a classified read failure, got {other:?}"),
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_test.go:92
+/// TestAgentSaveErrorClassification.
+///
+/// Go's `isADKAgentValidationError` splits an agent save failure into two
+/// classes: recognised validation text ("provider not found", "provider is
+/// disabled", "invalid agent ...", "unknown ADK tool/skill") that the edge
+/// reports as `400 BAD_REQUEST`, and everything else - a storage failure in
+/// particular - which must not be client-classified.  Rust performs the same
+/// split at the source: `validate_agent_write` returns
+/// `400 BAD_REQUEST`, while a store failure maps to
+/// `500 ADK_MUTATION_FAILED`.  The validation half is covered by
+/// `adk_agent_write_reports_the_go_validation_messages`; this test pins the
+/// other half so a generic persistence error cannot silently become a 400.
+#[test]
+fn agent_save_storage_failure_is_not_client_classified() {
+    let (port, directory) = unready_adk_port();
+    // Drop the agents table so every write path fails at the store rather
+    // than in validation.  Validation itself stays reachable because it only
+    // consults the provider table.
+    let adk_path = directory.path().join("adk.db");
+    let connection = rusqlite::Connection::open(&adk_path).expect("open ADK database");
+    connection
+        .execute_batch("DROP TABLE adk_agents;")
+        .expect("drop agents table");
+    drop(connection);
+
+    let error = create_agent_error(&port, json!({"id": "agent-storage-failure", "name": "Agent"}));
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 500, "message: {message}");
+            assert_eq!(
+                code, "ADK_MUTATION_FAILED",
+                "a persistence error must not be reported as a client validation error"
+            );
+        }
+        other => panic!("expected a failed mutation, got {other:?}"),
+    }
+
+    // The recognised validation text still classifies as a 400 in the same
+    // port, proving the split is the classifier rather than a blanket rule.
+    assert_bad_request(
+        create_agent_error(
+            &port,
+            json!({
+                "id": "agent-missing-provider-after-failure",
+                "name": "Agent",
+                "providerId": "provider-missing",
+            }),
+        ),
+        "provider not found",
+    );
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_test.go:366
+/// TestApprovalContract.
+///
+/// Go registers an `approval`-gated write tool, chats `@contract.write save`,
+/// and requires the chat envelope to carry exactly one `pendingApprovals`
+/// entry.  The approvals list route then filters `status=PENDING`, and
+/// `POST /api/v1/adk/approvals/{id}/deny` answers `200 ok=true`.  Rust must
+/// project the staged approval on the chat envelope and keep the deny route on
+/// the same optimistic-CAS path.
+#[test]
+fn adk_chat_approval_is_listed_as_pending_and_denied_with_ok_envelope() {
+    // A real `ProductionAdkChatRuntime` is required: Go's route resolves and
+    // stages the approval, then enqueues the continuation in the background
+    // (`ResolveApprovalAsync`) and answers `200` immediately.  A fixture port
+    // that cannot continue would instead report `503 ADK_CONTINUATION_UNAVAILABLE`
+    // and roll the staged resolution back.
+    let (port, _directory) = ready_adk_port_with_fallback_provider();
+    port.store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: "run-approval-contract",
+            session_id: "session-approval-contract",
+            agent_id: "agent-approval",
+            status: "PENDING",
+            client_request_id: "approval-contract-request",
+            request_fingerprint: "approval-contract-fingerprint",
+            payload_json: r#"{
+                "id":"run-approval-contract",
+                "sessionId":"session-approval-contract",
+                "agentId":"agent-approval",
+                "status":"PENDING",
+                "workMode":"chat",
+                "reply":"",
+                "toolCalls":[{"id":"call-contract-write","name":"contract.write","status":"PENDING_APPROVAL"}],
+                "pendingApprovals":[{"id":"approval-contract","runId":"run-approval-contract","agentId":"agent-approval","toolName":"contract.write","status":"PENDING"}]
+            }"#,
+        })
+        .expect("seed pending approval run");
+    port.store
+        .create_approval(
+            "approval-contract",
+            "run-approval-contract",
+            "agent-approval",
+            "PENDING",
+            r#"{"id":"approval-contract","runId":"run-approval-contract","agentId":"agent-approval","toolName":"contract.write","status":"PENDING"}"#,
+        )
+        .expect("seed pending approval");
+
+    // The pending approval is visible on the filtered list route.
+    let output = port
+        .read("/api/v1/adk/approvals", "status=PENDING")
+        .expect("approvals read");
+    let AdkReadSnapshot::Json(value) = output else {
+        panic!("approvals route must answer JSON");
+    };
+    let approvals = value["approvals"].as_array().expect("approvals array");
+    assert_eq!(approvals.len(), 1, "one pending approval: {approvals:?}");
+    assert_eq!(approvals[0]["id"], "approval-contract");
+
+    // Denying resolves through the optimistic CAS and returns the resolution.
+    let denied = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::Deny,
+            identifiers: BTreeMap::from([(
+                "approvalId".to_owned(),
+                "approval-contract".to_owned(),
+            )]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect("deny must succeed");
+    assert_eq!(denied["approval"]["id"], "approval-contract");
+    assert_eq!(denied["approval"]["status"], "DENIED");
+
+    // The resolved approval leaves the PENDING filter.
+    let output = port
+        .read("/api/v1/adk/approvals", "status=PENDING")
+        .expect("approvals read after deny");
+    let AdkReadSnapshot::Json(value) = output else {
+        panic!("approvals route must answer JSON");
+    };
+    let approvals = value["approvals"].as_array().expect("approvals array");
+    assert!(
+        approvals.iter().all(|approval| approval["id"] != "approval-contract"),
+        "a denied approval must not stay PENDING: {approvals:?}"
+    );
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_test.go:348
+/// TestChatRequestUsesDeclaredMessageFieldOnly.
+///
+/// Go decodes `ADKChatRequest` with its declared fields only, so the legacy
+/// `prompt`/`text` aliases never populate `message`: a payload carrying only
+/// those aliases is treated exactly like a blank message and rejected with
+/// `400 ADK_CHAT_FAILED` / "message is required" before any run is created.
+#[test]
+fn adk_chat_request_uses_only_the_declared_message_field() {
+    let (port, _directory) = ready_adk_port_with_fallback_provider();
+    port.store
+        .upsert_agent(
+            "agent-message-field",
+            &json!({
+                "id": "agent-message-field",
+                "name": "Message Field Agent",
+                "providerId": "provider-ready",
+                "status": "ENABLED",
+            })
+            .to_string(),
+        )
+        .expect("persist agent");
+
+    let counter = std::sync::atomic::AtomicU32::new(1);
+    for legacy in [
+        r#"{"agentId":"agent-message-field","prompt":"legacy"}"#,
+        r#"{"agentId":"agent-message-field","text":"legacy-text"}"#,
+        r#"{"agentId":"agent-message-field","prompt":"legacy","text":"legacy-text"}"#,
+        // The declared field wins; the aliases are ignored even when present.
+        r#"{"agentId":"agent-message-field","message":"   ","prompt":"legacy"}"#,
+    ] {
+        let sequence = counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let error = port
+            .dispatch(
+                AdkChatRoute::Chat,
+                &AdkChatInput {
+                    body: legacy.as_bytes().to_vec(),
+                    client_request_id: format!("4444444{sequence}-4444-4444-8444-444444444444"),
+                },
+            )
+            .expect_err("a blank declared message must fail closed");
+        match error {
+            AdkChatPortError::Failed {
+                status,
+                code,
+                message,
+            } => {
+                assert_eq!(status, 400, "payload {legacy}");
+                assert_eq!(code, "ADK_CHAT_FAILED", "payload {legacy}");
+                assert_eq!(message, "message is required", "payload {legacy}");
+            }
+            other => panic!("payload {legacy} produced {other:?}"),
+        }
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:410
+/// TestStreamReconnectAndSkillContracts.
+///
+/// Go's reconnect handlers stream retained history through
+/// `streamADKChatRecord(..., replay=true)`, which stamps `replay:true` on the
+/// frames the reconnecting client receives, and answer 404 for an unknown
+/// stream or run.  The durable Rust read adapter owns both reconnect routes
+/// (`GET /api/v1/adk/streams/{streamId}` and
+/// `GET /api/v1/adk/runs/{runId}/stream`), so both must publish the marker and
+/// fail closed on missing identifiers.
+#[test]
+fn adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed() {
+    let (port, _directory) = unready_adk_port();
+    port.store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: "run-reconnect",
+            session_id: "session-reconnect",
+            agent_id: "agent-reconnect",
+            status: "RUNNING",
+            client_request_id: "reconnect-request",
+            request_fingerprint: "reconnect-fingerprint",
+            payload_json: r#"{
+                "id":"run-reconnect",
+                "status":"RUNNING",
+                "streamId":"run-reconnect",
+                "streamEvents":[
+                    {"type":"run","sequence":1,"streamId":"run-reconnect"},
+                    {"type":"timeline","sequence":2,"streamId":"run-reconnect"}
+                ]
+            }"#,
+        })
+        .expect("seed streaming run");
+
+    // `after=1` drops the first retained frame, matching Go's
+    // `?after=` filter on the reconnect request.
+    for path in [
+        "/api/v1/adk/streams/run-reconnect",
+        "/api/v1/adk/runs/run-reconnect/stream",
+    ] {
+        let snapshot = port
+            .read(path, "after=1")
+            .unwrap_or_else(|error| panic!("GET {path} failed: {error:?}"));
+        let AdkReadSnapshot::Stream(stream) = snapshot else {
+            panic!("GET {path} must stream retained events");
+        };
+        assert_eq!(
+            stream.headers,
+            vec![("X-ADK-Stream-ID".to_owned(), "run-reconnect".to_owned())],
+            "GET {path} stream id header"
+        );
+        assert_eq!(stream.events.len(), 1, "GET {path} after=1 keeps event 2");
+        assert_eq!(stream.events[0].id.as_deref(), Some("2"));
+        assert_eq!(
+            stream.events[0].data["replay"], true,
+            "GET {path} retained history must carry the Go replay marker"
+        );
+    }
+
+    for path in [
+        "/api/v1/adk/streams/stream-missing",
+        "/api/v1/adk/runs/run-missing/stream",
+    ] {
+        let error = port
+            .read(path, "")
+            .expect_err("missing stream must fail closed");
+        assert!(
+            error.to_string().contains("stream not found"),
+            "GET {path} must fail closed: {error}"
+        );
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_test.go:29
+/// TestCatalogSessionRunAndObservabilityContracts.
+///
+/// Go seeds a provider, an enabled agent, a session, a completed run, one
+/// audit event and one optimization task, then requires every catalog /
+/// session / run / observability read route to answer `200 ok=true` - and the
+/// provider delete route to succeed.  The Rust surface must reach the same
+/// composed state through the production port rather than per-route stubs.
+#[test]
+fn catalog_session_run_and_observability_routes_answer_ok() {
+    let (port, _directory) = unready_adk_port();
+    port.store
+        .upsert_provider(
+            "provider-disabled",
+            &json!({"displayName": "Disabled", "enabled": false}).to_string(),
+        )
+        .expect("seed provider");
+    port.store
+        .upsert_agent(
+            "agent-catalog",
+            &json!({
+                "id": "agent-catalog",
+                "name": "Catalog Agent",
+                "status": "ENABLED",
+            })
+            .to_string(),
+        )
+        .expect("seed agent");
+    port.store
+        .upsert_session("session-catalog", "agent-catalog", "{}")
+        .expect("seed session");
+    port.store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: "run-contract",
+            session_id: "session-catalog",
+            agent_id: "agent-catalog",
+            status: "COMPLETED",
+            client_request_id: "catalog-run-request",
+            request_fingerprint: "catalog-run-fingerprint",
+            payload_json: r#"{"id":"run-contract","status":"COMPLETED","toolCalls":[],"pendingApprovals":[]}"#,
+        })
+        .expect("seed run");
+    port.store
+        .record_audit_event("audit-contract", "agent.saved", "agent-catalog", "{}")
+        .expect("seed audit event");
+    port.store
+        .upsert_optimization_task(
+            "optimization-contract",
+            r#"{"id":"optimization-contract","status":"queued","objective":"return"}"#,
+        )
+        .expect("seed optimization task");
+
+    for path in [
+        "/api/v1/adk",
+        "/api/v1/adk/providers",
+        "/api/v1/adk/agents",
+        "/api/v1/adk/skills",
+        "/api/v1/adk/sessions",
+        "/api/v1/adk/sessions/session-catalog",
+        "/api/v1/adk/runs",
+        "/api/v1/adk/runs/run-contract",
+        "/api/v1/adk/audit",
+        "/api/v1/adk/metrics",
+        "/api/v1/adk/optimization-tasks",
+        "/api/v1/adk/optimization-tasks/optimization-contract",
+    ] {
+        let output = port
+            .read(path, "")
+            .unwrap_or_else(|error| panic!("GET {path} failed: {error:?}"));
+        match output {
+            AdkReadSnapshot::Json(_) => {}
+            AdkReadSnapshot::Stream(_) => panic!("GET {path} unexpectedly streamed"),
+        }
+    }
+
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::DeleteProvider,
+        identifiers: BTreeMap::from([(
+            "providerId".to_owned(),
+            "provider-disabled".to_owned(),
+        )]),
+        body: Value::Null,
+        webhook_secret: None,
+    })
+    .expect("DELETE provider must succeed");
 }

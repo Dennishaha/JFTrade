@@ -2,6 +2,7 @@ use super::{
     AdkChatPortError, DurableRecoveryStatus, DurableRunRecoverySupervisor,
     is_recovery_infrastructure_error, record_recovery_resume_failure,
 };
+use crate::product::product_adk_chat_stream_port::{AdkChatPortOutput, AdkChatStreamFrame};
 use jftrade_store_sqlite::{AdkSessionStore, AdkStore, CreateAdkRunParams, initialize_current};
 use rusqlite::Connection;
 use serde_json::json;
@@ -197,4 +198,66 @@ fn non_resumable_running_run_does_not_make_runtime_unready() {
         DurableRecoveryStatus::Ready
     );
     runtime.shutdown();
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:410
+/// TestStreamReconnectAndSkillContracts.
+///
+/// Go's reconnect handlers serve retained history through
+/// `streamADKChatRecord(..., replay=true)`, which stamps `replay:true` on every
+/// frame a reconnecting client receives.  The durable replay projection must
+/// publish the same marker and never answer plain history.
+#[test]
+fn replayed_stream_payloads_carry_the_go_replay_marker() {
+    let output = super::super::stream_from_payload(
+        &json!({
+            "status": "RUNNING",
+            "streamId": "run-stream-replay-marker",
+            "streamEvents": [
+                {"type": "run", "sequence": 1},
+                {"type": "error", "sequence": 2, "retryable": true, "terminal": false}
+            ]
+        })
+        .to_string(),
+    )
+    .expect("stream snapshot");
+    let AdkChatPortOutput::Stream(snapshot) = output else {
+        panic!("stream payload did not produce a snapshot");
+    };
+    assert!(!snapshot.terminal);
+    for frame in &snapshot.frames {
+        let AdkChatStreamFrame::Event { data, .. } = frame else {
+            panic!("replay frames must be events");
+        };
+        assert_eq!(
+            data["replay"], true,
+            "replayed frame lost its marker: {data}"
+        );
+    }
+}
+
+/// The synthesized `final` frame for a terminal run whose terminal event append
+/// was lost is replayed history as well, so the reconnect marker still applies.
+#[test]
+fn recovered_terminal_stream_frame_carries_the_replay_marker() {
+    let output = super::super::stream_from_payload(
+        &json!({
+            "status": "COMPLETED",
+            "streamId": "run-recovered-replay",
+            "response": {"reply": "recovered"},
+            "streamEvents": [
+                {"type": "run", "sequence": 1}
+            ]
+        })
+        .to_string(),
+    )
+    .expect("recovered stream snapshot");
+    let AdkChatPortOutput::Stream(snapshot) = output else {
+        panic!("terminal payload did not produce a snapshot");
+    };
+    let Some(AdkChatStreamFrame::Event { data, .. }) = snapshot.frames.last() else {
+        panic!("snapshot must end with an event frame");
+    };
+    assert_eq!(data["type"], "final");
+    assert_eq!(data["replay"], true);
 }

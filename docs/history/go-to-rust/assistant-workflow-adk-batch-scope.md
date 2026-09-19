@@ -541,3 +541,106 @@ RUSTSEC-2026-0285 / rustls 0.23.44），本批未改 `Cargo.lock` 规避。
 
 - `internal/api/assistant`：本批关闭 3 条 follow-up；`adk_ops_test.go` 与
   `adk_approval_test.go` 的已知挂账已清空，该目录剩余 `[~]` 43 条。
+
+## 第八批：`internal/api/assistant/routes_test.go` 剩余 8 条 + 重连契约（9 条 [x]）
+
+批次范围（`internal/api/assistant/`，go:452dea11）：`routes_test.go` 全量 9 条
+（`TestCatalogSessionRunAndObservabilityContracts`、
+`TestAgentSaveErrorClassification`、`TestChatStreamHubReplayAndCleanupBoundaries`、
+`TestSessionTimelineFailureKeepsLegacyErrorCode`、`TestChatAndSSEContracts`、
+`TestChatRequestIdempotencyContracts`、`TestChatRequestUsesDeclaredMessageFieldOnly`、
+`TestApprovalContract`）以及 `routes_resource_contracts_test.go:410`
+`TestStreamReconnectAndSkillContracts`。本批全部升为 `[x]`/`function_exact`，
+`internal/api/assistant/routes_test.go` 已无 `[~]` 残留。
+
+### 功能差异与修复
+
+1. **stream 重连缺少 `replay:true` 标记（新增 2 条回归测试）**
+   - Go 行为：`streamADKChatRecord(..., replay=true)` 给重连客户端收到的每个
+     retained 帧打 `replay:true`；`GET /api/v1/adk/streams/{streamId}?after=` 与
+     `GET /api/v1/adk/runs/{runId}/stream?after=` 都走这条路径，未知流/run 返回 404。
+   - Rust 此前两条重连路径都只返回裸事件，丢掉该标记。
+   - 修复位置：`product_adk_model_runtime_replay.rs`（`mark_replayed`，含
+     `stream_from_payload` 合成终帧路径）与
+     `product_production_ports_adk_read.rs`（`stream_snapshot` 的 `replayed_event`）。
+   - 回归测试：
+     `product_adk_model_runtime_recovery_tests.rs::replayed_stream_payloads_carry_the_go_replay_marker`、
+     `product_adk_model_runtime_recovery_tests.rs::recovered_terminal_stream_frame_carries_the_replay_marker`、
+     `product_production_ports_adk_tests.rs::adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed`。
+   - 探针：令两个标记 helper 直接 `clone()` 返回 → 读取路由测试与两条投影测试转红，还原后通过。
+
+2. **live `/chat/stream` 缺少首帧 `session` 事件（新增 1 条端到端测试）**
+   - Go 行为：`executeADKChatStream` 在跑模型前先 `previewSession()` 发 `session`
+     帧，再发 `run` 快照，最后 `final`；控制台用首帧的 session id 绑定 transcript。
+   - Rust 此前 live 流只发 `run`。
+   - 修复位置：`product_adk_model_runtime_stream.rs` 的 `start_live_stream`
+     （抽出 `emit_preview_session` 到 `product_adk_model_runtime_stream_events.rs`）。
+   - 回归测试：
+     `product_adk_chat_stream_product_tests.rs::production_live_chat_stream_emits_session_before_run_and_terminal_frame`
+     驱动真实 `ProductionAdkChatRuntime` + 真实 HTTP 路由（模型端点是已关闭的
+     loopback 端口，失败快且确定），断言首帧为 `session` 且携带持久化 session id。
+   - 探针：把首帧 `"type"` 改成别的字符串 → 测试转红（顺序断言），还原后通过。
+
+3. **agent 写失败被误分类为 400**
+   - Go 行为：`isADKAgentValidationError` 只把识别到的验证文案归为 400，存储失败
+     必须是 500。
+   - 修复位置：`product_production_ports_adk_mutation_entities.rs` 的三处 agent
+     create/update/delete 写失败改为 `agent_write_store_failure`（内部
+     `storage_mutation_failed`）。
+   - 回归测试：`adk_agent_save_storage_failure_is_not_client_classified`（`DROP TABLE`
+     制造真实写失败，断言 500 `ADK_MUTATION_FAILED`，同时保留 `provider not found` 的 400）。
+
+4. **session timeline 读取失败的错误码**
+   - Go 行为：`TestSessionTimelineFailureKeepsLegacyErrorCode` 要求
+     `500 ADK_MESSAGES_GET_FAILED`，而不是通用的读不可用。
+   - 修复位置：`product_production_ports_adk_read.rs` 的 session detail timeline
+     读取改为 `AdkReadSnapshotError::Failed{status:500,code:"ADK_MESSAGES_GET_FAILED"}`。
+   - 回归测试：`adk_session_timeline_failure_keeps_the_legacy_messages_error_code`。
+
+### 新增行为断言（无生产差异，仅补证据）
+
+- `catalog_session_run_and_observability_routes_answer_ok`：同一次装配下逐条断言 Go
+  的 12 条读路由 + `DeleteProvider` 成功。
+- `adk_chat_idempotency_contract_matches_the_go_routes`：missing/invalid
+  `clientRequestId` → 400 `BAD_REQUEST`/"clientRequestId must be a valid UUID"；
+  相同 body 重放持久化 run（不新建）、payload 变化 → 409
+  `ADK_CHAT_IDEMPOTENCY_CONFLICT`；stream 路由复用同一 `X-ADK-Stream-ID` 并同样 409。
+- `adk_chat_request_uses_only_the_declared_message_field`：仅 `prompt`、仅 `text`、
+  两者同时存在、以及 `message` 为空白并带 `prompt` 的 payload 全部按声明字段判空，
+  返回 400 `ADK_CHAT_FAILED`/"message is required"。
+- `adk_chat_approval_is_listed_as_pending_and_denied_with_ok_envelope`：真实 runtime
+  下 `approvals?status=PENDING` 只返回该 pending 项，`POST /approvals/{id}/deny`
+  走 `ResolveAndStageApproval("DENIED")` 返回解析结果，deny 后不再出现在 PENDING。
+- `internal/api/assistant` 内 `TestChatStreamHubReplayAndCleanupBoundaries` 判定为
+  「结构边界保留」：Go 的 hub 是进程内生命周期 owner，Rust 的等价模型是
+  durable replay（只服务持久化历史、终态后可重放、重启后一致），故映射到上述
+  retained-replay 证据而不是复制内存 hub。
+
+### 重建与拆分
+
+- `product_adk_model_runtime_stream.rs` 触及 800 行上限，把 `tail_existing_stream`
+  与新的 `emit_preview_session` 迁到同模块的
+  `product_adk_model_runtime_stream_events.rs`；`runner` 与 `tail` 仍在同一模块
+  作用域内，未改变所有权或锁顺序。
+- `product_adk_model_runtime_recovery_tests.rs` 承接两条 replay 标记回归测试，
+  生产文件保持 800 行以内。
+
+### 验证
+
+- `cargo fmt --all`
+- `cargo clippy -p jftrade-engine --all-targets --locked`：通过
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：
+  1397 passed / 0 failed
+- `pnpm run check:zero-go`、`pnpm run check:compatibility`、
+  `pnpm run check:rust:architecture`：通过
+- `python3 scripts/compatibility/audit_test_parity.py`：4451 条基线映射中 737 条
+  `function_exact`，0 条缺 `function_exact` 的 `[x]`，0 条重复 `rust_entry`，
+  Rust 测试总数 2536
+- `pnpm run check:quick`：通过（含 1417 条 Rust 测试与 98 条前端测试）
+
+### 状态
+
+- `internal/api/assistant/routes_test.go`：9/9 条升为 `[x]`，本批关闭该文件全部挂账。
+- `internal/api/assistant`：剩余 `[~]` 34 条，集中在 `adk_ops_test.go`、
+  `adk_sessions_test.go`、`chat_stream_recovery_contracts_test.go`、
+  `routes_resource_contracts_test.go` 其余资源契约与 `service_*_test.go`。

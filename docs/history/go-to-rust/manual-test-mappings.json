@@ -560,25 +560,25 @@
     "evidence_type": "missing"
   },
   "internal/api/assistant/routes_resource_contracts_test.go:410:TestStreamReconnectAndSkillContracts": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed；crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::replayed_stream_payloads_carry_the_go_replay_marker",
+    "conclusion": "function_exact：Go 断言 stream 与 run 两条重连路由按 ?after= 过滤 retained 帧、帧带 replay:true，并对未知 stream/run 返回 404。Rust 在生产 read adapter 与 durable replay projection 两处补上 replay 标记，一条测试断言 /streams/{id} 与 /runs/{id}/stream 的 after 过滤、replay 标记与 stream not found 关闭，另一条断言 replay 投影（含合成 final 帧）都带 replay:true。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_test.go:29:TestCatalogSessionRunAndObservabilityContracts": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::catalog_session_run_and_observability_routes_answer_ok",
+    "conclusion": "function_exact：同一生产端口先写入 provider/agent/session/COMPLETED run/audit event/optimization task，再逐一断言 Go 的 12 条读路由（/api/v1/adk、providers、agents、skills、sessions、sessions/{id}、runs、runs/{id}、audit、metrics、optimization-tasks、optimization-tasks/{id}）全部返回 JSON 成功，并断言 DeleteProvider 成功。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_test.go:92:TestAgentSaveErrorClassification": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::agent_save_storage_failure_is_not_client_classified",
+    "conclusion": "function_exact：Go 的 isADKAgentValidationError 只把识别到的验证文案归为 400，存储失败必须是 500。Rust 修复 product_production_ports_adk_mutation_entities.rs 的三处 agent create/update/delete 写失败为 storage_mutation_failed，测试断言 DROP TABLE 后的写失败是 500 ADK_MUTATION_FAILED 而非 400，同时保留 provider not found 的 400 分类。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_test.go:101:TestRunInputResponseContract": {
     "status": "[x]",
@@ -588,46 +588,46 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_test.go:136:TestChatStreamHubReplayAndCleanupBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart；crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::recovered_terminal_stream_frame_carries_the_replay_marker",
+    "conclusion": "function_exact：Go 断言重连帧带 replay 标记且已过期 stream 会被 cleanup 移除。Rust 无内存 hub，等价的持久化 model 是“保留历史只通过 durable replay 提供”：断线后 GET /api/v1/adk/streams/{id}?after= 只返回序号大于 after 的 retained 帧并带 replay:true（新增 mark_replayed/replayed_event），run 终态后才能重放，重启后仍一致（不可恢复的 stream 不会跨重启残留）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_test.go:180:TestSessionTimelineFailureKeepsLegacyErrorCode": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::session_timeline_failure_keeps_the_legacy_messages_error_code",
+    "conclusion": "function_exact：Go 读取 transcript 失败时返回 500 ADK_MESSAGES_GET_FAILED。Rust 修复 product_production_ports_adk_read.rs 的 session detail timeline 读取为 AdkReadSnapshotError::Failed{status:500,code:ADK_MESSAGES_GET_FAILED}，测试用 DROP TABLE events 制造真实读取失败并断言 code 与状态码。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_test.go:265:TestChatAndSSEContracts": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:compatibility:assistant-runtime",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_emits_session_before_run_and_terminal_frame",
+    "conclusion": "function_exact：驱动真实 ProductionAdkChatRuntime + 真实 HTTP 路由，断言 live /api/v1/adk/chat/stream 首帧为 session 且携带持久化 session id、其后才是 run 快照、并且最终产生终帧；Go 的 session/run/final 事件集合与首帧顺序因此逐条对齐。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_test.go:301:TestChatRequestIdempotencyContracts": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_idempotency_contract_matches_the_go_routes",
+    "conclusion": "function_exact：逐条断言 missing/invalid clientRequestId -> 400 BAD_REQUEST + \"clientRequestId must be a valid UUID\"、相同 body 复用同一 clientRequestId 时不新建 run 而是重放持久化结果、payload 变化 -> 409 ADK_CHAT_IDEMPOTENCY_CONFLICT，且 stream 路由复用同一 X-ADK-Stream-ID 并对变化 payload 返回 409。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_test.go:348:TestChatRequestUsesDeclaredMessageFieldOnly": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_chat_request_uses_only_the_declared_message_field",
+    "conclusion": "function_exact：Go 只解码声明的 ADKChatRequest 字段，legacy prompt/text 别名永不填充 message。该测试在就绪的生产端口上逐条断言仅含 prompt、仅含 text、同时含两者、以及 message 为空白但带 prompt 的四种 payload 都返回 400 ADK_CHAT_FAILED / \"message is required\"，证明空值判定只看声明字段。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_test.go:366:TestApprovalContract": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_chat_approval_is_listed_as_pending_and_denied_with_ok_envelope",
+    "conclusion": "function_exact：在真实 ProductionAdkChatRuntime 端口上种入 pending approval run，断言 GET /api/v1/adk/approvals?status=PENDING 只返回该 pending 项、POST /approvals/{id}/deny 走 ResolveAndStageApproval(\"DENIED\") 并返回该审批的解析结果、deny 后该项不再出现在 PENDING 过滤结果中。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/workflow_routes_test.go:14:TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts": {
     "status": "[x]",

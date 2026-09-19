@@ -569,10 +569,23 @@ impl ProductionAdkPort {
             let Some(session) = self.store.get_session(&id)? else {
                 return Err(not_found("session not found"));
             };
+            // Go wraps a transcript-read failure in
+            // `ErrSessionTimelineFailed`, which `handleADKSession` maps to the
+            // legacy `500 ADK_MESSAGES_GET_FAILED` envelope before the generic
+            // `ADK_SESSION_GET_FAILED` fallback.  Console reload affordances
+            // key off that code, so it is a public contract rather than a
+            // transport-level unavailable signal.
             let timeline = self
                 .session_store
                 .list_events(&id)
-                .map_err(|e| AdkReadSnapshotError::Unavailable(e.to_string()))?
+                .map_err(|e| {
+                    AdkReadSnapshotError::Failed {
+                        status: 500,
+                        code: "ADK_MESSAGES_GET_FAILED".to_owned(),
+                        message: e.to_string(),
+                        retry_after_seconds: None,
+                    }
+                })?
                 .into_iter()
                 .enumerate()
                 .map(|(sequence, event)| timeline_value(event, sequence))
@@ -724,7 +737,12 @@ impl ProductionAdkPort {
                     .unwrap_or(index as u64 + 1);
                 (sequence > after).then(|| AdkReadEvent {
                     id: Some(sequence.to_string()),
-                    data: data.clone(),
+                    // Go's reconnect handler streams retained history through
+                    // `streamADKChatRecord(..., replay=true)`, which stamps
+                    // `replay:true` on every frame at or below the replay
+                    // watermark.  This durable read route answers retained
+                    // history only, so every returned frame is replayed.
+                    data: replayed_event(data),
                 })
             })
             .collect();
@@ -733,4 +751,13 @@ impl ProductionAdkPort {
             events,
         }))
     }
+}
+
+/// Stamps the `replay: true` marker Go writes for retained stream history.
+fn replayed_event(data: &Value) -> Value {
+    let mut data = data.clone();
+    if let Some(object) = data.as_object_mut() {
+        object.insert("replay".to_owned(), Value::Bool(true));
+    }
+    data
 }

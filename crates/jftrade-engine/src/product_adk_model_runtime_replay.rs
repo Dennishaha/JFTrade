@@ -132,6 +132,20 @@ fn existing_run_output(
     }
 }
 
+/// Go's hub marks every frame a reconnecting client receives as
+/// `replay: true` (see `streamADKChatRecord`: events with a sequence at or
+/// below the replay watermark carry the flag).  The durable Rust projection
+/// answers the whole retained history on a `GET /streams/{id}` or
+/// `GET /runs/{id}/stream` reconnect, so each frame is replayed history by
+/// definition and the marker must be present for the wire contract.
+fn mark_replayed(event: &Value) -> Value {
+    let mut event = event.clone();
+    if let Some(object) = event.as_object_mut() {
+        object.insert("replay".to_owned(), Value::Bool(true));
+    }
+    event
+}
+
 fn stream_from_payload(raw: &str) -> Result<AdkChatPortOutput, AdkChatPortError> {
     let value: Value = serde_json::from_str(raw).map_err(storage_unavailable)?;
     let stream_id = value
@@ -163,7 +177,7 @@ fn stream_from_payload(raw: &str) -> Result<AdkChatPortOutput, AdkChatPortError>
                 .map(|sequence| format!("{stream_id}:{sequence}"));
             AdkChatStreamFrame::Event {
                 id,
-                data: event.clone(),
+                data: mark_replayed(event),
             }
         })
         .collect();
@@ -186,12 +200,12 @@ fn stream_from_payload(raw: &str) -> Result<AdkChatPortOutput, AdkChatPortError>
         let sequence = events.len() as u64 + 1;
         frames.push(AdkChatStreamFrame::Event {
             id: Some(format!("{stream_id}:{sequence}")),
-            data: json!({
+            data: mark_replayed(&json!({
                 "type": "final",
                 "streamId": stream_id,
                 "sequence": sequence,
                 "response": response,
-            }),
+            })),
         });
     }
     Ok(AdkChatPortOutput::Stream(AdkChatStreamSnapshot {

@@ -10,8 +10,6 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::SyncSender;
-use std::thread;
-use std::time::Duration;
 
 use jftrade_api::{ApiStream, ApiStreamSender};
 use jftrade_store_sqlite::AdkRunEvent;
@@ -76,6 +74,14 @@ impl ProductionAdkChatRuntime {
             }));
             return;
         }
+        // Go's `executeADKChatStream` calls `previewSession()` before running
+        // the chat, so the first frame of a live stream is the `session`
+        // event and only then the `run` snapshot.  The console binds the
+        // transcript to the session id from that frame.
+        if let Err(error) = self.emit_preview_session(&chat, &sender, &run_lease) {
+            let _ = started.send(Err(error));
+            return;
+        }
         let initial = json!({
             "type": "run",
             "run": {"id": chat.run_id, "sessionId": chat.session_id, "agentId": chat.agent_id, "status": "RUNNING"},
@@ -112,94 +118,6 @@ impl ProductionAdkChatRuntime {
             return;
         }
         self.run_live_stream(chat, sender, cancellation, run_lease);
-    }
-
-    fn tail_existing_stream(
-        &self,
-        snapshot: AdkChatStreamSnapshot,
-        sender: ApiStreamSender,
-        cancellation: Arc<AtomicBool>,
-    ) {
-        if sender.send(b"retry: 3000\n\n".to_vec()).is_err() {
-            return;
-        }
-        let mut seen = 0usize;
-        for frame in snapshot.frames {
-            let bytes = match frame {
-                AdkChatStreamFrame::Event { data, .. } => super::encode_sse_event(&data),
-                AdkChatStreamFrame::Comment(comment) => format!("{comment}\n\n").into_bytes(),
-            };
-            if sender.send(bytes).is_err() {
-                return;
-            }
-            seen = seen.saturating_add(1);
-        }
-        let Some(run_id) = snapshot.headers.get("X-ADK-Stream-ID").cloned() else {
-            return;
-        };
-        let mut sent_current = false;
-        loop {
-            if cancellation.load(Ordering::Acquire) || sender.is_closed() {
-                return;
-            }
-            let run = match self.store.get_run(&run_id) {
-                Ok(Some(run)) => run,
-                Ok(None) => return,
-                Err(error) => {
-                    let event = json!({
-                        "type": "error",
-                        "message": format!("assistant stream replay failed: {error}"),
-                    });
-                    let _ = sender.send(super::encode_sse_event(&event));
-                    return;
-                }
-            };
-            let payload: Value = match serde_json::from_str(&run.payload_json) {
-                Ok(payload) => payload,
-                Err(error) => {
-                    let event = json!({
-                        "type": "error",
-                        "message": format!("assistant stream replay is corrupt: {error}"),
-                    });
-                    let _ = sender.send(super::encode_sse_event(&event));
-                    return;
-                }
-            };
-            if !sent_current {
-                let current = json!({"type": "run", "run": payload.clone()});
-                if sender.send(super::encode_sse_event(&current)).is_err() {
-                    return;
-                }
-                sent_current = true;
-            }
-            let events = payload
-                .get("streamEvents")
-                .and_then(Value::as_array)
-                .cloned()
-                .unwrap_or_default();
-            for event in events.iter().skip(seen) {
-                if sender.send(super::encode_sse_event(event)).is_err() {
-                    return;
-                }
-            }
-            seen = events.len();
-            if matches!(
-                run.status.to_ascii_uppercase().as_str(),
-                "COMPLETED" | "FAILED" | "TIMED_OUT" | "CANCELLED" | "DENIED" | "PENDING"
-            ) {
-                if !events.last().is_some_and(|event| {
-                    event
-                        .get("type")
-                        .and_then(Value::as_str)
-                        .is_some_and(|kind| matches!(kind, "final" | "error"))
-                }) {
-                    let current = json!({"type": "run", "run": payload});
-                    let _ = sender.send(super::encode_sse_event(&current));
-                }
-                return;
-            }
-            thread::sleep(Duration::from_millis(100));
-        }
     }
 
     fn run_live_stream(
@@ -788,7 +706,7 @@ impl ProductionAdkChatRuntime {
     }
 }
 
-fn client_disconnected() -> AdkChatPortError {
+pub(super) fn client_disconnected() -> AdkChatPortError {
     AdkChatPortError::Failed {
         status: 499,
         code: "CLIENT_DISCONNECTED".to_owned(),

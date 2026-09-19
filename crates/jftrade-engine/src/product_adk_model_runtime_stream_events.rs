@@ -2,12 +2,17 @@
 
 use jftrade_api::ApiStreamSender;
 use jftrade_store_sqlite::AdkRunEvent;
-use serde_json::Value;
+use serde_json::{Value, json};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
+use std::time::Duration;
 
 use super::{
-    AdkChatPortError, ChatExecution, ProductionAdkChatRuntime, RunLeaseGuard, storage_unavailable,
-    unavailable,
+    AdkChatPortError, AdkChatStreamFrame, AdkChatStreamSnapshot, ChatExecution,
+    ProductionAdkChatRuntime, RunLeaseGuard, storage_unavailable, unavailable,
 };
+use crate::product::product_adk_model_runtime::encode_sse_event;
 
 impl ProductionAdkChatRuntime {
     pub(super) fn emit_post_terminal_event(
@@ -131,6 +136,144 @@ impl ProductionAdkChatRuntime {
             return Err(self.run_state_changed(&chat.run_id));
         }
         Ok(())
+    }
+
+    pub(super) fn tail_existing_stream(
+        &self,
+        snapshot: AdkChatStreamSnapshot,
+        sender: ApiStreamSender,
+        cancellation: Arc<AtomicBool>,
+    ) {
+        if sender.send(b"retry: 3000\n\n".to_vec()).is_err() {
+            return;
+        }
+        let mut seen = 0usize;
+        for frame in snapshot.frames {
+            // The snapshot frames come from the durable projection, which
+            // stamps Go's `replay:true` reconnect marker, so they are forwarded
+            // verbatim instead of re-encoded.
+            let bytes = match frame {
+                AdkChatStreamFrame::Event { data, .. } => encode_sse_event(&data),
+                AdkChatStreamFrame::Comment(comment) => format!("{comment}\n\n").into_bytes(),
+            };
+            if sender.send(bytes).is_err() {
+                return;
+            }
+            seen = seen.saturating_add(1);
+        }
+        let Some(run_id) = snapshot.headers.get("X-ADK-Stream-ID").cloned() else {
+            return;
+        };
+        let mut sent_current = false;
+        loop {
+            if cancellation.load(Ordering::Acquire) || sender.is_closed() {
+                return;
+            }
+            let run = match self.store.get_run(&run_id) {
+                Ok(Some(run)) => run,
+                Ok(None) => return,
+                Err(error) => {
+                    let event = json!({
+                        "type": "error",
+                        "message": format!("assistant stream replay failed: {error}"),
+                    });
+                    let _ = sender.send(encode_sse_event(&event));
+                    return;
+                }
+            };
+            let payload: Value = match serde_json::from_str(&run.payload_json) {
+                Ok(payload) => payload,
+                Err(error) => {
+                    let event = json!({
+                        "type": "error",
+                        "message": format!("assistant stream replay is corrupt: {error}"),
+                    });
+                    let _ = sender.send(encode_sse_event(&event));
+                    return;
+                }
+            };
+            if !sent_current {
+                let current = json!({"type": "run", "run": payload.clone()});
+                if sender.send(encode_sse_event(&current)).is_err() {
+                    return;
+                }
+                sent_current = true;
+            }
+            let events = payload
+                .get("streamEvents")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            for event in events.iter().skip(seen) {
+                if sender.send(encode_sse_event(event)).is_err() {
+                    return;
+                }
+            }
+            seen = events.len();
+            if matches!(
+                run.status.to_ascii_uppercase().as_str(),
+                "COMPLETED" | "FAILED" | "TIMED_OUT" | "CANCELLED" | "DENIED" | "PENDING"
+            ) {
+                if !events.last().is_some_and(|event| {
+                    event
+                        .get("type")
+                        .and_then(Value::as_str)
+                        .is_some_and(|kind| matches!(kind, "final" | "error"))
+                }) {
+                    let current = json!({"type": "run", "run": payload});
+                    let _ = sender.send(encode_sse_event(&current));
+                }
+                return;
+            }
+            thread::sleep(Duration::from_millis(100));
+        }
+    }
+
+    /// Publishes Go's `previewSession()` frame: the durable session payload
+    /// (with the persisted id/createdAt/updatedAt pinned) is emitted and
+    /// persisted as the first event of a live `/chat/stream` response, before
+    /// the `run` snapshot and the model call.  Returning `Err` asks the caller
+    /// to publish the failure and stop the stream.
+    pub(super) fn emit_preview_session(
+        &self,
+        chat: &ChatExecution,
+        sender: &ApiStreamSender,
+        run_lease: &RunLeaseGuard,
+    ) -> Result<(), AdkChatPortError> {
+        let session = match self.store().get_session(&chat.session_id) {
+            Ok(Some(session)) => session,
+            // A stream that created its session in the same transaction
+            // always has one; a missing row keeps Go's "no preview" behavior.
+            Ok(None) => return Ok(()),
+            Err(error) => return Err(storage_unavailable(error)),
+        };
+        let session_value = match serde_json::from_str::<Value>(&session.payload_json) {
+            Ok(mut payload) => {
+                if let Some(object) = payload.as_object_mut() {
+                    object.insert("id".to_owned(), Value::String(session.id.clone()));
+                    object.insert(
+                        "createdAt".to_owned(),
+                        Value::String(session.created_at.clone()),
+                    );
+                    object.insert(
+                        "updatedAt".to_owned(),
+                        Value::String(session.updated_at.clone()),
+                    );
+                }
+                payload
+            }
+            Err(error) => return Err(storage_unavailable(error)),
+        };
+        let session_event = serde_json::json!({"type": "session", "session": session_value});
+        let session_frame = self.emit_stream_event(chat, session_event, Some(sender), run_lease)?;
+        match sender.send(encode_sse_event(&session_frame)) {
+            Ok(()) => Ok(()),
+            Err(_) => {
+                let disconnect = super::client_disconnected();
+                let _ = self.persist_cancelled(chat, &disconnect, run_lease);
+                Err(disconnect)
+            }
+        }
     }
 
     pub(super) fn emit_stream_event(

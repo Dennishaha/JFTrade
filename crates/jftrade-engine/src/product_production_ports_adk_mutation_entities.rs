@@ -47,14 +47,14 @@ pub(super) fn dispatch(
             object
                 .entry("status".to_owned())
                 .or_insert_with(|| Value::String("ENABLED".to_owned()));
+            // Go's `isADKAgentValidationError` only client-classifies the
+            // recognised validation messages; a store failure stays a server
+            // error.  Keep the split so a broken writer cannot look like a
+            // 400 to the console.
             let stored = port
                 .store
                 .upsert_agent(&id, &payload.to_string())
-                .map_err(|e| AdkMutationPortError::Failed {
-                    status: 400,
-                    code: "ADK_MUTATION_FAILED".to_owned(),
-                    message: e.to_string(),
-                })?;
+                .map_err(agent_write_store_failure)?;
             decode_mutation_payload(&stored.payload_json, "agent")
         }
         AdkMutationOperation::UpdateAgent => {
@@ -84,11 +84,7 @@ pub(super) fn dispatch(
             let stored = port
                 .store
                 .upsert_agent(&id, &payload.to_string())
-                .map_err(|e| AdkMutationPortError::Failed {
-                    status: 400,
-                    code: "ADK_MUTATION_FAILED".to_owned(),
-                    message: e.to_string(),
-                })?;
+                .map_err(agent_write_store_failure)?;
             decode_mutation_payload(&stored.payload_json, "agent")
         }
         AdkMutationOperation::DeleteAgent => {
@@ -100,14 +96,10 @@ pub(super) fn dispatch(
                     message: "the built-in agent cannot be deleted".to_owned(),
                 });
             }
-            let deleted =
-                port.store
-                    .delete_agent(&id)
-                    .map_err(|e| AdkMutationPortError::Failed {
-                        status: 400,
-                        code: "ADK_MUTATION_FAILED".to_owned(),
-                        message: e.to_string(),
-                    })?;
+            let deleted = port
+                .store
+                .delete_agent(&id)
+                .map_err(agent_write_store_failure)?;
             if !deleted {
                 return Err(AdkMutationPortError::Failed {
                     status: 404,
@@ -516,4 +508,11 @@ pub(super) fn dispatch(
         }
         _ => unreachable!("operation group checked before dispatch"),
     }
+}
+
+/// Go's `isADKAgentValidationError` only treats the recognised validation
+/// messages as client errors; a storage failure is reported as a server error
+/// carrying `ADK_MUTATION_FAILED`.
+fn agent_write_store_failure(error: impl std::fmt::Display) -> AdkMutationPortError {
+    storage_mutation_failed(error)
 }
