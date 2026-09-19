@@ -3265,6 +3265,177 @@ fn adk_skill_install_and_uninstall_failures_keep_the_go_codes() {
     }
 }
 
+/// Parity: go:452dea11:internal/api/assistant/routes_error_contracts_test.go:14
+/// TestAssistantRoutesRejectInvalidQueriesPayloadsAndMissingResources.
+///
+/// Go classifies the query/payload/missing-resource table by route: a malformed
+/// pagination value is `400 BAD_REQUEST`, an unknown task status is
+/// `400 ADK_TASK_LIST_FAILED`, a missing task/memory delete is
+/// `404 ADK_TASK_NOT_FOUND` / `404 ADK_MEMORY_NOT_FOUND`, and every malformed
+/// mutation payload stays `400 BAD_REQUEST`. The task-status row was previously
+/// collapsed into the generic code, so this test pins the route code.
+#[test]
+fn adk_read_and_mutation_routes_keep_the_go_error_classification() {
+    let (port, _directory) = unready_adk_port();
+
+    for (path, query, code, message) in [
+        (
+            "/api/v1/adk/tasks",
+            "limit=oops",
+            "BAD_REQUEST",
+            "invalid tasks query",
+        ),
+        (
+            "/api/v1/adk/tasks",
+            "status=NOT_A_STATUS",
+            "ADK_TASK_LIST_FAILED",
+            r#"invalid task status "NOT_A_STATUS""#,
+        ),
+        (
+            "/api/v1/adk/sessions",
+            "limit=oops",
+            "BAD_REQUEST",
+            "invalid sessions query",
+        ),
+        (
+            "/api/v1/adk/runs",
+            "limit=oops",
+            "BAD_REQUEST",
+            "invalid runs query",
+        ),
+        (
+            "/api/v1/adk/approvals",
+            "limit=oops",
+            "BAD_REQUEST",
+            "invalid approvals query",
+        ),
+    ] {
+        let failure = crate::product::dispatch_adk_read(Some(&port), "GET", path, query)
+            .expect_err("an invalid query must fail closed");
+        assert_eq!(failure.status, 400, "path {path}?{query}");
+        assert_eq!(failure.code, code, "path {path}?{query}");
+        assert_eq!(failure.message, message, "path {path}?{query}");
+    }
+
+    // A missing task keeps the task-specific 404 instead of a generic code.
+    let failure =
+        crate::product::dispatch_adk_read(Some(&port), "GET", "/api/v1/adk/tasks/task-missing", "")
+            .expect_err("a missing task must fail closed");
+    assert_eq!(failure.status, 404);
+    assert_eq!(failure.code, "ADK_TASK_NOT_FOUND");
+    assert_eq!(failure.message, "task not found");
+
+    // Deleting a missing memory keeps the memory-specific 404.
+    let error = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::DeleteMemory,
+            identifiers: BTreeMap::from([("memoryId".to_owned(), "memory-missing".to_owned())]),
+            body: json!({}),
+            webhook_secret: None,
+        })
+        .expect_err("a missing memory delete must fail closed");
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 404);
+            assert_eq!(code, "ADK_MEMORY_NOT_FOUND");
+            assert_eq!(message, "memory not found");
+        }
+        other => panic!("expected 404 ADK_MEMORY_NOT_FOUND, got {other:?}"),
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_error_contracts_test.go:98
+/// TestAssistantRoutesEnforceBusinessValidationOnUpdates.
+///
+/// Go keeps a dedicated route code per update resource: a blank session title is
+/// `400 ADK_SESSION_RENAME_FAILED`, an unsupported composer work mode is
+/// `400 ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED`, and a blank objective is
+/// `400 ADK_RUN_OBJECTIVE_UPDATE_FAILED`. Both session branches previously
+/// collapsed into the generic `400 BAD_REQUEST`.
+#[test]
+fn adk_session_and_run_update_routes_keep_the_go_business_error_codes() {
+    let (port, _directory) = unready_adk_port();
+    port.store
+        .upsert_session(
+            "session-1",
+            "agent-1",
+            r#"{"id":"session-1","agentId":"agent-1","title":"t"}"#,
+        )
+        .expect("seed session");
+    port.store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: "run-objective",
+            session_id: "session-1",
+            agent_id: "agent-1",
+            status: "RUNNING",
+            client_request_id: "request-objective",
+            request_fingerprint: "fingerprint-objective",
+            payload_json: r#"{"id":"run-objective","sessionId":"session-1","agentId":"agent-1","status":"RUNNING","workMode":"loop","workflowStatus":"RUNNING","objective":"keep"}"#,
+        })
+        .expect("seed goal run");
+
+    let cases = [
+        (
+            AdkMutationOperation::RenameSession,
+            "sessionId",
+            "session-1",
+            json!({"title": "   "}),
+            "ADK_SESSION_RENAME_FAILED",
+            "session title is required",
+        ),
+        (
+            AdkMutationOperation::UpdateSessionComposerState,
+            "sessionId",
+            "session-1",
+            json!({"workModeOverride": "parallel"}),
+            "ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED",
+            "invalid composer state payload",
+        ),
+        (
+            AdkMutationOperation::UpdateSessionComposerState,
+            "sessionId",
+            "session-1",
+            json!({"workModeOverride": "task"}),
+            "ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED",
+            "invalid composer state payload",
+        ),
+        (
+            AdkMutationOperation::UpdateRunObjective,
+            "runId",
+            "run-objective",
+            json!({"objective": "   "}),
+            "ADK_RUN_OBJECTIVE_UPDATE_FAILED",
+            "objective is required",
+        ),
+    ];
+    for (operation, id_field, id, body, code, message) in cases {
+        let error = port
+            .mutate(&AdkMutationInput {
+                operation,
+                identifiers: BTreeMap::from([(id_field.to_owned(), id.to_owned())]),
+                body,
+                webhook_secret: None,
+            })
+            .expect_err("the business rule must reject the update");
+        match error {
+            AdkMutationPortError::Failed {
+                status,
+                code: actual_code,
+                message: actual_message,
+            } => {
+                assert_eq!(status, 400, "{operation:?}");
+                assert_eq!(actual_code, code, "{operation:?}");
+                assert_eq!(actual_message, message, "{operation:?}");
+            }
+            other => panic!("expected a 400 failure for {operation:?}, got {other:?}"),
+        }
+    }
+}
+
 /// Parity: go:452dea11:internal/api/assistant/workflow_routes_test.go:185
 /// TestWorkflowRoutesClassifyInvalidPayloadsAndUnavailableRuns and
 /// internal/api/assistant/adk_workflow_routes_test.go:262

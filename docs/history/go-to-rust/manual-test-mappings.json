@@ -469,18 +469,18 @@
     "evidence_type": "missing"
   },
   "internal/api/assistant/routes_error_contracts_test.go:14:TestAssistantRoutesRejectInvalidQueriesPayloadsAndMissingResources": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_read_and_mutation_routes_keep_the_go_error_classification",
+    "conclusion": "function_exact：Go 的错误分类表按路由区分——分页非法值 400 BAD_REQUEST（tasks/sessions/runs/approvals）、未知 task status 400 ADK_TASK_LIST_FAILED（消息 invalid task status \"...\"）、缺失 task/memory 404 ADK_TASK_NOT_FOUND / ADK_MEMORY_NOT_FOUND。原 Rust 把未知 task status 压成 BAD_REQUEST，本轮修复 product_production_ports_adk_read.rs 的 tasks 读取分支；探针回退该分支使测试转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_error_contracts_test.go:98:TestAssistantRoutesEnforceBusinessValidationOnUpdates": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(transport_contracts)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_session_and_run_update_routes_keep_the_go_business_error_codes",
+    "conclusion": "function_exact：Go 为每类更新保留专用路由码——空会话标题 400 ADK_SESSION_RENAME_FAILED、非法 composer workMode 400 ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED、空 objective 400 ADK_RUN_OBJECTIVE_UPDATE_FAILED。原 Rust 三处都压成 BAD_REQUEST，本轮分别修复 product_production_ports_adk_mutation_tasks.rs（rename/objective）与 product_production_ports_adk_mutation.rs（validate_optional_composer_mode）；三条分支各自探针回退均使测试转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_identifier_validation_test.go:12:TestAssistantRoutesRejectBlankDecodedIdentifiers": {
     "status": "[x]",

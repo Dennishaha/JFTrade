@@ -257,3 +257,50 @@ jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`
   仍需真实模型 Provider，保持 boundary。
 - `internal/api/assistant` 剩余 `[~]` 行（session/chat/SSE 流式与 approval 负路径等）
   继续由下一批处理。
+
+## 第五批：ADK 读/写路由错误分类、session 更新业务码与 goal objective
+
+范围（`internal/api/assistant`，共 2 条 `[~]` → `[x]`）：
+
+- `routes_error_contracts_test.go:14 TestAssistantRoutesRejectInvalidQueriesPayloadsAndMissingResources`
+- `routes_error_contracts_test.go:98 TestAssistantRoutesEnforceBusinessValidationOnUpdates`
+
+### 本轮发现并修复的真实功能差异（4 处）
+
+1. `GET /api/v1/adk/tasks?status=<未知>` 原返回 `400 BAD_REQUEST`
+   (`invalid tasks query`)；Go 的 `ListTasks` 用 `ErrInvalidTaskStatus`，
+   `handleADKTasks` 写 `400 ADK_TASK_LIST_FAILED` + `invalid task status "..."`。
+   位置：`crates/jftrade-engine/src/product_production_ports_adk_read.rs`。
+2. `PUT /api/v1/adk/sessions/{id}` 的空标题原返回 `400 BAD_REQUEST`；Go 的
+   `handleADKRenameSession` 把所有失败写成 `400 ADK_SESSION_RENAME_FAILED`。
+   位置：`crates/jftrade-engine/src/product_production_ports_adk_mutation_tasks.rs`。
+3. `PATCH /api/v1/adk/sessions/{id}/composer-state` 的非法 workMode
+   （`parallel` / `task`）原返回 `400 BAD_REQUEST`；Go 写成
+   `400 ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED`。
+   位置：`crates/jftrade-engine/src/product_production_ports_adk_mutation.rs::validate_optional_composer_mode`。
+4. `PATCH /api/v1/adk/runs/{id}/objective` 的空 objective 原返回
+   `400 BAD_REQUEST`；Go 写成 `400 ADK_RUN_OBJECTIVE_UPDATE_FAILED`。
+   位置：`crates/jftrade-engine/src/product_production_ports_adk_mutation_tasks.rs`。
+
+### 新增 Rust 测试（本轮）
+
+- `crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_read_and_mutation_routes_keep_the_go_error_classification`
+- `crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_session_and_run_update_routes_keep_the_go_business_error_codes`
+
+### 探针（临时改坏实现 → 测试转红 → 还原）
+
+- 未知 task status 回退为 `BAD_REQUEST`：读路由错误分类测试转红。
+- rename 业务码回退：session/run 更新测试转红（`RenameSession` 行）。
+- composer 业务码回退：同一测试转红（`UpdateSessionComposerState` 行）。
+- objective 业务码回退：同一测试转红（`UpdateRunObjective` 行）。
+
+### 验证
+
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`
+  首次出现 1 条与本次改动无关的失败：
+  `product::tests::market_data_quote_read_tests::candle_pagination_tests::us_regular_only_request_drops_an_extended_hours_current_bucket`，
+  原因是该测试用 `now_utc()` 选锚点，在美东盘后窗口（当前 UTC 00:0x）会踩到日历无法分类的时段。
+  把本次源码改动 `git stash` 后在干净 HEAD 上复现同样失败，确认是既有 clock-dependent flake，
+  记入下一批 MarketData 范围处理，不计入本批通过项。
+- `pnpm run check:zero-go`、`python3 scripts/compatibility/audit_test_parity.py`：通过（712 function_exact / 2508 Rust tests）。
+- ADK 相关子集 124 passed。

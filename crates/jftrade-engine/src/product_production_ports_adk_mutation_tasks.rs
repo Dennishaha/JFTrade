@@ -22,7 +22,21 @@ pub(super) fn dispatch(
     match input.operation {
         AdkMutationOperation::UpdateRunObjective => {
             let id = required_identifier(input, "runId")?;
-            let objective = required_body_string(&input.body, "objective")?;
+            // Go's `handleADKUpdateRunObjective` reports every non-not-found
+            // `UpdateRunObjective` failure - including the blank-objective
+            // business rule - as `400 ADK_RUN_OBJECTIVE_UPDATE_FAILED`.
+            let objective = input
+                .body
+                .get("objective")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| {
+                    invalid_mutation_with_code(
+                        "ADK_RUN_OBJECTIVE_UPDATE_FAILED",
+                        "objective is required",
+                    )
+                })?;
             let Some(existing) = port.store.get_run(&id).map_err(storage_mutation_failed)? else {
                 return Err(not_found_mutation("NOT_FOUND", "run not found"));
             };
@@ -66,7 +80,7 @@ pub(super) fn dispatch(
             }
             object.insert(
                 "objective".to_owned(),
-                Value::String(bounded_text(&objective)),
+                Value::String(bounded_text(objective)),
             );
             object.insert("id".to_owned(), Value::String(existing.id.clone()));
             object.insert("status".to_owned(), Value::String(existing.status.clone()));
@@ -356,7 +370,15 @@ pub(super) fn dispatch(
                 .and_then(Value::as_str)
                 .map(str::trim)
                 .filter(|title| !title.is_empty())
-                .ok_or_else(|| invalid_mutation_input("session title is required"))?;
+                .ok_or_else(|| {
+                    // Go's `handleADKRenameSession` reports every
+                    // `RenameSession` failure - including the blank-title
+                    // business rule - as `400 ADK_SESSION_RENAME_FAILED`.
+                    invalid_mutation_with_code(
+                        "ADK_SESSION_RENAME_FAILED",
+                        "session title is required",
+                    )
+                })?;
             object.insert(
                 "title".to_owned(),
                 Value::String(title.chars().take(80).collect()),

@@ -163,10 +163,13 @@ impl ProductionAdkPort {
                 "TODO" | "IN_PROGRESS" | "BLOCKED" | "DONE" | "CANCELLED"
             )
         {
+            // Go's `ListTasks` rejects an unknown status with
+            // `ErrInvalidTaskStatus`, which `handleADKTasks` reports as
+            // `400 ADK_TASK_LIST_FAILED` rather than a generic bad request.
             return Err(AdkReadSnapshotError::Failed {
                 status: 400,
-                code: "BAD_REQUEST".to_owned(),
-                message: "invalid tasks query".to_owned(),
+                code: "ADK_TASK_LIST_FAILED".to_owned(),
+                message: format!("invalid task status {status:?}"),
                 retry_after_seconds: None,
             });
         }

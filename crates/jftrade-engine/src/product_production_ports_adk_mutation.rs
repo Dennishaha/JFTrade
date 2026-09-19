@@ -606,7 +606,12 @@ fn validate_optional_composer_mode(
     if normalized.is_empty() || allowed.iter().any(|candidate| *candidate == normalized) {
         Ok(normalized)
     } else {
-        Err(invalid_mutation_input("invalid composer state payload"))
+        // Go's composer-state handler wraps every non-not-found business
+        // failure as `400 ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED`.
+        Err(invalid_mutation_with_code(
+            "ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED",
+            "invalid composer state payload",
+        ))
     }
 }
 
