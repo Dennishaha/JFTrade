@@ -327,21 +327,23 @@ fn run_state_result(
     run_entity_value(&updated)
 }
 
-fn run_state_result_if_status(
+/// Cancel one run through the atomic run+approval CAS: the run becomes
+/// `CANCELLED` and every still-pending approval for that run is `DENIED` in
+/// the same transaction, matching Go's `SaveRunAndDenyPendingApprovals`.
+/// A lost CAS projects the current durable run unchanged.
+fn cancel_run_and_deny_pending_approvals(
     port: &ProductionAdkPort,
     id: &str,
     expected_status: &str,
     expected_updated_at: &str,
-    status: &str,
     payload: &Value,
 ) -> Result<Value, AdkMutationPortError> {
     if !port
         .store
-        .update_run_state_if_status_and_revision(
+        .cancel_run_and_deny_pending_approvals(
             id,
             expected_status,
             expected_updated_at,
-            status,
             &payload.to_string(),
         )
         .map_err(storage_mutation_failed)?

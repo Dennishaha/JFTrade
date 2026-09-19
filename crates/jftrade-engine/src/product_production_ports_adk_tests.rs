@@ -6667,4 +6667,256 @@ fn catalog_read_faults_expose_the_go_resource_error_codes() {
         }
         other => panic!("expected 400 ADK_MEMORY_LIST_FAILED, got {other:?}"),
     }
+}/// Go's `StoreCore.DeleteAgent` is a soft delete: the row stays addressable,
+/// `status` becomes `DISABLED` and `deletedAt` is stamped instead of removing
+/// the SQLite row.
+///
+/// Reference: go:452dea11:internal/assistant/engine/store_ops_test.go
+/// `TestDeleteAgentSoftDeletesHistoricalRecord`.
+#[test]
+fn adk_agent_delete_soft_deletes_the_historical_row() {
+    let (port, store, _directory) = setup_test_adk_mutation_port(None);
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::CreateAgent,
+        identifiers: BTreeMap::new(),
+        body: json!({"id": "agent-soft-delete", "name": "Soft Delete", "status": "ENABLED"}),
+        webhook_secret: None,
+    })
+    .expect("create agent");
+
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::DeleteAgent,
+        identifiers: BTreeMap::from([(
+            "agentId".to_owned(),
+            "agent-soft-delete".to_owned(),
+        )]),
+        body: Value::Null,
+        webhook_secret: None,
+    })
+    .expect("delete agent");
+
+    let stored = store
+        .get_agent("agent-soft-delete")
+        .expect("read historical row")
+        .expect("a soft-deleted row must stay addressable");
+    let payload: Value = serde_json::from_str(&stored.payload_json).expect("agent payload");
+    assert_eq!(payload["status"], "DISABLED");
+    assert!(
+        payload["deletedAt"]
+            .as_str()
+            .is_some_and(|value| !value.trim().is_empty()),
+        "deletedAt must be stamped: {payload}"
+    );
+    assert_eq!(
+        store.list_agents().expect("raw store listing").len(),
+        1,
+        "the row is kept for history rather than removed"
+    );
+}
+
+/// Go's `StoreCore.ListAgents` drops every `deletedAt != nil` row while
+/// `ListAllAgents` keeps it, so the active catalogue and the historical view
+/// diverge by exactly the soft-deleted records.
+///
+/// Reference: go:452dea11:internal/assistant/engine/store_ops_test.go
+/// `TestListAgentsExcludesSoftDeletedWhileListAllIncludesThem`.
+#[test]
+fn adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history() {
+    let (port, store, _directory) = setup_test_adk_mutation_port(None);
+    for (id, name) in [("agent-older", "Older Agent"), ("agent-newer", "Newer Agent")] {
+        port.mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateAgent,
+            identifiers: BTreeMap::new(),
+            body: json!({"id": id, "name": name, "status": "ENABLED"}),
+            webhook_secret: None,
+        })
+        .unwrap_or_else(|error| panic!("create {id}: {error:?}"));
+    }
+
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::DeleteAgent,
+        identifiers: BTreeMap::from([("agentId".to_owned(), "agent-older".to_owned())]),
+        body: Value::Null,
+        webhook_secret: None,
+    })
+    .expect("delete agent-older");
+
+    let active = port
+        .read("/api/v1/adk/agents", "")
+        .expect("list active agents");
+    let AdkReadSnapshot::Json(active) = active else {
+        panic!("agents listing must be JSON");
+    };
+    let active_ids = active["agents"]
+        .as_array()
+        .expect("agents array")
+        .iter()
+        .filter_map(|agent| agent["id"].as_str())
+        .collect::<Vec<_>>();
+    assert!(
+        active_ids.contains(&"agent-newer"),
+        "the active agent stays listed: {active}"
+    );
+    assert!(
+        !active_ids.contains(&"agent-older"),
+        "soft-deleted agent must leave the active list: {active}"
+    );
+
+    // The historical view (raw store listing) still carries both rows with the
+    // delete marker preserved.
+    let historical = store.list_agents().expect("historical listing");
+    assert_eq!(historical.len(), 2, "history keeps the deleted row");
+    let deleted = historical
+        .iter()
+        .find(|row| row.id == "agent-older")
+        .expect("deleted row present");
+    let deleted_payload: Value =
+        serde_json::from_str(&deleted.payload_json).expect("deleted payload");
+    assert_eq!(deleted_payload["status"], "DISABLED");
+    assert!(deleted_payload["deletedAt"].is_string());
+}
+
+/// A later save of the same id restores the record: the rebuilt payload drops
+/// `deletedAt`, so the agent reappears in the active catalogue.
+///
+/// Reference: go:452dea11:internal/assistant/engine/store_ops_test.go
+/// `TestSaveAgentRestoresDeletedAgentRecord`.
+#[test]
+fn adk_agent_save_restores_a_soft_deleted_row() {
+    let (port, _store, _directory) = setup_test_adk_mutation_port(None);
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::CreateAgent,
+        identifiers: BTreeMap::new(),
+        body: json!({"id": "agent-restore", "name": "Agent", "status": "ENABLED"}),
+        webhook_secret: None,
+    })
+    .expect("create agent");
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::DeleteAgent,
+        identifiers: BTreeMap::from([("agentId".to_owned(), "agent-restore".to_owned())]),
+        body: Value::Null,
+        webhook_secret: None,
+    })
+    .expect("delete agent");
+
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::CreateAgent,
+        identifiers: BTreeMap::new(),
+        body: json!({"id": "agent-restore", "name": "Agent Restored", "status": "ENABLED"}),
+        webhook_secret: None,
+    })
+    .expect("save restores the soft-deleted agent");
+
+    let restored = port
+        .read("/api/v1/adk/agents", "")
+        .expect("list restored agents");
+    let AdkReadSnapshot::Json(restored) = restored else {
+        panic!("agents listing must be JSON");
+    };
+    let restored_agent = restored["agents"]
+        .as_array()
+        .expect("agents array")
+        .iter()
+        .find(|agent| agent["id"] == "agent-restore")
+        .unwrap_or_else(|| panic!("restored agent must reappear: {restored}"));
+    assert_eq!(restored_agent["name"], "Agent Restored");
+    assert!(
+        restored_agent.get("deletedAt").is_none_or(Value::is_null),
+        "restore must drop the delete marker: {restored_agent}"
+    );
+}
+/// Go's `Runtime.CancelRun` -> `cancelRunTree` persists the cancelled run and
+/// denies every still-pending approval of that run in the same write
+/// (`StoreCore.SaveRunAndDenyPendingApprovals`).  The Rust cancel route used to
+/// write only the run row, leaving `PENDING` approvals resolvable against a
+/// terminal run.
+///
+/// Reference: go:452dea11:internal/assistant/engine/store_ops_test.go
+/// `TestCancelPendingRunDeniesApprovals`.
+#[test]
+fn cancelling_a_run_denies_its_pending_approvals() {
+    let (port, store, _directory) = setup_test_adk_mutation_port(None);
+    store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: "run-cancel-approval",
+            session_id: "session-cancel",
+            agent_id: "agent-cancel",
+            status: "PENDING",
+            client_request_id: "request-cancel-approval",
+            request_fingerprint: "fingerprint-cancel-approval",
+            payload_json: &json!({
+                "id": "run-cancel-approval",
+                "sessionId": "session-cancel",
+                "agentId": "agent-cancel",
+                "status": "PENDING",
+                "pendingApprovals": [{
+                    "id": "approval-cancel",
+                    "runId": "run-cancel-approval",
+                    "agentId": "agent-cancel",
+                    "status": "PENDING",
+                }],
+            })
+            .to_string(),
+        })
+        .expect("seed pending run");
+    store
+        .create_approval(
+            "approval-cancel",
+            "run-cancel-approval",
+            "agent-cancel",
+            "PENDING",
+            &json!({
+                "id": "approval-cancel",
+                "runId": "run-cancel-approval",
+                "agentId": "agent-cancel",
+                "status": "PENDING",
+            })
+            .to_string(),
+        )
+        .expect("seed pending approval");
+
+    let cancelled = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CancelRun,
+            identifiers: BTreeMap::from([("runId".to_owned(), "run-cancel-approval".to_owned())]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect("cancel the pending run");
+    assert_eq!(cancelled["status"], "CANCELLED");
+    assert!(
+        cancelled["cancelledAt"]
+            .as_str()
+            .is_some_and(|value| !value.trim().is_empty()),
+        "cancelledAt must be stamped: {cancelled}"
+    );
+
+    // The durable approval row is denied, not just dropped from the payload.
+    let approval = store
+        .list_approvals()
+        .expect("list approvals")
+        .into_iter()
+        .find(|approval| approval.id == "approval-cancel")
+        .expect("approval row survives");
+    assert_eq!(
+        approval.status, "DENIED",
+        "a cancelled run must deny its pending approvals"
+    );
+    let approval_payload: Value =
+        serde_json::from_str(&approval.payload_json).expect("approval payload");
+    assert_eq!(approval_payload["status"], "DENIED");
+
+    // Resolving the denied approval must stay a no-op and never resurrect the
+    // cancelled run.
+    let resolution = store
+        .resolve_and_stage_approval("approval-cancel", "APPROVED")
+        .expect("resolve denied approval")
+        .expect("resolution row present");
+    assert!(!resolution.changed, "a denied approval cannot be re-approved");
+    assert_eq!(resolution.approval.status, "DENIED");
+    let stored_run = store
+        .get_run("run-cancel-approval")
+        .expect("read cancelled run")
+        .expect("run present");
+    assert_eq!(stored_run.status, "CANCELLED");
 }

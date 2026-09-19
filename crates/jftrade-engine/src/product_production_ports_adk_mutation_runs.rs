@@ -222,12 +222,11 @@ pub(super) fn dispatch(
                     }
                 }
             }
-            run_state_result_if_status(
+            cancel_run_and_deny_pending_approvals(
                 port,
                 &id,
                 &status,
                 &existing.updated_at,
-                "CANCELLED",
                 &value,
             )
         }

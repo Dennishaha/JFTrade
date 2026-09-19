@@ -737,3 +737,98 @@ RUSTSEC-2026-0285 / rustls 0.23.44），本批未改 `Cargo.lock` 规避。
 - 本轮追加关闭 `internal/assistant/engine/runner_approval_concurrency_test.go:119`
   `TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation`（同批修复的并发
   wakeup 语义）。
+
+## 第十一批：internal/assistant/engine/store_ops_test.go 首批（7 条 [x]，含 3 个真实功能缺口）
+
+批次范围：`internal/assistant/engine/store_ops_test.go:281/294/320/363/402/939/961`
+（resolveSession 归属、agent 软删除生命周期、取消联动 deny、memory 注入、
+agent 工具可见范围）。所有 `[x]` 的 `rust_entry` 均全局唯一。
+
+### 修复的真实功能差异
+
+1. **agent 删除是软删除（P0，历史记录与恢复）**
+   - Go：`StoreCore.DeleteAgent` 保留行、`Status=DISABLED`、写 `deletedAt`；
+     `ListAgents` 过滤 `DeletedAt != nil`，`ListAllAgents` 保留；`SaveAgent`
+     重建整行从而清除 `deletedAt`。
+   - Rust 现状（修复前）：`crates/jftrade-store-sqlite/src/adk.rs::delete_agent`
+     执行 `DELETE FROM adk_agents` 物理删除，读路由也不过滤 `deletedAt`。
+   - 修复：`delete_agent` 改为事务内读 payload→写 `DISABLED`/`deletedAt`/
+     `updatedAt` 的 UPDATE（缺失时仍 `Ok(false)`）；读 owner 新增
+     `active_agent_rows()` 在 `snapshot()` 与 `agents()` 过滤软删行；
+     `UpdateAgent`/`CreateAgent` 合并 payload 前移除 `deletedAt` 实现恢复；
+     `DeleteProvider` 的引用检查也不再被已软删 agent 永久占用。
+   - 回归：`adk_agent_delete_soft_deletes_the_historical_row`、
+     `adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history`、
+     `adk_agent_save_restores_a_soft_deleted_row`。
+2. **chat 的 session 归属校验（P0，身份/数据隔离）**
+   - Go：`Runtime.resolveSession` 对显式 `sessionId` 要求已存在且 `AgentID`
+     相同，否则 `session not found` / `session belongs to a different agent`。
+   - Rust 现状（修复前）：`prepare_chat` 无条件 `upsert_session`，会把已有
+     session 静默改绑到新 agent，缺失也会被创建。
+   - 修复：`product_adk_model_runtime_events.rs` 在写入前读取
+     `get_session_agent_id`，不匹配即 `400 ADK_CHAT_FAILED`；显式 id 缺失同样
+     报错。
+   - 回归：`chat_rejects_a_session_owned_by_a_different_agent`。
+     探针：临时禁用 guard → 测试转红（断言 status 400 失败），恢复后通过。
+3. **取消 run 必须 deny 其 pending approvals（P0，资金/审批安全）**
+   - Go：`Runtime.cancelRunTree` 通过 `SaveRunAndDenyPendingApprovals` 在
+     同一事务写终态 run 并把该 run 的 `PENDING` approval 置 `DENIED`。
+   - Rust 现状（修复前）：取消路由只 CAS 写 run 行，approval 仍是 `PENDING`
+     且可在终态 run 上被 approve。
+   - 修复：新增
+     `AdkStore::cancel_run_and_deny_pending_approvals`（run CAS + approval
+     `UPDATE ... WHERE run_id=? AND status='PENDING'`，含 payload
+     `json_set`），取消路由改走该原子路径；`run_state_result` 的重复实现
+     `run_state_result_if_status` 删除。
+   - 回归：`cancelling_a_run_denies_its_pending_approvals`。
+     探针：把取消路由还原为 `run_state_result`（仅写 run） → 测试转红
+     （approval 仍为 PENDING），恢复后通过。
+4. **memory 注入（P1，上下文正确性）**
+   - Go：`Runtime.prepareAgent` 仅在 `MemoryEnabled` 时追加
+     `
+
+JFTrade memory:
+` + `agentMemoryPrompt`（workspace + 本 agent 行，
+     4000 rune 截断）。
+   - Rust 现状（修复前）：完全没有 memory prompt 注入路径。
+   - 修复：`product_adk_model_runtime_lifecycle.rs` 新增
+     `agent_memory_prompt()` 并在 `resolve_provider` 组装 instruction 时按
+     `memoryEnabled` 注入。
+   - 回归：`chat_injects_memory_into_the_instruction_only_when_enabled`。
+5. **agent 工具可见范围（P1，权限边界）**
+   - Go：`ToolDescriptorsForAgent` 按 `toolAccessMode`/`tools` 归一化
+     （selected 允许列表、none 全隐藏、all/空列表全放行），
+     `strategy.research_backtest` 与 `strategy.optimize` 额外隐含
+     `backtest.kline_sync_status`。
+   - Rust 现状（修复前）：`prepare_chat` 与 resume 路径把整个 catalog 下发
+     给模型，agent 的 `tools`/`toolAccessMode` 完全不影响可见工具。
+   - 修复：新增 `AgentToolScope` 与 `agent_tool_scope(payload)`，两条
+     `openai_tools()` 构造路径都按 scope 过滤；`ResolvedProvider` 携带已解析
+     agent payload，避免二次读库。
+   - 回归：`agent_tool_scope_follows_the_go_access_mode_normalization`
+     （selected/none/all/显式 all/隐式 selected/optimize 六个分支）。
+     过程回归：该改动最初让 `adk_chat_route_reports_the_go_error_classification`
+     转红（scope 查询假定 agent 必然存在，而该夹具只有 provider），据此把
+     scope 改为纯函数式归一化，不再回查 store。
+
+### 验证
+
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`：
+  1549 passed（修改前基线 1543；含 6 条新增回归）。
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(adk) | test(chat)'`：
+  176 passed（改动过程中一度 1 failed，定位为 scope 回查 store 的回归，已修）。
+- `cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`：通过。
+- `python3 scripts/compatibility/audit_test_parity.py`：4451 条，`[x]` 771
+  （本批净增 7），0 非 function_exact 的 `[x]`，0 重复引用，
+  `function_exact` 引用全部可解析。
+- `pnpm run check:rust:architecture`：通过。过程中 `product_adk_model_runtime_events.rs`
+  与 `product_production_ports_adk_read.rs` 因新增逻辑超过 800 行，已抽出
+  `product_adk_model_runtime_tool_persistence.rs` 与
+  `product_production_ports_adk_read_listings.rs` 两个 include 片段。
+- `pnpm run check:zero-go`、`pnpm run check:compatibility`、`git diff --check`：通过。
+
+### 状态
+
+- `internal/assistant/engine/store_ops_test.go` 剩余 19 条 `[~]`；下一批继续该
+  文件（run/approval 恢复族与 task/memory/tool 审批族），随后转入
+  `store_test.go` / `runner_chat_test.go` / `tools_test.go`。

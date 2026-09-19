@@ -81,6 +81,13 @@ pub(super) fn dispatch(
                 .ok_or_else(|| not_found_mutation("ADK_AGENT_NOT_FOUND", "agent not found"))?;
             let payload = merged_entity_payload(&existing, &input.body, "agent")?;
             super::agent_validation::validate_agent_write(port, &id, &payload)?;
+            // Saving a soft-deleted agent restores it: the original write path
+            // rebuilds the whole record, so the delete marker disappears and
+            // the console lists the agent again under its new payload.
+            let mut payload = payload;
+            if let Some(object) = payload.as_object_mut() {
+                object.remove("deletedAt");
+            }
             let stored = port
                 .store
                 .upsert_agent(&id, &payload.to_string())
@@ -174,6 +181,12 @@ pub(super) fn dispatch(
             };
             for agent in port.store.list_agents().map_err(storage_mutation_failed)? {
                 let payload = decode_mutation_payload(&agent.payload_json, "agent")?;
+                // Go's `DeleteProvider` checks `StoreCore.ListAgents`, which
+                // drops soft-deleted rows; a retired agent must not keep its
+                // provider pinned forever.
+                if is_deleted_payload(&agent.payload_json)? {
+                    continue;
+                }
                 if payload
                     .get("providerId")
                     .and_then(Value::as_str)

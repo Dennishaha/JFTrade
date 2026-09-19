@@ -813,12 +813,44 @@ impl AdkStore {
         })
     }
 
+    /// Soft-delete one agent the way the original store does: the row stays
+    /// addressable for history, but it is marked `DELETED`/`DISABLED` with a
+    /// `deletedAt` marker so active listings drop it while an explicit read or
+    /// a later save can still restore it.
+    ///
+    /// Returns `Ok(false)` when no such agent exists.
     pub fn delete_agent(&self, id: &str) -> Result<bool, AdkStoreError> {
-        let connection = self.lock_connection()?;
-        let affected = connection
-            .execute("DELETE FROM adk_agents WHERE id = ?1", params![id])
+        let now = Self::now_rfc3339();
+        let mut connection = self.lock_connection()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(AdkStoreError::Query)?;
-        Ok(affected > 0)
+        let existing = transaction
+            .query_row(
+                "SELECT id, payload_json, created_at, updated_at FROM adk_agents WHERE id = ?1",
+                params![id],
+                stored_entity,
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)?;
+        let Some(existing) = existing else {
+            transaction.commit().map_err(AdkStoreError::Query)?;
+            return Ok(false);
+        };
+        let mut payload = decode_json_object(&existing.payload_json, "agent")?;
+        payload.insert("status".to_owned(), Value::String("DISABLED".to_owned()));
+        payload.insert("deletedAt".to_owned(), Value::String(now.clone()));
+        payload.insert("updatedAt".to_owned(), Value::String(now.clone()));
+        let payload_json = serde_json::to_string(&Value::Object(payload))
+            .map_err(|error| AdkStoreError::Validation(error.to_string()))?;
+        transaction
+            .execute(
+                "UPDATE adk_agents SET payload_json = ?1, updated_at = ?2 WHERE id = ?3",
+                params![payload_json, now, id],
+            )
+            .map_err(AdkStoreError::Query)?;
+        transaction.commit().map_err(AdkStoreError::Query)?;
+        Ok(true)
     }
 
     pub fn get_agent(&self, id: &str) -> Result<Option<StoredAdkEntity>, AdkStoreError> {
@@ -1965,6 +1997,50 @@ impl AdkStore {
             .map_err(AdkStoreError::Query)?;
         transaction.commit().map_err(AdkStoreError::Query)?;
         Ok(affected > 0)
+    }
+
+    /// Cancel one run and deny every still-pending approval in the same
+    /// transaction, mirroring Go's `SaveRunAndDenyPendingApprovals` which
+    /// `Runtime.cancelRunTree` uses for a user cancellation.
+    ///
+    /// The run update is a status/revision CAS, so a run that turned terminal
+    /// between the read and this call keeps its terminal state; the pending
+    /// approval rows are denied only for the winning CAS.
+    pub fn cancel_run_and_deny_pending_approvals(
+        &self,
+        id: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        let now = Self::now_rfc3339();
+        let mut connection = self.lock_connection()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(AdkStoreError::Query)?;
+        let affected = transaction
+            .execute(
+                "UPDATE adk_runs
+                 SET status = 'CANCELLED', payload_json = ?1, updated_at = ?2
+                 WHERE id = ?3 AND status = ?4 AND updated_at = ?5",
+                params![payload_json, now, id, expected_status, expected_updated_at],
+            )
+            .map_err(AdkStoreError::Query)?;
+        if affected == 0 {
+            transaction.commit().map_err(AdkStoreError::Query)?;
+            return Ok(false);
+        }
+        transaction
+            .execute(
+                "UPDATE adk_approvals
+                 SET status = 'DENIED', updated_at = ?1,
+                     payload_json = json_set(payload_json, '$.status', 'DENIED', '$.updatedAt', ?1)
+                 WHERE run_id = ?2 AND status = 'PENDING'",
+                params![now, id],
+            )
+            .map_err(AdkStoreError::Query)?;
+        transaction.commit().map_err(AdkStoreError::Query)?;
+        Ok(true)
     }
 
     /// Terminal-state CAS fenced to the current durable run lease.
@@ -5256,6 +5332,21 @@ impl AdkTestCutoverStore {
             expected_status,
             expected_updated_at,
             status,
+            payload_json,
+        )
+    }
+
+    pub fn cancel_run_and_deny_pending_approvals(
+        &self,
+        id: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        self.inner.cancel_run_and_deny_pending_approvals(
+            id,
+            expected_status,
+            expected_updated_at,
             payload_json,
         )
     }

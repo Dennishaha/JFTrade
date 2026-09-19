@@ -10283,39 +10283,39 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/store_ops_test.go:281:TestResolveSessionRejectsDifferentAgent": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::chat_rejects_a_session_owned_by_a_different_agent",
+    "conclusion": "function_exact：新增回归测试在生产 chat 入口断言显式 sessionId 属于其他 agent 时返回 400 ADK_CHAT_FAILED/\"session belongs to a different agent\"，且提供的 session 不存在时返回 \"session not found\"、存储归属不被改写。修复位置：crates/jftrade-engine/src/product_adk_model_runtime_events.rs 的 prepare_chat 增加 resolveSession 等价 guard（原实现无条件 upsert 会静默改绑 agent）。探针：禁用 guard 后测试转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:294:TestDeleteAgentSoftDeletesHistoricalRecord": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_delete_soft_deletes_the_historical_row",
+    "conclusion": "function_exact：新增回归测试断言删除 agent 后底层行仍可读取、status=DISABLED 且 deletedAt 非空，行未被物理删除。修复位置：jftrade-store-sqlite delete_agent 从 DELETE 改为软删除（保留行并写入 deletedAt/updatedAt）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:320:TestListAgentsExcludesSoftDeletedWhileListAllIncludesThem": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history",
+    "conclusion": "function_exact：新增回归测试断言软删 agent-older 从 GET /api/v1/adk/agents 消失、agent-newer 保留，同时底层 list_agents 仍返回两行且被删行保留 deletedAt/DISABLED，对应 Go ListAgents 与 ListAllAgents 的差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:363:TestSaveAgentRestoresDeletedAgentRecord": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_save_restores_a_soft_deleted_row",
+    "conclusion": "function_exact：新增回归测试断言重新保存同 id 后 deletedAt 被移除、agent 以新 name 重新出现在 active 列表。修复位置：product_production_ports_adk_mutation_entities.rs 合并 payload 前移除 deletedAt，等价 Go SaveAgent 重建整行。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:402:TestCancelPendingRunDeniesApprovals": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::cancelling_a_run_denies_its_pending_approvals",
+    "conclusion": "function_exact：新增回归测试断言取消 PENDING run 后 status=CANCELLED、cancelledAt 非空，且该 run 的 PENDING approval 行在同一事务被置为 DENIED，后续 approve 不再生效、run 保持 CANCELLED。修复位置：新增 store 方法 cancel_run_and_deny_pending_approvals（事务内 run CAS + deny pending approvals），取消路由改走该方法。探针：恢复旧 run-only 写入路径后测试转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:426:TestCancelRunMissingReturnsNotFound": {
     "status": "[~]",
@@ -10395,18 +10395,18 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/store_ops_test.go:939:TestPrepareAgentInjectsMemoryOnlyWhenEnabled": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::chat_injects_memory_into_the_instruction_only_when_enabled",
+    "conclusion": "function_exact：新增回归测试断言 agent memoryEnabled=false 时 instruction 不含 \"JFTrade memory\"，=true 时注入 workspace 记忆行且保留原 instruction。修复位置：product_adk_model_runtime_lifecycle.rs resolve_provider 增加 agent_memory_prompt（workspace+agent 行、4000 rune 截断），对应 Go Runtime.prepareAgent。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:961:TestToolsSearchReturnsOnlyCurrentAgentTools": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::agent_tool_scope_follows_the_go_access_mode_normalization",
+    "conclusion": "function_exact：新增回归测试断言 AgentToolScope 归一化与 Go ToolDescriptorsForAgent 一致：toolAccessMode=selected 只放行 allowlist、none 全部隐藏、all/空 tools 放行全部、research_backtest 或 optimize 隐含 backtest.kline_sync_status。修复位置：product_adk_model_runtime_lifecycle.rs agent_tool_scope + events 的两条 tool 列表构造路径，原先 Rust 无条件下发全部模型工具。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:998:TestWorkflowWriteToolsRequireApprovalExceptLowRiskTaskWrites": {
     "status": "[~]",

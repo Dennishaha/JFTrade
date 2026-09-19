@@ -19,6 +19,9 @@ use jftrade_store_sqlite::{AdkSessionStore, AdkStore, initialize_current};
 use super::{
     MAX_CONCURRENT_RUNS, ProductionAdkChatRuntime, RunCancellationRegistry, RunGate, chat_failed,
 };
+use crate::product::product_adk_chat_stream_port::{
+    AdkChatInput, AdkChatPortError, AdkChatRoute, AdkChatStreamPort,
+};
 
 fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStore>) {
     let directory = tempdir().expect("temporary directory");
@@ -394,5 +397,303 @@ fn first_tool_call_failure_matches_the_go_selection_rules() {
     assert_eq!(
         failure(json!({"toolCalls": [{"id": "c", "status": "failed"}]})),
         Some("tool execution failed".to_owned())
+    );
+}
+/// Go's `Runtime.resolveSession` refuses to reuse an explicit session id that
+/// belongs to another agent, and reports a provided-but-missing session id as
+/// "session not found".  Both failures surface as `400 ADK_CHAT_FAILED`.
+///
+/// Reference: go:452dea11:internal/assistant/engine/store_ops_test.go
+/// `TestResolveSessionRejectsDifferentAgent`.
+#[test]
+fn chat_rejects_a_session_owned_by_a_different_agent() {
+    let (directory, store, session_store) = initialized_stores();
+    let secrets_dir = directory.path().join("secrets");
+    std::fs::create_dir_all(&secrets_dir).expect("create secrets directory");
+    std::fs::write(
+        secrets_dir.join("adk-secrets.json"),
+        r#"{"provider-session":"sk-session"}"#,
+    )
+    .expect("write provider secrets");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, "{}").expect("write settings");
+
+    store
+        .upsert_provider(
+            "provider-session",
+            &json!({
+                "displayName": "Session fixture",
+                "baseUrl": "http://127.0.0.1:9/v1",
+                "model": "fixture-model",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    for agent_id in ["agent-a", "agent-b"] {
+        store
+            .upsert_agent(
+                agent_id,
+                &json!({
+                    "id": agent_id,
+                    "name": agent_id,
+                    "providerId": "provider-session",
+                    "status": "ENABLED",
+                })
+                .to_string(),
+            )
+            .expect("persist agent");
+    }
+    store
+        .upsert_session(
+            "session-owned-by-a",
+            "agent-a",
+            &json!({"id": "session-owned-by-a", "agentId": "agent-a", "title": "A"}).to_string(),
+        )
+        .expect("persist session for agent-a");
+
+    let runtime = ProductionAdkChatRuntime::new(
+        Arc::clone(&store),
+        session_store,
+        &settings_path,
+        Arc::new(RunCancellationRegistry::default()),
+        Arc::new(crate::product::product_production_ports::ProductionToolCatalog::empty_for_test()),
+    );
+
+    let request = |agent_id: &str, session_id: &str| AdkChatInput {
+        body: json!({
+            "agentId": agent_id,
+            "sessionId": session_id,
+            "message": "hello",
+        })
+        .to_string()
+        .into_bytes(),
+        client_request_id: format!("request-{agent_id}-{session_id}"),
+    };
+
+    // The owner may reuse the session; the mismatch fails before any model call.
+    let mismatched = runtime
+        .dispatch(
+            AdkChatRoute::Chat,
+            &request("agent-b", "session-owned-by-a"),
+        )
+        .expect_err("a session owned by another agent must be rejected");
+    match mismatched {
+        AdkChatPortError::Failed {
+            status,
+            ref code,
+            ref message,
+        } => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "ADK_CHAT_FAILED");
+            assert_eq!(message, "session belongs to a different agent");
+        }
+        other => panic!("expected 400 ADK_CHAT_FAILED, got {other:?}"),
+    }
+
+    // A provided session id that does not exist is "session not found" rather
+    // than being created on the fly.
+    let missing = runtime
+        .dispatch(AdkChatRoute::Chat, &request("agent-a", "session-missing"))
+        .expect_err("a provided missing session must be rejected");
+    match missing {
+        AdkChatPortError::Failed {
+            status,
+            code,
+            ref message,
+        } => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "ADK_CHAT_FAILED");
+            assert_eq!(message, "session not found");
+        }
+        other => panic!("expected 400 ADK_CHAT_FAILED, got {other:?}"),
+    }
+
+    // Neither rejection rewrote the stored session ownership.
+    assert_eq!(
+        store
+            .get_session_agent_id("session-owned-by-a")
+            .expect("read session owner"),
+        Some("agent-a".to_owned())
+    );
+}
+/// Go's `Runtime.prepareAgent` appends the durable `JFTrade memory:` block to
+/// the instruction only when the agent opted in (`memoryEnabled`), combining
+/// workspace rows with the agent's own rows and bounded to 4000 runes.
+///
+/// Reference: go:452dea11:internal/assistant/engine/store_ops_test.go
+/// `TestPrepareAgentInjectsMemoryOnlyWhenEnabled`.
+#[test]
+fn chat_injects_memory_into_the_instruction_only_when_enabled() {
+    let (directory, store, session_store) = initialized_stores();
+    let secrets_dir = directory.path().join("secrets");
+    std::fs::create_dir_all(&secrets_dir).expect("create secrets directory");
+    std::fs::write(
+        secrets_dir.join("adk-secrets.json"),
+        r#"{"provider-memory":"sk-memory"}"#,
+    )
+    .expect("write provider secrets");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, "{}").expect("write settings");
+
+    store
+        .upsert_provider(
+            "provider-memory",
+            &json!({
+                "displayName": "Memory fixture",
+                "baseUrl": "http://127.0.0.1:9/v1",
+                "model": "fixture-model",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    for (agent_id, memory_enabled, instruction) in [
+        ("agent-memory-off", false, "base"),
+        ("agent-memory-on", true, "base"),
+    ] {
+        store
+            .upsert_agent(
+                agent_id,
+                &json!({
+                    "id": agent_id,
+                    "name": agent_id,
+                    "providerId": "provider-memory",
+                    "status": "ENABLED",
+                    "instruction": instruction,
+                    "memoryEnabled": memory_enabled,
+                })
+                .to_string(),
+            )
+            .expect("persist agent");
+    }
+    store
+        .upsert_memory(
+            "memory-workspace",
+            "",
+            "workspace",
+            "preference",
+            &json!({
+                "id": "memory-workspace",
+                "scope": "workspace",
+                "agentId": "",
+                "key": "preference",
+                "value": "use HK market",
+            })
+            .to_string(),
+        )
+        .expect("persist workspace memory");
+
+    let runtime = ProductionAdkChatRuntime::new(
+        Arc::clone(&store),
+        session_store,
+        &settings_path,
+        Arc::new(RunCancellationRegistry::default()),
+        Arc::new(crate::product::product_production_ports::ProductionToolCatalog::empty_for_test()),
+    );
+
+    let resolve = |agent_id: &str| {
+        let mut request = serde_json::Map::new();
+        request.insert("agentId".to_owned(), json!(agent_id));
+        runtime
+            .resolve_provider(&request)
+            .unwrap_or_else(|error| panic!("resolve {agent_id}: {error:?}"))
+    };
+
+    let disabled = resolve("agent-memory-off");
+    let instruction = disabled.instruction.expect("instruction");
+    assert_eq!(
+        instruction, "base",
+        "disabled agents keep their instruction"
+    );
+    assert!(
+        !instruction.contains("JFTrade memory"),
+        "memory must not be injected when disabled: {instruction}"
+    );
+
+    let enabled = resolve("agent-memory-on");
+    let instruction = enabled.instruction.expect("instruction");
+    assert!(
+        instruction.contains("JFTrade memory:"),
+        "enabled agents must carry the memory header: {instruction}"
+    );
+    assert!(
+        instruction.contains("use HK market"),
+        "the workspace memory value must be injected: {instruction}"
+    );
+    assert!(
+        instruction.starts_with("base"),
+        "the original instruction must be preserved: {instruction}"
+    );
+}
+/// Go's `ToolDescriptorsForAgent` scopes the model-visible tool list by the
+/// resolved agent: an explicit `toolAccessMode` wins, otherwise a non-empty
+/// `tools` list is an allowlist and an empty list exposes every registered
+/// tool.  `strategy.research_backtest` / `strategy.optimize` also imply
+/// `backtest.kline_sync_status`.
+///
+/// Reference: go:452dea11:internal/assistant/engine/tools.go
+/// `TestToolsSearchReturnsOnlyCurrentAgentTools`.
+#[test]
+fn agent_tool_scope_follows_the_go_access_mode_normalization() {
+    let scope = ProductionAdkChatRuntime::agent_tool_scope;
+
+    let selected = scope(&json!({
+        "tools": ["research.instrument"],
+        "toolAccessMode": "selected",
+    }));
+    assert!(selected.exposes("research.instrument"));
+    assert!(
+        !selected.exposes("market.search"),
+        "a selected agent must not see tools outside its allowlist"
+    );
+    // `interaction.request_user` is granted separately by the run admission
+    // path and is not part of the agent allowlist.
+    assert!(!selected.exposes("interaction.request_user"));
+    // The implicit backtest companion only appears with its parent tools.
+    assert!(!selected.exposes("backtest.kline_sync_status"));
+
+    let none = scope(&json!({
+        "tools": ["research.instrument"],
+        "toolAccessMode": "none",
+    }));
+    assert!(
+        !none.exposes("research.instrument"),
+        "toolAccessMode=none hides even the explicit allowlist"
+    );
+
+    let all = scope(&json!({
+        "tools": [],
+    }));
+    assert!(
+        all.exposes("research.instrument") && all.exposes("market.search"),
+        "an empty tool list keeps the legacy unrestricted behavior"
+    );
+
+    let explicit_all = scope(&json!({
+        "tools": ["research.instrument"],
+        "toolAccessMode": "all",
+    }));
+    assert!(
+        explicit_all.exposes("market.search"),
+        "an explicit toolAccessMode=all ignores the stale allowlist"
+    );
+
+    let implicit_selected = scope(&json!({
+        "tools": ["strategy.research_backtest"],
+    }));
+    assert!(
+        implicit_selected.exposes("backtest.kline_sync_status"),
+        "research_backtest implies the kline sync companion, like Go"
+    );
+    assert!(!implicit_selected.exposes("strategy.optimize"));
+
+    let optimize = scope(&json!({
+        "tools": ["strategy.optimize"],
+        "toolAccessMode": "selected",
+    }));
+    assert!(
+        optimize.exposes("backtest.kline_sync_status"),
+        "strategy.optimize implies the kline sync companion too"
     );
 }

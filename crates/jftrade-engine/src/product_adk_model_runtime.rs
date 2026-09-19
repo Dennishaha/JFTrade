@@ -684,6 +684,33 @@ enum PreparedChat {
     New(ChatExecution, RunLeaseGuard, RunGateGuard),
 }
 
+/// Model-visible tool scope for one agent, mirroring Go's
+/// `ToolDescriptorsForAgent`: `all` exposes every callable tool, `none`
+/// exposes nothing, and `selected` exposes only the agent allowlist (plus the
+/// implicit `backtest.kline_sync_status` companion, exactly like Go).
+#[derive(Clone, Debug, Default)]
+enum AgentToolScope {
+    #[default]
+    All,
+    None,
+    Selected(std::collections::BTreeSet<String>),
+}
+
+impl AgentToolScope {
+    fn exposes(&self, name: &str) -> bool {
+        match self {
+            Self::All => true,
+            Self::None => false,
+            Self::Selected(tools) => {
+                tools.contains(name)
+                    || (name == "backtest.kline_sync_status"
+                        && (tools.contains("strategy.research_backtest")
+                            || tools.contains("strategy.optimize")))
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 struct ChatExecution {
     route: AdkChatRoute,

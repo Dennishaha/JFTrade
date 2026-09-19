@@ -106,6 +106,9 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
 struct ResolvedProvider {
     id: String,
     agent_id: String,
+    /// Resolved agent payload, so the request builder can scope the
+    /// model-visible tool list without re-reading the store.
+    agent_payload: Value,
     endpoint: Url,
     api_key: String,
     model: String,

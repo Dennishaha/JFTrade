@@ -286,13 +286,31 @@ impl ProductionAdkChatRuntime {
             .map(|key| key.trim().to_owned())
             .filter(|key| !key.is_empty())
             .ok_or_else(|| unavailable("agent provider API keys is not configured"))?;
-        let instruction = agent_payload
+        let mut instruction = agent_payload
             .get("instruction")
             .and_then(Value::as_str)
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .map(str::to_owned)
             .or_else(|| Some(DEFAULT_BUILTIN_AGENT_INSTRUCTION.to_owned()));
+        // Go's `Runtime.prepareAgent` appends the durable memory prompt only
+        // when the agent opted into memory (`memoryEnabled`), reading the
+        // workspace rows plus the agent's own rows.  The injected text is the
+        // exact `JFTrade memory:` block the reference implementation builds.
+        if let Some(instruction_value) = instruction.as_mut()
+            && agent_payload
+                .get("memoryEnabled")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        {
+            let memory_prompt = self.agent_memory_prompt(&agent_id)?;
+            if !memory_prompt.is_empty() {
+                *instruction_value = format!(
+                    "{}\n\nJFTrade memory:\n{memory_prompt}",
+                    instruction_value.trim()
+                );
+            }
+        }
         let timeout_ms = value
             .get("requestTimeoutMs")
             .and_then(Value::as_u64)
@@ -301,6 +319,7 @@ impl ProductionAdkChatRuntime {
         Ok(ResolvedProvider {
             id: selected.id.clone(),
             agent_id,
+            agent_payload: agent_payload.clone(),
             endpoint,
             api_key,
             model: value
@@ -318,6 +337,84 @@ impl ProductionAdkChatRuntime {
             instruction,
             timeout: Duration::from_millis(timeout_ms),
         })
+    }
+
+    /// Tool visibility scope for one resolved agent payload, following Go's
+    /// `ToolDescriptorsForAgent` normalization: an explicit `toolAccessMode`
+    /// wins, otherwise a non-empty `tools` list is an allowlist and an empty
+    /// list exposes every registered tool.
+    fn agent_tool_scope(payload: &Value) -> AgentToolScope {
+        let tools = payload
+            .get("tools")
+            .and_then(Value::as_array)
+            .map(|values| {
+                values
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_owned)
+                    .collect::<std::collections::BTreeSet<_>>()
+            })
+            .unwrap_or_default();
+        let mode = payload
+            .get("toolAccessMode")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_ascii_lowercase);
+        match mode.as_deref() {
+            Some("all") => AgentToolScope::All,
+            Some("none") => AgentToolScope::None,
+            Some("selected") => AgentToolScope::Selected(tools),
+            _ if tools.is_empty() => AgentToolScope::All,
+            _ => AgentToolScope::Selected(tools),
+        }
+    }
+
+    /// Go's `Runtime.agentMemoryPrompt`: workspace rows plus the agent's own
+    /// rows, ordered by the store (`updated_at DESC, id ASC`), rendered as
+    /// `- [scope] key: value` lines and bounded to 4000 runes.
+    fn agent_memory_prompt(&self, agent_id: &str) -> Result<String, AdkChatPortError> {
+        let rows = self.store.list_memories().map_err(storage_unavailable)?;
+        let mut entries = rows
+            .into_iter()
+            .filter(|row| {
+                let scope = row.scope.trim();
+                (scope.eq_ignore_ascii_case("workspace") || row.agent_id.trim() == agent_id)
+                    && !(scope.eq_ignore_ascii_case("agent") && row.agent_id.trim() != agent_id)
+            })
+            .collect::<Vec<_>>();
+        entries.sort_by(|left, right| {
+            right
+                .updated_at
+                .cmp(&left.updated_at)
+                .then_with(|| left.id.cmp(&right.id))
+        });
+        let mut lines = Vec::new();
+        let mut remaining = 4000_usize;
+        for entry in entries {
+            let value: Value = serde_json::from_str(&entry.payload_json).map_err(|error| {
+                AdkChatPortError::Failed {
+                    status: 500,
+                    code: "ADK_STORAGE_CORRUPT".to_owned(),
+                    message: format!("stored ADK memory payload is invalid JSON: {error}"),
+                }
+            })?;
+            let text = value
+                .get("value")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .trim();
+            let line = format!("- [{}] {}: {}", entry.scope.trim(), entry.memory_key, text);
+            let mut line = line.chars().take(remaining).collect::<String>();
+            remaining = remaining.saturating_sub(line.chars().count());
+            lines.push(std::mem::take(&mut line));
+            if remaining == 0 {
+                break;
+            }
+        }
+        Ok(lines.join("\n"))
     }
 
     fn resolve_agent(
