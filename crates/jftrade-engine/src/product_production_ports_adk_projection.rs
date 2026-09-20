@@ -349,8 +349,56 @@ pub(super) fn builtin_skills(tool_catalog: &ProductionToolCatalog) -> Vec<Value>
                 "enabled": true,
                 "builtin": true,
                 "validationStatus": "VALID",
-                "tools": tool_catalog.ids_for_categories(definition.categories),
+                "tools": curated_skill_tools(definition.id, tool_catalog)
+                    .unwrap_or_else(|| tool_catalog.ids_for_categories(definition.categories)),
             })
         })
         .collect()
+}
+
+/// Go's two strategy builtin skills publish a curated `allowed-tools` list
+/// (`pkg/strategy/pinespec.ResearchSkillAllowedTools` /
+/// `PublishSkillAllowedTools`) instead of every tool in their category. The
+/// split is a least-privilege contract: the research skill must not advertise
+/// the save/optimize tools and the publish skill must not advertise the
+/// research backtest entry point. Rust derives the remaining builtin skills
+/// from catalog categories, so the curated ids are intersected with the tools
+/// this product actually registers and the catalog keeps its ordering.
+fn curated_skill_tools(id: &str, tool_catalog: &ProductionToolCatalog) -> Option<Vec<String>> {
+    let curated: &[&str] = match id {
+        "jftrade-strategy-research" => &[
+            "strategy.pine_spec",
+            "strategy.validate_pine",
+            "strategy.definition_versions.list",
+            "strategy.definition_versions.get",
+            "strategy.research_backtest",
+            "backtest.runs",
+            "backtest.result_view",
+            "backtest.kline_sync_status",
+            "workflow.wait",
+            "market.snapshot",
+            "market.candles",
+            "market.providers",
+            "research.screen_catalog",
+            "strategy.instance_activity",
+        ],
+        "jftrade-strategy-publish" => &[
+            "strategy.validate_pine",
+            "strategy.definition_versions.list",
+            "strategy.definition_versions.get",
+            "strategy.optimize",
+            "backtest.runs",
+            "backtest.kline_sync_status",
+            "market.providers",
+            "strategy.instance_activity",
+        ],
+        _ => return None,
+    };
+    let registered = tool_catalog.ids();
+    Some(
+        registered
+            .into_iter()
+            .filter(|tool| curated.contains(&tool.as_str()))
+            .collect(),
+    )
 }

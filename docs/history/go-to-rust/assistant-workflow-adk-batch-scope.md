@@ -1891,3 +1891,43 @@ Go 的期望：`reply` = 整轮 assistant 文本合并（`先说明一下。优�
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1679 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / 2713 Rust / 871 `[x]`）。
 
 观测记录：本批首次全量 nextest 出现 1 条偶发失败 `adk_session_detail_omits_resolved_approval_groups`（单跑、engine lib 全量与第二次全量均通过），失败与本批改动无直接关联；如再次复现需按并发时序专项排查。
+
+## 第三十八批：`store_lifecycle_test.go` 全量结清（列表排序修复、run 生命周期 CAS 证据与内置 skill 工具分层）
+
+范围：`store_lifecycle_test.go` 余下 13 条逐条结清——6 条 `[x]`、7 条带明确结论的 `[~]`；同时修 3 处真实行为差异（approvals 排序键、optimization task 排序键、两个策略内置 skill 的工具分层），并更正第三十七批对 `:641` 的登记口径。`[x]` 871 → **877**，Rust 测试 2713 → **2725**（engine+store nextest 1679 → **1691**）。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/engine/ -run 'TestDeleteProviderFailsWhenReferencedByAgent|TestProvidersMaintainDefaultSelectionAndCreatedOrder|TestDeleteSessionRemovesApprovals|TestSaveRunDoesNotRegressTerminalLifecycle|TestSaveRunReopensCompletedRunForFreshPendingApproval|TestSaveRunAllowsPausedWorkflowLifecycleUpdates|TestSaveRunPreservesUserGoalPauseLifecycle|TestListSessionsPageFiltersQueryAndPaginates|TestSessionComposerStatePersistsAndDeletesWithSession|TestDeleteSessionMissingAndBlankAreNotFound|TestListApprovalsPageFiltersAndSortsNewestFirst|TestListOptimizationTasksSortsByUpdatedAtDesc|TestExecuteToolTagInvokesCanonicalToolWithParameters|TestRejectUnsafeHost|TestInternalSkillCannotBeUninstalled|TestExternalSkillUninstallRemovesInstallDir|TestPreparedAgentLoadsOnlyEnabledBoundSkillsAndTools|TestSkillRegistryReportsMetadataAndAllowedTools' -count=1`：18 条全通过（1.251s）。
+
+### 本批修复（3 处生产行为）
+
+1. **approvals 排序键**：`AdkStore::list_approvals` 由 `created_at DESC` 改为 `updated_at DESC, id ASC`，对齐 Go `StoreCore.ListApprovals`。此前“先创建、后被解决”的审批不会前移，`/api/v1/adk/approvals` 与 Go 队列顺序不一致。
+2. **optimization task 排序键**：`list_optimization_tasks` 由通用 `created_at DESC` 改为 `updated_at DESC, id ASC`（新增 `list_entities_ordered` 辅助，通用 `list_simple_entities` 顺序不变），对齐 Go `StoreCore.ListOptimizationTasks`。
+3. **内置策略 skill 工具分层**：新增 `curated_skill_tools`，`jftrade-strategy-research` / `jftrade-strategy-publish` 改用 Go `pkg/strategy/pinespec` 的 curated `allowed-tools` 清单（∩ 当前已注册工具，保持目录顺序）。修复前两个 skill 都按 `strategy+backtest` 类别派生，导致研究 skill 暴露 `strategy.optimize` 等写工具、发布 skill 暴露 `strategy.research_backtest`，与 Go 的最小权限契约相反。
+
+### 新增回归（12 条 Rust 测试）
+
+- `crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs`（5 条）：`run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot`（:146）、`completed_run_reopens_only_for_a_fresh_durable_approval`（:250）、`paused_workflow_run_keeps_accepting_progress_and_terminal_updates`（:281）、`user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume`（:328）、`session_delete_missing_is_idempotent_and_blank_ids_are_rejected`（:553）。
+- `crates/jftrade-engine/src/product_adk_store_parity_tests.rs`（7 条，作为 `product_production_ports_adk_tests` 的子模块 `store_parity`）：`adk_session_page_filters_by_agent_and_title_and_paginates`（:466）、`adk_approval_page_orders_by_latest_update_and_counts_filtered_rows`（:565）、`adk_optimization_task_page_orders_by_latest_update`（:609）、`adk_composer_state_truncates_trim_and_rejects_invalid_modes`（:501）、`adk_session_delete_missing_is_reported_with_the_session_error_code`（:553）、`adk_agent_write_requires_registered_skills_and_keeps_declared_tools`（:765）、`adk_builtin_strategy_skills_publish_the_curated_tool_split`（:792）。
+- `:110` 复用既有 `crates/jftrade-store-sqlite/tests/adk_cascade_session_cleanup.rs::test_adk_cascade_cleanup_removes_all_entities_across_three_databases`：三库 14 表计数归零（含 approvals/runs/tasks/events/composer）＋删除边界后的 stale 写入全部被 fence，是 Go 断言的超集，本批登记为 `[x]`。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `curated_skill_tools` 返回 `None`（回退类别派生）→ `adk_builtin_strategy_skills_publish_the_curated_tool_split` 转红：research tools 变为 `["strategy.definitions","strategy.validate_pine","strategy.research_backtest","strategy.optimize",...]`，缺 `workflow.wait`/`market.*` 且含写工具。
+2. `list_approvals` 回退 `created_at DESC` → `adk_approval_page_orders_by_latest_update_and_counts_filtered_rows` 转红：刷新较老审批后仍返回 `["approval-newer","approval-older"]`。
+3. `list_optimization_tasks` 回退 `created_at DESC` → `adk_optimization_task_page_orders_by_latest_update` 转红：更新较老任务后仍返回 `["opt-newer","opt-older"]`。
+
+### 结论登记（7 条 `[~]` 的边界与缺口）
+
+- **`:146`/`:250`/`:281`/`:328`（Go `SaveRun` 生命周期）**：Rust 没有全行 `SaveRun`，run 写入是 `status+revision` CAS（必要时再叠加 run lease）。四条测试固定了可达等价语义：stale RUNNING 快照无法回归终态、CANCELLED 接受 `finalMessageId` enrichment、COMPLETED+`workflowStatus=RUNNING` 中间态不可回退但接受终态纠正、COMPLETED 可在其 revision 上带新 pending approval 重开且重放被 fence、paused workflow 继续接受进度与终态更新、stale 写入无法清空 `pauseRequestedAt`/`resumeState` 而显式 resume 可以清空。**未对齐子项（P1 follow-up）**：Go 的 `SaveRun` SQL 谓词还禁止“已有终态→另一终态”并强制 `COMPLETED→PENDING` 必须带新 pending approval；Rust CAS 在持有当前 revision 时允许这些组合。实际 HTTP 路径不可达（`CancelRun` 对终态已 no-op，`PauseRun`/`ResumeRun` 只接受 RUNNING/PAUSED/TIMED_OUT），要逐字对齐需在 CAS 增加 Go 谓词与两条例外，并逐调用点验证。
+- **`:553`（删除会话空白/缺失）**：Go store 语义为 `""→os.ErrNotExist`、`missing→nil`；Rust `delete_session("")`（与保留 `user`）返回 `AdkStoreError::Validation`，缺失 id 返回 `Ok(false)`（幂等，等价 nil）。HTTP 契约一致：删除缺失会话 `404 ADK_SESSION_NOT_FOUND`（对齐 Go runtime 的 `session not found`），空白 id 在两侧都不是可路由请求。
+- **`:641`（登记口径更正）**：`<execute-tool>` **不是 Go 生产语法**——`crates`/Go 生产代码全量搜索均无该字符串，只有 `internal/assistant/engine/test_helpers_test.go:testProviderExecuteToolCalls` 在测试假 provider 里把标签翻译成 tool call。真正被该测试覆盖的生产能力是 `skillsruntime.NormalizeToolAlias`（`"jftrade portfolio summary" → portfolio.summary`）＋参数/审批/结果链路，而 Rust **没有 alias 归一化**，模型必须精确返回目录 id。复现条件：模型返回 `jftrade.portfolio.summary`、`@portfolio.summary` 或 `portfolio summary`。预期行为：按 Go 规则（小写、去 `@`/`jftrade.` 前缀、空白与 `-`/`:`/`/` 转 `.`、折叠 `..`、修剪首尾 `.`）归一后解析到唯一目录工具；修复位置为 tool call 名称解析/持久化入口；回归测试需覆盖别名命中、未知工具、parameters JSON 非法、需要审批的别名调用。
+- **`:792`（skill registry 资产层）**：本批已对齐 id/version/source/builtin/validationStatus 与两个策略 skill 的工具分层；**未对齐（P2 follow-up）**：Go 断言 `contentHash` 非空且 skills 目录下存在 `references/*.md`，Rust 不落盘内置 skill bundle（无 SKILL.md/资源/内容哈希）；Go 研究 skill 还允许 `backtest.cancel` 与 save/instantiate 系列工具，Rust 目录尚未注册这些工具（缺口归 strategy 领域）。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/engine/input_request_test.go`（15 条）→ `mcp_server_test.go`（13）→ `adk_edges_test.go`（12）→ `workflow_tools_test.go`（11）；随后按 backlog 进入 `internal/app/apiserver`（574）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`internal/assistant/assembly`（102）等。
+- 跨批 follow-up 汇总：P1 = Go `SaveRun` 终态谓词逐字对齐（`:146`/`:250` 引出的 CAS 缺口）、tool alias 归一化（`:641`）；P2 = 内置 skill bundle 落盘/内容哈希与缺失工具注册（`:792`）。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（**1691 passed**）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2725 Rust** / **877 `[x]`**，0 重复 `rust_entry`、0 非 `function_exact` 的 `[x]`）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`（先按 target-health 提示执行 `pnpm run clean:rust:artifacts`）。

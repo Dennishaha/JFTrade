@@ -3864,12 +3864,14 @@ impl AdkStore {
         Ok(result)
     }
 
+    /// Go `StoreCore.ListApprovals` orders approvals by `updated_at DESC, id ASC`
+    /// so resolving an older approval moves it to the front of the queue.
     pub fn list_approvals(&self) -> Result<Vec<StoredAdkApproval>, AdkStoreError> {
         let connection = self.lock_connection()?;
         let mut statement = connection
             .prepare(
                 "SELECT id, run_id, agent_id, status, payload_json, created_at, updated_at
-                 FROM adk_approvals ORDER BY created_at DESC",
+                 FROM adk_approvals ORDER BY updated_at DESC, id ASC",
             )
             .map_err(AdkStoreError::Query)?;
         let rows = statement
@@ -4025,8 +4027,11 @@ impl AdkStore {
         self.get_simple_entity("adk_optimization_tasks", id)
     }
 
+    /// Go `StoreCore.ListOptimizationTasks` orders tasks by
+    /// `updated_at DESC, id ASC`, so a task that just changed state leads the
+    /// queue even when it was created before its siblings.
     pub fn list_optimization_tasks(&self) -> Result<Vec<StoredAdkEntity>, AdkStoreError> {
-        self.list_simple_entities("adk_optimization_tasks")
+        self.list_entities_ordered("adk_optimization_tasks", "updated_at DESC, id ASC")
     }
 
     pub fn upsert_task(
@@ -4771,9 +4776,17 @@ impl AdkStore {
     }
 
     fn list_simple_entities(&self, table: &str) -> Result<Vec<StoredAdkEntity>, AdkStoreError> {
+        self.list_entities_ordered(table, "created_at DESC")
+    }
+
+    fn list_entities_ordered(
+        &self,
+        table: &str,
+        order_by: &str,
+    ) -> Result<Vec<StoredAdkEntity>, AdkStoreError> {
         let connection = self.lock_connection()?;
         let sql = format!(
-            "SELECT id, payload_json, created_at, updated_at FROM {table} ORDER BY created_at DESC"
+            "SELECT id, payload_json, created_at, updated_at FROM {table} ORDER BY {order_by}"
         );
         let mut statement = connection.prepare(&sql).map_err(AdkStoreError::Query)?;
         let rows = statement

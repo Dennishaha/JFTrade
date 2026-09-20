@@ -1,6 +1,9 @@
 use super::*;
 use crate::product::product_adk_mutation_port::AdkMutationPortError;
 
+#[path = "product_adk_store_parity_tests.rs"]
+mod store_parity;
+
 impl ProductionToolCatalog {
     /// Test-only catalog seeded with explicit descriptor rows, so policy
     /// regressions can use a confirmation-gated tool without depending on a
