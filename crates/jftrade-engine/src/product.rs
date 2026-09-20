@@ -193,10 +193,13 @@ pub(crate) mod product_mcp_server;
 pub(crate) mod product_portfolio_projection;
 #[path = "product_research_backtest_execution.rs"]
 pub(crate) mod product_research_backtest_execution;
+
 #[path = "product_research_backtest_projection.rs"]
 pub(crate) mod product_research_backtest_projection;
 #[path = "product_research_backtest_readiness.rs"]
 pub(crate) mod product_research_backtest_readiness;
+#[path = "product_strategy_optimize_execution.rs"]
+pub(crate) mod product_strategy_optimize_execution;
 #[path = "strategy_pine_mcp.rs"]
 mod strategy_pine_mcp;
 use product_adk_mutation_port::{

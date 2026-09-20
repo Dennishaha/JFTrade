@@ -27,6 +27,12 @@ pub(crate) struct ToolAccessPolicy {
 
 const APPROVAL_MODES: &[&str] = &["approval", "less_approval", "all"];
 
+/// `strategy.optimize` declares an explicit `RequiresApprovalIn` list holding
+/// only `approval`, so the low-risk catalog entry is gated in `approval` mode
+/// and released in `less_approval`/`all` — unlike `market.provider.select`,
+/// which the reference confirms in every mode.
+const OPTIMIZE_APPROVAL_MODES: &[&str] = &["approval"];
+
 const READ_ONLY_POLICY: ToolAccessPolicy = ToolAccessPolicy {
     permission: "read_internal",
     risk_level: "low",
@@ -62,6 +68,11 @@ pub(crate) fn tool_access_policy(id: &str) -> ToolAccessPolicy {
             permission: "optimize_strategy",
             risk_level: "low",
             requires_approval_in: None,
+        },
+        "strategy.optimize" => ToolAccessPolicy {
+            permission: "optimize_strategy",
+            risk_level: "low",
+            requires_approval_in: Some(OPTIMIZE_APPROVAL_MODES),
         },
         _ => READ_ONLY_POLICY,
     }
@@ -247,6 +258,13 @@ pub(crate) const PRODUCTION_TOOL_DEFINITIONS: &[ProductionToolDefinition] = &[
         id: "strategy.research_backtest",
         category: "strategy",
         display_name: "执行策略回测",
+        adapter: ProductionRouteAdapter::BacktestStart,
+        research_operation: None,
+    },
+    ProductionToolDefinition {
+        id: "strategy.optimize",
+        category: "strategy",
+        display_name: "策略优化",
         adapter: ProductionRouteAdapter::BacktestStart,
         research_operation: None,
     },

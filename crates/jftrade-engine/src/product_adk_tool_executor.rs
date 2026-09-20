@@ -120,6 +120,7 @@ impl AdkToolExecutor for ProductionAdkToolExecutor {
                 | "portfolio.overview"
                 | "portfolio.positions"
                 | "strategy.research_backtest"
+                | "strategy.optimize"
         ) {
             return self.ports.read().map(|g| g.is_some()).unwrap_or(false);
         }
@@ -262,6 +263,18 @@ impl AdkToolExecutor for ProductionAdkToolExecutor {
                     .as_ref()
                     .ok_or_else(|| format!("tool executor is unavailable for {name}"))?;
                 crate::product::product_research_backtest_projection::execute_research_backtest(
+                    ports, arguments,
+                )
+            }
+            "strategy.optimize" => {
+                let guard = self
+                    .ports
+                    .read()
+                    .map_err(|_| "tool executor lock poisoned".to_owned())?;
+                let ports = guard
+                    .as_ref()
+                    .ok_or_else(|| format!("tool executor is unavailable for {name}"))?;
+                crate::product::product_strategy_optimize_execution::execute_strategy_optimize(
                     ports, arguments,
                 )
             }

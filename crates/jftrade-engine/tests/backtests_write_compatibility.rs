@@ -8,9 +8,9 @@ use std::sync::{Arc, Mutex};
 
 use product_backtests_write_port::{
     BACKTEST_DELETE_PATH, BACKTEST_START_PATH, BACKTEST_SYNC_CANCEL_PATH, BACKTEST_SYNC_START_PATH,
-    BacktestsWriteDeleteResult, BacktestsWriteInput, BacktestsWritePort, BacktestsWritePortError,
-    BacktestsWritePortResult, BacktestsWriteRequest, backtests_write_routes,
-    dispatch_backtests_write,
+    BacktestsWriteDeleteResult, BacktestsWriteInput, BacktestsWriteOperation, BacktestsWritePort,
+    BacktestsWritePortError, BacktestsWritePortResult, BacktestsWriteRequest,
+    backtests_write_routes, dispatch_backtests_write,
 };
 use product_backtests_write_test_cutover::BacktestsSqliteTestCutoverPort;
 use serde::Deserialize;
@@ -385,6 +385,18 @@ fn sqlite_test_cutover_preserves_rollback_duplicate_fencing_and_restart() {
     );
     assert_eq!(port.event_count("delete").expect("delete events"), 1);
 
+    // `strategy.optimize` rolls its already enqueued candidates back through
+    // the same port.  No public route maps to this operation, so the fixture
+    // only has to prove the operation stays distinguishable.
+    let rollback = BacktestsWriteInput::Cancel {
+        run_id: "active-run".to_owned(),
+    };
+    assert_eq!(rollback.operation(), BacktestsWriteOperation::Cancel);
+    assert!(matches!(
+        port.mutate(&rollback).expect("candidate rollback"),
+        BacktestsWritePortResult::Data(_)
+    ));
+
     drop(port);
     let reopened = BacktestsSqliteTestCutoverPort::open(&database_path).expect("reopen adapter");
     assert_eq!(
@@ -482,6 +494,9 @@ fn input_json(input: &BacktestsWriteInput) -> Value {
         }
         BacktestsWriteInput::CancelSync { task_id } => {
             json!({"operation":"cancel-sync", "taskId": task_id})
+        }
+        BacktestsWriteInput::Cancel { run_id } => {
+            json!({"operation":"cancel", "runId": run_id})
         }
         BacktestsWriteInput::Delete { run_id } => {
             json!({"operation":"delete", "runId": run_id})

@@ -35,6 +35,36 @@ fn product_schema_for(name: &str) -> Option<Value> {
             ]),
             &["url"],
         )),
+        // Go `skillsruntime.DefaultToolInputSchema("strategy.optimize")`: the
+        // candidate list is required on the wire even though the handler also
+        // accepts a single `definitionId` fallback.
+        "strategy.optimize" => Some(strict_object(
+            object([
+                (
+                    "definitionIds",
+                    json!({
+                        "type": "array",
+                        "items": string_schema(1, 120),
+                        "minItems": 1,
+                        "maxItems": 12,
+                    }),
+                ),
+                ("definitionId", string_schema(1, 120)),
+                ("market", string_schema(1, 16)),
+                ("symbol", string_schema(1, 80)),
+                ("startTime", string_schema(1, 40)),
+                ("endTime", string_schema(1, 40)),
+                ("interval", string_schema(1, 16)),
+                ("objective", string_schema(1, 120)),
+                ("marketDataProvider", string_schema(1, 40)),
+                ("chartType", string_schema(1, 40)),
+                ("instrumentType", string_schema(1, 40)),
+                ("useExtendedHours", json!({"type": "boolean"})),
+                ("tradingCosts", json!({"type": "object"})),
+                ("executionModel", json!({"type": "object"})),
+            ]),
+            &["definitionIds", "market", "symbol", "startTime", "endTime"],
+        )),
         "research.screen" => Some(research_screen_schema()),
         "prediction.discover" => Some(prediction_discovery_schema()),
         "prediction.combo_quote" => Some(prediction_quote_schema()),

@@ -7864,3 +7864,278 @@ fn builtin_skill_catalog_stays_registered_alongside_external_installs() {
         }
     }
 }
+
+use std::sync::Mutex as OptimizeWriterMutex;
+
+/// Fixture backtest writer that records every mutation, so the candidate
+/// enqueue order and the rollback calls of `strategy.optimize` are visible.
+#[derive(Debug)]
+struct OptimizeBacktestsWriter {
+    calls: OptimizeWriterMutex<Vec<crate::product::product_backtests_write_port::BacktestsWriteInput>>,
+    fail_definition: Option<&'static str>,
+}
+
+impl OptimizeBacktestsWriter {
+    fn new(fail_definition: Option<&'static str>) -> Self {
+        Self {
+            calls: OptimizeWriterMutex::new(Vec::new()),
+            fail_definition,
+        }
+    }
+
+    fn calls(&self) -> Vec<crate::product::product_backtests_write_port::BacktestsWriteInput> {
+        self.calls.lock().expect("optimize writer lock").clone()
+    }
+
+    fn started_definitions(&self) -> Vec<String> {
+        self.calls()
+            .iter()
+            .filter_map(|call| match call {
+                crate::product::product_backtests_write_port::BacktestsWriteInput::Start {
+                    payload,
+                } => payload
+                    .get("definitionId")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn cancelled_runs(&self) -> Vec<String> {
+        self.calls()
+            .iter()
+            .filter_map(|call| match call {
+                crate::product::product_backtests_write_port::BacktestsWriteInput::Cancel {
+                    run_id,
+                } => Some(run_id.clone()),
+                _ => None,
+            })
+            .collect()
+    }
+}
+
+impl crate::product::product_backtests_write_port::BacktestsWritePort
+    for OptimizeBacktestsWriter
+{
+    fn mutate(
+        &self,
+        input: &crate::product::product_backtests_write_port::BacktestsWriteInput,
+    ) -> Result<
+        crate::product::product_backtests_write_port::BacktestsWritePortResult,
+        crate::product::product_backtests_write_port::BacktestsWritePortError,
+    > {
+        use crate::product::product_backtests_write_port::{
+            BacktestsWriteInput, BacktestsWritePortError, BacktestsWritePortResult,
+        };
+        self.calls
+            .lock()
+            .expect("optimize writer lock")
+            .push(input.clone());
+        match input {
+            BacktestsWriteInput::Start { payload } => {
+                let definition_id = payload
+                    .get("definitionId")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned();
+                if self.fail_definition == Some(definition_id.as_str()) {
+                    return Err(BacktestsWritePortError::Failed("queue down".to_owned()));
+                }
+                Ok(BacktestsWritePortResult::Data(json!({
+                    "id": format!("run-{definition_id}"),
+                    "status": "queued",
+                })))
+            }
+            BacktestsWriteInput::Cancel { run_id } => {
+                Ok(BacktestsWritePortResult::Data(json!({
+                    "id": run_id,
+                    "cancelled": true,
+                })))
+            }
+            other => Err(BacktestsWritePortError::Failed(format!(
+                "unexpected backtest mutation {other:?}"
+            ))),
+        }
+    }
+}
+
+fn optimize_bundle(
+    writer: Arc<OptimizeBacktestsWriter>,
+) -> (
+    Arc<crate::product::product_production_ports::ProductionPortBundle>,
+    crate::product::product_adk_model_runtime::ProductionAdkToolExecutor,
+    tempfile::TempDir,
+) {
+    let (ports, executor, directory) = setup_test_bundle_and_executor();
+    let mut bundle = (*ports).clone();
+    bundle.backtests_write = writer;
+    let bundle = Arc::new(bundle);
+    executor.attach_ports(Arc::clone(&bundle));
+    (bundle, executor, directory)
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/adk_strategy_test.go:636
+/// `TestADKStrategyOptimizePersistsTasksAndCancelsQueuedRunsOnFailure`.
+///
+/// The success half: one real backtest run per candidate definition, and one
+/// persisted `OptimizationTask` row referencing them.
+#[test]
+fn strategy_optimize_enqueues_every_candidate_and_persists_the_task() {
+    use crate::product::product_adk_model_runtime::AdkToolExecutor as _;
+    let writer = Arc::new(OptimizeBacktestsWriter::new(None));
+    let (bundle, executor, _directory) = optimize_bundle(Arc::clone(&writer));
+    assert!(
+        executor.supports("strategy.optimize"),
+        "the production executor must own the optimize adapter"
+    );
+
+    let output = executor
+        .execute(
+            "strategy.optimize",
+            &json!({
+                "definitionIds": ["def-a", "def-b"],
+                "market": "US",
+                "symbol": "US.AAPL",
+                "objective": "sharpe",
+            }),
+        )
+        .expect("optimization output");
+
+    assert_eq!(output["status"], "queued");
+    assert_eq!(output["objective"], "sharpe");
+    let task_id = output["taskId"].as_str().expect("task id");
+    assert!(
+        task_id.starts_with("opt-"),
+        "the reference prefixes optimization task ids: {task_id}"
+    );
+    let runs = output["runs"].as_array().expect("candidate runs");
+    assert_eq!(runs.len(), 2);
+    assert_eq!(runs[0]["definitionId"], "def-a");
+    assert_eq!(runs[0]["runId"], "run-def-a");
+    assert_eq!(runs[0]["status"], "queued");
+    assert_eq!(runs[1]["definitionId"], "def-b");
+    assert_eq!(runs[1]["runId"], "run-def-b");
+    assert_eq!(writer.started_definitions(), vec!["def-a", "def-b"]);
+    assert!(
+        writer.cancelled_runs().is_empty(),
+        "a successful optimization rolls nothing back"
+    );
+    // Candidate payloads carry the single definition the run belongs to and
+    // drop the tool-level selectors.
+    let start_payloads = writer
+        .calls()
+        .into_iter()
+        .filter_map(|call| match call {
+            crate::product::product_backtests_write_port::BacktestsWriteInput::Start {
+                payload,
+            } => Some(payload),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert!(start_payloads[0].get("definitionIds").is_none());
+    assert!(start_payloads[0].get("objective").is_none());
+    assert_eq!(start_payloads[0]["market"], "US");
+
+    let tasks = bundle
+        .mcp_store
+        .list_optimization_tasks()
+        .expect("list optimization tasks");
+    assert_eq!(tasks.len(), 1, "the tool persists exactly one task");
+    let stored: Value =
+        serde_json::from_str(&tasks[0].payload_json).expect("decode optimization task");
+    assert_eq!(stored["id"], task_id);
+    assert_eq!(stored["status"], "queued");
+    assert_eq!(stored["objective"], "sharpe");
+    assert_eq!(stored["runs"].as_array().map(Vec::len), Some(2));
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/adk_strategy_test.go:636
+/// (failure half) and `:587` (single `definitionId` fallback plus the
+/// candidate limit).
+#[test]
+fn strategy_optimize_rolls_back_candidates_and_validates_the_request() {
+    use crate::product::product_adk_model_runtime::AdkToolExecutor as _;
+    let failing = Arc::new(OptimizeBacktestsWriter::new(Some("def-b")));
+    let (bundle, executor, _directory) = optimize_bundle(Arc::clone(&failing));
+    let error = executor
+        .execute(
+            "strategy.optimize",
+            &json!({"definitionIds": ["def-a", "def-b"], "market": "US", "symbol": "US.AAPL"}),
+        )
+        .expect_err("a failed candidate must fail the call");
+    assert!(
+        error.contains("queue candidate") && error.contains("def-b"),
+        "the wrapped queue failure must name the candidate: {error}"
+    );
+    assert_eq!(
+        failing.cancelled_runs(),
+        vec!["run-def-a"],
+        "the candidate enqueued before the failure is rolled back"
+    );
+    assert!(
+        bundle
+            .mcp_store
+            .list_optimization_tasks()
+            .expect("list optimization tasks")
+            .is_empty(),
+        "a failed optimization must not persist a task row"
+    );
+
+    let writer = Arc::new(OptimizeBacktestsWriter::new(None));
+    let (_bundle, executor, _directory) = optimize_bundle(Arc::clone(&writer));
+    let missing = executor
+        .execute("strategy.optimize", &json!({"market": "US"}))
+        .expect_err("candidates are required");
+    assert_eq!(missing, "definitionIds is required");
+    let single = executor
+        .execute(
+            "strategy.optimize",
+            &json!({"definitionId": "def-solo", "market": "US", "symbol": "US.AAPL"}),
+        )
+        .expect("single-definition fallback");
+    assert_eq!(single["status"], "queued");
+    assert_eq!(writer.started_definitions(), vec!["def-solo"]);
+
+    let oversized = (1..=13)
+        .map(|index| format!("def-{index}"))
+        .collect::<Vec<_>>();
+    let error = executor
+        .execute("strategy.optimize", &json!({"definitionIds": oversized}))
+        .expect_err("the candidate limit is enforced");
+    assert_eq!(
+        error,
+        "at most 12 optimization candidates are allowed",
+        "the reference caps one optimization call"
+    );
+    assert_eq!(
+        writer.started_definitions(),
+        vec!["def-solo"],
+        "a rejected call must not enqueue anything"
+    );
+}
+
+/// The reference gates `strategy.optimize` in `approval` mode and releases it
+/// in `less_approval`/`all` (`RequiresApprovalIn=[approval]`).
+#[test]
+fn strategy_optimize_is_gated_in_approval_mode_only() {
+    use crate::product::product_production_ports::product_production_ports_adk::tool_access_policy;
+
+    let policy = tool_access_policy("strategy.optimize");
+    assert_eq!(policy.permission, "optimize_strategy");
+    assert_eq!(policy.risk_level, "low");
+    assert_eq!(policy.requires_approval_in, Some(&["approval"][..]));
+
+    let (ports, _executor, _directory) = setup_test_bundle_and_executor();
+    let catalog = Arc::clone(&ports.mcp_catalog);
+    assert!(
+        catalog.requires_approval("strategy.optimize", "approval"),
+        "approval mode must park the optimizer"
+    );
+    for mode in ["less_approval", "all"] {
+        assert!(
+            !catalog.requires_approval("strategy.optimize", mode),
+            "{mode} must release the optimizer"
+        );
+    }
+}

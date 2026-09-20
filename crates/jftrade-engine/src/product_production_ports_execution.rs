@@ -535,6 +535,16 @@ impl BacktestsWritePort for ProductionBacktestPort {
             BacktestsWriteInput::Start { payload } => self.start_backtest(payload),
             BacktestsWriteInput::Sync { payload } => self.start_sync_task(payload),
             BacktestsWriteInput::CancelSync { task_id } => self.cancel_sync_task(task_id),
+            BacktestsWriteInput::Cancel { run_id } => {
+                // Candidate rollback only cancels a run that has not reached a
+                // terminal status.  A run that already finished stays as it
+                // is, which is the "nothing left to roll back" case the
+                // multi-candidate tools document.
+                Ok(BacktestsWritePortResult::Data(json!({
+                    "id": run_id,
+                    "cancelled": self.cancel_backtest(run_id),
+                })))
+            }
             BacktestsWriteInput::Delete { run_id } => match self.store.delete_run(run_id) {
                 Ok(true) => Ok(BacktestsWritePortResult::RunDeleted(
                     BacktestsWriteDeleteResult::Deleted,

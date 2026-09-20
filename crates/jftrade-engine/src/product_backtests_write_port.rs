@@ -28,15 +28,33 @@ pub enum BacktestsWriteOperation {
     Start,
     Sync,
     CancelSync,
+    /// Candidate rollback for tools that enqueue several runs in one call
+    /// (`strategy.optimize`).  No public route maps to it: the reference
+    /// cancels queued candidates through its backtest service, not through an
+    /// HTTP endpoint.
+    Cancel,
     Delete,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BacktestsWriteInput {
-    Start { payload: Value },
-    Sync { payload: Value },
-    CancelSync { task_id: String },
-    Delete { run_id: String },
+    Start {
+        payload: Value,
+    },
+    Sync {
+        payload: Value,
+    },
+    CancelSync {
+        task_id: String,
+    },
+    /// Cancel one queued or running backtest run, used by multi-candidate
+    /// tools that must roll back the candidates they already enqueued.
+    Cancel {
+        run_id: String,
+    },
+    Delete {
+        run_id: String,
+    },
 }
 
 impl BacktestsWriteInput {
@@ -45,6 +63,7 @@ impl BacktestsWriteInput {
             Self::Start { .. } => BacktestsWriteOperation::Start,
             Self::Sync { .. } => BacktestsWriteOperation::Sync,
             Self::CancelSync { .. } => BacktestsWriteOperation::CancelSync,
+            Self::Cancel { .. } => BacktestsWriteOperation::Cancel,
             Self::Delete { .. } => BacktestsWriteOperation::Delete,
         }
     }
@@ -323,6 +342,11 @@ fn port_error(operation: BacktestsWriteOperation, error: BacktestsWritePortError
                 status: 503,
                 code: "BACKTESTS_WRITE_UNAVAILABLE".to_owned(),
                 message,
+            },
+            BacktestsWriteOperation::Cancel => ErrorSpec {
+                status: 500,
+                code: "BACKTEST_CANCEL_FAILED".to_owned(),
+                message: "cancel backtest run failed".to_owned(),
             },
             BacktestsWriteOperation::Delete => ErrorSpec {
                 status: 500,

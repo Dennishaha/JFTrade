@@ -30,6 +30,10 @@ impl BacktestsWritePort for FixtureBacktestsWritePort {
                 "status": "running",
             })),
             BacktestsWriteInput::CancelSync { .. } => BacktestsWritePortResult::SyncCancelled(true),
+            BacktestsWriteInput::Cancel { run_id } => BacktestsWritePortResult::Data(json!({
+                "id": run_id,
+                "cancelled": true,
+            })),
             BacktestsWriteInput::Delete { .. } => {
                 BacktestsWritePortResult::RunDeleted(BacktestsWriteDeleteResult::Deleted)
             }

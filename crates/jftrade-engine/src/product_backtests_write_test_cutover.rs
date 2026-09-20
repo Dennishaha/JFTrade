@@ -229,6 +229,17 @@ impl BacktestsWritePort for BacktestsSqliteTestCutoverPort {
                 }
                 Ok(BacktestsWritePortResult::SyncCancelled(cancelled))
             }
+            BacktestsWriteInput::Cancel { run_id } => {
+                // No public route maps to this operation: the multi-candidate
+                // tool calls the port directly, so the fixture records the
+                // rollback request for route-contract assertions.
+                let mut state = self.state.lock().map_err(|_| failed("lock poisoned"))?;
+                state.events.push(("cancel".to_owned(), run_id.clone()));
+                Ok(BacktestsWritePortResult::Data(serde_json::json!({
+                    "id": run_id,
+                    "cancelled": true,
+                })))
+            }
             BacktestsWriteInput::Delete { run_id } => {
                 let run = self
                     .store

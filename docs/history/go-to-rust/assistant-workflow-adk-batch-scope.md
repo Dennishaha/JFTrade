@@ -1636,3 +1636,34 @@ Go 的期望：`reply` = 整轮 assistant 文本合并（`先说明一下。优�
 验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib --locked`（1202 passed）、`pnpm run check:zero-go`、`check:compatibility`、`check:rust:architecture`、`git diff --check`、`pnpm run check:quick`；审计 4451 keys、833 function_exact、0 重复 `rust_entry`、0 非 function_exact 的 `[x]`、0 U+FFFD。
 
 随后按 `store_test.go`（20）→ `session_context_test.go`（19）推进；`internal/app/apiserver`（574 待办）与 `pkg/backtest`（237 待办）保持为后续大领域批次。
+
+## 第三十一批：补齐生产 catalog 缺失的 `strategy.optimize`（assembly 领域 1 条 [x] + 3 条 partial 收窄）
+
+范围：关闭第三十批登记的真实功能缺口 —— 生产 catalog 完全没有 `strategy.optimize`，模型无法调用它。`[x]` 由 833 → **834**，Rust 测试 2661 → **2671**。
+
+### 冻结证据（Go）
+
+`internal/assistant/assembly/tool_catalog.go:574` 的 `registerADKStrategyOptimizationTools`：`DisplayName=策略优化`、`Category=strategy`、`Permission=optimize_strategy`、低风险、`RequiresApprovalIn=[approval]`、`RequiredSkills=[publish builtin]`；处理器按 `definitionIds`（或单个 `definitionId`）为每个候选起真实异步回测，失败时回滚已入队候选，成功落 `OptimizationTask{ID:"opt-<UTC>",Status:"queued",Objective,Runs:[{DefinitionID,RunID}]}`，返回 `{taskId,status,objective,runs,message}`。`internal/assistant/engine/sqlite_tools_test.go:261` 给出该工具 schema 的 required 集合 `definitionIds/market/symbol/startTime/endTime`。
+
+### 实现
+
+- `PRODUCTION_TOOL_DEFINITIONS` 新增 `strategy.optimize`（adapter 复用 `BacktestStart` 的就绪判定）；`tool_access_policy` 新增 `OPTIMIZE_APPROVAL_MODES = ["approval"]` 的显式审批列表（不能沿用 `APPROVAL_MODES`，Go 只列 approval）。
+- `MODEL_EXPOSED_TOOLS` 暴露该工具；`ProductionAdkToolExecutor.supports/execute` 绑定新模块 `product_strategy_optimize_execution.rs`（≤250 行）。
+- 新模块：候选解析（列表优先、单 `definitionId` 兜底、trim 去空）、12 上限、逐候选 `BacktestsWriteInput::Start`（payload 去掉 `definitionIds/objective`、写入单个 `definitionId`、规范化 `marketDataProvider`）、失败回滚、`OptimizationTask` 落库（复用既有 `adk_optimization_tasks` 与读/取消路由）、Go 形状的 `opt-YYYYMMDDTHHMMSS.nnnnnnnnn` 任务 id。
+- `BacktestsWriteInput` 新增 `Cancel { run_id }`（无公开路由，供多候选工具回滚；生产实现复用此前 dead-code 的 `cancel_backtest`），并同步 test-cutover/两个夹具端口。
+- `product_mcp_schema_catalog_dispatch.rs` 新增 `strategy.optimize` 的 strict schema（required 与 Go 一致，`definitionIds.maxItems=12`）。
+
+### 回归与探针
+
+- `strategy_optimize_enqueues_every_candidate_and_persists_the_task`、`strategy_optimize_rolls_back_candidates_and_validates_the_request`、`strategy_optimize_is_gated_in_approval_mode_only`（assembly 领域）、`candidate_*`/`optimization_task_ids_use_go_timestamp_shape`/`the_tool_schema_requires_the_candidate_list_and_execution_window`（引擎）、runtime 侧 `a_released_optimizer_call_reaches_the_production_executor`（模型可见 + 释放执行）与 `the_optimizer_is_gated_in_approval_mode`（approval 停泊、执行器不被调用）。
+- 探针：①把 `requires_approval_in` 改回 `None` → 策略回归失败；②从 `MODEL_EXPOSED_TOOLS` 删除该工具 → 模型可见性回归失败；③删掉失败分支的 `cancel_candidates` → 回滚回归失败。三者回滚后全部通过。
+
+### 收窄为 partial 的三行（写明剩余差异）
+
+1. `adk_runtime_contracts_test.go:113`：注册与 queued run 引用已覆盖；Go 的 `EnsureBacktestData` 预检（未 ready 返回 readiness 负载且不入队）在 Rust 无等价依赖，数据缺失由写端 fail-closed，待评估是否需要工具层预检。
+2. `adk_strategy_test.go:699`：请求侧 `marketDataProvider` 规范化已实现；默认 provider 由写端按候选解析（Go 在循环前冻结一次），并发改写默认值时理论上可能分裂，登记为待评估项。
+3. `sqlite_tools_test.go:194`：`strategy.optimize` schema 已对齐；该 Go 测试覆盖的其余 18 个工具 schema 仍按各自领域批次核对。
+
+验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine --all-targets --locked`、`pnpm run check:zero-go`、`check:compatibility`、`check:rust:architecture`、`git diff --check`、`pnpm run check:quick`；审计 4451 keys、834 function_exact、0 重复 `rust_entry`、0 非 function_exact 的 `[x]`。
+
+随后按 `store_test.go`（20）→ `session_context_test.go`（19）推进；`internal/app/apiserver`（574 待办）与 `pkg/backtest`（237 待办）保持为后续大领域批次。

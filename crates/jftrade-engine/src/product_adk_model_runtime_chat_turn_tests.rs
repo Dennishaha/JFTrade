@@ -414,6 +414,152 @@ fn a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool() {
     );
 }
 
+/// Go registers `strategy.optimize` with `RequiresApprovalIn=[approval]`, so
+/// `less_approval` releases it to the model and to the executor.
+#[test]
+fn a_released_optimizer_call_reaches_the_production_executor() {
+    let (directory, store, session_store) = initialized_stores();
+    let (endpoint, provider) = spawn_scripted_model_provider(vec![
+        scripted_tool_call(
+            "call-optimize",
+            "strategy.optimize",
+            json!({"definitionIds": ["def-a", "def-b"], "market": "US", "symbol": "US.AAPL"}),
+        ),
+        scripted_text("已完成 ADK 分析：strategy.optimize"),
+    ]);
+    store
+        .upsert_provider(
+            "provider-optimize",
+            &json!({
+                "id": "provider-optimize",
+                "displayName": "Optimize Provider",
+                "baseUrl": endpoint,
+                "model": "fixture-model",
+                "apiKey": "sk-fixture",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    store
+        .upsert_agent(
+            "agent-optimize",
+            &json!({
+                "id": "agent-optimize",
+                "name": "Optimize Agent",
+                "providerId": "provider-optimize",
+                "permissionMode": "less_approval",
+                "status": "ENABLED",
+                "tools": ["strategy.optimize"],
+            })
+            .to_string(),
+        )
+        .expect("persist agent");
+    let executor = Arc::new(RecordingToolExecutor::new(vec!["strategy.optimize"]));
+    let runtime =
+        runtime_with_production_catalog(&directory, &store, &session_store, Arc::clone(&executor));
+
+    let output = runtime
+        .dispatch(
+            AdkChatRoute::Chat,
+            &chat_input(
+                "11111111-1111-4111-8111-111111111104",
+                json!({
+                    "agentId": "agent-optimize",
+                    "message": "@strategy.optimize 优化两个候选策略",
+                }),
+            ),
+        )
+        .expect("chat with the optimizer");
+    let requests = provider.join().expect("scripted provider thread");
+    assert!(
+        requests[0]["tools"]
+            .as_array()
+            .is_some_and(|tools| tools.iter().any(|tool| tool["name"] == "strategy.optimize")),
+        "the released optimizer must be exposed to the model: {}",
+        requests[0]["tools"]
+    );
+    assert_eq!(executor.executed(), vec!["strategy.optimize".to_owned()]);
+    let AdkChatPortOutput::Json(response) = output else {
+        panic!("chat must answer with the projected JSON envelope");
+    };
+    assert_eq!(response["run"]["status"], "COMPLETED");
+    assert_eq!(response["run"]["toolCalls"][0]["status"], "SUCCEEDED");
+    assert_eq!(response["run"]["toolCalls"][0]["name"], "strategy.optimize");
+}
+
+/// The same call in `approval` mode parks the run instead of executing it.
+#[test]
+fn the_optimizer_is_gated_in_approval_mode() {
+    let (directory, store, session_store) = initialized_stores();
+    let (endpoint, provider) = spawn_scripted_model_provider(vec![scripted_tool_call(
+        "call-optimize",
+        "strategy.optimize",
+        json!({"definitionIds": ["def-a"], "market": "US", "symbol": "US.AAPL"}),
+    )]);
+    store
+        .upsert_provider(
+            "provider-optimize-gated",
+            &json!({
+                "id": "provider-optimize-gated",
+                "displayName": "Gated Optimize Provider",
+                "baseUrl": endpoint,
+                "model": "fixture-model",
+                "apiKey": "sk-fixture",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    store
+        .upsert_agent(
+            "agent-optimize-gated",
+            &json!({
+                "id": "agent-optimize-gated",
+                "name": "Gated Optimize Agent",
+                "providerId": "provider-optimize-gated",
+                "permissionMode": "approval",
+                "status": "ENABLED",
+                "tools": ["strategy.optimize"],
+            })
+            .to_string(),
+        )
+        .expect("persist agent");
+    let executor = Arc::new(RecordingToolExecutor::new(vec!["strategy.optimize"]));
+    let runtime =
+        runtime_with_production_catalog(&directory, &store, &session_store, Arc::clone(&executor));
+
+    let output = runtime
+        .dispatch(
+            AdkChatRoute::Chat,
+            &chat_input(
+                "11111111-1111-4111-8111-111111111106",
+                json!({
+                    "agentId": "agent-optimize-gated",
+                    "message": "@strategy.optimize 优化一个候选策略",
+                }),
+            ),
+        )
+        .expect("chat parked on the optimizer approval");
+    provider.join().expect("scripted provider thread");
+    assert!(
+        executor.executed().is_empty(),
+        "an approval-gated optimizer must not enqueue candidates before the operator answers"
+    );
+    let AdkChatPortOutput::Json(response) = output else {
+        panic!("chat must answer with the projected JSON envelope");
+    };
+    assert_eq!(response["run"]["status"], "PENDING");
+    assert_eq!(
+        response["run"]["toolCalls"][0]["status"],
+        "PENDING_APPROVAL"
+    );
+    assert_eq!(
+        response["pendingApprovals"][0]["toolName"],
+        "strategy.optimize"
+    );
+}
+
 /// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:737
 /// `TestRunnerChatProjectionPersistenceAndAssistantBoundaries`.
 ///

@@ -71,6 +71,7 @@ pub(crate) const MODEL_EXPOSED_TOOLS: &[&str] = &[
     "strategy.validate_pine",
     "strategy.pine_spec",
     "strategy.research_backtest",
+    "strategy.optimize",
     "backtest.runs",
     "backtest.kline_sync_status",
     "backtest.result_view",
