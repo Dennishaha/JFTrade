@@ -763,3 +763,418 @@ fn snapshot_and_provider_test_boundaries_fail_closed() {
         "a snapshot without the agent table must fail closed"
     );
 }
+
+fn workflow_ids(snapshot: &Value) -> Vec<String> {
+    snapshot["workflows"]
+        .as_array()
+        .expect("workflows array")
+        .iter()
+        .filter_map(|workflow| workflow["id"].as_str().map(str::to_owned))
+        .collect()
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/workflow_tools_test.go:15
+/// `TestWorkflowManagementToolCatalogAndApprovalMatrix`.
+///
+/// Go registers fifteen `workflows.*` / `workflow_triggers.*` /
+/// `workflow_runs.*` tools in the `workflow` category, requires the
+/// `jftrade-workflow-management` skill on every descriptor, and gates only the
+/// mutation tools in approval mode.  Rust has no workflow-management tool
+/// registry — the console owns those operations over
+/// `/api/v1/adk/workflows*` — so the reachable half of the matrix is the
+/// builtin skill that publishes the workflow-category tools and the approval
+/// decision of the one workflow tool the model can call.
+#[test]
+fn workflow_management_catalog_keeps_the_skill_and_approval_boundaries() {
+    let (port, _directory) = agent_validation_port();
+    let skills = read_json(&port, "/api/v1/adk/skills", "");
+    let skill = skills["skills"]
+        .as_array()
+        .expect("skills array")
+        .iter()
+        .find(|skill| skill["id"] == "jftrade-workflow-management")
+        .unwrap_or_else(|| panic!("the workflow management skill must be projected: {skills}"));
+    assert_eq!(skill["builtin"], true);
+    assert_eq!(skill["source"], "builtin");
+    let tools = skill["tools"].as_array().expect("skill tools array");
+    let names = tools
+        .iter()
+        .filter_map(Value::as_str)
+        .collect::<Vec<_>>();
+    assert!(
+        names.contains(&"workflow.wait"),
+        "the skill publishes the workflow-category tool: {skill}"
+    );
+    assert!(
+        names.contains(&"interaction.request_user"),
+        "the skill publishes the interaction-category tool: {skill}"
+    );
+
+    // Go's mutation tools wait for the operator in approval mode.  Rust's only
+    // workflow tool is a read-only wait, so no permission mode gates it, and a
+    // name outside the catalog still fails closed.
+    for mode in ["approval", "less_approval", "all"] {
+        assert!(
+            !port.tool_catalog.requires_approval("workflow.wait", mode),
+            "workflow.wait must not require approval in {mode}"
+        );
+    }
+    assert!(
+        port.tool_catalog
+            .requires_approval("workflows.create", "all"),
+        "a tool outside the catalog fails closed"
+    );
+    let advertised = port.tool_catalog.ids();
+    for console_only in [
+        "workflows.list",
+        "workflows.create",
+        "workflows.delete",
+        "workflow_triggers.run",
+        "workflow_runs.wait",
+    ] {
+        assert!(
+            !advertised.iter().any(|id| id == console_only),
+            "the console-only workflow tool {console_only} is never advertised to the model: {advertised:?}"
+        );
+    }
+}
+
+fn trigger_ids(snapshot: &Value) -> Vec<String> {
+    snapshot["triggers"]
+        .as_array()
+        .expect("triggers array")
+        .iter()
+        .filter_map(|trigger| trigger["id"].as_str().map(str::to_owned))
+        .collect()
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/workflow_tools_test.go:132
+/// `TestWorkflowManagementToolUpdatesUsePatchSemantics`.
+///
+/// Go's `workflows.update` / `workflow_triggers.update` tools patch instead of
+/// replacing: an omitted field keeps its stored value, while an explicitly
+/// empty value clears it (`description:""`, `tags:[]`, `clearCanvasGraph`).
+/// The Rust mutation port expresses the same contract through the REST body —
+/// the field has to be present, and `null`/`[]`/`""` clear it — so the
+/// reachable assertions are the preserved fields, the applied clears and the
+/// trigger's retained type.  Go's tool-only webhook restrictions (`webhooks
+/// are managed through the UI/API`) do not exist here because the Rust REST
+/// route is that UI/API surface and never manages webhook secrets implicitly.
+#[test]
+fn workflow_updates_keep_omitted_fields_and_apply_explicit_clears() {
+    let (port, _directory) = agent_validation_port();
+    let agent_id = mutate(
+        &port,
+        AdkMutationOperation::CreateAgent,
+        &[],
+        json!({"name": "Patch Agent", "instruction": "patch", "model": "gpt-4o"}),
+    )["id"]
+        .as_str()
+        .expect("agent id")
+        .to_owned();
+    let created = mutate(
+        &port,
+        AdkMutationOperation::CreateWorkflow,
+        &[],
+        json!({
+            "name": "Keep Name",
+            "description": "old",
+            "agentId": agent_id,
+            "promptTemplate": "keep prompt",
+            "objectiveTemplate": "keep objective",
+            "defaultInputs": {"symbol": "US.AAPL"},
+            "tags": ["old"],
+            "canvasGraph": {
+                "version": "v1",
+                "nodes": [{"id": "start", "type": "start", "title": "Start", "data": {}}],
+                "edges": [],
+            },
+        }),
+    );
+    let workflow_id = created["id"].as_str().expect("workflow id").to_owned();
+    assert_eq!(created["description"], "old");
+    assert!(
+        created.get("canvasGraph").is_some_and(|graph| !graph.is_null()),
+        "the created workflow keeps its canvas graph: {created}"
+    );
+
+    let updated = mutate(
+        &port,
+        AdkMutationOperation::UpdateWorkflow,
+        &[("workflowId", workflow_id.as_str())],
+        json!({"description": "", "tags": [], "canvasGraph": null}),
+    );
+    assert_eq!(updated["name"], "Keep Name", "an omitted name is preserved");
+    assert_eq!(
+        updated["promptTemplate"], "keep prompt",
+        "an omitted prompt template is preserved"
+    );
+    assert_eq!(
+        updated["objectiveTemplate"], "keep objective",
+        "an omitted objective template is preserved"
+    );
+    assert_eq!(
+        updated["defaultInputs"]["symbol"], "US.AAPL",
+        "omitted default inputs are preserved"
+    );
+    assert_eq!(updated["agentId"], agent_id);
+    assert_eq!(updated["description"], "", "the empty description clears it");
+    assert_eq!(updated["tags"], json!([]), "the empty tag list clears tags");
+    assert!(
+        updated
+            .get("canvasGraph")
+            .is_none_or(Value::is_null),
+        "the null canvas graph clears the stored graph: {updated}"
+    );
+
+    // The same patch semantics survive the read projection.
+    let listed = read_json(&port, "/api/v1/adk/workflows", "");
+    let stored = listed["workflows"]
+        .as_array()
+        .expect("workflows array")
+        .iter()
+        .find(|workflow| workflow["id"] == workflow_id.as_str())
+        .unwrap_or_else(|| panic!("patched workflow must stay listed: {listed}"));
+    assert_eq!(stored["name"], "Keep Name");
+    assert_eq!(stored["promptTemplate"], "keep prompt");
+    assert_eq!(stored["description"], "");
+    assert_eq!(stored["tags"], json!([]));
+
+    let trigger = mutate(
+        &port,
+        AdkMutationOperation::CreateWorkflowTrigger,
+        &[("workflowId", workflow_id.as_str())],
+        json!({
+            "type": "webhook",
+            "title": "Old Webhook",
+            "config": {"source": "old"},
+        }),
+    );
+    let trigger_id = trigger["trigger"]["id"]
+        .as_str()
+        .expect("trigger id")
+        .to_owned();
+    assert!(
+        trigger["secret"].as_str().is_some_and(|secret| !secret.is_empty()),
+        "creating a webhook trigger returns its one-time secret: {trigger}"
+    );
+    assert_eq!(trigger["trigger"]["hasSecret"], true);
+    let updated_trigger = mutate(
+        &port,
+        AdkMutationOperation::UpdateWorkflowTrigger,
+        &[
+            ("workflowId", workflow_id.as_str()),
+            ("triggerId", trigger_id.as_str()),
+        ],
+        json!({"title": "Renamed Webhook", "config": {}}),
+    );
+    assert_eq!(
+        updated_trigger["trigger"]["type"], "webhook",
+        "an omitted type keeps the stored trigger type: {updated_trigger}"
+    );
+    assert_eq!(updated_trigger["trigger"]["title"], "Renamed Webhook");
+    assert_eq!(
+        updated_trigger["trigger"]["config"],
+        json!({}),
+        "an explicit empty config clears the stored one"
+    );
+    assert!(
+        updated_trigger.get("secret").is_none(),
+        "an update without `resetSecret` never returns a secret: {updated_trigger}"
+    );
+    assert_eq!(updated_trigger["trigger"]["hasSecret"], true);
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/workflow_tools_test.go:183
+/// `TestWorkflowManagementToolListsCreatesAndDeletes`.
+///
+/// Go's workflow tools list, create and delete definitions, triggers and run
+/// logs.  The Rust REST surface keeps the same boundaries: a created workflow
+/// or trigger is listed, deleting one answers `{"deleted": true}` and removes
+/// it from the list projection, and a trigger log stays readable after the
+/// definition it belongs to is gone.
+#[test]
+fn workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete() {
+    let (port, _directory) = agent_validation_port();
+    let agent_id = mutate(
+        &port,
+        AdkMutationOperation::CreateAgent,
+        &[],
+        json!({"name": "CRUD Agent", "instruction": "crud", "model": "gpt-4o"}),
+    )["id"]
+        .as_str()
+        .expect("agent id")
+        .to_owned();
+    let workflow_id = mutate(
+        &port,
+        AdkMutationOperation::CreateWorkflow,
+        &[],
+        json!({
+            "name": "CRUD Workflow",
+            "agentId": agent_id,
+            "promptTemplate": "Run {{symbol}}",
+        }),
+    )["id"]
+        .as_str()
+        .expect("workflow id")
+        .to_owned();
+    assert!(
+        workflow_ids(&read_json(&port, "/api/v1/adk/workflows", "")).contains(&workflow_id),
+        "a created workflow is listed"
+    );
+
+    let trigger_id = mutate(
+        &port,
+        AdkMutationOperation::CreateWorkflowTrigger,
+        &[("workflowId", workflow_id.as_str())],
+        json!({"type": "manual", "title": "Manual run", "config": {}}),
+    )["trigger"]["id"]
+        .as_str()
+        .expect("trigger id")
+        .to_owned();
+    let trigger_path = format!("/api/v1/adk/workflows/{workflow_id}/triggers");
+    assert!(
+        trigger_ids(&read_json(&port, &trigger_path, "")).contains(&trigger_id),
+        "a created trigger is listed"
+    );
+
+    // A durable invocation log stays readable after its definition is removed.
+    port.store
+        .create_workflow_trigger_log(
+            "log-crud",
+            &workflow_id,
+            &trigger_id,
+            "manual",
+            "SUCCEEDED",
+            "run-crud",
+            r#"{"id":"log-crud","status":"SUCCEEDED","runId":"run-crud"}"#,
+        )
+        .expect("create trigger log");
+    let logs = read_json(&port, "/api/v1/adk/workflow-trigger-logs", "");
+    assert!(
+        logs["logs"]
+            .as_array()
+            .expect("logs array")
+            .iter()
+            .any(|log| log["id"] == "log-crud"),
+        "the run log is listed: {logs}"
+    );
+    assert_eq!(
+        port.store
+            .get_workflow_trigger_log("log-crud")
+            .expect("read trigger log")
+            .expect("log row")
+            .run_id,
+        "run-crud",
+        "`workflow_runs.get` reads the stored log"
+    );
+
+    let deleted_trigger = mutate(
+        &port,
+        AdkMutationOperation::DeleteWorkflowTrigger,
+        &[
+            ("workflowId", workflow_id.as_str()),
+            ("triggerId", trigger_id.as_str()),
+        ],
+        json!({}),
+    );
+    assert_eq!(deleted_trigger["deleted"], true);
+    assert!(
+        !trigger_ids(&read_json(&port, &trigger_path, "")).contains(&trigger_id),
+        "a deleted trigger disappears from the list"
+    );
+
+    let deleted_workflow = mutate(
+        &port,
+        AdkMutationOperation::DeleteWorkflow,
+        &[("workflowId", workflow_id.as_str())],
+        json!({}),
+    );
+    assert_eq!(deleted_workflow["deleted"], true);
+    assert!(
+        !workflow_ids(&read_json(&port, "/api/v1/adk/workflows", "")).contains(&workflow_id),
+        "a deleted workflow disappears from the list"
+    );
+    assert_eq!(
+        port.store
+            .get_workflow_trigger_log("log-crud")
+            .expect("read trigger log after delete")
+            .map(|log| log.status)
+            .as_deref(),
+        Some("SUCCEEDED"),
+        "deleting the definition never rewrites its run history"
+    );
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/workflow_tools_test.go:285
+/// `TestUnavailableWorkflowToolManagerFailsClosed`.
+///
+/// Go's unavailable manager fails closed on every workflow call instead of
+/// answering an empty page or a synthetic start result.  The Rust equivalent
+/// boundary is a runtime without the assistant model port: the run is rejected
+/// with `503 ADK_WORKFLOW_RUNTIME_UNAVAILABLE` and the already-claimed
+/// invocation is durably finalised `FAILED` with that code, so no console
+/// reader can mistake an unavailable runtime for a queued run.
+#[test]
+fn workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation() {
+    let (mut port, _directory) = agent_validation_port();
+    port.chat_runtime = None;
+    let agent_id = mutate(
+        &port,
+        AdkMutationOperation::CreateAgent,
+        &[],
+        json!({"name": "Unavailable Agent", "instruction": "fail closed", "model": "gpt-4o"}),
+    )["id"]
+        .as_str()
+        .expect("agent id")
+        .to_owned();
+    let workflow_id = mutate(
+        &port,
+        AdkMutationOperation::CreateWorkflow,
+        &[],
+        json!({
+            "name": "Unavailable Runtime Workflow",
+            "agentId": agent_id,
+            "promptTemplate": "Run {{symbol}}",
+        }),
+    )["id"]
+        .as_str()
+        .expect("workflow id")
+        .to_owned();
+
+    let error = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::RunWorkflow,
+            identifiers: BTreeMap::from([("workflowId".to_owned(), workflow_id.clone())]),
+            body: json!({"inputs": {"symbol": "US.AAPL"}}),
+            webhook_secret: None,
+        })
+        .expect_err("a runtime without a model port must not accept a workflow run");
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 503, "message = {message}");
+            assert_eq!(code, "ADK_WORKFLOW_RUNTIME_UNAVAILABLE");
+            assert_eq!(message, "assistant model runtime is unavailable");
+        }
+        other => panic!("expected 503 ADK_WORKFLOW_RUNTIME_UNAVAILABLE, got {other:?}"),
+    }
+
+    let logs = port
+        .store
+        .list_workflow_trigger_logs()
+        .expect("list trigger logs");
+    assert_eq!(logs.len(), 1, "the rejected run is still audited: {logs:?}");
+    assert_eq!(logs[0].status, "FAILED");
+    assert_eq!(logs[0].workflow_id, workflow_id);
+    let payload: Value =
+        serde_json::from_str(&logs[0].payload_json).expect("trigger log payload");
+    assert_eq!(payload["errorCode"], "ADK_WORKFLOW_RUNTIME_UNAVAILABLE");
+    assert_eq!(
+        payload["error"], "assistant model runtime is unavailable",
+        "the durable log keeps the reference failure text: {payload}"
+    );
+}

@@ -2113,3 +2113,47 @@ Go 的期望：`reply` = 整轮 assistant 文本合并（`先说明一下。优�
 - 跨批 follow-up 汇总：P1 = Go `SaveRun` 终态谓词逐字对齐、tool alias 归一化、审批续跑失败 `resumeState=approval_continuation_failed`、工作流触发日志的 active/page 过滤（本批 `:559` 引出）；P2 = 内置 skill bundle 落盘/内容哈希与 per-agent 技能授权过滤（本批 `:285` 引出）、模型侧 memory/artifact 直接工具（本批 `:474`/`:488` 引出）、MCP registry 变更通知通道。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1734 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2768 Rust** / **924 `[x]`**，0 破坏引用、0 重复 `rust_entry`）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第四十三批：assembly `workflow_tools_test.go` 全量结清（7 条；工具层 vs REST 表面边界）
+
+范围：`internal/assistant/assembly/workflow_tools_test.go` 7 条逐条结清——本批 0 条新 `[x]`：5 条 `partial`（`:15`、`:86`、`:132`、`:183`、`:285`），2 条 `boundary`（`:68`、`:240`）。`[x]` 保持 **924**，Rust 测试 2768 → **2772**（engine+store nextest 1738 passed）。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run '<7 条 workflow_tools 测试名>' -count=1 -v`（checkout `/tmp/go452dea11.niwD1G`）。
+
+### 本批结论（无生产改动；4 条新增回归）
+
+Go 这 7 条用例几乎全部作用于 `RegisterWorkflowManagementTools` 注册的 15 个 `workflows.*` / `workflow_triggers.*` / `workflow_runs.*` 模型工具。Rust **没有**该工具注册表（probe：`rg "RegisterWorkflowManagementTools|workflows.list|workflow_runs.list" crates/ apps/ workers/` 无命中）：工作流管理在 Rust 由控制台走 REST `/api/v1/adk/workflows*`，模型侧只保留 `workflow.wait`。因此本批把「可复现的 REST 契约」补成测试，「工具层专有」的部分登记为边界。
+
+新增回归（`crates/jftrade-engine/src/product_adk_store_parity_tests.rs`，4 条）：
+
+- `workflow_management_catalog_keeps_the_skill_and_approval_boundaries`（`:15`）：`jftrade-workflow-management` builtin skill 投影 workflow/interaction 分类工具；`workflow.wait` 在三种 permission mode 下都不需要审批；catalog 之外的名字 `requires_approval` fail-closed；console-only 的 `workflows.*`/`workflow_runs.wait` 名字从不进入模型 catalog。
+- `workflow_updates_keep_omitted_fields_and_apply_explicit_clears`（`:132`）：省略字段保值（name/promptTemplate/objectiveTemplate/defaultInputs/agentId）、显式清空生效（`description:""`、`tags:[]`、`canvasGraph:null`，读投影一致）、webhook 触发器更新保留 type、替换 title、清空 config、未带 `resetSecret` 时不返回 secret 且 `hasSecret` 为 true。
+- `workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete`（`:183`）：创建后可列出、删除返回 `{"deleted": true}` 并从列表消失、触发器日志在定义删除后仍可读（列表 + store `get_workflow_trigger_log`）。
+- `workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation`（`:285`）：缺少 assistant model runtime 时运行被拒 503 `ADK_WORKFLOW_RUNTIME_UNAVAILABLE`，已认领 invocation 持久化为 `FAILED` 并保留 errorCode/error 原文（不产生假排队）。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. 从 patch 键列表移除 `"canvasGraph"` → `workflow_updates_keep_omitted_fields_and_apply_explicit_clears` 转红（创建与更新都丢 graph）。
+2. 去掉 workflow 列表投影的 deleted 过滤（`product_production_ports_adk_read.rs`）→ `workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete` 转红（删除后仍在列）。
+3. 把 `finalize_workflow_failure` 的落库状态 `FAILED` 改成 `QUEUED` → `workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation` 转红。
+4. `requires_approval` 的 catalog-miss 默认值 `true` → `false` → `workflow_management_catalog_keeps_the_skill_and_approval_boundaries` 转红。
+5. workflow-management skill 的 `categories` 去掉 `"workflow"` → 同一用例转红（tools 只剩 `interaction.request_user`）。
+
+### 结论登记（partial / boundary 行内的边界）
+
+- **:15 partial**：15 个 workflow 工具的 descriptor category/InputSchema/required-skills 断言无对应注册表；可达半边是 builtin skill 投影 + `workflow.wait` 审批决策 + catalog fail-closed。
+- **:68 boundary**：`workflow_runs.wait` 轮询工具不存在（`nextPollMs` 无实现；probe 无命中），等待由前端 composable `adkRunContinuation.ts` 轮询承担；Rust 的 `workflow.wait` 是 Go `workflowWaitTool` 的对应物（`{waitedMs, reason}`）。
+- **:86 partial**：覆盖 25s cap 拒绝与取消返回 499（另有 tool-loop deadline/取消），无 `pollIntervalMs`/轮询输入面。
+- **:132 partial**：Go 工具层禁止用工具创建 webhook 触发器、禁止改变 webhook 的 type（错误含 `UI/API`，`workflow_tools.go:79/:384` 与 schema enum 排除 webhook）；Rust REST 就是该错误指向的 UI/API 表面，故允许，属结构差异。Rust 更新 schedule 触发器时会校验新 config（清空被拒），Go 用例用 webhook 表达空 config。
+- **:183 partial**：`workflow_runs.list` 的 workflowId/triggerId/status 过滤与 `WorkflowToolPage` 形状在 Rust 列表投影里没有对应参数（`workflow_logs` 只做 `page()`）。
+- **:240 boundary**：无 session 来源门禁（无 `cannot start`/`resolvable` 文案，ADK sessions 无 source 列）；可达相邻契约是 disabled → 409、缺资源 → 路由 code 404、runtime 缺失 → 503。
+- **:285 partial**：无 `unavailableWorkflowToolManager` 的 12 方法接口；REST `page()` 只保证默认 limit=100，对显式 limit 不做上限夹取（Go 工具层 clamp 500→100 属另一表面，为避免改动公开 HTTP 契约故不改）。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 余量：`adk_workflow_tools`（若存在）之外按 backlog 继续，随后 `internal/app/apiserver`（574）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）等。
+- 跨批 follow-up 汇总：P1 = 工作流触发日志的 active/page 过滤（第 42 批 `:559`）、`workflow_runs.*` 过滤参数（本批 `:183`）、Go `SaveRun` 终态谓词逐字对齐、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = per-agent 技能授权过滤（第 42 批 `:285`）、模型侧 memory/artifact 直接工具（`:474`/`:488`）、ADK read `page()` 是否引入显式 limit 上限（需先确认公开 HTTP 契约意愿）。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1738 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2772 Rust** / **924 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
