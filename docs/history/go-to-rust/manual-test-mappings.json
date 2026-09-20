@@ -9002,18 +9002,18 @@
     "evidence_type": "partial"
   },
   "internal/assistant/engine/runner_chat_test.go:69:TestHydrateRunExecutionResultPopulatesRunFields": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals",
+    "conclusion": "function_exact：Go 的 HydrateRunExecutionResult 把 tool context 投影到 run（toolCalls/toolSummaries/optimizationTaskId/preToolContent/preToolReasoning/pendingApprovals/usage.toolCallsTotal）。Rust 之前只把最后一次模型文本写进 envelope，run 上既没有 toolSummaries，也没有 optimizationTaskId 或 usage.toolCallsTotal。新增 crates/jftrade-engine/src/product_adk_model_runtime_projection.rs 按 Go 的 ToolSummariesForRun / SummarizeToolOutput / OptimizationTaskID 逐条实现：SUCCEEDED -> \"name => {json}\"（超过 1800 字节按字符边界截断并追加 ...(truncated)）、FAILED -> \"name failed: error\"、DENIED -> \"name denied by user\"，并写入 usage.toolCallsTotal 与 modelCalls（1 + 最大 tool round）。回归断言三种终态的 summary、opt-123 与 usage.toolCallsTotal=3。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:102:TestCompleteChatRunDoesNotPromoteTopLevelFollowUpToPendingInput": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::a_top_level_follow_up_reply_keeps_its_run_completed",
+    "conclusion": "function_exact：顶层 follow-up（模型用提问型文本向用户要更多输入）仍是 COMPLETED：run.Status=COMPLETED、reply 原样保留、不生成 inputRequest、pendingApprovals 为空。Rust 从未把顶层 follow-up 提升为 PENDING_INPUT，回归把该行为锁定为契约，防止后续误加启发式。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(a_top_level_follow_up_reply_keeps_its_run_completed)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:127:TestChatToolOnlyADKRunSynthesizesFinalReply": {
     "status": "[~]",
@@ -9072,11 +9072,11 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:490:TestProjectedChatResponseAppliesProjectionToRunFields": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::a_tool_round_projects_the_pre_tool_reply_and_session_timeline",
+    "conclusion": "function_exact：Go 的 ProjectedChatResponse 先取持久 run 快照、再用会话投影覆盖字段：reply 是整轮 assistant 文本的合并（\"先说明一下。优化已启动。\"）、preToolContent 保留首个 tool call 之前的文本、toolCalls/toolSummaries/optimizationTaskId/usage.toolCallsTotal 来自投影、finalMessageId 链接 transcript、timeline 来自会话。Rust 之前用临时 JSON 字面量拼 envelope，这些字段全部丢失。修复：persist_tool_calls 在首轮 staging 冻结 preToolContent；persist_success 用 Go 的 mergeProjectedText 合并 reply，并用 GO_RUN_PROJECTION_FIELDS + Go omitempty 语义投影 run；timeline 改由 session_store 事件投影（过滤 assistant.stream/assistant.tool 内部事件，并补上即将写入的 assistant 条目，按 id 幂等去重）。已登记的差异：Rust 生产 tool catalog 尚未注册 strategy.optimize（Go internal/assistant/assembly/tool_catalog.go:574），该 id 在 Rust 侧 fail-closed 为审批，因此本行验证的是投影契约本身，catalog 缺口记入 assistant-workflow-adk-batch-scope 的 follow-up。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:541:TestRunChatRejectsInvalidPermissionModeOverride": {
     "status": "[x]",
@@ -9114,11 +9114,11 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/runner_chat_test.go:846:TestProjectedChatResponseDoesNotExposeResolvedApprovals": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::a_completed_projection_hides_resolved_approvals",
+    "conclusion": "function_exact：已解析（APPROVED）的审批不得出现在 response.pendingApprovals、response.run.pendingApprovals，也不得在 timeline 生成 approval_group。回归把 run payload 预置一条 APPROVED 审批后走完成投影，断言响应与 run 的 pendingApprovals 都是空数组，且 timeline 内没有 approval_group（timeline 由会话事件投影产生，不合成审批组）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(a_completed_projection_hides_resolved_approvals)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:891:TestResolveApprovalAsyncDetachesClosedStreamBeforeBackgroundResume": {
     "status": "[~]",
@@ -9135,18 +9135,18 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:1043:TestResolveSessionReusesExistingRejectsMismatchAndCreatesTrimmedSession": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::chat_creates_the_session_once_and_reuses_its_stored_title",
+    "conclusion": "function_exact：Go 的 resolveSession 只在创建时写 title（消息前 28 个 rune），复用显式 sessionId 时原样返回既有行。Rust 之前每次 chat 都用当次消息 upsert app 层 session title，导致会话被自己的第二条消息改名。修复：仅当 get_session_agent_id 为空时创建 app 层 session；Google-ADK session 行改为按需创建且不再重写 state。回归：40 rune 的中文消息创建出 28 rune title，第二条消息复用后 title 不变且 session 仍只有一行。不同 agent 的 mismatch 与 missing session 由 gate_tests::chat_rejects_a_session_owned_by_a_different_agent 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(chat_creates_the_session_once_and_reuses_its_stored_title)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:1079:TestStartRunPersistsRunAndFinishRemovesActiveHandle": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::a_started_run_serves_its_snapshot_and_drops_the_active_handle",
+    "conclusion": "function_exact：Go 的 startRun 落盘 RUNNING 快照（status/message=\"running\"/userMessage/startedAt/maxDurationMs=1800000/workMode/usage）并注册 active handle，finish 释放。Rust 之前的初始 payload 没有 userMessage、message=\"running\"、workMode、maxDurationMs、startedAt、usage，只有内部 requestMessage；修复在 prepare_chat 写入 Go 的 Run 快照字段（RUN_TIMEOUT_MS 对应 assistantmodel.DefaultRunTimeout）。回归断言快照六项，并断言 run 处于终态后 cancellation registry 不再持有句柄。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(a_started_run_serves_its_snapshot_and_drops_the_active_handle)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:1124:TestCancelRunOnTerminalStateIsNoop": {
     "status": "[x]",

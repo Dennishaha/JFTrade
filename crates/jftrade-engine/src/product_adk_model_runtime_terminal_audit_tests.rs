@@ -530,7 +530,12 @@ fn a_completed_run_persists_the_reply_and_audits_run_completed() {
     assert_eq!(response["run"]["status"], "COMPLETED");
     assert_eq!(response["run"]["message"], "completed");
     assert_eq!(response["reply"], "final answer");
-    assert_eq!(response["run"]["degraded"], json!(false));
+    // Go tags `Run.Degraded` with `omitempty`, so a clean completion carries no
+    // `degraded` key at all; the frozen `chat-success` fixture pins that shape.
+    assert!(
+        response["run"].get("degraded").is_none(),
+        "a clean completion omits degraded: {response}"
+    );
 
     let run = store
         .get_run("run-success-audit")

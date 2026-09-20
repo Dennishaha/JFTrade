@@ -191,42 +191,86 @@ impl ProductionAdkChatRuntime {
         // upserted the session unconditionally, silently rebinding an existing
         // session to the new agent.
         let explicit_session = text_field(object, "sessionId");
-        if let Some(existing_agent_id) = self
+        let existing_agent_id = self
             .store
             .get_session_agent_id(&session_id)
-            .map_err(storage_unavailable)?
-        {
+            .map_err(storage_unavailable)?;
+        if let Some(existing_agent_id) = existing_agent_id.as_ref() {
             if !existing_agent_id.trim().is_empty() && existing_agent_id.trim() != agent_id {
                 return Err(chat_failed("session belongs to a different agent"));
             }
         } else if explicit_session.is_some() {
             return Err(chat_failed("session not found"));
         }
-        let session_payload = json!({
-            "id": session_id,
-            "agentId": agent_id,
-            "title": message.chars().take(28).collect::<String>(),
-        });
-        self.store
-            .upsert_session(&session_id, &agent_id, &session_payload.to_string())
-            .map_err(storage_unavailable)?;
-        self.session_store
-            .upsert_session(
-                "jftrade",
-                "local",
-                &session_id,
-                &session_payload.to_string(),
-            )
-            .map_err(storage_unavailable)?;
+        // Go's `resolveSession` only *creates* the session here: the title is
+        // the first 28 runes of the message that opened it, and reusing an
+        // explicit session id returns the stored row untouched.  Rust upserted
+        // the title on every chat, so the second message of a session renamed
+        // that session to itself.
+        let title: String = message.chars().take(SESSION_TITLE_LIMIT).collect();
+        if existing_agent_id.is_none() {
+            let session_payload = json!({
+                "id": session_id,
+                "agentId": agent_id,
+                "title": title.clone(),
+            });
+            self.store
+                .upsert_session(&session_id, &agent_id, &session_payload.to_string())
+                .map_err(storage_unavailable)?;
+        }
+        // The Google-ADK session row is created on demand and keeps its state
+        // once it exists, the way the ADK session service behaves; rewriting it
+        // would reset the transcript metadata on every turn.
+        if self
+            .session_store
+            .get_session_by_id(&session_id)
+            .map_err(storage_unavailable)?
+            .is_none()
+        {
+            let session_state = json!({
+                "id": session_id,
+                "agentId": agent_id,
+                "title": title,
+            });
+            self.session_store
+                .upsert_session("jftrade", "local", &session_id, &session_state.to_string())
+                .map_err(storage_unavailable)?;
+        }
         let run_id = format!("run-{}", input.client_request_id);
+        // Go's `startRun` freezes the resolved provider/model snapshot, the run
+        // budget, the effective work mode and the user message before the first
+        // model call.  `ProjectedChatResponse` serves those fields from the run
+        // (and falls back to them for the session projection), so a console can
+        // render the transcript header without a second read.
+        let work_mode = text_field(object, "workModeOverride")
+            .map(|value| normalize_work_mode(&value))
+            .unwrap_or_else(|| {
+                normalize_work_mode(
+                    provider
+                        .agent_payload
+                        .get("workMode")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default(),
+                )
+            });
+        let started_at = runtime_projection::now_timestamp();
         let initial_payload = json!({
             "id": run_id,
             "sessionId": session_id,
             "agentId": agent_id,
             "status": "RUNNING",
-            "message": "",
+            // Go's `startRun` writes the literal "running" before the first
+            // provider call and the user text onto `run.UserMessage`.
+            "message": "running",
+            "userMessage": message.clone(),
             "reply": "",
             "pendingApprovals": [],
+            "toolCalls": [],
+            "toolSummaries": [],
+            "workMode": work_mode,
+            "maxDurationMs": RUN_TIMEOUT_MS,
+            "startedAt": started_at.clone(),
+            "usage": {"modelCalls": 0, "toolCallsTotal": 0},
             "streamId": run_id,
             "streamEvents": [],
             "providerEvents": [],
@@ -716,3 +760,19 @@ impl ProductionAdkChatRuntime {
 
 include!("product_adk_model_runtime_tool_persistence.rs");
 include!("product_adk_model_runtime_input_call.rs");
+
+/// Go `assistantmodel.SessionTitleLimit` (`Runtime.resolveSession`): the title
+/// of a newly created session is the first 28 runes of its opening message.
+const SESSION_TITLE_LIMIT: usize = 28;
+
+/// Go `assistantmodel.DefaultRunTimeout`: `startRun` freezes 30 minutes on
+/// `run.MaxDurationMs`, which the chat projection republishes on the wire.
+const RUN_TIMEOUT_MS: i64 = 1_800_000;
+
+/// Go's `model.NormalizeWorkMode`: anything that is not `loop` is `chat`.
+fn normalize_work_mode(value: &str) -> &'static str {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "loop" => "loop",
+        _ => "chat",
+    }
+}

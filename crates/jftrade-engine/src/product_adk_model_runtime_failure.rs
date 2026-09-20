@@ -202,44 +202,85 @@ impl ProductionAdkChatRuntime {
             "finalMessageId".to_owned(),
             Value::String(message_id.clone()),
         );
+        let stored = self
+            .store()
+            .get_run(&chat.run_id)
+            .map_err(storage_unavailable)?
+            .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
         // The durable payload also carries runtime bookkeeping
         // (`streamEvents`, `providerEvents`, `route`, `toolResults`, ...) that
         // Go's `Run` JSON contract never exposes.  The frozen
         // `chat-provider-failure` fixture pins the exposed field set, so the
-        // wire projection keeps only those keys.
-        let run_value = Value::Object(
-            payload_object
-                .iter()
-                .filter(|(key, _)| GO_RUN_PROJECTION_FIELDS.contains(&key.as_str()))
-                .map(|(key, value)| (key.clone(), value.clone()))
-                .collect(),
+        // wire projection keeps only those keys, drops the zero-valued fields
+        // Go tags `omitempty`, and republishes the projected tool activity.
+        let tool_calls: Vec<Value> = payload_object
+            .get("toolCalls")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let completed_at = payload_object
+            .get("completedAt")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned();
+        let mut overrides: Vec<(&str, Value)> = vec![
+            ("createdAt", Value::String(stored.created_at.clone())),
+            ("updatedAt", Value::String(stored.updated_at.clone())),
+            (
+                "usage",
+                runtime_projection::usage_wire_value(
+                    &Value::Object(payload_object.clone()),
+                    &tool_calls,
+                    &completed_at,
+                ),
+            ),
+        ];
+        overrides.extend(runtime_projection::tool_projection_fields(&tool_calls));
+        let run_value = runtime_projection::go_run_wire(
+            &Value::Object(payload_object.clone()),
+            GO_RUN_PROJECTION_FIELDS,
+            overrides,
         );
         let session = self
             .store()
             .get_session(&chat.session_id)
             .map_err(storage_unavailable)?
             .map(|session| {
-                json!({"id": session.id, "agentId": chat.agent_id, "createdAt": session.created_at, "updatedAt": session.updated_at})
+                let title = serde_json::from_str::<Value>(&session.payload_json)
+                    .ok()
+                    .and_then(|payload| {
+                        payload
+                            .get("title")
+                            .and_then(Value::as_str)
+                            .map(str::to_owned)
+                    })
+                    .unwrap_or_default();
+                json!({
+                    "id": session.id,
+                    "agentId": chat.agent_id,
+                    "title": title,
+                    "createdAt": session.created_at,
+                    "updatedAt": session.updated_at,
+                })
             })
             .unwrap_or_else(|| json!({"id": chat.session_id, "agentId": chat.agent_id}));
-        let timeline = json!({
-            "id": message_id,
-            "kind": "assistant_message",
-            "status": "final",
-            "text": reply,
-        });
+        let timeline = self.session_timeline_value(
+            &chat.session_id,
+            Some(runtime_projection::PendingTimelineEntry {
+                id: &message_id,
+                session_id: &chat.session_id,
+                run_id: &chat.run_id,
+                text: &reply,
+                created_at: &completed_at,
+            }),
+        )?;
         let response = json!({
             "reply": reply,
             "session": session,
             "run": run_value,
             "pendingApprovals": [],
-            "timeline": [timeline],
+            "timeline": timeline,
         });
-        let stored = self
-            .store()
-            .get_run(&chat.run_id)
-            .map_err(storage_unavailable)?
-            .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
         let mut committed = payload.clone();
         committed["response"] = response.clone();
         // A terminal failure is served to reconnecting stream clients through

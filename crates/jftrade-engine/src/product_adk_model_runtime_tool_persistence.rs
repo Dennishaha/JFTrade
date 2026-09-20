@@ -93,6 +93,25 @@ impl ProductionAdkChatRuntime {
         };
         let mut pending = Vec::new();
         let mut approval_rows: Vec<(String, String)> = Vec::new();
+        // Go's ADK projection captures the assistant text that preceded the
+        // first function call of the run (`projectSessionEventPart` ->
+        // `state.preToolContent`), so the console can tell what the model said
+        // *before* it asked for a tool.  Rust only kept the final model answer,
+        // which lost that turn entirely; the first non-empty text of the run is
+        // now frozen on the run payload the way the reference does it.
+        let pre_tool_content = response.text.trim();
+        if !pre_tool_content.is_empty()
+            && payload
+                .get("preToolContent")
+                .and_then(Value::as_str)
+                .is_none_or(|value| value.trim().is_empty())
+            && let Some(object) = payload.as_object_mut()
+        {
+            object.insert(
+                "preToolContent".to_owned(),
+                Value::String(pre_tool_content.to_owned()),
+            );
+        }
         let prior_calls = payload
             .get("toolCalls")
             .and_then(Value::as_array)

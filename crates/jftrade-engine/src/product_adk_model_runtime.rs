@@ -36,6 +36,9 @@ mod runtime_stream;
 mod runtime_recovery;
 use runtime_recovery::DurableRunRecoverySupervisor;
 
+#[path = "product_adk_model_runtime_projection.rs"]
+mod runtime_projection;
+
 include!("product_adk_model_runtime_lifecycle.rs");
 
 #[cfg(test)]
@@ -57,6 +60,10 @@ mod tool_failure_tests;
 #[cfg(test)]
 #[path = "product_adk_model_runtime_catalog_policy_tests.rs"]
 mod catalog_policy_tests;
+
+#[cfg(test)]
+#[path = "product_adk_model_runtime_run_projection_tests.rs"]
+mod run_projection_tests;
 
 #[cfg(test)]
 #[path = "product_adk_model_runtime_tool_deadline_tests.rs"]

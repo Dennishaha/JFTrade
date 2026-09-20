@@ -1521,3 +1521,86 @@ Rust 修复前的问题：run payload 只写 `providerId`/`model`，缺 `provide
 决策项仍需与本领域同批评估：`runner_continuation_boundaries_test.go:188`（`RUN_LEASE_CLAIM_FAILED`）、`:242`（租约存储错误传播）、`:275`/`:427`（goal-run 后台续跑引擎缺口）。
 
 随后按 `store_test.go`（20）→ `session_context_test.go`（19）推进；`internal/app/apiserver`（349）与 `pkg/backtest`（174）保持为后续大领域批次。
+
+## 第二十九批：ProjectedChatResponse 运行投影、会话复用与 run 快照（runner_chat_test.go 结清 6 条）
+
+范围：`internal/assistant/engine/runner_chat_test.go` 的 `:69`、`:102`、`:490`、`:846`、`:1043`、`:1079`。六行都是真实功能缺口（投影字段丢失、会话被改名、快照字段缺失），不是计数对齐。`[x]` 由 823 → **829**，Rust 测试总数 2650 → **2657**。
+
+### 共同根因：完成的 chat envelope 是临时 JSON，而不是 Go 的 `ProjectedChatResponse`
+
+冻结证据：`tests/fixtures/compatibility/api-transport/adk-chat-stream.json` 的 `chat-success` 与 `chat-provider-failure` 两个用例（Go 录制）给出完成的 `run` 字段集：`agentId/createdAt/finalMessageId/id/maxDurationMs/message/model/pendingApprovals/permissionMode/providerId/providerName/sessionId/startedAt/status/toolCalls/updatedAt/usage/userMessage/workMode`，且 `degraded=false`、空的 `errorCode`/`failureReason`、`reply` 都**不在** run 上（`encoding/json` 的 `omitempty` 与 `Run` 本身没有 `reply` 字段）；`timeline` 是**会话投影**（`user_message` + `assistant_message`），不是单条合成条目。
+
+Rust 修复前的实现恰好相反：`persist_success` 手写一个 JSON 字面量，缺 `userMessage`/`usage`/`workMode`/`maxDurationMs`/`startedAt`，多出 `reply`、`degraded:false`、`errorCode:""`、`failureReason:""`，`timeline` 只有一条 assistant 条目；失败路径虽然按 `GO_RUN_PROJECTION_FIELDS` 过滤，但同样缺这些字段与用户 timeline 条目。
+
+修复：新增 `crates/jftrade-engine/src/product_adk_model_runtime_projection.rs`（生产模块，≤800 行）承载 Go 的投影语义：
+
+- `summarize_tool_output` / `tool_summaries_for_run`（`SummarizeToolOutput`+`ToolSummariesForRun`，1800 字节按字符边界截断 + `...(truncated)`；SUCCEEDED/FAILED/DENIED 三种终态）。
+- `optimization_task_id`（首个 SUCCEEDED 的 `strategy.optimize` 的 `output.taskId`）。
+- `merge_projected_text`（`mergeProjectedText`：partial 追加、前缀替换、重复后缀去重）。
+- `usage_wire_value`（`RunUsage`：`modelCalls`/`toolCallsTotal` 恒在，`durationMs` 由 `startedAt`→`completedAt` 计算，>0 才写）。
+- `run_wire_fields` / `go_run_wire` / `drop_go_zero_fields`（`GO_RUN_PROJECTION_FIELDS` + Go `omitempty` 语义）。
+- `session_timeline`（`SessionTimeline` 投影：过滤 `assistant.stream`/`assistant.tool` 内部事件，并把调用方**即将写入**的 assistant 条目按 id 幂等补入）。
+
+`persist_success` 与 `attach_terminal_failure_projection` 都改为走同一投影；成功路径先把 `preToolContent` 与最终文本合并成 `reply`（并据此计算 `finalMessageId`），再一次性把 `toolCalls`/`toolSummaries`/`optimizationTaskId`/`usage` 写回 durable payload，保证重连与 `clientRequestId` 重放能重建同一 envelope。
+
+### :69 `TestHydrateRunExecutionResultPopulatesRunFields`
+
+Go 的 `HydrateRunExecutionResult` 把 tool context 投影到 run：calls、summaries、`preToolContent`/`preToolReasoning`、`optimizationTaskId`、`pendingApprovals`、`usage.toolCallsTotal`。Rust 之前只回传最后一次模型文本。
+
+回归 `the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals`：预置三条终态 call（SUCCEEDED 带 `{taskId: opt-123}`、FAILED `disk full`、DENIED）后断言 `optimizationTaskId=opt-123`、`usage.toolCallsTotal=3`、`modelCalls=3`（两个 tool round + 开场调用）、summary 三条分别为 `strategy.optimize => {...}` / `strategy.save_draft failed: disk full` / `trade denied by user`。
+
+### :490 `TestProjectedChatResponseAppliesProjectionToRunFields`
+
+Go 的期望：`reply` = 整轮 assistant 文本合并（`先说明一下。优化已启动。`）、`run.preToolContent=先说明一下。`、`toolCalls[0].toolName=strategy.optimize`、`toolSummaries` 含该工具、`optimizationTaskId=opt-999`、`usage.toolCallsTotal=1`、`finalMessageId` 非空、`timeline` 非空。
+
+回归 `a_tool_round_projects_the_pre_tool_reply_and_session_timeline`：按 Go 的注入方式准备持久状态（`preToolContent` + 一条 SUCCEEDED 的 optimize call + 会话里的 user 事件），走 `persist_success` 后逐项断言，并额外断言 timeline 为 `[user_message, assistant_message]` 且 assistant 条目 id == `run.finalMessageId`。
+
+配套回归 `staging_a_tool_round_freezes_the_pre_tool_assistant_text`：`persist_tool_calls` 首轮把文本去空格后冻结到 `preToolContent`（`state.preToolCaptured` 语义），第二轮不再覆盖；同时锁定低风险读（`system.status` 在 `less_approval`）保持 `RUNNING` 释放、不进入审批。
+
+**已登记的差异（不是本行遗漏）**：Rust 生产 tool catalog 未注册 `strategy.optimize`（Go 见 `internal/assistant/assembly/tool_catalog.go:574`：`optimize_strategy` + `RequiresApprovalIn=[approval]`），因此该 id 在 Rust 侧因 `requires_approval` 查不到而 fail-closed 为审批，且 `ProductionAdkToolExecutor::supports` 也不含它。本行验证的是投影契约；catalog/executor 缺口作为 follow-up 记在下方“下批目标”。
+
+### :846 `TestProjectedChatResponseDoesNotExposeResolvedApprovals`
+
+回归 `a_completed_projection_hides_resolved_approvals`：run payload 预置一条 `APPROVED` 审批后走完成投影，断言 `response.pendingApprovals` 与 `response.run.pendingApprovals` 均为空数组，且 timeline 内没有 `approval_group`（Rust 的 timeline 来自会话事件投影，不合成审批组）。
+
+### :102 `TestCompleteChatRunDoesNotPromoteTopLevelFollowUpToPendingInput`
+
+回归 `a_top_level_follow_up_reply_keeps_its_run_completed`：提问型顶层回复仍是 `COMPLETED`、`reply` 原样保留、无 `inputRequest`、`pendingApprovals` 空。Rust 从未实现该启发式，回归把它锁定为契约，防止后续误加“提问即等待输入”的推断。
+
+### :1043 `TestResolveSessionReusesExistingRejectsMismatchAndCreatesTrimmedSession`
+
+冻结证据：Go `resolveSession` 只在**创建**时写 title（前 28 个 rune），复用显式 `sessionId` 时原样返回既有行。Rust 之前每次 chat 都 `upsert_session` 当次消息生成的 title，会话会被自己的第二条消息改名；ADK session 行也被同步重写 state。
+
+修复：`prepare_chat` 先读 `get_session_agent_id`，仅在该行为空时创建 app 层 session；Google-ADK session 行改为 `get_session_by_id` 缺失时才创建（按需创建、不重写）。
+
+回归 `chat_creates_the_session_once_and_reuses_its_stored_title`：40 rune 中文消息创建出 28 rune title；第二条消息复用显式 sessionId 后 title 不变、`list_sessions()` 仍只有一行。mismatch/not-found 由 `gate_tests::chat_rejects_a_session_owned_by_a_different_agent` 覆盖。
+
+### :1079 `TestStartRunPersistsRunAndFinishRemovesActiveHandle`
+
+冻结证据：Go `startRun` 落盘 `status=RUNNING`、`message="running"`、`userMessage`、`startedAt`、`MaxDurationMs=DefaultRunTimeout(30min=1800000)`、`workMode`、`usage={modelCalls:0,toolCallsTotal:0}`，并注册 active handle；`finish()` 释放。Rust 之前只有内部 `requestMessage`，没有 Go 的 Run 快照字段。
+
+修复：`prepare_chat` 写入上述快照字段（`RUN_TIMEOUT_MS = 1_800_000`、`normalize_work_mode` 对应 `NormalizeWorkMode`）。
+
+回归 `a_started_run_serves_its_snapshot_and_drops_the_active_handle`：逐项断言快照六字段；注册 live 句柄时可取消，终态后 `cancellation_registry.cancel()` 返回 false（无泄漏句柄），run 落 `COMPLETED`。
+
+### 验证
+
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib --locked --no-fail-fast`：**1198 passed / 0 failed**（含本批 7 条新回归）。
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：**1498 passed / 0 failed**。
+- `cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine --all-targets --locked`、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`：通过；`git diff --check` 干净。
+- `python3 scripts/compatibility/audit_test_parity.py`：823 → **829 function_exact**、0 重复 `rust_entry`、4451 key 不变、0 U+FFFD、Rust 测试总数 2650 → 2657。
+- 本批同时把两条早期断言纠正回 Go 形态：`a_completed_run_persists_the_reply_and_audits_run_completed`（干净完成不再带 `degraded:false`）、`persist_success_marks_a_run_degraded_from_its_failed_tool_calls`（run 不再带 `reply`，改用 response 级 `reply` + `toolSummaries`）。
+
+### 下批目标
+
+`runner_chat_test.go` 余 5 条 `[~]`：`:56`（边界保留，Rust 无 ADK 事件循环）、`:127`、`:609`、`:737`、`:891`。建议顺序：
+
+1. `:609` provider override 不改 agent：确认 `resolve_provider` 的 override 路径只影响当次 run（agent 行保持 `providerId`/`model`）。
+2. `:737` `RunnerChatProjectionPersistenceAndAssistantBoundaries`：`persistRunActivitySnapshot`/`AuthoritativeRunSnapshot`/`appendAssistantMessageEvent`/`EnsureAssistantMessage` 与 `applySessionProjectionToRun` 的边界集合，Rust 目前只有部分对应物（`MergeRunActivitySnapshot` 语义、assistant 事件幂等）。
+3. `:891` `ResolveApprovalAsyncDetachesClosedStreamBeforeBackgroundResume`：需要证明后台 resume 不会再向已关闭的 SSE 回调投递 delta。
+4. `:127` tool-only final reply：先确认真实生产合成路径（只有 `tool_failure` 分支），再判定 `[x]` 或边界。
+5. 新登记的 catalog 缺口：把 `strategy.optimize` 加入 `PRODUCTION_TOOL_DEFINITIONS`（`optimize_strategy` + `RequiresApprovalIn=[approval]`），并在 `ProductionAdkToolExecutor` 绑定优化任务适配器；回归要求覆盖“审批模式下 gated、`less_approval` 下释放、执行后产出 `taskId` 并让 `optimizationTaskId` 出现在 envelope”。
+
+决策项仍需与本领域同批评估：`runner_continuation_boundaries_test.go:188`（`RUN_LEASE_CLAIM_FAILED`）、`:242`（租约存储错误传播）、`:275`/`:427`（goal-run 后台续跑引擎缺口）。
+
+随后按 `store_test.go`（20）→ `session_context_test.go`（19）推进；`internal/app/apiserver`（349）与 `pkg/backtest`（174）保持为后续大领域批次。

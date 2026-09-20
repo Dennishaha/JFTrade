@@ -616,20 +616,37 @@ fn persist_success_marks_a_run_degraded_from_its_failed_tool_calls() {
     let run_value = &response["run"];
     assert_eq!(run_value["status"], "COMPLETED");
     assert_eq!(run_value["message"], "completed");
-    assert_eq!(run_value["reply"], "保存失败，请检查磁盘空间。");
+    // Go's `assistantmodel.Run` has no `reply` field: the assistant text lives
+    // on the response envelope, and the run links it through `finalMessageId`.
+    assert_eq!(response["reply"], "保存失败，请检查磁盘空间。");
+    assert!(
+        run_value.get("reply").is_none(),
+        "the run wire shape carries no reply field: {run_value}"
+    );
     assert_eq!(
         run_value["degraded"],
         json!(true),
         "a failed tool call marks the completed run degraded"
     );
-    assert_eq!(
-        run_value["failureReason"], "",
-        "MarkCompletedChatRun clears a stale run-level failure reason"
+    // `MarkCompletedChatRun` clears the run-level failure projection and Go's
+    // `omitempty` then drops the empty strings from the wire.
+    assert!(
+        run_value.get("failureReason").is_none(),
+        "a cleared failure reason is omitted: {run_value}"
     );
-    assert_eq!(run_value["errorCode"], "");
+    assert!(
+        run_value.get("errorCode").is_none(),
+        "a cleared error code is omitted: {run_value}"
+    );
     assert_eq!(run_value["pendingApprovals"], json!([]));
     assert_eq!(run_value["toolCalls"][0]["status"], "FAILED");
     assert_eq!(run_value["toolCalls"][0]["error"], "disk full");
+    // `ToolSummariesForRun` renders the failure as Go's
+    // `SummarizeToolOutput` line so the console can show it beside the call.
+    assert_eq!(
+        run_value["toolSummaries"],
+        json!(["strategy.save_draft failed: disk full"])
+    );
 
     let stored = store
         .get_run("run-persist-success")

@@ -24,6 +24,7 @@ use crate::product::product_adk_chat_stream_port::{
     AdkChatStreamFrame, AdkChatStreamSnapshot,
 };
 
+use super::runtime_projection;
 use super::{
     ChatExecution, ModelResponse, ProductionAdkChatRuntime, RunLeaseGuard, ToolCallStaging,
     run_cancelled, storage_unavailable, stream_from_payload, unavailable,
@@ -440,6 +441,23 @@ impl ProductionAdkChatRuntime {
         }
     }
 
+    /// Go's `ProjectedChatResponse` timeline: `Store.SessionTimeline` for the
+    /// session, i.e. the stored transcript rather than a single synthetic
+    /// entry.  The frozen `api-transport` chat fixtures carry a `user_message`
+    /// entry followed by the assistant reply, which is what the console renders
+    /// when it reloads a finished turn.
+    pub(super) fn session_timeline_value(
+        &self,
+        session_id: &str,
+        pending: Option<runtime_projection::PendingTimelineEntry<'_>>,
+    ) -> Result<Vec<Value>, AdkChatPortError> {
+        let events = self
+            .session_store
+            .list_events(session_id)
+            .map_err(storage_unavailable)?;
+        Ok(runtime_projection::session_timeline(&events, pending))
+    }
+
     pub(super) fn persist_success(
         &self,
         chat: &ChatExecution,
@@ -466,7 +484,24 @@ impl ProductionAdkChatRuntime {
             .get_session(&chat.session_id)
             .map_err(storage_unavailable)?
             .map(|session| {
-                json!({"id": session.id, "agentId": chat.agent_id, "createdAt": session.created_at, "updatedAt": session.updated_at})
+                // Go serves the stored session entity, whose title the console
+                // renders as the transcript header.
+                let title = serde_json::from_str::<Value>(&session.payload_json)
+                    .ok()
+                    .and_then(|payload| {
+                        payload
+                            .get("title")
+                            .and_then(Value::as_str)
+                            .map(str::to_owned)
+                    })
+                    .unwrap_or_default();
+                json!({
+                    "id": session.id,
+                    "agentId": chat.agent_id,
+                    "title": title,
+                    "createdAt": session.created_at,
+                    "updatedAt": session.updated_at,
+                })
             })
             .unwrap_or_else(|| json!({"id": chat.session_id, "agentId": chat.agent_id}));
         let text = model_response.text;
@@ -479,10 +514,39 @@ impl ProductionAdkChatRuntime {
         // envelope, so a failed tool stays visible on the returned run while
         // the run-level `failureReason`/`errorCode` stay empty.
         let stored: Value = serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
+        // `MarkCompletedChatRun` clears the run-level failure projection before
+        // Go projects the run onto the wire, so a stale `errorCode` or
+        // `failureReason` from an earlier attempt never reaches the console.
+        let mut projection_payload = stored.clone();
+        if let Some(object) = projection_payload.as_object_mut() {
+            for key in [
+                "errorCode",
+                "errorMessage",
+                "errorStatus",
+                "failureReason",
+                "providerRetry",
+            ] {
+                object.remove(key);
+            }
+        }
         let tool_calls = stored
             .get("toolCalls")
+            .and_then(Value::as_array)
             .cloned()
-            .unwrap_or_else(|| Value::Array(Vec::new()));
+            .unwrap_or_default();
+        // Go serves the *merged* assistant text of the run, not just the last
+        // model answer: the text that preceded the first tool call and the text
+        // the model produced after the tool results are concatenated
+        // (`mergeProjectedText` in the ADK projection), which the frozen
+        // `chat-success` fixture pins for a plain turn.
+        let pre_tool_content = stored
+            .get("preToolContent")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .trim()
+            .to_owned();
+        let reply = runtime_projection::merge_projected_text(&pre_tool_content, text.trim(), false);
+        let reply = reply.trim().to_owned();
         // Go's `hydrateResumedRun` finishes an approval continuation with
         // `resumeState=adk_confirmation_resolved` and a `completedAt` stamp, so
         // the console can tell a resumed run from a plain chat run.  The
@@ -496,46 +560,66 @@ impl ProductionAdkChatRuntime {
         // `local`.  The reasoning slot stays empty: Rust's `ModelResponse`
         // carries only the visible text, so there is no reasoning buffer to
         // fold into the digest the way Go's `googleADKExecution.result()` does.
-        let final_message_id = synthetic_assistant_message_id(&chat.run_id, "local", "", &text);
+        let final_message_id = synthetic_assistant_message_id(&chat.run_id, "local", "", &reply);
         let completed_at = now.clone();
         let resume_state = Value::String(if chat.resumed {
             "adk_confirmation_resolved".to_owned()
         } else {
             String::new()
         });
-        let run_value = json!({
-            "id": chat.run_id,
-            "sessionId": chat.session_id,
-            "agentId": chat.agent_id,
-            "status": "COMPLETED",
+        // Go answers with `ProjectedChatResponse`: the durable run projected
+        // over `assistantmodel.Run`'s wire field set (including the tool
+        // activity and usage the projection derives) plus the session
+        // timeline.  Rust answered with an ad-hoc object, so the completed
+        // envelope lost `userMessage`, `usage`, `workMode`, `startedAt`,
+        // `toolSummaries`, `optimizationTaskId` and the user's own timeline
+        // entry even though the durable row knew all of them.
+        let mut overrides: Vec<(&str, Value)> = vec![
+            ("id", Value::String(chat.run_id.clone())),
+            ("sessionId", Value::String(chat.session_id.clone())),
+            ("agentId", Value::String(chat.agent_id.clone())),
+            ("status", Value::String("COMPLETED".to_owned())),
             // Go's `MarkCompletedChatRun` writes the fixed literal
-            // "completed" to `Run.Message`; the assistant text lives in
-            // `reply`.
-            "message": "completed",
-            "reply": text.clone(),
-            "pendingApprovals": [],
-            "toolCalls": tool_calls.clone(),
-            "failureReason": "",
-            "errorCode": "",
-            "degraded": degraded,
-            "resumeState": resume_state,
-            "completedAt": completed_at,
-            "finalMessageId": final_message_id.clone(),
-            "createdAt": run.created_at,
-            "updatedAt": now,
-        });
-        let timeline = json!({
-            "id": final_message_id.clone(),
-            "kind": "assistant_message",
-            "status": "final",
-            "text": text.clone(),
-        });
+            // "completed" to `Run.Message`; the assistant text lives in the
+            // response-level `reply`.
+            ("message", Value::String("completed".to_owned())),
+            ("pendingApprovals", Value::Array(Vec::new())),
+            ("degraded", Value::Bool(degraded)),
+            ("resumeState", resume_state),
+            ("completedAt", Value::String(completed_at.clone())),
+            ("finalMessageId", Value::String(final_message_id.clone())),
+            ("createdAt", Value::String(run.created_at.clone())),
+            ("updatedAt", Value::String(now.clone())),
+            (
+                "usage",
+                runtime_projection::usage_wire_value(&stored, &tool_calls, &completed_at),
+            ),
+        ];
+        overrides.extend(runtime_projection::tool_projection_fields(&tool_calls));
+        if !pre_tool_content.is_empty() {
+            overrides.push(("preToolContent", Value::String(pre_tool_content)));
+        }
+        let run_value = runtime_projection::go_run_wire(
+            &projection_payload,
+            GO_RUN_PROJECTION_FIELDS,
+            overrides,
+        );
+        let timeline = self.session_timeline_value(
+            &chat.session_id,
+            Some(runtime_projection::PendingTimelineEntry {
+                id: &final_message_id,
+                session_id: &chat.session_id,
+                run_id: &chat.run_id,
+                text: &reply,
+                created_at: &completed_at,
+            }),
+        )?;
         let response = json!({
-            "reply": text.clone(),
+            "reply": reply.clone(),
             "session": session,
             "run": run_value,
             "pendingApprovals": [],
-            "timeline": [timeline],
+            "timeline": timeline,
         });
         let mut payload: Value =
             serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
@@ -543,10 +627,21 @@ impl ProductionAdkChatRuntime {
         payload["sessionId"] = Value::String(chat.session_id.clone());
         payload["agentId"] = Value::String(chat.agent_id.clone());
         payload["status"] = Value::String("COMPLETED".to_owned());
-        payload["reply"] = Value::String(text.clone());
+        payload["reply"] = Value::String(reply.clone());
         payload["message"] = Value::String("completed".to_owned());
         payload["degraded"] = Value::Bool(degraded);
-        payload["completedAt"] = Value::String(completed_at);
+        payload["completedAt"] = Value::String(completed_at.clone());
+        // The projection fields the envelope served are durable too, so a
+        // reconnect or a `clientRequestId` replay rebuilds the identical
+        // response instead of re-deriving the tool activity.
+        payload["toolCalls"] = Value::Array(tool_calls.clone());
+        payload["toolSummaries"] = json!(runtime_projection::tool_summaries_for_run(&tool_calls));
+        let optimization_task_id = runtime_projection::optimization_task_id(&tool_calls);
+        if !optimization_task_id.is_empty() {
+            payload["optimizationTaskId"] = Value::String(optimization_task_id);
+        }
+        payload["usage"] =
+            runtime_projection::usage_wire_value(&stored, &tool_calls, &completed_at);
         if chat.resumed {
             payload["resumeState"] = Value::String("adk_confirmation_resolved".to_owned());
         }
@@ -583,7 +678,7 @@ impl ProductionAdkChatRuntime {
             session_id: &chat.session_id,
             invocation_id: &chat.run_id,
             author: &chat.agent_id,
-            content: &text,
+            content: &reply,
         };
         let stream_event_id =
             final_sequence.map(|sequence| format!("{}:stream:{}", chat.run_id, sequence));
