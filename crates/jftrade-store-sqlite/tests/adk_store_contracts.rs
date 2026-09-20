@@ -1207,3 +1207,121 @@ fn adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency() {
         .expect("resolution returned");
     assert!(resolved.changed);
 }
+
+/// Parity: go:452dea11:internal/assistant/engine/adk_edges_test.go:209
+/// `TestSQLiteGormPoolBoundaryBranches`: Rust has no gorm pool wrapper — the
+/// store owns its single connection and transaction — so the reachable contract
+/// is that a run and its initial session event commit together, a rejected
+/// event rolls the run back, a stale CAS update is a no-op, and a missing table
+/// surfaces as a store error instead of a panic.
+#[test]
+fn adk_transaction_boundaries_commit_roll_back_and_report_missing_tables() {
+    let directory = tempdir().expect("temp dir");
+    let db_path = directory.path().join("adk.db");
+    let session_path = directory.path().join("adk-session.db");
+    let adk_connection = Connection::open(&db_path).expect("open adk sqlite");
+    initialize_current(&adk_connection, "adk").expect("initialize adk schema");
+    drop(adk_connection);
+    let session_connection = Connection::open(&session_path).expect("open session sqlite");
+    initialize_current(&session_connection, "adk-session").expect("initialize session schema");
+    drop(session_connection);
+
+    let store = AdkStore::open(&db_path).expect("open store");
+    let session_store = AdkSessionStore::open(&session_path).expect("open session store");
+    session_store
+        .upsert_session("jftrade", "local", "session-tx", "{}")
+        .expect("seed session");
+
+    fn run_params(id: &str) -> CreateAdkRunParams<'_> {
+        CreateAdkRunParams {
+            id,
+            session_id: "session-tx",
+            agent_id: "agent-tx",
+            status: "RUNNING",
+            client_request_id: "",
+            request_fingerprint: "",
+            payload_json: r#"{"id":"run-tx","status":"RUNNING"}"#,
+        }
+    }
+    // The store requires the event's invocation to be the owning run.
+    fn run_event<'a>(id: &'a str, run_id: &'a str) -> jftrade_store_sqlite::AdkRunEvent<'a> {
+        jftrade_store_sqlite::AdkRunEvent {
+            id,
+            session_id: "session-tx",
+            invocation_id: run_id,
+            author: "user",
+            content: "hello",
+        }
+    }
+
+    store
+        .create_run_with_event(
+            run_params("run-tx-committed"),
+            &session_store,
+            &run_event("event-tx-shared", "run-tx-committed"),
+        )
+        .expect("the run and its first event commit together");
+    assert!(
+        store
+            .get_run("run-tx-committed")
+            .expect("read run")
+            .is_some()
+    );
+
+    // The event insert fails on the primary key, so the run insert must roll
+    // back with it.
+    let rolled_back = store.create_run_with_event(
+        run_params("run-tx-rolled-back"),
+        &session_store,
+        &run_event("event-tx-shared", "run-tx-rolled-back"),
+    );
+    assert!(
+        rolled_back.is_err(),
+        "a duplicate event must reject the transaction"
+    );
+    assert!(
+        store
+            .get_run("run-tx-rolled-back")
+            .expect("read rolled back run")
+            .is_none(),
+        "the run insert must roll back with the rejected event"
+    );
+
+    // A stale revision is a no-op, not a partial write.
+    assert!(
+        !store
+            .update_run_state_if_status_and_revision(
+                "run-tx-committed",
+                "RUNNING",
+                "stale-revision",
+                "PAUSED",
+                r#"{"id":"run-tx-committed","status":"PAUSED"}"#,
+            )
+            .expect("stale CAS update")
+    );
+    assert_eq!(
+        store
+            .get_run("run-tx-committed")
+            .expect("read run")
+            .expect("row")
+            .status,
+        "RUNNING"
+    );
+
+    // A schema that disappeared is reported, never panicked.
+    let connection = Connection::open(&db_path).expect("reopen adk sqlite");
+    connection
+        .execute("DROP TABLE adk_runs", [])
+        .expect("drop runs table");
+    drop(connection);
+    assert!(store.get_run("run-tx-committed").is_err());
+    assert!(
+        store
+            .create_run_with_event(
+                run_params("run-tx-missing-table"),
+                &session_store,
+                &run_event("event-tx-second", "run-tx-missing-table")
+            )
+            .is_err()
+    );
+}

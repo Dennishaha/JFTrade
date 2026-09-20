@@ -3194,3 +3194,89 @@ fn http_fetch_installs_the_rustls_provider_before_building_the_client() {
         "the fetch client must build once the provider is installed"
     );
 }
+
+/// Parity: go:452dea11:internal/assistant/engine/adk_edges_test.go:61
+/// `TestModelCatalogToolBoundaryBranches`: `models.list` keeps the reference
+/// boolean coercion (`false`/`"false"`/`"0"`/`"no"`/`"n"` disable
+/// `callableOnly`, an unknown string keeps the `true` default), answers zero
+/// rows for an unmatched query, and fails closed instead of returning a partial
+/// catalog when the provider store is unavailable.
+#[test]
+fn models_list_tool_projects_providers_with_reference_boolean_rules() {
+    let (directory, ports) = production_bundle();
+    ports
+        .mcp_store
+        .upsert_provider(
+            "provider-edges",
+            &json!({
+                "id": "provider-edges",
+                "displayName": "Edge Model Provider",
+                "baseUrl": "http://127.0.0.1:9/v1",
+                "model": "edge-model",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist provider without a credential");
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+
+    let unmatched = execute_models_list(&executor, json!({"query": "does-not-match", "limit": 0}));
+    assert_eq!(unmatched["totalReturned"], 0, "payload = {unmatched}");
+    assert_eq!(unmatched["models"], json!([]));
+
+    // A provider without a credential is disabled for callable-only listings,
+    // which is exactly the default the reference applies to missing input.
+    let defaulted = execute_models_list(&executor, json!({"query": "edge"}));
+    assert_eq!(defaulted["callableOnly"], true);
+    assert_eq!(defaulted["totalReturned"], 0, "payload = {defaulted}");
+
+    for value in [
+        json!(false),
+        json!("false"),
+        json!("0"),
+        json!("no"),
+        json!("n"),
+    ] {
+        let payload =
+            execute_models_list(&executor, json!({"query": "edge", "callableOnly": value}));
+        assert_eq!(payload["callableOnly"], false, "callableOnly = {value}");
+        assert_eq!(
+            payload["totalReturned"], 1,
+            "callableOnly = {value} must list the uncallable provider: {payload}"
+        );
+        assert_eq!(payload["models"][0]["providerId"], "provider-edges");
+        assert_eq!(payload["models"][0]["callable"], false);
+    }
+
+    let unknown_string = execute_models_list(&executor, json!({"callableOnly": "maybe"}));
+    assert_eq!(
+        unknown_string["callableOnly"], true,
+        "an unknown string keeps the reference default"
+    );
+
+    let provider_scoped = execute_models_list(
+        &executor,
+        json!({"providerId": "provider-missing", "callableOnly": false}),
+    );
+    assert_eq!(
+        provider_scoped["totalReturned"], 0,
+        "payload = {provider_scoped}"
+    );
+
+    let connection =
+        rusqlite::Connection::open(directory.path().join("adk.db")).expect("open ADK database");
+    connection
+        .execute("DROP TABLE adk_providers", [])
+        .expect("drop providers table");
+    drop(connection);
+    assert!(
+        executor.execute("models.list", &json!({})).is_err(),
+        "a store read failure must fail closed instead of returning a partial catalog"
+    );
+}
+
+fn execute_models_list(executor: &ProductionMcpToolExecutor, arguments: Value) -> Value {
+    executor
+        .execute("models.list", &arguments)
+        .unwrap_or_else(|error| panic!("models.list {arguments} failed: {error}"))
+}

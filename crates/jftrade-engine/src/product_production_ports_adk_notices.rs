@@ -194,3 +194,88 @@ pub(crate) fn merge_session_timeline(messages: Vec<Value>, notices: Vec<Value>) 
         })
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use jftrade_store_sqlite::{AdkStore, initialize_current};
+
+    fn notice_store() -> (tempfile::TempDir, std::path::PathBuf, AdkStore) {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("adk.db");
+        let connection = rusqlite::Connection::open(&path).expect("create ADK database");
+        initialize_current(&connection, "adk").expect("initialize ADK schema");
+        drop(connection);
+        let store = AdkStore::open(&path).expect("open ADK store");
+        (directory, path, store)
+    }
+
+    fn stored_notice(session_id: &str) -> ContextCompactionNotice {
+        ContextCompactionNotice {
+            id: String::new(),
+            session_id: session_id.to_owned(),
+            status: TIMELINE_STATUS_STREAMING.to_owned(),
+            text: CONTEXT_COMPACTION_STARTED_TEXT.to_owned(),
+            created_at: String::new(),
+            updated_at: String::new(),
+        }
+    }
+
+    /// Parity: go:452dea11:internal/assistant/engine/adk_edges_test.go:105
+    /// `TestContextCompactionNoticeBoundaryBranches`: an empty identity is a
+    /// no-op, an unwritable store degrades to an empty notice instead of an
+    /// error, and a stored notice keeps its id and `createdAt` while moving
+    /// from `streaming`/started to `final`/done.
+    #[test]
+    fn context_notices_are_best_effort_and_keep_one_identity_across_updates() {
+        let (_directory, _path, store) = notice_store();
+
+        let blank_session = create_context_compaction_notice(&store, "   ");
+        assert!(blank_session.is_none(), "a blank session cannot be notified");
+
+        let mut unnamed = stored_notice("session-1");
+        unnamed.id = " ".to_owned();
+        assert!(
+            update_context_compaction_notice(
+                &store,
+                &unnamed,
+                TIMELINE_STATUS_FINAL,
+                CONTEXT_COMPACTION_DONE_TEXT,
+            )
+            .is_none(),
+            "an update without a notice id must not create a second row"
+        );
+
+        let created =
+            create_context_compaction_notice(&store, "session-1").expect("created notice");
+        assert!(created.id.starts_with("notice-session-1-"));
+        assert_eq!(created.status, TIMELINE_STATUS_STREAMING);
+        assert_eq!(created.text, CONTEXT_COMPACTION_STARTED_TEXT);
+        let started_delta = notice_delta_value(&created);
+        assert_eq!(started_delta["kind"], json!(TIMELINE_KIND_CONTEXT_NOTICE));
+        assert_eq!(started_delta["status"], json!(TIMELINE_STATUS_STREAMING));
+
+        let updated = update_context_compaction_notice(
+            &store,
+            &created,
+            TIMELINE_STATUS_FINAL,
+            CONTEXT_COMPACTION_DONE_TEXT,
+        )
+        .expect("finalized notice");
+        assert_eq!(updated.id, created.id);
+        assert_eq!(updated.created_at, created.created_at);
+        assert_eq!(updated.status, TIMELINE_STATUS_FINAL);
+        assert_eq!(updated.text, CONTEXT_COMPACTION_DONE_TEXT);
+        assert_eq!(notice_delta_value(&updated)["id"], json!(updated.id));
+
+        // A store whose notices table is gone behaves like Go's closed store:
+        // the announcement is dropped, not surfaced as an error.
+        let (_failed_directory, failed_path, failed_store) = notice_store();
+        let connection = rusqlite::Connection::open(&failed_path).expect("reopen ADK database");
+        connection
+            .execute("DROP TABLE adk_session_notices", [])
+            .expect("drop notices table");
+        drop(connection);
+        assert!(create_context_compaction_notice(&failed_store, "session-2").is_none());
+    }
+}

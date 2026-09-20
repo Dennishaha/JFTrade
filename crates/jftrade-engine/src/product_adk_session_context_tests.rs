@@ -1308,3 +1308,70 @@ fn compaction_preserves_the_call_of_a_pending_approval() {
         "the projected session keeps the original call: {timeline:?}"
     );
 }
+
+/// Parity: go:452dea11:internal/assistant/engine/adk_edges_test.go:416
+/// `TestRuntimeSessionContextBoundaryBranches`: the reachable halves are that a
+/// missing session is reported as `session not found` for both the read and the
+/// compaction entry point, that a composer override naming an unknown provider
+/// keeps the agent's own provider window instead of failing the read, and that
+/// the compaction gate and the active-run conflict stay as documented by
+/// `a_second_compaction_is_rejected_while_the_session_gate_is_held` and
+/// `manual_context_compaction_writes_the_done_notice_into_the_timeline`.
+#[test]
+fn session_context_overrides_fall_back_to_the_agent_provider_window() {
+    let (_directory, port) = context_port();
+    seed_provider(&port, "context-fallback-provider", 4_000);
+    seed_agent(&port, "agent-fallback", "context-fallback-provider", 6);
+    seed_session(&port, "session-fallback", "agent-fallback");
+    append_context_events(&port, "session-fallback", 0, 2);
+
+    let missing = port
+        .read("/api/v1/adk/sessions/missing-context/context", "")
+        .expect_err("missing sessions must not project a context snapshot");
+    assert!(
+        format!("{missing}").contains("session not found"),
+        "missing session error = {missing}"
+    );
+    let missing_compaction = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CompactSessionContext,
+            identifiers: [("sessionId".to_owned(), "missing-context".to_owned())]
+                .into_iter()
+                .collect(),
+            body: json!({"mode": "normal", "trigger": "manual"}),
+            webhook_secret: None,
+        })
+        .expect_err("missing sessions cannot be compacted");
+    assert!(
+        format!("{missing_compaction}").contains("session not found"),
+        "missing compaction error = {missing_compaction}"
+    );
+
+    port.store
+        .upsert_session_composer_state(
+            "session-fallback",
+            &json!({
+                "sessionId": "session-fallback",
+                "providerIdOverride": "context-missing-provider",
+                "modelOverride": "bad-model",
+            })
+            .to_string(),
+        )
+        .expect("save composer state");
+
+    let snapshot = context_snapshot(&port, "session-fallback");
+    assert_eq!(
+        snapshot["contextWindowTokens"], 4_000,
+        "an unresolvable provider override keeps the base window: {snapshot}"
+    );
+    assert_eq!(
+        snapshot["status"], "healthy",
+        "a resolved base window is never the unknown band: {snapshot}"
+    );
+    assert!(
+        snapshot["usageRatio"]
+            .as_f64()
+            .is_some_and(|ratio| ratio > 0.0),
+        "the base window yields a positive usage ratio: {snapshot}"
+    );
+}

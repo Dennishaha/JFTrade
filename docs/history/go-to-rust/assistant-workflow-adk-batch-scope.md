@@ -2016,3 +2016,53 @@ Go 的期望：`reply` = 整轮 assistant 文本合并（`先说明一下。优�
 - 跨批 follow-up 汇总：P1 = Go `SaveRun` 终态谓词逐字对齐（`:146`/`:250` 引出的 CAS 缺口）、tool alias 归一化（`:641`）、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 内置 skill bundle 落盘/内容哈希与缺失工具注册（`:792`）、MCP registry 变更通知通道（engine `:382`/`:440` 提出的 SSE 通知面，若控制台需要动态刷新再单独立项）。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1717 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2751 Rust** / **910 `[x]`**，0 重复 `rust_entry`、0 非 `function_exact` 的 `[x]`）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第四十一批：`adk_edges_test.go` 全量结清（12 条边界用例；context 覆盖回落修复）
+
+范围：`internal/assistant/engine/adk_edges_test.go` 12 条逐条结清——全部落为 `[x]`，其中 8 条带明确结构边界。`[x]` 910 → **922**，Rust 测试 2751 → **2763**（engine+store nextest 1729 passed）。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/engine/ -run '<12 条 adk_edges 测试名>' -count=1`：12 条全通过（2.528s）。
+
+### 本批修复（1 处生产差异）
+
+1. **session context 的 composer provider 覆盖回落**：Go `Runtime.resolveSessionContextAgent` 在 override 解析失败且 base agent 有 provider 时回落 base；Rust `session_context_agent_payload`（`crates/jftrade-engine/src/product_production_ports_adk_context_window.rs`）过去无条件把 `providerIdOverride` 写进 agent，导致不存在的 provider 让 `contextWindowTokens` 退化为 0、`status=unknown`。现在按 Go 语义回落：override 生效且 override provider 不可读、base provider 可读时返回 base agent 投影。
+
+### 新增回归（12 条 Rust 测试）
+
+- `product_adk_model_runtime_gate_tests.rs`：`agent_memory_prompt_scopes_workspace_rows_and_fails_closed`（:25）、`chat_resolution_reports_missing_agents_and_unusable_providers`（:532）。
+- `product_mcp_server_tests.rs`：`models_list_tool_projects_providers_with_reference_boolean_rules`（:61）。
+- `product_production_ports_adk_notices.rs`（新增 `#[cfg(test)] mod tests`）：`context_notices_are_best_effort_and_keep_one_identity_across_updates`（:105）。
+- `product_adk_store_parity_tests.rs`：`goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields`（:153）、`snapshot_and_provider_test_boundaries_fail_closed`（:684）。
+- `product_production_ports_adk_tests.rs`：`tool_declarations_stay_complete_for_every_callable_tool`（:203）。
+- `product_adk_run_timeout.rs` / `product_adk_session_compaction_gate.rs`（均新增 `#[cfg(test)] mod tests`）：`assistant_run_timeout_falls_back_to_the_reference_default_window`（:294）、`compaction_gate_serializes_one_compactor_per_session`（:351）。
+- `product_adk_session_context_tests.rs`：`session_context_overrides_fall_back_to_the_agent_provider_window`（:416，本批修复的守卫）。
+- `crates/jftrade-store-sqlite/tests/adk_store_contracts.rs`：`adk_transaction_boundaries_commit_roll_back_and_report_missing_tables`（:209）。
+- `crates/jftrade-store-sqlite/tests/maintenance_cleanup_candidates.rs`（新增文件）：`soft_deleted_adk_rows_are_the_only_candidates_and_changes_reject_execute`（:237）。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. 去掉 context window 的 base 回落 → `session_context_overrides_fall_back_to_the_agent_provider_window` 转红（窗口 0/unknown）。
+2. `update_context_compaction_notice` 去掉空 id 守卫 → `context_notices_are_best_effort_and_keep_one_identity_across_updates` 转红（空 id 会新增第二行）。
+3. `verify_execute` 去掉 fingerprint 比对 → `soft_deleted_adk_rows_are_the_only_candidates_and_changes_reject_execute` 转红（`CandidatesChanged` 不再返回）。
+4. `optional_bool` 未知字符串回退改为 false → `models_list_tool_projects_providers_with_reference_boolean_rules` 转红（`callableOnly` 默认被破坏）。
+
+### 结论登记（`[x]` 行内的边界）
+
+- **:25**：无 Google ADK memory service，也无按 query token 匹配的 `googleADKMemoryMatches`；以 workspace/agent 私有行投影 + 表缺失报错作为可达契约。
+- **:153**：无 `preserveUserGoalPauseLifecycle` 纯函数；pause 生命周期由 `PauseRun`/`ResumeRun` + revision CAS 持有，`different run`/`non-loop candidate`/`terminal candidate` 无对应输入面。
+- **:203**：Rust schema 是 `serde_json::Value`，Go 的 “func 值 encode 失败” 分支不可达；以“每个 callable 工具都有完整声明”作为契约。
+- **:209**：无 gorm pool 表层；以事务原子性（run+event 同提交/失败回滚）与表缺失报错替代。
+- **:237**：无 `(*Store)(nil)` 接收者；以软删除候选集 + `CandidatesChanged` + `Busy("active run")` 覆盖。
+- **:294**：无 nil runtime/`SetRuntimeLimitsProvider`；以 settings 缺省/零/负/坏 JSON 回退 1800000 与配置值胜出覆盖。
+- **:351**：artifact service 回退（非法 session DB → in-memory）与 `Runtime.Close()` 取消 active run 属 Go 构造面；Rust store 在组合根一次构造、失败即拒绝启动。
+- **:532**：session 标题 28 字符、技能缺失、关闭 store/表缺失分支由既有用例与 store 契约用例覆盖；本批锁定 agent/provider 解析错误分类。
+- **:684**：skill registry 注入与“坏 chat provider”网络失败属 Go 注入面；以 404/503 分类与 snapshot fail-closed 覆盖。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/engine/workflow_tools_test.go`（11 条）；随后按 backlog 进入 `internal/app/apiserver`（574）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`internal/assistant/assembly`（余量）等。
+- 跨批 follow-up 汇总：P1 = Go `SaveRun` 终态谓词逐字对齐、tool alias 归一化、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 内置 skill bundle 落盘/内容哈希与缺失工具注册、MCP registry 变更通知通道、chat 路径的 composer provider/model 覆盖（本批仅修了 session context 读取路径，chat 执行路径不读 composer 覆盖，需要 Go 侧用例确认后再立项）。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1729 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2763 Rust** / **922 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

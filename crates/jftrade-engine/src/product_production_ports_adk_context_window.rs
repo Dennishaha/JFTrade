@@ -54,13 +54,20 @@ fn session_context_agent_payload(
         .filter(|value| !value.is_empty())?;
     let agent = store.get_agent(agent_id).ok().flatten()?;
     let mut payload = serde_json::from_str::<Value>(&agent.payload_json).ok()?;
-    let object = payload.as_object_mut()?;
+    payload.as_object()?;
+    // Go `Runtime.resolveSessionContextAgent` remembers the session's own agent
+    // and falls back to it when the overridden provider cannot be resolved.
+    let base = payload.clone();
+    let mut overridden = false;
     let composer = store
         .get_session_composer_state(session_id)
         .ok()
         .flatten()
         .and_then(|row| serde_json::from_str::<Value>(&row.payload_json).ok());
     if let Some(composer) = composer.as_ref().and_then(Value::as_object) {
+        let object = payload
+            .as_object_mut()
+            .expect("agent payload object was validated");
         for key in ["providerIdOverride", "modelOverride"] {
             let Some(value) = composer
                 .get(key)
@@ -74,9 +81,29 @@ fn session_context_agent_payload(
                 key.trim_end_matches("Override").to_owned(),
                 Value::String(value.to_owned()),
             );
+            overridden = true;
         }
     }
+    if overridden
+        && !agent_provider_is_readable(store, &payload)
+        && agent_provider_is_readable(store, &base)
+    {
+        return Some(base);
+    }
     Some(payload)
+}
+
+/// Whether the agent's effective provider can be read back from the store.
+/// The window projection only needs the row itself; enablement and credentials
+/// stay with the chat path, which reports those failures to the caller.
+fn agent_provider_is_readable(store: &jftrade_store_sqlite::AdkStore, agent: &Value) -> bool {
+    agent
+        .get("providerId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .and_then(|provider_id| store.get_provider(provider_id).ok().flatten())
+        .is_some()
 }
 
 /// Go `SessionContextManager.contextWindowTokens`: the window comes from the

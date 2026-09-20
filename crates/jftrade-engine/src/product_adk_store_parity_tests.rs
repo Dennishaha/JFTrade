@@ -525,3 +525,241 @@ fn adk_builtin_strategy_skills_publish_the_curated_tool_split() {
         "publish skill must not publish research_backtest: {publish_tools:?}"
     );
 }
+
+/// Parity: go:452dea11:internal/assistant/engine/adk_edges_test.go:153
+/// `TestPauseGuardBoundaryBranches`: Rust has no `preserveUserGoalPauseLifecycle`
+/// pure function, so the pause lifecycle is owned by the run mutations plus the
+/// revision CAS.  A running loop goal gains `pauseRequestedAt` and
+/// `resumeState=user_pause_requested`, a stale writer cannot clear them, an
+/// explicit resume drops every pause field, and a chat run can never take the
+/// goal-pause path.
+#[test]
+fn goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields() {
+    let (port, store, _directory) = setup_test_adk_mutation_port(None);
+    let seed = |id: &str, work_mode: &str| {
+        let payload = json!({
+            "id": id,
+            "sessionId": "session-pause-guard",
+            "agentId": "agent-pause-guard",
+            "status": "RUNNING",
+            "workMode": work_mode,
+            "objective": "推进目标",
+            "workflowStatus": "RUNNING",
+            "message": "goal running",
+        })
+        .to_string();
+        store
+            .create_run(CreateAdkRunParams {
+                id,
+                session_id: "session-pause-guard",
+                agent_id: "agent-pause-guard",
+                status: "RUNNING",
+                client_request_id: "",
+                request_fingerprint: "",
+                payload_json: &payload,
+            })
+            .expect("seed run");
+    };
+    seed("run-goal-guard", "loop");
+    seed("run-chat-guard", "chat");
+
+    let paused = mutate(
+        port.as_ref(),
+        AdkMutationOperation::PauseRun,
+        &[("runId", "run-goal-guard")],
+        json!({}),
+    );
+    assert_eq!(paused["status"], "RUNNING");
+    assert_eq!(paused["resumeState"], "user_pause_requested");
+    assert_eq!(paused["message"], "目标将在当前轮结束后暂停。");
+    assert!(paused["pauseRequestedAt"].is_string());
+    assert!(
+        paused.get("pausedAt").is_none(),
+        "a pause request is not a pause yet: {paused}"
+    );
+
+    let failure = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::PauseRun,
+            identifiers: [("runId".to_owned(), "run-chat-guard".to_owned())]
+                .into_iter()
+                .collect(),
+            body: json!({}),
+            webhook_secret: None,
+        })
+        .expect_err("chat runs cannot be paused");
+    match failure {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "ADK_RUN_PAUSE_FAILED");
+            assert!(
+                message.contains("only loop goal runs can be paused"),
+                "message = {message}"
+            );
+        }
+        other => panic!("unexpected pause failure {other:?}"),
+    }
+
+    // A stale snapshot written against the pre-pause revision cannot clear the
+    // pending pause request.
+    let current = store.get_run("run-goal-guard").expect("read run").expect("run");
+    let stale_payload = json!({
+        "id": "run-goal-guard",
+        "sessionId": "session-pause-guard",
+        "agentId": "agent-pause-guard",
+        "status": "RUNNING",
+        "workMode": "loop",
+        "objective": "推进目标",
+        "workflowStatus": "RUNNING",
+        "message": "goal running",
+    })
+    .to_string();
+    assert!(
+        !store
+            .update_run_state_if_status_and_revision(
+                "run-goal-guard",
+                "RUNNING",
+                "stale-revision",
+                "RUNNING",
+                &stale_payload,
+            )
+            .expect("stale pause guard")
+    );
+    let guarded: Value =
+        serde_json::from_str(&store.get_run("run-goal-guard").unwrap().unwrap().payload_json)
+            .expect("guarded payload");
+    assert_eq!(guarded["resumeState"], "user_pause_requested");
+    assert_eq!(
+        guarded["pauseRequestedAt"], paused["pauseRequestedAt"],
+        "the pending pause request survives the stale writer"
+    );
+
+    // The loop parks the goal: PAUSED + pausedReason=user is the state the
+    // resume path accepts.
+    let parked_payload = json!({
+        "id": "run-goal-guard",
+        "sessionId": "session-pause-guard",
+        "agentId": "agent-pause-guard",
+        "status": "PAUSED",
+        "workMode": "loop",
+        "objective": "推进目标",
+        "workflowStatus": "PAUSED",
+        "message": "paused by user",
+        "pauseRequestedAt": paused["pauseRequestedAt"],
+        "pausedAt": "2026-09-20T00:05:00Z",
+        "pausedReason": "user",
+        "resumeState": "user_paused",
+    })
+    .to_string();
+    assert!(
+        store
+            .update_run_state_if_status_and_revision(
+                "run-goal-guard",
+                "RUNNING",
+                &current.updated_at,
+                "PAUSED",
+                &parked_payload,
+            )
+            .expect("park paused goal")
+    );
+
+    let resumed = mutate(
+        port.as_ref(),
+        AdkMutationOperation::ResumeRun,
+        &[("runId", "run-goal-guard")],
+        json!({}),
+    );
+    assert_eq!(resumed["status"], "RUNNING");
+    assert_eq!(resumed["resumeState"], "user_resuming");
+    assert_eq!(resumed["message"], "goal resumed");
+    for cleared in ["pauseRequestedAt", "pausedAt", "pausedReason"] {
+        assert!(
+            resumed.get(cleared).is_none_or(Value::is_null),
+            "{cleared} must be cleared by the explicit resume: {resumed}"
+        );
+    }
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/adk_edges_test.go:684
+/// `TestRuntimeSnapshotAndProviderTestBoundaryBranches`: a snapshot read fails
+/// closed once the agent table is gone, `TestProvider` reports a missing
+/// provider as 404, and the same operation without a chat port reports 503
+/// instead of pretending the provider answered.
+#[test]
+fn snapshot_and_provider_test_boundaries_fail_closed() {
+    let (port, store, directory) = setup_test_adk_mutation_port(None);
+
+    let missing = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::TestProvider,
+            identifiers: [("providerId".to_owned(), "missing-provider".to_owned())]
+                .into_iter()
+                .collect(),
+            body: json!({}),
+            webhook_secret: None,
+        })
+        .expect_err("a missing provider cannot be tested");
+    match missing {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 404, "message = {message}");
+            assert_eq!(code, "ADK_PROVIDER_NOT_FOUND");
+        }
+        other => panic!("unexpected provider test failure {other:?}"),
+    }
+
+    store
+        .upsert_provider(
+            "provider-test-boundary",
+            &json!({
+                "id": "provider-test-boundary",
+                "displayName": "Provider test boundary",
+                "baseUrl": "http://127.0.0.1:1/v1",
+                "model": "fixture-model",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    let unavailable = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::TestProvider,
+            identifiers: [("providerId".to_owned(), "provider-test-boundary".to_owned())]
+                .into_iter()
+                .collect(),
+            body: json!({}),
+            webhook_secret: None,
+        })
+        .expect_err("a runtime without a chat port cannot test providers");
+    match unavailable {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 503, "message = {message}");
+            assert_eq!(code, "ADK_PROVIDER_TEST_UNAVAILABLE");
+        }
+        other => panic!("unexpected provider test failure {other:?}"),
+    }
+
+    // A snapshot whose agent table disappeared reports the failure instead of an
+    // empty console payload.
+    let connection =
+        rusqlite::Connection::open(directory.path().join("adk.db")).expect("open ADK database");
+    connection
+        .execute("DROP TABLE adk_agents", [])
+        .expect("drop agents table");
+    drop(connection);
+    assert!(
+        port.read("/api/v1/adk", "").is_err(),
+        "a snapshot without the agent table must fail closed"
+    );
+}

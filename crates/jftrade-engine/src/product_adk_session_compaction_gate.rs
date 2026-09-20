@@ -51,3 +51,44 @@ pub(crate) fn begin_session_compaction(session_id: &str) -> (Option<SessionCompa
         true,
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Parity: go:452dea11:internal/assistant/engine/adk_edges_test.go:351
+    /// `TestRuntimeConstructionCompactionAndCloseBoundaryBranches`: a blank
+    /// session id never blocks, the second compactor of the same session is
+    /// rejected while the first guard is alive, other sessions stay
+    /// independent, and dropping the guard releases the session.
+    #[test]
+    fn compaction_gate_serializes_one_compactor_per_session() {
+        let (blank, blank_acquired) = begin_session_compaction("  ");
+        assert!(
+            blank_acquired,
+            "a blank session id acquires without blocking"
+        );
+        assert!(
+            blank.is_none(),
+            "a blank session id has no guard to release"
+        );
+
+        let (first, first_acquired) = begin_session_compaction("session-one");
+        assert!(first_acquired);
+        let (duplicate, duplicate_acquired) = begin_session_compaction(" session-one ");
+        assert!(
+            !duplicate_acquired,
+            "the same session must not compact twice"
+        );
+        assert!(duplicate.is_none());
+
+        let (other, other_acquired) = begin_session_compaction("session-two");
+        assert!(other_acquired, "unrelated sessions stay independent");
+        drop(other);
+        drop(first);
+
+        let (again, again_acquired) = begin_session_compaction("session-one");
+        assert!(again_acquired, "dropping the guard releases the session");
+        drop(again);
+    }
+}

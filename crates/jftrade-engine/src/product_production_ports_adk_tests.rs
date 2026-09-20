@@ -8305,3 +8305,49 @@ fn resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window() {
     assert_eq!(payload["maxDurationMs"], 2_700_000);
     assert_eq!(payload["status"], "RUNNING");
 }
+
+/// Parity: go:452dea11:internal/assistant/engine/adk_edges_test.go:203
+/// `TestSchemaConversionReportsMarshalError`: Go encodes each tool schema map
+/// through JSON and reports an encoding error for values JSON cannot represent
+/// (a `func`).  Rust schemas are `serde_json::Value`, which cannot hold such a
+/// value, so the reachable contract is that every callable tool still yields a
+/// complete object-shaped declaration — the strict reviewed schema when one
+/// exists, the generic fallback otherwise — instead of failing or dropping the
+/// tool.
+#[test]
+fn tool_declarations_stay_complete_for_every_callable_tool() {
+    let bindings = PRODUCTION_TOOL_DEFINITIONS
+        .iter()
+        .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
+        .collect::<BTreeMap<_, _>>();
+    let catalog = ProductionToolCatalog::from_bindings(&bindings).expect("catalog bindings");
+    let callable = catalog.callable_tools();
+    let declarations = catalog.openai_tools();
+    assert_eq!(
+        declarations.len(),
+        callable.len(),
+        "every callable tool must reach the model declaration list"
+    );
+
+    let mut strict = 0;
+    for declaration in &declarations {
+        assert_eq!(declaration["type"], "function", "declaration = {declaration}");
+        assert!(
+            declaration["name"]
+                .as_str()
+                .is_some_and(|name| !name.trim().is_empty()),
+            "declaration = {declaration}"
+        );
+        assert_eq!(
+            declaration["parameters"]["type"], "object",
+            "declaration = {declaration}"
+        );
+        if declaration["parameters"].get("required").is_some() {
+            strict += 1;
+        }
+    }
+    assert!(
+        strict > 0,
+        "the strict per-tool schemas must survive the projection"
+    );
+}

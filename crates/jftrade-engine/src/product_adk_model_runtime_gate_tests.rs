@@ -1091,3 +1091,301 @@ fn explicit_access_modes_project_their_declared_tool_sets() {
     }
     assert!(!none.exposes("market.search"));
 }
+
+/// Parity: go:452dea11:internal/assistant/engine/adk_edges_test.go:25
+/// `TestGoogleADKMemoryServiceBoundaryBranches`: Rust has no Google ADK memory
+/// service, so the durable contract is `Runtime.agentMemoryPrompt`: a workspace
+/// row is shared with every agent, an agent's own rows stay private to it, an
+/// agent without rows yields an empty prompt, and an unreadable store fails the
+/// resolution instead of silently dropping memory.
+#[test]
+fn agent_memory_prompt_scopes_workspace_rows_and_fails_closed() {
+    let (directory, store, session_store) = initialized_stores();
+    std::fs::create_dir_all(directory.path().join("secrets")).expect("create secrets directory");
+    std::fs::write(
+        directory.path().join("secrets/adk-secrets.json"),
+        r#"{"provider-memory-scope":"sk-memory"}"#,
+    )
+    .expect("write provider secrets");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, "{}").expect("write settings");
+
+    store
+        .upsert_provider(
+            "provider-memory-scope",
+            &json!({
+                "displayName": "Memory scope fixture",
+                "baseUrl": "http://127.0.0.1:9/v1",
+                "model": "fixture-model",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    for agent_id in ["agent-memory-owner", "agent-memory-peer"] {
+        store
+            .upsert_agent(
+                agent_id,
+                &json!({
+                    "id": agent_id,
+                    "name": agent_id,
+                    "providerId": "provider-memory-scope",
+                    "status": "ENABLED",
+                    "memoryEnabled": true,
+                })
+                .to_string(),
+            )
+            .expect("persist agent");
+    }
+    let memory = |id: &str, agent_id: &str, scope: &str, key: &str, value: &str| {
+        json!({
+            "id": id,
+            "agentId": agent_id,
+            "scope": scope,
+            "key": key,
+            "value": value,
+        })
+        .to_string()
+    };
+    store
+        .upsert_memory(
+            "memory-shared",
+            "",
+            "workspace",
+            "preference",
+            &memory(
+                "memory-shared",
+                "",
+                "workspace",
+                "preference",
+                "use HK market",
+            ),
+        )
+        .expect("persist workspace memory");
+    store
+        .upsert_memory(
+            "memory-owner",
+            "agent-memory-owner",
+            "agent",
+            "risk",
+            &memory(
+                "memory-owner",
+                "agent-memory-owner",
+                "agent",
+                "risk",
+                "small",
+            ),
+        )
+        .expect("persist owner memory");
+    store
+        .upsert_memory(
+            "memory-peer",
+            "agent-memory-peer",
+            "agent",
+            "peer",
+            &memory(
+                "memory-peer",
+                "agent-memory-peer",
+                "agent",
+                "peer",
+                "private",
+            ),
+        )
+        .expect("persist peer memory");
+
+    let runtime = ProductionAdkChatRuntime::new(
+        Arc::clone(&store),
+        Arc::clone(&session_store),
+        &settings_path,
+        Arc::new(RunCancellationRegistry::default()),
+        Arc::new(crate::product::product_production_ports::ProductionToolCatalog::empty_for_test()),
+    );
+
+    let owner_prompt = runtime
+        .agent_memory_prompt("agent-memory-owner")
+        .expect("owner memory prompt");
+    assert!(
+        owner_prompt.contains("preference: use HK market"),
+        "the workspace row is shared: {owner_prompt}"
+    );
+    assert!(
+        owner_prompt.contains("risk: small"),
+        "the agent's own row is included: {owner_prompt}"
+    );
+    assert!(
+        !owner_prompt.contains("peer: private"),
+        "another agent's row stays private: {owner_prompt}"
+    );
+
+    store
+        .upsert_agent(
+            "agent-memory-empty",
+            &json!({
+                "id": "agent-memory-empty",
+                "name": "empty",
+                "providerId": "provider-memory-scope",
+                "status": "ENABLED",
+                "memoryEnabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist memory-less agent");
+    let empty_prompt = runtime
+        .agent_memory_prompt("agent-memory-empty")
+        .expect("memory prompt without rows");
+    assert!(
+        empty_prompt.contains("preference: use HK market"),
+        "workspace rows still reach an agent without private rows: {empty_prompt}"
+    );
+
+    // An unreadable store must fail the resolution instead of dropping memory.
+    let connection =
+        Connection::open(directory.path().join("adk.db")).expect("reopen ADK database");
+    connection
+        .execute("DROP TABLE adk_memory", [])
+        .expect("drop memory table");
+    drop(connection);
+    assert!(
+        runtime.agent_memory_prompt("agent-memory-owner").is_err(),
+        "a missing memory table is a store failure, not empty memory"
+    );
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/adk_edges_test.go:532
+/// `TestRuntimeAgentProviderSessionAndMemoryBoundaryBranches`: the reachable
+/// resolution boundaries are a missing agent, a disabled agent, a disabled
+/// provider, a provider without credentials, and a store whose providers carry
+/// no default for an agent that declares none.
+#[test]
+fn chat_resolution_reports_missing_agents_and_unusable_providers() {
+    let (directory, store, session_store) = initialized_stores();
+    std::fs::create_dir_all(directory.path().join("secrets")).expect("create secrets directory");
+    std::fs::write(
+        directory.path().join("secrets/adk-secrets.json"),
+        r#"{"provider-keyed":"sk-keyed"}"#,
+    )
+    .expect("write provider secrets");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, "{}").expect("write settings");
+
+    for (id, enabled) in [
+        ("provider-disabled", false),
+        ("provider-keyless", true),
+        ("provider-keyed", true),
+    ] {
+        store
+            .upsert_provider(
+                id,
+                &json!({
+                    "displayName": id,
+                    "baseUrl": "http://127.0.0.1:9/v1",
+                    "model": "fixture-model",
+                    "enabled": enabled,
+                })
+                .to_string(),
+            )
+            .expect("persist provider");
+    }
+    for (id, provider_id, status) in [
+        ("agent-disabled", "provider-keyed", "DISABLED"),
+        ("agent-disabled-provider", "provider-disabled", "ENABLED"),
+        ("agent-keyless", "provider-keyless", "ENABLED"),
+        ("agent-keyed", "provider-keyed", "ENABLED"),
+        ("agent-no-provider", " ", "ENABLED"),
+    ] {
+        store
+            .upsert_agent(
+                id,
+                &json!({
+                    "id": id,
+                    "name": id,
+                    "providerId": provider_id,
+                    "status": status,
+                })
+                .to_string(),
+            )
+            .expect("persist agent");
+    }
+
+    let runtime = ProductionAdkChatRuntime::new(
+        Arc::clone(&store),
+        Arc::clone(&session_store),
+        &settings_path,
+        Arc::new(RunCancellationRegistry::default()),
+        Arc::new(crate::product::product_production_ports::ProductionToolCatalog::empty_for_test()),
+    );
+    let failure = |agent_id: &str| -> String {
+        let mut request = serde_json::Map::new();
+        request.insert("agentId".to_owned(), json!(agent_id));
+        match runtime.resolve_provider(&request) {
+            Err(AdkChatPortError::Unavailable(message)) => message,
+            Err(AdkChatPortError::Conflict(message)) => message,
+            Err(AdkChatPortError::Failed { message, .. }) => message,
+            Ok(resolved) => panic!("{agent_id} must not resolve a provider, got {resolved:?}"),
+        }
+    };
+
+    assert!(
+        failure("agent-missing").contains("agent not found"),
+        "missing agent = {}",
+        failure("agent-missing")
+    );
+    assert!(
+        failure("agent-disabled").contains("agent is disabled"),
+        "disabled agent = {}",
+        failure("agent-disabled")
+    );
+    assert!(
+        failure("agent-disabled-provider").contains("agent provider is unavailable"),
+        "disabled provider = {}",
+        failure("agent-disabled-provider")
+    );
+    assert!(
+        failure("agent-keyless").contains("agent provider API keys is not configured"),
+        "credential-less provider = {}",
+        failure("agent-keyless")
+    );
+    // The store keeps one provider flagged as the default, so the
+    // "no default configured" branch needs a store without any provider row.
+    let (empty_directory, empty_store, empty_session_store) = initialized_stores();
+    let empty_settings = empty_directory.path().join("settings.json");
+    std::fs::write(&empty_settings, "{}").expect("write empty settings");
+    empty_store
+        .upsert_agent(
+            "agent-no-default-provider",
+            &json!({
+                "id": "agent-no-default-provider",
+                "name": "no default",
+                "providerId": " ",
+                "status": "ENABLED",
+            })
+            .to_string(),
+        )
+        .expect("persist provider-less agent");
+    let empty_runtime = ProductionAdkChatRuntime::new(
+        Arc::clone(&empty_store),
+        Arc::clone(&empty_session_store),
+        &empty_settings,
+        Arc::new(RunCancellationRegistry::default()),
+        Arc::new(crate::product::product_production_ports::ProductionToolCatalog::empty_for_test()),
+    );
+    let mut empty_request = serde_json::Map::new();
+    empty_request.insert("agentId".to_owned(), json!("agent-no-default-provider"));
+    let empty_failure = match empty_runtime.resolve_provider(&empty_request) {
+        Err(AdkChatPortError::Unavailable(message)) => message,
+        Err(AdkChatPortError::Conflict(message)) => message,
+        Err(AdkChatPortError::Failed { message, .. }) => message,
+        Ok(resolved) => panic!("an empty provider store must not resolve, got {resolved:?}"),
+    };
+    assert!(
+        empty_failure.contains("default agent provider is not configured"),
+        "agent without a provider and without any store default = {empty_failure}"
+    );
+
+    let mut request = serde_json::Map::new();
+    request.insert("agentId".to_owned(), json!("agent-keyed"));
+    let resolved = runtime
+        .resolve_provider(&request)
+        .expect("the credential-backed provider resolves");
+    assert_eq!(resolved.id, "provider-keyed");
+}
