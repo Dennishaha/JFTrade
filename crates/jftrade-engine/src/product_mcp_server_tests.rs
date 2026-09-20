@@ -3856,3 +3856,44 @@ fn product_dispatch_rejects_unknown_tools_and_missing_instruments() {
         failure.message
     );
 }
+
+/// Parity: go:452dea11:internal/assistant/assembly/runtime_test.go:55
+/// TestOpenOwnsApplicationToolRegistration
+///
+/// Go's `Open` registers the application tool set itself: the injected
+/// `system.status` dependency and the assembly-owned
+/// `strategy.research_backtest`. The Rust composition root owns the same
+/// registration through `PRODUCTION_TOOL_DEFINITIONS`, so both ids are in the
+/// catalog without any per-request registration call.
+#[test]
+fn production_catalog_registers_application_tools_from_the_composition_root() {
+    let definitions = crate::product::product_production_ports::product_production_ports_adk::PRODUCTION_TOOL_DEFINITIONS;
+    let registered = definitions
+        .iter()
+        .map(|definition| definition.id)
+        .collect::<Vec<_>>();
+    for name in ["system.status", "strategy.research_backtest"] {
+        assert!(
+            registered.contains(&name),
+            "{name} must be registered by the composition root: {registered:?}"
+        );
+    }
+
+    let bindings = definitions
+        .iter()
+        .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
+        .collect::<BTreeMap<_, _>>();
+    let catalog =
+        ProductionToolCatalog::from_bindings(&bindings).expect("complete ADK tool bindings");
+    let callable = catalog
+        .callable_tools()
+        .into_iter()
+        .filter_map(|tool| tool["id"].as_str().map(str::to_owned))
+        .collect::<Vec<_>>();
+    for name in ["system.status", "strategy.research_backtest"] {
+        assert!(
+            callable.iter().any(|id| id == name),
+            "{name} must be callable once every port is ready: {callable:?}"
+        );
+    }
+}

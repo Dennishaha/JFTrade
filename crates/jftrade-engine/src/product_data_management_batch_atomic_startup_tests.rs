@@ -2,8 +2,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use jftrade_datamanagement::{
-    DatabaseDescriptor, DATABASE_BACKTEST, DATABASE_STRATEGY,
+    DatabaseDescriptor, DATABASE_ADK, DATABASE_ADK_SESSION, DATABASE_BACKTEST, DATABASE_STRATEGY,
 };
+use jftrade_store_sqlite::{AdkSessionStore, AdkStore};
 use jftrade_owner_lock::{OwnerDiagnostic, WriterLease};
 use jftrade_store_sqlite::current_version;
 use rusqlite::Connection;
@@ -136,4 +137,51 @@ fn snapshot_files(path: &Path) -> Vec<(PathBuf, Vec<u8>)> {
         .map(|suffix| PathBuf::from(format!("{}{suffix}", path.display())))
         .filter_map(|path| fs::read(&path).ok().map(|bytes| (path, bytes)))
         .collect()
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/runtime_test.go:45
+/// TestRuntimeDatabaseProbesUseProvidedLayout
+///
+/// Go probes the runtime and session databases at the injected
+/// `Paths{Database, Session}` layout and fails when the file is missing or its
+/// schema is not the pinned baseline. Rust derives the same two databases from
+/// the settings directory (or the per-database environment override), so
+/// startup must create and validate exactly the provided paths instead of
+/// silently falling back to the default root.
+#[test]
+fn database_probes_use_the_provided_layout() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    fs::write(&settings_path, b"{}\n").expect("settings");
+    let provided = directory.path().join("provided-layout");
+    fs::create_dir_all(&provided).expect("provided layout directory");
+    let adk_override = provided.join("adk.db").to_string_lossy().into_owned();
+    let session_override = provided.join("adk-session.db").to_string_lossy().into_owned();
+
+    let descriptors = database_descriptors(&settings_path, |name| match name {
+        "JFTRADE_ADK_DB" => Some(adk_override.clone()),
+        "JFTRADE_ADK_SESSION_DB" => Some(session_override.clone()),
+        _ => None,
+    })
+    .0;
+    initialize_production_databases_inner(&descriptors).expect("initialize provided layout");
+
+    let adk = descriptor(&descriptors, DATABASE_ADK);
+    let session = descriptor(&descriptors, DATABASE_ADK_SESSION);
+    assert_eq!(adk.path, adk_override, "runtime database keeps its path");
+    assert_eq!(session.path, session_override, "session database keeps its path");
+    assert!(
+        Path::new(&adk.path).is_file(),
+        "runtime database must exist at the provided path"
+    );
+    assert!(
+        Path::new(&session.path).is_file(),
+        "session database must exist at the provided path"
+    );
+    AdkStore::open(&adk.path).expect("probe the provided runtime database");
+    AdkSessionStore::open(&session.path).expect("probe the provided session database");
+    assert!(
+        current_version_at(&adk).is_some(),
+        "runtime database carries a pinned schema version after initialization"
+    );
 }

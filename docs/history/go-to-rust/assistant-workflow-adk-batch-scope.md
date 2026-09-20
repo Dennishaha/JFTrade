@@ -2407,3 +2407,38 @@ Go 这 6 条覆盖 Go 侧产品/执行适配器的输入强转 helper、分发�
 - 跨批 follow-up 汇总：P1 = `portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `market.depth` 自由文本 instrument 推断（第 47 批 `:272`）、`watchlist.list includeQuotes` 行情富化（第 47 批 `:672`）、`research.calendar` 缺省输入与 operation 的 fail-closed 差异（本批 `:217` 引出）、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2806 Rust** / **940 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+
+## 第四十九批：assembly `runtime_test.go` 全量结清（5 条；2 条新 `[x]`，3 条 `partial`）
+
+范围：`internal/assistant/assembly/runtime_test.go` 5 条逐条结清——本批新增 **2 条 `[x]`**（`:45`、`:55`），`partial` 3 条（`:14`、`:74`、`:131`）。`[x]` 计数 940 → **942**，Rust 测试 2806 → **2808**。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestOpenBuildsToolsServiceAndIdempotentLifecycle|TestRuntimeDatabaseProbesUseProvidedLayout|TestOpenOwnsApplicationToolRegistration|TestHandleExposesNarrowAuditAndToolOperations|TestNilHandleLifecycleIsSafe' -count=1`（checkout `/tmp/go452dea11.niwD1G`）。
+
+### 本批结论（2 条新增回归，无生产改动）
+
+Go 这 5 条描述 `assembly.Open` 拥有的运行时句柄：构建 tools/service、幂等 Close、按注入布局探测 runtime/session 数据库、注册应用工具、窄审计与工具存取、以及 nil 句柄的生命周期安全。Rust 对应 owner 是 composition root（`start_product_runtime`/`ProductRuntimeHandle`、`initialize_production_databases`、`ProductionToolCatalog`、`AdkStore`/`AdkSessionStore`），本轮把缺口补成断言：
+
+- `product_data_management_batch_atomic_startup_tests.rs::database_probes_use_the_provided_layout`（`:45`）：用 `JFTRADE_ADK_DB`/`JFTRADE_ADK_SESSION_DB` 注入自定义布局，断言 descriptor 保持注入路径、两个文件存在于该路径、`AdkStore::open` 与 `AdkSessionStore::open` 探针通过、runtime 库带固定 schema 版本。
+- `product_mcp_server_tests.rs::production_catalog_registers_application_tools_from_the_composition_root`（`:55`）：断言 composition root 的 `PRODUCTION_TOOL_DEFINITIONS` 同时登记 `system.status` 与 `strategy.research_backtest`，且所有端口 Ready 时两者都在 `callable_tools()` 中。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `database_descriptors` 忽略 `JFTRADE_ADK_DB` 覆盖 → `database_probes_use_the_provided_layout` 转红（路径回退到默认 root `/…/adk.db`，不再是 `/…/provided-layout/adk.db`）。
+2. `from_bindings_with_research` 跳过 `system.status` 定义 → `production_catalog_registers_application_tools_from_the_composition_root` 转红并打印实际可调用列表（其中可见 `strategy.research_backtest` 仍在）。
+   2 处探针均在本批内执行并已回滚。
+
+### 结论登记（partial 行内的边界与差异）
+
+- **:14 partial**：`start_product_runtime` 的启动 + 干净停机与显式/Drop 停机顺序有断言；差异是 Rust 没有 `Available()`/`Service()`/`HasTool()`/`MCPStatus()` 访问器，`shutdown(self)` 消耗 handle，重复 Close 在类型层不可表达，Drop 兜底同步停机。
+- **:74 partial**：审计写入 + 按 kind/subjectId/limit 的窄查询已断言（2 条 agent.saved + 1 条 provider.saved → total=2/returned=1）；Go 的 `RegisterTool`/`Tool()` 运行期动态注册在 Rust 无 owner（目录由 composition root 静态拥有）。
+- **:131 partial**：Rust 无可空 `*Handle`，等价约束是缺依赖失败关闭（缺 Futu/OpenD 或类型化 reader 时研究工具 unavailable，`system.runtime_dependencies` fail-closed）；Go 的 nil-safe 生命周期方法在 Rust 由 supervisor/HTTP 层持有，无同名 owner。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 余量 40 条：`adk_product_catalog_test.go`（4）、`application_adapter_boundaries_test.go`/`application_strategy_lifecycle_test.go`/`market_index_constituents_tools_test.go`/`market_news_tools_test.go`/`mcp_server_lifecycle_authorization_test.go`（各 3）…；随后 `internal/app/apiserver`（574，按 servercore/servercoretest 分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）等。
+- 跨批 follow-up 汇总：P1 = `portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `market.depth` 自由文本 instrument 推断（第 47 批）、`watchlist.list includeQuotes` 行情富化（第 47 批）、`research.calendar` 缺省输入 fail-closed 差异（第 48 批）、运行期动态工具注册与可空句柄（本批 `:74`/`:131` 引出）、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2808 Rust** / **942 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
