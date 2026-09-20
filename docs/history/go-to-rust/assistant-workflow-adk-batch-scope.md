@@ -2479,3 +2479,36 @@ Go 这 4 条把「内置 Agent 工具目录」和「券商能力目录」钉在�
 - 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（本批 `:29`/`:77` 引出）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `market.depth` 自由文本 instrument 推断（第 47 批）、`watchlist.list includeQuotes` 行情富化（第 47 批）、`research.calendar` 缺省输入 fail-closed 差异（第 48 批）、运行期动态工具注册与可空句柄（第 49 批）、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`（1832 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2812 Rust** / **944 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第五十一批：assembly `application_adapter_boundaries_test.go` 全量结清（3 条；2 条新 `[x]`，1 条 `partial`）
+
+范围：`internal/assistant/assembly/application_adapter_boundaries_test.go` 3 条逐条结清——本批新增 **2 条 `[x]`**（`:20`、`:71`），`partial` 1 条（`:128`）。`[x]` 计数 944 → **946**，Rust 测试 2812 → **2813**。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestApplicationAdapterKeepsNilPortsCallable|TestApplicationAdapterUsesConfiguredRuntimeAndSettings|TestApplicationAdapterValidatesDomainInputsBeforeDelegation' -count=1`（checkout `/tmp/go452dea11.niwD1G`，`ok`）。
+
+### 本批结论（1 条新增回归，无生产改动）
+
+Go 这三条描述 `ApplicationAdapter` 的边界：nil 端口时全部领域调用仍可调用但报不可用、配置端口时把 runtime/设置投影出来、委托前先校验领域输入。Rust 没有可空 adapter，等价 owner 分裂成 composition root 的端口装配、设置文件的运行时限制投影与 reviewed MCP schema 校验，本轮把缺口补成断言：
+
+- `product_mcp_server_tests.rs::unwired_production_bundle_keeps_every_reviewed_tool_callable_without_payloads`（`:20`）：只装配 catalog/store（未注入 `ProductionPortBundle`）的 executor 上遍历 `REVIEWED_READ_ONLY_TOOLS` 全部 69 个工具，断言每个都返回 400..503 的结构化失败且 `code` 非空、不返回伪造 payload；唯一能回答空请求的是进程内 `strategy.pine_spec`（`strategy.validate_pine` 同样不依赖端口，但空请求以 400 拒绝）；另对 `execution.order_events`/`broker.orders`/`strategy.definitions`/`backtest.runs`/`backtest.kline_sync_status`/`research.screen_catalog`/`market.providers`/`risk.state` 断言 503 `MCP_PRODUCTION_EXECUTOR_UNAVAILABLE`。
+- `:71` 引用既有证据：`product_production_assembly_tests.rs::adk_snapshot_and_tools_routes_return_the_composed_catalog`（`runTimeoutMs=660000`/`streamIdleTimeoutMs=420000` 经设置文件回环，`GET /api/v1/adk` 的 `runtimeSettings` 原样读出）、`product_adk_run_timeout.rs::tests::assistant_run_timeout_falls_back_to_the_reference_default_window`（默认 1_800_000、配置 660_000 胜出）、`product_adk_read_tests.rs::adk_audit_route_filters_by_kind_and_subject_id`（按 kind/subjectId/limit 取回审计）、`product_system_control_read_tests.rs::system_status_matches_go_stable_fields_without_claiming_migration_ownership`（`name=JFTrade`）、以及无 runtime 时 `workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation` 的 503 关闭。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `risk.state` 在 `ports.is_none()` 时返回 `{"killSwitch":{"status":"unavailable"}}`（复刻 Go 的 fallback）→ `unwired_production_bundle_keeps_every_reviewed_tool_callable_without_payloads` 转红（left `[risk.state, strategy.pine_spec]` / right `[strategy.pine_spec]`）。
+2. 可用性错误码从 `MCP_PRODUCTION_EXECUTOR_UNAVAILABLE` 改成 `MCP_EXECUTOR_UNAVAILABLE` → 同一测试在 503 断言转红（定位 `execution.order_events`）。
+   2 处探针均在本批内执行并已回滚；`git diff` 只留测试文件与清单/报告。
+
+### 结论登记（partial 行内的边界与差异）
+
+- **`:20` 差异**：Go 保留三个不失败 fallback（`FutuOpenDHealth`→`status=unavailable`、`RiskState()` 非 nil、`BacktestKLineSyncProgress`→`found=false`），Rust 对这三者一律 fail-closed，因此本行按「结构化失败」而非某个具体 fallback 值断言，差异已写进结论。
+- **`:128 partial`**：可达半边已断言 —— execution 读在缺端口时失败关闭、broker 读的 scope/标识符校验先于端口（archive 非法、缺 `orderIdEx`/`symbols` → BAD_REQUEST）、research backtest 请求派发保留 interval/useExtendedHours/chartType。未迁移：Go 的 `strategyInstanceSummary`/`strategySummaryDefinitionID`（InstanceView→摘要 trim 与 definitionId 优先级）、`applicationOptimizationRuns` 的空实现 `Get`/`Cancel` no-op、`validationInstrument`（`Program.Metadata` symbol/interval trim）在 Rust 没有同名 owner（助手目录不生产 instance summary，校验入口是 `jftrade-strategy` typed pipeline）。列 P2 待补。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 35 条：`application_strategy_lifecycle_test.go`/`market_index_constituents_tools_test.go`/`market_news_tools_test.go`/`mcp_server_lifecycle_authorization_test.go`（各 3），`adk_capability_contracts_test.go`/`adk_closure_contracts_test.go`/`adk_runtime_contracts_test.go`/`adk_summary_contracts_test.go`/`typed_product_capabilities_test.go`/`watchlist_adapter_test.go`/`workflow_bridge_contracts_test.go`/`workflow_tools_error_boundaries_test.go`（各 2）等；随后 `internal/app/apiserver`（574，按 servercore/servercoretest 分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）等。
+- 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 本批 `:128` 的 instance summary/optimization no-op/validationInstrument 三个无 owner 断言、`market.depth` 自由文本 instrument 推断（第 47 批）、`watchlist.list includeQuotes` 行情富化（第 47 批）、`research.calendar` 缺省输入 fail-closed 差异（第 48 批）、运行期动态工具注册与可空句柄（第 49 批）、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`（1833 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2813 Rust** / **946 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

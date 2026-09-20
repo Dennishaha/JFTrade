@@ -1126,6 +1126,79 @@ fn production_tools_fail_closed_before_any_domain_service_is_configured() {
     }
 }
 
+/// Parity: go:452dea11:internal/assistant/assembly/application_adapter_boundaries_test.go:20
+/// `TestApplicationAdapterKeepsNilPortsCallable`. Go builds the tool deps from
+/// a nil `*ApplicationAdapter`: every domain call must answer an unavailable
+/// error instead of panicking, `RecordAudit` stays a no-op, and the runtime
+/// settings keep their zero value.
+///
+/// Rust has no nullable adapter, so the equivalent owner is the MCP executor
+/// assembled without a production port bundle: every reviewed tool must answer
+/// a structured failure in that state, and the port-backed domain tools must
+/// report the executor itself as unavailable.
+///
+/// Difference recorded in the batch note: Go keeps deliberately non-failing
+/// fallbacks (`FutuOpenDHealth` answers `status: unavailable`, `RiskState()`
+/// stays non-nil and `BacktestKLineSyncProgress` answers `found=false`). Rust
+/// fails closed for those instead of fabricating a payload, so the loop below
+/// requires a structured failure rather than a specific fallback value.
+#[test]
+fn unwired_production_bundle_keeps_every_reviewed_tool_callable_without_payloads() {
+    let (_directory, ports) = production_bundle();
+    let executor = ProductionMcpToolExecutor::new(
+        Arc::clone(&ports.mcp_catalog),
+        Arc::clone(&ports.mcp_store),
+    );
+
+    // `strategy.pine_spec` is the only reviewed tool that answers an empty
+    // request without a domain port; `strategy.validate_pine` is port-free too
+    // but the empty request fails its script validation with 400, and every
+    // other reviewed tool has to reach a domain port and fails closed.
+    let mut port_free = Vec::new();
+    for name in crate::product::product_mcp_protocol::REVIEWED_READ_ONLY_TOOLS {
+        match executor.execute_production(name, &json!({})) {
+            Ok(_) => port_free.push(*name),
+            Err(failure) => {
+                assert!(
+                    (400..=503).contains(&failure.status),
+                    "{name} answered status {} with code {}",
+                    failure.status,
+                    failure.code
+                );
+                assert!(!failure.code.is_empty(), "{name} lost its error code");
+            }
+        }
+    }
+    assert_eq!(
+        port_free,
+        vec!["strategy.pine_spec"],
+        "only the in-process Pine spec tool may answer an empty request without domain ports"
+    );
+
+    for (name, arguments) in [
+        (
+            "execution.order_events",
+            json!({"internalOrderId": "order-1"}),
+        ),
+        ("broker.orders", json!({})),
+        ("strategy.definitions", json!({})),
+        ("backtest.runs", json!({})),
+        ("backtest.kline_sync_status", json!({"taskId": "sync-1"})),
+        ("research.screen_catalog", json!({"market": "US"})),
+        ("market.providers", json!({})),
+        ("risk.state", json!({})),
+    ] {
+        let failure = executor
+            .execute_production(name, &arguments)
+            .expect_err("a port-backed tool without ports must fail closed");
+        assert_eq!(failure.status, 503, "{name}");
+        assert_eq!(
+            failure.code, "MCP_PRODUCTION_EXECUTOR_UNAVAILABLE",
+            "{name}"
+        );
+    }
+}
+
 /// Parity: go:452dea11:internal/assistant/assembly/adk_strategy_test.go:19
 /// `TestADKCoreToolHandlersSurfaceSubscriptionErrors`. Go's
 /// `market.subscriptions` handler returns the market-data service failure
