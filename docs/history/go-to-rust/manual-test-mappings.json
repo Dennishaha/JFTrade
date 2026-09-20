@@ -6994,24 +6994,24 @@
   },
   "internal/assistant/assembly/market_news_tools_test.go:15:TestADKMarketNewsAndCorporateActionsToolsForwardNormalizedInputs": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_market_news_tool_tests.rs::market_news_tool_normalizes_market_and_limit_before_the_read_port + crates/jftrade-engine/src/product_mcp_market_news_tool_tests.rs::news_search_read_applies_the_reference_default_limit + crates/jftrade-engine/src/product_mcp_market_news_tool_tests.rs::corporate_actions_read_forwards_the_utc_normalized_window + crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::corporate_actions_query_requires_rfc3339_and_ascending_range",
+    "conclusion": "部分覆盖：Rust 把 Go 的 ADK 工具 `market.news`/`market.corporate_actions` 表达为 `research.news`/`research.corporate_actions`（catalog category=research，policy read_internal/low/无审批列表，归属 `jftrade-research` 技能而非 Go 的 jftrade-market）。可达半边：缺 instrument → 400 BAD_REQUEST；`{\"market\":\"us\",\"symbol\":\"msft\",\"limit\":5}` 归一化为 `instrumentId=US.MSFT&limit=5` 后到达新闻读端口（executor 级夹具断言）；新闻缺省条数 = 10（news_search_read_applies_the_reference_default_limit 断言 helper 收到 `limit=10`）；公司行动 `from`/`to` 为 RFC3339 且偏移量归一化为 UTC（`2025-01-01T08:00:00+08:00` → `2025-01-01T00:00:00Z`，TCP 夹具断言转发 query），非法与倒置窗口分别在 `corporate_actions_query_requires_rfc3339_and_ascending_range` 断言 400 `from must be a valid timestamp` / `from must not be after to`。未迁移（P2）：①Go 在工具层拒绝 `limit>50`，Rust 的 `search_limit` 按冻结 fixture 钳制到 1..50（`pageSize=500` → 50），拒绝语义只在路由 `news_actions_helper_request` 上；②Go `inferMarketSymbol` 支持 `{\"query\":\"check us.msft headlines\"}` 自由文本推断，Rust 只接受 instrumentId 或 market+symbol（reviewed schema 仅暴露 instrumentId）；③Go 的公司行动工具参数（from/to）在 Rust 没有对应 ADK 工具入参，等价能力只在 `/api/v1/market-data/corporate-actions/{market}/{symbol}` 路由上。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_news) | test(corporate_actions_query)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/market_news_tools_test.go:93:TestADKMarketNewsAndCorporateActionsToolsFailClosedWithoutPorts": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_market_news_tool_tests.rs::market_news_and_corporate_actions_fail_closed_without_owner_ports",
+    "conclusion": "已覆盖：Go 的 nil 依赖在 Rust 拆成两层——只装配 catalog/store 的 executor 调 `research.news` 返回 503 `MCP_PRODUCTION_EXECUTOR_UNAVAILABLE`；已装配 bundle 但未选提供商时 executor 返回 503 `MARKET_DATA_NEWS_SEARCH_UNAVAILABLE`，同一状态下的 `/api/v1/market-data/corporate-actions/US/AAPL` 读端口返回 `Unavailable(active market-data provider is not configured)`，两者都不返回空条目/空事件列表。差异：Go 返回字符串错误，Rust 保留结构化 status/code。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_news)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/assembly/market_news_tools_test.go:104:TestADKMarketNewsToolSurfacesProviderCapabilityAsClearMessage": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_market_news_tool_tests.rs::corporate_actions_surface_the_capability_class_for_a_foreign_broker + crates/jftrade-engine/src/product_production_ports_market_data_news_search_tests.rs::embedded_provider_capability_error_uses_the_broker_code",
+    "conclusion": "部分覆盖：能力类错误在 Rust 不被吞掉——公司行动路由在 `brokerId=futu` 且活跃提供商为 yfinance 时返回 409 `MARKET_DATA_CAPABILITY_UNSUPPORTED`，消息 `requested broker \"futu\" does not match active provider`（本断言）；新闻搜索侧把嵌入的 capability 消息折叠为 409 `BROKER_CAPABILITY_UNAVAILABLE` 且保留 `instrument news` 关键词（既有断言）；Futu 未就绪时公司行动读返回 503 且消息含 `Futu`/`not ready`。未逐字对齐（P2）：Go 断言消息含 `futu-opend` 且为 `active provider %q does not support instrument news` 句式；Rust 新闻/公司行动路由使用 `futu`/`Futu` 与 `does not match active provider`/`not ready` 措辞，且 `news_actions_capability(\"Futu corporate actions market is unsupported\")` 分支在路由层不可达（`normalize_news_actions_identity` 先以 400 拒绝非 HK/US/SH/SZ 市场）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(corporate_actions) | test(broker_code)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/mcp_server_lifecycle_authorization_test.go:27:TestMCPServerManagerRemainingLifecycleBoundaries": {
     "status": "[~]",

@@ -621,3 +621,10 @@ mod tool_catalog_parity;
 #[cfg(test)]
 #[path = "product_mcp_index_constituents_tool_tests.rs"]
 mod index_constituents_tool;
+
+/// Reference `market.news`/`market.corporate_actions` are ADK tools backed by
+/// the market-data news/actions ports, so their executor coverage lives beside
+/// the same catalog owner.
+#[cfg(test)]
+#[path = "product_mcp_market_news_tool_tests.rs"]
+mod market_news_tool;

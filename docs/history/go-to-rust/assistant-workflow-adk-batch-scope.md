@@ -2585,3 +2585,41 @@ Go 这三条把策略实例生命周期钉在助手工具依赖上：instantiate
 - 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与策略实例写工具（第 52 批 `:122`）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 活动读分页钳制差异（第 52 批 `:84`）、第 51 批 `:128` 的 instance summary/optimization no-op/validationInstrument 三个无 owner 断言、本批的 float 截断与 `query` 文本推断差异、`market.depth` 自由文本 instrument 推断、`watchlist.list includeQuotes` 行情富化、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`（1845 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2825 Rust** / **950 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第五十四批：assembly `market_news_tools_test.go` 全量结清（3 条；1 条新 `[x]`，2 条 `partial`）
+
+范围：`internal/assistant/assembly/market_news_tools_test.go` 3 条逐条结清——本批新增 **1 条 `[x]`**（`:93`），`partial` 2 条（`:15`、`:104`）。`[x]` 计数 950 → **951**，Rust 测试 2825 → **2830**（新增 5 条：`product_mcp_market_news_tool_tests.rs`）。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestADKMarketNewsAndCorporateActionsToolsForwardNormalizedInputs|TestADKMarketNewsAndCorporateActionsToolsFailClosedWithoutPorts|TestADKMarketNewsToolSurfacesProviderCapabilityAsClearMessage' -count=1`（checkout `/tmp/go452dea11.niwD1G`，`ok`）。
+
+### 本批结论（1 个新测试文件，无生产改动）
+
+Go 的 ADK 工具 `market.news`/`market.corporate_actions` 在 Rust 的等价名字是 `research.news`/`research.corporate_actions`（reviewed MCP 目录、catalog category=research、`jftrade-research` 技能），能力本体由生产新闻/公司行动端口提供。本轮把缺口补成 5 条断言（新文件 `crates/jftrade-engine/src/product_mcp_market_news_tool_tests.rs`，声明在 `product_mcp_server.rs` 的 `market_news_tool` 模块）：
+
+- `market_news_tool_normalizes_market_and_limit_before_the_read_port`（`:15` 归一化半边）：缺 instrument → 400 `BAD_REQUEST`；`{"market":"us","symbol":"msft","limit":5}` 归一化为 `instrumentId=US.MSFT&limit=5` 后到达 `/api/v1/market-data/news`（夹具记录 query，`instrumentId=US%2EMSFT`）；两个工具的 catalog category=`research`、policy `read_internal`/`low`/无 per-mode 审批列表、归属内建技能 `jftrade-research`。
+- `news_search_read_applies_the_reference_default_limit`（`:15` 默认值半边）：未给 `limit` 时 helper 收到 `GET /providers/yfinance/news/US/MSFT?limit=10`（`search_limit` 缺省 10、范围 1..50）。
+- `corporate_actions_read_forwards_the_utc_normalized_window`（`:15` 公司行动半边）：`from=2025-01-01T08:00:00+08:00&to=2026-01-01T00:00:00Z` 转发为 `from=2025-01-01T00%3A00%3A00Z&to=2026-01-01T00%3A00%3A00Z`（等价 Go `optionalToolTime` 的 UTC 归一），身份保留 `HK.00700`；倒置/非法窗口由既有 `corporate_actions_query_requires_rfc3339_and_ascending_range` 断言 400 与精确消息。
+- `market_news_and_corporate_actions_fail_closed_without_owner_ports`（`:93`）：未装配 bundle → 503 `MCP_PRODUCTION_EXECUTOR_UNAVAILABLE`；已装配但未选提供商 → 503 `MARKET_DATA_NEWS_SEARCH_UNAVAILABLE` 与公司行动读 `Unavailable(active market-data provider is not configured)`，都不返回空列表。
+- `corporate_actions_surface_the_capability_class_for_a_foreign_broker`（`:104`）：活跃 yfinance + `brokerId=futu` → 409 `MARKET_DATA_CAPABILITY_UNSUPPORTED`「requested broker \"futu\" does not match active provider」；Futu 未就绪 → 503 且消息含 `Futu`/`not ready`（不借用 helper 的公司行动数据）。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `research_news` 把 `instrumentId` 写回归一化前的 symbol → `market_news_tool_normalizes_market_and_limit_before_the_read_port` 转红（left `instrumentId=MSFT&limit=5` / right `instrumentId=US%2EMSFT&limit=5`）。
+2. `parse_corporate_action_time` 直接回传原始串（不做 UTC 归一）→ `corporate_actions_read_forwards_the_utc_normalized_window` 转红（请求行变成 `from=2025-01-01T08%3A00%3A00%2B08%3A00`）。
+3. 公司行动路由删掉 `provider_request_matches` 早退 → `corporate_actions_surface_the_capability_class_for_a_foreign_broker` 转红（不再是 409 capability）。
+   3 处探针均在本批内执行并已回滚；`git diff` 只留测试文件、清单与报告。
+
+### 结论登记（partial 行内的边界与差异）
+
+- **`:15 partial`**：未迁移三点 —— ①Go 工具层拒绝 `limit>50`，Rust `search_limit` 按冻结 fixture 钳制 1..50（拒绝语义只在路由 `news_actions_helper_request`）；②Go `inferMarketSymbol` 支持 `query` 自由文本推断（`check us.msft headlines`），Rust 只接受 instrumentId 或 market+symbol；③Go 公司行动工具入参 `from`/`to` 在 Rust 无对应 ADK 工具，等价能力只在 market-data 路由上。
+- **`:104 partial`**：能力类（409）与「指名提供商」都保留，但 Rust 措辞为 `futu`/`Futu` + `does not match active provider`/`not ready`，与 Go 的 `active provider "futu-opend" does not support instrument news` 不逐字一致；`news_actions_capability("Futu corporate actions market is unsupported")` 分支在路由层不可达（`normalize_news_actions_identity` 先以 400 拒绝非 HK/US/SH/SZ 市场）。已列 P2。
+- **技能归属差异**：Go 把两个工具放进 `jftrade-market`（RequiredSkills），Rust 因 id 为 `research.*` 归入 `jftrade-research`；能力与权限类一致。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 26 条：`mcp_server_lifecycle_authorization_test.go`（3），`adk_capability_contracts_test.go`/`adk_closure_contracts_test.go`/`adk_runtime_contracts_test.go`/`adk_summary_contracts_test.go`/`typed_product_capabilities_test.go`/`watchlist_adapter_test.go`/`workflow_bridge_contracts_test.go`/`workflow_tools_error_boundaries_test.go`/`maintenance_test.go`（各 2），`adk_backtest_adapter_test.go`/`adk_strategy_input_validation_test.go`/`adk_tool_failure_contracts_test.go`/`product_execution_contracts_test.go`/`workflow_execution_injection_test.go`（各 1）等；随后 `internal/app/apiserver`（574，按 servercore/servercoretest 分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）等。
+- 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与策略实例写工具（第 52 批 `:122`）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 活动读分页钳制差异（第 52 批 `:84`）、第 51 批 `:128` 的三个无 owner 断言、第 53 批的 float 截断与 `query` 文本推断差异、本批的 `limit>50` 钳制/工具入参差异与 capability 措辞差异、`market.depth` 自由文本 instrument 推断、`watchlist.list includeQuotes` 行情富化、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`（1850 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2830 Rust** / **951 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
