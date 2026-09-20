@@ -366,3 +366,21 @@ fn embedded_catalog_keeps_provider_intersection_roles_and_units() {
         ))
     );
 }
+
+/// Parity: go:452dea11:internal/assistant/assembly/application_adapter_test.go:226
+/// `TestApplicationAdapterProvidesScreenCatalogAndCancelResult` (catalog half).
+/// Go's screen-catalog helper trims and upper-cases the requested market, so a
+/// padded lowercase label resolves to the same catalog as its canonical
+/// spelling, while a market futu does not serve stays an error.
+#[test]
+fn screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels() {
+    let catalog = screen_catalog(" futu ", " us ").expect("padded lowercase market");
+    assert_eq!(catalog["market"], "US");
+    assert_eq!(catalog["provider"], "futu");
+    assert_eq!(catalog["version"], "futu-stock-screen-v1");
+
+    assert_eq!(
+        screen_catalog("futu", " cn "),
+        Err(ScreenCatalogError::UnsupportedFutuMarket)
+    );
+}

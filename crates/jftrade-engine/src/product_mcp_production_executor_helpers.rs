@@ -370,8 +370,15 @@ pub(super) fn add_retry_hint(mut payload: Value) -> Value {
     payload
 }
 
-pub(super) fn matches_filter(
-    value: &Value,
+/// Match a backtest run against a tool filter.
+///
+/// The production read port publishes the stored run with the strategy
+/// request nested under `request` (`request.definitionId`, ...) while status
+/// and provider stay at the top level.  Go's assistant summary flattens the
+/// request, so the tool filter must resolve both layouts instead of comparing
+/// `definitionId` against a missing top-level key.
+pub(super) fn matches_run_filter(
+    run: &Value,
     key: &str,
     expected: Option<&str>,
     fold_case: bool,
@@ -379,12 +386,67 @@ pub(super) fn matches_filter(
     let Some(expected) = expected else {
         return true;
     };
-    let actual = value.get(key).and_then(Value::as_str).unwrap_or_default();
-    if fold_case {
-        actual.eq_ignore_ascii_case(expected)
-    } else {
-        actual == expected
+    let candidates = [
+        run.get(key).and_then(Value::as_str),
+        run.get("request")
+            .and_then(|request| request.get(key))
+            .and_then(Value::as_str),
+    ];
+    candidates.into_iter().flatten().any(|actual| {
+        if fold_case {
+            actual.eq_ignore_ascii_case(expected)
+        } else {
+            actual == expected
+        }
+    })
+}
+
+/// Apply the `backtest.runs` filters and pagination to a run-list payload.
+pub(super) fn filter_backtest_runs(
+    payload: Value,
+    arguments: &Value,
+) -> Result<Value, McpToolFailure> {
+    let Some(runs) = super::nullable_runs(&payload)? else {
+        return Ok(payload);
+    };
+    let definition_id = super::optional_string(arguments, "definitionId");
+    let definition_version = super::optional_string(arguments, "definitionVersion");
+    let status = super::optional_string(arguments, "status");
+    let provider = super::optional_string(arguments, "marketDataProvider");
+    let limit = bounded_integer(arguments, "limit", 0, 0, 200)?;
+    if definition_id.is_none()
+        && definition_version.is_none()
+        && status.is_none()
+        && provider.is_none()
+        && limit <= 0
+    {
+        return Ok(payload);
     }
+    let mut filtered = runs
+        .iter()
+        .filter(|run| {
+            matches_run_filter(run, "definitionId", definition_id.as_deref(), false)
+                && matches_run_filter(
+                    run,
+                    "definitionVersion",
+                    definition_version.as_deref(),
+                    false,
+                )
+                && matches_run_filter(run, "status", status.as_deref(), true)
+                && matches_run_filter(run, "marketDataProvider", provider.as_deref(), true)
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let total_matched = filtered.len();
+    if limit > 0 {
+        filtered.truncate((limit as usize).min(200));
+    }
+    Ok(serde_json::json!({
+        "runs": filtered,
+        "runCount": filtered.len(),
+        "totalMatched": total_matched,
+        "truncated": filtered.len() < total_matched,
+    }))
 }
 
 pub(super) fn run_catalog_read(

@@ -1089,6 +1089,43 @@ fn production_mcp_local_tools_use_the_real_bundle_ports() {
     );
 }
 
+/// Parity: go:452dea11:internal/assistant/assembly/application_adapter_test.go:16
+/// `TestApplicationAdapterReportsUnavailableDomainServices`. Go builds the
+/// assistant tool deps from an empty `ApplicationPorts` and every domain call
+/// fails instead of returning a fabricated payload. The Rust owner is the
+/// production MCP executor: a listener assembled without the production port
+/// bundle must fail closed for every domain tool it advertises.
+#[test]
+fn production_tools_fail_closed_before_any_domain_service_is_configured() {
+    let (_directory, ports) = production_bundle();
+    let executor = ProductionMcpToolExecutor::new(
+        Arc::clone(&ports.mcp_catalog),
+        Arc::clone(&ports.mcp_store),
+    );
+    for (name, arguments) in [
+        (
+            "execution.order_events",
+            json!({"internalOrderId": "order-1"}),
+        ),
+        ("broker.orders", json!({})),
+        ("strategy.definitions", json!({})),
+        ("backtest.runs", json!({})),
+        ("backtest.kline_sync_status", json!({"taskId": "sync-1"})),
+        ("research.screen_catalog", json!({"market": "US"})),
+        ("market.providers", json!({})),
+        ("system.runtime_dependencies", json!({})),
+    ] {
+        let failure = executor
+            .execute_production(name, &arguments)
+            .expect_err("domain tool without production ports must fail closed");
+        assert_eq!(failure.status, 503, "{name}");
+        assert_eq!(
+            failure.code, "MCP_PRODUCTION_EXECUTOR_UNAVAILABLE",
+            "{name}"
+        );
+    }
+}
+
 #[test]
 fn production_mcp_pine_leaves_execute_native_spec_and_validation() {
     let (_directory, ports) = production_bundle();

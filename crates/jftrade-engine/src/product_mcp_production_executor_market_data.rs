@@ -140,6 +140,9 @@ fn candle_request(arguments: &Value) -> Result<(String, String), McpToolFailure>
     }
     let period = super::optional_string(arguments, "period").unwrap_or_else(|| "1m".to_owned());
     let limit = bounded_integer(arguments, "limit", 50, 1, 500)?;
+    // Go's `MarketCandlesAdvanced` trims and lowercases every session label
+    // (`ParseCandleSessions`) before validating it, so " regular " is accepted
+    // the same way it is there. `optional_string_array` owns the trimming.
     let sessions = optional_string_array(arguments, "sessions")?
         .map(|items| {
             if items.is_empty() {
@@ -179,7 +182,11 @@ fn candle_request(arguments: &Value) -> Result<(String, String), McpToolFailure>
         ("sessions", sessions),
         (
             "adjustment",
-            super::optional_string(arguments, "adjustment"),
+            // Go lowercases and trims the adjustment label before it reaches
+            // the market-data service, so the forwarded query carries the
+            // normalized label instead of the raw caller spelling.
+            super::optional_string(arguments, "adjustment")
+                .map(|value| value.trim().to_ascii_lowercase()),
         ),
     ]);
     Ok((
@@ -314,6 +321,70 @@ mod tests {
             query,
             "period=1h&limit=25&from=2026%2D01%2D01T00%3A00%3A00Z&to=2026%2D01%2D02T00%3A00%3A00Z&sessions=regular%2Cextended&adjustment=forward"
         );
+    }
+
+    /// Parity: go:452dea11:internal/assistant/assembly/application_adapter_test.go:123
+    /// `TestApplicationAdapterForwardsMarketCandles`. The compact assistant
+    /// tool forwards market, symbol, period, and limit unchanged and keeps the
+    /// historical cursor parameters out of the query when they are absent.
+    #[test]
+    fn market_candles_compact_tool_forwards_market_symbol_period_and_limit() {
+        let (path, query) = candle_request(&json!({
+            "market": "US",
+            "symbol": "AAPL",
+            "period": "1d",
+            "limit": 25
+        }))
+        .expect("compact candle request");
+        assert_eq!(path, "/api/v1/market-data/candles/US/AAPL");
+        assert_eq!(query, "period=1d&limit=25");
+    }
+
+    /// Parity: go:452dea11:internal/assistant/assembly/application_adapter_test.go:138
+    /// `TestApplicationAdapterForwardsAdvancedMarketCandles`. Go trims and
+    /// lowercases the session labels and the adjustment label before it calls
+    /// the market-data service, so the forwarded query carries
+    /// `regular,extended`/`forward` instead of the caller spelling.
+    #[test]
+    fn market_candles_advanced_tool_normalizes_session_and_adjustment_labels() {
+        let (path, query) = candle_request(&json!({
+            "market": "US",
+            "symbol": "AAPL",
+            "period": "1d",
+            "limit": 10,
+            "sessions": [" regular ", "EXTENDED"],
+            "beforeTime": "2026-01-02T00:00:00Z",
+            "adjustment": " FORWARD "
+        }))
+        .expect("advanced candle request");
+        assert_eq!(path, "/api/v1/market-data/candles/US/AAPL");
+        assert_eq!(
+            query,
+            "period=1d&limit=10&before=2026%2D01%2D02T00%3A00%3A00Z&sessions=regular%2Cextended&adjustment=forward"
+        );
+    }
+
+    /// Parity: go:452dea11:internal/assistant/assembly/application_adapter_test.go:81
+    /// `TestApplicationAdapterNormalizesCrossDomainInputs` (instrument half).
+    /// Go's `splitWorkflowInstrumentID` splits `MARKET.SYMBOL` once, keeps a
+    /// dotted symbol intact, and rejects an empty market or symbol; the MCP
+    /// instrument parser is the Rust owner of that contract.
+    #[test]
+    fn market_candle_instrument_ids_split_once_and_require_market_and_symbol() {
+        let (path, query) = candle_request(&json!({
+            "instrumentId": " us.brk.b ",
+            "period": "1d"
+        }))
+        .expect("dotted symbol request");
+        assert_eq!(path, "/api/v1/market-data/candles/US/BRK%2EB");
+        assert_eq!(query, "period=1d&limit=50");
+
+        for instrument_id in ["US.", "AAPL", " .AAPL"] {
+            let error = candle_request(&json!({"instrumentId": instrument_id}))
+                .expect_err("malformed instrument must fail before the provider call");
+            assert_eq!(error.status, 400, "instrumentId={instrument_id}");
+            assert_eq!(error.code, "BAD_REQUEST", "instrumentId={instrument_id}");
+        }
     }
 
     #[test]

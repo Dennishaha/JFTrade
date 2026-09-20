@@ -2157,3 +2157,57 @@ Go 这 7 条用例几乎全部作用于 `RegisterWorkflowManagementTools` 注册
 - 跨批 follow-up 汇总：P1 = 工作流触发日志的 active/page 过滤（第 42 批 `:559`）、`workflow_runs.*` 过滤参数（本批 `:183`）、Go `SaveRun` 终态谓词逐字对齐、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = per-agent 技能授权过滤（第 42 批 `:285`）、模型侧 memory/artifact 直接工具（`:474`/`:488`）、ADK read `page()` 是否引入显式 limit 上限（需先确认公开 HTTP 契约意愿）。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1738 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2772 Rust** / **924 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第四十四批：assembly `application_adapter_test.go` 全量结清（11 条；6 条新 `[x]`，4 条 `partial`，1 条 `boundary`）
+
+范围：`internal/assistant/assembly/application_adapter_test.go` 11 条逐条结清——本批新增 **6 条 `[x]`**（`:16`、`:58`、`:81`、`:123`、`:138`、`:226`；`:164` 已在早前结清），`partial` 4 条（`:185`、`:278`、`:308` 与既有 `[~]` 行保持一致），`boundary` 1 条（`:253`）。`[x]` 计数 924 → **930**，Rust 测试 2772 → **2781**。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestApplicationAdapter|TestApplicationWorkflowSnapshotRejectsInvalidInstrument' -count=1 -v`（checkout `/tmp/go452dea11.niwD1G`）。
+
+### 本批结论（2 处生产修复 + 9 条新增回归）
+
+Go 这 11 条用例作用于 Wails 助手适配器 `ApplicationAdapter`：把领域服务（trading/strategy/backtest/marketdata/system）绑成工具依赖。Rust 的等价 owner 是 **生产 MCP 执行器 + 生产端口 bundle**（`ProductionMcpToolExecutor` / `ProductionPortBundle` / `BacktestReadSnapshotPort`），因此本批按「路由 → 端口 → wire 错误」逐段建立证据。
+
+生产修复：
+
+1. `crates/jftrade-engine/src/product_mcp_production_executor_market_data.rs`：MCP `market.candles` 的 adjustment 现在与 Go 的 `MarketCandlesAdvanced` 一致先 trim + 小写再转发（此前原样透传、靠路由侧 `parse_candle_adjustment` 兜底）。
+2. `crates/jftrade-engine/src/product_mcp_production_executor_helpers.rs` + `product_mcp_production_executor.rs`：修复 `backtest.runs` 过滤 —— 生产读端口把策略请求放在 `request.*` 下（`request.definitionId` / `request.definitionVersion`），而旧的 `matches_filter` 只比较顶层键，导致按 definition 过滤永远返回空。新 `matches_run_filter`/`filter_backtest_runs` 同时解析顶层与 `request.*`，`status`/`marketDataProvider` 保持顶层语义，行为对齐 Go 的扁平摘要过滤。
+
+新增回归：
+
+- `crates/jftrade-engine/src/product_mcp_server_tests.rs::production_tools_fail_closed_before_any_domain_service_is_configured`（`:16`）：只注入 catalog/store（等价 `ApplicationPorts{}`）时，`execution.order_events`、`broker.orders`、`strategy.definitions`、`backtest.runs`、`backtest.kline_sync_status`、`research.screen_catalog`、`market.providers`、`system.runtime_dependencies` 全部 503 `MCP_PRODUCTION_EXECUTOR_UNAVAILABLE`。
+- `crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_preserve_the_port_failure_code_and_message`（`:58`）：端口 `Failed{code,message}` 的 code/message 原样进入 wire error（500），不被折叠。
+- `crates/jftrade-engine/src/product_production_ports_trade_tests.rs::order_scope_defaults_to_current_and_status_lists_merge_case_insensitively`（`:81`）：空/`scope=`/` cUrReNt ` → CURRENT、` history ` → HISTORY、status+statuses 合并去重 → `[5,10]`。
+- `crates/jftrade-engine/src/product_mcp_production_executor_market_data.rs::tests::market_candle_instrument_ids_split_once_and_require_market_and_symbol`（`:81`）：` us.brk.b ` → US/BRK.B（单次 split 保点号），`US.`/`AAPL`/` .AAPL` 在 provider 之前 400。
+- 同文件 `market_candles_compact_tool_forwards_market_symbol_period_and_limit`（`:123`）与 `market_candles_advanced_tool_normalizes_session_and_adjustment_labels`（`:138`）：period/limit/游标/sessions/adjustment 的转发与归一化。
+- `crates/jftrade-research/tests/catalog_parameter_availability_boundaries.rs::screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels`（`:226`）：` futu `/` us ` 归一化命中 `futu|US` 目录，` cn ` 对 futu 拒绝。
+- `crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_backtest_cancel_reports_false_without_a_cancellable_run`（`:226`）：缺失/终态运行 `cancelled=false` 且状态不改写，queued 运行 `cancelled=true` 并落库 `status=cancelled`。
+- `crates/jftrade-engine/src/product_mcp_production_executor.rs::backtest_runs_filters_resolve_nested_request_fields_and_top_level_status`（`:278` 的记录半边）：嵌套 `request.definitionId`/`definitionVersion` 与顶层 status/provider 过滤、limit 截断与 `truncated` 标记。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. MCP period 输出改大写 → `market_candles_compact_tool_forwards_market_symbol_period_and_limit` 转红。
+2. 去掉 adjustment 归一化 → `market_candles_advanced_tool_normalizes_session_and_adjustment_labels` 转红。
+3. `instrument()` 的 `split_once` 改 `rsplit_once` → `market_candle_instrument_ids_split_once_and_require_market_and_symbol` 转红。
+4. `screen_catalog` 去掉 market trim/upper → `screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels` 转红。
+5. `matches_run_filter` 去掉 `request.*` 回退 → `backtest_runs_filters_resolve_nested_request_fields_and_top_level_status` 转红。
+6. `execution_read_snapshot_failure` 的 Failed 分支改成固定 `EXECUTION_FAILED` → `execution_read_routes_preserve_the_port_failure_code_and_message` 转红。
+7. `history_scope` 把空 scope 默认改为 HISTORY → `order_scope_defaults_to_current_and_status_lists_merge_case_insensitively` 转红。
+8. `cancel_backtest` 对缺失运行返回 true → `production_backtest_cancel_reports_false_without_a_cancellable_run` 转红。
+9. `ports()` 错误码改成 `MCP_PRODUCTION_EXECUTOR_MISSING` → `production_tools_fail_closed_before_any_domain_service_is_configured` 转红。
+
+### 结论登记（partial / boundary 行内的边界）
+
+- **:185 partial**：MarketProviders/RuntimeDependencies 可达半边由 `GET /api/v1/market-data/provider` 的 fail-closed 503 与 `GET /api/v1/system/runtime-dependencies` 的 `allRequiredSatisfied` + node 投影覆盖；Go 的 `openD` 合并键（`status=error` + error 文本）与 `SelectMarketProvider` 助手包装在 Rust 无对应物 —— OpenD 健康是独立路由/工具 `/api/v1/system/futu-opend`（失败投影 `status=unavailable`/`offline` + reason），provider 选择是设置写入路由 `PUT /api/v1/settings/market-data-provider`。
+- **:253 boundary**：`strategyVisualModelFromInput`（engine 默认 `logic-flow`、version=1、edge 默认 `polyline`、拒绝字符串与 legacy `blockKind`）是 Wails 侧助手归一化；Rust 写入端口把 `visualModel` 原样存进 `visual_model_json`，等价默认值归 Vue/TS 可视化构建器（`apps/web/src/features/strategy-builder/*` 自带 vitest）。探针：`rg -n "logic-flow|strategyVisualModelFromInput|blockKind" crates/ workers/` 无命中（仅 apps/web 命中）。
+- **:278 partial**：同步态投影由 `test_research_backtest_data_readiness_and_sync_lifecycle`（`status=syncing_data`、`dataSync.*`、`nextTool=backtest.kline_sync_status`）与 `production_sync_read_projects_persisted_task`（status/completedIntervals）覆盖；未对齐：Go 的 nil→零值 helper 与 `intervals=["1m"]` 字面量断言在 Rust 缺少同名 helper（P2 待补），`backtestRunSummaryFromService` 的扁平摘要（provider 默认 "futu"）无对应 DTO —— Rust 返回存储投影并靠本批修复的过滤器解析嵌套 request。
+- **:308 partial**：Rust 的非法 instrument 拒绝 owner 是行情路由 `parse_market_symbol_path`（`live_read_routes_reject_malformed_instruments_before_any_provider_access` 断言 400 且不触达 provider）；Go 的 `WorkflowMarketSnapshot` 助手在 Rust 无对应物（探针：`rg -n "WorkflowMarketSnapshot|workflow_market_snapshot" crates/ apps/ workers/` 0 命中），workflow 轮询把无点号 id 当作 `US/<id>` 并在读取失败时跳过该轮事件。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 余量：`adk_strategy_test.go`（10 条）、`portfolio_tools_test.go`（8 条）、`tool_catalog_test.go`（7 条）、`product_adapters_test.go`（6 条）等，随后 `internal/app/apiserver`（574）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）等。
+- 跨批 follow-up 汇总：P1 = 工作流触发日志的 active/page 过滤（第 42 批 `:559`）、`workflow_runs.*` 过滤参数（第 43 批 `:183`）、Go `SaveRun` 终态谓词逐字对齐、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `backtest.kline_sync_status` 的 intervals 字面量投影断言（本批 `:278` 引出）、per-agent 技能授权过滤（第 42 批 `:285`）、模型侧 memory/artifact 直接工具（`:474`/`:488`）。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`（1755 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2781 Rust** / **930 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:ai-context`、`pnpm run check:quick`。

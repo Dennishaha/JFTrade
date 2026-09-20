@@ -77,6 +77,18 @@ impl ExecutionReadSnapshotPort for FailingExecutionReadPort {
     }
 }
 
+#[derive(Debug)]
+struct StorageFailureExecutionReadPort;
+
+impl ExecutionReadSnapshotPort for StorageFailureExecutionReadPort {
+    fn read(&self, path: &str, _query: &str) -> Result<Value, ExecutionReadSnapshotError> {
+        Err(ExecutionReadSnapshotError::Failed {
+            code: "EXECUTION_STORAGE_UNAVAILABLE".to_owned(),
+            message: format!("execution storage unavailable for {path}"),
+        })
+    }
+}
+
 fn execution_read_fixture() -> ExecutionReadFixture {
     let fixture: ExecutionReadFixture = serde_json::from_str(include_str!(
         "../../../tests/fixtures/compatibility/api-transport/execution-read.json"
@@ -153,6 +165,40 @@ async fn execution_read_routes_fail_closed_without_snapshot_port() {
         assert_eq!(response["ok"], false, "path {path}");
         assert_eq!(
             response["error"]["code"], "EXECUTION_UNAVAILABLE",
+            "path {path}"
+        );
+    }
+    handle.shutdown().await.expect("shutdown product");
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/application_adapter_test.go:58
+/// `TestApplicationAdapterPropagatesExecutionProjectionFailures`. Go's
+/// execution-order and order-event tool calls return the trading service
+/// failure unchanged (`errors.Is`). The Rust owner is the execution read port
+/// plus the route error mapping, which must preserve the failing port's code
+/// and message instead of collapsing it into a generic 503.
+#[tokio::test]
+async fn execution_read_routes_preserve_the_port_failure_code_and_message() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_execution_read_snapshot_port(Arc::new(StorageFailureExecutionReadPort));
+    let handle = start_product(config).await.expect("start product");
+    for path in [
+        "/api/v1/execution/orders",
+        "/api/v1/execution/orders/order-1/events",
+    ] {
+        let response = request_json(handle.startup_record().address, "GET", path, None).await;
+        assert_eq!(response["ok"], false, "path {path}");
+        assert_eq!(
+            response["error"]["code"], "EXECUTION_STORAGE_UNAVAILABLE",
+            "path {path}"
+        );
+        assert_eq!(
+            response["error"]["message"],
+            json!(format!("execution storage unavailable for {path}")),
             "path {path}"
         );
     }

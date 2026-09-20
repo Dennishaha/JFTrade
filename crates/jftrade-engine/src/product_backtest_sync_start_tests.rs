@@ -307,6 +307,84 @@ fn production_sync_cancel_matches_not_found_for_terminal_task() {
     assert_eq!(result, Ok(BacktestsWritePortResult::SyncCancelled(false)));
 }
 
+/// Parity: go:452dea11:internal/assistant/assembly/application_adapter_test.go:226
+/// `TestApplicationAdapterProvidesScreenCatalogAndCancelResult` (cancel half).
+/// Go's `CancelBacktestResult` reports `false` when there is no backtest
+/// service and when the service has no matching run, and only reports `true`
+/// after it actually cancels a non-terminal run. The Rust owner is
+/// `ProductionBacktestPort::cancel_backtest` through the backtests write port.
+#[test]
+fn production_backtest_cancel_reports_false_without_a_cancellable_run() {
+    let (port, _directory) = production_port();
+    let missed = port
+        .mutate(&BacktestsWriteInput::Cancel {
+            run_id: "missing".to_owned(),
+        })
+        .expect("missing run cancel");
+    assert_eq!(
+        missed,
+        BacktestsWritePortResult::Data(json!({"id": "missing", "cancelled": false}))
+    );
+
+    port.store
+        .save_run(
+            jftrade_store_sqlite::StoredBacktestRun {
+                id: "run-terminal".to_owned(),
+                status: "completed".to_owned(),
+                request_json: r#"{"symbol":"US.AAPL"}"#.to_owned(),
+                result_json: r#"{"pnl":1.0}"#.to_owned(),
+                created_at: "2026-08-29T00:00:00Z".to_owned(),
+                updated_at: "2026-08-29T00:01:00Z".to_owned(),
+            },
+            "2026-08-29T00:01:00Z",
+        )
+        .expect("persist terminal run");
+    let terminal = port
+        .mutate(&BacktestsWriteInput::Cancel {
+            run_id: "run-terminal".to_owned(),
+        })
+        .expect("terminal run cancel");
+    assert_eq!(
+        terminal,
+        BacktestsWritePortResult::Data(json!({"id": "run-terminal", "cancelled": false}))
+    );
+    let stored = port
+        .store
+        .get_run("run-terminal")
+        .expect("load terminal run")
+        .expect("run exists");
+    assert_eq!(stored.status, "completed");
+
+    port.store
+        .save_run(
+            jftrade_store_sqlite::StoredBacktestRun {
+                id: "run-queued".to_owned(),
+                status: "queued".to_owned(),
+                request_json: r#"{"symbol":"US.AAPL"}"#.to_owned(),
+                result_json: String::new(),
+                created_at: "2026-08-29T00:00:00Z".to_owned(),
+                updated_at: "2026-08-29T00:00:00Z".to_owned(),
+            },
+            "2026-08-29T00:00:00Z",
+        )
+        .expect("persist queued run");
+    let queued = port
+        .mutate(&BacktestsWriteInput::Cancel {
+            run_id: "run-queued".to_owned(),
+        })
+        .expect("queued run cancel");
+    assert_eq!(
+        queued,
+        BacktestsWritePortResult::Data(json!({"id": "run-queued", "cancelled": true}))
+    );
+    let stored = port
+        .store
+        .get_run("run-queued")
+        .expect("load cancelled run")
+        .expect("run exists");
+    assert_eq!(stored.status, "cancelled");
+}
+
 #[test]
 fn production_sync_restart_recovery_marks_orphaned_task_failed() {
     let (port, _directory) = production_port();

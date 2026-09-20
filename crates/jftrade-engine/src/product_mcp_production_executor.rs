@@ -453,50 +453,7 @@ impl ProductionMcpToolExecutor {
 
     fn backtest_runs(&self, arguments: &Value) -> Result<Value, McpToolFailure> {
         let payload = self.ports()?.backtest_read.list().map_err(backtest_error)?;
-        let Some(runs) = nullable_runs(&payload)? else {
-            return Ok(payload);
-        };
-        let definition_id = optional_string(arguments, "definitionId");
-        let definition_version = optional_string(arguments, "definitionVersion");
-        let status = optional_string(arguments, "status");
-        let provider = optional_string(arguments, "marketDataProvider");
-        let limit = bounded_integer(arguments, "limit", 0, 0, 200)?;
-        if definition_id.is_none()
-            && definition_version.is_none()
-            && status.is_none()
-            && provider.is_none()
-            && limit <= 0
-        {
-            return Ok(payload);
-        }
-        if limit < 0 {
-            return Err(McpToolFailure::invalid("limit must be non-negative"));
-        }
-        let mut filtered = runs
-            .iter()
-            .filter(|run| {
-                matches_filter(run, "definitionId", definition_id.as_deref(), false)
-                    && matches_filter(
-                        run,
-                        "definitionVersion",
-                        definition_version.as_deref(),
-                        false,
-                    )
-                    && matches_filter(run, "status", status.as_deref(), true)
-                    && matches_filter(run, "marketDataProvider", provider.as_deref(), true)
-            })
-            .cloned()
-            .collect::<Vec<_>>();
-        let total_matched = filtered.len();
-        if limit > 0 {
-            filtered.truncate((limit as usize).min(200));
-        }
-        Ok(json!({
-            "runs": filtered,
-            "runCount": filtered.len(),
-            "totalMatched": total_matched,
-            "truncated": filtered.len() < total_matched,
-        }))
+        helpers::filter_backtest_runs(payload, arguments)
     }
 
     fn backtest_kline_sync_status(&self, arguments: &Value) -> Result<Value, McpToolFailure> {
@@ -729,6 +686,70 @@ mod tests {
         assert_eq!(malformed.code, "MCP_PRODUCTION_PAYLOAD_INVALID");
         let missing = nullable_runs(&json!({})).expect_err("missing runs");
         assert_eq!(missing.status, 502);
+    }
+
+    /// Parity: go:452dea11:internal/assistant/assembly/application_adapter_test.go:278
+    /// `TestApplicationAdapterProjectsBacktestState` (run-list half). Go's
+    /// assistant summary flattens the stored request, so `backtest.runs`
+    /// filters compare against `definitionId`/`definitionVersion` directly.
+    /// The Rust read port publishes the request nested under `request`, and
+    /// the tool must resolve both layouts instead of silently returning no
+    /// runs for a definition that exists.
+    #[test]
+    fn backtest_runs_filters_resolve_nested_request_fields_and_top_level_status() {
+        let payload = json!({"runs": [
+            {
+                "id": "run-1",
+                "status": "completed",
+                "marketDataProvider": "yfinance",
+                "request": {
+                    "definitionId": "strategy-1",
+                    "definitionVersion": "3",
+                    "symbol": "AAPL"
+                }
+            },
+            {
+                "id": "run-2",
+                "status": "failed",
+                "marketDataProvider": "futu",
+                "request": {
+                    "definitionId": "strategy-2",
+                    "definitionVersion": "1",
+                    "symbol": "AAPL"
+                }
+            }
+        ]});
+
+        let by_definition =
+            helpers::filter_backtest_runs(payload.clone(), &json!({"definitionId": "strategy-1"}))
+                .expect("definition filter");
+        assert_eq!(by_definition["runCount"], 1);
+        assert_eq!(by_definition["runs"][0]["id"], "run-1");
+        assert_eq!(by_definition["truncated"], false);
+
+        let by_version =
+            helpers::filter_backtest_runs(payload.clone(), &json!({"definitionVersion": "1"}))
+                .expect("definition version filter");
+        assert_eq!(by_version["runs"][0]["id"], "run-2");
+
+        let by_status =
+            helpers::filter_backtest_runs(payload.clone(), &json!({"status": "COMPLETED"}))
+                .expect("status filter");
+        assert_eq!(by_status["runs"][0]["id"], "run-1");
+
+        let limited =
+            helpers::filter_backtest_runs(payload.clone(), &json!({"limit": 1})).expect("limit");
+        assert_eq!(limited["runCount"], 1);
+        assert_eq!(limited["totalMatched"], 2);
+        assert_eq!(limited["truncated"], true);
+
+        let unfiltered =
+            helpers::filter_backtest_runs(payload.clone(), &json!({})).expect("no filters");
+        assert_eq!(unfiltered, payload);
+
+        let empty = helpers::filter_backtest_runs(json!({"runs": null}), &json!({"limit": 5}))
+            .expect("empty run list");
+        assert_eq!(empty, json!({"runs": null}));
     }
 
     #[test]

@@ -3730,6 +3730,39 @@ fn history_query_builds_time_and_status_filters() {
     assert_eq!(request.status_codes().expect("statuses"), vec![5, 10]);
 }
 
+/// Parity: go:452dea11:internal/assistant/assembly/application_adapter_test.go:81
+/// `TestApplicationAdapterNormalizesCrossDomainInputs` (scope/status half).
+/// Go's `normalizeTradingBrokerScope` trims, upper-cases, defaults an empty
+/// value to `CURRENT`, and rejects anything else; `mergeBrokerValues` merges
+/// `status` with `statuses`, trims every token, and drops case-insensitive
+/// duplicates. The Rust owners are `history_scope` and `status_codes`.
+#[test]
+fn order_scope_defaults_to_current_and_status_lists_merge_case_insensitively() {
+    for query in ["", "scope=", "scope=%20cUrReNt%20"] {
+        let request =
+            TradeRequest::parse("/api/v1/brokers/futu/orders", query).expect("request");
+        assert!(
+            !request.history_scope().expect("default scope"),
+            "query {query:?} must stay on the current-order path"
+        );
+    }
+
+    let request =
+        TradeRequest::parse("/api/v1/brokers/futu/orders", "scope=%20history%20").expect("request");
+    assert!(request.history_scope().expect("history scope"));
+
+    let request = TradeRequest::parse(
+        "/api/v1/brokers/futu/orders",
+        "scope=history&status=%20submitted%20,%20filled_part&statuses=SUBMITTED,FILLED_PART",
+    )
+    .expect("request");
+    assert_eq!(
+        request.status_codes().expect("statuses"),
+        vec![5, 10],
+        "both status lists must merge with case-insensitive de-duplication"
+    );
+}
+
 #[test]
 fn symbol_qualification_falls_back_to_the_resolved_market_like_go() {
     // Parity: go:452dea11:pkg/futu/trade_helpers_boundary_test.go:14
