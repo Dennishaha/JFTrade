@@ -775,6 +775,7 @@ impl ProductionAdkChatRuntime {
 
 include!("product_adk_model_runtime_tool_persistence.rs");
 include!("product_adk_model_runtime_input_call.rs");
+include!("product_adk_model_runtime_expiry.rs");
 
 /// Go `assistantmodel.SessionTitleLimit` (`Runtime.resolveSession`): the title
 /// of a newly created session is the first 28 runes of its opening message.

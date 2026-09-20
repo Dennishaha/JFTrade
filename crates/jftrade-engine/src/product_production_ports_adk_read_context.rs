@@ -7,15 +7,23 @@ pub(super) fn rebuild_context_snapshot(
     session_payload_json: &str,
     events: &[jftrade_store_sqlite::StoredAdkEvent],
     segments: &[jftrade_store_sqlite::StoredAdkHandoffSegment],
+    context_window_tokens: usize,
+    recent_user_window: usize,
 ) -> Result<Value, AdkReadSnapshotError> {
     let session_payload: Value = serde_json::from_str(session_payload_json)
         .map_err(|error| invalid_payload("session", error))?;
-    let context_window_tokens = session_payload
-        .get("contextWindowTokens")
-        .and_then(Value::as_u64)
-        .and_then(|value| usize::try_from(value).ok())
-        .filter(|value| *value > 0)
-        .unwrap_or(0);
+    // Go resolves the window from the session's effective provider; an older
+    // Go-owned database may still carry the projection's own copy.
+    let context_window_tokens = if context_window_tokens > 0 {
+        context_window_tokens
+    } else {
+        session_payload
+            .get("contextWindowTokens")
+            .and_then(Value::as_u64)
+            .and_then(|value| usize::try_from(value).ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(0)
+    };
 
     let mut current_revision = String::new();
     for segment in segments {
@@ -88,7 +96,7 @@ pub(super) fn rebuild_context_snapshot(
     } else {
         current_input_tokens as f64 / context_window_tokens as f64
     };
-    let recent_start = recent_context_event_start(events, 10);
+    let recent_start = recent_context_event_start(events, recent_user_window.max(1));
     let protected_start = protected_context_event_start(events);
     let retained_start = compacted_event_count.max(recent_start).min(events.len());
     let retained_end = protected_start.max(retained_start).min(events.len());
@@ -139,8 +147,11 @@ pub(super) fn rebuild_context_snapshot(
         "rawProjectedNextTurnTokens": raw_event_tokens,
         "contextWindowTokens": context_window_tokens,
         "usageRatio": usage_ratio,
-        "status": context_status_for_read(usage_ratio, context_window_tokens),
-        "recentUserWindow": 10,
+        "status": super::context_window::context_status_for_read(
+            usage_ratio,
+            context_window_tokens,
+        ),
+        "recentUserWindow": recent_user_window,
         "retainedRecentUserCount": retained_recent_count,
         "protectedRecentCount": protected_recent_count,
         "activeHandoffCount": active_segments.len(),

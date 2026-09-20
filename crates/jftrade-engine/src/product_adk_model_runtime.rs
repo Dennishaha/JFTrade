@@ -77,6 +77,14 @@ mod tool_deadline_tests;
 #[path = "product_adk_model_runtime_terminal_audit_tests.rs"]
 mod terminal_audit_tests;
 
+#[cfg(test)]
+#[path = "product_adk_model_runtime_expiry_tests.rs"]
+mod expiry_tests;
+
+#[cfg(test)]
+#[path = "product_adk_session_context_tests.rs"]
+mod session_context_tests;
+
 include!("product_adk_model_runtime_audit.rs");
 
 const MAX_RESPONSE_BYTES: usize = 4 << 20;

@@ -1709,3 +1709,40 @@ Go 的期望：`reply` = 整轮 assistant 文本合并（`先说明一下。优�
 验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked`、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`、`python3 scripts/compatibility/audit_test_parity.py`、`git diff --check`、`pnpm run check:quick`。
 
 随后按 `session_context_test.go`（19）→ 本批登记的 `ReconcileExpiredRuns` 缺口（`store_test.go:947/:1005`）→ `store_lifecycle_test.go`（17）推进；`internal/app/apiserver`（574 待办）与 `pkg/backtest`（237 待办）保持为后续大领域批次。
+
+## 第三十三批：run 级到期回收落地 + 会话上下文窗口按有效 provider 解析（`store_test.go:947/:1005` 结清，`session_context_test.go` 4 条结清）
+
+范围：结清上一批登记的 P1 缺口 `ReconcileExpiredRuns`（`store_test.go:947`、`:1005`），并开始 `internal/assistant/engine/session_context_test.go`（19 条待办中的 4 条）。`[x]` 由 847 → **853**，Rust 测试 2682 → **2691**，待办 `[~]` 减少 6 条。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/engine/ -run 'TestReconcileExpiredRuns|TestSessionContextCompactionShrinksSessionView|TestSessionContextUsesSessionProviderOverrideWindow|TestSessionContextCompactionCreatesCurrentRevision|TestSessionContextViewDoesNotAutoCompact' -count=1`：6 条全部通过。
+
+### 本批真实功能修复（2 处）
+
+1. **run 级到期回收（`store_test.go:947/:1005`）**：新增 `crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs`（`include!` 片段，保持 `product_adk_model_runtime.rs` / `..._events.rs` 在 800 行内），实现 `ProductionAdkChatRuntime::reconcile_expired_runs`：扫描 RUNNING run → 取 `startedAt`（缺省 `createdAt`）+ 每个 run 自己的 `maxDurationMs`（<=0 回退 1800000）→ 跳过休眠的 workflow 子 run 与持有新鲜外部 lease 的 run → 取消活跃 provider 调用、把 RUNNING 工具调用置 FAILED（带 `run timed out while waiting for model or tool completion`、`completedAt`/`updatedAt`/`durationMs`）→ run 落 TIMED_OUT（`message=run timed out`、`failureReason="run exceeded maximum duration of <go duration>"`、`errorCode=RUN_TIMED_OUT`、`degraded=true`、FinalizeRunUsage 写 `usage.durationMs`）→ `status+revision` CAS 落库 → 写 `run.timed_out` 审计（detail `Agent run timed out.`，id `<run>:audit:run.timed_out`）。`AdkChatStreamPort` 新增默认 `reconcile_expired_runs`（夹具端口保持 no-op），生产 runtime 覆写；`GET /api/v1/adk/runs`、`GET /api/v1/adk/runs/{id}` 与 `CancelRun` 入口在读取前先回收（对齐 `internal/api/assistant/session_run.go:188/290` 与 `runner.go` 的 CancelRun）。`failureReason` 的时长文本由 `go_duration_string` 复刻 Go `time.Duration.String()`（`1ms`/`1.5s`/`1m0s`/`1h0m0s`）。
+2. **会话上下文窗口按有效 provider 解析（`session_context_test.go:120`）**：Rust 之前只读 session 行的 `contextWindowTokens`，而 `CreateSession` 从不写该字段，等于永远 0/unknown。新增 `crates/jftrade-engine/src/product_production_ports_adk_context_window.rs`，按 Go `Runtime.resolveSessionContextAgent` + `SessionContextManager.contextWindowTokens` 解析 composer `providerIdOverride` → agent `providerId` → provider `contextWindowTokens`；读取已落库投影时用 `patch_context_window` 重新解析窗口/`usageRatio`/`status`/`recentUserWindow`（只改响应，不改行）；压缩路由同样改用该解析，并把缺省保留窗口从写死的 10 改为 Go `NormalizeRecentUserWindow`（<=0→6、<2→2、>100→100）作用于会话有效 agent（请求体的 `recentUserWindow` 仍可覆盖）。`context_status_for_read` 随之上移到共享模块，读路径与压缩路径不再各有一套阈值。
+
+### 新增回归（9 条 Rust 测试）
+
+- `crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs`（5 条）：`expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls`（31 分钟前的 RUNNING run + RUNNING 工具调用 → 全部终态字段、工具调用 FAILED、`usage.durationMs>0`、审计行）、`expired_runs_use_each_runs_own_timeout_window`（60000ms 到期 / 300000ms 保持 RUNNING，`failureReason` 含 `1m0s`）、`a_fresh_foreign_run_lease_shields_a_run_from_expiry`（外部 runtime 持新鲜 lease → 不回收、无审计）、`the_run_read_routes_reconcile_expired_runs_before_serving`（真实 `ProductionAdkPort` + `/api/v1/adk/runs?status=TIMED_OUT` 与 run 详情）、`go_duration_string_matches_the_reference_formatting`（11 组值与 Go 实测输出逐一对齐）。
+- `crates/jftrade-engine/src/product_adk_session_context_tests.rs`（4 条）：`context_compaction_shrinks_the_projected_session_view`、`session_context_window_follows_the_composer_provider_override`、`each_context_compaction_creates_the_next_current_revision`、`session_context_read_reports_pressure_without_compacting`。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `timeout_ms` 强制为 DEFAULT 常量 → `expired_runs_use_each_runs_own_timeout_window` 转红（300000ms 的 run 被误判）。
+2. 跳过 `fresh_foreign_run_lease` → `a_fresh_foreign_run_lease_shields_a_run_from_expiry` 转红（RUNNING vs TIMED_OUT）。
+3. `finish_running_tool_calls` 跳过 RUNNING 调用 → `expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls` 转红（RUNNING vs FAILED）。
+4. 移除读路由入口的 `reconcile_expired_runs` → `the_run_read_routes_reconcile_expired_runs_before_serving` 转红（`page.total` 0 vs 1）。
+5. 窗口解析恒返回 0 → `session_context_window_follows_the_composer_provider_override` 与 `session_context_read_reports_pressure_without_compacting` 均转红（窗口 0、status unknown）。
+6. 移除读取分支的 `patch_context_window` → 窗口回落到压缩时的 1000（期望 200000），override 用例转红。
+7. `breakdown.handoffTokens` 改为合并全部 active 段 → `each_context_compaction_creates_the_next_current_revision` 转红（54 vs 84）。
+
+### 仍未结清（下一批继续）
+
+- `session_context_test.go` 剩余 15 条 `[~]`：上下文提示（`contextCompactionStartedText/DoneText` timeline 通知与 `SessionNotices` 持久化）、`maybeAutoCompactSession` 自动压缩 deltas、会话级压缩 gate、workflow 期间允许活跃父 run、模型上下文读取前自动压缩、`protectedTailStart` 的未解析审批锚点（Go 依赖 `toolconfirmation` 结构化事件，Rust 事件为纯文本/工具 JSON，需要先定 Rust 的等价锚点语义），以及 `AppendADKEventWithStaleRetryRefreshesSession` 等 Go ADK 库表面用例。
+- `session_context_test.go` 中 `TestHasActiveRunDoesNotTreatPendingApprovalAsExecuting`、`TestCompactedSessionPreservesOriginalCallForPendingApproval` 亦未结清。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1657 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / 2691 Rust / 853 `[x]`）、`git diff --check`、`pnpm run check:quick`。
+
+下一批：继续 `session_context_test.go`（先做上下文提示 + 自动压缩 deltas，再评估 `protectedTailStart` 的 Rust 锚点语义）。

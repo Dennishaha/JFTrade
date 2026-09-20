@@ -4,14 +4,17 @@ use super::*;
 use crate::product::product_adk_chat_stream_port::AdkChatPortError;
 
 fn continuation_unavailable(error: AdkChatPortError) -> AdkMutationPortError {
-    let message = match error {
-        AdkChatPortError::Unavailable(message) | AdkChatPortError::Conflict(message) => message,
-        AdkChatPortError::Failed { code, message, .. } => format!("{code}: {message}"),
-    };
     AdkMutationPortError::Failed {
         status: 503,
         code: "ADK_CONTINUATION_UNAVAILABLE".to_owned(),
-        message,
+        message: adk_port_error_message(error),
+    }
+}
+
+fn adk_port_error_message(error: AdkChatPortError) -> String {
+    match error {
+        AdkChatPortError::Unavailable(message) | AdkChatPortError::Conflict(message) => message,
+        AdkChatPortError::Failed { code, message, .. } => format!("{code}: {message}"),
     }
 }
 
@@ -102,6 +105,18 @@ pub(super) fn dispatch(
         }
         AdkMutationOperation::CancelRun => {
             let id = required_identifier(input, "runId")?;
+            // Go's `Runtime.CancelRun` reconciles expired runs first, so a run
+            // that already burned its budget is projected as TIMED_OUT rather
+            // than being cancelled as if it were still live.
+            if let Some(runtime) = port.chat_runtime.as_deref()
+                && let Err(error) = runtime.reconcile_expired_runs()
+            {
+                return Err(AdkMutationPortError::Failed {
+                    status: 500,
+                    code: "ADK_RUN_CANCEL_FAILED".to_owned(),
+                    message: adk_port_error_message(error),
+                });
+            }
             // Wake an in-flight provider request before committing the durable
             // cancellation below.  The runtime's SQLite CAS remains the
             // authority if the request races a terminal completion.

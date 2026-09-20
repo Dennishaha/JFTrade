@@ -3,13 +3,18 @@ use super::*;
 #[path = "product_production_ports_adk_read_context.rs"]
 mod context_projection;
 #[path = "product_production_ports_adk_read_helpers.rs"]
-mod read_helpers;
+pub(super) mod read_helpers;
+#[path = "product_production_ports_adk_context_window.rs"]
+pub(super) mod context_window;
 
 use context_projection::rebuild_context_snapshot;
 use read_helpers::{
-    context_status_for_read, estimate_context_tokens, is_context_user_event,
-    protected_context_event_start, recent_context_event_start, resource_list_failed,
-    sanitize_provider,
+    estimate_context_tokens, is_context_user_event, protected_context_event_start,
+    recent_context_event_start, resource_list_failed, sanitize_provider,
+};
+use context_window::{
+    patch_context_window, resolve_session_context_recent_window,
+    resolve_session_context_window_tokens,
 };
 
 impl From<AdkStoreError> for AdkReadSnapshotError {
@@ -60,6 +65,28 @@ impl ProductionAdkPort {
     pub(crate) fn with_chat_runtime(mut self, chat_runtime: Arc<dyn AdkChatStreamPort>) -> Self {
         self.chat_runtime = Some(chat_runtime);
         self
+    }
+
+    /// Go's `handleADKRuns` / `handleADKRun` reconcile run-level expiry before
+    /// serving the read, and answer `500 ADK_RUN_RECONCILE_FAILED` when that
+    /// scan itself fails.  A port without an attached runtime keeps Go's
+    /// nil-runtime behavior of a silent no-op.
+    fn reconcile_expired_runs(&self) -> Result<(), AdkReadSnapshotError> {
+        let Some(runtime) = self.chat_runtime.as_deref() else {
+            return Ok(());
+        };
+        runtime.reconcile_expired_runs().map_err(|error| {
+            AdkReadSnapshotError::Failed {
+                status: 500,
+                code: "ADK_RUN_RECONCILE_FAILED".to_owned(),
+                message: match error {
+                    AdkChatPortError::Unavailable(message)
+                    | AdkChatPortError::Conflict(message) => message,
+                    AdkChatPortError::Failed { code, message, .. } => format!("{code}: {message}"),
+                },
+                retry_after_seconds: None,
+            }
+        })
     }
 
     fn snapshot(&self) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
@@ -352,6 +379,7 @@ impl ProductionAdkPort {
         // Parity: go:452dea11:internal/api/assistant/session_run.go:187
         // handleADKRuns — `status`/`agentId`/`sessionId` narrow the store query
         // so the filtered total and returned rows match the request.
+        self.reconcile_expired_runs()?;
         let status = query_param(query, "status")
             .map(|value| value.trim().to_ascii_uppercase())
             .filter(|value| !value.is_empty());
@@ -493,6 +521,7 @@ impl ProductionAdkPort {
             return self.stream_snapshot(&id, query);
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/runs/", "") {
+            self.reconcile_expired_runs()?;
             let Some(row) = self.store.get_run(&id)? else {
                 return Err(not_found("run not found"));
             };
@@ -519,11 +548,24 @@ impl ProductionAdkPort {
                 ));
             };
             if let Some(state) = self.store.get_session_context(&id)? {
-                return Ok(AdkReadSnapshot::Json(payload(
+                let mut snapshot = payload(
                     &state.payload_json,
                     "session context",
                     [("sessionId", id.clone())],
-                )?));
+                )?;
+                // Go recomputes the window and its ratio on every read because
+                // the console may have switched the provider since the
+                // compaction that produced this projection.
+                patch_context_window(
+                    &mut snapshot,
+                    resolve_session_context_window_tokens(
+                        &self.store,
+                        &id,
+                        &session.payload_json,
+                    ),
+                    resolve_session_context_recent_window(&self.store, &id, &session.payload_json),
+                );
+                return Ok(AdkReadSnapshot::Json(snapshot));
             }
             // Older Go-owned databases may contain the session and transcript
             // events but no context-state row.  Rebuild the same durable
@@ -538,6 +580,8 @@ impl ProductionAdkPort {
                 &session.payload_json,
                 &events,
                 &self.store.list_handoff_segments(&id, true)?,
+                resolve_session_context_window_tokens(&self.store, &id, &session.payload_json),
+                resolve_session_context_recent_window(&self.store, &id, &session.payload_json),
             )?));
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/sessions/", "") {

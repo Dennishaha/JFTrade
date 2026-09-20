@@ -31,20 +31,6 @@ pub(super) fn estimate_context_tokens(value: &str) -> usize {
     }
 }
 
-pub(super) fn context_status_for_read(ratio: f64, window: usize) -> &'static str {
-    if window == 0 {
-        "unknown"
-    } else if ratio >= 0.93 {
-        "critical"
-    } else if ratio >= 0.85 {
-        "near_limit"
-    } else if ratio >= 0.70 {
-        "warning"
-    } else {
-        "healthy"
-    }
-}
-
 pub(super) fn is_context_user_event(event: &jftrade_store_sqlite::StoredAdkEvent) -> bool {
     event.author.trim().eq_ignore_ascii_case("user")
         || event.author.to_ascii_lowercase().contains("user")

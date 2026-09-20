@@ -36,13 +36,14 @@ pub(super) fn compact_session_context(
         });
     }
 
-    let session_payload = decode_mutation_payload(&session.payload_json, "session")?;
-    let context_window = session_payload
-        .get("contextWindowTokens")
-        .and_then(Value::as_u64)
-        .and_then(|value| usize::try_from(value).ok())
-        .filter(|value| *value > 0)
-        .unwrap_or(0);
+    // Go resolves both numbers from the session's effective agent: the window
+    // from that agent's provider and the retained user turns from the agent's
+    // normalized `RecentUserWindow`.
+    let context_window = super::super::read::context_window::resolve_session_context_window_tokens(
+        &port.store,
+        &session_id,
+        &session.payload_json,
+    );
     let events = port
         .session_store
         .list_events(&session_id)
@@ -63,7 +64,14 @@ pub(super) fn compact_session_context(
         .map(str::trim)
         .unwrap_or_default()
         .to_owned();
-    let recent_window = parse_recent_user_window(&input.body)?;
+    let recent_window = parse_recent_user_window(
+        &input.body,
+        super::super::read::context_window::resolve_session_context_recent_window(
+            &port.store,
+            &session_id,
+            &session.payload_json,
+        ),
+    )?;
 
     let stored_segments = port
         .store
@@ -392,9 +400,12 @@ fn normalize_context_mode(value: Option<&Value>) -> Result<String, AdkMutationPo
     Err(invalid_mutation_input("invalid context compaction mode"))
 }
 
-fn parse_recent_user_window(body: &Value) -> Result<usize, AdkMutationPortError> {
+fn parse_recent_user_window(
+    body: &Value,
+    agent_window: usize,
+) -> Result<usize, AdkMutationPortError> {
     let Some(value) = body.get("recentUserWindow") else {
-        return Ok(10);
+        return Ok(agent_window);
     };
     let window = value
         .as_u64()

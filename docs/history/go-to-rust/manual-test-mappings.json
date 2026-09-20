@@ -9576,25 +9576,25 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/session_context_test.go:15:TestSessionContextCompactionShrinksSessionView": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_session_context_tests.rs::context_compaction_shrinks_the_projected_session_view",
+    "conclusion": "function_exact（本批实现并验证）：POST /api/v1/adk/sessions/{id}/context/compact 落库后，compactedEventCount>0、protectedRecentCount<rawEventCount、summaryPreview 非空，且再次 GET 同一路由读回相同 revision 与 compactedEventCount（持久投影，不是内存态）。对照 go:452dea11 internal/assistant/engine/session_context.go 的 Compact/Snapshot。差异说明：Go 从 agent.RecentUserWindow 读取保留窗口（测试设为 2），Rust 路由接受可选的 recentUserWindow 覆盖并在缺省时回退到会话有效 agent 的归一化窗口（Go NormalizeRecentUserWindow：<=0→6、<2→2、>100→100），因此同一行为由请求体或 agent 行驱动，语义一致。Go 的 rawSessionService/InstructionSuffix/包装服务事件过滤属于 Go ADK 库表面，Rust 无对应实现，本行只就快照与持久投影断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked session_context",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/session_context_test.go:120:TestSessionContextUsesSessionProviderOverrideWindow": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_session_context_tests.rs::session_context_window_follows_the_composer_provider_override",
+    "conclusion": "function_exact（本批修复的 Rust 功能缺口）：此前 Rust 会话上下文的 contextWindowTokens 只读 session 行（而 CreateSession 从不写该字段），等价于永远 0/unknown。现在新增 crates/jftrade-engine/src/product_production_ports_adk_context_window.rs，按 Go Runtime.resolveSessionContextAgent + SessionContextManager.contextWindowTokens 的语义解析：composer 的 providerIdOverride 优先，其次 agent.providerId，再到 provider 行的 contextWindowTokens；缺 agent/provider 时为 0（unknown）。测试先断言 agent 自身 provider 的 1000，压缩后再保存 override，读回 200000 且 usageRatio>0，证明持久投影的窗口会在读取时按当前有效 provider 重新解析。反向探针：让窗口解析恒返回 0 后该测试与 session_context_read_reports_pressure_without_compacting 均失败；移除读取分支的 patch_context_window 后该测试失败（回落到压缩时的 1000）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked session_context",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/session_context_test.go:183:TestSessionContextCompactionCreatesCurrentRevision": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_session_context_tests.rs::each_context_compaction_creates_the_next_current_revision",
+    "conclusion": "function_exact（本批验证）：连续两次 manual 压缩各自产生新 revision，previousContextRevisionId 指向上一revision，新 revision 恰好带 1 个 active handoff 段，activeHandoffCount 与该 revision 的段数一致，被取代的 revision 段仍 durable（all active > current），breakdown.handoffTokens 只计当前 revision（不等于全部 active 段的合并 token），且 rawEventCount>compactedEventCount。反向探针：把 handoffTokens 改为合并全部 active 段后该测试失败（54 vs 84），证明断言真实约束生产实现。差异说明：Go 用 Store().HandoffSegmentsForRevision 查询，Rust 用 list_handoff_segments(active=true) 后按 payload.contextRevisionId 过滤，等价于同一查询语义。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked session_context",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/session_context_test.go:287:TestCompactSessionContextWritesContextNotice": {
     "status": "[~]",
@@ -9632,11 +9632,11 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/session_context_test.go:651:TestSessionContextViewDoesNotAutoCompact": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_session_context_tests.rs::session_context_read_reports_pressure_without_compacting",
+    "conclusion": "function_exact（本批验证）：同一 provider 小窗口（80 tokens）下灌入 80 条大事件后，GET /api/v1/adk/sessions/{id}/context 返回 status 为 near_limit 或 critical，同时 autoCompacted=false、activeHandoffCount=0，且 store.list_handoff_segments(active=true) 为空，证明读路由只投影不写入。反向探针：让窗口解析恒为 0 后 status 退化为 unknown，该测试失败。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked session_context",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/session_context_test.go:703:TestModelContextReadAutoCompactsBeforeProviderPayload": {
     "status": "[~]",
@@ -10570,18 +10570,18 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:947:TestReconcileExpiredRunsMarksHungRunTimedOut": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_timed_out_run_audits_the_timed_out_lifecycle_kind",
-    "conclusion": "partial（已确认的 Rust 功能缺失，本批未实现）：Go 的 ReconcileExpiredRuns 扫描 RUNNING run，按 run 自己的 MaxDurationMs（缺省 DefaultRunTimeout）判断超时，取消活跃 run、把 RUNNING 工具调用改 FAILED 并补 completedAt、run 落 TIMED_OUT 且 failureReason 含 timeout 文本、degraded=true、completedAt 非空、写 run.timed_out 审计，并在 runs/run 详情/取消路由前调用。Rust 目前只有“单次模型调用超时分类”（MODEL_CALL_TIMEOUT→RUN_TIMED_OUT，见 cite 的测试）与启动期 orphan/approval 恢复扫描，没有 run 级别的到期回收，因此崩溃或卡死的 RUNNING run 不会被标记 TIMED_OUT。已登记为下一批 P1 修复项（在 ProductionAdkChatRuntime 增加 reconcile_expired_runs，并在 run 读/取消入口调用），本行不得视为通过。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs::expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls",
+    "conclusion": "function_exact（本批实现并验证）：ProductionAdkChatRuntime::reconcile_expired_runs 扫描 RUNNING run，按 startedAt（缺省 createdAt）+ MaxDurationMs 判断到期，取消活跃 provider 调用、把 RUNNING 工具调用置 FAILED 并补 error/completedAt/updatedAt/durationMs、run 落 TIMED_OUT 且 message=run timed out、failureReason=\"run exceeded maximum duration of <go duration>\"、errorCode=RUN_TIMED_OUT、degraded=true、补 completedAt 并 FinalizeRunUsage 写 usage.durationMs，最后以 status+revision CAS 落库并写 run.timed_out 审计（detail=Agent run timed out.，id=<run>:audit:run.timed_out），与 go:452dea11 internal/assistant/engine/runner_lifecycle.go:177 ReconcileExpiredRuns 一致。测试用 31 分钟前的 RUNNING run + 一个 RUNNING 工具调用，断言全部终态字段、工具调用 FAILED+原因文本、usage.durationMs>0 以及审计行。实现位于 crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs（include! 片段，保持 product* 生产文件 ≤800 行）。反向探针：把 finish_running_tool_calls 改为跳过 RUNNING 调用后该测试失败（left RUNNING / right FAILED）；把超时窗口改为常量 DEFAULT 后 expired_runs_use_each_runs_own_timeout_window 失败。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked expiry",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:1005:TestReconcileExpiredRunsUsesRunSpecificTimeout": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_timed_out_run_audits_the_timed_out_lifecycle_kind",
-    "conclusion": "partial（同一 Rust 功能缺失的另一半）：Go 断言 ReconcileExpiredRuns 使用每个 run 自己的 MaxDurationMs——60000ms 的 run 被判 TIMED_OUT，300000ms 的 run 保持 RUNNING。Rust 既没有 run 到期回收，也就没有 run 级 timeout 选择逻辑（现有实现只在 chat 创建/目标续跑时冻结 maxDurationMs）。与上一行同属一个待实现能力：reconcile_expired_runs 需读取每个 run payload 的 maxDurationMs（<=0 回退 DefaultRunTimeout），并跳过持有新鲜外部 lease 的 run。已登记为下一批 P1 修复项，本行不得视为通过。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs::expired_runs_use_each_runs_own_timeout_window",
+    "conclusion": "function_exact（本批实现并验证）：到期窗口取每个 run payload 的 maxDurationMs（<=0 或缺省回退 product_adk_run_timeout::DEFAULT_RUN_TIMEOUT_MS=1800000，与 Go RunTimeoutForRun 一致），不是全局常量。测试同时放入 60000ms 的到期 run（断言 TIMED_OUT 且 failureReason 为 \"... of 1m0s\"）与 300000ms 的未到期 run（断言保持 RUNNING），对齐 go:452dea11 internal/assistant/model/runner_state.go:388。failureReason 中的 \"1m0s\" 由 go_duration_string 复刻 Go time.Duration.String()，由 go_duration_string_matches_the_reference_formatting 逐值校验。反向探针：把 timeout_ms 强制为 DEFAULT 常量后该测试失败，证明窗口选择被真实断言覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked expiry",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/task_runner_test.go:13:TestGoogleADKTaskRunnerBoundsFanOutAndRunsEveryTask": {
     "status": "[~]",

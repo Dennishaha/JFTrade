@@ -93,6 +93,10 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
         self.cancellation_registry.cancel(run_id)
     }
 
+    fn reconcile_expired_runs(&self) -> Result<(), AdkChatPortError> {
+        ProductionAdkChatRuntime::reconcile_expired_runs(self)
+    }
+
     fn resume_approval(&self, run_id: &str) -> Result<(), AdkChatPortError> {
         ProductionAdkChatRuntime::resume_approval(self, run_id)
     }

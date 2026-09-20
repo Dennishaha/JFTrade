@@ -107,6 +107,15 @@ pub trait AdkChatStreamPort: Send + Sync + std::fmt::Debug {
         false
     }
 
+    /// Go `Runtime.ReconcileExpiredRuns`: the runs list, the run detail route
+    /// and `CancelRun` reconcile run-level expiry before serving the request,
+    /// so a run that outlived its frozen `maxDurationMs` is reported as
+    /// `TIMED_OUT` instead of a stale `RUNNING`.  Adapters without durable runs
+    /// keep the no-op default.
+    fn reconcile_expired_runs(&self) -> Result<(), AdkChatPortError> {
+        Ok(())
+    }
+
     /// Stops provider calls and joins any continuation workers owned by this
     /// port.  The default is intentionally a no-op for stateless rehearsal
     /// ports; production adapters override it so their SQLite stores are not
