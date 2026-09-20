@@ -2365,3 +2365,45 @@ Go 这 8 条用例覆盖三层组合读取（accounts/overview/positions）、�
 - 跨批 follow-up 汇总：P1 = `portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial（第 46 批 `:15`/`:288`）、`portfolio.*` 无法投影 broker runtime `lastError`（第 46 批 `:155`）、策略定义版本/快照的生产 wire 形状（第 45 批 `:308`）、工作流触发日志 active/page 过滤（第 42 批 `:559`）、`workflow_runs.*` 过滤参数（第 43 批 `:183`）、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `market.depth` 自由文本 instrument 推断（本批 `:272` 引出）、`watchlist.list includeQuotes` 行情富化（本批 `:672` 引出）、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`（1819 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2801 Rust** / **938 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+
+## 第四十八批：assembly `product_adapters_test.go` 全量结清（6 条；2 条新 `[x]`，4 条 `partial`）
+
+范围：`internal/assistant/assembly/product_adapters_test.go` 6 条逐条结清——本批新增 **2 条 `[x]`**（`:15`、`:155`），`partial` 4 条（`:26`、`:83`、`:186`、`:217`）。`[x]` 计数 938 → **940**，Rust 测试 2801 → **2806**。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestCustomizationToolsMapToOpenDOperations|TestProductToolInputHelpersCompleteBranches|TestProductAndExecutionDispatchFailureBoundaries|TestProductExecutionAdapterNormalizesScreenAndCalendarV2Inputs|TestProductExecutionAdapterRejectsInvalidScreenPageAndValue|TestProductExecutionAdapterCoversSpecialDispatchFailuresAndSnapshots' -count=1`（checkout `/tmp/go452dea11.niwD1G`）。
+
+### 本批结论（5 条新增回归，无生产改动）
+
+Go 这 6 条覆盖 Go 侧产品/执行适配器的输入强转 helper、分发失败边界，以及 research.screen / research.calendar 的 V2 归一。Rust 侧对应 owner 已是强类型端口（`ProductionMcpToolExecutor` + `product_research_screen_write_port` + capability catalog），本轮把「同名行为」补成断言，不改生产代码：
+
+- `product_broker_capabilities_projection_tests.rs::customization_tools_map_to_their_single_opend_action`（`:15`）：`alerts.price.set`→`set`/`Qot_SetPriceReminder`、`alerts.option_event.set`→`set`/`Qot_SetOptionEventAlert`、`watchlist.remote.modify`→`modify`/`Qot_ModifyUserSecurity`，并断言每个工具只暴露一个动作与 `kind=request`。
+- `product_research_screen_write_port_tests.rs::screen_query_defaults_the_page_and_keeps_catalog_columns`（`:155` 屏幕半）：默认 limit=50、offset=2 保留、响应回填 `catalogVersion` 与 `columns[0].factorKey=simple.last_close`。
+- `product_research_screen_write_port_tests.rs::screen_query_rejects_wrong_catalog_and_schema_versions`（`:186`）：`page.limit=101`、`catalogVersion="wrong"`、`querySchemaVersion=1` 均在 provider 之前 400；用 `UnreachablePort`（被调用即 panic）证明校验先于端口。
+- `product_mcp_server_tests.rs::research_calendar_forwards_the_advanced_filter_query`（`:155` 日历半）：`sort/stockScope/marketCapMin/optionVolumeMax/ivMin/ivRankMax/ivPercentileMin` 全部进入 `/api/v1/research/calendars` 查询串。
+- `product_mcp_server_tests.rs::product_dispatch_rejects_unknown_tools_and_missing_instruments`（`:83`/`:217`）：未知工具 → `MCP_TOOL_UNAVAILABLE`、缺 symbols 的 snapshot → `BAD_REQUEST`、buying-power 缺类型化字段 → `BAD_REQUEST`、`research.screen` 非对象输入 → `BAD_REQUEST`、`research.calendar` 缺 operation → `CAPABILITY_UNAVAILABLE`、`market.snapshot` 成功路径转发 `/api/v1/market-data/snapshots/US/AAPL`、失败 quote 端口 → 503 `MARKET_DATA_QUOTE_READ_UNAVAILABLE` 且保留端口消息。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `normalize_query` 默认 limit 50 → 20 → `screen_query_defaults_the_page_and_keeps_catalog_columns` 转红（left 20 / right 50）。
+2. `catalogVersion` 白名单校验放开 → `screen_query_rejects_wrong_catalog_and_schema_versions` 转红（`UnreachablePort` 被调用并 panic，证明校验先于 provider）。
+3. `market_research_request` 把 `sort` 加入排除列表 → `research_calendar_forwards_the_advanced_filter_query` 转红（`sort=iv%5Fdesc` 缺失，并打印实际查询串）。
+4. `alerts.option_event.set` 动作改成 `"write"` → `customization_tools_map_to_their_single_opend_action` 转红。
+5. `snapshot_request` 缺 symbols 时默认补 `US.AAPL` → `product_dispatch_rejects_unknown_tools_and_missing_instruments` 转红（错误码从 `BAD_REQUEST` 变成 `MARKET_DATA_PROVIDER_ACTIONS_UNAVAILABLE`）。
+   5 处探针均在本批内执行并已回滚，`git diff` 只留三份测试文件。
+
+### 结论登记（partial 行内的边界与差异）
+
+- **:26 partial**：`toolInstrumentID` 的 trim+大写由 candle 路由测试证明；`decodeToolInput`（channel/nil）、`toolMapString/Int/Strings`（nil/数字/interface 切片）、`cloneToolInput` 是 `map[string]any` 适配层强转，Rust 以 serde 强类型参数取代。
+- **:83 partial**：未知工具、缺 symbols、buying-power 缺字段已断言；Go 用 `make(chan int)` 构造的不可 marshal 输入在 JSON 边界不存在，保留为边界。
+- **:186 partial**：三处非法取值/版本拒绝已断言；同用例的 `decodeToolInputValue` channel/nil 分支无 Rust owner。
+- **:217 partial**：快照成功/失败、malformed screen、缺 operation 均已断言；差异是 Go 的 `research.calendar(nil)` 返回默认输入并成功，而 Rust fail-closed 要求对象 + 显式 operation；Go 的 plain-service typed dispatch 探针在 Rust 无对应概念（端口为强类型 trait）。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 余量 45 条：`runtime_test.go`（5）、`adk_product_catalog_test.go`（4）、`application_adapter_boundaries_test.go`/`application_strategy_lifecycle_test.go`/`market_index_constituents_tools_test.go`/`market_news_tools_test.go`/`mcp_server_lifecycle_authorization_test.go`（各 3）…；随后 `internal/app/apiserver`（574，按 servercore/servercoretest 分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）等。
+- 跨批 follow-up 汇总：P1 = `portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `market.depth` 自由文本 instrument 推断（第 47 批 `:272`）、`watchlist.list includeQuotes` 行情富化（第 47 批 `:672`）、`research.calendar` 缺省输入与 operation 的 fail-closed 差异（本批 `:217` 引出）、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2806 Rust** / **940 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

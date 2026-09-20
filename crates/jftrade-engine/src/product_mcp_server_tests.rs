@@ -3685,3 +3685,174 @@ fn execute_models_list(executor: &ProductionMcpToolExecutor, arguments: Value) -
         .execute("models.list", &arguments)
         .unwrap_or_else(|error| panic!("models.list {arguments} failed: {error}"))
 }
+
+#[derive(Debug, Default)]
+struct RecordingSnapshotQuotePort {
+    reads: Mutex<Vec<(String, String)>>,
+}
+
+impl crate::product::MarketDataQuoteReadSnapshotPort for RecordingSnapshotQuotePort {
+    fn read<'a>(
+        &'a self,
+        path: &'a str,
+        query: &'a str,
+    ) -> crate::product::MarketDataQuoteReadFuture<'a> {
+        Box::pin(async move {
+            self.reads
+                .lock()
+                .expect("snapshot reads")
+                .push((path.to_owned(), query.to_owned()));
+            Ok(json!({"path": path, "query": query}))
+        })
+    }
+}
+
+#[derive(Debug)]
+struct UnavailableSnapshotQuotePort;
+
+impl crate::product::MarketDataQuoteReadSnapshotPort for UnavailableSnapshotQuotePort {
+    fn read<'a>(
+        &'a self,
+        _path: &'a str,
+        _query: &'a str,
+    ) -> crate::product::MarketDataQuoteReadFuture<'a> {
+        Box::pin(async move {
+            Err(
+                crate::product::MarketDataQuoteReadSnapshotError::Unavailable(
+                    "snapshot feed unavailable".to_owned(),
+                ),
+            )
+        })
+    }
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/product_adapters_test.go:155
+/// TestProductExecutionAdapterNormalizesScreenAndCalendarV2Inputs (calendar half).
+///
+/// Go forwards the calendar sort, stock scope and V2 filter values into the
+/// typed calendar request. The Rust MCP adapter owns the same forwarding, so
+/// every advanced filter must reach the research route query verbatim.
+#[test]
+fn research_calendar_forwards_the_advanced_filter_query() {
+    let (_directory, mut ports) = production_bundle();
+    let recorder = std::sync::Arc::new(RecordingResearchRead::default());
+    ports.research_read = recorder.clone();
+    let executor = ProductionMcpToolExecutor::from_production_ports(std::sync::Arc::new(ports));
+
+    executor
+        .execute_production(
+            "research.calendar",
+            &json!({
+                "operation": "earnings",
+                "market": "US",
+                "sort": "iv_desc",
+                "stockScope": "optionable",
+                "marketCapMin": "100",
+                "optionVolumeMax": "500",
+                "ivMin": "0.2",
+                "ivRankMax": "80",
+                "ivPercentileMin": "50",
+            }),
+        )
+        .expect("calendar MCP request");
+
+    let calls = recorder.calls.lock().expect("record research MCP call");
+    assert_eq!(calls.len(), 1, "one calendar read reaches the route");
+    let (path, query) = &calls[0];
+    assert_eq!(path, "/api/v1/research/calendars");
+    for expected in [
+        "market=US",
+        "sort=iv%5Fdesc",
+        "stockScope=optionable",
+        "marketCapMin=100",
+        "optionVolumeMax=500",
+        "ivMin=0%2E2",
+        "ivRankMax=80",
+        "ivPercentileMin=50",
+    ] {
+        assert!(query.contains(expected), "{expected} missing from {query}");
+    }
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/product_adapters_test.go:83
+/// TestProductAndExecutionDispatchFailureBoundaries and
+/// `product_adapters_test.go:217`
+/// TestProductExecutionAdapterCoversSpecialDispatchFailuresAndSnapshots.
+///
+/// Go fails closed for unknown product/execution tools, a snapshot request
+/// without symbols, malformed research input and a failing research service.
+/// Rust rejects the same calls before the ports answer and keeps the failing
+/// quote port message visible to the caller.
+#[test]
+fn product_dispatch_rejects_unknown_tools_and_missing_instruments() {
+    let (_directory, mut ports) = production_bundle();
+    let recorder = std::sync::Arc::new(RecordingSnapshotQuotePort::default());
+    let quote_handle = std::sync::Arc::clone(&recorder);
+    let quote_port: std::sync::Arc<dyn crate::product::MarketDataQuoteReadSnapshotPort> =
+        quote_handle;
+    ports.market_data_quote = quote_port;
+    let executor = ProductionMcpToolExecutor::from_production_ports(std::sync::Arc::new(ports));
+
+    for name in ["unknown.product.tool", "unknown.execution.tool"] {
+        let failure = executor
+            .execute_production(name, &json!({}))
+            .expect_err("unknown tools must fail closed");
+        assert_eq!(failure.code, "MCP_TOOL_UNAVAILABLE", "{name}");
+    }
+
+    let failure = executor
+        .execute_production("market.snapshots", &json!({}))
+        .expect_err("snapshot tool without instruments must fail");
+    assert_eq!(failure.code, "BAD_REQUEST");
+    assert!(
+        failure
+            .message
+            .contains("instrumentId or symbols is required"),
+        "{}",
+        failure.message
+    );
+
+    let failure = executor
+        .execute_production("execution.buying_power", &json!({"invalid": "input"}))
+        .expect_err("buying power without its typed fields must fail");
+    assert_eq!(failure.code, "BAD_REQUEST");
+
+    executor
+        .execute_production("market.snapshot", &json!({"instrumentId": "US.AAPL"}))
+        .expect("single snapshot");
+    let reads = recorder.reads.lock().expect("snapshot reads");
+    assert_eq!(
+        reads.as_slice(),
+        [(
+            "/api/v1/market-data/snapshots/US/AAPL".to_owned(),
+            String::new()
+        )]
+    );
+    drop(reads);
+
+    let failure = executor
+        .execute_production("research.screen", &json!(["not-an-object"]))
+        .expect_err("research.screen must reject malformed input");
+    assert_eq!(failure.code, "BAD_REQUEST");
+
+    let failure = executor
+        .execute_production("research.calendar", &json!({}))
+        .expect_err("research.calendar requires an explicit operation");
+    assert_eq!(failure.code, "CAPABILITY_UNAVAILABLE");
+
+    let (_directory, mut ports) = production_bundle();
+    let failing: std::sync::Arc<dyn crate::product::MarketDataQuoteReadSnapshotPort> =
+        std::sync::Arc::new(UnavailableSnapshotQuotePort);
+    ports.market_data_quote = failing;
+    let executor = ProductionMcpToolExecutor::from_production_ports(std::sync::Arc::new(ports));
+    let failure = executor
+        .execute_production("market.snapshot", &json!({"instrumentId": "US.AAPL"}))
+        .expect_err("a failing snapshot port must propagate");
+    assert_eq!(failure.code, "MARKET_DATA_QUOTE_READ_UNAVAILABLE");
+    assert_eq!(failure.status, 503);
+    assert!(
+        failure.message.contains("snapshot feed unavailable"),
+        "{}",
+        failure.message
+    );
+}

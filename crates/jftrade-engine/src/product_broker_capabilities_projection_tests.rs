@@ -476,3 +476,50 @@ fn capability_dimension_requirements_follow_access_and_product_family() {
         "prediction reads declare the quote-right dimension"
     );
 }
+
+/// Parity: go:452dea11:internal/assistant/assembly/product_adapters_test.go:15
+/// TestCustomizationToolsMapToOpenDOperations
+///
+/// Go freezes the customization adapter to exactly one OpenD action per tool:
+/// both alert writers map to `set` and the remote watchlist writer maps to
+/// `modify`. The Rust capability catalog owns that mapping, so each feature
+/// must expose one operation carrying the same action id and OpenD request.
+#[test]
+fn customization_tools_map_to_their_single_opend_action() {
+    for (feature, action, protocol) in [
+        ("alerts.price.set", "set", "Qot_SetPriceReminder"),
+        ("alerts.option_event.set", "set", "Qot_SetOptionEventAlert"),
+        (
+            "watchlist.remote.modify",
+            "modify",
+            "Qot_ModifyUserSecurity",
+        ),
+    ] {
+        let spec = FEATURE_SPECS
+            .iter()
+            .find(|spec| spec.id == feature)
+            .unwrap_or_else(|| panic!("{feature} must exist in the capability catalog"));
+        let operations =
+            operations::catalog_operations(spec.id, spec.method, spec.api, spec.ui, spec.tool);
+        assert_eq!(
+            operations.len(),
+            1,
+            "{feature} must expose exactly one customization action"
+        );
+        assert_eq!(operations[0]["id"], action, "{feature} action id");
+        assert_eq!(operations[0]["tool"], feature, "{feature} keeps its tool id");
+        let protocols = operations[0]["protocols"]
+            .as_array()
+            .unwrap_or_else(|| panic!("{feature} protocols"));
+        assert_eq!(
+            protocols.len(),
+            1,
+            "{feature} must own exactly one OpenD request"
+        );
+        assert_eq!(
+            protocols[0]["key"], protocol,
+            "{feature} OpenD protocol key"
+        );
+        assert_eq!(protocols[0]["kind"], "request", "{feature} protocol kind");
+    }
+}

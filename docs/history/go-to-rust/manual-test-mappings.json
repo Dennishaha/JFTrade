@@ -7140,46 +7140,46 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/assembly/product_adapters_test.go:15:TestCustomizationToolsMapToOpenDOperations": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs::customization_tools_map_to_their_single_opend_action",
+    "conclusion": "已覆盖：三个自定义工具各自只暴露一个 OpenD 动作——alerts.price.set→set/Qot_SetPriceReminder、alerts.option_event.set→set/Qot_SetOptionEventAlert、watchlist.remote.modify→modify/Qot_ModifyUserSecurity；测试断言动作 id、tool id、protocol key/kind 与「每个工具只有一个动作」不变量（探针：把 option_event 动作改成 \"write\" 后转红）。Rust 没有 Go 的 `customizationToolActions` map，等价事实落在 capability catalog 的 operations 上。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(customization_tools_map_to_their_single_opend_action)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/assembly/product_adapters_test.go:26:TestProductToolInputHelpersCompleteBranches": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_production_executor_market_data.rs::tests::market_candles_maps_instrument_and_advanced_query",
+    "conclusion": "部分覆盖：`toolInstrumentID` 的显式 instrumentId 归一（trim + 大写）由 candle 路由测试断言（`us.aapl` → `/api/v1/market-data/candles/US/AAPL`）。Go 的 `decodeToolInput`（channel 触发 marshal 失败、nil 目标）、`toolMapString`/`toolMapInt`/`toolMapStrings`（nil、数字、interface 切片强转）与 `cloneToolInput` 属于 `map[string]any` 适配层强转，Rust 用 serde 强类型参数与 `instrument()` 校验取代，无对应 owner，保留为边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(market_candles_maps_instrument_and_advanced_query)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/product_adapters_test.go:83:TestProductAndExecutionDispatchFailureBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::product_dispatch_rejects_unknown_tools_and_missing_instruments",
+    "conclusion": "部分覆盖：未知 product/execution 工具返回 MCP_TOOL_UNAVAILABLE、缺 symbols/instrumentId 的 snapshot 请求 BAD_REQUEST、buying-power 缺类型化字段 BAD_REQUEST 都有断言（探针：把缺 symbols 改成默认 US.AAPL 后该测试转红）。Go 用 `make(chan int)` 构造的不可 marshal 输入在 Rust JSON 边界上不存在（参数只能是 serde_json::Value），该分支保留为边界，不迁移实现。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(product_dispatch_rejects_unknown_tools_and_missing_instruments)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/product_adapters_test.go:155:TestProductExecutionAdapterNormalizesScreenAndCalendarV2Inputs": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::screen_query_defaults_the_page_and_keeps_catalog_columns + crates/jftrade-engine/src/product_mcp_server_tests.rs::research_calendar_forwards_the_advanced_filter_query",
+    "conclusion": "已覆盖：screen 侧断言默认 limit=50、保留 offset=2、响应回填 catalogVersion 并保留 columns[0].factorKey=simple.last_close（探针：默认值改成 20 转红）；calendar 侧断言 sort/stockScope/marketCapMin/optionVolumeMax/ivMin/ivRankMax/ivPercentileMin 全部进入 `/api/v1/research/calendars` 查询串（探针：把 sort 排除后转红）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(screen_query_defaults_the_page_and_keeps_catalog_columns) | test(research_calendar_forwards_the_advanced_filter_query)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/assembly/product_adapters_test.go:186:TestProductExecutionAdapterRejectsInvalidScreenPageAndValue": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::screen_query_rejects_wrong_catalog_and_schema_versions",
+    "conclusion": "部分覆盖：page.limit=101、catalogVersion=\"wrong\"、querySchemaVersion=1 都在 provider 之前返回 400（探针：放开 catalogVersion 校验后 provider 端口被调用，测试立刻转红）。该 Go 用例后半段的 `decodeToolInputValue` channel/nil 分支属于 `map[string]any` 适配层强转，Rust 以 serde 强类型解析取代，无对应 owner，保留为边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(screen_query_rejects_wrong_catalog_and_schema_versions)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/product_adapters_test.go:217:TestProductExecutionAdapterCoversSpecialDispatchFailuresAndSnapshots": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::product_dispatch_rejects_unknown_tools_and_missing_instruments",
+    "conclusion": "部分覆盖：market.snapshot 成功路径与 `/api/v1/market-data/snapshots/US/AAPL` 转发、research.screen 非对象输入 BAD_REQUEST、research.calendar 缺 operation 的失败关闭、失败 quote 端口映射为 503 MARKET_DATA_QUOTE_READ_UNAVAILABLE 且保留端口消息，均有断言。差异：Go 的 `research.calendar(nil)` 返回默认输入并成功，Rust 要求对象且必须显式 operation（fail-closed）；Go 的「plain product service 走 typed dispatch 失败」在 Rust 无对应概念（端口是强类型 trait），保留为边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(product_dispatch_rejects_unknown_tools_and_missing_instruments)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/product_execution_contracts_test.go:84:TestProductExecutionAdapterPreservesProductAndExecutionBoundaries": {
     "status": "[~]",

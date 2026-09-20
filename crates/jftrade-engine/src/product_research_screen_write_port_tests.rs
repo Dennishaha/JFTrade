@@ -169,3 +169,96 @@ fn research_screen_definition_rejects_unsupported_market_and_stable_keys() {
         assert!(message.contains(expected), "{body} -> {message}");
     }
 }
+
+#[derive(Debug, Default)]
+struct RecordingScreenPort {
+    queries: std::sync::Mutex<Vec<ResearchScreenWriteQuery>>,
+}
+
+impl ResearchScreenWritePort for RecordingScreenPort {
+    fn query(
+        &self,
+        request: &ResearchScreenWriteQuery,
+    ) -> Result<Value, ResearchScreenWritePortError> {
+        self.queries
+            .lock()
+            .expect("screen queries")
+            .push(request.clone());
+        Ok(json!({"entries": [], "hasMore": false}))
+    }
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/product_adapters_test.go:155
+/// TestProductExecutionAdapterNormalizesScreenAndCalendarV2Inputs (screen half).
+///
+/// Go defaults the screen page limit to 50, keeps the requested offset, and
+/// projects the catalog version plus the column factor keys back to the
+/// caller. The Rust port normalizes the same fields before the provider call.
+#[test]
+fn screen_query_defaults_the_page_and_keeps_catalog_columns() {
+    let port = RecordingScreenPort::default();
+    let response = dispatch_research_screen_write(
+        &ResearchScreenWriteRequest {
+            method: "POST".to_owned(),
+            path: RESEARCH_SCREEN_PATH.to_owned(),
+            body: Some(
+                br#"{"brokerId":"api-test","market":"US","catalogVersion":"futu-stock-screen-v1","querySchemaVersion":2,"pool":{"watchlistStockIds":["1"]},"columns":[{"columnId":"close","factor":{"factorKey":"simple.last_close"}}],"page":{"offset":2}}"#
+                    .to_vec(),
+            ),
+        },
+        Some(&port),
+        "fixture-time",
+    );
+    assert_eq!(response.status, 200, "{}", response.body);
+    assert_eq!(response.body["data"]["catalogVersion"], "futu-stock-screen-v1");
+    assert_eq!(response.body["data"]["columns"][0]["factorKey"], "simple.last_close");
+
+    let queries = port.queries.lock().expect("screen queries");
+    let query = queries.first().expect("screen query");
+    assert_eq!(query.limit, 50, "Go defaults the page limit to 50");
+    assert_eq!(query.offset, 2, "the requested offset is preserved");
+    assert_eq!(query.market, "US");
+    assert_eq!(query.definition["catalogVersion"], "futu-stock-screen-v1");
+    assert_eq!(query.columns.len(), 1);
+    assert_eq!(query.columns[0].column_id, "close");
+    assert_eq!(query.columns[0].factor_key, "simple.last_close");
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/product_adapters_test.go:186
+/// TestProductExecutionAdapterRejectsInvalidScreenPageAndValue (version half).
+///
+/// Go rejects a screen request whose `catalogVersion` is not the active
+/// catalog and whose `querySchemaVersion` is not V2. Rust keeps the same
+/// fail-closed gate and never consults the provider port.
+#[test]
+fn screen_query_rejects_wrong_catalog_and_schema_versions() {
+    for (body, expected) in [
+        (
+            r#"{"brokerId":"api-test","market":"US","catalogVersion":"wrong","querySchemaVersion":2}"#,
+            "catalogVersion",
+        ),
+        (
+            r#"{"brokerId":"api-test","market":"US","catalogVersion":"futu-stock-screen-v1","querySchemaVersion":1}"#,
+            "querySchemaVersion",
+        ),
+        (
+            r#"{"brokerId":"api-test","market":"US","catalogVersion":"futu-stock-screen-v1","querySchemaVersion":2,"page":{"limit":101}}"#,
+            "page.limit",
+        ),
+    ] {
+        let response = dispatch_research_screen_write(
+            &ResearchScreenWriteRequest {
+                method: "POST".to_owned(),
+                path: RESEARCH_SCREEN_PATH.to_owned(),
+                body: Some(body.as_bytes().to_vec()),
+            },
+            Some(&UnreachablePort),
+            "fixture-time",
+        );
+        assert_eq!(response.status, 400, "{body}");
+        let message = response.body["error"]["message"]
+            .as_str()
+            .unwrap_or_default();
+        assert!(message.contains(expected), "{body} -> {message}");
+    }
+}
