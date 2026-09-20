@@ -2236,3 +2236,187 @@ fn workflow_wait_tool_returns_context_cancellation() {
         "cancellation must interrupt the wait, not run to completion"
     );
 }
+
+/// Go's `TestHTTPFetchToolRejectsInvalidAndUnsafeTargets`.
+#[test]
+fn http_fetch_tool_rejects_invalid_and_unsafe_targets() {
+    use crate::product::product_mcp_production_executor::http_fetch;
+    let cases = [
+        (serde_json::json!({}), "url is required"),
+        (serde_json::json!({"url": "://bad"}), "invalid url"),
+        (
+            serde_json::json!({"url": "ftp://example.com/feed"}),
+            "only http and https are supported",
+        ),
+        (
+            serde_json::json!({"url": "http://localhost:8080/health"}),
+            "localhost targets are blocked",
+        ),
+        (
+            serde_json::json!({"url": "http://169.254.169.254/latest/meta-data"}),
+            "private, loopback, link-local, multicast and metadata addresses are blocked",
+        ),
+        (
+            serde_json::json!({"url": "http://127.0.0.1/private"}),
+            "private, loopback, link-local, multicast and metadata addresses are blocked",
+        ),
+        (
+            serde_json::json!({"url": "http://10.0.0.5/internal"}),
+            "private, loopback, link-local, multicast and metadata addresses are blocked",
+        ),
+        (
+            serde_json::json!({"url": "http://8.8.8.8/report", "maxBytes": 0}),
+            "maxBytes",
+        ),
+        (
+            serde_json::json!({"url": "http://8.8.8.8/report", "maxBytes": 1 << 21}),
+            "maxBytes",
+        ),
+    ];
+    for (input, expected) in cases {
+        let error = http_fetch(&input).expect_err("unsafe target must be rejected");
+        assert!(
+            error.message.contains(expected),
+            "httpFetchTool({input}) error = {} want substring {expected:?}",
+            error.message
+        );
+    }
+}
+
+/// Go's `TestRejectUnsafeHostAndUnsafeAddrClassification`.
+#[test]
+fn reject_unsafe_host_and_unsafe_addr_classification() {
+    use crate::product::product_mcp_production_executor::{reject_unsafe_host, unsafe_address};
+    let error = reject_unsafe_host("").expect_err("empty host is rejected");
+    assert!(error.message.contains("host is required"));
+    reject_unsafe_host("8.8.8.8").expect("a public address is allowed");
+    reject_unsafe_host("1.1.1.1").expect("a public address is allowed");
+    let _ = reject_unsafe_host("example.invalid-name"); // a name, not an IP literal
+
+    for (addr, unsafe_addr) in [
+        ("127.0.0.1", true),
+        ("10.0.0.1", true),
+        ("169.254.1.10", true),
+        ("224.0.0.1", true),
+        ("0.0.0.0", true),
+        ("169.254.169.254", true),
+        ("172.16.0.1", true),
+        ("192.168.1.1", true),
+        ("8.8.8.8", false),
+        ("1.1.1.1", false),
+    ] {
+        let addr: std::net::IpAddr = addr.parse().expect("fixture address");
+        assert_eq!(
+            unsafe_address(addr),
+            unsafe_addr,
+            "unsafeAddr({addr}) mismatch"
+        );
+    }
+}
+
+/// Go's `TestHTTPFetchToolHandlesResponsesWithoutRealNetwork`: the fetch
+/// envelope carries status, body, byte accounting and truncation.  The
+/// responses are served by a loopback server, so the URL itself uses the
+/// public-address bypass the reference exposes for tests.
+#[test]
+fn http_fetch_tool_handles_responses_without_real_network() {
+    // A loopback server is exactly what the SSRF guard blocks, so the guard is
+    // verified separately above; this test covers the response envelope by
+    // exercising the pure decoding path against a stubbed transport.
+    use crate::product::product_mcp_production_executor::http_fetch_envelope;
+    let response = http_fetch_envelope(
+        "http://8.8.8.8/report",
+        "http://8.8.8.8/report",
+        200,
+        "text/plain; charset=utf-8",
+        b"market snapshot".to_vec(),
+        1 << 20,
+    );
+    assert_eq!(response["status"], 200);
+    assert_eq!(response["body"], "market snapshot");
+    assert_eq!(response["bytes"], "market snapshot".len());
+    assert_eq!(response["maxBytes"], 1 << 20);
+    assert_eq!(response["truncated"], false);
+    assert_eq!(response["url"], "http://8.8.8.8/report");
+    assert_eq!(response["finalUrl"], "http://8.8.8.8/report");
+
+    let truncated = http_fetch_envelope(
+        "http://8.8.8.8/start",
+        "http://8.8.8.8/final",
+        200,
+        "application/json",
+        b"12345678".to_vec(),
+        4,
+    );
+    assert_eq!(truncated["body"], "1234");
+    assert_eq!(truncated["bytes"], 4);
+    assert_eq!(truncated["maxBytes"], 4);
+    assert_eq!(truncated["truncated"], true);
+    assert_eq!(truncated["finalUrl"], "http://8.8.8.8/final");
+}
+
+/// The redirect guard: a response that redirects to a blocked host must fail
+/// with the reference wording instead of following the redirect.
+///
+/// The check runs on `reject_unsafe_host`, which is exactly what the redirect
+/// policy calls, so this asserts the guard's decision without a live server.
+#[test]
+fn http_fetch_redirect_guard_blocks_unsafe_hosts() {
+    use crate::product::product_mcp_production_executor::reject_unsafe_host;
+    for host in ["127.0.0.1", "localhost", "10.1.2.3", "169.254.169.254"] {
+        let error = reject_unsafe_host(host).expect_err("redirect target is unsafe");
+        assert!(
+            error.message.contains("blocked"),
+            "redirect to {host} must be blocked: {}",
+            error.message
+        );
+    }
+    // A public redirect target stays allowed.
+    reject_unsafe_host("8.8.8.8").expect("public redirect target");
+}
+
+/// `http.fetch` must be registered as a model-visible, replay-safe tool with
+/// the reference `read_external`/medium metadata so approval mode gates it
+/// through the medium-risk rule.
+#[test]
+fn http_fetch_catalog_registration_matches_the_reference() {
+    let bindings = crate::product::product_production_ports::product_production_ports_adk::PRODUCTION_TOOL_DEFINITIONS
+        .iter()
+        .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
+        .collect::<BTreeMap<_, _>>();
+    let catalog =
+        ProductionToolCatalog::from_bindings(&bindings).expect("complete ADK tool bindings");
+    let descriptor = catalog
+        .callable_tools()
+        .into_iter()
+        .find(|tool| tool["id"] == "http.fetch")
+        .expect("http.fetch descriptor");
+    assert_eq!(descriptor["permission"], "read_external");
+    assert_eq!(descriptor["riskLevel"], "medium");
+    assert!(
+        catalog.requires_approval("http.fetch", "approval"),
+        "medium risk is gated in approval mode"
+    );
+    assert!(
+        !catalog.requires_approval("http.fetch", "all"),
+        "no explicit per-mode list, so all mode executes it"
+    );
+}
+
+/// The engine pins reqwest to `rustls-no-provider`, so building the fetch
+/// client must install the process crypto provider first.  Without it the
+/// client panics inside reqwest instead of failing closed.  Building the
+/// client is deterministic and performs no network I/O.
+#[test]
+fn http_fetch_installs_the_rustls_provider_before_building_the_client() {
+    use crate::product::product_mcp_production_executor::build_http_fetch_client;
+    let outcome = std::panic::catch_unwind(build_http_fetch_client);
+    assert!(
+        outcome.is_ok(),
+        "http.fetch must install the rustls provider instead of panicking"
+    );
+    assert!(
+        outcome.expect("checked above").is_ok(),
+        "the fetch client must build once the provider is installed"
+    );
+}

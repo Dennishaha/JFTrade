@@ -2340,14 +2340,20 @@ mod product_production_assembly_tests {
                 .any(|tool| tool == "prediction.discover")
         );
 
-        let unavailable_skill_ids = ["jftrade-trading", "external-http"];
-        for id in unavailable_skill_ids {
-            let skill = skills
-                .iter()
-                .find(|skill| skill["id"] == id)
-                .expect("builtin skill");
-            assert_eq!(skill["tools"], json!([]));
-        }
+        // `jftrade-trading` stays empty because the trading tools are not
+        // model-exposed; `external-http` binds `http.fetch`, which is now a
+        // registered production tool (Go's builtin skill declares the same
+        // single tool).
+        let trading = skills
+            .iter()
+            .find(|skill| skill["id"] == "jftrade-trading")
+            .expect("trading builtin skill");
+        assert_eq!(trading["tools"], json!([]));
+        let external_http = skills
+            .iter()
+            .find(|skill| skill["id"] == "external-http")
+            .expect("external-http builtin skill");
+        assert_eq!(external_http["tools"], json!(["http.fetch"]));
     }
 
     /// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:115

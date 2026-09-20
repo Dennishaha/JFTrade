@@ -1105,3 +1105,55 @@ Go 的 `workflow.wait` 是注册在工具目录里的 `read_internal`/low 工具
 `internal/assistant/engine/tools_test.go` 剩余 10 条 `[~]`：`http.fetch` 安全分类 3 条、
 task schema 1 条、`models.list` schema 1 条、tool registry 序列化 1 条、`account.orders`
 慢端口/stream 3 条、backtest companion 1 条、descriptor access mode 1 条。
+
+## 第二十一批：http.fetch 生产适配器与 SSRF 防护（tools_test.go 再结清 3 条）
+
+Go 的 `http.fetch`（`internal/assistant/engine/tool_net.go:14`）是模型可见的
+`read_external`/medium 工具，且被内置 `external-http` skill 绑定。Rust 侧目录、执行器与安全策略
+全部缺失，模型调用会直接不可用；内置 `external-http` skill 也因此解析出空工具集。
+
+### 功能修复
+
+- `product_mcp_production_dispatch.rs`：新增 `http.fetch` 到 `supports()` 与
+  `execute_production()`；实现 `reject_unsafe_host()`（空 host / localhost / `.localhost` /
+  私网、回环、link-local、multicast、unspecified 与 169.254.169.254 全部拒绝，文案对齐 Go）、
+  `unsafe_address()`（IPv4 与 IPv6 的 fc00::/7、fe80::/10 等范围）、`http_fetch()`（http/https
+  限定、12s 超时、User-Agent `JFTrade-ADK/1.0`、最多 5 次重定向且每次重定向都重新做主机安全校验、
+  text/json/xml/rss 内容类型白名单、1MiB 默认上限）与 `http_fetch_envelope()`。
+- `build_http_fetch_client()` 在构建前显式安装 rustls ring provider：engine 把 reqwest 固定为
+  `rustls-no-provider`，缺这一步会在 client 构建时 panic 而不是 fail-closed（探针时发现）。
+- 目录登记：`http.fetch` 进入 `PRODUCTION_TOOL_DEFINITIONS`、`MODEL_EXPOSED_TOOLS` 与
+  `REPLAY_SAFE_TOOL_ALLOWLIST`，权限策略为 Go 的 `read_external`/medium（无显式模式列表）。
+- 更新 `production_builtin_skills_project_bound_tool_catalog`：`external-http` 现在解析出
+  `["http.fetch"]`，与 Go `BuildSingleFileBuiltinSkill("external-http", ..., []string{"http.fetch"}, ...)`
+  一致（此前断言空数组是功能缺失时的产物）。
+
+### 新增回归（`product_mcp_server_tests.rs`，6 条）
+
+- `http_fetch_tool_rejects_invalid_and_unsafe_targets`：9 组非法/不安全输入与文案。
+- `reject_unsafe_host_and_unsafe_addr_classification`：空 host、公网放行、10 组 IPv4 分类。
+- `http_fetch_tool_handles_responses_without_real_network`：响应封装与截断语义。
+- `http_fetch_redirect_guard_blocks_unsafe_hosts`：重定向目标安全校验。
+- `http_fetch_catalog_registration_matches_the_reference`：read_external/medium 与审批模式差异。
+- `http_fetch_installs_the_rustls_provider_before_building_the_client`：确定性客户端构建（无网络 I/O）。
+
+### 探针证据
+
+把 `unsafe_address` 的判定恒假、并让 localhost 分支恒不触发后，3 条安全测试同时转红；
+从备份恢复后 6 条全绿。探针过程中还暴露了 rustls provider 缺失导致的 reqwest panic，
+已按仓库既有模式（skill 下载客户端）在构建前安装 ring provider 修复。
+
+### 验证
+
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：
+  1458 passed，0 failed（上一批 1452，本批 +6）。
+- `cargo clippy -p jftrade-engine --all-targets --locked`、`cargo fmt --all`、
+  `pnpm run check:rust:architecture`：全部通过。
+- `python3 scripts/compatibility/audit_test_parity.py`：`[x]` 794 → **797**，0 重复 `[x]`，
+  0 断裂引用。
+
+### 下一批
+
+`internal/assistant/engine/tools_test.go` 剩余 7 条 `[~]`：task schema 1 条、`models.list`
+schema 1 条、tool registry 序列化 1 条、`account.orders` 慢端口/stream 3 条、
+backtest companion 1 条、descriptor access mode 1 条。

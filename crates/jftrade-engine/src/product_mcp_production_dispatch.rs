@@ -3,6 +3,7 @@ impl ProductionMcpToolExecutor {
         matches!(
             name,
             "workflow.wait"
+                | "http.fetch"
                 | "system.status"
                 | "system.futu_opend"
                 | "system.runtime_dependencies"
@@ -149,6 +150,7 @@ impl ProductionMcpToolExecutor {
             "backtest.kline_sync_status" => self.backtest_kline_sync_status(arguments),
             "backtest.result_view" => self.backtest_result_view(arguments),
             "workflow.wait" => self.workflow_wait(arguments),
+            "http.fetch" => http_fetch(arguments),
             "risk.state" => self.risk_state(),
             "risk.events" => self.risk_events(),
             _ => Err(McpToolFailure::unavailable(
@@ -238,4 +240,157 @@ pub(crate) fn workflow_wait_duration(arguments: &Value) -> Result<std::time::Dur
         ));
     }
     Ok(std::time::Duration::from_millis(duration_ms as u64))
+}
+
+/// `host is required` / localhost / metadata rejection for user-supplied HTTP
+/// targets, mirroring the reference `providers.RejectUnsafeHost`.
+pub(crate) fn reject_unsafe_host(host: &str) -> Result<(), McpToolFailure> {
+    let host = host.trim();
+    if host.is_empty() {
+        return Err(McpToolFailure::invalid("host is required"));
+    }
+    let lower = host.to_ascii_lowercase();
+    if lower == "localhost" || lower.ends_with(".localhost") {
+        return Err(McpToolFailure::invalid("localhost targets are blocked"));
+    }
+    if let Ok(addr) = host.parse::<std::net::IpAddr>()
+        && unsafe_address(addr)
+    {
+        return Err(McpToolFailure::invalid(
+            "private, loopback, link-local, multicast and metadata addresses are blocked",
+        ));
+    }
+    Ok(())
+}
+
+/// `unsafeAddr`: loopback, private, link-local (uni/multicast), multicast and
+/// unspecified addresses, plus the cloud metadata address.
+pub(crate) fn unsafe_address(addr: std::net::IpAddr) -> bool {
+    match addr {
+        std::net::IpAddr::V4(addr) => {
+            let octets = addr.octets();
+            addr.is_loopback()
+                || addr.is_private()
+                || addr.is_link_local()
+                || addr.is_multicast()
+                || addr.is_unspecified()
+                || octets == [169, 254, 169, 254]
+        }
+        std::net::IpAddr::V6(addr) => {
+            addr.is_loopback()
+                || addr.is_multicast()
+                || addr.is_unspecified()
+                // Unique-local (fc00::/7) and link-local (fe80::/10) ranges.
+                || (addr.segments()[0] & 0xfe00) == 0xfc00
+                || (addr.segments()[0] & 0xffc0) == 0xfe80
+        }
+    }
+}
+
+/// Go's `httpFetchTool`: a bounded GET with SSRF protection, a redirect guard,
+/// a text/json/xml/rss content-type whitelist and a 1 MiB default byte cap.
+pub(crate) fn http_fetch(arguments: &Value) -> Result<Value, McpToolFailure> {
+    const MAX_BYTES: i64 = 1 << 20;
+    let raw_url = optional_string(arguments, "url")
+        .ok_or_else(|| McpToolFailure::invalid("url is required"))?;
+    let parsed = reqwest::Url::parse(&raw_url)
+        .map_err(|error| McpToolFailure::invalid(format!("invalid url: {error}")))?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err(McpToolFailure::invalid("only http and https are supported"));
+    }
+    let host = parsed
+        .host_str()
+        .ok_or_else(|| McpToolFailure::invalid("url is required"))?;
+    reject_unsafe_host(host)?;
+    let max_bytes = optional_integer(arguments, "maxBytes", MAX_BYTES);
+    if !(1..=MAX_BYTES).contains(&max_bytes) {
+        return Err(McpToolFailure::invalid(format!(
+            "maxBytes must be between 1 and {MAX_BYTES}"
+        )));
+    }
+    let client = build_http_fetch_client()?;
+    let response = client
+        .get(parsed.clone())
+        .header("User-Agent", "JFTrade-ADK/1.0")
+        .send()
+        .map_err(|error| McpToolFailure::failed(502, "HTTP_FETCH_FAILED", error.to_string()))?;
+    let content_type = response
+        .headers()
+        .get("content-type")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if !content_type.is_empty()
+        && !["text/", "json", "xml", "rss"]
+            .iter()
+            .any(|allowed| content_type.contains(allowed))
+    {
+        return Err(McpToolFailure::invalid(format!(
+            "unsupported content type {content_type:?}"
+        )));
+    }
+    let status = response.status().as_u16();
+    let final_url = response.url().to_string();
+    let body = response
+        .bytes()
+        .map_err(|error| McpToolFailure::failed(502, "HTTP_FETCH_FAILED", error.to_string()))?;
+    Ok(http_fetch_envelope(
+        parsed.as_ref(),
+        &final_url,
+        status,
+        &content_type,
+        body.to_vec(),
+        max_bytes,
+    ))
+}
+
+/// Build the `http.fetch` client with the SSRF-aware redirect policy.
+///
+/// The engine pins reqwest to `rustls-no-provider`, so the process crypto
+/// provider is installed at this production boundary; without it the client
+/// build panics instead of failing closed.
+pub(crate) fn build_http_fetch_client() -> Result<reqwest::blocking::Client, McpToolFailure> {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(12))
+        .redirect(reqwest::redirect::Policy::custom(|attempt| {
+            if attempt.previous().len() >= 5 {
+                return attempt.error("too many redirects (max 5)");
+            }
+            match attempt.url().host_str().map(reject_unsafe_host) {
+                Some(Err(_)) => attempt.error(std::io::Error::other(
+                    "redirect to unsafe host blocked",
+                )),
+                _ => attempt.follow(),
+            }
+        }))
+        .build()
+        .map_err(|error| McpToolFailure::invalid(format!("http client: {error}")))
+}
+
+/// Build the reference fetch envelope, applying the byte cap and the
+/// `truncated` flag exactly like Go's `httpFetchTool` return value.
+pub(crate) fn http_fetch_envelope(
+    url: &str,
+    final_url: &str,
+    status: u16,
+    content_type: &str,
+    mut body: Vec<u8>,
+    max_bytes: i64,
+) -> Value {
+    let truncated = body.len() as i64 > max_bytes;
+    if truncated {
+        body.truncate(max_bytes.max(0) as usize);
+    }
+    let text = String::from_utf8_lossy(&body).into_owned();
+    json!({
+        "url": url,
+        "finalUrl": final_url,
+        "status": status,
+        "contentType": content_type,
+        "body": text,
+        "bytes": body.len(),
+        "maxBytes": max_bytes,
+        "truncated": truncated,
+    })
 }

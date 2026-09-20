@@ -50,6 +50,14 @@ pub(crate) fn tool_access_policy(id: &str) -> ToolAccessPolicy {
             risk_level: "high",
             requires_approval_in: Some(APPROVAL_MODES),
         },
+        // `http.fetch` is `read_external`/medium: the reference keeps no
+        // explicit per-mode list, so approval mode gates it through the
+        // medium-risk rule while `all` executes it.
+        "http.fetch" => ToolAccessPolicy {
+            permission: "read_external",
+            risk_level: "medium",
+            requires_approval_in: None,
+        },
         "strategy.research_backtest" => ToolAccessPolicy {
             permission: "optimize_strategy",
             risk_level: "low",
@@ -71,6 +79,13 @@ pub(crate) const PRODUCTION_TOOL_DEFINITIONS: &[ProductionToolDefinition] = &[
         id: "workflow.wait",
         category: "workflow",
         display_name: "等待工作流",
+        adapter: ProductionRouteAdapter::AdkChat,
+        research_operation: None,
+    },
+    ProductionToolDefinition {
+        id: "http.fetch",
+        category: "external",
+        display_name: "抓取网页",
         adapter: ProductionRouteAdapter::AdkChat,
         research_operation: None,
     },

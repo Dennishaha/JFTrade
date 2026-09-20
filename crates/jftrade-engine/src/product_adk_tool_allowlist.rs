@@ -1,5 +1,6 @@
 /// All tools exposed to the model/LLM agent.
 pub(crate) const MODEL_EXPOSED_TOOLS: &[&str] = &[
+    "http.fetch",
     "tools.search",
     "models.list",
     "system.status",
@@ -82,6 +83,7 @@ pub(crate) const MODEL_EXPOSED_TOOLS: &[&str] = &[
 /// expose a tool to run autonomously after a crash recovery.
 /// Specifically excludes non-replayable actions like strategy.research_backtest.
 pub(crate) const REPLAY_SAFE_TOOL_ALLOWLIST: &[&str] = &[
+    "http.fetch",
     "tools.search",
     "models.list",
     "system.status",
