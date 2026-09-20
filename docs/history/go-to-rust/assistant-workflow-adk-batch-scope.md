@@ -1055,3 +1055,53 @@ JFTrade memory:
   backtest companion 1 条、descriptor access mode 1 条。
 - 之后转 `internal/assistant/engine/runner_chat_test.go`（20 条）→ `store_test.go`（20 条）→
   `session_context_test.go`（19 条）。
+
+## 第二十批：workflow.wait 生产适配器与可取消等待（tools_test.go 剩余 4 条结清）
+
+Go 的 `workflow.wait` 是注册在工具目录里的 `read_internal`/low 工具（
+`internal/assistant/engine/tools.go:126` 注册、`tool_net.go:90` 实现）。Rust 侧此前只有
+`PRODUCTION_TOOL_DEFINITIONS` 目录项与 `product_wire.rs` 名单，没有执行适配器，模型一旦调用就会
+失败关闭为不可用——属于真实功能缺失而非测试缺口。
+
+### 功能修复
+
+- `product_mcp_production_dispatch.rs`：新增 `workflow.wait` 到 `supports()` 与
+  `execute_production()`；实现 `workflow_wait_duration()`（`durationMs` 优先，`seconds` 接受
+  int/float/数字字符串；正值校验与 25s 上限，错误文本对齐 Go）与
+  `workflow_wait_cancellable()`（分片等待并轮询取消信号，取消返回
+  `499 MCP_TOOL_CANCELLED`）。
+- `product_adk_tool_executor.rs`：`AdkToolExecutor` 新增带默认实现的 `execute_cancellable()`；
+  只有 `workflow.wait` 走可取消实现，其余适配器保持原行为不变。
+- `product_adk_model_runtime_tool_loop.rs`：工具执行改用 `execute_cancellable()`，把 run 的取消
+  信号与 durable CANCELLED 状态一起传入，等价于 Go handler 观察 `ctx.Done()`。
+
+### 新增回归（`product_mcp_server_tests.rs`，4 条）
+
+- `workflow_wait_tool_waits_and_does_not_require_approval`：ADK 目录投影 `read_internal`/low、
+  approval 模式 `requires_approval=false`；执行 `durationMs=10` 返回 `reason` 与 `waitedMs>=10`。
+- `workflow_wait_tool_rejects_too_long_duration`：`seconds=26` 返回 400 且文案含 `25s`。
+- `workflow_wait_tool_returns_context_cancellation`：取消后立即返回 `MCP_TOOL_CANCELLED`，
+  断言 5s 等待在取消后远早于满额时间结束。
+- `workflow_wait_duration_parses_multiple_input_forms`：`durationMs` 优先、1.5/2/`"0.25"` 解析、
+  25s 边界、空串/`later`/0/25001ms 拒绝。
+
+### 探针证据
+
+把 `workflow_wait_cancellable` 的两处 `cancelled()` 判定改成恒假后，
+`workflow_wait_tool_returns_context_cancellation` 转红并报告等待跑满 7048ms 才返回；
+从备份恢复后 4 条全绿。
+
+### 验证
+
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：
+  1452 passed，0 failed（上一批 1448，本批 +4）。
+- `cargo clippy -p jftrade-engine --all-targets --locked`、`cargo fmt --all`、
+  `pnpm run check:rust:architecture`：全部通过。
+- `python3 scripts/compatibility/audit_test_parity.py`：`[x]` 790 → **794**，0 重复 `[x]`，
+  0 断裂引用，0 缺失 evidence_type。
+
+### 下一批
+
+`internal/assistant/engine/tools_test.go` 剩余 10 条 `[~]`：`http.fetch` 安全分类 3 条、
+task schema 1 条、`models.list` schema 1 条、tool registry 序列化 1 条、`account.orders`
+慢端口/stream 3 条、backtest companion 1 条、descriptor access mode 1 条。

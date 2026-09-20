@@ -2,7 +2,8 @@ impl ProductionMcpToolExecutor {
     pub(crate) fn supports(&self, name: &str) -> bool {
         matches!(
             name,
-            "system.status"
+            "workflow.wait"
+                | "system.status"
                 | "system.futu_opend"
                 | "system.runtime_dependencies"
                 | "market.providers"
@@ -147,6 +148,7 @@ impl ProductionMcpToolExecutor {
             "backtest.runs" => self.backtest_runs(arguments),
             "backtest.kline_sync_status" => self.backtest_kline_sync_status(arguments),
             "backtest.result_view" => self.backtest_result_view(arguments),
+            "workflow.wait" => self.workflow_wait(arguments),
             "risk.state" => self.risk_state(),
             "risk.events" => self.risk_events(),
             _ => Err(McpToolFailure::unavailable(
@@ -156,4 +158,84 @@ impl ProductionMcpToolExecutor {
         }
     }
 
+}
+
+impl ProductionMcpToolExecutor {
+    /// Go's `workflowWaitTool`: a bounded in-process wait used to poll
+    /// asynchronous work.  `durationMs` wins over `seconds`, the duration must
+    /// be positive and at most 25s, and a cancelled context aborts the wait.
+    fn workflow_wait(&self, arguments: &Value) -> Result<Value, McpToolFailure> {
+        workflow_wait_cancellable(arguments, &|| false)
+    }
+}
+
+/// Go's `workflowWaitTool` with `ctx.Done()` honoured: the wait returns
+/// `MCP_TOOL_CANCELLED` as soon as `cancelled()` reports true instead of
+/// blocking for the full duration.
+pub(crate) fn workflow_wait_cancellable(
+    arguments: &Value,
+    cancelled: &dyn Fn() -> bool,
+) -> Result<Value, McpToolFailure> {
+    let duration = workflow_wait_duration(arguments)?;
+    let reason = optional_string(arguments, "reason").unwrap_or_default();
+    let started = std::time::Instant::now();
+    let mut remaining = duration;
+    let slice = std::time::Duration::from_millis(5);
+    while !remaining.is_zero() {
+        if cancelled() {
+            return Err(McpToolFailure::failed(
+                499,
+                "MCP_TOOL_CANCELLED",
+                "workflow.wait was cancelled",
+            ));
+        }
+        let step = remaining.min(slice);
+        std::thread::sleep(step);
+        remaining -= step;
+    }
+    if cancelled() {
+        return Err(McpToolFailure::failed(
+            499,
+            "MCP_TOOL_CANCELLED",
+            "workflow.wait was cancelled",
+        ));
+    }
+    let waited_ms = started.elapsed().as_millis().min(i64::MAX as u128) as i64;
+    Ok(json!({
+        "waitedMs": waited_ms,
+        "reason": reason,
+    }))
+}
+
+/// Go's `workflowWaitDuration`: `durationMs` wins when positive, otherwise the
+/// `seconds` field accepts numbers or numeric strings; a blank or unparsable
+/// value is rejected with the reference error text.
+pub(crate) fn workflow_wait_duration(arguments: &Value) -> Result<std::time::Duration, McpToolFailure> {
+    const MAX_WAIT_MS: i64 = 25_000;
+    let mut duration_ms = optional_integer(arguments, "durationMs", 0);
+    if duration_ms <= 0 {
+        duration_ms = match arguments.get("seconds") {
+            Some(Value::Number(value)) => value
+                .as_f64()
+                .map(|seconds| (seconds * 1000.0) as i64)
+                .unwrap_or_default(),
+            Some(Value::String(value)) => value
+                .trim()
+                .parse::<f64>()
+                .map(|seconds| (seconds * 1000.0) as i64)
+                .unwrap_or_default(),
+            _ => 0,
+        };
+    }
+    if duration_ms <= 0 {
+        return Err(McpToolFailure::invalid(
+            "seconds or durationMs must be greater than 0",
+        ));
+    }
+    if duration_ms > MAX_WAIT_MS {
+        return Err(McpToolFailure::invalid(
+            "workflow.wait duration must be <= 25s",
+        ));
+    }
+    Ok(std::time::Duration::from_millis(duration_ms as u64))
 }

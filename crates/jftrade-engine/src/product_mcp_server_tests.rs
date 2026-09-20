@@ -2083,3 +2083,156 @@ fn typed_capability_schemas_are_defensive_and_stable_per_lookup() {
         "an unknown tool must not resolve to a schema"
     );
 }
+
+/// `workflow.wait` is a local operation, so the regression drives it without a
+/// full production port bundle.
+fn local_executor() -> ProductionMcpToolExecutor {
+    let (_directory, ports) = production_bundle();
+    ProductionMcpToolExecutor::from_production_ports(Arc::new(ports))
+}
+
+/// Go's `TestWorkflowWaitToolWaitsAndDoesNotRequireApproval`: `workflow.wait`
+/// is a `read_internal`/low-risk tool that waits for the requested duration and
+/// reports why.  The catalog must project it as automatically executable so
+/// the ADK loop runs it instead of asking the operator.
+#[test]
+fn workflow_wait_tool_waits_and_does_not_require_approval() {
+    // The ADK catalog is the one that exposes `workflow.wait`; the extension
+    // catalog only carries the MCP protocol tools.
+    let bindings = crate::product::product_production_ports::product_production_ports_adk::PRODUCTION_TOOL_DEFINITIONS
+        .iter()
+        .map(|definition| {
+            (
+                definition.adapter,
+                ProductionAdapterBinding::Ready,
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let catalog =
+        ProductionToolCatalog::from_bindings(&bindings).expect("complete ADK tool bindings");
+    let descriptor = catalog
+        .callable_tools()
+        .into_iter()
+        .find(|tool| tool["id"] == "workflow.wait")
+        .expect("workflow.wait descriptor");
+    assert_eq!(descriptor["permission"], "read_internal");
+    assert_eq!(descriptor["riskLevel"], "low");
+    assert!(
+        !catalog.requires_approval("workflow.wait", "approval"),
+        "workflow.wait must not require approval in approval mode"
+    );
+
+    let executor = local_executor();
+    let started = std::time::Instant::now();
+    let output = executor
+        .execute_production(
+            "workflow.wait",
+            &serde_json::json!({"durationMs": 10, "reason": "test wait"}),
+        )
+        .expect("workflow.wait succeeds");
+    assert!(
+        started.elapsed() >= Duration::from_millis(10),
+        "workflow.wait must not return before the requested duration"
+    );
+    assert_eq!(output["reason"], "test wait");
+    assert!(
+        output["waitedMs"]
+            .as_i64()
+            .is_some_and(|waited| waited >= 10),
+        "output carries the actual waited milliseconds: {output}"
+    );
+}
+
+/// Go's `TestWorkflowWaitToolRejectsTooLongDuration`: anything above the 25s
+/// cap is rejected with the reference error text.
+#[test]
+fn workflow_wait_tool_rejects_too_long_duration() {
+    let executor = local_executor();
+    let error = executor
+        .execute_production("workflow.wait", &serde_json::json!({"seconds": 26}))
+        .expect_err("a 26s wait exceeds the cap");
+    assert_eq!(error.status, 400);
+    assert!(
+        error.message.contains("25s"),
+        "unexpected error text: {}",
+        error.message
+    );
+}
+
+/// Go's `TestWorkflowWaitDurationParsesMultipleInputForms`.
+#[test]
+fn workflow_wait_duration_parses_multiple_input_forms() {
+    let duration = |value: serde_json::Value| {
+        crate::product::product_mcp_production_executor::workflow_wait_duration(&value)
+    };
+    assert_eq!(
+        duration(serde_json::json!({"durationMs": 1500, "seconds": 9})).expect("ms wins"),
+        Duration::from_millis(1500)
+    );
+    assert_eq!(
+        duration(serde_json::json!({"seconds": 1.5})).expect("float seconds"),
+        Duration::from_millis(1500)
+    );
+    assert_eq!(
+        duration(serde_json::json!({"seconds": 2})).expect("int seconds"),
+        Duration::from_secs(2)
+    );
+    assert_eq!(
+        duration(serde_json::json!({"seconds": "0.25"})).expect("string seconds"),
+        Duration::from_millis(250)
+    );
+    assert!(
+        duration(serde_json::json!({"seconds": "   "})).is_err(),
+        "a blank string carries no duration"
+    );
+    assert_eq!(
+        duration(serde_json::json!({"seconds": 25})).expect("25s is the boundary"),
+        Duration::from_secs(25)
+    );
+    for invalid in [
+        serde_json::json!({"seconds": "later"}),
+        serde_json::json!({}),
+        serde_json::json!({"seconds": 0}),
+    ] {
+        let error = duration(invalid.clone()).expect_err("invalid duration is rejected");
+        assert!(
+            error.message.contains("greater than 0"),
+            "unexpected error for {invalid}: {}",
+            error.message
+        );
+    }
+    let error =
+        duration(serde_json::json!({"durationMs": 25001})).expect_err("25001ms exceeds the cap");
+    assert!(
+        error.message.contains("25s"),
+        "unexpected error: {}",
+        error.message
+    );
+}
+
+/// Go's `TestWorkflowWaitToolReturnsContextCancellation`: a cancelled context
+/// aborts the wait immediately and surfaces the cancellation to the caller.
+#[test]
+fn workflow_wait_tool_returns_context_cancellation() {
+    let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let signal = std::sync::Arc::clone(&cancel);
+    let worker = std::thread::spawn(move || {
+        crate::product::product_mcp_production_executor::workflow_wait_cancellable(
+            &serde_json::json!({"durationMs": 5_000}),
+            &|| signal.load(std::sync::atomic::Ordering::Acquire),
+        )
+    });
+    // The wait must observe the cancellation instead of sleeping for 5s.
+    std::thread::sleep(Duration::from_millis(20));
+    cancel.store(true, std::sync::atomic::Ordering::Release);
+    let started = std::time::Instant::now();
+    let error = worker
+        .join()
+        .expect("workflow.wait worker")
+        .expect_err("a cancelled wait must fail");
+    assert_eq!(error.code, "MCP_TOOL_CANCELLED");
+    assert!(
+        started.elapsed() < Duration::from_secs(2),
+        "cancellation must interrupt the wait, not run to completion"
+    );
+}

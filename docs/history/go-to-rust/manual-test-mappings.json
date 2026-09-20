@@ -10724,32 +10724,32 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:163:TestWorkflowWaitToolWaitsAndDoesNotRequireApproval": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::workflow_wait_tool_waits_and_does_not_require_approval",
+    "conclusion": "function_exact：新增 workflow.wait 生产适配器（此前 Rust 只有目录/schema，无执行实现）。目录投影 read_internal/low 且 approval 模式 requires_approval=false；执行 durationMs=10 后返回 reason 与 waitedMs>=10。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:195:TestWorkflowWaitToolRejectsTooLongDuration": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::workflow_wait_tool_rejects_too_long_duration",
+    "conclusion": "function_exact：seconds=26 超过 25s 上限，返回 400 且 message 含 25s，与 Go 的 workflowWaitDuration 错误文本一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:206:TestWorkflowWaitToolReturnsContextCancellation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::workflow_wait_tool_returns_context_cancellation",
+    "conclusion": "function_exact：等待可被取消信号中断，返回 499 MCP_TOOL_CANCELLED；测试断言 5s 等待在取消后远早于满额时长结束。修复：AdkToolExecutor 新增 execute_cancellable，工具循环传入 run 取消/DB 取消状态。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:219:TestWorkflowWaitDurationParsesMultipleInputForms": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::workflow_wait_duration_parses_multiple_input_forms",
+    "conclusion": "function_exact：durationMs 优先于 seconds；seconds 接受 int/float/数字字符串（1.5→1500ms、2→2s、字符串 0.25→250ms）；25s 为边界；空串/不可解析/0/25001ms 均以 greater than 0 或 25s 拒绝。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:275:TestHTTPFetchToolRejectsInvalidAndUnsafeTargets": {
     "status": "[~]",

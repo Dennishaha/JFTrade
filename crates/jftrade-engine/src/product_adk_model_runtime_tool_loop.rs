@@ -164,9 +164,18 @@ impl ProductionAdkChatRuntime {
                         // `ToolCallFailureMessage`, so the plain error text is
                         // what lands in `ToolCall.Error`; only the caller's
                         // unavailable/conflict wrappers keep a code prefix.
+                        // `workflow.wait` spends its whole runtime sleeping, so
+                        // the adapter is driven with the cancellation signal
+                        // the reference observes through `ctx.Done()`.
+                        let cancellation_handle = Arc::clone(&cancellation);
+                        let run_id = chat.run_id.clone();
+                        let runtime = self;
                         let outcome = self
                             .tool_executor
-                            .execute(&name, &arguments)
+                            .execute_cancellable(&name, &arguments, &|| {
+                                cancellation_handle.load(Ordering::Acquire)
+                                    || runtime.run_is_cancelled(&run_id)
+                            })
                             .map_err(tool_failed);
                         if heartbeat.stop() || run_lease.is_lost() {
                             return;

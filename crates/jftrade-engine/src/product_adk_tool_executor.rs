@@ -21,6 +21,20 @@ pub(crate) trait AdkToolExecutor: Send + Sync + std::fmt::Debug {
     /// a descriptor exists in the catalog.
     fn supports(&self, name: &str) -> bool;
     fn execute(&self, name: &str, arguments: &Value) -> Result<Value, String>;
+    /// Execute `name` while honouring a caller cancellation signal.
+    ///
+    /// `workflow.wait` is the one production tool that spends its whole
+    /// runtime sleeping, so it must be interruptible exactly like the
+    /// reference handler observes `ctx.Done()`.  Every other adapter keeps the
+    /// plain implementation.
+    fn execute_cancellable(
+        &self,
+        name: &str,
+        arguments: &Value,
+        _cancelled: &dyn Fn() -> bool,
+    ) -> Result<Value, String> {
+        self.execute(name, arguments)
+    }
     fn attach_ports(&self, _ports: Arc<ProductionPortBundle>) {}
     fn detach_ports(&self) {}
 }
@@ -116,6 +130,21 @@ impl AdkToolExecutor for ProductionAdkToolExecutor {
 
     fn detach_ports(&self) {
         ProductionAdkToolExecutor::detach_ports(self);
+    }
+
+    fn execute_cancellable(
+        &self,
+        name: &str,
+        arguments: &Value,
+        cancelled: &dyn Fn() -> bool,
+    ) -> Result<Value, String> {
+        if name == "workflow.wait" {
+            return crate::product::product_mcp_production_executor::workflow_wait_cancellable(
+                arguments, cancelled,
+            )
+            .map_err(|error| error.message);
+        }
+        self.execute(name, arguments)
     }
 
     fn execute(&self, name: &str, arguments: &Value) -> Result<Value, String> {
