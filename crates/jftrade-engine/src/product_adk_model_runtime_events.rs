@@ -352,11 +352,16 @@ impl ProductionAdkChatRuntime {
     }
 
     pub(crate) fn resume_approval(&self, run_id: &str) -> Result<(), AdkChatPortError> {
-        let run = self
-            .store
-            .get_run(run_id)
-            .map_err(storage_unavailable)?
-            .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
+        let Some(run) = self.store.get_run(run_id).map_err(storage_unavailable)? else {
+            // Go's `continueResolvedApprovalRun`/`continueResolvedInput` read
+            // the run first and return the store's `nil` error when the row is
+            // gone, so `ResolveApprovalAsync` still answers the resolution
+            // envelope.  Reporting a fabricated failure here would make the
+            // approval and input routes roll back an already-staged resolution
+            // and answer `503 ADK_CONTINUATION_UNAVAILABLE` for a run that
+            // simply no longer exists.
+            return Ok(());
+        };
         if run.status.eq_ignore_ascii_case("CANCELLED") {
             return Ok(());
         }

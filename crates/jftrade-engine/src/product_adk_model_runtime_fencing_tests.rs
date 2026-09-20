@@ -484,6 +484,229 @@ async fn challenge_completion_barrier_timeout_expires_without_deadlock() {
     assert!(wait_finish, "Barrier must return true after task finishes");
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/runner_continuation_boundaries_test.go:11
+/// `TestContinuationClaimGuardsAndClosingRuntime` (claim half) and
+/// `:347` `TestRuntimeCloseWaitsForInFlightBackgroundWorkAndRejectsNewWork`.
+///
+/// Go claims one continuation per run before starting it: a second wakeup for
+/// a run whose continuation is in flight is refused until the first one
+/// finishes, and a closing runtime neither admits new background work nor
+/// leaves the claim registered.  Rust reaches the same window through
+/// `ContinuationSupervisor::spawn`, which reserves the run id under the same
+/// lock as its shutdown admission check.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn challenge_continuation_supervisor_claims_are_exclusive_and_released() {
+    let supervisor = Arc::new(super::ContinuationSupervisor::default());
+    let started = Arc::new(tokio::sync::Notify::new());
+    let release = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let completed = Arc::new(AtomicUsize::new(0));
+
+    let started_task = Arc::clone(&started);
+    let release_task = Arc::clone(&release);
+    let completed_task = Arc::clone(&completed);
+    supervisor
+        .spawn("run-exclusive", move |_cancellation| {
+            completed_task.fetch_add(1, Ordering::SeqCst);
+            started_task.notify_one();
+            while !release_task.load(Ordering::Acquire) {
+                thread::sleep(Duration::from_millis(2));
+            }
+        })
+        .expect("first claim must be admitted");
+
+    // Wait until the first continuation is genuinely in flight, so the second
+    // spawn observes the registered claim rather than a race.
+    started.notified().await;
+
+    let duplicate = supervisor.spawn("run-exclusive", |_| {
+        panic!("a duplicate continuation must never run");
+    });
+    match duplicate {
+        Err(super::AdkChatPortError::Conflict(message)) => assert!(
+            message.contains("already running"),
+            "duplicate claim must report the exclusive claim: {message}"
+        ),
+        other => panic!("duplicate claim must be refused, got {other:?}"),
+    }
+
+    // A different run id is unaffected by the held claim.
+    supervisor
+        .spawn("run-independent", |_| {})
+        .expect("an unrelated run id must still be admitted");
+
+    release.store(true, Ordering::Release);
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while supervisor
+        .tasks
+        .lock()
+        .map(|tasks| tasks.contains_key("run-exclusive"))
+        .unwrap_or(false)
+    {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the finished continuation must release its claim"
+        );
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    assert_eq!(completed.load(Ordering::SeqCst), 1);
+
+    // Once released, the run id can be claimed again.
+    supervisor
+        .spawn("run-exclusive", |_| {})
+        .expect("a released claim must be reusable");
+    supervisor.shutdown();
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/runner_continuation_boundaries_test.go:63
+/// `TestContinuationQueuesInitializeWithoutRuntimeBackgroundContext`.
+///
+/// Go's continuation claim maps are usable on a minimal runtime without any
+/// background context, and a continuation that runs to completion — including
+/// the missing-run enqueue, which does nothing — leaves no claim behind, so the
+/// run id can be claimed again.  Rust's `ContinuationSupervisor::default()`
+/// needs no lazy initialization, and `ContinuationTaskGuard::drop` removes the
+/// entry under the same lock that admits work.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn challenge_continuation_supervisor_releases_claims_without_extra_initialization() {
+    let supervisor = Arc::new(super::ContinuationSupervisor::default());
+    let completed = Arc::new(AtomicUsize::new(0));
+
+    let completed_task = Arc::clone(&completed);
+    supervisor
+        .spawn("run-initialize", move |_cancellation| {
+            completed_task.fetch_add(1, Ordering::SeqCst);
+        })
+        .expect("a default supervisor must admit work without extra initialization");
+
+    let wait_for_release = |run_id: &str| {
+        let supervisor = Arc::clone(&supervisor);
+        let run_id = run_id.to_owned();
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while supervisor
+            .tasks
+            .lock()
+            .map(|tasks| tasks.contains_key(&run_id))
+            .unwrap_or(false)
+        {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "a finished continuation must release its claim: {run_id}"
+            );
+            std::thread::sleep(Duration::from_millis(2));
+        }
+    };
+
+    wait_for_release("run-initialize");
+    assert_eq!(completed.load(Ordering::SeqCst), 1);
+
+    // Go's missing-run enqueue starts a continuation that immediately returns
+    // and must not retain a claim either.
+    supervisor
+        .spawn("run-empty", |_| {})
+        .expect("a no-op continuation must be admitted");
+    wait_for_release("run-empty");
+
+    // Both run ids are reusable once their continuations finished.
+    supervisor
+        .spawn("run-initialize", |_| {})
+        .expect("a released run id must be claimable again");
+    supervisor
+        .spawn("run-empty", |_| {})
+        .expect("a released no-op run id must be claimable again");
+    supervisor.shutdown();
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/runner_continuation_boundaries_test.go:314
+/// `TestGoBackgroundNilGuardsAndClosingState` (closing half).
+///
+/// A runtime in the closing state must reject newly admitted background work.
+/// Go's `goBackground` checks `closing` under `approvalMu` and refuses; Rust's
+/// `ContinuationSupervisor::spawn` checks the same `stopping` flag under the
+/// lock that also reserves the per-run claim, so a closing supervisor fails
+/// closed instead of admitting one last task.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn challenge_continuation_supervisor_rejects_new_work_once_stopping() {
+    let supervisor = Arc::new(super::ContinuationSupervisor::default());
+    let completed = Arc::new(AtomicUsize::new(0));
+
+    let completed_task = Arc::clone(&completed);
+    supervisor
+        .spawn("run-before-closing", move |_cancellation| {
+            completed_task.fetch_add(1, Ordering::SeqCst);
+        })
+        .expect("spawn before closing must be admitted");
+    supervisor.shutdown();
+    assert_eq!(completed.load(Ordering::SeqCst), 1);
+
+    let rejected = supervisor.spawn("run-while-closing", |_| {
+        panic!("a closing supervisor must not admit new work");
+    });
+    match rejected {
+        Err(super::AdkChatPortError::Unavailable(message)) => assert!(
+            message.contains("stopping"),
+            "closing supervisor must fail closed: {message}"
+        ),
+        other => panic!("closing supervisor must reject new work, got {other:?}"),
+    }
+
+    // The refusal is stable: a second attempt cannot slip past the stopped
+    // admission flag either.
+    assert!(
+        supervisor.spawn("run-while-closing-again", |_| {}).is_err(),
+        "a stopped supervisor must keep refusing new work"
+    );
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/runner_continuation_boundaries_test.go:347
+/// `TestRuntimeCloseWaitsForInFlightBackgroundWorkAndRejectsNewWork`.
+///
+/// Close must cancel in-flight background work, wait for it to finish before
+/// returning, and refuse anything that arrives while it is closing.  Rust's
+/// `ContinuationSupervisor::shutdown` flips the admission flag, cancels every
+/// live task and blocks on the completion barrier.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work() {
+    let supervisor = Arc::new(super::ContinuationSupervisor::default());
+    let started = Arc::new(tokio::sync::Notify::new());
+    let observed_cancel = Arc::new(AtomicUsize::new(0));
+
+    let started_task = Arc::clone(&started);
+    let observed_task = Arc::clone(&observed_cancel);
+    supervisor
+        .spawn("run-closing", move |cancellation| {
+            started_task.notify_one();
+            let deadline = std::time::Instant::now() + Duration::from_secs(5);
+            while !cancellation.load(Ordering::Acquire) {
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "shutdown must cancel the in-flight continuation"
+                );
+                thread::sleep(Duration::from_millis(2));
+            }
+            observed_task.fetch_add(1, Ordering::SeqCst);
+        })
+        .expect("spawn before shutdown must be admitted");
+    started.notified().await;
+
+    supervisor.shutdown();
+
+    assert_eq!(
+        observed_cancel.load(Ordering::SeqCst),
+        1,
+        "shutdown must return only after the in-flight task observed cancellation"
+    );
+    let rejected = supervisor.spawn("run-after-shutdown", |_| {
+        panic!("a closed supervisor must not admit new work");
+    });
+    match rejected {
+        Err(super::AdkChatPortError::Unavailable(message)) => assert!(
+            message.contains("stopping"),
+            "closed supervisor must fail closed: {message}"
+        ),
+        other => panic!("closed supervisor must reject new work, got {other:?}"),
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn challenge_continuation_supervisor_shutdown_blocks_for_all_tasks() {
     let supervisor = Arc::new(super::ContinuationSupervisor::default());

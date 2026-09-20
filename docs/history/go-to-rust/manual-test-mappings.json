@@ -9156,25 +9156,25 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:11:TestContinuationClaimGuardsAndClosingRuntime": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_claims_are_exclusive_and_released",
+    "conclusion": "function_exact（claim/关闭部分）：Go 对同一 run 的 continuation claim 是排他的（第二次 claim 失败），关闭中的 runtime 不留残余 claim 也不接受新工作。Rust 用 `ContinuationSupervisor::spawn` 在同一个锁里完成 admission 与 claim 预留：新回归断言第一次 spawn 成功后、任务仍在飞行时的第二次 spawn 返回 `Conflict(\"assistant continuation is already running\")`、无关 run id 不受影响、任务结束后 claim 被释放且同一 run 可再次 spawn，最后 shutdown 后 spawn 失败。nil-runtime 的 Go 分支不适用（Rust 无 nil 值语义，方法在 `&self` 上）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:63:TestContinuationQueuesInitializeWithoutRuntimeBackgroundContext": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_releases_claims_without_extra_initialization",
+    "conclusion": "function_exact：Go 断言 claim map 在最小 runtime（无 backgroundCtx）上可用、continuation 结束后不残留 claim（含 missing-run 的 no-op enqueue），且同一 run id 可再次 claim。Rust 的 `ContinuationSupervisor::default()` 无需惰性初始化即可用，`ContinuationTaskGuard::drop` 在同一个锁下移除条目，所以任务结束即释放 claim。新回归 `challenge_continuation_supervisor_releases_claims_without_extra_initialization` 断言：默认 supervisor 直接可 spawn、任务与 no-op continuation 结束后 `tasks` 表都不再持有该 run id、两个 run id 释放后都可再次 spawn。Go nil-runtime 的 enqueue 分支无 Rust 对应（无 nil 值语义）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:87:TestResolvedContinuationsHonorForeignLeasesAndEmptyState": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state",
-    "conclusion": "部分覆盖（本批补齐一条真实缺口，其余分支仍待办）：①不可续跑 run 必须静默 no-op —— 已补齐并断言（Rust resume_approval 之前对非 RUNNING/非 input_resume_pending 伪造 Unavailable，已改为 Ok(())；见 product_adk_model_runtime_events.rs），同一不变量另有 test_adk_resume_approval_cas_rejection 断言 durable 状态不被改写。②missing-run continuation 返回 nil —— 未覆盖且存在差异：Rust resume_approval 对缺失 run 仍返回 Unavailable(\"persisted ADK run disappeared\")，需按 Go 缺口决策后补测试。③foreign unexpired lease 不得被 steal（continueResolvedInput 直接返回 nil）—— 未覆盖：Rust 走 acquire_run_lease_with_retry 等待租约到期后接管，属有意 takeover 设计，需单独登记。④stageResolvedApproval(missing)/markApprovalContinuationFailed(missing)/attachParentWorkflowResolution(empty)/nil-runtime Reconcile 等无副作用分支 —— 未逐条覆盖。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_continuation_for_a_missing_run_is_a_silent_no_op",
+    "conclusion": "function_exact（本批修复的真实缺口）：①missing-run continuation 必须静默 no-op —— Go 的 continueResolvedApprovalRun/continueResolvedInput 读不到 run 时返回 store 的 nil，Rust resume_approval 之前报 Unavailable(\"persisted ADK run disappeared\")，会让审批/输入路由回滚已 staged 的审批并回 503 ADK_CONTINUATION_UNAVAILABLE；已改为 `let Some(run) = ... else { return Ok(()) }`（product_adk_model_runtime_events.rs），新回归 a_continuation_for_a_missing_run_is_a_silent_no_op 断言返回 Ok 且不物化 run、不写审计行。②不可续跑 run 静默 no-op —— 已由 79c973f8 修复并由同一测试族的既有断言覆盖。③foreign unexpired lease 不被 steal —— Rust 的 resume_approval 先读 run 再校验状态，真正执行前必须拿到 RunLeaseGuard（compare-and-claim，fresh foreign lease 会 Conflict），worker 抢到租约后还会重读 run 并要求 RUNNING 才继续（product_adk_model_runtime_tool_loop.rs 的 run_tool_loop），因此不偷 foreign owner；证据为 challenge_continuation_supervisor_claims_are_exclusive_and_released、adk_approval_wakeup_accepts_an_already_claimed_continuation 与 product_adk_model_runtime_takeover_tests.rs 的 fencing/takeover 断言。④empty-state 分支（stageResolvedApproval(missing)/markApprovalContinuationFailed(missing)/attachParentWorkflowResolution(empty)/nil-runtime Reconcile）在 Go 是纯无副作用边界：Rust 侧没有这几个同名入口，对应职责由 store 的 resolve_and_stage_approval 返回 None + 路由的 `Ok(json!({\"approval\": {\"id\": \"\"}}))` 空 envelope 承担，已由 adk_resolve_approval_missing_returns_the_idempotent_empty_envelope 断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:136:TestResolvedApprovalContinuationKeepsSiblingStateAtomic": {
     "status": "[x]",
@@ -9186,57 +9186,57 @@
   "internal/assistant/engine/runner_continuation_boundaries_test.go:188:TestStartRunPersistsExecutionLeaseClaimFailure": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
+    "conclusion": "Rust 功能缺失（有意设计差异，待决策）：Go 的 `StartRunWithOptions` 先单独保存 run，再 `beginRunExecutionLease`，租约申请失败时把 run 改写为 `FAILED`/`RUN_LEASE_CLAIM_FAILED` 并带上失败原因，保证「占用了 clientRequestId 的 run 不会永远停在 RUNNING」。Rust 把 run 行、初始事件与租约插入放在同一个 SQLite 事务里（`AdkStore::create_run_with_event_idempotent`，create_run_with_event_idempotent 内部 `INSERT INTO adk_run_leases`），租约失败即整个事务回滚，不会留下 RUNNING run —— 这个不变量比 Go 更强，因此没有 `RUN_LEASE_CLAIM_FAILED` 这个错误码与回写路径，也没有对应测试。需要决策：是保留更强的事务语义并登记为有意分歧，还是为可观测性补一个等价终态标记。缺口本身已登记，未伪造测试。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "missing"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:207:TestResolvedApprovalDoesNotStealForeignExecutionLease": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_approval_wakeup_accepts_an_already_claimed_continuation",
+    "conclusion": "function_exact（同步+后台两半）：Go 在存在 fresh foreign lease 时，同步 `ResolveApproval` 只返回已 staged 的 durable 状态（`resumeState=approval_resuming`）而不夺取租约，后台 `continueResolvedApprovalRun` 同样不动 foreign owner。Rust 侧 `adk_approval_wakeup_accepts_an_already_claimed_continuation` 用已声明 continuation 的 port 断言路由仍回 resolution envelope、run 停在 RUNNING/approval_resuming、staged 状态durable。本批另修的真实缺口是同一竞态的失败面：resume_approval 对不可续跑 run 曾回滚赢家的 staged 审批（79c973f8 已改为静默 no-op）。租约本身不被偷由 `product_adk_model_runtime_takeover_tests.rs` 的 fencing/takeover 语义与 resume_approval 先读 run 再校验状态共同保证；`adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection` 亦断言 foreign/orphan 解析不会改写 run 投影。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:242:TestLifecycleReportsLeaseStorageFailures": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
+    "conclusion": "Rust 功能缺失（有意设计差异，待决策）：该 Go 测试有两个断言族。①租约表被 DROP 后 `ReconcileExpiredRuns`/`reconcileStaleRun` 必须把底层存储错误（含表名）向上传播，而不是静默当无租约处理：Rust 侧没有与 `ReconcileExpiredRuns`/`reconcileStaleRun` 同名的入口，等价路径是 `reconcile_orphaned_pending_runs` 与 recovery scanner，二者都用 `let Ok(...) = ... else { return }` 吞掉存储错误并只打印日志，未断言错误传播，属真实差异。②store 关闭后 `PauseGoalRun`/`ResumeGoalRun`/`UpdateRunObjective` 必须报错：Rust 的路由层（product_production_ports_adk_mutation_runs.rs 的 PauseRun/ResumeRun 分支、product_production_ports_adk_mutation_tasks.rs 的 UpdateRunObjective）确实通过 `map_err(storage_mutation_failed)` 把 store 错误映射成失败，但缺确定性回归。两项都记为缺口，不伪造结论。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "missing"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:275:TestGoalResumeFailsClosedWhenExecutionLeaseCannotBeClaimed": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
+    "conclusion": "Rust 功能缺失：Go 的 `resumeUserPausedGoalRun` 是运行时后台续跑入口 —— fresh foreign lease 存在时必须让 goal 留在 RUNNING 交给 owner（不抢），租约存储错误时必须把 run 落成 FAILED 并带上失败原因（fail closed，不静默）。Rust 没有 goal workflow 执行引擎：`ResumeRun` 路由（product_production_ports_adk_mutation_runs.rs）只把 run 投影成 RUNNING/`user_resuming`/`workflowStatus=RUNNING` 并清空暂停字段，不申请运行租约、不启动任何后台 worker，因此这两个分支在 Rust 都不存在，也无从断言。这是本领域最大的真实功能缺口之一，需单独设计与批次，不在本批伪造测试。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "missing"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:314:TestGoBackgroundNilGuardsAndClosingState": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_rejects_new_work_once_stopping",
+    "conclusion": "function_exact（closing 部分）：Go 的 `goBackground` 在 closing 状态拒绝新工作。Rust 的等价物是 `ContinuationSupervisor::spawn`：`stopping` 置位后 spawn 返回 `Unavailable(\"assistant continuation supervisor is stopping\")`。新回归 `challenge_continuation_supervisor_rejects_new_work_once_stopping` 断言关闭前可 spawn、shutdown 后拒绝、且再次尝试仍被拒绝。Go 的 nil-runtime/nil-func 边界不适用（Rust 无 nil，`spawn` 只接受 `FnOnce` 值）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:347:TestRuntimeCloseWaitsForInFlightBackgroundWorkAndRejectsNewWork": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work",
+    "conclusion": "function_exact：Go 的 `Close` 先取消在途后台工作、等待其结束再返回，并在 closing/closed 状态拒绝新工作。Rust 的 `ContinuationSupervisor::shutdown` 置 stopping、取消每个在飞任务的 cancellation 标志，再阻塞在 completion barrier 上等待所有任务退出。新回归断言 shutdown 返回时在途任务已观察到取消（`observed_cancel == 1`），且此后的 spawn 必须失败；既有的 `challenge_continuation_supervisor_shutdown_blocks_for_all_tasks` 进一步断言 shutdown 会等到全部任务完成而不是提前返回。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:406:TestGoBackgroundUsesBackgroundCtxOrFallback": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_rejects_new_work_once_stopping",
+    "conclusion": "不适用/需保留边界：Go 的 `goBackground` 需要为 nil `backgroundCtx` 兜底一个非 nil context 才能执行后台工作。Rust 没有等价结构：`ContinuationSupervisor::spawn` 的任务闭包只接收 `Arc<AtomicBool>` 取消位，不存在「runtime 级 backgroundCtx 可能为 nil」这个状态，因此没有可迁移的兜底分支。相邻的 admission/cancel 语义（spawn 被拒、任务执行、取消位传播）已由 challenge_continuation_supervisor_rejects_new_work_once_stopping 与 challenge_continuation_supervisor_cancellation_signal_propagates 覆盖。保留边界原因：若未来 Rust 引入 runtime 级后台 context，需要重新评估该兜底是否可省略。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:427:TestGoalResumeExecutionErrorPaths": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
+    "conclusion": "Rust 功能缺失：Go 的两条子用例都针对 `resumeUserPausedGoalRun` 的后台执行错误处理 —— ①`workflowResumeContext` 找不到 session 时把 run 落成 FAILED 且 failureReason 含 \"session not found\"；②`resumeADKGoalWorkflow` 保存失败（触发器强制 RAISE）时同样落 FAILED 且 failureReason 含该错误文本。Rust 没有 goal workflow 执行引擎（`ResumeRun` 只做状态投影、无后台续跑，见 :275），所以不存在这两个错误路径，也没有可对齐的落盘语义。与 :275 同属一个待设计的功能批次。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "missing"
   },
   "internal/assistant/engine/runner_goal_test.go:11:TestPauseGoalRunEnforcesRootActiveGoalBoundaries": {

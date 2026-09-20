@@ -804,6 +804,40 @@ impl crate::product::product_adk_model_runtime::AdkToolExecutor for NoopToolExec
     }
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/runner_continuation_boundaries_test.go:87
+/// `TestResolvedContinuationsHonorForeignLeasesAndEmptyState` (missing-run
+/// half) and `runner_approval.go`'s `continueResolvedApprovalRun`.
+///
+/// Go treats a continuation whose run row is gone as a silent success:
+/// `continueResolvedApprovalRun`/`continueResolvedInput` return the store's
+/// `nil` error, so `ResolveApprovalAsync` still answers the resolution
+/// envelope. Rust's `resume_approval` used to report
+/// `Unavailable("persisted ADK run disappeared")`, which made the approval and
+/// input routes roll back an already-staged resolution and answer
+/// `503 ADK_CONTINUATION_UNAVAILABLE` for a run that simply no longer exists.
+#[test]
+fn a_continuation_for_a_missing_run_is_a_silent_no_op() {
+    let (directory, store, session_store) = initialized_stores();
+    let runtime = runtime_for(&directory, &store, &session_store);
+
+    runtime
+        .resume_approval("run-missing-continuation")
+        .expect("a missing run must be Go's silent no-op, not a fabricated failure");
+
+    // The no-op must not create or audit anything.
+    assert!(
+        store
+            .get_run("run-missing-continuation")
+            .expect("read run")
+            .is_none(),
+        "a missing-run continuation must not materialize a run"
+    );
+    assert!(
+        audit_rows(&store).is_empty(),
+        "a missing-run continuation must not write lifecycle audit rows"
+    );
+}
+
 #[test]
 fn a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state() {
     let (directory, store, session_store) = initialized_stores();

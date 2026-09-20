@@ -1382,3 +1382,31 @@ Rust 修复前差异：
 - `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：**1482 passed / 0 failed**。
 - `cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine --all-targets --locked`、`python3 scripts/compatibility/audit_test_parity.py`：通过（814 function_exact，0 重复 `rust_entry`，0 U+FFFD，4451 key 不变）。
 - `:87` 如实降回 `[~]` partial：missing-run/foreign-lease/empty-projection 等分支仍未覆盖。
+
+## 第二十六批：runner_continuation_boundaries_test.go 结清（12 条，含 1 个真实缺口）
+
+批次范围：`internal/assistant/engine/runner_continuation_boundaries_test.go` 全部 12 条测试。本批结清 `[x]` 7 条、保留边界 1 条、如实登记功能缺失 4 条。
+
+真实缺口（本批修复）：`continueResolvedApprovalRun`/`continueResolvedInput` 在 run 行已被删除时必须返回 store 的 `nil`，让 `ResolveApprovalAsync` 照常回 resolution envelope。Rust `resume_approval` 之前对缺失 run 返回 `Unavailable("persisted ADK run disappeared")`，于是审批/输入路由会回滚已 staged 的审批并回 `503 ADK_CONTINUATION_UNAVAILABLE`——与上一批那条竞态同源的第二半。修复位置：`crates/jftrade-engine/src/product_adk_model_runtime_events.rs`，改为 `let Some(run) = ... else { return Ok(()) }`。回归：`a_continuation_for_a_missing_run_is_a_silent_no_op`（断言返回 Ok、不物化 run、不写审计行）。探针：恢复旧的 `ok_or_else(...)` 后该回归转红（`Unavailable("persisted ADK run disappeared")`），`cp` 备份恢复后通过。
+
+新增回归（`product_adk_model_runtime_fencing_tests.rs`，全部断言 continuation claim 与关闭语义）：
+- `challenge_continuation_supervisor_claims_are_exclusive_and_released` —— 同一 run 的第二次 spawn 必须 `Conflict("assistant continuation is already running")`，无关 run 不受影响，任务退出后 claim 释放且可重新 spawn。
+- `challenge_continuation_supervisor_releases_claims_without_extra_initialization` —— 默认 supervisor 无需惰性初始化即可用，任务与 no-op continuation 结束后 `tasks` 表都不再持有该 run id。
+- `challenge_continuation_supervisor_rejects_new_work_once_stopping` —— shutdown 前可 spawn，之后必须 `Unavailable(... is stopping)`，再次尝试仍被拒。
+- `challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work` —— Close 语义：shutdown 返回时在途任务已观察到取消，且此后拒绝新工作。
+
+映射结论：
+- `[x]` 7 条：`:11`（claim 互斥 + closing 不留残余 claim）、`:63`（零值可用 + 完成即释放）、`:87`（missing-run / 不可续跑 / foreign lease / empty state 四点全结清）、`:136`（上一批已结清，本批复核）、`:207`（不偷 foreign lease）、`:314`（closing 拒绝新工作）、`:347`（Close 等待在途 + 拒绝新工作）。
+- `boundary` 1 条：`:406`（Rust 无 runtime 级 backgroundCtx，nil 兜底分支不适用）。
+- `missing` 4 条（如实登记，不伪造测试）：
+  - `:188` `RUN_LEASE_CLAIM_FAILED` —— Rust 把 run 行、初始事件与租约插入放在同一个 SQLite 事务（`create_run_with_event_idempotent`），租约失败即回滚，不留 RUNNING run，比 Go 更强，因此没有该错误码与回写路径。需决策保留还是补等价可观测性。
+  - `:242` 租约存储故障传播 —— Rust 的 `reconcile_orphaned_pending_runs` 与 recovery scanner 用 `let Ok(...) else { return }` 吞掉存储错误只打印日志；store 关闭后的 Pause/Resume/UpdateObjective 有 `storage_mutation_failed` 映射但缺确定性回归。
+  - `:275` / `:427` goal-run 后台续跑 —— Rust 没有 goal workflow 执行引擎：`ResumeRun` 路由只把 run 投影成 `RUNNING`/`user_resuming`/`workflowStatus=RUNNING` 并清暂停字段，不申请运行租约、不启动后台 worker，因此 fresh-foreign-lease 让位、租约存储错误落 FAILED、resume 失败落 FAILED 等分支在 Rust 都不存在。这是本领域最大的待设计缺口。
+
+验证：
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：**1487 passed / 0 failed**。
+- `cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine --all-targets --locked`、`python3 scripts/compatibility/audit_test_parity.py`：通过（820 function_exact、0 重复 `rust_entry`、4451 key 不变、1 条 boundary 新增）。
+
+### 下批目标
+
+`runner_chat_test.go` 余 14 条 `[~]`（`:56`、`:69`、`:102`、`:127`、`:225`、`:490`、`:541`、`:552`、`:609`、`:737`、`:846`、`:891`、`:1043`、`:1079`）。先做 P0：provider-failure wire 决策（HTTP 200 + FAILED + reply + finalMessageId vs Rust 的 502 + durable retry），它与 `:225`/`:490` 同一决策面，必须先写失败回归再落实现或正式登记分歧并同步 OpenAPI/前端。随后按 `:127` tool-only run 合成 final reply → `:69` 的 `HydrateRunExecutionResult` 字段投影 → 其余投影/边界项推进。另需把 `:188`/`:242` 两条决策项与本批新增的 goal-run 执行引擎缺口纳入 store_test.go 同批评估。
