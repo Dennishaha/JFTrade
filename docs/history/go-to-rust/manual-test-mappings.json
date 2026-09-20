@@ -8997,9 +8997,9 @@
   "internal/assistant/engine/runner_chat_test.go:56:TestRequestedInputEventFailsWithUnsupportedInputCode": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::run_terminal_state_classifies_unsupported_input_before_the_status_switch",
-    "conclusion": "部分覆盖（边界保留 + 映射已补齐）：本测试的输入是 vendored Google ADK 的 `adksession.Event.RequestedInput` 事件（`consumeEvent` → `errADKInputUnsupported`），Rust 不走 ADK 事件循环、直接调用 Responses API，因此没有 `RequestedInput`/`InterruptID` 这个事件面，无法迁移该触发器本身。可迁移的契约是它的终态映射：`runErrorCode` 先判 `ErrADKInputUnsupported` 再进 status switch，得 `FAILED`/`ADK_INPUT_UNSUPPORTED`；该分支已在 production 侧实现（product_adk_model_runtime_failure.rs 的 run_terminal_state）并由 run_terminal_state_classifies_unsupported_input_before_the_status_switch 逐项断言（含 MODEL_CALL_TIMEOUT 与默认 MODEL_CALL_FAILED 的优先级顺序）。保留边界原因：Rust 侧不存在产生该事件的代码路径，因此只保留映射契约而不伪造事件源；如未来 Rust 接入 ADK 事件循环需补事件级回归。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "conclusion": "boundary（边界保留：触发面不存在，终态映射已覆盖）：Go 的测试构造 vendored Google ADK 的 `adksession.Event{RequestedInput}`，经 `googleADKExecution.consumeEvent` 得到 `errADKInputUnsupported`。Rust 不跑 ADK 事件循环、直接调用 Responses API，没有 `RequestedInput`/`InterruptID` 事件面，因此触发器本身无法迁移，也不为对齐而伪造事件源。可迁移的契约是它的终态映射：`RunErrorCode` 先判 `ErrADKInputUnsupported` 再进 status switch，得 `FAILED`/`ADK_INPUT_UNSUPPORTED`；该分支由 product_adk_model_runtime_failure.rs 的 `run_terminal_state` 实现，并由 run_terminal_state_classifies_unsupported_input_before_the_status_switch 逐项断言（含 MODEL_CALL_TIMEOUT 优先级与默认 MODEL_CALL_FAILED）。探针证据：把该分支临时改成返回 (\"FAILED\",\"MODEL_CALL_FAILED\") 后，run_terminal_state_classifies_unsupported_input_before_the_status_switch 立即失败（left=(\"FAILED\",\"MODEL_CALL_FAILED\") right=(\"FAILED\",\"ADK_INPUT_UNSUPPORTED\")），回滚后通过，说明该 Rust 测试是真实守卫。若将来 Rust 接入 ADK 事件循环，必须补事件级回归。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(run_terminal_state_classifies_unsupported_input_before_the_status_switch)'",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/runner_chat_test.go:69:TestHydrateRunExecutionResultPopulatesRunFields": {
     "status": "[x]",
@@ -9016,11 +9016,11 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:127:TestChatToolOnlyADKRunSynthesizesFinalReply": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_chat_turn_tests.rs::a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool",
+    "conclusion": "function_exact：Go 的 `testProviderFinalReply` 是测试替身（假 provider 的第二轮回复），生产契约是「工具结果回喂 → 模型第二轮作答」：Go 的 ADK 工具循环把 function_call_output 回喂后再取文本作为 reply。Rust 侧 `run_tool_loop` 在执行完 RUNNING 工具调用后用 `tool_context_from_payload` 重建上下文并再次 `execute_model`，`persist_success` 再以 `merge_projected_text` 合并 preToolContent 与最终文本。本回归用两轮 scripted loopback provider：第一轮返回 `system.status` 的 function_call，第二轮返回「已完成 ADK 分析：system.status」；断言第二轮请求确实携带 `function_call_output(call-status)`、run 终止 COMPLETED、toolCalls[0].status=SUCCEEDED、reply 非空且包含工具名、执行器只跑一次。探针证据：临时清空第二次 `execute_model` 前的 `tool_context` 赋值后测试失败（第二轮请求缺少 function_call_output），回滚后通过。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:156:TestMarkFailedChatRunMapsContextToTerminalState": {
     "status": "[x]",
@@ -9093,11 +9093,11 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:609:TestChatRequestProviderOverrideRunsWithoutEditingAgent": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_chat_turn_tests.rs::a_provider_override_runs_the_turn_without_editing_the_stored_agent",
+    "conclusion": "function_exact：Go 要求 providerId/model 覆盖只作用于本次 run —— provider 请求带 override model、run 快照冻结override provider 的 id/displayName/model、而 store 里的 agent 行保持原 providerId/model。Rust 的 `resolve_provider` 只在内存里用覆盖值解析，从不写回 agent 行；本批补上端到端回归（两个 provider + 一个 agent，dispatch chat 打到 scripted 模型端点）。断言：请求体 `model=override-model` 且仍带用户消息、`run.providerId/providerName/model` 为覆盖 provider 的快照、store agent 仍是 provider-default/agent-model。探针证据：临时在 `prepare_chat` 里把覆盖 providerId 写回 agent 行后测试失败（stored agent providerId=override-provider），回滚后通过。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(a_provider_override_runs_the_turn_without_editing_the_stored_agent)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:670:TestAgentWithoutProviderDynamicallyUsesDefaultProvider": {
     "status": "[x]",
@@ -9107,11 +9107,11 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:737:TestRunnerChatProjectionPersistenceAndAssistantBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_chat_turn_tests.rs::a_gated_tool_call_parks_the_run_with_only_pending_approvals",
+    "conclusion": "function_exact（可迁移子契约）+ boundary（Go 内部辅助函数）：该 Go 测试是一组边界断言的集合。已迁移并可验证的部分：①`finishPendingApprovalRun` 的停泊分支 —— run.status=PENDING、只发布仍待审批的 approvals（已 resolved 的不回流）、tool call=PENDING_APPROVAL、回复为审批提示，由 a_gated_tool_call_parks_the_run_with_only_pending_approvals 覆盖（approval 模式 + http.fetch 的 medium 风险审批）；②`applySessionProjectionToRun` 的 finalMessageId / preToolContent / optimizationTaskId / usage.toolCallsTotal / pendingApprovals 由第二十九批 the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals 与 a_completed_projection_hides_resolved_approvals 覆盖。boundary 部分：persistRunActivitySnapshot / AuthoritativeRunSnapshot / appendAssistantMessageEvent / EnsureAssistantMessage 是 Go「run 快照可写 + session 投影可读」的双来源 api；Rust 的 run 行由 runtime 唯一写者持有、session 事件不参与重建 run 字段，没有等价内部 api，硬造会引入第二写者。shouldPreferProjectedToolCalls / terminalToolCallCount / pendingApprovalToolCallCount 只在 Go 的 payload 与 session transcript 对账时存在，Rust 无对账需求；若将来引入第二来源必须重新评估并补回归。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(a_gated_tool_call_parks_the_run_with_only_pending_approvals)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:846:TestProjectedChatResponseDoesNotExposeResolvedApprovals": {
     "status": "[x]",
@@ -9121,11 +9121,11 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:891:TestResolveApprovalAsyncDetachesClosedStreamBeforeBackgroundResume": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_approval_resume_after_the_stream_closed_completes_without_late_frames",
+    "conclusion": "function_exact：Go 用 `streamClosed` 标志证明 ChatStream 的 delta 回调在响应完成后已被 detach，后台 ResolveApprovalAsync 续跑不得再回调它。Rust 的等价 sink 是 live 响应的 `ApiStream`：本回归用真实 product server 加注入 GateToolExecutor 的 approval 模式 runtime，把停泊的 SSE 响应保持连接、在其上批准工具、再持续读到 EOF，若有 late frame 就会被同一连接读到。断言：approve=200、批准与后台续跑期间连接上没有额外 data 帧、run 落到 COMPLETED、resumeState=adk_confirmation_resolved、reply 含第二轮文本、工具恰好执行一次。探针证据：临时在停泊分支的 final 帧之后补一次延迟 400ms 的 delta 发送（模拟保留 sink 的 bug）后测试立即失败（读到 `data: {\"probe\":\"late frame after terminal\"...}`），回滚后通过。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(production_approval_resume_after_the_stream_closed_completes_without_late_frames)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:978:TestResolveAgentCoversDefaultAndProviderValidation": {
     "status": "[x]",

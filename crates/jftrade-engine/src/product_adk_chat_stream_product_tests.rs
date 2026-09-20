@@ -254,6 +254,373 @@ async fn adk_chat_stream_routes_register_only_with_explicit_test_port() {
     handle.shutdown().await.expect("shutdown product");
 }
 
+/// Tool executor fixture for the approval-gate product fixtures.  The
+/// production executor is MCP-backed and would report `http.fetch` as
+/// unavailable in a test process, so the gate fixture injects this recorder to
+/// observe the released call.
+#[derive(Debug)]
+struct GateToolExecutor {
+    executed: Mutex<Vec<String>>,
+}
+
+impl GateToolExecutor {
+    fn new() -> Self {
+        Self {
+            executed: Mutex::new(Vec::new()),
+        }
+    }
+
+    fn executed(&self) -> Vec<String> {
+        self.executed.lock().expect("gate executor lock").clone()
+    }
+}
+
+impl crate::product::product_adk_model_runtime::AdkToolExecutor for GateToolExecutor {
+    fn supports(&self, name: &str) -> bool {
+        name == "http.fetch"
+    }
+
+    fn execute(&self, name: &str, arguments: &Value) -> Result<Value, String> {
+        self.executed
+            .lock()
+            .expect("gate executor lock")
+            .push(name.to_owned());
+        Ok(json!({"tool": name, "arguments": arguments, "status": "ok"}))
+    }
+}
+
+/// A loopback Responses endpoint that answers one scripted body per round and
+/// returns the decoded request bodies in the order they were received.
+fn spawn_scripted_model_provider(
+    rounds: Vec<Value>,
+) -> (String, std::thread::JoinHandle<Vec<Value>>) {
+    const MAX_REQUEST_BYTES: usize = 8 * 1024 * 1024;
+    let listener =
+        std::net::TcpListener::bind("127.0.0.1:0").expect("bind scripted model provider");
+    let address = listener.local_addr().expect("scripted provider address");
+    let handle = std::thread::spawn(move || {
+        let mut captured = Vec::new();
+        for body in rounds {
+            let (mut stream, _) = listener.accept().expect("accept model request");
+            let mut request = Vec::new();
+            let mut chunk = [0_u8; 4096];
+            let mut expected = None;
+            loop {
+                let count =
+                    std::io::Read::read(&mut stream, &mut chunk).expect("read model request");
+                if count == 0 {
+                    break;
+                }
+                request.extend_from_slice(&chunk[..count]);
+                if expected.is_none()
+                    && let Some(headers_end) = request.windows(4).position(|w| w == b"\r\n\r\n")
+                {
+                    let headers_end = headers_end + 4;
+                    let headers =
+                        String::from_utf8_lossy(&request[..headers_end]).to_ascii_lowercase();
+                    let length = headers
+                        .lines()
+                        .find_map(|line| line.strip_prefix("content-length:"))
+                        .and_then(|value| value.trim().parse::<usize>().ok())
+                        .unwrap_or_default();
+                    expected = Some(headers_end + length);
+                }
+                if expected.is_some_and(|expected| request.len() >= expected) {
+                    break;
+                }
+                assert!(
+                    request.len() <= MAX_REQUEST_BYTES,
+                    "model request exceeded the fixture budget"
+                );
+            }
+            let headers_end = request
+                .windows(4)
+                .position(|w| w == b"\r\n\r\n")
+                .map(|index| index + 4)
+                .expect("model request headers");
+            captured.push(
+                serde_json::from_slice::<Value>(&request[headers_end..])
+                    .expect("decode model request body"),
+            );
+            let body = body.to_string();
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            let _ = std::io::Write::flush(&mut stream);
+        }
+        captured
+    });
+    (
+        format!("http://{}:{}/v1", address.ip(), address.port()),
+        handle,
+    )
+}
+
+fn scripted_model_text(text: &str) -> Value {
+    json!({
+        "output": [{
+            "type": "message",
+            "content": [{"type": "output_text", "text": text}],
+        }],
+    })
+}
+
+fn scripted_model_tool_call(call_id: &str, name: &str, arguments: Value) -> Value {
+    json!({
+        "output": [{
+            "type": "function_call",
+            "call_id": call_id,
+            "name": name,
+            "arguments": arguments.to_string(),
+        }],
+    })
+}
+
+/// A real runtime in `approval` mode whose only release-able tool is
+/// `http.fetch`, so a fetched turn parks on the operator.
+async fn start_adk_product_with_approval_gate(
+    endpoint: &str,
+    executor: Arc<GateToolExecutor>,
+) -> (
+    tempfile::TempDir,
+    super::ProductHandle,
+    Arc<jftrade_store_sqlite::AdkStore>,
+) {
+    use crate::product::product_adk_model_runtime::{
+        ProductionAdkChatRuntime, RunCancellationRegistry,
+    };
+    use jftrade_store_sqlite::initialize_current;
+
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, b"{}\n").expect("seed settings");
+    for (path, component) in [
+        (directory.path().join("adk.db"), "adk"),
+        (directory.path().join("adk-session.db"), "adk-session"),
+        (directory.path().join("adk-artifact.db"), "adk-artifact"),
+    ] {
+        let connection = rusqlite::Connection::open(&path).expect("create ADK database");
+        initialize_current(&connection, component).expect("initialize ADK schema");
+    }
+    let store = Arc::new(
+        jftrade_store_sqlite::AdkStore::open(directory.path().join("adk.db"))
+            .expect("open ADK store"),
+    );
+    let session_store = Arc::new(
+        jftrade_store_sqlite::AdkSessionStore::open(directory.path().join("adk-session.db"))
+            .expect("open ADK session store"),
+    );
+    let artifact_store = Arc::new(
+        jftrade_store_sqlite::AdkArtifactStore::open(directory.path().join("adk-artifact.db"))
+            .expect("open ADK artifact store"),
+    );
+    store
+        .upsert_provider(
+            "provider-gated",
+            &json!({
+                "id": "provider-gated",
+                "displayName": "Gated Provider",
+                "baseUrl": endpoint,
+                "model": "fixture-model",
+                "enabled": true,
+                "apiKey": "sk-fixture",
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    store
+        .upsert_agent(
+            "agent-approval",
+            &json!({
+                "id": "agent-approval",
+                "name": "Approval Agent",
+                "providerId": "provider-gated",
+                "permissionMode": "approval",
+                "status": "ENABLED",
+                "tools": ["http.fetch"],
+            })
+            .to_string(),
+        )
+        .expect("persist agent");
+    let catalog = crate::product::product_production_ports::ProductionToolCatalog::empty_for_test();
+    let runtime: Arc<dyn AdkChatStreamPort> =
+        Arc::new(ProductionAdkChatRuntime::with_tool_executor_for_test(
+            Arc::clone(&store),
+            Arc::clone(&session_store),
+            &settings_path,
+            Arc::new(RunCancellationRegistry::default()),
+            Arc::new(catalog),
+            executor,
+        ));
+    // The approval routes live on the ADK mutation port, which resolves the
+    // approval, stages the released state and wakes the runtime that owns the
+    // continuation.
+    let mut port =
+        crate::product::product_production_ports::product_production_ports_adk::ProductionAdkPort::new_for_test(
+            Arc::clone(&store),
+            Arc::clone(&session_store),
+            artifact_store,
+            settings_path.clone(),
+        );
+    port.chat_runtime = Some(Arc::clone(&runtime));
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_adk_chat_stream_port(runtime)
+            .with_adk_mutation_port(Arc::new(port));
+    let handle = start_product(config).await.expect("start product");
+    (directory, handle, store)
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:891
+/// `TestResolveApprovalAsyncDetachesClosedStreamBeforeBackgroundResume`.
+///
+/// Go hands `ChatStream` a delta callback and pins that a later background
+/// approval resume never invokes it again.  Rust's equivalent sink is the
+/// `ApiStream` of the live response, so this test keeps the parked response
+/// connected while the approval resolves and then drains it: if the runtime
+/// still held the sink, the resumed turn would publish frames on that
+/// connection.  The resumed run must instead complete on the durable row.
+#[tokio::test]
+async fn production_approval_resume_after_the_stream_closed_completes_without_late_frames() {
+    let (endpoint, provider) = spawn_scripted_model_provider(vec![
+        scripted_model_tool_call(
+            "call-gated",
+            "http.fetch",
+            json!({"url": "https://example.invalid"}),
+        ),
+        scripted_model_text("已完成 ADK 分析：http.fetch"),
+    ]);
+    let executor = Arc::new(GateToolExecutor::new());
+    let (_directory, handle, store) =
+        start_adk_product_with_approval_gate(&endpoint, Arc::clone(&executor)).await;
+    let address = handle.startup_record().address;
+    let body = br#"{"clientRequestId":"11111111-1111-4111-8111-111111111105","agentId":"agent-approval","message":"@http.fetch https://example.invalid"}"#;
+
+    let mut stream = TcpStream::connect(address)
+        .await
+        .expect("connect parked ADK stream");
+    let request = format!(
+        "POST {ADK_CHAT_STREAM_PATH} HTTP/1.1\r\nHost: {address}\r\nAccept: text/event-stream\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: keep-alive\r\n\r\n",
+        body.len(),
+    );
+    stream
+        .write_all(request.as_bytes())
+        .await
+        .expect("write parked stream headers");
+    stream
+        .write_all(body)
+        .await
+        .expect("write parked stream body");
+
+    let mut response = Vec::new();
+    let parked_text = loop {
+        let text = String::from_utf8_lossy(&response).to_string();
+        if text.contains("\"type\":\"final\"") || text.contains("\"type\":\"error\"") {
+            break text;
+        }
+        let mut chunk = [0_u8; 4096];
+        match tokio::time::timeout(std::time::Duration::from_secs(15), stream.read(&mut chunk))
+            .await
+        {
+            Ok(Ok(0)) => break String::from_utf8_lossy(&response).to_string(),
+            Ok(Ok(count)) => response.extend_from_slice(&chunk[..count]),
+            Ok(Err(error)) => panic!("read parked stream: {error}"),
+            Err(_) => panic!("parked stream never published a terminal frame"),
+        }
+    };
+    let final_frame = parked_text
+        .split("data: ")
+        .filter_map(|rest| rest.split('\n').next())
+        .filter_map(|data| serde_json::from_str::<Value>(data).ok())
+        .find(|value| value["type"] == "final")
+        .unwrap_or_else(|| panic!("parked stream terminal frame: {parked_text}"));
+    let parked_run = &final_frame["response"]["run"];
+    assert_eq!(
+        parked_run["status"], "PENDING",
+        "the gated call parks the run: {final_frame}"
+    );
+    let run_id = parked_run["id"]
+        .as_str()
+        .unwrap_or_else(|| panic!("parked run id: {parked_run}"))
+        .to_owned();
+    let approval_id = final_frame["response"]["pendingApprovals"][0]["id"]
+        .as_str()
+        .unwrap_or_else(|| panic!("parked approval id: {final_frame}"))
+        .to_owned();
+
+    // Resolve the approval while the parked response is still connected.
+    let approve_path = format!("/api/v1/adk/approvals/{approval_id}/approve");
+    let approve = tokio::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+        request_raw(address, "POST", &approve_path, b"").await
+    });
+    let mut late = Vec::new();
+    loop {
+        let mut chunk = [0_u8; 4096];
+        match tokio::time::timeout(std::time::Duration::from_secs(5), stream.read(&mut chunk)).await
+        {
+            Ok(Ok(0)) => break,
+            Ok(Ok(count)) => late.extend_from_slice(&chunk[..count]),
+            Ok(Err(_)) => break,
+            Err(_) => break,
+        }
+    }
+    let approve = approve.await.expect("approve request task");
+    assert_eq!(
+        approve.status,
+        200,
+        "approving a parked run must succeed: {}",
+        String::from_utf8_lossy(&approve.body)
+    );
+    let late_text = String::from_utf8_lossy(&late).to_string();
+    assert!(
+        !late_text.contains("\"type\":"),
+        "a background resume must not publish frames on the closed stream: {late_text}"
+    );
+    drop(stream);
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let completed = loop {
+        let run = store
+            .get_run(&run_id)
+            .expect("read resumed run")
+            .expect("resumed run row");
+        if run.status == "COMPLETED" {
+            break run;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the resumed run stayed {}: {}",
+            run.status,
+            run.payload_json
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    };
+    let payload: Value =
+        serde_json::from_str(&completed.payload_json).expect("decode resumed run payload");
+    assert_eq!(
+        payload["resumeState"], "adk_confirmation_resolved",
+        "the background continuation owns the resume state: {payload}"
+    );
+    assert!(
+        payload["reply"]
+            .as_str()
+            .is_some_and(|reply| reply.contains("http.fetch")),
+        "the resumed turn must answer with the second model round: {payload}"
+    );
+    assert_eq!(
+        executor.executed(),
+        vec!["http.fetch".to_owned()],
+        "the released call runs exactly once in the background"
+    );
+    provider.join().expect("scripted provider thread");
+    handle.shutdown().await.expect("shutdown product");
+}
+
 #[tokio::test]
 async fn adk_chat_stream_routes_are_isolated_without_port() {
     let directory = tempdir().expect("temporary directory");

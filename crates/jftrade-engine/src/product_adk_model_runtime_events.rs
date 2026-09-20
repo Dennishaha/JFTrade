@@ -5,7 +5,7 @@ impl ProductionAdkChatRuntime {
     /// released-call execution path, so they inject a recording executor
     /// instead of the MCP-backed production one.
     #[cfg(test)]
-    pub(super) fn with_tool_executor_for_test(
+    pub(crate) fn with_tool_executor_for_test(
         store: Arc<AdkStore>,
         session_store: Arc<AdkSessionStore>,
         settings_path: &Path,

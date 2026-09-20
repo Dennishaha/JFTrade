@@ -1604,3 +1604,35 @@ Go 的期望：`reply` = 整轮 assistant 文本合并（`先说明一下。优�
 决策项仍需与本领域同批评估：`runner_continuation_boundaries_test.go:188`（`RUN_LEASE_CLAIM_FAILED`）、`:242`（租约存储错误传播）、`:275`/`:427`（goal-run 后台续跑引擎缺口）。
 
 随后按 `store_test.go`（20）→ `session_context_test.go`（19）推进；`internal/app/apiserver`（349）与 `pkg/backtest`（174）保持为后续大领域批次。
+
+## 第三十批：chat 覆盖隔离、工具轮回复与审批续跑 detach（runner_chat_test.go 结清 4 条 + 1 条边界复核）
+
+范围：`internal/assistant/engine/runner_chat_test.go` 的 `:127`、`:609`、`:737`、`:891` 与边界复核 `:56`。四条 `[x]` 全部由端到端回归证明（真实 runtime + scripted loopback 模型端点），`[x]` 由 829 → **833**，Rust 测试 2657 → **2661**；`:56` 由 `partial` 明确收敛为 `boundary`（附探针证据），不再挂着“部分覆盖”。
+
+### 新增回归
+
+- 新文件 `product_adk_model_runtime_chat_turn_tests.rs`（3 条 + 共享 scripted provider 夹具）：
+  - `:609` `a_provider_override_runs_the_turn_without_editing_the_stored_agent`：provider 请求带 `override-model`、run 快照冻结 override provider 的 id/name/model、store 的 agent 行保持 `provider-default`/`agent-model`。
+  - `:127` `a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool`：两轮 provider，第二轮请求必须携带 `function_call_output(call-status)`，run 终止 COMPLETED、`toolCalls[0].status=SUCCEEDED`、reply 非空且包含工具名。
+  - `:737` `a_gated_tool_call_parks_the_run_with_only_pending_approvals`：`approval` 模式 + `http.fetch`（medium 风险）停泊，`run.status=PENDING`、只发布待审批条目、tool call 为 `PENDING_APPROVAL`、回复为审批提示，且执行器未被调用。
+- `product_adk_chat_stream_product_tests.rs` 新增 `:891` `production_approval_resume_after_the_stream_closed_completes_without_late_frames`：把停泊的 SSE 响应保持连接，在其上 `POST /api/v1/adk/approvals/{id}/approve`，再把该连接读到 EOF；断言没有额外 `data:` 帧、run 落 `COMPLETED` 且 `resumeState=adk_confirmation_resolved`、reply 含第二轮文本、工具恰好执行一次。为注入夹具执行器，`with_tool_executor_for_test` 的测试可见性由 `pub(super)` 放宽为 `pub(crate)`（`#[cfg(test)]` 专用，无生产影响），并新增 `ProductionAdkPort::new_for_test` + `chat_runtime` 的审批路由夹具。
+
+### 探针证据（四条均为真实守卫）
+
+1. `:127`：清空第二次 `execute_model` 前的 `tool_context` 赋值 → 测试失败（第二轮请求缺少 `function_call_output`）。
+2. `:609`：在 `prepare_chat` 里把 override providerId 写回 agent 行 → 测试失败（`stored agent providerId=override-provider`）。
+3. `:891`：在停泊分支 final 帧后补一次 400ms 延迟的 delta 发送 → 测试失败（同一连接读到 `{"probe":"late frame after terminal"}`）。
+4. `:56`：把 `run_terminal_state` 的 `ADK_INPUT_UNSUPPORTED` 分支改成 `("FAILED","MODEL_CALL_FAILED")` → 既有 Rust 测试失败，证明终态映射契约有真实守卫；Go 的 `adksession.Event.RequestedInput` 触发面在 Rust 不存在，故保留边界。
+
+### 仍留边界（写明理由，不静默忽略）
+
+- `:56` 的触发面（ADK 事件循环的 `RequestedInput`）不迁移；只保留已覆盖的终态映射。
+- `:737` 中 `persistRunActivitySnapshot` / `AuthoritativeRunSnapshot` / `appendAssistantMessageEvent` / `EnsureAssistantMessage` / `shouldPreferProjectedToolCalls` / `terminalToolCallCount` / `pendingApprovalToolCallCount` 属于 Go「run 快照 + session 投影」双来源内部 api；Rust 的 run 行由 runtime 唯一写者持有，没有等价 api，硬造会引入第二写者，故记为 boundary。
+
+### 本批新登记的功能缺口（下一批目标）
+
+`strategy.optimize` 在生产 catalog 中完全缺失：`PRODUCTION_TOOL_DEFINITIONS`、`MODEL_EXPOSED_TOOLS` 与 `ProductionAdkToolExecutor` 都没有它，模型无法调用该工具（Go `internal/assistant/assembly/tool_catalog.go:574` 注册了它：permission `optimize_strategy`、`RequiresApprovalIn=[approval]`、按 `definitionIds` 批量入队真实回测任务并落 `OptimizationTask`）。下一批实现该 catalog 条目、策略与执行器，并补「approval 模式 gated / `less_approval` 释放 / 产出 `taskId` 让 `optimizationTaskId` 进 envelope」回归。
+
+验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib --locked`（1202 passed）、`pnpm run check:zero-go`、`check:compatibility`、`check:rust:architecture`、`git diff --check`、`pnpm run check:quick`；审计 4451 keys、833 function_exact、0 重复 `rust_entry`、0 非 function_exact 的 `[x]`、0 U+FFFD。
+
+随后按 `store_test.go`（20）→ `session_context_test.go`（19）推进；`internal/app/apiserver`（574 待办）与 `pkg/backtest`（237 待办）保持为后续大领域批次。

@@ -66,6 +66,10 @@ mod catalog_policy_tests;
 mod run_projection_tests;
 
 #[cfg(test)]
+#[path = "product_adk_model_runtime_chat_turn_tests.rs"]
+mod chat_turn_tests;
+
+#[cfg(test)]
 #[path = "product_adk_model_runtime_tool_deadline_tests.rs"]
 mod tool_deadline_tests;
 
