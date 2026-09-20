@@ -83,6 +83,23 @@ impl ProductionAdkChatRuntime {
         // the chat, so the first frame of a live stream is the `session`
         // event and only then the `run` snapshot.  The console binds the
         // transcript to the session id from that frame.
+        // The auto-compaction deltas Go publishes through `onDelta` arrive
+        // before the run exists, so they lead the session and run frames.
+        for delta in &chat.context_deltas {
+            if sender
+                .send(super::encode_sse_event(&delta.sse_frame()))
+                .is_err()
+            {
+                let disconnect = client_disconnected();
+                let _ = self.persist_cancelled(&chat, &disconnect, &run_lease);
+                let _ = started.send(Err(AdkChatPortError::Failed {
+                    status: 499,
+                    code: "CLIENT_DISCONNECTED".to_owned(),
+                    message: "assistant chat client disconnected".to_owned(),
+                }));
+                return;
+            }
+        }
         if let Err(error) = self.emit_preview_session(&chat, &sender, &run_lease) {
             let _ = started.send(Err(error));
             return;

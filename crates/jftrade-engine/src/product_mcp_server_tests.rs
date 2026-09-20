@@ -2292,7 +2292,6 @@ fn reject_unsafe_host_and_unsafe_addr_classification() {
     reject_unsafe_host("8.8.8.8").expect("a public address is allowed");
     reject_unsafe_host("1.1.1.1").expect("a public address is allowed");
     let _ = reject_unsafe_host("example.invalid-name"); // a name, not an IP literal
-
     for (addr, unsafe_addr) in [
         ("127.0.0.1", true),
         ("10.0.0.1", true),
@@ -2310,6 +2309,31 @@ fn reject_unsafe_host_and_unsafe_addr_classification() {
             unsafe_address(addr),
             unsafe_addr,
             "unsafeAddr({addr}) mismatch"
+        );
+    }
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/store_lifecycle_test.go:701
+/// TestRejectUnsafeHost.
+///
+/// Every host in the reference table is refused: IPv4 loopback, the
+/// `localhost` name, private ranges, the cloud metadata address and IPv6
+/// loopback.
+#[test]
+fn reject_unsafe_host_blocks_the_reference_host_table() {
+    use crate::product::product_mcp_production_executor::reject_unsafe_host;
+    for host in [
+        "127.0.0.1",
+        "localhost",
+        "10.0.0.1",
+        "169.254.169.254",
+        "::1",
+    ] {
+        let error = reject_unsafe_host(host).expect_err("unsafe host is rejected");
+        assert!(
+            error.message.contains("blocked"),
+            "reject_unsafe_host({host}) message = {:?}",
+            error.message
         );
     }
 }

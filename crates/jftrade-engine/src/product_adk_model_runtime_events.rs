@@ -245,14 +245,12 @@ impl ProductionAdkChatRuntime {
                 .upsert_session("jftrade", "local", &session_id, &session_state.to_string())
                 .map_err(storage_unavailable)?;
         }
-        // Go `RunChat` auto-compacts before the run row it is about to create exists.
-        self.maybe_auto_compact_session(&session_id, &message, false, |_| Ok(()))?;
+        // Go `RunChat` publishes auto-compaction deltas before the run exists.
+        let context_deltas = self.collect_auto_compaction_deltas(&session_id, &message, false)?;
         let run_id = format!("run-{}", input.client_request_id);
-        // Go's `startRun` freezes the resolved provider/model snapshot, the run
-        // budget, the effective work mode and the user message before the first
-        // model call.  `ProjectedChatResponse` serves those fields from the run
-        // (and falls back to them for the session projection), so a console can
-        // render the transcript header without a second read.
+        // Go's `startRun` freezes the resolved provider/model snapshot, run
+        // budget, work mode and user message before the first model call, and
+        // `ProjectedChatResponse` serves them from the run afterwards.
         let work_mode = text_field(object, "workModeOverride")
             .map(|value| normalize_work_mode(&value))
             .unwrap_or_else(|| {
@@ -366,6 +364,7 @@ impl ProductionAdkChatRuntime {
                 agent_id,
                 resumed: false,
                 permission_mode: Self::agent_permission_mode(&provider.agent_payload),
+                context_deltas,
                 request: ModelRequest {
                     endpoint: provider.endpoint,
                     api_key: provider.api_key,
@@ -642,6 +641,7 @@ impl ProductionAdkChatRuntime {
             agent_id: run.agent_id,
             resumed: true,
             permission_mode: Self::agent_permission_mode(&provider.agent_payload),
+            context_deltas: Vec::new(),
             request: ModelRequest {
                 endpoint: provider.endpoint,
                 api_key: provider.api_key,

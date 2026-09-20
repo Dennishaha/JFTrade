@@ -9,14 +9,9 @@ pub(crate) mod context_window;
 #[path = "product_production_ports_adk_notices.rs"]
 pub(crate) mod notices;
 
-use context_projection::rebuild_context_snapshot;
 use read_helpers::{
     estimate_context_tokens, is_context_user_event, protected_context_event_start,
     recent_context_event_start, resource_list_failed, sanitize_provider,
-};
-use context_window::{
-    patch_context_window, resolve_session_context_recent_window,
-    resolve_session_context_window_tokens,
 };
 
 impl From<AdkStoreError> for AdkReadSnapshotError {
@@ -541,54 +536,7 @@ impl ProductionAdkPort {
             )?));
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/sessions/", "/context") {
-            let Some(session) = self.store.get_session(&id)? else {
-                // Go's `handleADKSessionContext` keeps the route's own code
-                // and only escalates "not found" to 404.
-                return Err(not_found_with_code(
-                    "ADK_SESSION_CONTEXT_FAILED",
-                    "session not found",
-                ));
-            };
-            if let Some(state) = self.store.get_session_context(&id)? {
-                let mut snapshot = payload(
-                    &state.payload_json,
-                    "session context",
-                    [("sessionId", id.clone())],
-                )?;
-                // Go recomputes the window and its ratio on every read because
-                // the console may have switched the provider since the
-                // compaction that produced this projection.
-                patch_context_window(
-                    &mut snapshot,
-                    resolve_session_context_window_tokens(
-                        &self.store,
-                        &id,
-                        &session.payload_json,
-                    ),
-                    resolve_session_context_recent_window(&self.store, &id, &session.payload_json),
-                );
-                return Ok(AdkReadSnapshot::Json(snapshot));
-            }
-            // A database without a context-state row still gets Go's ensured
-            // revision: a legacy handoff row (no `contextRevisionId`) must not
-            // reach the projection, and the anchored revision is persisted.
-            let events = self
-                .session_store
-                .list_events(&id)
-                .map_err(|error| AdkReadSnapshotError::Unavailable(error.to_string()))?;
-            let revision = format!("ctx-{}", crate::product_id::generate_uuid_v4());
-            let snapshot = rebuild_context_snapshot(
-                &id,
-                &session.payload_json,
-                &revision,
-                &events,
-                &self.store.list_handoff_segments(&id, true)?,
-                resolve_session_context_window_tokens(&self.store, &id, &session.payload_json),
-                resolve_session_context_recent_window(&self.store, &id, &session.payload_json),
-            )?;
-            self.store
-                .upsert_session_context(&id, &snapshot.to_string())?;
-            return Ok(AdkReadSnapshot::Json(snapshot));
+            return context_projection::session_context_snapshot(self, &id);
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/sessions/", "") {
             let Some(session) = self.store.get_session(&id)? else {

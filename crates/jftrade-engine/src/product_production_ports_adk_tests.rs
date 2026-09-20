@@ -3381,6 +3381,53 @@ fn adk_skill_install_and_uninstall_failures_keep_the_go_codes() {
     }
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/store_lifecycle_test.go:711
+/// TestInternalSkillCannotBeUninstalled.
+///
+/// The builtin skill refuses uninstall with the reference message and stays
+/// visible in the catalog projection afterwards.
+#[test]
+fn builtin_skill_uninstall_is_refused_and_the_projection_keeps_it() {
+    let (port, _directory) = agent_validation_port();
+    let error = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::DeleteSkill,
+            identifiers: BTreeMap::from([("skillId".to_owned(), "jftrade-market".to_owned())]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect_err("builtin skill uninstall");
+    match error {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 500);
+            assert_eq!(code, "ADK_SKILL_UNINSTALL_FAILED");
+            assert!(
+                message.to_lowercase().contains("builtin"),
+                "uninstall message {message:?} must name the builtin protection"
+            );
+        }
+        other => panic!("expected a failed uninstall, got {other:?}"),
+    }
+    let AdkReadSnapshot::Json(listed) = port
+        .read("/api/v1/adk/skills", "")
+        .expect("skills read")
+    else {
+        panic!("skills route must answer JSON");
+    };
+    assert!(
+        listed["skills"]
+            .as_array()
+            .expect("skills array")
+            .iter()
+            .any(|skill| skill["id"] == "jftrade-market" && skill["source"] == "builtin"),
+        "the builtin skill stays registered: {listed}"
+    );
+}
+
 /// Parity: go:452dea11:internal/api/assistant/routes_error_contracts_test.go:14
 /// TestAssistantRoutesRejectInvalidQueriesPayloadsAndMissingResources.
 ///
@@ -4869,6 +4916,42 @@ fn provider_default_contract_orders_the_default_first_and_keeps_the_route_code()
     assert!(
         default_index < other_index,
         "the default provider must be listed first: {ids:?}"
+    );
+
+    // Deleting the selected default promotes the remaining provider, and the
+    // promoted row is listed first again.
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::DeleteProvider,
+        identifiers: BTreeMap::from([(
+            "providerId".to_owned(),
+            "provider-default-b".to_owned(),
+        )]),
+        body: Value::Null,
+        webhook_secret: None,
+    })
+    .expect("delete the default provider");
+    let AdkReadSnapshot::Json(relisted) = port
+        .read("/api/v1/adk/providers", "")
+        .expect("providers read after delete")
+    else {
+        panic!("providers route must answer JSON");
+    };
+    let providers = relisted["providers"].as_array().expect("providers array");
+    assert_ne!(
+        providers[0]["id"], "provider-default-b",
+        "the deleted default is gone: {relisted}"
+    );
+    assert_eq!(
+        providers[0]["default"], true,
+        "a remaining provider is promoted and listed first: {relisted}"
+    );
+    assert_eq!(
+        providers
+            .iter()
+            .filter(|provider| provider["default"] == true)
+            .count(),
+        1,
+        "exactly one provider stays default: {relisted}"
     );
 
     let missing = port

@@ -1115,6 +1115,9 @@ fn session_context_tracks_events_appended_after_a_compaction() {
         json!({"mode": "aggressive", "trigger": "manual", "reason": "test live projected view"}),
     );
     let before_timeline = session_timeline(&port, "session-live-view");
+    let before_snapshot = context_snapshot(&port, "session-live-view");
+    let before_raw = before_snapshot["rawEventCount"].as_u64().unwrap_or(0);
+    let before_tokens = before_snapshot["currentInputTokens"].as_u64().unwrap_or(0);
 
     let live_call = json!({
         "id": "call-live",
@@ -1151,6 +1154,18 @@ fn session_context_tracks_events_appended_after_a_compaction() {
         timeline.len(),
         before_timeline.len() + 2,
         "the projected session tracks events appended during the invocation"
+    );
+    // Go's `Snapshot` recomputes the metrics on every read, so the durable
+    // counters follow the transcript instead of freezing at the compaction.
+    let after_snapshot = context_snapshot(&port, "session-live-view");
+    assert_eq!(
+        after_snapshot["rawEventCount"].as_u64().unwrap_or(0),
+        before_raw + 2,
+        "the context snapshot recounts the transcript: {after_snapshot}"
+    );
+    assert!(
+        after_snapshot["currentInputTokens"].as_u64().unwrap_or(0) > before_tokens,
+        "the context snapshot tokens follow the appended events: {after_snapshot}"
     );
     assert!(
         timeline

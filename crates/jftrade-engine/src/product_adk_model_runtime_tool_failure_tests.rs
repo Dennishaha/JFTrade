@@ -590,6 +590,7 @@ fn persist_success_marks_a_run_degraded_from_its_failed_tool_calls() {
         agent_id: "agent-persist-success".to_owned(),
         resumed: false,
         permission_mode: "approval".to_owned(),
+        context_deltas: Vec::new(),
         request: super::ModelRequest {
             endpoint: reqwest::Url::parse("http://127.0.0.1:1/v1/responses").expect("fixture url"),
             api_key: "sk-fixture".to_owned(),
@@ -792,6 +793,7 @@ fn a_resumed_approval_run_completes_with_the_confirmation_resolved_state() {
         agent_id: "agent-resumed-projection".to_owned(),
         resumed: true,
         permission_mode: "approval".to_owned(),
+        context_deltas: Vec::new(),
         request: super::ModelRequest {
             endpoint: reqwest::Url::parse("http://127.0.0.1:1/v1/responses").expect("endpoint"),
             api_key: "sk-fixture".to_owned(),

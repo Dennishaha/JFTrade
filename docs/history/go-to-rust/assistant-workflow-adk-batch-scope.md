@@ -1853,3 +1853,41 @@ Go 的期望：`reply` = 整轮 assistant 文本合并（`先说明一下。优�
 - 下一批进入 `store_lifecycle_test.go`（17 行），随后 `input_request_test.go`（15）、`mcp_server_test.go`（13）。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1675 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`（`product_production_ports_adk_read.rs` 触限后压缩注释回到 798 行）、`git diff --check`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / 2709 Rust / 867 `[x]`）。
+## 第三十七批：context 快照重算、自动压缩 SSE 帧与 store 生命周期首批（`store_lifecycle_test.go` 结清 4 条）
+
+范围：三块——(1) 修第三十六批登记的 P1：`/sessions/{id}/context` 在已有 context-state 行时也按 Go Snapshot 语义重算；(2) 把自动压缩 notice/context delta 转发进 chat SSE 流；(3) `store_lifecycle_test.go` 首批 4 条结清 + 1 条功能缺失登记。`[x]` 867 → **871**，Rust 测试 2709 → **2713**。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/engine/ -run 'TestProvidersMaintainDefaultSelectionAndCreatedOrder|TestRejectUnsafeHost|TestInternalSkillCannotBeUninstalled|TestExternalSkillUninstallRemovesInstallDir' -count=1`：4 条通过；本批范围内 17 条一起跑亦通过（余下 13 条已完成语义分析，见「仍未结清」）。
+
+### 本批实现（4 处）
+
+1. **context 快照实时重算**：新增 `refresh_context_snapshot`，`/sessions/{id}/context` 在存在 context-state 行时用持久 revision 重建投影并覆盖派生指标（`rawEventCount`/`currentInputTokens`/breakdown 等），同时保留 state 独有的 `previousContextRevisionId`、`lastCompactionTrigger`、`autoCompacted`；读路径不写库，避免与压缩 CAS 竞态。`/context` 分支整体移入 `session_context_snapshot`，`product_production_ports_adk_read.rs` 回到 751 行。
+2. **自动压缩 delta 收集**：`SessionContextDelta::sse_frame()`（timeline/context 帧）与 `collect_auto_compaction_deltas`；`ChatExecution.context_deltas` 携带 Go `onDelta` 在 run 建立前发布的压缩 delta。
+3. **SSE 接线**：`start_live_stream` 在 `retry:` 之后、session/run 帧之前把 deltas 作为 SSE 帧发出，顺序对齐 Go `adkChatStreamExecution.handleDelta`。
+4. **store 层原子替换证据**：新增 store 测试固定 `delete_provider_with_replacement_atomic` 的 payload 写入、默认优先排序与唯一默认归一化。
+
+### 新增回归（4 条 Rust 测试 + 2 处既有测试扩展）
+
+- `provider_delete_promotes_the_replacement_and_keeps_one_default`（jftrade-store-sqlite，:45）
+- `reject_unsafe_host_blocks_the_reference_host_table`（:701）
+- `builtin_skill_uninstall_is_refused_and_the_projection_keeps_it`（:711）
+- `production_live_chat_stream_emits_auto_compaction_frames_before_the_run`（端到端走真实 `/api/v1/adk/chat/stream`）
+- `provider_default_contract_orders_the_default_first_and_keeps_the_route_code` 扩展「删除默认后仍有唯一默认排第一」断言；`session_context_tracks_events_appended_after_a_compaction` 扩展「快照指标跟随追加事件」断言。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `session_context_snapshot` 直接返回已存 payload → 快照指标跟随断言转红。
+2. `start_live_stream` 不发送 `context_deltas` → 端到端 SSE 用例转红（缺 context_notice/context 帧）。
+3. `delete_provider_with_replacement_atomic` 跳过 replacement 写入 → store 用例转红（replacement payload 未落库）。
+   补充记录：引擎层「删除默认后提升」断言单独探针不会转红，因为 `list_providers` 的默认归一化会兜底；因此 :45 的替换证据落在 store 层测试。
+
+### 仍未结清（下一批）
+
+- `store_lifecycle_test.go` 余量 13 条：`:110`（删除会话级联 approvals/runs/tasks/messages，需核对 `adk_cascade_session_cleanup` 覆盖范围）、`:146`/`:250`/`:281`/`:328`（Go `SaveRun` 生命周期单调性——Rust 没有全量 `SaveRun` 入口，只有 CAS 状态更新，需逐条给出等价证据或边界结论）、`:466`（sessions 分页过滤）、`:501`（composer state 持久化/截断/级联删除）、`:553`（删除会话空白/缺失语义）、`:565`（approvals 分页排序）、`:609`（optimization tasks 排序）、`:641`（**功能缺失**：Rust 无 `<execute-tool>` 标签解析路径，已登记 P1）、`:765`（prepared agent 只加载 enabled 绑定）、`:792`（skill registry 元数据）。
+- workflow 侧 Go `MaybeAutoCompactSessionDuringWorkflow(allowActiveRun=true)` 的调用点（final synthesis / resumed execution）在 Rust 没有直接对应：Rust 每个 workflow agent 节点使用独立 session 并经普通 chat 入口压缩，且没有独立的 final synthesis 阶段；按结构差异记录，不再按「缺失接线」处理。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1679 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / 2713 Rust / 871 `[x]`）。
+
+观测记录：本批首次全量 nextest 出现 1 条偶发失败 `adk_session_detail_omits_resolved_approval_groups`（单跑、engine lib 全量与第二次全量均通过），失败与本批改动无直接关联；如再次复现需按并发时序专项排查。

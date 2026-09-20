@@ -711,6 +711,7 @@ impl ChatExecution {
             agent_id,
             resumed: false,
             permission_mode,
+            context_deltas: Vec::new(),
             request,
         }
     }
@@ -730,6 +731,10 @@ struct ChatExecution {
     /// it with each descriptor's permission/risk to decide whether a requested
     /// call runs immediately or waits for the operator.
     permission_mode: String,
+    /// Auto-compaction deltas published before the run existed.  Go forwards
+    /// them through `onDelta` ahead of the run events, so the live stream
+    /// emits the notice and context frames first.
+    context_deltas: Vec<SessionContextDelta>,
     request: ModelRequest,
 }
 

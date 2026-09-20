@@ -1388,6 +1388,16 @@ async fn production_chat_provider_failure_projects_go_failed_run_with_reply() {
 async fn start_adk_product_with_loopback_provider(
     endpoint: &str,
 ) -> (tempfile::TempDir, super::ProductHandle) {
+    start_adk_product_with_loopback_provider_seeded(endpoint, 0, |_, _| {}).await
+}
+
+/// Same product runtime with a configured context window and a seeding hook,
+/// so a test can prefill the transcript and drive auto compaction.
+async fn start_adk_product_with_loopback_provider_seeded(
+    endpoint: &str,
+    window_tokens: i64,
+    seed: impl FnOnce(&Arc<jftrade_store_sqlite::AdkStore>, &Arc<jftrade_store_sqlite::AdkSessionStore>),
+) -> (tempfile::TempDir, super::ProductHandle) {
     use crate::product::product_adk_model_runtime::{
         ProductionAdkChatRuntime, RunCancellationRegistry,
     };
@@ -1411,18 +1421,18 @@ async fn start_adk_product_with_loopback_provider(
         jftrade_store_sqlite::AdkSessionStore::open(directory.path().join("adk-session.db"))
             .expect("open ADK session store"),
     );
+    let mut provider = json!({
+        "id": "provider-live",
+        "displayName": "Live Provider",
+        "baseUrl": endpoint,
+        "model": "fixture-model",
+        "enabled": true,
+    });
+    if window_tokens > 0 {
+        provider["contextWindowTokens"] = json!(window_tokens);
+    }
     store
-        .upsert_provider(
-            "provider-live",
-            &json!({
-                "id": "provider-live",
-                "displayName": "Live Provider",
-                "baseUrl": endpoint,
-                "model": "fixture-model",
-                "enabled": true,
-            })
-            .to_string(),
-        )
+        .upsert_provider("provider-live", &provider.to_string())
         .expect("persist provider");
     store
         .upsert_agent(
@@ -1437,6 +1447,7 @@ async fn start_adk_product_with_loopback_provider(
             .to_string(),
         )
         .expect("persist agent");
+    seed(&store, &session_store);
     // `ProductionAdkChatRuntime::new` derives the provider secret store from
     // the settings path (`<settings dir>/[FUNC]/adk-[FUNC].json`).
     std::fs::create_dir_all(directory.path().join("secrets")).expect("create secrets directory");
@@ -1627,6 +1638,90 @@ async fn production_live_chat_stream_emits_session_before_run_and_terminal_frame
     assert_eq!(
         payload["session"]["id"], "session-11111111-1111-4111-8111-111111111111",
         "the preview frame must carry the durable session id"
+    );
+
+    handle.shutdown().await.expect("shutdown product");
+}
+
+/// Go `adkChatStreamExecution.handleDelta` over the live route: an automatic
+/// compaction publishes its notice as a `timeline` frame (streaming then
+/// final) and the compacted projection as a `context` frame, and all of them
+/// lead the preview `session` and `run` frames the console binds to.
+#[tokio::test]
+async fn production_live_chat_stream_emits_auto_compaction_frames_before_the_run() {
+    let endpoint = closed_model_endpoint();
+    let session_id = "session-22222222-2222-4222-8222-222222222222";
+    let (_directory, handle) =
+        start_adk_product_with_loopback_provider_seeded(&endpoint, 80, |store, session_store| {
+            store
+                .upsert_session(
+                    session_id,
+                    "agent-live",
+                    &json!({"id": session_id, "agentId": "agent-live", "title": session_id})
+                        .to_string(),
+                )
+                .expect("seed session");
+            session_store
+                .upsert_session("jftrade", "local", session_id, "{}")
+                .expect("seed transcript row");
+            for index in 0..80 {
+                session_store
+                    .record_event(jftrade_store_sqlite::RecordAdkEventParams {
+                        id: &format!("seed-{index:03}"),
+                        app_name: "jftrade",
+                        user_id: "local",
+                        session_id,
+                        invocation_id: &format!("seed-run-{index:03}"),
+                        author: if index % 2 == 1 { "assistant" } else { "user" },
+                        content: &format!("seed message {index} padded to consume context"),
+                    })
+                    .expect("seed transcript event");
+            }
+        })
+        .await;
+    let address = handle.startup_record().address;
+    let body = format!(
+        r#"{{"clientRequestId":"22222222-2222-4222-8222-222222222222","agentId":"agent-live","sessionId":"{session_id}","message":"hello"}}"#
+    );
+
+    let text = request_sse_until(
+        address,
+        "POST",
+        "/api/v1/adk/chat/stream",
+        body.as_bytes(),
+        |text| text.contains("\"type\":\"final\"") || text.contains("\"type\":\"error\""),
+    )
+    .await;
+
+    let notice_at = text
+        .find("\"kind\":\"context_notice\"")
+        .unwrap_or_else(|| panic!("missing compaction notice frame: {text}"));
+    let context_at = text
+        .find("\"type\":\"context\"")
+        .unwrap_or_else(|| panic!("missing compacted context frame: {text}"));
+    let session_at = text
+        .find("\"type\":\"session\"")
+        .unwrap_or_else(|| panic!("missing session frame: {text}"));
+    assert!(
+        notice_at < context_at && context_at < session_at,
+        "the compaction frames must lead the session frame: {text}"
+    );
+    assert!(
+        text.contains("\"status\":\"final\""),
+        "the notice is finalised before the stream continues: {text}"
+    );
+    let context_frame: Value = text
+        .split("data: ")
+        .filter_map(|rest| rest.split('\n').next())
+        .filter_map(|data| serde_json::from_str::<Value>(data).ok())
+        .find(|value| value["type"] == "context")
+        .expect("context frame JSON");
+    assert!(
+        context_frame["context"]["compactedEventCount"]
+            .as_u64()
+            .unwrap_or(0)
+            > 0,
+        "the context frame carries the compacted projection: {context_frame}"
     );
 
     handle.shutdown().await.expect("shutdown product");

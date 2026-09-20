@@ -20,14 +20,40 @@ const CONTEXT_AGGRESSIVE_THRESHOLD: f64 = 0.93;
 
 /// One delta published by the auto compactor, mirroring Go's `ChatDelta`
 /// (`Timeline` for the compaction notice, `Context` for the new snapshot).
-#[derive(Debug)]
-#[allow(dead_code)]
+#[derive(Clone, Debug)]
 pub(crate) enum SessionContextDelta {
     Timeline(Value),
     Context(Value),
 }
 
+impl SessionContextDelta {
+    /// Go `adkChatStreamExecution.handleDelta`: a compaction notice travels as
+    /// a `timeline` frame and the compacted projection as a `context` frame.
+    pub(super) fn sse_frame(&self) -> Value {
+        match self {
+            Self::Timeline(timeline) => json!({"type": "timeline", "timeline": timeline}),
+            Self::Context(context) => json!({"type": "context", "context": context}),
+        }
+    }
+}
+
 impl ProductionAdkChatRuntime {
+    /// Go `maybeAutoCompactSession(onDelta)`: callers that must publish the
+    /// frames (the live chat stream) collect the deltas in order.
+    pub(crate) fn collect_auto_compaction_deltas(
+        &self,
+        session_id: &str,
+        pending_text: &str,
+        allow_active_run: bool,
+    ) -> Result<Vec<SessionContextDelta>, AdkChatPortError> {
+        let mut deltas = Vec::new();
+        self.maybe_auto_compact_session(session_id, pending_text, allow_active_run, |delta| {
+            deltas.push(delta);
+            Ok(())
+        })?;
+        Ok(deltas)
+    }
+
     /// Go `SessionContextManager.ShouldAutoCompact`.
     pub(crate) fn auto_compaction_mode(ratio: f64) -> Option<&'static str> {
         if ratio >= CONTEXT_AGGRESSIVE_THRESHOLD {

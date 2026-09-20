@@ -684,6 +684,84 @@ fn provider_list_normalizes_default_selection_and_orders_default_first() {
     );
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/store_lifecycle_test.go:45
+/// TestProvidersMaintainDefaultSelectionAndCreatedOrder.
+///
+/// The reference lists providers with the selected default first, promotes a
+/// replacement atomically when the default is deleted, and keeps exactly one
+/// default row afterwards.
+#[test]
+fn provider_delete_promotes_the_replacement_and_keeps_one_default() {
+    let directory = tempdir().expect("temp dir");
+    let db_path = directory.path().join("adk.db");
+    seed_valid_go_adk_database(&db_path);
+    let store = AdkTestCutoverStore::open_existing(&db_path, ADK_TEST_CUTOVER_PROFILE)
+        .expect("open valid store");
+
+    store
+        .upsert_provider(
+            "provider-oldest",
+            r#"{"displayName":"Oldest","baseUrl":"https://a.example/v1","model":"m-a","enabled":true,"default":false}"#,
+        )
+        .expect("upsert provider-oldest");
+    store
+        .upsert_provider(
+            "provider-middle",
+            r#"{"displayName":"Middle","baseUrl":"https://m.example/v1","model":"m-m","enabled":true,"default":false}"#,
+        )
+        .expect("upsert provider-middle");
+    store
+        .upsert_provider(
+            "provider-newer",
+            r#"{"displayName":"Newer","baseUrl":"https://b.example/v1","model":"m-b","enabled":true,"default":true}"#,
+        )
+        .expect("upsert provider-newer");
+
+    let listed = store.list_providers().expect("list providers");
+    let ids = listed.iter().map(|row| row.id.as_str()).collect::<Vec<_>>();
+    assert_eq!(
+        ids,
+        vec!["provider-newer", "provider-oldest", "provider-middle"],
+        "the selected default is listed before the created_at order"
+    );
+
+    let replacement = r#"{"displayName":"Middle Promoted","baseUrl":"https://m.example/v1","model":"m-m","enabled":true,"default":true}"#;
+    assert!(
+        store
+            .delete_provider_with_replacement_atomic(
+                "provider-newer",
+                Some(("provider-middle", replacement)),
+            )
+            .expect("delete the default provider"),
+        "the deleted provider existed"
+    );
+
+    let promoted = store.list_providers().expect("list providers after delete");
+    assert_eq!(promoted.len(), 2, "the deleted default is gone");
+    assert_eq!(
+        promoted[0].id, "provider-middle",
+        "the requested replacement is promoted and listed first"
+    );
+    let promoted_default: serde_json::Value =
+        serde_json::from_str(&promoted[0].payload_json).expect("provider payload");
+    assert_eq!(
+        promoted_default["displayName"], "Middle Promoted",
+        "the replacement payload is written atomically: {promoted_default}"
+    );
+    assert_eq!(
+        promoted_default["default"],
+        serde_json::Value::Bool(true),
+        "the replacement carries the sole default flag: {promoted_default}"
+    );
+    let other: serde_json::Value =
+        serde_json::from_str(&promoted[1].payload_json).expect("provider payload");
+    assert_eq!(
+        other["default"],
+        serde_json::Value::Bool(false),
+        "the untouched provider keeps its flag cleared: {other}"
+    );
+}
+
 /// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:452
 /// TestStoreResolvePendingApprovalMissingAndIdempotent.
 ///

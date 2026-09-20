@@ -10087,11 +10087,11 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_lifecycle_test.go:45:TestProvidersMaintainDefaultSelectionAndCreatedOrder": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::provider_delete_promotes_the_replacement_and_keeps_one_default",
+    "conclusion": "function_exact：Go 按 created_at 升序列出 provider、把默认项排在最前、删除默认后原子提升替代者并保持唯一默认；Rust 新增 store 测试断言默认（较新）排第一、删除默认后替代者成为唯一默认，另有引擎测试覆盖 SetDefaultProvider 的默认优先与 404 契约。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(provider_delete_promotes_the_replacement_and_keeps_one_default)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_lifecycle_test.go:110:TestDeleteSessionRemovesApprovals": {
     "status": "[~]",
@@ -10165,31 +10165,31 @@
   },
   "internal/assistant/engine/store_lifecycle_test.go:641:TestExecuteToolTagInvokesCanonicalToolWithParameters": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
+    "rust_entry": "Rust 功能缺失：无 <execute-tool> 标签解析路径（crates/ 全量搜索无匹配）",
+    "conclusion": "功能缺失（登记 P1）：Go 在 chat 消息里解析 `<execute-tool name=\"jftrade portfolio summary\" parameters='{...}' />`，解析出规范工具名与参数后直接调用并把结果写入 run.toolCalls（status SUCCEEDED）。Rust 目前没有该标签的解析/执行路径，需在 chat 预处理阶段实现后补行为测试（成功、未知工具别名、非法 JSON、权限门控）。",
+    "command": "`pnpm run check:rust:architecture`",
     "evidence_type": "missing"
   },
   "internal/assistant/engine/store_lifecycle_test.go:701:TestRejectUnsafeHost": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::reject_unsafe_host_blocks_the_reference_host_table",
+    "conclusion": "function_exact：Go 逐个断言 127.0.0.1、localhost、10.0.0.1、169.254.169.254、::1 被拒；Rust 新增同一 host 表的测试，并保留私网/组播/未指定地址与公网放行的分类测试。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(reject_unsafe_host_blocks_the_reference_host_table)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_lifecycle_test.go:711:TestInternalSkillCannotBeUninstalled": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::builtin_skill_uninstall_is_refused_and_the_projection_keeps_it",
+    "conclusion": "function_exact：Go 对内置 skill 卸载报 cannot be uninstalled 且 skill 仍以 builtin 存在；Rust 新增测试断言 500 ADK_SKILL_UNINSTALL_FAILED、builtin 保护消息，且读取投影仍包含 jftrade-market/builtin。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_lifecycle_test.go:735:TestExternalSkillUninstallRemovesInstallDir": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_skill_uninstall_removes_external_installs_and_reports_missing_files",
+    "conclusion": "function_exact：Go 卸载外部 skill 后删除安装目录并使技能消失；Rust 测试断言 deleted=true、安装目录移除，且再次卸载返回 500 ADK_SKILL_UNINSTALL_FAILED / file does not exist。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_lifecycle_test.go:765:TestPreparedAgentLoadsOnlyEnabledBoundSkillsAndTools": {
     "status": "[~]",
