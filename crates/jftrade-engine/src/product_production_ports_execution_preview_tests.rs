@@ -2070,3 +2070,73 @@ fn trade_writes_are_not_replayed_when_the_response_is_lost() {
         "modify order must not be replayed after a lost response"
     );
 }
+
+/// Parity: Go's gin handler hands the decoded `:internalOrderId` to the
+/// trading service, while the Rust wire forwards the raw request path to the
+/// execution read port and the MCP `execution.order_events` tool
+/// percent-encodes the id it builds. An id such as `order-1` must therefore be
+/// decoded before the store lookup instead of surfacing as 404.
+#[test]
+fn execution_read_decodes_percent_encoded_order_ids() {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, false);
+    let port = preview_port(state, None, Some(true));
+    port.store
+        .save_order(
+            jftrade_store_sqlite::StoredExecutionOrder {
+                internal_order_id: "order-1".to_owned(),
+                broker_id: "futu".to_owned(),
+                broker_order_id: Some("broker-1".to_owned()),
+                broker_order_id_ex: None,
+                source: "api".to_owned(),
+                source_detail: "execution-read-decode".to_owned(),
+                trading_environment: "REAL".to_owned(),
+                account_id: "8240".to_owned(),
+                market: "US".to_owned(),
+                symbol: Some("AAPL".to_owned()),
+                side: Some("BUY".to_owned()),
+                order_type: Some("LIMIT".to_owned()),
+                status: "SUBMITTED".to_owned(),
+                raw_broker_status: None,
+                requested_quantity: Some(1.0),
+                requested_price: Some(100.0),
+                filled_quantity: None,
+                filled_average_price: None,
+                remark: None,
+                last_error: None,
+                last_error_code: None,
+                last_error_source: None,
+                submitted_at: None,
+                updated_at: "2026-09-01T00:00:00Z".to_owned(),
+                created_at: "2026-09-01T00:00:00Z".to_owned(),
+                order_kind: "single".to_owned(),
+                product_class: "equity".to_owned(),
+                quantity_mode: "units".to_owned(),
+                client_order_id: Some("client-1".to_owned()),
+                preview_id: None,
+                normalized_request: "{}".to_owned(),
+                requested_amount: None,
+                payout: None,
+                fees: None,
+            },
+            "2026-09-01T00:00:00Z",
+        )
+        .expect("save order");
+
+    let events = port
+        .read("/api/v1/execution/orders/order%2D1/events", "")
+        .expect("percent-encoded event timeline");
+    assert_eq!(events["internalOrderId"], "order-1");
+
+    let detail = port
+        .read("/api/v1/execution/orders/order%2D1", "")
+        .expect("percent-encoded order detail");
+    assert_eq!(detail["order"]["internalOrderId"], "order-1");
+
+    let slash = port
+        .read("/api/v1/execution/orders/order%2D1%2Fevil/events", "")
+        .expect_err("an id that decodes to a path separator stays not found");
+    assert!(matches!(slash, ExecutionReadSnapshotError::NotFound));
+}

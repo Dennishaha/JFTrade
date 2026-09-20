@@ -328,3 +328,72 @@ fn validation_payload_matches_save_hint_and_rejection_contract() {
     assert!(invalid.save_hint.is_some());
     assert_eq!(invalid.external_engine["status"], "disabled");
 }
+
+const RISK_SCRIPT: &str = r#"//@version=6
+strategy("Risk Aware", overlay=true, pyramiding=3, default_qty_type=strategy.percent_of_equity, default_qty_value=25)
+strategy.risk.allow_entry_in(strategy.direction.long)
+strategy.risk.max_drawdown(12, strategy.percent_of_equity, alert_message="dd")
+strategy.risk.max_intraday_loss(5, strategy.cash, "day")
+strategy.risk.max_intraday_filled_orders(4, alert_message="fills")
+strategy.risk.max_position_size(7)
+strategy.risk.max_cons_loss_days(3, alert_message="loss")
+if close > open
+    strategy.entry("Long", strategy.long)
+"#;
+
+/// Parity: go:452dea11:internal/assistant/assembly/tool_catalog_test.go:415
+/// TestADKRuntimeMiscHelpersAndMetadata (`strategyMetadataPayload`).
+///
+/// Go reports only the risk limits the script declares, so an undeclared
+/// limit stays absent and the default payload keeps `risk: {}`. The Rust
+/// payload always emitted `risk: {}`, which hid `strategy.risk.*` limits from
+/// the validation answer, and it also reported the raw quantity fields
+/// instead of Go's trimmed `fixed`/`1` fallbacks.
+#[test]
+fn validation_metadata_projects_declared_risk_limits_like_go() {
+    let plain = to_value(validate_script(
+        "//@version=6\nstrategy(\"Plain\")\nif close > open\n    strategy.entry(\"Long\", strategy.long)",
+        false,
+        false,
+    ))
+    .expect("plain validation payload");
+    assert_eq!(
+        plain["metadata"]["risk"],
+        serde_json::json!({}),
+        "an undeclared limit stays absent"
+    );
+    assert_eq!(plain["metadata"]["defaultQtyMode"], "fixed");
+    assert_eq!(plain["metadata"]["defaultQtyValue"], "1");
+    assert_eq!(plain["metadata"]["pyramiding"], 1);
+    assert_eq!(plain["hooks"], serde_json::json!(["on_kline_close"]));
+
+    let risk =
+        to_value(validate_script(RISK_SCRIPT, false, false)).expect("risk validation payload");
+    assert_eq!(risk["ok"], true, "errors: {}", risk["errors"]);
+    let metadata = &risk["metadata"];
+    assert_eq!(metadata["name"], "Risk Aware");
+    assert_eq!(metadata["defaultQtyMode"], "percent_of_equity");
+    assert_eq!(metadata["defaultQtyValue"], "25");
+    assert_eq!(metadata["pyramiding"], 3);
+    assert_eq!(
+        metadata["risk"]["allowedEntryDirection"], "long",
+        "strategy.direction.long normalizes to the Go direction name: {metadata}"
+    );
+    assert_eq!(
+        metadata["risk"]["maxDrawdown"],
+        serde_json::json!({"value": 12, "type": "percent_of_equity", "alertMessage": "dd"})
+    );
+    assert_eq!(
+        metadata["risk"]["maxIntradayLoss"],
+        serde_json::json!({"value": 5, "type": "cash", "alertMessage": "day"})
+    );
+    assert_eq!(
+        metadata["risk"]["maxIntradayFilledOrders"],
+        serde_json::json!({"count": 4, "alertMessage": "fills"})
+    );
+    assert_eq!(metadata["risk"]["maxPositionSize"], 7);
+    assert_eq!(
+        metadata["risk"]["maxConsLossDays"],
+        serde_json::json!({"count": 3, "alertMessage": "loss"})
+    );
+}

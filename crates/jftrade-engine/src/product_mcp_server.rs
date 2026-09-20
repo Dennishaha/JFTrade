@@ -610,3 +610,7 @@ use dispatch::{is_loopback_host, is_loopback_remote, mcp_origin_allowed};
 #[cfg(test)]
 #[path = "product_mcp_server_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "product_tool_catalog_parity_tests.rs"]
+mod tool_catalog_parity;

@@ -129,7 +129,7 @@ fn technical_indicator_ready_catalog() -> Arc<ProductionToolCatalog> {
     )
 }
 
-fn production_bundle() -> (
+pub(super) fn production_bundle() -> (
     TempDir,
     crate::product::product_production_ports::ProductionPortBundle,
 ) {

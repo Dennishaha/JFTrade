@@ -258,7 +258,13 @@ impl ProductionMcpToolExecutor {
         let group = optional_string(arguments, "group")
             .or_else(|| optional_string(arguments, "groupName"))
             .or_else(|| optional_string(arguments, "groupId"));
-        let market = optional_string(arguments, "market");
+        // Go's `watchlist.list` upper-cases the market while trimming the
+        // group/query/cursor filters, so a lowercase tool argument still lands
+        // on the same item query.
+        // Go's `watchlist.list` upper-cases the market while trimming the
+        // group/query/cursor filters, so a lowercase tool argument still lands
+        // on the same item query.
+        let market = optional_string(arguments, "market").map(|market| market.to_ascii_uppercase());
         let search = optional_string(arguments, "query");
         let cursor = optional_string(arguments, "cursor");
         let limit = bounded_integer(arguments, "limit", 50, 1, 200)?;
@@ -459,19 +465,14 @@ impl ProductionMcpToolExecutor {
 
     fn backtest_kline_sync_status(&self, arguments: &Value) -> Result<Value, McpToolFailure> {
         let task_id = required_string(arguments, "taskId")?;
-        let _wait_ms = bounded_integer(arguments, "waitForCompletionMs", 0, 0, 25_000)?;
-        let progress = self
-            .ports()?
-            .backtest_sync
-            .progress(&task_id)
-            .map_err(backtest_sync_error)?
-            .ok_or_else(|| {
-                McpToolFailure::failed(
-                    404,
-                    "BACKTEST_SYNC_TASK_NOT_FOUND",
-                    "k-line sync task was not found",
-                )
-            })?;
+        let wait_ms = bounded_integer(arguments, "waitForCompletionMs", 0, 0, 25_000)? as u64;
+        let ports = self.ports()?;
+        let progress = helpers::wait_for_kline_sync_progress(wait_ms, || {
+            ports
+                .backtest_sync
+                .progress(&task_id)
+                .map_err(backtest_sync_error)
+        })?;
         Ok(add_retry_hint(progress))
     }
 

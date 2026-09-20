@@ -332,6 +332,24 @@ impl ExecutionReconciliationWorker {
     }
 }
 
+/// Decode one order id from the request path.
+///
+/// Go's gin handler hands the store the decoded `:internalOrderId`, while the
+/// Rust wire passes the raw request path straight to the read port. The MCP
+/// `execution.order_events` tool percent-encodes the id it forwards, so a
+/// `-`/`.`-bearing id would otherwise be looked up in its encoded form and
+/// answer 404. Ids that cannot form a single path segment stay not-found.
+fn decode_order_id(raw: &str) -> Option<String> {
+    let decoded = percent_encoding::percent_decode_str(raw)
+        .decode_utf8()
+        .ok()?
+        .into_owned();
+    if decoded.is_empty() || decoded.contains('/') {
+        return None;
+    }
+    Some(decoded)
+}
+
 impl ExecutionReadSnapshotPort for ProductionExecutionPort {
     fn read(&self, path: &str, query: &str) -> Result<Value, ExecutionReadSnapshotError> {
         if path == "/api/v1/execution/orders" {
@@ -396,16 +414,16 @@ impl ExecutionReadSnapshotPort for ProductionExecutionPort {
                 .collect::<Result<_, _>>()?;
             return Ok(json!({ "orders": items }));
         }
-        if let Some(id) = path
+        if let Some(raw_id) = path
             .strip_prefix("/api/v1/execution/orders/")
             .and_then(|suffix| suffix.strip_suffix("/events"))
         {
-            if id.is_empty() || id.contains('/') {
+            let Some(id) = decode_order_id(raw_id) else {
                 return Err(ExecutionReadSnapshotError::NotFound);
-            }
+            };
             let events = self
                 .store
-                .list_order_events(id)
+                .list_order_events(&id)
                 .map_err(|e| ExecutionReadSnapshotError::Failed {
                     code: "GET_ORDER_EVENTS_FAILED".to_owned(),
                     message: e.to_string(),
@@ -425,19 +443,19 @@ impl ExecutionReadSnapshotPort for ProductionExecutionPort {
                 .collect::<Vec<_>>();
             return Ok(json!({"internalOrderId": id, "events": events}));
         }
-        if let Some(id) = path.strip_prefix("/api/v1/execution/orders/") {
-            if id.is_empty() || id.contains('/') {
+        if let Some(raw_id) = path.strip_prefix("/api/v1/execution/orders/") {
+            let Some(id) = decode_order_id(raw_id) else {
                 return Err(ExecutionReadSnapshotError::NotFound);
-            }
+            };
             let order =
                 self.store
-                    .get_order(id)
+                    .get_order(&id)
                     .map_err(|e| ExecutionReadSnapshotError::Failed {
                         code: "GET_ORDER_FAILED".to_owned(),
                         message: e.to_string(),
                     })?;
             if let Some(o) = order {
-                let mut recent_events = self.store.list_order_events(id).map_err(|e| {
+                let mut recent_events = self.store.list_order_events(&id).map_err(|e| {
                     ExecutionReadSnapshotError::Failed {
                         code: "GET_ORDER_FAILED".to_owned(),
                         message: e.to_string(),

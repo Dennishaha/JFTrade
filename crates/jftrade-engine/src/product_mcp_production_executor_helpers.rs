@@ -357,6 +357,58 @@ pub(super) fn broker_query(arguments: &Value, scope: String) -> String {
     ])
 }
 
+/// Read a K-line sync task and, when the caller asked for a short wait, poll
+/// until the task reaches a terminal status or the wait budget expires.
+///
+/// Go's `waitForADKKLineSyncProgress` keeps the last observed progress and
+/// answers "not found" as soon as the lookup disappears; the production
+/// readiness payload tells the model to call this tool with
+/// `waitForCompletionMs: 25000`, so ignoring the wait would answer with a
+/// still-running task the payload already promised to wait for.
+pub(super) fn wait_for_kline_sync_progress<F>(
+    wait_ms: u64,
+    mut read: F,
+) -> Result<Value, McpToolFailure>
+where
+    F: FnMut() -> Result<Option<Value>, McpToolFailure>,
+{
+    let mut progress = read()?.ok_or_else(kline_sync_task_missing)?;
+    if wait_ms == 0 || kline_sync_status_is_terminal(&progress) {
+        return Ok(progress);
+    }
+    let started = std::time::Instant::now();
+    let timeout = std::time::Duration::from_millis(wait_ms);
+    let poll_interval = std::time::Duration::from_millis(50);
+    while started.elapsed() < timeout {
+        std::thread::sleep(poll_interval);
+        progress = read()?.ok_or_else(kline_sync_task_missing)?;
+        if kline_sync_status_is_terminal(&progress) {
+            break;
+        }
+    }
+    Ok(progress)
+}
+
+pub(super) fn kline_sync_status_is_terminal(payload: &Value) -> bool {
+    payload
+        .get("status")
+        .and_then(Value::as_str)
+        .is_some_and(|status| {
+            matches!(
+                status.trim().to_ascii_lowercase().as_str(),
+                "completed" | "failed" | "cancelled"
+            )
+        })
+}
+
+fn kline_sync_task_missing() -> McpToolFailure {
+    McpToolFailure::failed(
+        404,
+        "BACKTEST_SYNC_TASK_NOT_FOUND",
+        "k-line sync task was not found",
+    )
+}
+
 pub(super) fn add_retry_hint(mut payload: Value) -> Value {
     if let Some(object) = payload.as_object_mut()
         && !object.contains_key("readyToRetry")

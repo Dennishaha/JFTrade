@@ -2313,3 +2313,55 @@ Go 这 8 条用例覆盖三层组合读取（accounts/overview/positions）、�
 - 跨批 follow-up 汇总：P1 = `portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial（本批 `:15`/`:288` 引出）、`portfolio.*` 无法投影 broker runtime `lastError`（本批 `:155` 引出）、策略定义版本/快照的生产 wire 形状（第 45 批 `:308`）、工作流触发日志 active/page 过滤（第 42 批 `:559`）、`workflow_runs.*` 过滤参数（第 43 批 `:183`）、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言（第 44/45 批）、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`（1768 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2794 Rust** / **937 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+
+## 第四十七批：assembly `tool_catalog_test.go` 全量结清（7 条；1 条新 `[x]`，6 条 `partial`）
+
+范围：`internal/assistant/assembly/tool_catalog_test.go` 7 条逐条结清——本批新增 **1 条 `[x]`**（`:707`），`partial` 6 条（`:16`、`:159`、`:272`、`:415`、`:550`、`:672`）。`[x]` 计数 937 → **938**，Rust 测试 2794 → **2801**。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestADKRuntimeHelperInputNormalization|TestADKRuntimePollingAndPayloadHelpers|TestADKReadToolsNormalizeInputsAndExposeBusinessHandlers|TestADKRuntimeMiscHelpersAndMetadata|TestADKCoreToolHandlersNormalizeMarketAndPortfolioFlows|TestWatchlistListToolDefaultsToReadOnlyMetadataAndNormalizesPaging|TestExecutionReadToolsPropagateProjectionFailures' -count=1`（checkout `/tmp/go452dea11.niwD1G`）。
+
+### 本批结论（4 处行为修正 + 7 条新增回归）
+
+1. `crates/jftrade-strategy/src/pinespec/mod.rs`：`metadata_payload`/`risk_payload` 新增 Go `strategyMetadataPayload` 的 risk 投影——`allowedEntryDirection`、`maxDrawdown`、`maxIntradayLoss`、`maxIntradayFilledOrders`、`maxPositionSize`、`maxConsLossDays` 只在脚本声明正值时出现，类型/告警字段 trim，整数按 Go 的 `float64` 输出不带小数。此前 `strategy.validate_pine` 恒定返回 `risk: {}`，脚本声明的风控在验证答案里完全不可见。
+2. `crates/jftrade-engine/src/product_mcp_production_executor.rs::watchlist_list`：market 参数改为先 trim 再大写（Go `strings.ToUpper`）。此前 `market=us` 会原样进入 `/api/v1/watchlist/items` 查询串。
+3. `crates/jftrade-engine/src/product_production_ports_execution_orders.rs`：`/orders/{id}` 与 `/orders/{id}/events` 改为对路径段做 percent-decode（拒绝空段与含 `/` 的 id），修复 MCP `execution.order_events` 转发编码 id 时 404 的问题。
+4. `crates/jftrade-engine/src/product_mcp_production_executor_helpers.rs`：新增 `wait_for_kline_sync_progress`/`kline_sync_status_is_terminal`，`backtest.kline_sync_status` 真正遵守 `waitForCompletionMs`（50ms 轮询、终态提前返回、任务消失 → 404 `BACKTEST_SYNC_TASK_NOT_FOUND`）；此前该参数被解析后丢弃。
+
+新增回归（7 条）：
+
+- `product_tool_catalog_parity_tests.rs::broker_read_tools_normalize_scope_filters_and_identifier_lists`（`:272`）：五个 broker 读工具在 recorder 上断言完整 query（scope=CURRENT/HISTORY 大小写、tradingEnvironment、accountId、symbol、startTime/endTime、标识符列表），缺 `orderIdEx`/`symbols` 与未知 scope 均 BAD_REQUEST 且不触达端口。
+- `product_tool_catalog_parity_tests.rs::system_plugin_and_risk_tools_project_port_payloads`（`:550`）：`system.futu_opend`/`plugins.catalog`/`risk.state`/`risk.events` 的薄投影与四条系统读路径顺序。
+- `product_tool_catalog_parity_tests.rs::watchlist_list_normalizes_filters_and_rejects_out_of_range_limits`（`:672`）：group/query/cursor 去空格、market 大写、默认 limit=50 的分组路径、limit 0/201 BAD_REQUEST、`includeQuotes=true` 的 503 失败关闭且不触达端口。
+- `product_tool_catalog_parity_tests.rs::execution_order_events_lists_orders_and_propagates_projection_failures`（`:707`）：列表成功路径、百分号编码明细路径（`/orders/order%2D1/events`）、三处失败传播（列表/明细/`account.orders`）映射为 503 `EXECUTION_UNAVAILABLE` 并保留端口消息。
+- `product_tool_catalog_parity_tests.rs::kline_sync_status_waits_for_a_terminal_status_within_the_requested_window`（`:159`）：脚本化进度序列断言轮询到 completed、终态提前返回、任务消失 404。
+- `product_production_ports_execution_preview_tests.rs::execution_read_decodes_percent_encoded_order_ids`：`order%2D1` 在生产读端口解码为 `order-1` 后命中订单与事件。
+- `crates/jftrade-strategy/tests/pine_mcp_contract.rs::validation_metadata_projects_declared_risk_limits_like_go`（`:415`）：默认 `risk: {}`、`defaultQtyMode/defaultQtyValue/pyramiding` 归一化、`hooks=["on_kline_close"]`，以及声明后的六个 risk 字段完整结构。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `risk_payload` 短路为空对象 → `validation_metadata_projects_declared_risk_limits_like_go` 转红（`risk` 为 `{}`）。
+2. `decode_order_id` 改为返回原始路径段 → `execution_read_decodes_percent_encoded_order_ids` 转红（`order%2D1` ≠ `order-1`）。
+3. `wait_for_kline_sync_progress` 立即返回 → `kline_sync_status_waits_for_a_terminal_status_within_the_requested_window` 转红（`running` ≠ `completed`）。
+4. watchlist limit 上界 200 → 5000 → `watchlist_list_normalizes_filters_and_rejects_out_of_range_limits` 转红（201 被接受）。
+5. `broker_query` 把 scope 小写化 → `broker_read_tools_normalize_scope_filters_and_identifier_lists` 转红（`scope=current`）。
+6. `plugins_catalog` 包一层 `{"catalog": ...}` → `system_plugin_and_risk_tools_project_port_payloads` 转红（`plugins[0].id` 为 Null）。
+7. 去掉 watchlist market 大写 → `watchlist_list_normalizes_filters_and_rejects_out_of_range_limits` 转红（`market=us`）。探针 2/3/4/5/6/7 均在本批内执行并已回滚。
+
+### 结论登记（partial 行内的边界与差异）
+
+- **:16 partial**：`brokerReadInput`（默认市场/scope/账号/环境/状态列表）与 `taskPatchFromInput` 的任务补丁归一化有 Rust 断言；`optionalBoolInput`、`intPtrFromInput`、`stringPtrFromInput`、`stringSliceFromPresentInput`、`backtestResultViewInputFromNested` 是 `map[string]any` 适配层强转，Rust 以 serde 强类型参数取代，无对应 owner。
+- **:159 partial**：K 线同步轮询与终态判定已闭环；`backtestDataReadinessPayload`、`waitForADKBacktestStatus`、`statusFromBacktestResultView`、`isTerminalBacktestStatus` 在 Rust 无 helper（模型侧直接轮询 `backtest.result_view`），`klineSyncProgressPayload(nil)` 的 readyToRetry 由 retry hint 投影覆盖。
+- **:272 partial**：五个 broker 读工具、`risk.*`、`execution.order_events` 两条路径均已覆盖；缺口是 `market.depth` 的自然语言 `query` 推断与 `num` 字符串强转——Rust 工具 schema 只接受 `instrumentId` 或 `market`+`symbol`，缺标的直接 BAD_REQUEST，登记 P2。
+- **:415 partial**：risk 投影已修复；`BuildCompiledHookKinds`/`BuildCompiledRequirementsPayload`/`pageEnvelope`/`SourceFormatPineV6` 各有 Rust owner；`inferMarketSymbol`、`floatValue`、`boolInputValue(Default)`、`summarizeADKText`、`lastString`/`lastBacktestTrade`/`lastBacktestCandle`、`callMap`/`callBool`、`nowStringRFC3339Nano` 为 Go 侧 helper，Rust 无对应实现。
+- **:550 partial**：`system.futu_opend`/`plugins.catalog`/`risk.state`/`risk.events` 已断言；`market.subscriptions`/`market.snapshot`/`market.candles`、托管账户、`portfolio.summary`、`account.orders` 由第 44-46 批证据覆盖，但不在本批测试内。
+- **:672 partial**：过滤归一化与 limit 边界已断言；差异是 Go 会把 `includeQuotes` 传给依赖返回行情，Rust 生产 bundle 无行情富化，`includeQuotes=true` 失败关闭为 503 `WATCHLIST_QUOTES_UNAVAILABLE`，登记 P2。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 余量：`product_adapters_test.go`（6 条）、`adk_product_catalog_test.go`（4 条）；随后 `internal/app/apiserver`（574）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）等。
+- 跨批 follow-up 汇总：P1 = `portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial（第 46 批 `:15`/`:288`）、`portfolio.*` 无法投影 broker runtime `lastError`（第 46 批 `:155`）、策略定义版本/快照的生产 wire 形状（第 45 批 `:308`）、工作流触发日志 active/page 过滤（第 42 批 `:559`）、`workflow_runs.*` 过滤参数（第 43 批 `:183`）、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `market.depth` 自由文本 instrument 推断（本批 `:272` 引出）、`watchlist.list includeQuotes` 行情富化（本批 `:672` 引出）、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`（1819 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2801 Rust** / **938 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

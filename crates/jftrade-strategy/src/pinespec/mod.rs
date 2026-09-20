@@ -233,14 +233,145 @@ pub fn validate_script(
     }
 }
 
+/// Parity: go:452dea11:internal/assistant/assembly/strategy_tools.go
+/// `strategyMetadataPayload` / `BuildCompiledHookKinds`.
+///
+/// The payload reports the identity fields, the normalized quantity defaults
+/// and the declarative risk limits the script carries. `None` models Go's
+/// `strategyMetadataPayload(nil)` row: empty identity, `fixed`/`1` quantity,
+/// pyramiding 1 and an empty risk object.
+fn metadata_payload(program: Option<&LoweredProgram>) -> Value {
+    let metadata = program.map(|program| &program.metadata);
+    let risk = risk_payload(program);
+    json!({
+        "name": metadata.map_or("", |metadata| metadata.name.trim()),
+        "version": metadata.map_or("", |metadata| metadata.version.trim()),
+        "symbol": metadata.map_or("", |metadata| metadata.symbol.trim()),
+        "interval": metadata.map_or("", |metadata| metadata.interval.trim()),
+        "defaultQtyMode": metadata
+            .map(|metadata| metadata.default_qty_mode.trim())
+            .filter(|mode| !mode.is_empty())
+            .unwrap_or("fixed"),
+        "defaultQtyValue": metadata
+            .map(|metadata| metadata.default_qty_value.trim())
+            .filter(|value| !value.is_empty())
+            .unwrap_or("1"),
+        "pyramiding": metadata.map_or(1, |metadata| metadata.pyramiding.max(1)),
+        "risk": risk,
+    })
+}
+
+/// Risk limits declared through `strategy.risk.*`.
+///
+/// Go only reports a limit when the script declares a positive one, so an
+/// undeclared limit stays absent instead of being rendered as zero.
+fn risk_payload(program: Option<&LoweredProgram>) -> Value {
+    let mut risk = serde_json::Map::new();
+    let metadata = program.map(|program| &program.metadata);
+    let direction = metadata
+        .and_then(|metadata| metadata.allowed_entry_direction.as_deref())
+        .map(str::trim)
+        .filter(|direction| !direction.is_empty() && *direction != "all");
+    if let Some(direction) = direction {
+        risk.insert(
+            "allowedEntryDirection".to_owned(),
+            Value::String(direction.to_owned()),
+        );
+    }
+    if let Some(value) =
+        metadata.and_then(|metadata| positive_amount(metadata.max_drawdown_value.as_deref()))
+    {
+        risk.insert(
+            "maxDrawdown".to_owned(),
+            risk_amount(
+                value,
+                metadata.and_then(|metadata| metadata.max_drawdown_type.as_deref()),
+                metadata.and_then(|metadata| metadata.max_drawdown_alert.as_deref()),
+            ),
+        );
+    }
+    if let Some(value) =
+        metadata.and_then(|metadata| positive_amount(metadata.max_intraday_loss_value.as_deref()))
+    {
+        risk.insert(
+            "maxIntradayLoss".to_owned(),
+            risk_amount(
+                value,
+                metadata.and_then(|metadata| metadata.max_intraday_loss_type.as_deref()),
+                metadata.and_then(|metadata| metadata.max_intraday_loss_alert.as_deref()),
+            ),
+        );
+    }
+    if let Some(count) = metadata
+        .and_then(|metadata| metadata.max_intraday_filled_orders)
+        .filter(|count| *count > 0)
+    {
+        risk.insert(
+            "maxIntradayFilledOrders".to_owned(),
+            risk_count(
+                count,
+                metadata.and_then(|metadata| metadata.max_intraday_filled_orders_alert.as_deref()),
+            ),
+        );
+    }
+    if let Some(value) =
+        metadata.and_then(|metadata| positive_amount(metadata.max_position_size.as_deref()))
+    {
+        risk.insert("maxPositionSize".to_owned(), json_amount(value));
+    }
+    if let Some(count) = metadata
+        .and_then(|metadata| metadata.max_cons_loss_days)
+        .filter(|count| *count > 0)
+    {
+        risk.insert(
+            "maxConsLossDays".to_owned(),
+            risk_count(
+                count,
+                metadata.and_then(|metadata| metadata.max_cons_loss_days_alert.as_deref()),
+            ),
+        );
+    }
+    Value::Object(risk)
+}
+
+fn risk_amount(value: f64, kind: Option<&str>, alert: Option<&str>) -> Value {
+    json!({
+        "value": json_amount(value),
+        "type": kind.map_or("", str::trim),
+        "alertMessage": alert.map_or("", str::trim),
+    })
+}
+
+fn risk_count(count: i64, alert: Option<&str>) -> Value {
+    json!({
+        "count": count,
+        "alertMessage": alert.map_or("", str::trim),
+    })
+}
+
+fn positive_amount(raw: Option<&str>) -> Option<f64> {
+    let value = raw?.trim().parse::<f64>().ok()?;
+    (value.is_finite() && value > 0.0).then_some(value)
+}
+
+/// Go marshals `float64` limits, which renders whole numbers without a
+/// fraction (`12`), so keep integral limits integral in the payload.
+fn json_amount(value: f64) -> Value {
+    if value.fract() == 0.0 && value.abs() <= 9_007_199_254_740_992.0 {
+        return Value::from(value as i64);
+    }
+    serde_json::Number::from_f64(value).map_or(Value::Null, Value::Number)
+}
+
 fn program_metadata(program: &LoweredProgram) -> (Value, Vec<String>) {
     (
-        json!({"name": program.metadata.name, "version": program.metadata.version, "symbol": program.metadata.symbol, "interval": program.metadata.interval, "defaultQtyMode": program.metadata.default_qty_mode, "defaultQtyValue": program.metadata.default_qty_value, "pyramiding": program.metadata.pyramiding, "risk": {}}),
+        metadata_payload(Some(program)),
         program.hooks.iter().map(|hook| hook.kind.clone()).collect(),
     )
 }
+
 fn default_metadata() -> Value {
-    json!({"name":"", "version":"", "symbol":"", "interval":"", "defaultQtyMode":"fixed", "defaultQtyValue":"1", "pyramiding":1, "risk":{}})
+    metadata_payload(None)
 }
 fn section_content(section: &str) -> Value {
     let (title, summary, details) = match section {
