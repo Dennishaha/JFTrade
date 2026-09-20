@@ -759,6 +759,7 @@ fn text_field(object: &serde_json::Map<String, Value>, field: &str) -> Option<St
 }
 
 include!("product_adk_model_runtime_events.rs");
+include!("product_adk_model_runtime_tool_result.rs");
 include!("product_adk_model_runtime_tool_loop.rs");
 include!("product_adk_model_runtime_adapters.rs");
 include!("product_adk_model_runtime_readiness.rs");

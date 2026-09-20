@@ -11215,80 +11215,80 @@
   },
   "internal/assistant/engine/workflow_tools_test.go:28:TestGoogleADKToolsetRunsRegisteredToolsAndNormalizesResponses": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::tool_declarations_stay_complete_for_every_callable_tool；crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_failed_tool_result_is_persisted_on_the_call_not_the_run",
+    "conclusion": "partial：Rust 覆盖该 Go 用例的“响应归一 + 失效可见”半边。(1) 每个可调用工具都产出模型声明（tool_declarations_stay_complete_for_every_callable_tool 对应 Tools()/Declaration()）；(2) 工具抛错 → toolErrorEnvelope 落库、ToolCall.Error 记录原文、run 继续（a_failed_tool_result_is_persisted_on_the_call_not_the_run）；(3) 我在本批修复并覆盖：handler 返回 {\"success\":false} 或旧式 {\"error\":\"...\"} 时按 Go structuredToolErrorEnvelope 生成模型侧 envelope，并把调用记为 FAILED（此前 Rust 记为 SUCCEEDED，导致 run 不 degraded）；(4) 非对象返回值包装为 {\"result\": …}；合法调用经更严格 schema 后仍命中 executor 一次（product_mcp_server_tests::strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs）。探针：把 map_tool_output 的失败检测短路为恒 SUCCEEDED 后，本批三个新用例全部转红（FAILED 断言失败，实测 toolResults status 回到 SUCCEEDED）。Go 独有子断言保留 partial：ADK ProcessRequest 的 FunctionDeclarations 追加与重复 \"duplicate tool\" 拒绝（probe：rg \"ProcessRequest\" crates/ apps/ workers/ 无命中；Rust 每次请求由 catalog 生成声明，无重复追加 seam）、\"unexpected args type\"（Rust 参数为 serde_json::Value，非 object 输入在 MCP 边界以 -32602 拒绝）、adktool.ErrConfirmationRequired 的原样传播（Rust 用 requiresUser/PENDING_APPROVAL staging，见 adk_approval_approve_returns_the_running_resolution_envelope）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_tools_test.go:140:TestGoogleADKProductToolsetFunctionToolBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs；crates/jftrade-engine/src/product_mcp_server_tests.rs::modern_tool_call_rejects_arguments_outside_the_advertised_schema",
+    "conclusion": "partial：Rust 在工具调用边界做同一件事——先按已声明 schema 校验再进业务实现。新用例断言 market.search 的合法参数命中 executor 恰好一次，而 invalid type（pageSize 传字符串）、missing required（缺 query）、additional property（additionalProperties:false 之外的 extra）三种输入全部返回 -32602 且 executor 调用计数保持 1，等价于 Go 的 handlerCalls 恒为 1。探针：删除 product_mcp_server_dispatch.rs::call_tool 的 validate_tool_arguments 调用后该用例转红（被拒参数返回 200 并进入 executor）。保留 partial 的两个子断言：Go 的 execution.descriptorForTool（native/registered 判定）在 Rust 没有 descriptor registry seam；Go 允许未声明 InputSchema 的工具接收任意参数，Rust 对未评审工具回退 generic object schema 且 additionalProperties:false（刻意的 fail-closed），因此不勾选。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_tools_test.go:206:TestGoogleADKProductToolsetRejectsInvalidFunctionSchema": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 工具 schema 是 serde_json::Value，无法表示 make(chan int) 一类不可编码值",
+    "conclusion": "boundary：Go 的用例用 map[string]any{\"type\": make(chan int)} 触发 schema 编码失败并断言 \"convert GO-ADK product tool schema\"。Rust 的声明路径（product_production_ports_adk.rs::openai_tools）只处理 serde_json::Value，不可编码值无法构造，因此该错误分支没有可复现输入（probe：rg \"convert GO-ADK product tool schema\" crates/ apps/ 无命中）。可达的对应契约是“每个可调用工具都产出完整 object 声明，无评审 schema 时回退 generic object schema”，由 product_production_ports_adk_tests::tool_declarations_stay_complete_for_every_callable_tool 与 product_mcp_server_tests::reviewed_mcp_descriptors_expose_strict_per_tool_schemas 覆盖；该测试在删除 try_schema_for 的 fallback 分支后会因声明缺失或数量不符而失败。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflow_tools_test.go:222:TestGoogleADKProductToolsetEmptySelectionReturnsNil": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 没有按 Agent.Tools 名字选集后返回 nil toolset 的 seam",
+    "conclusion": "boundary：Go 在 Agent.Tools 全是未知名字时返回 (nil, nil) toolset。Rust 的模型可见工具由 ProductionToolCatalog 的绑定与 allowedModes 过滤（callable_tools/openai_tools）产生：不可用或未绑定的工具直接从声明列表消失，而不是返回 nil toolset，因此没有等价返回值可断言（probe：rg \"googleADKProductToolset\" crates/ apps/ workers/ 无命中）。可达的对应契约由 product_production_ports_adk_tests::tool_declarations_stay_complete_for_every_callable_tool（声明数 == callable 数、未就绪 provider 工具被省略）与 product_mcp_server_tests::mcp_tools_list_exposes_only_reviewed_read_tools（未评审名字不出现在 tools/list）覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflow_tools_test.go:230:TestGoogleADKToolResponseErrorHelpers": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::structured_tool_response_failures_match_the_reference_helpers",
+    "conclusion": "function_exact：本批新增用例逐条对应 Go 的 structuredToolError / isToolResponseError / toolResponseErrorMessage 断言，并以 Rust 实际落库的投影（status = 失败判定，output.error.message = 抽取文本，error_text = ToolCall.Error 记录的模型侧文本）验证。空 map 与 {\"success\":true,\"message\":\"ok\"} 不判失败；{\"success\":false} → message 默认 \"tool execution failed\"、errorCode TOOL_EXECUTION_FAILED、retryable false；{\"success\":false,\"message\":\"  blocked  \"} trim 为 blocked 且 error_text = \"工具 test.tool 返回错误: blocked\"；旧式 {\"error\":\"legacy failed\"} 判失败并取该文本；{\"message\":…,\"error\":\"legacy\"} 走 structuredToolError 的 legacy 分支（legacy 文本胜出，与 Go 一致）；空串、\"<nil>\"、null 的 error 都不判失败；裸标量包装为 {\"result\": \"ok\"} 且不判失败。探针：把 map_tool_output 的失败检测短路为恒 SUCCEEDED 后该用例转红。附：Rust 没有独立的 isToolResponseError 布尔函数，失败判定就是 map_tool_output 的 status，这属于同一决策的合并实现而非缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/workflow_tools_test.go:263:TestGoogleADKToolErrorEnvelopeClassifiesRetryability": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::tool_error_envelopes_classify_timeout_cancellation_and_structured_metadata",
+    "conclusion": "function_exact：本批新增用例覆盖四类断言。(1) 执行器错误（TOOL_EXECUTION_TIMEOUT / context deadline exceeded）→ envelope success=false、errorCode=TIMEOUT、retryable=true，且嵌套 error 同步镜像 code/message/retryable；(2) 结构化响应 {\"success\":false,\"error\":{\"code\":\"rate_limited\",\"retryable\":true}} → structuredToolErrorEnvelope 保留 RATE_LIMITED 与 retryable=true（大小写归一），嵌套 error 不含 code 时回退 TOOL_EXECUTION_FAILED（刻意不用 Go 的 \"<NIL>\" fmt.Sprint 产物）；(3) 取消（TOOL_EXECUTION_CANCELLED / context canceled）→ errorCode=CANCELLED、retryable=false。结构化响应的 retryable 也经持久化聚合验证（product_production_assembly_tests::production_adk_metrics_are_aggregated_from_persisted_records 断言 retryableErrors=1 与 byErrorCode）。探针：把 map_tool_output 的失败检测短路为恒 SUCCEEDED 后该用例与 structured_tool_response_failures_match_the_reference_helpers 同时转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/workflow_tools_test.go:285:TestGoogleADKSkillFilteringAndToolsetsRespectAgentPermissions": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::adk_builtin_strategy_skills_publish_the_curated_tool_split",
+    "conclusion": "partial：Rust 覆盖了 skill 的 allowed-tools 投影半边（builtin strategy skills 的 curated 工具集：research 不含 save/optimize、publish 不含 research backtest，且与已注册 catalog 求交），由 adk_builtin_strategy_skills_publish_the_curated_tool_split 断言。Go 用例的另一半——agentFilteredSkillSource 的 per-agent 过滤与拒绝——Rust 未实现：按 Agent.Tools 对 skill allowed-tools 求交、display name 归一、open skill 放行、nil frontmatter/nil registry/未知工具拒绝、被拒 skill 的 LoadInstructions/ListResources/LoadResource/LoadFrontmatter 一律 ErrSkillNotFound（probe：rg \"agentFilteredSkillSource|skillAllowedForAgent|ErrSkillNotFound\" crates/ apps/ workers/ 无命中；rg \"skill not found\" crates/ 无命中）。Rust 侧技能读取是 store 列表/get + 投影，不做 per-agent 授权过滤，因此保留 partial 而未勾选。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_tools_test.go:438:TestGoogleADKToolsetsBoundaryErrorsAndArtifactToolsets": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 没有 ADK artifact toolset / artifact service seam",
+    "conclusion": "boundary：Go 断言 googleADKArtifactToolset 的 Name()、nil service 时 Tools=(nil,nil)、list 错误原样传播、aggregate toolset 的不合法 schema 报 \"convert GO-ADK product tool schema\"、缺失 skill 报 \"skill not found\"。Rust 只持久化 artifact（ProductionPortBundle.artifact_store，AdkArtifactStore），没有面向模型的 artifact toolset、也没有 artifact service 的错误传播路径（probe：rg \"load_artifacts\" crates/ apps/ workers/ 无命中；rg \"skill not found\" crates/ 无命中）。不合法 schema 分支同 :206：serde_json::Value 无法表示不可编码值；缺失 skill 的读取在 Rust 由 store get/列表给出，不产生该错误字符串。保留边界，功能差异记入本批清单。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflow_tools_test.go:474:TestGoogleADKLLMAgentDirectToolsIncludeMemoryWhenEnabled": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 不含 ADK preload_memory / load_memory 直接工具",
+    "conclusion": "boundary（Rust 功能差异）：Go 在 memoryEnabled 时给 LLM agent 注入 preload_memory、load_memory 两个直接工具，ToolAccessModeNone 时清空。Rust 没有这两个工具（probe：rg \"preload_memory|load_memory\" crates/ apps/ workers/ 无命中）；Rust 的等价能力是运行时在 memoryEnabled 时把 durable memory 预先拼进 instruction（product_adk_model_runtime_lifecycle.rs::agent_memory_prompt，\"\\n\\nJFTrade memory:\\n\" 前缀），由 product_adk_model_runtime_gate_tests.rs::chat_injects_memory_into_the_instruction_only_when_enabled 与 agent_memory_prompt_scopes_workspace_rows_and_fails_closed 覆盖；“工具面是否出现的 none 语义”由 agent_tool_scope_follows_the_go_access_mode_normalization 覆盖 agent 级 ToolAccessMode。模型可主动调用的 memory 工具本身仍未实现，故保留边界并标注功能差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflow_tools_test.go:488:TestGoogleADKToolsetsIncludeADKArtifactTools": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 没有按 session artifact 有无动态暴露 load_artifacts 的 toolset",
+    "conclusion": "boundary（Rust 功能差异）：Go 断言 agent toolsets 在 session 无 artifact 时不暴露 load_artifacts，保存 artifact 后暴露，ToolAccessModeNone 时 toolsets 为空。Rust 有 artifact 持久化（AdkArtifactStore 注入 ProductionPortBundle），但没有把 load_artifacts 作为模型工具动态挂载的路径（probe：rg \"load_artifacts\" crates/ apps/ workers/ 无命中）。ToolAccessModeNone 的“无工具面”语义在 Rust 由 AgentToolScope::None 覆盖（product_adk_model_runtime_gate_tests.rs::agent_tool_scope_follows_the_go_access_mode_normalization）。保留边界并标注功能差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflow_tools_test.go:559:TestWorkflowStoreTriggerDeletionAndLogLookupBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries；crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::workflow_mutation_routes_keep_the_go_not_found_codes",
+    "conclusion": "partial：本批新增 store 用例覆盖该 Go 用例的删除与查询边界——软删除后 status=DISABLED 且 payload 带 deletedAt、scheduler 的 list_due_workflow_schedule_triggers / list_enabled_workflow_triggers_by_type 不再返回已删除 trigger、同一 revision 的二次删除返回 false（engine 侧由此产生 ADK_WORKFLOW_TRIGGER_DELETE_FAILED 404，见 workflow_mutation_routes_keep_the_go_not_found_codes）、get_workflow_trigger_log 命中返回行而未知 id 返回 None（对应 Go 的 (zero,false,nil)）、list_workflow_trigger_logs 保留已删除 trigger 的历史日志。探针：把 soft_delete_workflow_trigger_if_revision 的 SQL status 改回 'ENABLED' 后该用例转红（deleted.status 断言 ENABLED != DISABLED）。保留 partial 的两处：Go 的 ListActiveWorkflowTriggerLogs（按 ACTIVE 状态集合）与 ListWorkflowTriggerLogsPage（status 过滤 + 分页，例如 \" running \"）在 Rust 没有同形 store API（只有 list_workflow_trigger_logs 全量 + read port 的 page(...)）；id/type/status 归一（\" trigger-a \"→trigger-a、\" SCHEDULE \"→SCHEDULE）在 Rust 由 mutation port 的 required_identifier/normalize_trigger_type/normalize_trigger_status 承担，未在同一用例内断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/executor_integration_test.go:56:TestWorkflowExecutorRunsLoopChatEndToEnd": {
     "status": "[~]",

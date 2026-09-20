@@ -2066,3 +2066,50 @@ Go 的期望：`reply` = 整轮 assistant 文本合并（`先说明一下。优�
 - 跨批 follow-up 汇总：P1 = Go `SaveRun` 终态谓词逐字对齐、tool alias 归一化、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 内置 skill bundle 落盘/内容哈希与缺失工具注册、MCP registry 变更通知通道、chat 路径的 composer provider/model 覆盖（本批仅修了 session context 读取路径，chat 执行路径不读 composer 覆盖，需要 Go 侧用例确认后再立项）。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1729 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2763 Rust** / **922 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第四十二批：`workflow_tools_test.go` 结构化工具失败落库修复（11 条；2 条 `[x]`）
+
+范围：`internal/assistant/engine/workflow_tools_test.go` 11 条逐条结清——2 条落为 `[x]`（`:230`、`:263`），5 条 `partial`（`:28`、`:140`、`:285`、`:559` 等），4 条 `boundary`（`:206`、`:222`、`:438`、`:474`、`:488`）。`[x]` 922 → **924**，Rust 测试 2763 → **2768**（engine+store nextest 1734 passed）。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/engine/ -run '<11 条 workflow_tools 测试名>' -count=1 -v`：11 条全通过（0.968s，checkout `/tmp/go452dea11.niwD1G`）。
+
+### 本批修复（1 处生产差异）
+
+1. **结构化工具失败被记为 SUCCEEDED**：Go 的 `googleADKTool.executeAndMap` 把 handler 返回的 `{"success":false}`（新契约）或 `{"error":"..."}`（旧契约）重新投影为 `structuredToolErrorEnvelope`，`consumeFunctionResponse` 据此把 `ToolCall` 记为 `FAILED`/`TIMED_OUT`/`CANCELLED`，run 继续本轮并在终态以 `degraded` 暴露；`{"result": …}` 包装裸标量。Rust 过去只要 executor 返回 `Ok(value)` 就落 `SUCCEEDED`，结构化失败对控制台、`FirstToolCallFailure`/`degraded` 与 metrics 全部不可见，裸标量也不包装。
+
+   修复落在新片段 `crates/jftrade-engine/src/product_adk_model_runtime_tool_result.rs`（`map_tool_output` / `tool_error_envelope` / `structured_tool_failure_message` / `structured_tool_failure_metadata` / `classify_tool_error_text` / `prefixed_tool_error`），由 `product_adk_model_runtime.rs` 以模块级 `include!` 引入；`product_adk_model_runtime_tool_loop.rs` 的 `Ok(output)` 分支改为投影后按 `(status, error_text)` 落库，`persist_tool_result` 增加 `error_text` 覆写参数（`ToolCall.Error` 记 Go 的模型侧文本）。切片保持在 800 行以内的既有约定下：tool loop 761 → 764 行、`product_adk_model_runtime.rs` 770 行、新片段 162 行。
+
+   刻意差异（已在清单行内登记）：嵌套 `error` 缺 `code` 时 Rust 用 `TOOL_EXECUTION_FAILED` 默认值，不复制 Go `<nil>` 的 `fmt.Sprint` 产物。
+
+### 新增回归（5 条 Rust 测试）
+
+- `product_adk_model_runtime_tool_failure_tests.rs`：`structured_tool_response_failures_match_the_reference_helpers`（`:230`，`structuredToolError`/`isToolResponseError`/`toolResponseErrorMessage` 矩阵：空 map、success:true、success:false 缺 message、trim、旧式 error、`"<nil>"`/空串/null、裸标量包装）。
+- `product_adk_model_runtime_tool_failure_tests.rs`：`tool_error_envelopes_classify_timeout_cancellation_and_structured_metadata`（`:263`，TIMEOUT/retryable、嵌套镜像、结构化 RATE_LIMITED 保留、CANCELLED/非 retryable、缺 code 回退）。
+- `product_adk_model_runtime_tool_failure_tests.rs`：`a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues`（`:28`/`:488` 侧，端到端 `run_tool_loop`：FAILED 调用 + 后续 SUCCEEDED 兄弟调用 + `{"result":"AAPL"}` 包装 + `FirstToolCallFailure`）。
+- `product_mcp_server_tests.rs`：`strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs`（`:140`，合法调用命中 executor 一次；invalid type／missing required／additional property 全部 `-32602` 且 executor 计数保持 1）。
+- `crates/jftrade-store-sqlite/tests/adk_store_contracts.rs`：`workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries`（`:559`，软删除 DISABLED+deletedAt、revision fence 二次删除 false、due/enabled 列表剔除、trigger log Some/None 与日志留存）。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `map_tool_output` 的失败检测短路为恒 `SUCCEEDED` → 三条 tool-failure 新用例全部转红（实测 `toolResults[0].status` 回到 `SUCCEEDED`，`calls[0].status` 断言失败）。
+2. 删除 `product_mcp_server_dispatch.rs::call_tool` 的 `validate_tool_arguments` 调用 → `strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs` 转红（被拒参数返回 200 并进入 executor）。
+3. `soft_delete_workflow_trigger_if_revision` 的 SQL `status='DISABLED'` 改回 `'ENABLED'` → store 新用例转红（`deleted.status` ENABLED != DISABLED）。
+
+### 结论登记（partial / boundary 行内的边界）
+
+- **:28 partial**：Rust 无 ADK `ProcessRequest` 的声明追加／`duplicate tool` 拒绝（probe：`rg "ProcessRequest" crates/ apps/ workers/` 无命中，声明每次由 catalog 生成）；无 `unexpected args type`（参数是 `serde_json::Value`，非 object 在 MCP 边界以 `-32602` 拒绝）；`ErrConfirmationRequired` 原样传播改为 `requiresUser`/`PENDING_APPROVAL` staging。
+- **:140 partial**：Go 的 `execution.descriptorForTool` 无 descriptor registry seam；无 InputSchema 的工具 Go 放行任意参数，Rust 对未评审工具回退 generic object schema + `additionalProperties:false`（刻意 fail-closed）。
+- **:206 / :222 boundary**：`serde_json::Value` 无法表示 `make(chan int)`，`"convert GO-ADK product tool schema"` 无命中；也没有“按名字选集返回 nil toolset”的 seam，Rust 由 catalog 绑定 + `allowedModes` 决定声明集合。
+- **:285 partial**：Rust 只有 skill allowed-tools 投影（`adk_builtin_strategy_skills_publish_the_curated_tool_split`）；`agentFilteredSkillSource` / `skillAllowedForAgent` / `ErrSkillNotFound` 与 `"skill not found"` 均无命中，per-agent 技能授权过滤未实现。
+- **:438 / :488 boundary（功能差异）**：Rust 有 artifact 持久化（`AdkArtifactStore`）但没有 artifact toolset，`load_artifacts` 无命中；`ToolAccessModeNone` 的无工具面语义由 `AgentToolScope::None` 覆盖。
+- **:474 boundary（功能差异）**：`preload_memory`/`load_memory` 无命中；Rust 在 `memoryEnabled` 时把 durable memory 预注入 instruction（`agent_memory_prompt` + `JFTrade memory:` 块，见 `chat_injects_memory_into_the_instruction_only_when_enabled`），模型可调用的 memory 工具未实现。
+- **:559 partial**：Rust 无 `ListActiveWorkflowTriggerLogs` 与 `ListWorkflowTriggerLogsPage`（status 过滤 + 分页）同形 store API，只有全量 `list_workflow_trigger_logs` + read port `page(...)`；id/type/status 归一由 mutation port 的 `required_identifier`/`normalize_trigger_type`/`normalize_trigger_status` 承担，未在同一用例断言。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly/workflow_tools_test.go`（7 条：`:15` catalog/approval matrix、`:68` bounded wait envelope、`:86` deadline/cancel、`:132` patch 语义、`:183` list/create/delete、`:240` interactive session、`:285` unavailable manager fail-closed）。
+- 跨批 follow-up 汇总：P1 = Go `SaveRun` 终态谓词逐字对齐、tool alias 归一化、审批续跑失败 `resumeState=approval_continuation_failed`、工作流触发日志的 active/page 过滤（本批 `:559` 引出）；P2 = 内置 skill bundle 落盘/内容哈希与 per-agent 技能授权过滤（本批 `:285` 引出）、模型侧 memory/artifact 直接工具（本批 `:474`/`:488` 引出）、MCP registry 变更通知通道。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1734 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2768 Rust** / **924 `[x]`**，0 破坏引用、0 重复 `rust_entry`）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

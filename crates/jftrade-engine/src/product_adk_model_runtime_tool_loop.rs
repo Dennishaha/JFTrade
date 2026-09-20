@@ -218,12 +218,19 @@ impl ProductionAdkChatRuntime {
                 };
                 match outcome {
                     Ok(output) => {
+                        // Go's `googleADKTool.executeAndMap` owns this
+                        // projection: a handler result that is not an object
+                        // becomes `{"result": …}`, and a structured failure
+                        // response becomes `structuredToolErrorEnvelope` and a
+                        // failed call instead of a successful one.
+                        let mapped = map_tool_output(&name, output);
                         if let Err(error) = self.persist_tool_result(
                             &chat,
                             &call,
                             &idempotency_key,
-                            output,
-                            "SUCCEEDED",
+                            mapped.output,
+                            &mapped.status,
+                            mapped.error_text.as_deref(),
                             &claim_owner,
                             claim_fencing_token,
                             run_lease.token(),
@@ -247,25 +254,14 @@ impl ProductionAdkChatRuntime {
                         // `classifyToolError`, while the model-facing
                         // `message` carries the verb prefix.  `ToolCall.Error`
                         // is the raw text on both tool-failure paths.
-                        let failure_text = tool_error_text(&error);
-                        let (failure_code, retryable) = classify_tool_failure(&error);
-                        let result = json!({
-                            "success": false,
-                            "message": format!("工具 {name} 执行失败: {failure_text}"),
-                            "error": {
-                                "code": failure_code,
-                                "message": failure_text,
-                                "retryable": retryable,
-                            },
-                            "errorCode": failure_code,
-                            "retryable": retryable,
-                        });
+                        let result = tool_error_envelope(&name, &error);
                         if let Err(commit_error) = self.persist_tool_result(
                             &chat,
                             &call,
                             &idempotency_key,
                             result,
                             "FAILED",
+                            None,
                             &claim_owner,
                             claim_fencing_token,
                             run_lease.token(),
@@ -428,6 +424,7 @@ impl ProductionAdkChatRuntime {
         idempotency_key: &str,
         output: Value,
         status: &str,
+        error_text: Option<&str>,
         owner_id: &str,
         fencing_token: i64,
         run_lease_token: i64,
@@ -507,9 +504,15 @@ impl ProductionAdkChatRuntime {
                         // Go surfaces the tool failure on the run itself:
                         // `ToolCall.Error` carries the message and
                         // `FailureReason`/`ErrorCode` stay empty at run level.
+                        // A structured failure response records the envelope's
+                        // model-facing text, while an executor error records
+                        // the envelope's nested raw text.
+                        let error_text = error_text
+                            .map(str::to_owned)
+                            .unwrap_or_else(|| tool_result_error_message(&output));
                         item.insert(
                             "error".to_owned(),
-                            Value::String(tool_result_error_message(&output)),
+                            Value::String(error_text),
                         );
                         item.insert(
                             "errorCode".to_owned(),

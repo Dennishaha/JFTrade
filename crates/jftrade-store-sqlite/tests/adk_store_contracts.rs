@@ -1325,3 +1325,145 @@ fn adk_transaction_boundaries_commit_roll_back_and_report_missing_tables() {
             .is_err()
     );
 }
+
+/// Parity: go:452dea11:internal/assistant/engine/workflow_tools_test.go:559
+/// `TestWorkflowStoreTriggerDeletionAndLogLookupBoundaries`.
+///
+/// Go's workflow store owns trigger soft-deletion and trigger-log lookup:
+/// `DeleteWorkflowTrigger` disables the row and stamps `deletedAt` behind the
+/// revision fence, the scheduler listings stop offering the disabled trigger,
+/// and `WorkflowTriggerLog` reports a miss for an unknown id instead of an
+/// error.  The Rust store keeps those boundaries, and the mutation port turns
+/// a fenced soft-delete miss into the route's
+/// `ADK_WORKFLOW_TRIGGER_DELETE_FAILED` 404 (covered by
+/// `adk_workflow_canvas_contracts.rs::workflow_mutation_routes_keep_the_go_not_found_codes`).
+#[test]
+fn workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries() {
+    let directory = tempdir().expect("temp dir");
+    let db_path = directory.path().join("adk.db");
+    let connection = Connection::open(&db_path).expect("open sqlite");
+    initialize_current(&connection, "adk").expect("initialize ADK schema");
+    drop(connection);
+    let store = AdkStore::open(&db_path).expect("open store");
+
+    store
+        .upsert_workflow(
+            "wf-a",
+            "ENABLED",
+            r#"{"id":"wf-a","status":"ENABLED","name":"Morning rebalance"}"#,
+        )
+        .expect("upsert workflow");
+    let trigger = store
+        .upsert_workflow_trigger(
+            "trigger-a",
+            "wf-a",
+            "schedule",
+            "ENABLED",
+            "2026-07-02T09:30:00+08:00",
+            r#"{"id":"trigger-a","workflowId":"wf-a","type":"schedule","title":"Opening bell","status":"ENABLED","config":{"symbol":" AAPL "}}"#,
+        )
+        .expect("upsert trigger");
+    assert_eq!(trigger.status, "ENABLED");
+    assert_eq!(trigger.next_run_at, "2026-07-02T09:30:00+08:00");
+
+    let queued = store
+        .create_workflow_trigger_log(
+            "log-a",
+            "wf-a",
+            "trigger-a",
+            "schedule",
+            "QUEUED",
+            "run-a",
+            r#"{"id":"log-a","status":"QUEUED","runId":"run-a"}"#,
+        )
+        .expect("create trigger log");
+    assert_eq!(queued.status, "QUEUED");
+    let found = store
+        .get_workflow_trigger_log("log-a")
+        .expect("lookup trigger log")
+        .expect("log row");
+    assert_eq!(found.id, "log-a");
+    assert_eq!(found.run_id, "run-a");
+    assert!(
+        store
+            .get_workflow_trigger_log("missing-log")
+            .expect("lookup unknown log")
+            .is_none(),
+        "an unknown trigger log id is a miss, not an error"
+    );
+
+    // The scheduler offers the enabled trigger before the deletion.
+    let due = store
+        .list_due_workflow_schedule_triggers("2026-07-02T09:30:00+08:00", 10)
+        .expect("list due triggers");
+    assert_eq!(
+        due.iter().map(|row| row.id.as_str()).collect::<Vec<_>>(),
+        vec!["trigger-a"]
+    );
+    assert!(
+        store
+            .list_enabled_workflow_triggers_by_type("schedule")
+            .expect("list enabled triggers")
+            .iter()
+            .any(|row| row.id == "trigger-a")
+    );
+
+    // DeleteWorkflowTrigger disables the row and stamps `deletedAt`; the same
+    // revision can never delete twice.
+    let deleted_payload = r#"{"id":"trigger-a","workflowId":"wf-a","type":"schedule","title":"Opening bell","status":"DISABLED","deletedAt":"2026-07-02T10:00:00Z","config":{"symbol":" AAPL "}}"#;
+    assert!(
+        store
+            .soft_delete_workflow_trigger_if_revision(
+                "trigger-a",
+                &trigger.updated_at,
+                "wf-a",
+                deleted_payload,
+            )
+            .expect("soft delete trigger")
+    );
+    let deleted = store
+        .get_workflow_trigger("trigger-a")
+        .expect("read deleted trigger")
+        .expect("trigger row");
+    assert_eq!(deleted.status, "DISABLED");
+    assert!(
+        deleted
+            .payload_json
+            .contains(r#""deletedAt":"2026-07-02T10:00:00Z""#),
+        "the soft delete stamps deletedAt: {}",
+        deleted.payload_json
+    );
+    assert!(
+        !store
+            .soft_delete_workflow_trigger_if_revision(
+                "trigger-a",
+                &trigger.updated_at,
+                "wf-a",
+                deleted_payload,
+            )
+            .expect("repeat soft delete"),
+        "a stale revision must not delete the already-deleted trigger again"
+    );
+    assert!(
+        store
+            .list_due_workflow_schedule_triggers("2026-07-02T09:30:00+08:00", 10)
+            .expect("list due triggers after delete")
+            .is_empty(),
+        "a deleted trigger is never offered as due"
+    );
+    assert!(
+        store
+            .list_enabled_workflow_triggers_by_type("schedule")
+            .expect("list enabled triggers after delete")
+            .is_empty(),
+        "a deleted trigger is never offered to the evaluator"
+    );
+
+    // The trigger logs stay durable and readable after the definition is gone.
+    let logs = store
+        .list_workflow_trigger_logs()
+        .expect("list trigger logs");
+    assert_eq!(logs.len(), 1);
+    assert_eq!(logs[0].id, "log-a");
+    assert_eq!(logs[0].workflow_id, "wf-a");
+}

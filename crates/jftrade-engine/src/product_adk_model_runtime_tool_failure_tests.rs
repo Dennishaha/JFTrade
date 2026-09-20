@@ -8,7 +8,8 @@
 //! error, which made the reply and the remaining tool rounds unreachable.
 
 use std::fs::File;
-use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use rusqlite::Connection;
@@ -18,8 +19,9 @@ use tempfile::tempdir;
 use jftrade_store_sqlite::{AdkSessionStore, AdkStore, CreateAdkRunParams, initialize_current};
 
 use super::{
-    ProductionAdkChatRuntime, RunCancellationRegistry, classify_tool_failure,
-    first_tool_call_failure, tool_error_text, tool_failed, tool_result_error_code,
+    AdkToolExecutor, ChatExecution, ModelRequest, ProductionAdkChatRuntime,
+    RunCancellationRegistry, RunLeaseGuard, classify_tool_failure, first_tool_call_failure,
+    map_tool_output, tool_error_envelope, tool_error_text, tool_failed, tool_result_error_code,
     tool_result_error_message,
 };
 
@@ -867,4 +869,329 @@ fn a_resumed_approval_run_completes_with_the_confirmation_resolved_state() {
 
     drop(run_lease);
     let _ = runtime;
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/workflow_tools_test.go:230
+/// `TestGoogleADKToolResponseErrorHelpers`.
+///
+/// Go decides in three steps whether a handler result is a failure and what
+/// text it carries: `structuredToolError` (new `{"success":false}` contract or
+/// the legacy `{"error":"..."}` key), `isToolResponseError`, and
+/// `toolResponseErrorMessage`.  Rust folds the same decision into
+/// `map_tool_output`, so each helper assertion is checked against the value
+/// the loop actually persists: `status` is the failure decision,
+/// `output.error.message` is the extracted message, and `error_text` is the
+/// model-facing text `ToolCall.Error` records.
+#[test]
+fn structured_tool_response_failures_match_the_reference_helpers() {
+    let mapping = |output: Value| map_tool_output("test.tool", output);
+
+    // `structuredToolError(map[string]any{})` -> "", false.
+    let empty = mapping(json!({}));
+    assert_eq!(empty.status, "SUCCEEDED");
+    assert_eq!(empty.output, json!({}));
+    assert_eq!(empty.error_text, None);
+
+    // `structuredToolError({"success": true, "message": "ok"})` -> "", false.
+    let success = mapping(json!({"success": true, "message": "ok"}));
+    assert_eq!(success.status, "SUCCEEDED");
+    assert_eq!(success.output["message"], "ok");
+
+    // `{"success": false}` -> "tool execution failed", true.
+    let missing_message = mapping(json!({"success": false}));
+    assert_eq!(missing_message.status, "FAILED");
+    assert_eq!(
+        missing_message.output["error"]["message"],
+        "tool execution failed"
+    );
+    assert_eq!(missing_message.output["errorCode"], "TOOL_EXECUTION_FAILED");
+    assert_eq!(missing_message.output["retryable"], false);
+    assert_eq!(
+        missing_message.error_text.as_deref(),
+        Some("工具 test.tool 返回错误: tool execution failed")
+    );
+
+    // `{"success": false, "message": "  blocked  "}` trims the message, and
+    // `toolResponseErrorMessage` reads that text back from the envelope.
+    let blocked = mapping(json!({
+        "success": false,
+        "message": "  blocked  ",
+        "error": "legacy",
+    }));
+    assert_eq!(blocked.output["error"]["message"], "blocked");
+    assert_eq!(
+        blocked.error_text.as_deref(),
+        Some("工具 test.tool 返回错误: blocked")
+    );
+
+    // Without a `success` flag the legacy key wins, matching
+    // `structuredToolError`'s precedence for `{"message": …, "error": …}`.
+    let legacy_with_message = mapping(json!({"message": "  blocked  ", "error": "legacy"}));
+    assert_eq!(legacy_with_message.status, "FAILED");
+    assert_eq!(legacy_with_message.output["error"]["message"], "legacy");
+
+    // `{"error": "legacy"}` is a failure with the trimmed legacy text.
+    let legacy = mapping(json!({"error": "legacy failed"}));
+    assert_eq!(legacy.status, "FAILED");
+    assert_eq!(legacy.output["error"]["message"], "legacy failed");
+
+    // `isToolResponseError({"success": true})` and `nil` are never failures,
+    // and a blank or `<nil>` legacy value is not one either.
+    for benign in [
+        json!({"error": "   "}),
+        json!({"error": "<nil>"}),
+        json!({"error": null}),
+    ] {
+        let mapped = mapping(benign.clone());
+        assert_eq!(mapped.status, "SUCCEEDED", "benign response {benign}");
+        assert_eq!(mapped.output, benign);
+    }
+
+    // A bare handler result is wrapped as `{"result": …}` and never treated as
+    // a failure, exactly like `executeAndMap`'s scalar branch.
+    let scalar = mapping(json!("ok"));
+    assert_eq!(scalar.status, "SUCCEEDED");
+    assert_eq!(scalar.output, json!({"result": "ok"}));
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/workflow_tools_test.go:263
+/// `TestGoogleADKToolErrorEnvelopeClassifiesRetryability`.
+///
+/// The envelope keeps `success:false`, a top-level `errorCode`/`retryable`,
+/// and the same code/retryability mirrored into the nested `error` object —
+/// for executor errors (deadline, cancellation) and for structured responses
+/// whose nested `error` carries `code`/`retryable`.
+#[test]
+fn tool_error_envelopes_classify_timeout_cancellation_and_structured_metadata() {
+    let timeout = super::AdkChatPortError::Failed {
+        status: 504,
+        code: "TOOL_EXECUTION_TIMEOUT".to_owned(),
+        message: "context deadline exceeded".to_owned(),
+    };
+    let envelope = tool_error_envelope("market.snapshot", &timeout);
+    assert_eq!(envelope["success"], false);
+    assert_eq!(envelope["errorCode"], "TIMEOUT");
+    assert_eq!(envelope["retryable"], true);
+    assert_eq!(envelope["error"]["code"], "TIMEOUT");
+    assert_eq!(envelope["error"]["retryable"], true);
+    assert_eq!(envelope["error"]["message"], "context deadline exceeded");
+    assert_eq!(
+        envelope["message"],
+        "工具 market.snapshot 执行失败: context deadline exceeded"
+    );
+
+    let structured = map_tool_output(
+        "broker.orders",
+        json!({
+            "success": false,
+            "error": {"code": "rate_limited", "retryable": true},
+        }),
+    );
+    assert_eq!(structured.status, "FAILED");
+    assert_eq!(structured.output["errorCode"], "RATE_LIMITED");
+    assert_eq!(structured.output["retryable"], true);
+    assert_eq!(structured.output["error"]["code"], "RATE_LIMITED");
+    assert_eq!(structured.output["error"]["retryable"], true);
+    // A nested error without a code falls back to the documented default
+    // instead of Go's `<nil>` `fmt.Sprint` artifact.
+    let uncoded = map_tool_output("broker.orders", json!({"success": false, "error": {}}));
+    assert_eq!(uncoded.output["errorCode"], "TOOL_EXECUTION_FAILED");
+    assert_eq!(uncoded.output["retryable"], false);
+
+    let cancelled = super::AdkChatPortError::Failed {
+        status: 499,
+        code: "TOOL_EXECUTION_CANCELLED".to_owned(),
+        message: "context canceled".to_owned(),
+    };
+    let cancelled_envelope = tool_error_envelope("market.snapshot", &cancelled);
+    assert_eq!(cancelled_envelope["errorCode"], "CANCELLED");
+    assert_eq!(cancelled_envelope["retryable"], false);
+    assert_eq!(cancelled_envelope["error"]["code"], "CANCELLED");
+    assert_eq!(cancelled_envelope["error"]["retryable"], false);
+}
+
+/// Fixture executor for the structured-failure projection: `broker.orders`
+/// answers through the new `{"success":false}` contract, `account.orders`
+/// answers with a plain object, and `market.snapshot` with a bare scalar.
+#[derive(Debug)]
+struct StructuredFailureExecutor {
+    executed: Mutex<Vec<String>>,
+}
+
+impl StructuredFailureExecutor {
+    fn new() -> Self {
+        Self {
+            executed: Mutex::new(Vec::new()),
+        }
+    }
+
+    fn executed(&self) -> Vec<String> {
+        self.executed.lock().expect("executor lock").clone()
+    }
+}
+
+impl AdkToolExecutor for StructuredFailureExecutor {
+    fn supports(&self, name: &str) -> bool {
+        matches!(name, "broker.orders" | "account.orders" | "market.snapshot")
+    }
+
+    fn execute(&self, name: &str, _arguments: &Value) -> Result<Value, String> {
+        self.executed
+            .lock()
+            .expect("executor lock")
+            .push(name.to_owned());
+        match name {
+            "broker.orders" => Ok(json!({
+                "success": false,
+                "message": "rate limited",
+                "error": {"code": "rate_limited", "retryable": true},
+            })),
+            "account.orders" => Ok(json!({"orders": [], "count": 0})),
+            "market.snapshot" => Ok(json!("AAPL")),
+            _ => Err(format!("unexpected tool {name}")),
+        }
+    }
+}
+
+fn seed_tool_loop_run(store: &AdkStore, run_id: &str, tool_names: &[&str]) -> ChatExecution {
+    let payload = json!({
+        "id": run_id,
+        "sessionId": format!("session-{run_id}"),
+        "agentId": "agent-structured-failure",
+        "status": "RUNNING",
+        "route": "chat",
+        "resumeState": "provider_executing",
+        "toolCalls": tool_names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| json!({
+                "id": format!("call-{}", index + 1),
+                "name": name,
+                "arguments": {},
+                "status": "RUNNING",
+                "requiresUser": false,
+            }))
+            .collect::<Vec<_>>(),
+        "toolResults": [],
+        "pendingApprovals": [],
+    })
+    .to_string();
+    store
+        .create_run(CreateAdkRunParams {
+            id: run_id,
+            session_id: Box::leak(format!("session-{run_id}").into_boxed_str()),
+            agent_id: "agent-structured-failure",
+            status: "RUNNING",
+            client_request_id: "request-structured-failure",
+            request_fingerprint: &format!("fingerprint-{run_id}"),
+            payload_json: &payload,
+        })
+        .expect("create run");
+    ChatExecution::for_test(
+        run_id.to_owned(),
+        format!("session-{run_id}"),
+        "agent-structured-failure".to_owned(),
+        "less_approval".to_owned(),
+        ModelRequest {
+            // Closed loopback port: the provider boundary is reached only
+            // after every released tool call has been claimed and committed.
+            endpoint: "http://127.0.0.1:1/v1/responses"
+                .parse()
+                .expect("loopback endpoint"),
+            api_key: "sk-fixture".to_owned(),
+            model: "fixture-model".to_owned(),
+            instruction: None,
+            message: "查看订单和行情快照".to_owned(),
+            durable_context: Vec::new(),
+            tool_context: Vec::new(),
+            timeout: Duration::from_secs(2),
+            tools: Vec::new(),
+        },
+    )
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/workflow_tools_test.go:28
+/// `TestGoogleADKToolsetRunsRegisteredToolsAndNormalizesResponses` (the
+/// response half) with `runner_tools.go` `executeAndMap`.
+///
+/// Go persists `{"result": value}` for a bare handler result and records a
+/// response that answers `{"success":false}` as a `FAILED` tool call whose
+/// output is the `structuredToolErrorEnvelope`; the run itself keeps its turn
+/// and only reports `degraded` at completion.  Rust used to persist such a
+/// response as `SUCCEEDED` and leave the bare scalar unwrapped, so a degraded
+/// tool was invisible to the console and to the run projection.
+#[test]
+fn a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues() {
+    let (directory, store, session_store) = initialized_stores();
+    let executor = Arc::new(StructuredFailureExecutor::new());
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, "{}").expect("write settings");
+    let runtime = ProductionAdkChatRuntime::with_tool_executor_for_test(
+        Arc::clone(&store),
+        Arc::clone(&session_store),
+        &settings_path,
+        Arc::new(RunCancellationRegistry::default()),
+        Arc::new(crate::product::product_production_ports::ProductionToolCatalog::empty_for_test()),
+        executor.clone(),
+    );
+    let chat = seed_tool_loop_run(
+        &store,
+        "run-structured-failure",
+        &["broker.orders", "account.orders", "market.snapshot"],
+    );
+    let lease = RunLeaseGuard::acquire(
+        Arc::clone(&store),
+        "run-structured-failure",
+        "owner-structured-failure",
+    )
+    .expect("acquire run lease");
+
+    runtime.run_tool_loop(chat, Arc::new(AtomicBool::new(false)), &lease);
+
+    assert_eq!(
+        executor.executed(),
+        vec!["broker.orders", "account.orders", "market.snapshot"],
+        "the loop still executes every released call after a structured failure"
+    );
+    let run = store
+        .get_run("run-structured-failure")
+        .expect("read run")
+        .expect("run row");
+    let payload: Value = serde_json::from_str(&run.payload_json).expect("run payload");
+    let calls = payload["toolCalls"].as_array().expect("tool calls");
+    assert_eq!(
+        calls[0]["status"], "FAILED",
+        "a `success:false` response is a failed call, not a successful one: {payload}"
+    );
+    assert_eq!(calls[0]["errorCode"], "RATE_LIMITED");
+    assert_eq!(
+        calls[0]["error"], "工具 broker.orders 返回错误: rate limited",
+        "the call records the envelope's model-facing text: {payload}"
+    );
+    assert_eq!(calls[1]["status"], "SUCCEEDED");
+    assert_eq!(calls[2]["status"], "SUCCEEDED");
+
+    let results = payload["toolResults"].as_array().expect("tool results");
+    assert_eq!(results[0]["status"], "FAILED");
+    let failure = &results[0]["output"];
+    assert_eq!(failure["success"], false);
+    assert_eq!(
+        failure["message"],
+        "工具 broker.orders 返回错误: rate limited"
+    );
+    assert_eq!(failure["errorCode"], "RATE_LIMITED");
+    assert_eq!(failure["retryable"], true);
+    assert_eq!(failure["error"]["code"], "RATE_LIMITED");
+    assert_eq!(failure["error"]["message"], "rate limited");
+    assert_eq!(failure["error"]["retryable"], true);
+    assert_eq!(
+        results[2]["output"],
+        json!({"result": "AAPL"}),
+        "a bare handler result is wrapped like Go's `map[string]any{{\"result\": output}}`"
+    );
+    assert_eq!(
+        first_tool_call_failure(&run.payload_json).as_deref(),
+        Some("工具 broker.orders 返回错误: rate limited"),
+        "the failed call is what marks the completed run degraded"
+    );
 }

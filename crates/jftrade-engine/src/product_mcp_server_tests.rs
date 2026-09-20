@@ -1814,6 +1814,88 @@ fn tool_failures_are_returned_as_mcp_tool_errors() {
     runtime.shutdown_blocking().expect("shutdown MCP");
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/workflow_tools_test.go:140
+/// `TestGoogleADKProductToolsetFunctionToolBoundaries` (the strict-schema
+/// half).
+///
+/// Go validates a tool's JSON schema before the business handler runs: an
+/// `integer` given a string, a missing `required` property, and an extra
+/// property under `additionalProperties:false` are all rejected while the
+/// handler call count stays at one.  Rust validates the advertised schema in
+/// `call_tool` before dispatch, so the equivalent invariant is that a valid
+/// call reaches the executor exactly once and no rejected call reaches it.
+#[test]
+fn strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs() {
+    #[derive(Debug, Default)]
+    struct RecordingExecutor {
+        calls: std::sync::atomic::AtomicU32,
+    }
+
+    impl McpToolExecutor for RecordingExecutor {
+        fn execute(&self, name: &str, _arguments: &Value) -> Result<Value, String> {
+            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(json!({"ok": true, "tool": name}))
+        }
+    }
+
+    let executor = Arc::new(RecordingExecutor::default());
+    let runtime = ProductMcpServerRuntime::with_executor(catalog(), executor.clone());
+    let port = available_port();
+    runtime
+        .apply(&enabled_record(port, "none", ""))
+        .expect("start MCP");
+
+    let (status, call) = request_modern_with_status(
+        port,
+        "tools/call",
+        41,
+        Some("market.search"),
+        json!({"name": "market.search", "arguments": {"query": "AAPL"}}),
+    );
+    assert_eq!(status, 200, "valid arguments must dispatch: {call}");
+    assert!(call.get("error").is_none(), "valid call error: {call}");
+    assert_eq!(
+        executor.calls.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "the valid call reaches the business handler exactly once"
+    );
+
+    for (id, arguments) in [
+        // `integer` schema fed a string.
+        (42_u64, json!({"query": "AAPL", "pageSize": "10"})),
+        // Missing `required` property.
+        (43, json!({})),
+        // Extra property under `additionalProperties:false`.
+        (44, json!({"query": "AAPL", "extra": true})),
+    ] {
+        let (status, response) = request_modern_with_status(
+            port,
+            "tools/call",
+            id,
+            Some("market.search"),
+            json!({"name": "market.search", "arguments": arguments}),
+        );
+        assert_eq!(status, 400, "rejected arguments {arguments}: {response}");
+        assert_eq!(response["error"]["code"], -32602, "response: {response}");
+        assert!(
+            response["error"]["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("invalid arguments for market.search")),
+            "response: {response}"
+        );
+        assert!(
+            response.get("result").is_none(),
+            "a schema rejection never returns tool content: {response}"
+        );
+    }
+    assert_eq!(
+        executor.calls.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "no rejected call may enter the business handler"
+    );
+    runtime.shutdown_blocking().expect("shutdown MCP");
+}
+
 /// Parity: go:452dea11:internal/assistant/engine/mcp_server_test.go:293
 /// `TestLocalMCPHandlerReadsSanitizedRuntimeStatusResource`: the runtime-status
 /// resource is the only listed resource, answers `application/json`, and never
