@@ -13,6 +13,7 @@ use crate::product::product_backtests_write_port::{
     BacktestsWriteInput, BacktestsWritePortError, BacktestsWritePortResult,
 };
 use crate::product::product_production_ports::ProductionPortBundle;
+use crate::product::product_research_backtest_execution::validate_trading_costs;
 
 /// The reference caps one optimization call at twelve candidates.
 pub(crate) const MAX_OPTIMIZATION_CANDIDATES: usize = 12;
@@ -33,6 +34,7 @@ pub(crate) fn execute_strategy_optimize(
             "at most {MAX_OPTIMIZATION_CANDIDATES} optimization candidates are allowed"
         ));
     }
+    validate_trading_costs(arguments)?;
     let objective = arguments
         .get("objective")
         .and_then(Value::as_str)

@@ -44,6 +44,17 @@ pub(crate) fn validate_research_script(
     Ok(validation)
 }
 
+/// Go's `backtestStartInputFromMap` decodes `tradingCosts` into a typed cost
+/// object and fails the whole call when the field is present but not an
+/// object.  `null` is indistinguishable from an omitted field for
+/// `json.Unmarshal` into a struct value, so it stays accepted.
+pub(crate) fn validate_trading_costs(arguments: &Value) -> Result<(), String> {
+    match arguments.get("tradingCosts") {
+        None | Some(Value::Null) | Some(Value::Object(_)) => Ok(()),
+        Some(_) => Err("tradingCosts must be a valid object".to_owned()),
+    }
+}
+
 pub(crate) fn prepare_start_payload(arguments: &Value, script: &str) -> Value {
     let mut start_payload = arguments.clone();
     if let Some(obj) = start_payload.as_object_mut() {
@@ -271,6 +282,7 @@ pub(crate) fn execute_research_backtest(
         .ok_or_else(|| "script is required".to_owned())?;
 
     let validation = validate_research_script(script)?;
+    validate_trading_costs(arguments)?;
     let start_payload = prepare_start_payload(arguments, script);
 
     let (run_id, initial_status) = match ensure_research_data_readiness(
@@ -340,5 +352,40 @@ mod tests {
             validate_research_script(""),
             Err("script is required".to_owned())
         );
+    }
+
+    /// Free text without any Pine structure is rejected before the tool reads
+    /// any port, so `strategy.research_backtest` cannot start a run from a
+    /// non-strategy prompt.
+    ///
+    /// Parity: go:452dea11:internal/assistant/assembly/adk_capability_contracts_test.go:94
+    #[test]
+    fn research_script_validation_rejects_free_text() {
+        let error = validate_research_script("not pine").expect_err("free text is not Pine");
+        assert!(
+            error.starts_with("strategy script validation failed"),
+            "unexpected error: {error}"
+        );
+    }
+
+    /// Go's `backtestStartInputFromMap` decodes `tradingCosts` only when the
+    /// field is present and `json.Unmarshal` folds `null` into an omitted
+    /// field.
+    ///
+    /// Parity: go:452dea11:internal/assistant/assembly/adk_capability_contracts_test.go:94
+    #[test]
+    fn research_trading_costs_stay_optional_but_must_be_an_object() {
+        validate_trading_costs(&json!({})).expect("an omitted field stays accepted");
+        for accepted in [json!({"commissionRate": 0.0003}), json!({}), Value::Null] {
+            validate_trading_costs(&json!({"tradingCosts": accepted}))
+                .unwrap_or_else(|error| panic!("accepted costs {accepted}: {error}"));
+        }
+        for rejected in [json!("cheap"), json!([0.0003]), json!(7), json!(true)] {
+            assert_eq!(
+                validate_trading_costs(&json!({"tradingCosts": rejected})),
+                Err("tradingCosts must be a valid object".to_owned()),
+                "rejected costs {rejected}"
+            );
+        }
     }
 }

@@ -2660,3 +2660,46 @@ Go 用可注入 `failingMCPListener` 断言 serve 失败状态；Rust 的 `axum:
 - 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与策略实例写工具（第 52 批 `:122`）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 活动读分页钳制差异（第 52 批 `:84`）、第 51 批 `:128` 的三个无 owner 断言、第 53 批 float 截断与 `query` 文本推断、第 54 批 `limit>50` 钳制与 capability 措辞、第 55 批的禁用 503 路径差异、`market.depth` 自由文本 instrument 推断、`watchlist.list includeQuotes` 行情富化、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`（1853 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2833 Rust** / **953 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第五十六批：assembly `adk_capability_contracts_test.go` 全量结清（2 条 partial；新增 4 条回归 + 1 处生产校验修复）
+
+范围：`internal/assistant/assembly/adk_capability_contracts_test.go` 2 条逐条结清。本批新增 **0 条 `[x]`**（两条 Go 测试的不可迁移半边是模型目录缺失的写工具，见下），`partial` 2 条；Rust 测试 2833 → **2837**，`[x]` 953 保持不变。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestADKNewCapabilityToolsForwardInputsAndApprovalBoundaries|TestADKNewCapabilityHandlersRejectUnavailableAndMalformedInputs' -count=1`（checkout `/tmp/go452dea11.niwD1G`，`ok`）。
+
+### 本批结论（1 处生产修复 + 4 条新回归）
+
+Go 这两条把新能力工具钉在「注册 → 入参转发 → 审批边界 → 缺端口/畸形输入一律报错」上：
+
+- `strategy.research_backtest` 与 `strategy.optimize` 都经 `backtestStartInputFromMap` 解析 `tradingCosts`，字段存在但非对象时报 `tradingCosts must be a valid object`（Go `internal/assistant/assembly/tool_catalog.go:456`）。Rust 此前把 `tradingCosts` 原样克隆转发，既不看形状也不报错，属真实缺口，本批补齐：
+  - `product_research_backtest_execution.rs::validate_trading_costs`（新）：缺失/`null`/对象接受（等价 Go `json.Unmarshal` 对 `null` 的折叠语义），其余类型返回 `tradingCosts must be a valid object`；
+  - `execute_research_backtest` 在 script 校验之后、准备/启动 run 之前调用；
+  - `execute_strategy_optimize` 在候选数量校验之后、入队第一个候选之前调用，保证拒绝时不排候选也不落 optimization task。
+- 新增回归：
+  - `product_research_backtest_execution.rs::research_script_validation_rejects_free_text`（Go `:94` 的 `script="not pine"` 半边）；
+  - `product_research_backtest_execution.rs::research_trading_costs_stay_optional_but_must_be_an_object`（可选性与集合语义）；
+  - `product_production_ports_adk_tests.rs::research_backtest_rejects_free_text_scripts_and_non_object_trading_costs`（工具级：自由文本脚本 + 非对象 costs）；
+  - `product_production_ports_adk_tests.rs::strategy_optimize_rejects_non_object_trading_costs_before_enqueuing`（工具级：拒绝后 `started_definitions()` 为空、optimization task 表为空）。
+- 既有证据引用（不重复造测试）：`product_mcp_server_tests.rs::strategy_instance_activity_tool_normalizes_kind_and_paging_before_the_read_port`（`:12` 的 activity kind/limit 归一化）、`product_production_ports_adk_tests.rs::strategy_optimize_is_gated_in_approval_mode_only`（`RequiresApprovalIn=[approval]` 且 `less_approval`/`all` 放行）、`product_mcp_server_tests.rs::production_mcp_local_tools_use_the_real_bundle_ports` 与 `production_tools_fail_closed_before_any_domain_service_is_configured`（注册 + 缺端口 fail-closed 503）、`backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets`（缺 id 400）。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `validate_trading_costs` 的 `Some(_)` 分支改成 `Ok(())` → 3 条测试转红（`research_trading_costs_stay_optional_but_must_be_an_object`、`research_backtest_rejects_free_text_scripts_and_non_object_trading_costs`、`strategy_optimize_rejects_non_object_trading_costs_before_enqueuing`，最后一条打印出 queued 载荷里照抄的 `"tradingCosts": "cheap"`）。
+2. 删掉 `execute_research_backtest` 的 `validate_trading_costs(arguments)?` 调用 → 工具级 research 测试转红。
+3. 删掉 `execute_strategy_optimize` 的同一调用 → 工具级 optimize 测试转红。
+4. `validate_research_script` 的 `if !validation.ok` 改成 `if false && !validation.ok` → 自由文本两条测试转红。
+   4 处探针均在本批内执行并已回滚；`git diff` 只留两个生产文件的校验与三处测试、清单与审计产物。
+
+### 结论登记（两条 partial 的边界）
+
+- **`:12 partial`**：可达半边（目录注册、端口供数、activity 归一化、research/optimize 的 script+costs 校验与审批门）已断言；不可迁移半边是 Rust 模型目录 `PRODUCTION_TOOL_DEFINITIONS`（80 条）不含 `market.provider.select`、`strategy.instantiate`、`strategy.instance_start`、`strategy.instance_stop`、`strategy.instance_refresh_definition`、`strategy.instance_risk.update`、`backtest.cancel`——Go 在同一 registry 注册它们并断言 port 转发与 `RequiresApprovalIn` 非空，Rust 这些 id 无 descriptor/owner（`market.provider.select` 仅在 `tool_access_policy` 保留 write_settings/high/全模式审批元数据）。控制台经 `/api/v1/strategies/{instanceId}/{action}`、`/api/v1/backtest…` 等 HTTP 写路由完成同样的用户可见动作，模型侧不可调用。维持第 50/52 批登记的 P1 待办。
+- **`:94 partial`**：可达半边（脚本/`tradingCosts` 畸形拒绝、缺 id 400、缺端口 503）已断言；差异①Go 空 `ToolDeps` 时 `system.runtime_dependencies` 返回 `{"status":"unavailable"}` 空载荷且无错误，Rust 端口未装配即 503、装配后返回 runtime-dependency 快照（`checkedAt`/`allRequiredSatisfied`/`dependencies`），无等价空载荷分支；②provider.select 的 scope/providerId、instantiate 的 binding、instance_risk.update 的 risk 取值校验在 Rust 无 owner；③P2：Go 逐字段解码 `tradingCosts`（字段类型错误即拒绝），Rust 只校验顶层对象形状后原样转发，字段级类型差异记入 follow-up。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 21 条：`adk_closure_contracts_test.go`/`adk_runtime_contracts_test.go`/`adk_summary_contracts_test.go`/`typed_product_capabilities_test.go`/`watchlist_adapter_test.go`/`workflow_bridge_contracts_test.go`/`workflow_tools_error_boundaries_test.go`/`maintenance_test.go`（各 2）、`adk_backtest_adapter_test.go`/`adk_strategy_input_validation_test.go`/`adk_tool_failure_contracts_test.go`/`product_execution_contracts_test.go`/`workflow_execution_injection_test.go`（各 1）；随后 `internal/app/apiserver`（574，按 servercore/servercoretest 分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）、`internal/integration/akshare`（73）、`internal/integration/yfinance`（68）、`pkg/market`（56）。
+- 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与策略实例写工具（第 52 批 `:122`，本批再次确认含 `market.provider.select`/`backtest.cancel`）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 本批 `tradingCosts` 字段级类型解码差异、活动读分页钳制差异（第 52 批）、第 51 批 `:128` 的 instance summary/optimization no-op/validationInstrument 三个无 owner 断言、`market.depth` 自由文本 instrument 推断、`watchlist.list includeQuotes` 行情富化、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具、第 53/54 批的 float 截断/query 文本推断/limit>50 钳制/capability 措辞、第 55 批禁用 503 路径差异。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1664 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2837 Rust** / 953 `[x]`，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

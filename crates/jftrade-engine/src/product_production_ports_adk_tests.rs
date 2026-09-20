@@ -8325,6 +8325,78 @@ fn strategy_optimize_rolls_back_candidates_and_validates_the_request() {
     );
 }
 
+/// Go's `strategy.optimize` parses the backtest start input — including
+/// `tradingCosts` — before it queues the first candidate, so a malformed cost
+/// block fails the whole call and leaves no run or task behind.
+///
+/// Parity: go:452dea11:internal/assistant/assembly/adk_capability_contracts_test.go:94
+#[test]
+fn strategy_optimize_rejects_non_object_trading_costs_before_enqueuing() {
+    use crate::product::product_adk_model_runtime::AdkToolExecutor as _;
+    let writer = Arc::new(OptimizeBacktestsWriter::new(None));
+    let (bundle, executor, _directory) = optimize_bundle(Arc::clone(&writer));
+
+    for malformed in [json!("cheap"), json!([0.0003]), json!(7)] {
+        let error = executor
+            .execute(
+                "strategy.optimize",
+                &json!({
+                    "definitionIds": ["def-a"],
+                    "market": "US",
+                    "symbol": "US.AAPL",
+                    "tradingCosts": malformed,
+                }),
+            )
+            .expect_err("a non-object tradingCosts must fail the call");
+        assert_eq!(
+            error, "tradingCosts must be a valid object",
+            "malformed costs {malformed}"
+        );
+    }
+    assert!(
+        writer.started_definitions().is_empty(),
+        "a rejected call must not queue a candidate"
+    );
+    let tasks = bundle
+        .mcp_store
+        .list_optimization_tasks()
+        .expect("list optimization tasks");
+    assert!(tasks.is_empty(), "a rejected call must not persist a task");
+}
+
+/// The research backtest tool validates the script and the start input before
+/// it reaches the readiness port, so free text that is not Pine and a
+/// non-object `tradingCosts` both fail closed.
+///
+/// Parity: go:452dea11:internal/assistant/assembly/adk_capability_contracts_test.go:94
+#[test]
+fn research_backtest_rejects_free_text_scripts_and_non_object_trading_costs() {
+    use crate::product::product_adk_model_runtime::AdkToolExecutor as _;
+    let (ports, executor, _directory) = setup_test_bundle_and_executor();
+    executor.attach_ports(Arc::clone(&ports));
+
+    let free_text = executor
+        .execute("strategy.research_backtest", &json!({"script": "not pine"}))
+        .expect_err("free text is not a Pine script");
+    assert!(
+        free_text.contains("strategy script validation failed"),
+        "unexpected error: {free_text}"
+    );
+
+    let costs = executor
+        .execute(
+            "strategy.research_backtest",
+            &json!({
+                "script": "//@version=6\nstrategy(\"Costs\", overlay=true)\nplot(close)\n",
+                "market": "HK",
+                "symbol": "HK.00700",
+                "tradingCosts": "cheap",
+            }),
+        )
+        .expect_err("a non-object tradingCosts must fail the call");
+    assert_eq!(costs, "tradingCosts must be a valid object");
+}
+
 /// The reference gates `strategy.optimize` in `approval` mode and releases it
 /// in `less_approval`/`all` (`RequiresApprovalIn=[approval]`).
 #[test]
