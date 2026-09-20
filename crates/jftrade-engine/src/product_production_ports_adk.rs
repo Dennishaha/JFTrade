@@ -26,7 +26,7 @@ mod metrics;
 #[path = "product_production_ports_adk_mcp.rs"]
 mod mcp;
 #[path = "product_production_ports_adk_mutation.rs"]
-mod mutation;
+pub(crate) mod mutation;
 #[path = "product_production_ports_adk_projection.rs"]
 mod projection;
 #[path = "product_production_ports_adk_support.rs"]
@@ -792,7 +792,7 @@ include!("product_production_ports_adk_catalog.rs");
 include!("product_production_ports_adk_policy.rs");
 
 #[path = "product_production_ports_adk_read.rs"]
-mod read;
+pub(crate) mod read;
 include!("product_production_ports_adk_stream.rs");
 
 #[cfg(test)]

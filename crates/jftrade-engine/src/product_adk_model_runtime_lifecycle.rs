@@ -652,3 +652,5 @@ impl ProductionAdkChatRuntime {
 #[cfg(test)]
 #[path = "product_adk_model_runtime_lifecycle_tests.rs"]
 mod lifecycle_tests;
+
+include!("product_adk_model_runtime_auto_compaction.rs");

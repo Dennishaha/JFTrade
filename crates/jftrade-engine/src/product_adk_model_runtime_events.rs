@@ -245,6 +245,8 @@ impl ProductionAdkChatRuntime {
                 .upsert_session("jftrade", "local", &session_id, &session_state.to_string())
                 .map_err(storage_unavailable)?;
         }
+        // Go `RunChat` auto-compacts before the run row it is about to create exists.
+        self.maybe_auto_compact_session(&session_id, &message, false, |_| Ok(()))?;
         let run_id = format!("run-{}", input.client_request_id);
         // Go's `startRun` freezes the resolved provider/model snapshot, the run
         // budget, the effective work mode and the user message before the first
@@ -347,6 +349,9 @@ impl ProductionAdkChatRuntime {
                     })
             })
             .collect();
+        // Go `AutoCompactForModelContext` runs before the provider payload is
+        // assembled, so the model sees the compacted projection.
+        self.auto_compact_for_model_context(&session_id, &message)?;
         let tool_context = durable_context_items(
             self.store.as_ref(),
             self.session_store.as_ref(),
@@ -629,6 +634,7 @@ impl ProductionAdkChatRuntime {
                     })
             })
             .collect();
+        self.auto_compact_for_model_context(&resumed_session_id, &message)?;
         let chat = ChatExecution {
             route,
             run_id: resumed_run_id.clone(),
@@ -642,12 +648,14 @@ impl ProductionAdkChatRuntime {
                 model,
                 instruction: provider.instruction,
                 message,
-                durable_context: durable_context_items(
-                    self.store.as_ref(),
-                    self.session_store.as_ref(),
-                    &resumed_session_id,
-                    Some(&resumed_run_id),
-                )?,
+                durable_context: {
+                    durable_context_items(
+                        self.store.as_ref(),
+                        self.session_store.as_ref(),
+                        &resumed_session_id,
+                        Some(&resumed_run_id),
+                    )?
+                },
                 tool_context: tool_context_from_payload(object),
                 timeout: provider.timeout,
                 tools,

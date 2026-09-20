@@ -10,7 +10,7 @@ use crate::product::product_adk_mutation_port::{
 };
 
 #[path = "product_production_ports_adk_mutation_context.rs"]
-mod context;
+pub(crate) mod context;
 #[path = "product_production_ports_adk_mutation_agent_validation.rs"]
 mod agent_validation;
 #[path = "product_production_ports_adk_mutation_entities.rs"]

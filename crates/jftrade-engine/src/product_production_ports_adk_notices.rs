@@ -26,6 +26,7 @@ pub(crate) struct ContextCompactionNotice {
     pub status: String,
     pub text: String,
     pub created_at: String,
+    pub updated_at: String,
 }
 
 /// Go `Runtime.createContextCompactionNotice`.
@@ -41,6 +42,7 @@ pub(crate) fn create_context_compaction_notice(
             status: TIMELINE_STATUS_STREAMING.to_owned(),
             text: CONTEXT_COMPACTION_STARTED_TEXT.to_owned(),
             created_at: String::new(),
+            updated_at: String::new(),
         },
     )
 }
@@ -84,33 +86,40 @@ fn save_context_compaction_notice(
     } else {
         notice.created_at.clone()
     };
-    let entry = json!({
-        "id": id,
-        "sessionId": notice.session_id,
-        "kind": TIMELINE_KIND_CONTEXT_NOTICE,
-        "createdAt": created_at,
-        "updatedAt": now,
-        "sequence": 0,
-        "status": notice.status,
-        "text": notice.text,
-    });
+    let saved = ContextCompactionNotice {
+        id,
+        session_id: notice.session_id,
+        status: notice.status,
+        text: notice.text,
+        created_at,
+        updated_at: now,
+    };
+    let entry = notice_delta_value(&saved);
     let payload_json = entry.to_string();
     store
         .save_session_notice(
-            &notice.session_id,
-            &id,
+            &saved.session_id,
+            &saved.id,
             "",
             TIMELINE_KIND_CONTEXT_NOTICE,
-            entry["status"].as_str().unwrap_or_default(),
+            &saved.status,
             &payload_json,
         )
         .ok()?;
-    Some(ContextCompactionNotice {
-        id,
-        session_id: notice.session_id,
-        status: entry["status"].as_str().unwrap_or_default().to_owned(),
-        text: entry["text"].as_str().unwrap_or_default().to_owned(),
-        created_at,
+    Some(saved)
+}
+
+/// The wire value shared by the persisted row and the streaming delta.
+pub(crate) fn notice_delta_value(notice: &ContextCompactionNotice) -> Value {
+    json!({
+        "id": notice.id,
+        "sessionId": notice.session_id,
+        "kind": TIMELINE_KIND_CONTEXT_NOTICE,
+        "createdAt": notice.created_at,
+        "updatedAt": notice.updated_at,
+        "sequence": 0,
+        "status": notice.status,
+        "text": notice.text,
     })
 }
 

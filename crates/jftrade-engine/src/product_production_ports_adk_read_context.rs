@@ -2,7 +2,7 @@ use super::*;
 
 /// Rebuild a context snapshot solely from durable session events and active handoff rows.
 /// This path is used when a context-state projection predates the production store (or was interrupted before it could be written), so every persisted boundary is validated instead of being replaced by an empty/synthetic summary.
-pub(super) fn rebuild_context_snapshot(
+pub(crate) fn rebuild_context_snapshot(
     session_id: &str,
     session_payload_json: &str,
     events: &[jftrade_store_sqlite::StoredAdkEvent],

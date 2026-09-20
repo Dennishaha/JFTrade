@@ -22,7 +22,7 @@ pub(super) fn resource_list_failed(
     }
 }
 
-pub(super) fn estimate_context_tokens(value: &str) -> usize {
+pub(crate) fn estimate_context_tokens(value: &str) -> usize {
     let bytes = value.trim().len();
     if bytes == 0 {
         0

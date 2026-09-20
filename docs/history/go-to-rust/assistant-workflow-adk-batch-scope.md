@@ -1777,3 +1777,39 @@ Go 的期望：`reply` = 整轮 assistant 文本合并（`先说明一下。优�
 - `:341`、`:446`、`:506`、`:569`、`:703`：Rust 仍缺 `maybeAutoCompactSession(DuringWorkflow)` 与 `AutoCompactForModelContext`——阈值（0.85 auto / 0.93 aggressive）、pending user text 投影、streaming→final 通知 delta 与 context delta、活跃 RUNNING run 跳过（workflow 入口允许）、模型上下文读取前自动压缩。gate 与通知基础设施本批已就绪，下一批可直接接线；`:446`、`:506` 的结论已同步更新为“gate 已实现、自动压缩入口待补”。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1660 passed）、`pnpm run check:rust:architecture`、`git diff --check`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / 2694 Rust / 854 `[x]`）。
+## 第三十五批：自动压缩入口与模型上下文前置压缩（`session_context_test.go` 再结清 5 条）
+
+范围：接上第三十四批已就绪的 gate 与通知设施，落地 Go 的自动压缩入口与模型上下文前置压缩。`[x]` 由 854 → **859**，Rust 测试 2694 → **2700**。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/engine/ -run 'TestMaybeAutoCompactSessionEmitsContextNoticeDeltas|TestMaybeAutoCompactSessionSkipsWhenSessionCompactionAlreadyRunning|TestSessionServiceAutoCompactionUsesSessionGate|TestMaybeAutoCompactSessionDuringWorkflowAllowsActiveParent|TestModelContextReadAutoCompactsBeforeProviderPayload' -count=1`：5 条通过。
+
+### 本批实现（4 处）
+
+1. **压缩核心改为可复用的 store 级函数**：`compact_session_context_locked` 改名 `compact_session_projection`，签名改为 `(&AdkStore, &AdkSessionStore, session_id, session, mode, trigger, reason, recent_window, require_no_active_run)` 并放宽到 `pub(crate)`，手动路由与运行时共用同一份实现（避免在 runtime 里复制压缩逻辑）。
+2. **自动压缩入口**：新增 `crates/jftrade-engine/src/product_adk_model_runtime_auto_compaction.rs`——`projected_context_projection`（durable 投影 + pending user text token）、`auto_compaction_mode`（0.85 / 0.93）、`session_has_running_run`（仅 RUNNING 阻塞，对齐 Go `HasActiveRun` 注释）、`maybe_auto_compact_session(allow_active_run, on_delta)`（gate → streaming 通知 delta → 压缩 → final 通知 delta + context delta；失败走 error 通知并返回错误）、`auto_compact_for_model_context`（无通知、取 gate、`... before model call` 理由文本）。
+3. **接线**：`prepare_chat` 在创建 run 之前调用常规入口（Go `RunChat` 的顺序：run 行尚不存在，因此不会看到自己的 RUNNING run 而跳过——这是本批踩到的顺序陷阱）；两个 `durable_context_items` 调用点（新建与恢复路径）之前调用 `auto_compact_for_model_context`，使 provider payload 基于压缩后的投影。
+4. **修复真实缺陷**：`autoCompacted` 原先写成 `last_mode == "auto"`，导致 aggressive+auto 的自动压缩被报告为 `false`；Go 的规则是 `state.AutoCompacted = trigger == "auto"`（`LastCompactionMode` 仍按 `compactionModeLabel` 保留 `aggressive`）。由新测试暴露并修正。
+
+### 新增回归（6 条 Rust 测试）
+
+- `auto_compaction_emits_streaming_then_final_notice_and_context_delta`（:341）：2 条 timeline delta 同 id streaming→final + 1 条 context delta（currentInputTokens 收缩、autoCompacted=true、compactedEventCount>0），并核对 `adk_session_notices` 恰好 1 行。
+- `auto_compaction_skips_while_another_compaction_holds_the_session_gate`（:446）。
+- `workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits`（:569）。
+- `model_context_read_compacts_only_when_the_session_gate_is_free`（:506）。
+- `model_context_autocompacts_before_the_provider_payload`（:703）：`durable_context_items` 由 80 条收缩。
+- `a_chat_turn_autocompacts_the_session_before_the_provider_payload`：端到端跑 `prepare_chat`（带凭据 provider + 80 token 窗口），断言会话落 autoCompacted。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `auto_compaction_mode` 恒返回 None → 6 条用例转红（压缩不再发生）。
+2. gate 恒成功 → 持锁自动压缩用例转红（gated 调用直接压缩并发布 delta）。
+3. active-run 跳过条件恒 false → workflow 用例转红（常规入口在存在 RUNNING run 时仍压缩）。
+
+### 仍未结清（下一批）
+
+- `:773`/`:787`/`:800`/`:813`（保护尾部锚点，需先定 Rust 结构化锚点语义）、`:827`、`:868`、`:922`、`:977`、`:1009`。
+- SSE 帧转发：自动压缩产生的 notice/context delta 目前只由 runtime 方法返回（Go 测试同样直接调用该方法），尚未转发进 chat SSE 流；workflow canvas 的 `MaybeAutoCompactSessionDuringWorkflow` 调用点接线同样待补（Rust 已提供 `allow_active_run=true` 入口）。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1666 passed）、`pnpm run check:rust:architecture`（`product_adk_model_runtime_events.rs` 触限后把 include 移到 lifecycle 片段并压缩注释，回到 800 行）、`git diff --check`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / 2700 Rust / 859 `[x]`）。

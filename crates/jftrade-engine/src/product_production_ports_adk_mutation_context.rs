@@ -64,14 +64,16 @@ pub(super) fn compact_session_context(
         &port.store,
         &session_id,
     );
-    match compact_session_context_locked(
-        port,
+    match compact_session_projection(
+        &port.store,
+        &port.session_store,
         &session_id,
         &session,
         &mode,
         &trigger,
         &reason,
         recent_window,
+        true,
     ) {
         Ok(value) => {
             if let Some(notice) = notice.as_ref() {
@@ -100,21 +102,29 @@ pub(super) fn compact_session_context(
 
 /// The gated compaction path: the active-run check, the projection rebuild and
 /// the durable write all happen while the session gate is held.
-fn compact_session_context_locked(
-    port: &ProductionAdkPort,
+///
+/// `require_no_active_run` is `true` for the manual route (Go's
+/// `CompactSessionContext` rejects a RUNNING run) and `false` for the
+/// workflow-owned auto compaction, which is allowed to advance underneath an
+/// active parent run.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn compact_session_projection(
+    store: &jftrade_store_sqlite::AdkStore,
+    session_store: &jftrade_store_sqlite::AdkSessionStore,
     session_id: &str,
     session: &jftrade_store_sqlite::StoredAdkEntity,
     mode: &str,
     trigger: &str,
     reason: &str,
     recent_window: usize,
+    require_no_active_run: bool,
 ) -> Result<Value, AdkMutationPortError> {
-    if port
-        .store
-        .list_runs()
-        .map_err(session_mutation_failed)?
-        .into_iter()
-        .any(|run| run.session_id == session_id && run.status.eq_ignore_ascii_case("RUNNING"))
+    if require_no_active_run
+        && store
+            .list_runs()
+            .map_err(session_mutation_failed)?
+            .into_iter()
+            .any(|run| run.session_id == session_id && run.status.eq_ignore_ascii_case("RUNNING"))
     {
         // Go's `handleADKCompactSessionContext` keeps the route's own code
         // and only escalates the status to 409 when the service reports an
@@ -130,20 +140,17 @@ fn compact_session_context_locked(
     // from that agent's provider and the retained user turns from the agent's
     // normalized `RecentUserWindow`.
     let context_window = super::super::read::context_window::resolve_session_context_window_tokens(
-        &port.store,
+        store,
         session_id,
         &session.payload_json,
     );
-    let events = port
-        .session_store
+    let events = session_store
         .list_events(session_id)
         .map_err(session_mutation_failed)?;
-    let stored_segments = port
-        .store
+    let stored_segments = store
         .list_handoff_segments(session_id, false)
         .map_err(session_mutation_failed)?;
-    let current_state = port
-        .store
+    let current_state = store
         .get_session_context(session_id)
         .map_err(session_mutation_failed)?
         .map(|stored| decode_mutation_payload(&stored.payload_json, "session context"))
@@ -419,11 +426,13 @@ fn compact_session_context_locked(
         "lastCompactionMode": last_mode,
         "lastCompactionTrigger": trigger,
         "lastCompactionReason": reason,
-        "autoCompacted": last_mode == "auto",
+        // Go `AutoCompacted` follows the trigger, not the mode label: an
+        // aggressive automatic compaction still reports itself as automatic.
+        "autoCompacted": trigger.eq_ignore_ascii_case("auto"),
         "degradedSummary": false,
     });
     let snapshot_json = snapshot.to_string();
-    port.store
+    store
         .commit_session_context_compaction(
             session_id,
             &expected_revision,

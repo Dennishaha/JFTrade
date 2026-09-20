@@ -62,6 +62,26 @@ fn seed_provider(port: &ProductionAdkPort, id: &str, window_tokens: i64) {
         .expect("seed provider");
 }
 
+/// The chat entry point resolves a credential before it prepares the turn, so
+/// the seeded provider carries one (the read projection redacts it).
+fn seed_provider_with_key(port: &ProductionAdkPort, id: &str, window_tokens: i64) {
+    port.store
+        .upsert_provider(
+            id,
+            &json!({
+                "id": id,
+                "displayName": id,
+                "baseUrl": "https://provider.example.test",
+                "model": format!("{id}-model"),
+                "contextWindowTokens": window_tokens,
+                "apiKey": "sk-turn-fixture",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("seed provider with credential");
+}
+
 fn seed_agent(port: &ProductionAdkPort, id: &str, provider_id: &str, recent_user_window: i64) {
     port.store
         .upsert_agent(
@@ -174,6 +194,325 @@ fn context_notices(entries: &[Value]) -> Vec<Value> {
         .filter(|entry| entry["kind"] == "context_notice")
         .cloned()
         .collect()
+}
+
+/// A runtime over the same stores as the port, the way the composition root
+/// wires them.
+fn runtime_for(
+    directory: &tempfile::TempDir,
+    port: &ProductionAdkPort,
+) -> Arc<super::ProductionAdkChatRuntime> {
+    super::ProductionAdkChatRuntime::new(
+        Arc::clone(&port.store),
+        Arc::clone(&port.session_store),
+        &directory.path().join("settings.json"),
+        Arc::new(super::RunCancellationRegistry::default()),
+        Arc::new(crate::product::product_production_ports::ProductionToolCatalog::empty_for_test()),
+    )
+}
+
+/// Go `appendLargeContextEvents`: 80 events whose combined text dwarfs the
+/// provider's 80-token window.
+fn append_large_context_events(port: &ProductionAdkPort, session_id: &str, count: usize) {
+    for index in 0..count {
+        let author = if index % 2 == 1 { "assistant" } else { "user" };
+        port.session_store
+            .record_event(RecordAdkEventParams {
+                id: &format!("large-{index:03}"),
+                app_name: "jftrade",
+                user_id: "local",
+                session_id,
+                invocation_id: &format!("inv-large-{index:03}"),
+                author,
+                content: &"message pressure ".repeat(50),
+            })
+            .expect("append large context event");
+    }
+}
+
+fn pending_user_text() -> String {
+    "pending input ".repeat(200)
+}
+
+#[test]
+fn auto_compaction_emits_streaming_then_final_notice_and_context_delta() {
+    let (directory, port) = context_port();
+    seed_provider(&port, "provider-auto", 80);
+    seed_agent(&port, "agent-auto", "provider-auto", 1);
+    seed_session(&port, "session-auto", "agent-auto");
+    append_large_context_events(&port, "session-auto", 80);
+    let runtime = runtime_for(&directory, &port);
+    let (before, projected_ratio, _) = runtime
+        .projected_context_projection("session-auto", &pending_user_text())
+        .expect("projected snapshot");
+    assert!(projected_ratio >= 0.85, "{before}");
+
+    let mut deltas = Vec::new();
+    runtime
+        .maybe_auto_compact_session("session-auto", &pending_user_text(), false, |delta| {
+            deltas.push(delta);
+            Ok(())
+        })
+        .expect("auto compaction");
+
+    let timeline = deltas
+        .iter()
+        .filter_map(|delta| match delta {
+            super::SessionContextDelta::Timeline(value) => Some(value.clone()),
+            super::SessionContextDelta::Context(_) => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(timeline.len(), 2, "{timeline:?}");
+    assert_eq!(timeline[0]["kind"], "context_notice", "{timeline:?}");
+    assert_eq!(timeline[0]["status"], "streaming", "{timeline:?}");
+    assert_eq!(timeline[1]["status"], "final", "{timeline:?}");
+    assert_eq!(timeline[0]["id"], timeline[1]["id"], "{timeline:?}");
+    assert_eq!(
+        timeline[1]["text"], "已压缩上下文，继续使用最新摘要。",
+        "{timeline:?}"
+    );
+    let compacted = deltas
+        .iter()
+        .find_map(|delta| match delta {
+            super::SessionContextDelta::Context(value) => Some(value.clone()),
+            super::SessionContextDelta::Timeline(_) => None,
+        })
+        .expect("context delta");
+    assert!(
+        compacted["currentInputTokens"].as_u64().unwrap_or(u64::MAX)
+            < before["projectedNextTurnTokens"].as_u64().unwrap_or(0),
+        "compaction must shrink the projection: {compacted} vs {before}"
+    );
+    assert_eq!(compacted["autoCompacted"], true, "{compacted}");
+    assert!(
+        compacted["compactedEventCount"].as_u64().unwrap_or(0) > 0,
+        "{compacted}"
+    );
+    let saved = port
+        .store
+        .list_session_notices("session-auto")
+        .expect("list notices");
+    assert_eq!(saved.len(), 1, "one notice row per compaction");
+    let seen = context_notices(&session_timeline(&port, "session-auto"));
+    assert_eq!(seen.len(), 1, "{seen:?}");
+    assert_eq!(seen[0]["status"], "final", "{seen:?}");
+}
+
+#[test]
+fn auto_compaction_skips_while_another_compaction_holds_the_session_gate() {
+    let (directory, port) = context_port();
+    seed_provider(&port, "provider-gate-auto", 80);
+    seed_agent(&port, "agent-gate-auto", "provider-gate-auto", 1);
+    seed_session(&port, "session-gate-auto", "agent-gate-auto");
+    append_large_context_events(&port, "session-gate-auto", 80);
+    let runtime = runtime_for(&directory, &port);
+
+    let (guard, acquired) =
+        crate::product::product_adk_session_compaction_gate::begin_session_compaction(
+            "session-gate-auto",
+        );
+    assert!(acquired);
+    let mut gated = Vec::new();
+    runtime
+        .maybe_auto_compact_session("session-gate-auto", &pending_user_text(), true, |delta| {
+            gated.push(delta);
+            Ok(())
+        })
+        .expect("gated auto compaction");
+    assert!(
+        gated.is_empty(),
+        "a held gate publishes no delta: {gated:?}"
+    );
+    assert!(
+        context_notices(&session_timeline(&port, "session-gate-auto")).is_empty(),
+        "a held gate writes no notice"
+    );
+    drop(guard);
+
+    let mut released = Vec::new();
+    runtime
+        .maybe_auto_compact_session("session-gate-auto", &pending_user_text(), true, |delta| {
+            released.push(delta);
+            Ok(())
+        })
+        .expect("auto compaction after release");
+    assert!(!released.is_empty(), "release enables the compaction");
+}
+
+#[test]
+fn workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits() {
+    let (directory, port) = context_port();
+    seed_provider(&port, "provider-workflow-auto", 80);
+    seed_agent(&port, "agent-workflow-auto", "provider-workflow-auto", 1);
+    seed_session(&port, "session-workflow-auto", "agent-workflow-auto");
+    append_large_context_events(&port, "session-workflow-auto", 80);
+    port.store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: "run-active-workflow-parent",
+            session_id: "session-workflow-auto",
+            agent_id: "agent-workflow-auto",
+            status: "RUNNING",
+            client_request_id: "request-active-workflow-parent",
+            request_fingerprint: "fingerprint-active-workflow-parent",
+            payload_json: r#"{"id":"run-active-workflow-parent","sessionId":"session-workflow-auto","agentId":"agent-workflow-auto","status":"RUNNING"}"#,
+        })
+        .expect("seed active parent run");
+    let runtime = runtime_for(&directory, &port);
+
+    let mut skipped = Vec::new();
+    runtime
+        .maybe_auto_compact_session(
+            "session-workflow-auto",
+            &pending_user_text(),
+            false,
+            |delta| {
+                skipped.push(delta);
+                Ok(())
+            },
+        )
+        .expect("chat auto compaction");
+    assert!(
+        skipped.is_empty(),
+        "a live run keeps the chat entry point from compacting: {skipped:?}"
+    );
+
+    let mut workflow = Vec::new();
+    runtime
+        .maybe_auto_compact_session(
+            "session-workflow-auto",
+            &pending_user_text(),
+            true,
+            |delta| {
+                workflow.push(delta);
+                Ok(())
+            },
+        )
+        .expect("workflow auto compaction");
+    assert!(
+        workflow
+            .iter()
+            .any(|delta| matches!(delta, super::SessionContextDelta::Context(_))),
+        "the workflow entry point publishes the compacted snapshot: {workflow:?}"
+    );
+    let snapshot = context_snapshot(&port, "session-workflow-auto");
+    assert_eq!(snapshot["autoCompacted"], true, "{snapshot}");
+    assert!(
+        snapshot["activeHandoffCount"].as_u64().unwrap_or(0) > 0,
+        "{snapshot}"
+    );
+}
+
+#[test]
+fn model_context_read_compacts_only_when_the_session_gate_is_free() {
+    let (directory, port) = context_port();
+    seed_provider(&port, "provider-model-auto", 80);
+    seed_agent(&port, "agent-model-auto", "provider-model-auto", 1);
+    seed_session(&port, "session-model-auto", "agent-model-auto");
+    append_large_context_events(&port, "session-model-auto", 80);
+    let runtime = runtime_for(&directory, &port);
+
+    let (guard, acquired) =
+        crate::product::product_adk_session_compaction_gate::begin_session_compaction(
+            "session-model-auto",
+        );
+    assert!(acquired);
+    runtime
+        .auto_compact_for_model_context("session-model-auto", &pending_user_text())
+        .expect("gated model-context read");
+    let gated = context_snapshot(&port, "session-model-auto");
+    assert_eq!(gated["activeHandoffCount"], 0, "{gated}");
+    assert_eq!(gated["autoCompacted"], false, "{gated}");
+    drop(guard);
+
+    runtime
+        .auto_compact_for_model_context("session-model-auto", &pending_user_text())
+        .expect("model-context read after release");
+    let released = context_snapshot(&port, "session-model-auto");
+    assert_eq!(released["autoCompacted"], true, "{released}");
+    assert!(
+        released["activeHandoffCount"].as_u64().unwrap_or(0) > 0,
+        "{released}"
+    );
+}
+
+#[test]
+fn model_context_autocompacts_before_the_provider_payload() {
+    let (directory, port) = context_port();
+    seed_provider(&port, "provider-payload", 80);
+    seed_agent(&port, "agent-payload", "provider-payload", 1);
+    seed_session(&port, "session-payload", "agent-payload");
+    append_large_context_events(&port, "session-payload", 80);
+    let runtime = runtime_for(&directory, &port);
+    let before = super::durable_context_items(
+        port.store.as_ref(),
+        port.session_store.as_ref(),
+        "session-payload",
+        None,
+    )
+    .expect("durable context before");
+    assert_eq!(before.len(), 80, "the raw transcript is the model context");
+
+    runtime
+        .auto_compact_for_model_context("session-payload", &pending_user_text())
+        .expect("model-context auto compaction");
+    let after = super::durable_context_items(
+        port.store.as_ref(),
+        port.session_store.as_ref(),
+        "session-payload",
+        None,
+    )
+    .expect("durable context after");
+    assert!(
+        after.len() < before.len(),
+        "the model payload must shrink: {after:?}"
+    );
+    let segments = port
+        .store
+        .list_handoff_segments("session-payload", true)
+        .expect("list handoff segments");
+    assert!(!segments.is_empty(), "an active handoff segment exists");
+}
+
+/// The chat entry point itself must compact: a turn started against a session
+/// that already exceeds the window leaves a durable automatic projection, which
+/// is what Go's `sessionService.Get` path observes before the provider payload
+/// is assembled.
+#[test]
+fn a_chat_turn_autocompacts_the_session_before_the_provider_payload() {
+    let (directory, port) = context_port();
+    seed_provider_with_key(&port, "provider-turn", 80);
+    seed_agent(&port, "agent-turn", "provider-turn", 1);
+    seed_session(&port, "session-turn", "agent-turn");
+    append_large_context_events(&port, "session-turn", 80);
+    let runtime = runtime_for(&directory, &port);
+
+    let input = crate::product::product_adk_chat_stream_port::AdkChatInput {
+        body: json!({
+            "agentId": "agent-turn",
+            "sessionId": "session-turn",
+            "message": "current request",
+        })
+        .to_string()
+        .into_bytes(),
+        client_request_id: "11111111-1111-4111-8111-111111111199".to_owned(),
+    };
+    runtime
+        .prepare_chat(
+            crate::product::product_adk_chat_stream_port::AdkChatRoute::Chat,
+            &input,
+        )
+        .expect("prepare the chat turn");
+
+    let snapshot = context_snapshot(&port, "session-turn");
+    assert_eq!(snapshot["autoCompacted"], true, "{snapshot}");
+    assert!(
+        snapshot["activeHandoffCount"].as_u64().unwrap_or(0) > 0,
+        "{snapshot}"
+    );
+    assert!(
+        snapshot["compactedEventCount"].as_u64().unwrap_or(0) > 0,
+        "{snapshot}"
+    );
 }
 
 #[test]
