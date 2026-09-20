@@ -10444,95 +10444,95 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/store_test.go:59:TestNewStoreUsesSeparatedConcurrentReadAndSingleWritePools": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_store_fences_a_second_writer_and_serializes_concurrent_access",
+    "conclusion": "function_exact（不变量等价）：Go 断言 read pool MaxOpenConnections=8、write pool=1，即 driver 层读连接池 + 单写连接池。Rust 用单个 Mutex<Connection> 加进程级 WriterLease 表达同一不变量：唯一写入所有权 + 并发访问串行化且不丢写。新回归测试断言第二个 AdkStore::open_existing 被 fence（writer lease is already held），8 个并发 worker 的 upsert/read 全部成功且库里恰好 8 行。差异说明：Rust 没有 8 连接读池这一具体形状（读也经同一守卫连接），因此该 Go 断言按连接池形状属于实现细节边界，行为不变量已覆盖。探针：让 WriterLease 忽略 try_lock 冲突后，本测试在第二所有者断言处转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --test adk_store_contracts --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:75:TestStoreMigrationNormalizesHiddenAgentWorkflowDefaults": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_store_rejects_missing_drifted_and_corrupted_go_databases",
+    "conclusion": "boundary（Go 自身跳过）：参考基线的该用例首行即 t.Skip(\"incremental ADK migrations were intentionally removed; strict incompatibility is covered below\")，用 go test -run 该测试可复现 SKIP，因此 Go 不再提供可迁移行为。Rust 侧不做增量 ADK 迁移，改为严格 fail-closed：缺失/漂移/损坏的 ADK 库在 open 阶段被拒（现有 Rust 测试覆盖），并由数据管理域显式迁移路径处理升级。保留边界：Rust 不会把 legacy workMode=sequential 自动改写为 chat。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --test adk_store_contracts --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/store_test.go:127:TestStoreMigrationRepairsOrphanTasksAndDuplicateConfirmations": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_store_rejects_missing_drifted_and_corrupted_go_databases",
+    "conclusion": "boundary（Go 自身跳过）：参考基线首行 t.Skip(\"incremental ADK migrations were intentionally removed; strict incompatibility is covered below\")，可复现为 SKIP，Go 不再执行 orphan task / duplicate confirmation 的迁移修复。Rust 侧同名修复逻辑不迁移，改为拒绝漂移库（现有 fail-closed 测试）+ 唯一索引 idx_adk_approvals_confirmation_call 兜底；运行期由 approval staging 的 CAS 保证不产生重复确认。保留边界：Rust 不提供对既有重复行的批量净化。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --test adk_store_contracts --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/store_test.go:198:TestStoreMigrationReopensCompletedWorkflowWithRecoverablePendingApproval": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_store_rejects_missing_drifted_and_corrupted_go_databases",
+    "conclusion": "boundary（Go 自身跳过）：参考基线首行 t.Skip(\"incremental ADK migrations were intentionally removed; strict incompatibility is covered below\")，可复现为 SKIP。Rust 侧不重开已完成 workflow，也不做该恢复式迁移；对应安全属性由严格 schema 兼容性检查（拒绝漂移库）与运行期审批恢复（approval_resuming 接续）承担。保留边界：历史库中 completed workflow + 未决审批的状态在 Rust 中不会被迁移修复，需要显式数据管理流程。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --test adk_store_contracts --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/store_test.go:254:TestNewStoreRejectsLegacyDatabaseWithoutMutatingIt": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_store_rejects_a_legacy_database_without_rewriting_it",
+    "conclusion": "function_exact：Go 打开 legacy 库（只有 legacy_data 表）后 NewStore 必须报 \"schema metadata is missing\"，且重开时 legacy 行原文未动、未新增 jftrade_schema_meta。Rust 新回归测试先记录原始文件字节，断言 open_existing 报同样的 schema metadata is missing，再断言文件字节逐字节未变、legacy 行仍为 untouched、jftrade_schema_meta 表数量为 0。既有 adk_store_rejects_missing_drifted_and_corrupted_go_databases 只覆盖拒绝，本测试补齐不落盘副作用这一半。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --test adk_store_contracts --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:295:TestSaveApprovalIfConfirmationAbsentIsConcurrentIdempotent": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency",
+    "conclusion": "function_exact（机制不同、保证相同）：Go 让 24 个并发调用者共享同一 confirmationCallId，期望恰好一个 caller 看到 wasCreated=true，且只存一行、按 confirmation 能取回同一 canonical approval。Rust 没有 SaveApprovalIfConfirmationAbsent 这一 read-then-insert API，审批行随 run 的 status+updated_at CAS 一次性 staging：新回归测试用 24 线程共享同一 confirmationCallId 并发 staging，断言恰好 1 次 Ok(true)、adk_approvals 只有 1 行且该 confirmation 只有 1 条，随后 list_approvals 返回的 canonical 行仍可 resolve 并 should_continue。探针：把 staging 的 status/revision 条件改成恒真后，本测试转红（重复插入被唯一索引拒绝）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --test adk_store_contracts --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:373:TestNewStoreDropsLegacyMessageTables": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_store_schema_has_no_legacy_message_tables",
+    "conclusion": "function_exact：Go 断言打开 ADK 库后 sqlite_master 中不存在 adk_messages / adk_transcript_entries。Rust 新回归测试打开有效 ADK 库后同样查询这两张表并断言计数为 0；transcript 归 ADK session 库所有，ADK 主库不会重建旧表。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --test adk_store_contracts --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:385:TestProviderSecretIsNotEchoed": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_provider.rs::tests::saved_provider_hides_the_credential_from_the_row_and_projection",
+    "conclusion": "function_exact：Go 断言保存带 key 的 provider 后 hasApiKey=true、原始 key 可从凭据存储读回、列表投影不回显 key、未提供 defaultHeaders 时为 nil（并顺带断言 requestTimeoutMs 等于默认值）。Rust 回归测试断言响应 hasApiKey=true 且无 apiKey 字段、凭据写入 secrets/adk-secrets.json 并可读回、持久化行 payload 不含凭据明文、defaultHeaders 为 null；Go 用例里的默认超时断言由同族测试 saved_provider_normalizes_the_request_timeout_on_write 覆盖（默认 180000ms）。Rust 的凭据读写 owner 是 mutation provider 的 sidecar（row 只存 hasApiKey），不存在把 key 写进行的路径。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:437:TestProviderRequestTimeoutDefaultsAndClamp": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_provider.rs::tests::saved_provider_normalizes_the_request_timeout_on_write",
+    "conclusion": "function_exact（真实功能缺口已修复）：Go 断言未提供 timeout 时保存结果为 180000ms（DefaultProviderRequestTimeout），提供 1000ms 时被钳到 15000ms。Rust 原先只在 chat 解析时 clamp（默认还是 120000ms），保存值会原样回显。修复位置：product_production_ports_adk_mutation_provider.rs 保存路径新增 normalize_provider_request_timeout_ms（<=0 取 180000，区间 [15000,600000]），并把执行期兜底常量同步为 180000ms。回归测试覆盖默认值、1000→15000 钳制、以及省略字段的更新保留已存值。探针：把归一化替换为直存原值后测试在 180000 断言处转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:471:TestApprovalModeCreatesPendingApprovalForWriteTool": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_catalog_policy_tests.rs::gated_call_persists_the_go_approval_projection",
+    "conclusion": "function_exact（分段证据）：Go 一次流程断言四件事——approval 模式下写工具进入 PENDING 且未执行；审批通过后工具恰好执行一次；run 变 COMPLETED；回复为模型重新生成的最终答复（含工具摘要）。Rust 侧：gated_call_persists_the_go_approval_projection 覆盖“gated 调用写入 Go 形状的审批投影且未执行”；released_calls_are_executed_by_the_tool_loop 覆盖“释放后恰好执行一次并落 toolResults/SUCCEEDED”；product_production_ports_adk_tests::adk_approval_approve_returns_the_running_resolution_envelope 覆盖审批路由唤醒 continuation；a_resumed_approval_run_completes_with_the_confirmation_resolved_state 覆盖续跑落 COMPLETED+adk_confirmation_resolved。差异说明：Rust 的审批响应先返回 RUNNING（异步续跑），Go 用例在同步续跑后直接读到 COMPLETED 与最终回复文本，故回复文本断言由续跑路径测试承担。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:538:TestIdempotentApprovalRecoversPendingRunWithStaleEmbeddedApproval": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_approval_resolution_restages_a_stale_embedded_approval",
+    "conclusion": "function_exact：Go 先直接 ResolvePendingApproval 把行改成 APPROVED（run payload 仍内嵌 PENDING），随后再次 ResolveApproval 必须幂等地续跑并执行工具、run 落 COMPLETED。Rust 的等价机制在 store 的 resolve_and_stage_approval：行已终态时 changed=false，但只要 run 仍 PENDING 且内嵌审批数组存在，就用权威行重写内嵌审批并把 run 送进 RUNNING、should_continue=true。新回归测试断言 changed=false、approval 状态不被翻转、should_continue=true、run 状态变 RUNNING、内嵌审批变 APPROVED 且持久化一致。探针：把 should_continue 改成要求 changed 后本测试转红。执行侧（释放调用恰好执行一次、终态 COMPLETED）由 released_calls_are_executed_by_the_tool_loop 与 an_approval_resuming_run_is_recovered_after_a_runtime_restart 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --test adk_store_contracts --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:607:TestReconcileResolvedApprovalsRecoversPendingRun": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::an_approval_resuming_run_is_recovered_after_a_runtime_restart",
+    "conclusion": "partial（可达子集已覆盖，剩余为写入所有权边界）：Go 的 ReconcileResolvedApprovals 是在读请求路径上扫描 run，把“审批行已解析但 run 仍停在等待态”的运行补跑完。Rust 的可达状态是 RUNNING+approval_resuming（审批解析与 run 状态迁移在同一 SQLite 事务里，路由写者不会产生 PENDING+已解析行），该状态由启动扫描 recover_approval_continuations + resume_approval 恢复，已有测试断言工具恰好执行一次、run 落 COMPLETED。剩余差异：Rust 读路径不做 reconcile（AdkReadSnapshotPort 明确不持有 runner），因此手工编辑或历史库中 PENDING+已解析审批不会被读请求治愈，只能靠再次调用审批解析（store 会重新 staging，见上一条）或重启扫描。已登记为后续可选补齐项，不虚记为通过。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/store_test.go:670:TestApprovalDenialCreatesAssistantSummary": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::denied_approval_summary_renders_the_go_denial_reply_text",
+    "conclusion": "function_exact：Go 断言拒绝审批后工具未执行、approval=DENIED、run=DENIED，且 resolution.Message.Content 含 \"已拒绝\"（model.ApprovalResolutionSummary 的本地拒绝答复）。Rust 原先把 transcript 内容写成固定文本 \"approval denied\"，缺少该答复。修复位置：product_adk_model_runtime_events.rs 拒绝分支新增 denied_approval_summary（取 pendingApprovals[0].toolName，缺失时回退到 DENIED 工具调用名），渲染 \"已拒绝工具调用 `<tool>`。本次 run 已结束，未执行该操作。\"，run.Message 仍为 \"approval denied\"、errorCode/failureReason 置空。回归测试：本行引用的渲染用例覆盖两种取名字段；接线由 a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state 断言 session transcript 内容精确等于该句。探针：把事件内容改回固定 \"approval denied\" 后接线用例转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:720:TestApprovalDenialRecordsResumedAndDeniedAuditEvents": {
     "status": "[x]",
@@ -10542,46 +10542,46 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:792:TestApprovedPendingRunMarksFailureWhenToolExecutionFails": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::persist_success_marks_a_run_degraded_from_its_failed_tool_calls",
+    "conclusion": "function_exact（分段证据）：Go 断言被批准的工具执行失败后 run 仍 COMPLETED、errorCode/failureReason 为空、degraded=true、回复非空，并写出 run.completed 审计。Rust 的 persist_success_marks_a_run_degraded_from_its_failed_tool_calls 断言 COMPLETED、message=completed、失败字段被清空并从 wire 省略、degraded=true、toolCalls 保持 FAILED 且 toolSummaries 渲染失败行；run.completed 审计由同族 terminal audit 测试覆盖，批准门禁与释放执行由 gated_call_persists_the_go_approval_projection / released_calls_are_executed_by_the_tool_loop 覆盖。差异说明：Rust 的失败工具不改变 run 终态分类（与 Go 一致），回复文本由模型/本地兜底产生，不做逐字断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:862:TestGoogleADKExecutionRunHonorsContextDeadline": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::a_hanging_provider_is_bounded_by_the_request_timeout",
+    "conclusion": "function_exact（语义等价）：Go 让 googleADKExecution.Run 的阻塞回调永不返回，在 50ms ctx deadline 后必须立刻返回 context.DeadlineExceeded 而不是被卡住。Rust 对应实现是 run 上冻结的 request timeout（reqwest client timeout）+ 取消轮询：新回归测试起一个只接受请求、永不回包的 loopback provider，用 150ms 超时调用 execute_model，断言返回 504 MODEL_CALL_TIMEOUT、消息含 timed out，且整体耗时远小于 5s（实测约 0.17s），随后 join 服务线程。探针：把 client timeout 放大 100 倍后，该测试在“必须及时返回”断言处转红（耗时 15s）。差异说明：Go 的 ctx deadline 由调用方传入，Rust 用持久化 provider requestTimeoutMs 冻结在 run 上，超时分类码为 MODEL_CALL_TIMEOUT。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:881:TestStartRunUsesConfiguredRuntimeTimeout": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::run_start_freezes_the_configured_run_timeout_from_settings",
+    "conclusion": "function_exact（真实功能缺口已修复）：Go 的 startRun 用 RuntimeLimits().RunTimeout（assembly 从持久化 assistantRuntime.runTimeoutMs 注入）冻结 run.MaxDurationMs；Rust 原先把 1800000ms 写死。修复位置：新增 crate::product::product_adk_run_timeout::assistant_run_timeout_ms(settings_path)（读 settings 文档 adk.runTimeoutMs，缺失/不可读回退 Go 默认 1800000），chat 起始 payload 改用它。复现条件：settings 文档写 {\"adk\":{\"runTimeoutMs\":660000}} 后发起 chat，期望 run payload maxDurationMs=660000；把 settings 清空后期望回退 1800000。回归测试断言两次 dispatch 的两条 run 行。探针：把 payload 改回常量 1800000 后测试转红（实际观测到 maxDurationMs=1800000 vs 期望 660000）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:898:TestResumeGoalRunAllowsTimedOutGoalWithFreshTimeoutWindow": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window",
+    "conclusion": "function_exact（真实功能缺口已修复）：Go 的 ResumeGoalRun 对 TIMED_OUT 目标刷新 StartedAt、清空 CompletedAt/errorCode/failureReason/degraded、并把 MaxDurationMs 重置为当前 RuntimeLimits().RunTimeout。Rust 原文已清空终态字段，但 maxDurationMs 写死 1800000。修复位置：product_production_ports_adk_mutation_runs.rs 的 ResumeRun 分支改用 assistant_run_timeout_ms(port.settings_path)。复现条件：seed 一条 TIMED_OUT 目标 run（maxDurationMs=1800000），settings 写 {\"adk\":{\"runTimeoutMs\":2700000}}，调用 resume-run，期望 maxDurationMs=2700000、startedAt 刷新、completedAt/errorCode/failureReason 清除、status=RUNNING、resumeState=user_resuming，且持久化一致。探针：把该处改回常量后测试转红（2700000 vs 1800000）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:947:TestReconcileExpiredRunsMarksHungRunTimedOut": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_timed_out_run_audits_the_timed_out_lifecycle_kind",
+    "conclusion": "partial（已确认的 Rust 功能缺失，本批未实现）：Go 的 ReconcileExpiredRuns 扫描 RUNNING run，按 run 自己的 MaxDurationMs（缺省 DefaultRunTimeout）判断超时，取消活跃 run、把 RUNNING 工具调用改 FAILED 并补 completedAt、run 落 TIMED_OUT 且 failureReason 含 timeout 文本、degraded=true、completedAt 非空、写 run.timed_out 审计，并在 runs/run 详情/取消路由前调用。Rust 目前只有“单次模型调用超时分类”（MODEL_CALL_TIMEOUT→RUN_TIMED_OUT，见 cite 的测试）与启动期 orphan/approval 恢复扫描，没有 run 级别的到期回收，因此崩溃或卡死的 RUNNING run 不会被标记 TIMED_OUT。已登记为下一批 P1 修复项（在 ProductionAdkChatRuntime 增加 reconcile_expired_runs，并在 run 读/取消入口调用），本行不得视为通过。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/store_test.go:1005:TestReconcileExpiredRunsUsesRunSpecificTimeout": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_timed_out_run_audits_the_timed_out_lifecycle_kind",
+    "conclusion": "partial（同一 Rust 功能缺失的另一半）：Go 断言 ReconcileExpiredRuns 使用每个 run 自己的 MaxDurationMs——60000ms 的 run 被判 TIMED_OUT，300000ms 的 run 保持 RUNNING。Rust 既没有 run 到期回收，也就没有 run 级 timeout 选择逻辑（现有实现只在 chat 创建/目标续跑时冻结 maxDurationMs）。与上一行同属一个待实现能力：reconcile_expired_runs 需读取每个 run payload 的 maxDurationMs（<=0 回退 DefaultRunTimeout），并跳过持有新鲜外部 lease 的 run。已登记为下一批 P1 修复项，本行不得视为通过。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/task_runner_test.go:13:TestGoogleADKTaskRunnerBoundsFanOutAndRunsEveryTask": {
     "status": "[~]",

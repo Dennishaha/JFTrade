@@ -8139,3 +8139,80 @@ fn strategy_optimize_is_gated_in_approval_mode_only() {
         );
     }
 }
+
+/// Go's `ResumeGoalRun` hands a timed-out goal a *fresh* timeout window taken
+/// from `RuntimeLimits().RunTimeout`, restarts `startedAt`, and clears every
+/// terminal field while keeping the paused-run branches on the same CAS.
+///
+/// Reference: go:452dea11:internal/assistant/engine/store_test.go
+/// `TestResumeGoalRunAllowsTimedOutGoalWithFreshTimeoutWindow`.
+#[test]
+fn resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window() {
+    let (port, store, directory) = setup_test_adk_mutation_port(None);
+    let run_id = "run-timed-out-goal";
+    store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: run_id,
+            session_id: "session-timed-out-goal",
+            agent_id: "agent-timed-out-goal",
+            status: "TIMED_OUT",
+            client_request_id: "request-timed-out-goal",
+            request_fingerprint: "fingerprint-timed-out-goal",
+            payload_json: &json!({
+                "id": run_id,
+                "sessionId": "session-timed-out-goal",
+                "agentId": "agent-timed-out-goal",
+                "status": "TIMED_OUT",
+                "workMode": "loop",
+                "workflowStatus": "RUNNING",
+                "message": "run timed out",
+                "resumeState": "run_timed_out",
+                "startedAt": "2026-09-19T00:00:00Z",
+                "completedAt": "2026-09-19T00:45:00Z",
+                "failureReason": "run exceeded maximum duration of 30m0s",
+                "errorCode": "RUN_TIMED_OUT",
+                "degraded": true,
+                "maxDurationMs": 1_800_000,
+            })
+            .to_string(),
+        })
+        .expect("seed timed-out goal run");
+    // 45 minutes: the operator raised the window after the run timed out.
+    std::fs::write(
+        directory.path().join("settings.json"),
+        r#"{"adk":{"runTimeoutMs":2700000}}"#,
+    )
+    .expect("write assistant runtime settings");
+
+    let resumed = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::ResumeRun,
+            identifiers: BTreeMap::from([("runId".to_owned(), run_id.to_owned())]),
+            body: Value::Null,
+            webhook_secret: None,
+        })
+        .expect("resume the timed-out goal");
+    assert_eq!(resumed["status"], "RUNNING");
+    assert_eq!(resumed["resumeState"], "user_resuming");
+    assert_eq!(
+        resumed["maxDurationMs"], 2_700_000,
+        "the resumed goal gets the configured window: {resumed}"
+    );
+    assert_ne!(
+        resumed["startedAt"], "2026-09-19T00:00:00Z",
+        "the resumed goal restarts its clock: {resumed}"
+    );
+    assert!(resumed.get("completedAt").is_none() || resumed["completedAt"].is_null());
+    // Go marks both fields `omitempty`, so a resumed run drops them instead of
+    // republishing an empty string.
+    assert!(resumed["errorCode"].is_null(), "{resumed}");
+    assert!(resumed["failureReason"].is_null(), "{resumed}");
+    assert_eq!(resumed["degraded"], false);
+    assert_eq!(resumed["workflowStatus"], "RUNNING");
+
+    // The same refresh is durable, not just projected.
+    let stored = store.get_run(run_id).expect("read run").expect("run row");
+    let payload: Value = serde_json::from_str(&stored.payload_json).expect("run payload");
+    assert_eq!(payload["maxDurationMs"], 2_700_000);
+    assert_eq!(payload["status"], "RUNNING");
+}

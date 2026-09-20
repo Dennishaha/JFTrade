@@ -46,6 +46,36 @@ fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStor
     )
 }
 
+/// Go's `model.ApprovalResolutionSummary` renders the denial reply locally
+/// because the ADK continuation never executes the rejected tool.  A denied
+/// run whose approval carries the tool name must answer with the exact
+/// user-facing sentence, and a payload without that field falls back to the
+/// denied call's own name instead of rendering an empty placeholder.
+///
+/// Reference: go:452dea11:internal/assistant/engine/store_test.go
+/// `TestApprovalDenialCreatesAssistantSummary`.
+#[test]
+fn denied_approval_summary_renders_the_go_denial_reply_text() {
+    let with_approval = json!({
+        "pendingApprovals": [
+            {"id": "approval-1", "toolName": "strategy.save_draft", "status": "DENIED"},
+        ],
+        "toolCalls": [{"id": "call-1", "name": "strategy.save_draft", "status": "DENIED"}],
+    });
+    assert_eq!(
+        super::denied_approval_summary(&with_approval),
+        "已拒绝工具调用 `strategy.save_draft`。本次 run 已结束，未执行该操作。"
+    );
+    let call_only = json!({
+        "pendingApprovals": [],
+        "toolCalls": [{"id": "call-1", "name": "alerts.price.set", "status": "DENIED"}],
+    });
+    assert_eq!(
+        super::denied_approval_summary(&call_only),
+        "已拒绝工具调用 `alerts.price.set`。本次 run 已结束，未执行该操作。"
+    );
+}
+
 fn runtime_for(
     directory: &tempfile::TempDir,
     store: &Arc<AdkStore>,
@@ -1010,4 +1040,22 @@ fn a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state() {
     );
     assert_eq!(denied["metadata"]["resumeState"], "approval_denied");
     assert_eq!(denied["metadata"]["status"], "DENIED");
+
+    // Go's `finalizeResumedResult` replies with
+    // `model.ApprovalResolutionSummary(run, run.PendingApprovals[0], false)`
+    // instead of replaying the fixed run message, so the session transcript
+    // carries the user-facing denial text.
+    let events = session_store
+        .list_events("session-run-denied-audit")
+        .expect("session events");
+    let denial = events
+        .iter()
+        .find(|event| event.content.contains("已拒绝工具调用"))
+        .unwrap_or_else(|| {
+            panic!("the denial reply must be projected into the transcript: {events:?}")
+        });
+    assert_eq!(
+        denial.content,
+        "已拒绝工具调用 `strategy.save_draft`。本次 run 已结束，未执行该操作。"
+    );
 }

@@ -315,7 +315,17 @@ pub(super) fn dispatch(
             if timed_out {
                 object.insert("startedAt".to_owned(), Value::String(now.clone()));
                 object.remove("completedAt");
-                object.insert("maxDurationMs".to_owned(), json!(1_800_000));
+                // Go's `ResumeGoalRun` hands a timed-out goal a fresh
+                // `RuntimeLimits().RunTimeout` window instead of reusing the
+                // budget the previous attempt burned.
+                object.insert(
+                    "maxDurationMs".to_owned(),
+                    json!(
+                        crate::product::product_adk_run_timeout::assistant_run_timeout_ms(
+                            &port.settings_path
+                        )
+                    ),
+                );
             }
             object.insert("status".to_owned(), Value::String("RUNNING".to_owned()));
             object.insert(

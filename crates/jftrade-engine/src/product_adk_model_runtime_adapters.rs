@@ -11,6 +11,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
         let store = Arc::clone(&self.store);
         let session_store = Arc::clone(&self.session_store);
         let secrets_path = self.secrets_path.clone();
+        let settings_path = self.settings_path.clone();
         let cancellation_registry = Arc::clone(&self.cancellation_registry);
         let tool_catalog = Arc::clone(&self.tool_catalog);
         let tool_executor = Arc::clone(&self.tool_executor);
@@ -23,6 +24,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
             let stream_store = Arc::clone(&store);
             let stream_session_store = Arc::clone(&session_store);
             let stream_secrets_path = secrets_path.clone();
+            let stream_settings_path = settings_path.clone();
             let stream_input = input.clone();
             let stream_tool_executor = Arc::clone(&tool_executor);
             // Multiple clients may attach to one durable RUNNING request. Each
@@ -40,6 +42,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
                         store: stream_store,
                         session_store: stream_session_store,
                         secrets_path: stream_secrets_path,
+                        settings_path: stream_settings_path,
                         cancellation_registry: Arc::clone(&cancellation_registry),
                         tool_catalog: Arc::clone(&tool_catalog),
                         tool_executor: stream_tool_executor,
@@ -66,6 +69,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
                     store,
                     session_store,
                     secrets_path,
+                    settings_path,
                     cancellation_registry,
                     tool_catalog,
                     tool_executor,

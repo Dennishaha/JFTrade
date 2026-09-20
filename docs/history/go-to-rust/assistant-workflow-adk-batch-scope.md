@@ -1667,3 +1667,45 @@ Go 的期望：`reply` = 整轮 assistant 文本合并（`先说明一下。优�
 验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine --all-targets --locked`、`pnpm run check:zero-go`、`check:compatibility`、`check:rust:architecture`、`git diff --check`、`pnpm run check:quick`；审计 4451 keys、834 function_exact、0 重复 `rust_entry`、0 非 function_exact 的 `[x]`。
 
 随后按 `store_test.go`（20）→ `session_context_test.go`（19）推进；`internal/app/apiserver`（574 待办）与 `pkg/backtest`（237 待办）保持为后续大领域批次。
+
+## 第三十二批：`internal/assistant/engine/store_test.go` 全量结清（13 条 [x] + 3 条 Go-skip 边界 + 2 条登记缺口 + 1 条可达子集 partial）
+
+范围：`internal/assistant/engine/store_test.go` 的 19 条待办逐行核对，先跑参考夹具确认真实基线（19 条中 16 条通过、3 条为 `t.Skip`）。`[x]` 由 834 → **847**，Rust 测试 2671 → **2682**。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/engine/ -run '<本批 19 个 Test*>' -count=1`：16 条通过；`TestStoreMigrationNormalizesHiddenAgentWorkflowDefaults`、`TestStoreMigrationRepairsOrphanTasksAndDuplicateConfirmations`、`TestStoreMigrationReopensCompletedWorkflowWithRecoverablePendingApproval` 打印 `incremental ADK migrations were intentionally removed; strict incompatibility is covered below` 后 SKIP，故这三行记为 boundary 而不是未覆盖。
+
+### 本批真实功能修复（3 处）
+
+1. **run 超时来自持久化 settings（`TestStartRunUsesConfiguredRuntimeTimeout`、`TestResumeGoalRunAllowsTimedOutGoalWithFreshTimeoutWindow`）**：Rust 原先把 `maxDurationMs` 写死 1800000。新增 `crate::product::product_adk_run_timeout::assistant_run_timeout_ms(settings_path)`（读 settings 文档 `adk.runTimeoutMs`，缺失/不可读回退 Go 默认 1800000），chat 起始 payload 与 `ResumeRun`（TIMED_OUT 分支）都改用它；`ProductionAdkChatRuntime` 新增 `settings_path` 字段并沿用到 facade（stream/dispatch 分支）。回归：`run_start_freezes_the_configured_run_timeout_from_settings`、`resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window`。
+2. **provider 请求超时保存即归一化（`TestProviderSecretIsNotEchoed`、`TestProviderRequestTimeoutDefaultsAndClamp`）**：Go 的 `StoreCore.SaveProvider` 用 `NormalizeProviderRequestTimeoutMs` 落库（<=0 → 180000，区间 [15000,600000]），Rust 原先只存原值、执行期兜底还是 120000。修复：保存路径新增 `normalize_provider_request_timeout_ms`，执行期兜底常量改为 180000。
+3. **拒绝审批的本地答复文本（`TestApprovalDenialCreatesAssistantSummary`）**：Go 用 `model.ApprovalResolutionSummary` 渲染 `已拒绝工具调用 \`<tool>\`。本次 run 已结束，未执行该操作。`，Rust 之前把 transcript 内容写成固定 `approval denied`。修复：拒绝分支新增 `denied_approval_summary`（优先 `pendingApprovals[0].toolName`，回退 DENIED 工具调用名），run.Message 仍保持 `approval denied`、errorCode/failureReason 置空。
+
+另：`product_adk_model_runtime.rs` 因新增字段触到 800 行上限，把 `RunCancellationRegistry` 抽到 `product_adk_model_runtime_cancellation.rs`（`include!`，纯机械搬移），生产文件回到 743 行。
+
+### 新增回归（9 条 Rust 测试）
+
+- `crates/jftrade-store-sqlite/tests/adk_store_contracts.rs`：`adk_store_fences_a_second_writer_and_serializes_concurrent_access`、`adk_store_rejects_a_legacy_database_without_rewriting_it`（逐字节未变 + 无 schema metadata）、`adk_store_schema_has_no_legacy_message_tables`、`adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency`（24 线程同一 confirmation，恰好 1 次 staging 成功、恰好 1 行）、`adk_approval_resolution_restages_a_stale_embedded_approval`。
+- `crates/jftrade-engine`：`run_start_freezes_the_configured_run_timeout_from_settings`、`a_hanging_provider_is_bounded_by_the_request_timeout`（只接受不回包的 loopback provider + 150ms 超时 → 504 `MODEL_CALL_TIMEOUT`，实测 0.17s）、`resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window`、`saved_provider_hides_the_credential_from_the_row_and_projection`、`saved_provider_normalizes_the_request_timeout_on_write`、`denied_approval_summary_renders_the_go_denial_reply_text`。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `"maxDurationMs": self.run_timeout_ms()` 改回常量 → `run_start_freezes...` 转红（1800000 vs 660000）。
+2. `ResumeRun` 的 `maxDurationMs` 改回常量 → resume 用例转红（1800000 vs 2700000）。
+3. 拒绝事件内容改回 `"approval denied"` → 审计用例转红。
+4. provider 归一化替换成直存原值 → 超时用例在 180000 断言处转红。
+5. 让 `WriterLease` 忽略 `try_lock` 冲突 → 单写者用例在第二所有者断言处转红。
+6. 把 staging 的 `status/revision` 条件改成恒真 → 确认并发用例转红（重复插入被唯一索引拒绝）。
+7. `should_continue = !has_pending && changed` → stale-embedded 用例转红。
+8. client timeout 放大 100 倍 → 挂起 provider 用例在“必须及时返回”断言处转红（15s）。
+
+### 保留为 partial / boundary（写明剩余差异，不计入通过）
+
+- `:607`（partial）：Go 的 `ReconcileResolvedApprovals` 在读路径上修复“审批行已解析但 run 仍等待”的运行；Rust 的审批解析与 run 状态迁移在同一事务内，读路径不持有 runner 也不做 reconcile，因此可达状态（RUNNING + approval_resuming）由 `recover_approval_continuations` + `resume_approval` 恢复（已有测试），手工编辑/历史库中的 PENDING+已解析状态不会被读请求治愈（再次解析会重新 staging）。
+- `:947`、`:1005`（partial，登记为下一批 P1 缺口）：Rust 没有 run 级到期回收 `ReconcileExpiredRuns`（按 run 自身 `maxDurationMs` 扫描 RUNNING run、取消活跃 run、把 RUNNING 工具调用改 FAILED、落 TIMED_OUT + `run.timed_out` 审计，并在 runs/run 详情/取消入口调用）。现有覆盖仅是单次模型调用超时分类（`MODEL_CALL_TIMEOUT` → `RUN_TIMED_OUT`）与启动期 orphan/approval 扫描。
+- `:75`、`:127`、`:198`（boundary）：参考基线自身 `t.Skip`（增量 ADK 迁移已被刻意移除），Rust 用严格 schema fail-closed 取代，不迁移这些修复逻辑。
+
+验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked`、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`、`python3 scripts/compatibility/audit_test_parity.py`、`git diff --check`、`pnpm run check:quick`。
+
+随后按 `session_context_test.go`（19）→ 本批登记的 `ReconcileExpiredRuns` 缺口（`store_test.go:947/:1005`）→ `store_lifecycle_test.go`（17）推进；`internal/app/apiserver`（574 待办）与 `pkg/backtest`（237 待办）保持为后续大领域批次。

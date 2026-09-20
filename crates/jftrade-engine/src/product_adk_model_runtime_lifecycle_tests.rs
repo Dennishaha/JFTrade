@@ -416,6 +416,167 @@ fn orphaned_pending_approval_runs_are_failed_on_startup_reconcile() {
     runtime.shutdown();
 }
 
+/// Go's `startRun` freezes `Runtime.runtimeLimits().RunTimeout` (wired from the
+/// persisted `assistantRuntime.runTimeoutMs` settings) onto `run.MaxDurationMs`,
+/// so an operator edit applies to the next run without a restart while a
+/// missing settings document keeps `assistantmodel.DefaultRunTimeout`.
+///
+/// Reference: go:452dea11:internal/assistant/engine/store_test.go
+/// `TestStartRunUsesConfiguredRuntimeTimeout`.
+#[test]
+fn run_start_freezes_the_configured_run_timeout_from_settings() {
+    let (directory, store, session_store) = initialized_stores();
+    std::fs::create_dir_all(directory.path().join("secrets")).expect("create secrets directory");
+    std::fs::write(
+        directory.path().join("secrets/adk-secrets.json"),
+        r#"{"provider-timeout-fixture":"fixture-key"}"#,
+    )
+    .expect("write provider credential");
+    let settings_path = directory.path().join("settings.json");
+    // 11 minutes: inside the accepted window, distinct from the 30-minute
+    // default so a hardcoded constant cannot satisfy the assertion.
+    std::fs::write(&settings_path, r#"{"adk":{"runTimeoutMs":660000}}"#)
+        .expect("write assistant runtime settings");
+
+    store
+        .upsert_provider(
+            "provider-timeout-fixture",
+            &json!({
+                "displayName": "Timeout fixture",
+                "baseUrl": "http://127.0.0.1:9/v1",
+                "model": "fixture-model",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    store
+        .upsert_agent(
+            "agent-timeout-fixture",
+            &json!({
+                "id": "agent-timeout-fixture",
+                "name": "Timeout fixture",
+                "providerId": "provider-timeout-fixture",
+                "status": "ENABLED",
+            })
+            .to_string(),
+        )
+        .expect("persist agent");
+
+    let runtime = ProductionAdkChatRuntime::new(
+        Arc::clone(&store),
+        session_store,
+        &settings_path,
+        Arc::new(RunCancellationRegistry::default()),
+        Arc::new(crate::product::product_production_ports::ProductionToolCatalog::empty_for_test()),
+    );
+    let chat = |client_request_id: &str| AdkChatInput {
+        body: json!({
+            "agentId": "agent-timeout-fixture",
+            "message": "hello",
+        })
+        .to_string()
+        .into_bytes(),
+        client_request_id: client_request_id.to_owned(),
+    };
+
+    // The provider endpoint is a closed loopback port, so the run is created
+    // (and frozen) before the model call fails.
+    let _ = runtime.dispatch(AdkChatRoute::Chat, &chat("timeout-configured"));
+    let configured = store
+        .get_run("run-timeout-configured")
+        .expect("read configured run")
+        .expect("configured run row");
+    let payload: Value = serde_json::from_str(&configured.payload_json).expect("run payload");
+    assert_eq!(
+        payload["maxDurationMs"], 660_000,
+        "the run freezes the configured timeout: {payload}"
+    );
+
+    // An edit applies to the next run, and a missing settings document falls
+    // back to Go's 30-minute default.
+    std::fs::write(&settings_path, "{}").expect("reset assistant runtime settings");
+    let _ = runtime.dispatch(AdkChatRoute::Chat, &chat("timeout-default"));
+    let defaulted = store
+        .get_run("run-timeout-default")
+        .expect("read defaulted run")
+        .expect("defaulted run row");
+    let payload: Value = serde_json::from_str(&defaulted.payload_json).expect("run payload");
+    assert_eq!(
+        payload["maxDurationMs"], 1_800_000,
+        "a settings document without an ADK section keeps the default: {payload}"
+    );
+    runtime.shutdown();
+}
+
+/// Go's `googleADKExecution.Run` returns `context.DeadlineExceeded` promptly
+/// even when the blocking model callback never returns, so a stalled runner can
+/// never pin a run.  Rust bounds the same call with the frozen request timeout
+/// plus the cancellation poll and reports `504 MODEL_CALL_TIMEOUT`.
+///
+/// Reference: go:452dea11:internal/assistant/engine/store_test.go
+/// `TestGoogleADKExecutionRunHonorsContextDeadline`.
+#[test]
+fn a_hanging_provider_is_bounded_by_the_request_timeout() {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind hanging provider");
+    let endpoint = format!(
+        "http://127.0.0.1:{}/v1/responses",
+        listener.local_addr().expect("provider address").port()
+    );
+    // The server accepts the request and never answers.  It returns as soon as
+    // the client gives up and closes the socket, so the test joins promptly.
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept model request");
+        let mut buffer = [0_u8; 64];
+        let _ = std::io::Read::read(&mut stream, &mut buffer);
+        // Hold the connection open without answering until the client gives up
+        // and closes it, so the bounded request (not the server) ends the call.
+        while let Ok(read) = std::io::Read::read(&mut stream, &mut buffer) {
+            if read == 0 {
+                break;
+            }
+        }
+    });
+
+    let started = std::time::Instant::now();
+    let error = execute_model(
+        ModelRequest {
+            endpoint: reqwest::Url::parse(&endpoint).expect("endpoint url"),
+            api_key: "sk-fixture".to_owned(),
+            model: "fixture-model".to_owned(),
+            instruction: None,
+            message: "查看系统状态".to_owned(),
+            durable_context: Vec::new(),
+            tool_context: Vec::new(),
+            timeout: Duration::from_millis(150),
+            tools: Vec::new(),
+        },
+        Arc::new(std::sync::atomic::AtomicBool::new(false)),
+    )
+    .expect_err("a stalled provider must not pin the run");
+    match error {
+        AdkChatPortError::Failed {
+            status,
+            ref code,
+            ref message,
+        } => {
+            assert_eq!(status, 504);
+            assert_eq!(code, "MODEL_CALL_TIMEOUT");
+            assert!(
+                message.contains("timed out"),
+                "unexpected timeout message: {message}"
+            );
+        }
+        other => panic!("expected 504 MODEL_CALL_TIMEOUT, got {other:?}"),
+    }
+    assert!(
+        started.elapsed() < Duration::from_secs(5),
+        "the deadline guard must return promptly, took {:?}",
+        started.elapsed()
+    );
+    server.join().expect("join hanging provider");
+}
+
 /// A loopback AI Platform-compatible endpoint that answers one non-streaming
 /// Responses request with a plain text completion.  Serves exactly one
 /// connection, then returns; the caller joins the thread.

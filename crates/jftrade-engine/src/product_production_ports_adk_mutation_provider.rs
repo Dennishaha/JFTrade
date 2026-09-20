@@ -116,6 +116,18 @@ pub(super) fn provider_payload(
             object.insert(key.to_owned(), value.clone());
         }
     }
+    // Go's `StoreCore.SaveProvider` persists the normalized timeout, so a
+    // provider saved without one reports the shared 180s default and a
+    // hand-written value is clamped to the supported range instead of being
+    // echoed back unchanged.
+    let stored_timeout = object
+        .get("requestTimeoutMs")
+        .and_then(Value::as_i64)
+        .unwrap_or_default();
+    object.insert(
+        "requestTimeoutMs".to_owned(),
+        json!(normalize_provider_request_timeout_ms(stored_timeout)),
+    );
     let display_name = object
         .get("displayName")
         .and_then(Value::as_str)
@@ -336,6 +348,17 @@ pub(super) fn sanitized_provider_payload(
     Ok(value)
 }
 
+/// Go `model.NormalizeProviderRequestTimeoutMs`: a missing or non-positive
+/// timeout falls back to the shared 180s default, everything else is clamped
+/// into `[15s, 600s]`.
+fn normalize_provider_request_timeout_ms(value: i64) -> i64 {
+    if value <= 0 {
+        180_000
+    } else {
+        value.clamp(15_000, 600_000)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
@@ -441,5 +464,138 @@ mod tests {
             .expect_err("provider without key must remain unavailable");
         assert!(matches!(error, AdkChatPortError::Unavailable(_)));
         port.shutdown();
+    }
+
+    /// Go's `StoreCore.SaveProvider` never echoes the credential: the saved row
+    /// reports `hasApiKey`, the secret stays in the sidecar, and an omitted
+    /// `defaultHeaders` field stays absent instead of being invented.
+    ///
+    /// Reference: go:452dea11:internal/assistant/engine/store_test.go
+    /// `TestProviderSecretIsNotEchoed`.
+    #[test]
+    fn saved_provider_hides_the_credential_from_the_row_and_projection() {
+        let (port, directory) = production_port();
+        let create = |body: serde_json::Value| AdkMutationInput {
+            operation: AdkMutationOperation::CreateProvider,
+            identifiers: BTreeMap::new(),
+            body,
+            webhook_secret: None,
+        };
+
+        let saved = super::super::dispatch_mutation(
+            &port,
+            &create(json!({
+                "id": "openai",
+                "displayName": "OpenAI",
+                "baseUrl": "https://api.openai.com/v1",
+                "model": "gpt-4o-mini",
+                "apiKey": "fixture-credential",
+                "enabled": true,
+            })),
+        )
+        .expect("save provider");
+        assert_eq!(saved["hasApiKey"], true, "{saved}");
+        assert!(
+            saved.get("apiKey").is_none(),
+            "the credential must never be echoed back: {saved}"
+        );
+        assert!(saved["defaultHeaders"].is_null(), "{saved}");
+
+        // The credential is durably stored in the sidecar, not in the row.
+        let sidecar: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(directory.path().join("secrets/adk-secrets.json"))
+                .expect("read credential sidecar"),
+        )
+        .expect("decode credential sidecar");
+        assert_eq!(sidecar["openai"], "fixture-credential");
+        let row = port
+            .store
+            .get_provider("openai")
+            .expect("read provider")
+            .expect("provider row");
+        assert!(
+            !row.payload_json.contains("fixture-credential"),
+            "the stored row must not carry the credential: {}",
+            row.payload_json
+        );
+    }
+
+    /// Go's `StoreCore.SaveProvider` persists the normalized request timeout:
+    /// a provider created without one reports the shared 180s default, a
+    /// hand-written 1s value is clamped to the 15s floor instead of being
+    /// stored verbatim, and a later save that omits the field keeps the stored
+    /// value.
+    ///
+    /// Reference: go:452dea11:internal/assistant/engine/store_test.go
+    /// `TestProviderRequestTimeoutDefaultsAndClamp`.
+    #[test]
+    fn saved_provider_normalizes_the_request_timeout_on_write() {
+        let (port, _directory) = production_port();
+        let saved = super::super::dispatch_mutation(
+            &port,
+            &AdkMutationInput {
+                operation: AdkMutationOperation::CreateProvider,
+                identifiers: BTreeMap::new(),
+                body: json!({
+                    "id": "openai-clamped",
+                    "displayName": "OpenAI",
+                    "baseUrl": "https://api.openai.com/v1",
+                    "model": "gpt-4o-mini",
+                    "enabled": true,
+                }),
+                webhook_secret: None,
+            },
+        )
+        .expect("save provider with the default timeout");
+        assert_eq!(
+            saved["requestTimeoutMs"], 180_000,
+            "a provider created without a timeout keeps Go's default: {saved}"
+        );
+
+        // 1s is clamped to the 15s floor on save, and later saves preserve the
+        // stored timeout when the request omits the field.
+        let clamped = super::super::dispatch_mutation(
+            &port,
+            &AdkMutationInput {
+                operation: AdkMutationOperation::UpdateProvider,
+                identifiers: BTreeMap::from([(
+                    "providerId".to_owned(),
+                    "openai-clamped".to_owned(),
+                )]),
+                body: json!({
+                    "displayName": "OpenAI",
+                    "baseUrl": "https://api.openai.com/v1",
+                    "model": "gpt-4o-mini",
+                    "requestTimeoutMs": 1_000,
+                    "enabled": true,
+                }),
+                webhook_secret: None,
+            },
+        )
+        .expect("update provider");
+        assert_eq!(clamped["requestTimeoutMs"], 15_000, "{clamped}");
+
+        let unchanged = super::super::dispatch_mutation(
+            &port,
+            &AdkMutationInput {
+                operation: AdkMutationOperation::UpdateProvider,
+                identifiers: BTreeMap::from([(
+                    "providerId".to_owned(),
+                    "openai-clamped".to_owned(),
+                )]),
+                body: json!({
+                    "displayName": "OpenAI",
+                    "baseUrl": "https://api.openai.com/v1",
+                    "model": "gpt-4o-mini",
+                    "enabled": true,
+                }),
+                webhook_secret: None,
+            },
+        )
+        .expect("update provider without a timeout");
+        assert_eq!(
+            unchanged["requestTimeoutMs"], 15_000,
+            "an omitted timeout keeps the stored one: {unchanged}"
+        );
     }
 }

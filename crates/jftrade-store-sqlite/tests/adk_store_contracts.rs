@@ -1,10 +1,14 @@
 use std::fs;
 use std::path::Path;
+use std::sync::{Arc, Barrier};
 
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
 
-use jftrade_store_sqlite::{ADK_TEST_CUTOVER_PROFILE, AdkStoreError, AdkTestCutoverStore};
+use jftrade_store_sqlite::{
+    ADK_TEST_CUTOVER_PROFILE, AdkApprovalStage, AdkSessionStore, AdkStore, AdkStoreError,
+    AdkTestCutoverStore, CreateAdkRunParams, initialize_current,
+};
 use rusqlite::Connection;
 use tempfile::tempdir;
 
@@ -800,4 +804,328 @@ fn adk_approval_resolution_missing_and_non_pending_rows_are_idempotent() {
         !second.should_continue,
         "a no-op resolution must not stage a second continuation"
     );
+}
+
+/// Go's `ResolveAndStageApproval` is idempotent against a *stale embedded*
+/// approval: when the durable approval row was already resolved but the run
+/// payload still embeds it as `PENDING`, the retry must not flip the verdict
+/// and must re-stage the run so the released call can continue.
+#[test]
+fn adk_approval_resolution_restages_a_stale_embedded_approval() {
+    // Parity: go:452dea11:internal/assistant/engine/store_test.go:538
+    // TestIdempotentApprovalRecoversPendingRunWithStaleEmbeddedApproval
+    let directory = tempdir().expect("temp dir");
+    let db_path = directory.path().join("adk.db");
+    seed_valid_go_adk_database(&db_path);
+    let store = AdkStore::open_existing(&db_path, ADK_TEST_CUTOVER_PROFILE).expect("open store");
+    store
+        .create_run(CreateAdkRunParams {
+            id: "run-stale-approval",
+            session_id: "session-stale-approval",
+            agent_id: "agent-stale-approval",
+            status: "PENDING",
+            client_request_id: "request-stale-approval",
+            request_fingerprint: "fingerprint-stale-approval",
+            payload_json: r#"{"id":"run-stale-approval","sessionId":"session-stale-approval","agentId":"agent-stale-approval","status":"PENDING","pendingApprovals":[{"id":"approval-stale","status":"PENDING","toolName":"strategy.research_backtest"}],"toolCalls":[{"id":"call-stale","name":"strategy.research_backtest","status":"PENDING_APPROVAL","requiresUser":true}]}"#,
+        })
+        .expect("create pending run");
+    // The durable verdict landed without staging the run (the state a crashed
+    // or externally repaired database can hold).
+    store
+        .create_approval(
+            "approval-stale",
+            "run-stale-approval",
+            "agent-stale-approval",
+            "APPROVED",
+            r#"{"id":"approval-stale","runId":"run-stale-approval","agentId":"agent-stale-approval","toolName":"strategy.research_backtest","status":"APPROVED"}"#,
+        )
+        .expect("seed stale resolved approval");
+
+    let resolution = store
+        .resolve_and_stage_approval("approval-stale", "APPROVED")
+        .expect("idempotent retry")
+        .expect("the approval row resolves");
+    assert!(
+        !resolution.changed,
+        "an already-resolved approval never reports changed=true"
+    );
+    assert_eq!(resolution.approval.status, "APPROVED");
+    assert!(
+        resolution.should_continue,
+        "the retry must re-stage the run for the released call: {resolution:?}"
+    );
+    let run = resolution.run.as_ref().expect("staged run");
+    assert_eq!(
+        run.status, "RUNNING",
+        "the re-staged run leaves the approval wait"
+    );
+    let payload: serde_json::Value = serde_json::from_str(&run.payload_json).expect("run payload");
+    assert_eq!(payload["pendingApprovals"][0]["status"], "APPROVED");
+    let stored = store
+        .get_run("run-stale-approval")
+        .expect("read run")
+        .expect("run row");
+    assert_eq!(stored.status, "RUNNING");
+}
+
+/// Go opens two SQLite handles per ADK store: an eight-connection read pool
+/// plus a single-connection write pool (`Store.DB().Stats()` /
+/// `Store.DB().WriteStats()`).  The Rust port keeps one mutex-guarded
+/// connection behind a process-wide `WriterLease`; the invariant that matters
+/// is unchanged: exactly one writer owns the file, and concurrent readers
+/// never observe a torn or lost write.
+#[test]
+fn adk_store_fences_a_second_writer_and_serializes_concurrent_access() {
+    // Parity: go:452dea11:internal/assistant/engine/store_test.go:59
+    // TestNewStoreUsesSeparatedConcurrentReadAndSingleWritePools
+    let directory = tempdir().expect("temp dir");
+    let db_path = directory.path().join("adk.db");
+    seed_valid_go_adk_database(&db_path);
+    let store = Arc::new(
+        AdkStore::open_existing(&db_path, ADK_TEST_CUTOVER_PROFILE).expect("open valid store"),
+    );
+
+    // A second owner for the same database fails closed instead of joining the
+    // write path.
+    let second = AdkStore::open_existing(&db_path, ADK_TEST_CUTOVER_PROFILE)
+        .expect_err("a second writer must be fenced");
+    let message = second.to_string();
+    assert!(
+        message.contains("writer lease is already held"),
+        "unexpected second-writer error: {message}"
+    );
+
+    // Concurrent readers/writers all commit: the guarded connection serializes
+    // them instead of interleaving partial writes.
+    const WORKERS: usize = 8;
+    let barrier = Arc::new(Barrier::new(WORKERS));
+    let mut handles = Vec::new();
+    for index in 0..WORKERS {
+        let store = Arc::clone(&store);
+        let barrier = Arc::clone(&barrier);
+        handles.push(std::thread::spawn(move || {
+            let id = format!("session-concurrent-{index}");
+            let payload = format!(r#"{{"id":"{id}","agentId":"agent-1"}}"#);
+            barrier.wait();
+            store
+                .upsert_session(&id, "agent-1", &payload)
+                .expect("concurrent upsert");
+            store
+                .get_session(&id)
+                .expect("concurrent read")
+                .expect("session row")
+                .id
+        }));
+    }
+    let mut written: Vec<String> = handles
+        .into_iter()
+        .map(|handle| handle.join().expect("join concurrent worker"))
+        .collect();
+    written.sort();
+    assert_eq!(written.len(), WORKERS);
+    assert_eq!(written[0], "session-concurrent-0");
+    assert_eq!(written[WORKERS - 1], "session-concurrent-7");
+
+    let connection = Connection::open(&db_path).expect("open sqlite");
+    let stored: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM adk_sessions WHERE id LIKE 'session-concurrent-%'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("count concurrent sessions");
+    assert_eq!(stored, WORKERS as i64, "no concurrent write may be lost");
+}
+
+/// Go's `NewStore` refuses a database without ADK schema metadata and leaves
+/// the file untouched so the operator can inspect or repair it.
+#[test]
+fn adk_store_rejects_a_legacy_database_without_rewriting_it() {
+    // Parity: go:452dea11:internal/assistant/engine/store_test.go:254
+    // TestNewStoreRejectsLegacyDatabaseWithoutMutatingIt
+    let directory = tempdir().expect("temp dir");
+    let db_path = directory.path().join("legacy.db");
+    let connection = Connection::open(&db_path).expect("create legacy db");
+    connection
+        .execute_batch(
+            "CREATE TABLE legacy_data (id TEXT PRIMARY KEY, value TEXT NOT NULL);
+             INSERT INTO legacy_data (id, value) VALUES ('keep', 'untouched');",
+        )
+        .expect("seed legacy database");
+    drop(connection);
+    let before = fs::read(&db_path).expect("read legacy bytes");
+
+    let error = AdkStore::open_existing(&db_path, ADK_TEST_CUTOVER_PROFILE)
+        .expect_err("a legacy database must be rejected");
+    assert!(
+        error.to_string().contains("schema metadata is missing"),
+        "unexpected legacy error: {error}"
+    );
+
+    assert_eq!(
+        fs::read(&db_path).expect("re-read legacy bytes"),
+        before,
+        "a rejected legacy database must not be modified"
+    );
+    let connection = Connection::open(&db_path).expect("reopen legacy db");
+    let value: String = connection
+        .query_row(
+            "SELECT value FROM legacy_data WHERE id = 'keep'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("legacy row survives");
+    assert_eq!(value, "untouched");
+    let metadata_tables: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='jftrade_schema_meta'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("inspect metadata table");
+    assert_eq!(
+        metadata_tables, 0,
+        "the rejected database must not gain schema metadata"
+    );
+}
+
+/// Go's ADK store dropped the pre-ADK `adk_messages` / `adk_transcript_entries`
+/// tables; transcripts live in the ADK session database, so opening a store
+/// must never recreate them.
+#[test]
+fn adk_store_schema_has_no_legacy_message_tables() {
+    // Parity: go:452dea11:internal/assistant/engine/store_test.go:373
+    // TestNewStoreDropsLegacyMessageTables
+    let directory = tempdir().expect("temp dir");
+    let db_path = directory.path().join("adk.db");
+    seed_valid_go_adk_database(&db_path);
+    let _store =
+        AdkStore::open_existing(&db_path, ADK_TEST_CUTOVER_PROFILE).expect("open valid store");
+
+    let connection = Connection::open(&db_path).expect("open sqlite");
+    let legacy: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'
+             AND name IN ('adk_messages', 'adk_transcript_entries')",
+            [],
+            |row| row.get(0),
+        )
+        .expect("look up legacy tables");
+    assert_eq!(legacy, 0, "legacy message tables must stay dropped");
+}
+
+/// Go's `SaveApprovalIfConfirmationAbsent` lets 24 racing callers share one
+/// confirmation: exactly one caller creates the approval row and the rest reuse
+/// it.  Rust stages approvals inside the run's status/revision CAS, so the same
+/// guarantee holds through a different mechanism: one staging attempt wins the
+/// revision, the remaining attempts observe the stale revision and stage
+/// nothing, and the confirmation index still rejects any duplicate row.
+#[test]
+fn adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency() {
+    // Parity: go:452dea11:internal/assistant/engine/store_test.go:295
+    // TestSaveApprovalIfConfirmationAbsentIsConcurrentIdempotent
+    const WORKERS: usize = 24;
+    let directory = tempdir().expect("temp dir");
+    let db_path = directory.path().join("adk.db");
+    let session_path = directory.path().join("adk-session.db");
+    seed_valid_go_adk_database(&db_path);
+    initialize_current(
+        &Connection::open(&session_path).expect("create session db"),
+        "adk-session",
+    )
+    .expect("initialize session schema");
+    let store = Arc::new(
+        AdkStore::open_existing(&db_path, ADK_TEST_CUTOVER_PROFILE).expect("open valid store"),
+    );
+    let session_store = Arc::new(AdkSessionStore::open(&session_path).expect("open session store"));
+    store
+        .upsert_session("session-concurrent", "agent", "{}")
+        .expect("seed session");
+    store
+        .create_run(CreateAdkRunParams {
+            id: "run-concurrent-owner",
+            session_id: "session-concurrent",
+            agent_id: "agent",
+            status: "RUNNING",
+            client_request_id: "request-concurrent-owner",
+            request_fingerprint: "fingerprint-concurrent-owner",
+            payload_json: r#"{"id":"run-concurrent-owner","sessionId":"session-concurrent","agentId":"agent","status":"RUNNING","pendingApprovals":[],"toolCalls":[]}"#,
+        })
+        .expect("seed running run");
+    let revision = store
+        .get_run("run-concurrent-owner")
+        .expect("read seeded run")
+        .expect("run row")
+        .updated_at;
+
+    let barrier = Arc::new(Barrier::new(WORKERS));
+    let mut handles = Vec::new();
+    for index in 0..WORKERS {
+        let store = Arc::clone(&store);
+        let session_store = Arc::clone(&session_store);
+        let barrier = Arc::clone(&barrier);
+        let revision = revision.clone();
+        handles.push(std::thread::spawn(move || {
+            let approval_id = format!("approval-concurrent-{index}");
+            let approval_payload = format!(
+                r#"{{"id":"{approval_id}","runId":"run-concurrent-owner","agentId":"agent","toolName":"strategy.research_backtest","status":"PENDING","functionCallId":"function-concurrent","confirmationCallId":"confirmation-concurrent"}}"#
+            );
+            let run_payload = format!(
+                r#"{{"id":"run-concurrent-owner","sessionId":"session-concurrent","agentId":"agent","status":"PENDING","pendingApprovals":[{{"id":"{approval_id}","toolName":"strategy.research_backtest","status":"PENDING","confirmationCallId":"confirmation-concurrent"}}]}}"#
+            );
+            let approval = AdkApprovalStage {
+                id: &approval_id,
+                run_id: "run-concurrent-owner",
+                agent_id: "agent",
+                payload_json: &approval_payload,
+            };
+            barrier.wait();
+            store
+                .stage_tool_calls_if_status_and_revision_with_events(
+                    "run-concurrent-owner",
+                    "RUNNING",
+                    &revision,
+                    "PENDING",
+                    &run_payload,
+                    &[approval],
+                    session_store.as_ref(),
+                    &[],
+                )
+                .expect("a losing staging attempt must report the stale revision")
+        }));
+    }
+    let staged: Vec<bool> = handles
+        .into_iter()
+        .map(|handle| handle.join().expect("join staging worker"))
+        .collect();
+    assert_eq!(
+        staged.iter().filter(|won| **won).count(),
+        1,
+        "exactly one staging attempt may create the approval: {staged:?}"
+    );
+
+    let connection = Connection::open(&db_path).expect("open sqlite");
+    let approvals: i64 = connection
+        .query_row("SELECT COUNT(*) FROM adk_approvals", [], |row| row.get(0))
+        .expect("count approvals");
+    assert_eq!(approvals, 1, "the confirmation must own exactly one row");
+    let confirmations: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM adk_approvals
+             WHERE json_extract(payload_json, '$.confirmationCallId') = 'confirmation-concurrent'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("count confirmations");
+    assert_eq!(confirmations, 1);
+
+    // The canonical row is the one the runtime resumes: the store lists exactly
+    // that approval and resolving it still stages the continuation.
+    let listed = store.list_approvals().expect("list approvals");
+    assert_eq!(listed.len(), 1, "{listed:?}");
+    let resolved = store
+        .resolve_and_stage_approval(&listed[0].id, "APPROVED")
+        .expect("resolve the canonical approval")
+        .expect("resolution returned");
+    assert!(resolved.changed);
 }

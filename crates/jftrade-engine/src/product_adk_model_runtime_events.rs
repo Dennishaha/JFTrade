@@ -24,6 +24,7 @@ impl ProductionAdkChatRuntime {
             store,
             session_store,
             secrets_path,
+            settings_path: settings_path.to_path_buf(),
             cancellation_registry,
             tool_catalog,
             tool_executor,
@@ -64,6 +65,7 @@ impl ProductionAdkChatRuntime {
                 store: Arc::clone(&store),
                 session_store: Arc::clone(&session_store),
                 secrets_path: secrets_path.clone(),
+                settings_path: settings_path.to_path_buf(),
                 cancellation_registry: Arc::clone(&cancellation_registry),
                 tool_executor,
                 tool_catalog: Arc::clone(&tool_catalog),
@@ -89,6 +91,13 @@ impl ProductionAdkChatRuntime {
         runtime.reconcile_orphaned_pending_runs();
         runtime.recover_approval_continuations();
         runtime
+    }
+
+    /// Go `Runtime.runtimeLimits().RunTimeout`, re-read from the settings
+    /// document on every use: an operator edit applies to the next run instead
+    /// of requiring a restart.
+    fn run_timeout_ms(&self) -> i64 {
+        crate::product::product_adk_run_timeout::assistant_run_timeout_ms(&self.settings_path)
     }
 
     fn dispatch_inner(
@@ -268,7 +277,7 @@ impl ProductionAdkChatRuntime {
             "toolCalls": [],
             "toolSummaries": [],
             "workMode": work_mode,
-            "maxDurationMs": RUN_TIMEOUT_MS,
+            "maxDurationMs": self.run_timeout_ms(),
             "startedAt": started_at.clone(),
             "usage": {"modelCalls": 0, "toolCallsTotal": 0},
             "streamId": run_id,
@@ -504,6 +513,10 @@ impl ProductionAdkChatRuntime {
             });
         if denied {
             let now = run.updated_at.clone();
+            // Go's `finalizeResumedResult` replaces the reply with
+            // `model.ApprovalResolutionSummary`, so the transcript records the
+            // denial instead of the fixed run message.
+            let denial_reply = denied_approval_summary(&payload);
             let mut denied_payload = payload;
             // Go's `markDeniedResumedRun` projects the denial the same way as
             // every other resumed terminal state: `resumeState` becomes
@@ -521,7 +534,7 @@ impl ProductionAdkChatRuntime {
                 session_id: &run.session_id,
                 invocation_id: &run.id,
                 author: &run.agent_id,
-                content: "approval denied",
+                content: &denial_reply,
             };
             let owner_id = lease_owner_id(run_id);
             let run_lease = RunLeaseGuard::acquire(Arc::clone(&self.store), run_id, &owner_id)?;
@@ -643,6 +656,7 @@ impl ProductionAdkChatRuntime {
         let store = Arc::clone(&self.store);
         let session_store = Arc::clone(&self.session_store);
         let secrets_path = self.secrets_path.clone();
+        let settings_path = self.settings_path.clone();
         let cancellation_registry = Arc::clone(&self.cancellation_registry);
         let tool_catalog = Arc::clone(&self.tool_catalog);
         let tool_executor = Arc::clone(&self.tool_executor);
@@ -658,6 +672,7 @@ impl ProductionAdkChatRuntime {
                     store,
                     session_store,
                     secrets_path,
+                    settings_path,
                     cancellation_registry,
                     tool_catalog,
                     tool_executor,
@@ -765,9 +780,7 @@ include!("product_adk_model_runtime_input_call.rs");
 /// of a newly created session is the first 28 runes of its opening message.
 const SESSION_TITLE_LIMIT: usize = 28;
 
-/// Go `assistantmodel.DefaultRunTimeout`: `startRun` freezes 30 minutes on
-/// `run.MaxDurationMs`, which the chat projection republishes on the wire.
-const RUN_TIMEOUT_MS: i64 = 1_800_000;
+include!("product_adk_model_runtime_denial.rs");
 
 /// Go's `model.NormalizeWorkMode`: anything that is not `loop` is `chat`.
 fn normalize_work_mode(value: &str) -> &'static str {

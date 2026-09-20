@@ -183,6 +183,8 @@ pub(crate) mod product_adk_input_canonical;
 pub(crate) mod product_adk_model_runtime;
 #[path = "product_adk_mutation_port.rs"]
 pub mod product_adk_mutation_port;
+#[path = "product_adk_run_timeout.rs"]
+pub(crate) mod product_adk_run_timeout;
 #[path = "product_mcp_production_executor.rs"]
 mod product_mcp_production_executor;
 #[path = "product_mcp_protocol.rs"]

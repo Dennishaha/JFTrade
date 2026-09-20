@@ -80,7 +80,9 @@ mod terminal_audit_tests;
 include!("product_adk_model_runtime_audit.rs");
 
 const MAX_RESPONSE_BYTES: usize = 4 << 20;
-const DEFAULT_TIMEOUT_MS: u64 = 120_000;
+/// Go `assistantmodel.DefaultProviderRequestTimeout`: the fallback used when a
+/// provider row predates the persisted `requestTimeoutMs` normalization.
+const DEFAULT_TIMEOUT_MS: u64 = 180_000;
 /// Go `assistantmodel.MaxMessageLength`: a chat message longer than this many
 /// runes is rejected before any run is created.
 const MAX_MESSAGE_LENGTH: usize = 50_000;
@@ -98,6 +100,9 @@ pub(crate) struct ProductionAdkChatRuntime {
     store: Arc<AdkStore>,
     session_store: Arc<AdkSessionStore>,
     secrets_path: PathBuf,
+    /// Settings document backing Go's `RuntimeLimits` snapshot; the run
+    /// timeout is re-read from it on every new and resumed goal run.
+    settings_path: PathBuf,
     cancellation_registry: Arc<RunCancellationRegistry>,
     tool_catalog: Arc<crate::product::product_production_ports::ProductionToolCatalog>,
     tool_executor: Arc<dyn AdkToolExecutor>,
@@ -112,64 +117,7 @@ pub(crate) struct ProductionAdkChatRuntime {
     recovery_supervisor: Option<Arc<DurableRunRecoverySupervisor>>,
 }
 
-/// Process-local cancellation fan-out for active provider calls.
-#[derive(Debug, Default)]
-pub(crate) struct RunCancellationRegistry {
-    active: Mutex<BTreeMap<String, Vec<Arc<AtomicBool>>>>,
-}
-
-impl RunCancellationRegistry {
-    fn register(&self, run_id: &str) -> Arc<AtomicBool> {
-        let token = Arc::new(AtomicBool::new(false));
-        self.register_token(run_id, token)
-    }
-
-    fn register_token(&self, run_id: &str, token: Arc<AtomicBool>) -> Arc<AtomicBool> {
-        if let Ok(mut active) = self.active.lock() {
-            active
-                .entry(run_id.to_owned())
-                .or_default()
-                .push(Arc::clone(&token));
-        }
-        token
-    }
-
-    fn unregister(&self, run_id: &str, token: &Arc<AtomicBool>) {
-        if let Ok(mut active) = self.active.lock() {
-            let remove_run = active.get_mut(run_id).is_some_and(|tokens| {
-                tokens.retain(|candidate| !Arc::ptr_eq(candidate, token));
-                tokens.is_empty()
-            });
-            if remove_run {
-                active.remove(run_id);
-            }
-        }
-    }
-
-    pub(crate) fn cancel(&self, run_id: &str) -> bool {
-        let tokens = self
-            .active
-            .lock()
-            .ok()
-            .and_then(|active| active.get(run_id).cloned())
-            .unwrap_or_default();
-        for token in &tokens {
-            token.store(true, Ordering::Release);
-        }
-        !tokens.is_empty()
-    }
-
-    #[allow(dead_code)]
-    fn cancel_all(&self) {
-        if let Ok(active) = self.active.lock() {
-            for tokens in active.values() {
-                for token in tokens {
-                    token.store(true, Ordering::Release);
-                }
-            }
-        }
-    }
-}
+include!("product_adk_model_runtime_cancellation.rs");
 
 /// Go's `Runtime.runSem` admission gate for live chat runs.
 ///
