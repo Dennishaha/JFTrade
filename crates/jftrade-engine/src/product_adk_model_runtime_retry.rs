@@ -1,34 +1,15 @@
+// Durable continuation support for *legacy* provider-waiting runs.
+//
+// Go has no `providerRetry`/`provider_waiting` concept at all: every provider
+// failure goes through `CompleteChatRun`, which makes the run terminal.  The
+// chat and live-stream routes therefore never schedule a retry any more (see
+// `finish_chat` and the `run_live_stream` failure branch).  This marker is kept
+// because an earlier Rust build persisted `resumeState=provider_waiting` rows:
+// the background recovery scanner must still be able to (a) recognise those
+// rows as recoverable, (b) probe the provider again under a fresh fenced lease,
+// and (c) back off between probes instead of hot-looping.  Runs created after
+// the convergence can never enter this state.
 impl ProductionAdkChatRuntime {
-    /// Keep a provider outage durable without turning it into a terminal run.
-    /// The caller still receives the original 502/503/504 response, while a
-    /// later supervisor pass can acquire a fresh fenced lease and continue.
-    fn persist_provider_retry(
-        &self,
-        chat: &ChatExecution,
-        error: &AdkChatPortError,
-        run_lease: &RunLeaseGuard,
-    ) -> Result<(), AdkChatPortError> {
-        let run = self
-            .store
-            .get_run(&chat.run_id)
-            .map_err(storage_unavailable)?
-            .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
-        if !run.status.eq_ignore_ascii_case("RUNNING") {
-            return Ok(());
-        }
-        let payload: Value = serde_json::from_str(&run.payload_json)
-            .map_err(storage_unavailable)?;
-        self.persist_provider_retry_with_lease(
-            &chat.run_id,
-            &chat.session_id,
-            &run,
-            &payload,
-            error,
-            run_lease,
-            true,
-        )
-    }
-
     #[allow(clippy::too_many_arguments)]
     fn persist_provider_retry_with_lease(
         &self,

@@ -1410,3 +1410,62 @@ Rust 修复前差异：
 ### 下批目标
 
 `runner_chat_test.go` 余 14 条 `[~]`（`:56`、`:69`、`:102`、`:127`、`:225`、`:490`、`:541`、`:552`、`:609`、`:737`、`:846`、`:891`、`:1043`、`:1079`）。先做 P0：provider-failure wire 决策（HTTP 200 + FAILED + reply + finalMessageId vs Rust 的 502 + durable retry），它与 `:225`/`:490` 同一决策面，必须先写失败回归再落实现或正式登记分歧并同步 OpenAPI/前端。随后按 `:127` tool-only run 合成 final reply → `:69` 的 `HydrateRunExecutionResult` 字段投影 → 其余投影/边界项推进。另需把 `:188`/`:242` 两条决策项与本批新增的 goal-run 执行引擎缺口纳入 store_test.go 同批评估。
+
+## 第二十七批：provider 失败终态收敛（关闭上一批登记的 P0 wire 差异）
+
+范围：`internal/assistant/engine/runner_chat_test.go:325 TestCompleteChatRunFailurePersistsUserFacingErrorReply`。
+
+该行在第二十四批就已标 `[x]`（function_exact 终态落盘半），但 conclusion 里如实登记了一个**未关闭的 P0 wire 差异**。本批把这个已声明的缺口真正修掉并把 conclusion 改写为完整结论，因此 `[x]` 总数不变（820 → 820），变化在证据质量而非计数。
+
+### 冻结证据（先取证，再改实现）
+
+- Go `CompleteChatRun`（`git show go:internal/assistant/engine/runner_chat.go:174`）：`adkErr != nil` 时 `markFailedChatRun` → `PersistRunTerminalState` → `replyResult = assistantExecutionResult{Reply: userFacingADKError(adkErr), SyntheticKind: "provider_error"}` → `AttachFinalAssistantMessage`（写 transcript 条目并令 `run.FinalMessageID = message.ID`）→ 返回 `ProjectedChatResponse`。因此 `/api/v1/adk/chat` 对外是 **HTTP 200 + `ok=true` + `data.run.status=FAILED` + `data.reply` 非空 + `data.run.finalMessageId` 非空**。
+- `git grep providerRetry` / `provider_waiting` 在 `go` 分支全仓 **0 命中**：Rust 之前的 durable retry（`RUNNING` + `providerRetry` + `resumeState=provider_waiting` + 502）是 Rust 发明物，不是基线行为。
+- 冻结 fixture `tests/fixtures/compatibility/api-transport/adk-chat-stream.json` 的 `chat-provider-failure`（`status=200`、`run.status=FAILED`、`errorCode=MODEL_CALL_FAILED`、`failureReason`=原始 provider 文本、`finalMessageId=message-fixture`、`reply` 与 `failureReason` 同文本）与 `stream-provider-failure`（`type=final` 帧携带同一投影）与上述实现一致。
+- 路线台账 `docs/history/go-to-rust/route-ledgers/adk-chat-stream.md` 早已登记该 quirk 并给出处置：**Reproduce the 200 projection; do not "fix" the Go error precedence**。
+- 运行真实 Go 参考（`/opt/homebrew/bin/go test ./internal/assistant/engine/ -run TestCompleteChatRunFailure...`）并加临时探针确认：`run.FinalMessageID` 与 timeline 里 `kind=assistant_message/status=final` 条目的 `id` **相等**（`jftrade-run-probe-provider_error-0c118294ccd0a38f`），且该 id 由 `sha256("<kind>\0<reasoning>\0<reply>")` 前 8 字节决定。探针已删除，scratch 校验目录未纳入仓库。
+
+### Rust 修复
+
+- `crates/jftrade-engine/src/product_adk_model_runtime_failure.rs`：
+  - 新增 `synthetic_assistant_message_id(run_id, kind, reasoning, reply)`，精确复刻 Go `syntheticAssistantMessageID`（SHA-256 前 8 字节 hex，`kind` 缺省 `local`，provider 失败传 `provider_error`）；用 Go 探针的期望值 `jftrade-run-probe-provider_error-0c118294ccd0a38f` 逐字节核对。
+  - 新增 `user_facing_adk_error(error)`，复刻 Go `UserFacingADKError` 的两条中文映射（`wrote more than the declared content-length`、`database is locked`/`sqlite_busy`）与原文兜底。
+  - 新增 `attach_terminal_failure_projection`：写 `finalMessageId`、按 `GO_RUN_PROJECTION_FIELDS` 收敛 wire 字段（避免把 `streamEvents`/`providerEvents`/`route`/`toolResults` 等 durable 内部键泄漏到 `run`）、拼装 `{reply, session, run, pendingApprovals, timeline}` 投影并落 `response`，同时把 assistant 消息作为 `AdkRunEvent` 写进 session transcript；stream 路由补 `final` 帧（Go `publishTerminalError` → `RecoverTerminalChatResponse` 行为）。`persist_failure` 结尾调用它。
+- `crates/jftrade-engine/src/product_adk_model_runtime_stream.rs`：`finish_chat` 的 `Err` 分支不再分流 `is_provider_retryable_error`，改为 `persist_failure` 后回读持久投影并返回（chat → `Json`，stream → `stream_from_payload`）；`run_live_stream` 的 `Err` 分支同样只走 `persist_failure`，保留取消/断线优先。
+- `crates/jftrade-engine/src/product_adk_model_runtime_tool_loop.rs`：工具循环内的 provider 失败同步改为终态。
+- `crates/jftrade-engine/src/product_adk_model_runtime_retry.rs`：删除已无调用方的 `persist_provider_retry`；保留 `persist_provider_retry_with_lease` 并加说明——它只服务**历史** `provider_waiting` 行（恢复扫描需要识别、重新申请 fenced lease 探活、按退避避免热循环），新写入路径不可能再进入该状态。
+
+### 回归与断言更新
+
+- 新增 `crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_chat_provider_failure_projects_go_failed_run_with_reply`：真实 `ProductionAdkChatRuntime` + 关闭的 loopback provider，断言 `200`、`ok=true`、`run.status=FAILED`、`errorCode=MODEL_CALL_FAILED`、`degraded=true`、`completedAt` 落戳、`reply` 与 `finalMessageId` 非空、**无 `providerRetry`**、timeline 含 `id == finalMessageId` 的 `assistant_message/final` 且文本等于 `reply`。
+- 同步更新 3 个此前钉住旧 Rust 行为、且与 Go 基线冲突的断言：
+  - `product_adk_chat_stream_product_tests.rs::adk_chat_idempotency_contract_matches_the_go_routes`：首次请求由 `502` 改为 `200 + FAILED`，并新增「重放复用同一 run（`finalMessageId` 相同）」断言。
+  - `product_production_ports_adk_tests.rs::adk_chat_route_reports_the_go_error_classification`：fallback provider 调用失败改为断言返回投影（`FAILED`/`MODEL_CALL_FAILED`/失败原因含 fixture endpoint/`reply == failureReason`）。
+  - `product_adk_model_runtime_tool_deadline_tests.rs::an_expired_tool_deadline_is_projected_onto_the_tool_call`：工具级 `TIMED_OUT`/`TIMEOUT` 契约不变，但删掉「run 级 `failureReason` 必空」这一 Rust 发明断言，改为要求 run 级失败**不得**归因到工具超时（用 Go 探针确认：工作 provider 下 Go 为 `COMPLETED` + `degraded=true`，本 fixture 的 provider 为关闭端口时经 provider 边界终态）。
+- `product_adk_model_runtime_terminal_audit_tests.rs` 的过时注释改写为指向新回归；`docs/history/go-to-rust/manual-test-mappings.json` 的 `runner_chat_test.go:325` 行 conclusion 重写为完整结论（冻结证据、`providerRetry` 0 命中、修复位置、回归名、验证结果），`status` 保持 `[x]`、`rust_entry` 保持唯一。
+
+### 探针（失败 → 恢复）
+
+在 `persist_failure` 末尾短路 `attach_terminal_failure_projection`（并让 helper 提前 `Ok(())`）：
+`production_chat_provider_failure_projects_go_failed_run_with_reply` 立即转红——`left: 502 / right: 200`，与收敛前行为一致；用 `cp` 备份恢复后重新通过。全过程未使用 `git checkout --`。
+
+### 验证
+
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：**1488 passed / 0 failed**。
+- `cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine --all-targets --locked`：通过。
+- `pnpm run check:zero-go`（2845 文件 / 0 产物）、`pnpm run check:compatibility`（含 api-transport 278 operations、18 route groups、19 probes）、`pnpm run check:rust:architecture`、`pnpm run check:quick`（EXIT=0）：全部通过。
+- `python3 scripts/compatibility/audit_test_parity.py`：820 `function_exact`、0 重复 `rust_entry`、4451 key 不变、1 条 helper-based 提示复核。
+
+### 下批目标
+
+`runner_chat_test.go` 当前余 12 条 `[~]`：`:69`、`:102`、`:127`、`:225`、`:490`、`:541`、`:552`、`:609`、`:737`、`:846`、`:891`、`:1043`、`:1079` 中除去本批已复核项后仍待推进的投影/边界项（`:56` 维持边界保留，`:156`/`:325` 已结清）。建议顺序：
+
+1. `:127` tool-only run 合成 final reply（Rust `persist_success` 目前没有空文本合成路径）。
+2. `:69` `HydrateRunExecutionResult` 字段投影（`toolCalls`/`toolSummaries`/`preToolContent`/`preToolReasoning`/`optimizationTaskId`/`pendingApprovals`/`usage.toolCallsTotal`）。
+3. `:102` 顶层 follow-up 不升级为 pending input。
+4. `:225` + `:490`：`AttachFinalAssistantMessage` 的 `finalMessageId` 链接与 `ProjectedChatResponse` 投影字段。本批已把 `finalMessageId`、timeline 与合成消息 id 的实现落地，这两条不再被 wire 决策阻塞，可直接按 Go 逐字段核对。
+5. 其余 `:541`/`:552`/`:609`/`:737`/`:846`/`:891`/`:1043`/`:1079`。
+
+决策项仍需与本领域同批评估：`runner_continuation_boundaries_test.go:188`（`RUN_LEASE_CLAIM_FAILED` 语义）、`:242`（租约存储错误传播与关闭 store 回归）、`:275`/`:427`（goal-run 后台续跑引擎缺口）。
+
+随后按 `store_test.go`（20）→ `session_context_test.go`（19）推进；`internal/app/apiserver`（349）与 `pkg/backtest`（174）保持为后续大领域批次。

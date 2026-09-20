@@ -338,12 +338,12 @@ impl ProductionAdkChatRuntime {
                     return;
                 }
                 Err(error) => {
+                    // A provider failure inside the tool loop reaches Go's
+                    // `CompleteChatRun` as `adkErr`, so it is terminal: the run
+                    // is marked FAILED and the synthetic reply is attached
+                    // instead of the outage staying durable.
                     if !run_lease.is_lost() {
-                        if is_provider_retryable_error(&error) {
-                            let _ = self.persist_provider_retry(&chat, &error, run_lease);
-                        } else {
-                            let _ = self.persist_failure(&chat, &error, run_lease);
-                        }
+                        let _ = self.persist_failure(&chat, &error, run_lease);
                     }
                     return;
                 }

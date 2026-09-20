@@ -161,8 +161,231 @@ impl ProductionAdkChatRuntime {
                 &error_message,
             ),
         });
+        // Go answers `200` with a FAILED run plus a synthetic reply, so the
+        // terminal row is immediately followed by
+        // `AttachFinalAssistantMessage` + `ProjectedChatResponse`.  Persisting
+        // that projection here keeps every replay path identical.
+        self.attach_terminal_failure_projection(chat, &mut payload, error, run_lease)?;
         Ok(())
     }
+
+    /// Attach the synthetic assistant message Go writes for a terminal
+    /// failure and store the resulting projection on the run payload.
+    ///
+    /// Go's `CompleteChatRun` does not stop at `markFailedChatRun` +
+    /// `PersistRunTerminalState`: it rewrites `replyResult` to the
+    /// `userFacingADKError(adkErr)` text with `SyntheticKind="provider_error"`,
+    /// calls `AttachFinalAssistantMessage` (which appends a session transcript
+    /// entry and links `run.FinalMessageID` at it), and finally returns
+    /// `ProjectedChatResponse`.  The chat handler therefore answers
+    /// `200 ok=true` with a FAILED run plus `reply`, and the frozen
+    /// `chat-provider-failure` fixture pins that shape.  Persisting the same
+    /// projection here is what lets every replay path
+    /// (`prepare_existing_run`, `persisted_turn_response`, retained stream
+    /// frames) serve the identical envelope instead of inventing a 5xx.
+    pub(super) fn attach_terminal_failure_projection(
+        &self,
+        chat: &ChatExecution,
+        payload: &mut Value,
+        error: &AdkChatPortError,
+        run_lease: &RunLeaseGuard,
+    ) -> Result<(), AdkChatPortError> {
+        let reply = user_facing_adk_error(error);
+        let message_id = synthetic_assistant_message_id(&chat.run_id, "provider_error", "", &reply);
+        let payload_object = payload
+            .as_object_mut()
+            .ok_or_else(|| unavailable("stored ADK run payload must be an object"))?;
+        // Go links the run to the transcript entry it just appended, so the
+        // console can render the failure text from the timeline instead of
+        // only from `reply`.
+        payload_object.insert(
+            "finalMessageId".to_owned(),
+            Value::String(message_id.clone()),
+        );
+        // The durable payload also carries runtime bookkeeping
+        // (`streamEvents`, `providerEvents`, `route`, `toolResults`, ...) that
+        // Go's `Run` JSON contract never exposes.  The frozen
+        // `chat-provider-failure` fixture pins the exposed field set, so the
+        // wire projection keeps only those keys.
+        let run_value = Value::Object(
+            payload_object
+                .iter()
+                .filter(|(key, _)| GO_RUN_PROJECTION_FIELDS.contains(&key.as_str()))
+                .map(|(key, value)| (key.clone(), value.clone()))
+                .collect(),
+        );
+        let session = self
+            .store()
+            .get_session(&chat.session_id)
+            .map_err(storage_unavailable)?
+            .map(|session| {
+                json!({"id": session.id, "agentId": chat.agent_id, "createdAt": session.created_at, "updatedAt": session.updated_at})
+            })
+            .unwrap_or_else(|| json!({"id": chat.session_id, "agentId": chat.agent_id}));
+        let timeline = json!({
+            "id": message_id,
+            "kind": "assistant_message",
+            "status": "final",
+            "text": reply,
+        });
+        let response = json!({
+            "reply": reply,
+            "session": session,
+            "run": run_value,
+            "pendingApprovals": [],
+            "timeline": [timeline],
+        });
+        let stored = self
+            .store()
+            .get_run(&chat.run_id)
+            .map_err(storage_unavailable)?
+            .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
+        let mut committed = payload.clone();
+        committed["response"] = response.clone();
+        // A terminal failure is served to reconnecting stream clients through
+        // the retained history, so the projection is the last frame the way
+        // Go's `publishTerminalError` -> `RecoverTerminalChatResponse` path
+        // publishes `final` instead of a bare `error` event.
+        if chat.route == AdkChatRoute::Stream {
+            let events = committed
+                .get_mut("streamEvents")
+                .and_then(Value::as_array_mut)
+                .ok_or_else(|| unavailable("persisted ADK run has no stream event list"))?;
+            let has_terminal = events
+                .last()
+                .and_then(|event| event.get("type"))
+                .and_then(Value::as_str)
+                .is_some_and(|kind| matches!(kind, "final" | "error"));
+            if !has_terminal {
+                let sequence = events.len() as u64 + 1;
+                let mut final_event = json!({"type": "final", "response": response.clone()});
+                if let Some(object) = final_event.as_object_mut() {
+                    object.insert("streamId".to_owned(), Value::String(chat.run_id.clone()));
+                    object.insert("sequence".to_owned(), Value::from(sequence));
+                    object.insert("runId".to_owned(), Value::String(chat.run_id.clone()));
+                }
+                events.push(final_event);
+            }
+        }
+        let updated = self
+            .store()
+            .update_run_payload_if_status_and_revision_with_events_with_lease(
+                &chat.run_id,
+                &stored.status,
+                &stored.updated_at,
+                &committed.to_string(),
+                self.session_store.as_ref(),
+                &[AdkRunEvent {
+                    id: &message_id,
+                    session_id: &chat.session_id,
+                    invocation_id: &chat.run_id,
+                    author: &chat.agent_id,
+                    content: &reply,
+                }],
+                run_lease.owner_id(),
+                run_lease.token(),
+            )
+            .map_err(storage_unavailable)?;
+        if !updated {
+            return Err(unavailable(
+                "assistant chat run state changed before the final message was attached",
+            ));
+        }
+        *payload = committed;
+        Ok(())
+    }
+}
+
+/// The run fields Go's `assistantmodel.Run` exposes on the JSON wire.
+///
+/// The frozen `api-transport/adk-chat-stream.json` `chat-provider-failure`
+/// case enumerates this set, so the terminal-failure projection must not leak
+/// the durable payload's internal bookkeeping keys alongside them.
+pub(super) const GO_RUN_PROJECTION_FIELDS: &[&str] = &[
+    "agentId",
+    "cancelledAt",
+    "completedAt",
+    "createdAt",
+    "degraded",
+    "errorCode",
+    "failureReason",
+    "finalMessageId",
+    "id",
+    "maxDurationMs",
+    "message",
+    "model",
+    "objective",
+    "parentRunId",
+    "pendingApprovals",
+    "permissionMode",
+    "preToolContent",
+    "preToolReasoning",
+    "providerId",
+    "providerName",
+    "resumeState",
+    "sessionId",
+    "startedAt",
+    "status",
+    "toolCalls",
+    "toolSummaries",
+    "updatedAt",
+    "usage",
+    "userMessage",
+    "workMode",
+];
+
+/// Derive the deterministic assistant-message id Go writes for a synthetic
+/// reply.
+///
+/// Go's `syntheticAssistantMessageID` hashes `kind \0 reasoning \0 reply` with
+/// SHA-256 and keeps the first eight bytes as lowercase hex, so a retried
+/// terminal projection reuses the same transcript entry instead of appending a
+/// duplicate.  The `kind` falls back to `local` when the caller does not
+/// classify the reply; a provider outage always passes `provider_error`,
+/// exactly like `CompleteChatRun`.
+pub(super) fn synthetic_assistant_message_id(
+    run_id: &str,
+    kind: &str,
+    reasoning: &str,
+    reply: &str,
+) -> String {
+    use sha2::{Digest, Sha256};
+
+    let kind = if kind.trim().is_empty() {
+        "local"
+    } else {
+        kind.trim()
+    };
+    let mut digest = Sha256::new();
+    digest.update(kind.as_bytes());
+    digest.update([0_u8]);
+    digest.update(reasoning.trim().as_bytes());
+    digest.update([0_u8]);
+    digest.update(reply.trim().as_bytes());
+    let mut suffix = String::with_capacity(16);
+    for byte in digest.finalize().iter().take(8) {
+        suffix.push_str(&format!("{byte:02x}"));
+    }
+    format!("jftrade-{}-{kind}-{suffix}", run_id.trim())
+}
+
+/// Go's `userFacingADKError`: map the two error shapes the console can explain
+/// to an operator, and fall back to the original provider text.
+pub(super) fn user_facing_adk_error(error: &AdkChatPortError) -> String {
+    let text = match error {
+        AdkChatPortError::Unavailable(message) | AdkChatPortError::Conflict(message) => {
+            message.clone()
+        }
+        AdkChatPortError::Failed { message, .. } => message.clone(),
+    };
+    let lower = text.to_ascii_lowercase();
+    if lower.contains("wrote more than the declared content-length") {
+        return "模型服务响应异常，请检查模型服务配置或稍后重试。".to_owned();
+    }
+    if lower.contains("database is locked") || lower.contains("sqlite_busy") {
+        return "数据库繁忙，请稍后重试。".to_owned();
+    }
+    text
 }
 
 /// Go's `RunStatusForContext` + `RunErrorCode` table for a terminal chat run.

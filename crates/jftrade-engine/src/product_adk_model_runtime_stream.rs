@@ -249,16 +249,21 @@ impl ProductionAdkChatRuntime {
                     let _ = self.persist_cancelled(&chat, &error, &run_lease);
                     return;
                 }
-                let persisted = if super::is_provider_retryable_error(&error) {
-                    match self.persist_provider_retry(&chat, &error, &run_lease) {
-                        Ok(()) => true,
-                        Err(_) => false,
+                // Go publishes the terminal projection for a provider failure
+                // (`publishTerminalError` -> `RecoverTerminalChatResponse`
+                // emits `final` with the failed run and its synthetic reply).
+                // The persisted terminal row already carries that projection,
+                // so the retained history supplies the frame; the bare `error`
+                // event is only the degenerate case where nothing was stored.
+                let persisted = match self.persist_failure(&chat, &error, &run_lease) {
+                    Ok(()) => true,
+                    Err(persist_error)
+                        if super::is_run_cancelled(&persist_error)
+                            || self.run_is_cancelled(&chat.run_id) =>
+                    {
+                        return;
                     }
-                } else {
-                    match self.persist_failure(&chat, &error, &run_lease) {
-                        Ok(()) => true,
-                        Err(_) => false,
-                    }
+                    Err(_) => false,
                 };
                 let event = if persisted {
                     self.latest_stream_event(&chat.run_id)
@@ -403,11 +408,33 @@ impl ProductionAdkChatRuntime {
                 }
             }
             Err(error) => {
-                if super::is_provider_retryable_error(&error) {
-                    let _ = self.persist_provider_retry(chat, &error, run_lease);
-                } else {
-                    let _ = self.persist_failure(chat, &error, run_lease);
+                // Go's `CompleteChatRun` treats *every* provider failure as a
+                // terminal run: `markFailedChatRun` + `PersistRunTerminalState`
+                // record the failure, `AttachFinalAssistantMessage` links the
+                // synthetic `userFacingADKError` reply, and the caller returns
+                // `ProjectedChatResponse`.  The chat handler then answers
+                // `200 ok=true` with a FAILED run plus `reply`; the stream
+                // route publishes the same projection as its `final` frame.
+                // Rust previously kept a retryable outage durable
+                // (`providerRetry` + `502`), which Go never does, so the
+                // failure is persisted as terminal here and the projection is
+                // returned instead of the raw error.
+                let persisted = self.persist_failure(chat, &error, run_lease);
+                let run = self
+                    .store()
+                    .get_run(&chat.run_id)
+                    .map_err(storage_unavailable)?
+                    .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
+                if let Some(response) = super::persisted_response(&run.payload_json)? {
+                    return Ok(match chat.route {
+                        AdkChatRoute::Chat => AdkChatPortOutput::Json(response),
+                        AdkChatRoute::Stream => stream_from_payload(&run.payload_json)?,
+                    });
                 }
+                // The terminal row could not carry a projection (storage
+                // corruption or a concurrent cancellation), so keep the
+                // original provider error visible.
+                persisted?;
                 Err(error)
             }
         }

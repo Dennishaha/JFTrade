@@ -847,16 +847,36 @@ async fn adk_chat_idempotency_contract_matches_the_go_routes() {
     )
     .into_bytes();
     let conflict = request_raw(address, "POST", ADK_CHAT_PATH, &conflict_body).await;
-    // The loopback model endpoint is closed, so the first call fails fast while
-    // the run stays durable.  Go replays a reused request from the persisted
-    // run (`reusedChatResponse` -> `ChatResponseForExistingRun`), so the repeat
-    // answers `200` with the projection of that same run instead of creating a
-    // second one.
+    // The loopback model endpoint is closed, so the first call fails fast.
+    // Go's `CompleteChatRun` treats that provider failure as a terminal run and
+    // returns `ProjectedChatResponse`, so the handler already answers `200` with
+    // a FAILED run.  A reused request is then served by `reusedChatResponse` ->
+    // `ChatResponseForExistingRun`, which projects that same durable run instead
+    // of creating a second one.
     assert_eq!(
-        first.status, 502,
-        "the closed endpoint fails the first call"
+        first.status, 200,
+        "Go answers 200 with the failed-run projection for a provider failure"
     );
+    let first_value: Value = serde_json::from_slice(&first.body).expect("first call JSON");
+    assert_eq!(first_value["ok"], true);
+    assert_eq!(first_value["data"]["run"]["status"], "FAILED");
+    assert_eq!(first_value["data"]["run"]["errorCode"], "MODEL_CALL_FAILED");
     assert_eq!(replayed.status, 200, "an identical repeat replays the run");
+    let first_final_message_id = first_value["data"]["run"]["finalMessageId"]
+        .as_str()
+        .expect("the failure projection links its synthetic reply")
+        .to_owned();
+    let replayed_final_message_id = {
+        let value: Value = serde_json::from_slice(&replayed.body).expect("replay JSON");
+        value["data"]["run"]["finalMessageId"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned()
+    };
+    assert_eq!(
+        replayed_final_message_id, first_final_message_id,
+        "the replay must project the same terminal run, not a second one"
+    );
     let replayed_value: Value = serde_json::from_slice(&replayed.body).expect("replay JSON");
     assert_eq!(replayed_value["ok"], true);
     assert_eq!(
@@ -916,6 +936,81 @@ async fn adk_chat_idempotency_contract_matches_the_go_routes() {
     assert_eq!(
         stream_conflict_value["error"]["code"],
         "ADK_CHAT_IDEMPOTENCY_CONFLICT"
+    );
+
+    handle.shutdown().await.expect("shutdown product");
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:325
+/// `TestCompleteChatRunFailurePersistsUserFacingErrorReply` plus the frozen
+/// `chat-provider-failure` case of
+/// `tests/fixtures/compatibility/api-transport/adk-chat-stream.json`.
+///
+/// Go's `CompleteChatRun` treats a provider failure as a terminal run: it marks
+/// the run FAILED, persists that state with an audit row, then attaches a
+/// synthetic assistant message whose text is `userFacingADKError(adkErr)` and
+/// links it through `run.finalMessageId`. The handler therefore answers
+/// `200 ok=true` with a failed run plus `reply`, exactly as the frozen fixture
+/// records for `chat-provider-failure`.
+///
+/// Rust used to keep a retryable provider outage durable (`RUNNING` +
+/// `providerRetry`/`resumeState=provider_waiting`) and answer `502`. Go has no
+/// `providerRetry`/`provider_waiting` concept at all, the OpenAPI contract for
+/// `/api/v1/adk/chat` only declares `200`/`400`, and the route ledger's quirk
+/// disposition is "Reproduce the 200 projection; do not fix the Go error
+/// precedence". This regression pins the converged behaviour against a real
+/// runtime and a real (closed) loopback provider.
+#[tokio::test]
+async fn production_chat_provider_failure_projects_go_failed_run_with_reply() {
+    let endpoint = closed_model_endpoint();
+    let (_directory, handle) = start_adk_product_with_loopback_provider(&endpoint).await;
+    let address = handle.startup_record().address;
+    let body = br#"{"clientRequestId":"11111111-1111-4111-8111-111111111111","agentId":"agent-live","message":"provider failure"}"#;
+
+    let chat = request_raw(address, "POST", ADK_CHAT_PATH, body).await;
+    assert_eq!(
+        chat.status, 200,
+        "Go answers 200 with a failed-run projection for a provider failure"
+    );
+    let chat_body: Value = serde_json::from_slice(&chat.body).expect("chat JSON");
+    assert_eq!(chat_body["ok"], true);
+    let run = &chat_body["data"]["run"];
+    assert_eq!(
+        run["status"], "FAILED",
+        "provider failure is terminal: {run}"
+    );
+    assert_eq!(run["errorCode"], "MODEL_CALL_FAILED");
+    assert_eq!(run["degraded"], true);
+    assert!(
+        run["completedAt"].is_string(),
+        "completedAt must be stamped"
+    );
+    let final_message_id = run["finalMessageId"]
+        .as_str()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| panic!("Go links the synthetic reply via finalMessageId: {run}"));
+    let reply = chat_body["data"]["reply"]
+        .as_str()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| panic!("Go projects the failure text as reply: {chat_body}"));
+    assert!(
+        run.get("providerRetry").is_none(),
+        "a terminal failure must not keep a durable retry marker: {run}"
+    );
+
+    // The synthetic assistant message is a real transcript entry the timeline
+    // can render, which is what `finalMessageId` points at.
+    let timeline = chat_body["data"]["timeline"]
+        .as_array()
+        .expect("timeline array");
+    assert!(
+        timeline.iter().any(|entry| {
+            entry["kind"] == "assistant_message"
+                && entry["status"] == "final"
+                && entry["text"].as_str() == Some(reply)
+                && entry["id"].as_str() == Some(final_message_id)
+        }),
+        "the linked final message must appear on the timeline: {timeline:?}"
     );
 
     handle.shutdown().await.expect("shutdown product");

@@ -4129,7 +4129,7 @@ fn adk_chat_route_reports_the_go_error_classification() {
     // provider fallback resolves, a repeated id conflicts on the fingerprint
     // before the branch under test is reached.
     let dispatch_counter = std::sync::atomic::AtomicU32::new(1);
-    let dispatch = |body: &str| {
+    let dispatch_result = |body: &str| {
         let sequence = dispatch_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         port.dispatch(
             AdkChatRoute::Chat,
@@ -4138,7 +4138,9 @@ fn adk_chat_route_reports_the_go_error_classification() {
                 client_request_id: format!("1111111{sequence}-1111-4111-8111-111111111111"),
             },
         )
-        .expect_err("chat must fail closed without a ready provider")
+    };
+    let dispatch = |body: &str| {
+        dispatch_result(body).expect_err("chat must fail closed without a ready provider")
     };
     let failed = |error: AdkChatPortError| match error {
         AdkChatPortError::Failed {
@@ -4154,13 +4156,24 @@ fn adk_chat_route_reports_the_go_error_classification() {
     // stored provider even when its `default` flag was never persisted, so the
     // request reaches the model call instead of reporting a missing default.
     // The fixture endpoint is a closed loopback port, so the fallback is
-    // observable as a provider-level failure rather than a configuration one.
-    let (status, code, message) = failed(dispatch(r#"{"message":"hello"}"#));
-    assert_eq!(status, 502, "fallback provider call failure: {message}");
-    assert_eq!(code, "MODEL_CALL_FAILED");
+    // observable as a provider-level failure.  Go's `CompleteChatRun` turns
+    // that failure into a terminal run plus a synthetic reply, so the dispatch
+    // answers with the failed-run projection instead of a port error.
+    let projection = match dispatch_result(r#"{"message":"hello"}"#) {
+        Ok(AdkChatPortOutput::Json(projection)) => projection,
+        other => panic!("the fallback provider failure must project a chat response, got {other:?}"),
+    };
+    assert_eq!(projection["run"]["status"], "FAILED");
+    assert_eq!(projection["run"]["errorCode"], "MODEL_CALL_FAILED");
     assert!(
-        message.contains("127.0.0.1"),
-        "the resolved provider endpoint must be the fixture fallback: {message}"
+        projection["run"]["failureReason"]
+            .as_str()
+            .is_some_and(|reason| reason.contains("127.0.0.1")),
+        "the resolved provider endpoint must be the fixture fallback: {projection}"
+    );
+    assert_eq!(
+        projection["reply"], projection["run"]["failureReason"],
+        "Go replies with `userFacingADKError(adkErr)`"
     );
 
     assert_eq!(

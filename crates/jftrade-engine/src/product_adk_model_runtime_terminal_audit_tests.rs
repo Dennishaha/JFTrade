@@ -492,11 +492,10 @@ fn a_completed_run_persists_the_reply_and_audits_run_completed() {
 /// reason.
 ///
 /// The wire half of Go's contract (`reply = userFacingADKError(adkErr)`, a
-/// `finalMessageId` on the run, and a `200` failed-run projection) is tracked
-/// as an open P0 decision: the Rust product deliberately keeps a retryable
-/// provider outage durable (`providerRetry` + `502`) so the desktop can
-/// recover, while the Go reference answers `200` with the failed run.  See the
-/// batch scope note for the reproduction condition and the fix location.
+/// `finalMessageId` on the run, and a `200` failed-run projection) is covered by
+/// `product_adk_chat_stream_product_tests::production_chat_provider_failure_projects_go_failed_run_with_reply`,
+/// which drives a real runtime against a closed loopback provider and asserts
+/// the frozen `chat-provider-failure` shape.
 #[test]
 fn a_failed_run_persists_the_provider_error_and_audit_row() {
     let (directory, store, session_store) = initialized_stores();
@@ -511,9 +510,9 @@ fn a_failed_run_persists_the_provider_error_and_audit_row() {
     .expect("acquire run lease");
 
     let failure = super::AdkChatPortError::Failed {
-        // `persist_failure` is the non-retryable branch; retryable provider
-        // outages go through `persist_provider_retry` and never reach it (see
-        // `is_provider_retryable_error`).
+        // Every provider failure reaches `persist_failure`: Go's
+        // `CompleteChatRun` makes a provider outage terminal rather than
+        // durable, so there is no retry branch ahead of it.
         status: 400,
         code: "MODEL_CALL_FAILED".to_owned(),
         message: "provider down".to_owned(),
