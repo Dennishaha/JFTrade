@@ -2512,3 +2512,37 @@ Go 这三条描述 `ApplicationAdapter` 的边界：nil 端口时全部领域调
 - 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 本批 `:128` 的 instance summary/optimization no-op/validationInstrument 三个无 owner 断言、`market.depth` 自由文本 instrument 推断（第 47 批）、`watchlist.list includeQuotes` 行情富化（第 47 批）、`research.calendar` 缺省输入 fail-closed 差异（第 48 批）、运行期动态工具注册与可空句柄（第 49 批）、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`（1833 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2813 Rust** / **946 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第五十二批：assembly `application_strategy_lifecycle_test.go` 全量结清（3 条；1 条新 `[x]`，2 条 `partial`）
+
+范围：`internal/assistant/assembly/application_strategy_lifecycle_test.go` 3 条逐条结清——本批新增 **1 条 `[x]`**（`:84`），`partial` 2 条（`:122`、`:141`）。`[x]` 计数 946 → **947**，Rust 测试 2813 → **2814**。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestApplicationAdapterStrategyInstanceLifecyclePorts|TestApplicationAdapterStrategyInstanceLifecycleRejectsInvalidInputs|TestApplicationAdapterStrategyInstanceLifecycleRejectsDefinitionAndActivityBoundaries' -count=1`（checkout `/tmp/go452dea11.niwD1G`，`ok`）。
+
+### 本批结论（1 条新增回归，无生产改动）
+
+Go 这三条把策略实例生命周期钉在助手工具依赖上：instantiate/start/stop(pause,stop)/refresh/update-risk/activity 各有端口调用与计数断言，空 id、未知定义、非法动作、未知实例分别在委托前或读取时失败。Rust 的 owner 分裂成 MCP `strategy.instance_activity`（读）、策略运行时写路由（生命周期写）与策略定义写路由（instantiate），本轮补上缺失的活动读断言：
+
+- `product_mcp_server_tests.rs::strategy_instance_activity_tool_normalizes_kind_and_paging_before_the_read_port`（`:84` 活动半边 + `:122`/`:141` 边界半边）：断言 `" instance-1 "` 被 trim 后走 `/api/v1/strategies/instance-1/logs`、首读 query 恰为 `limit=50&offset=0`；`kind=AUDIT` 折叠大小写后走 `/audit` 并携带 `limit=10`/`offset=2`/`kind=pause`/`fromTime`/`toTime`，且 logs-only 的 `level` 不进入 audit 读；非法 `kind`/`limit=0`/`limit=201`/`offset=-1`/缺 `instanceId` 一律 400 `BAD_REQUEST` 且消息精确匹配；端口缺实例 404 `STRATEGY_INSTANCE_NOT_FOUND`、端口不可用 503 `STRATEGY_ACTIVITY_UNAVAILABLE`。
+- `:84` 其余半边引用既有证据：`strategy_runtime_write_product_replays_browser_failure_recovery_and_restart`（start/update/update-runtime-risk/pause/stop/refresh-definition + 失败恢复与重启重放，及浏览器 CSRF/来源校验）、`instantiate_persists_the_same_normalized_binding_as_runtime_update`（instantiate 绑定归一化与持久化）。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `strategy_instance_activity` 的默认 `kind` 从 `logs` 改成 `audit` → `strategy_instance_activity_tool_normalizes_kind_and_paging_before_the_read_port` 转红（left `/api/v1/strategies/instance-1/audit` / right `…/logs`）。
+2. 同一工具的 `limit` 下界从 1 改成 0 → 该测试在 `limit=0` 用例转红（`expect_err` 收到成功 payload）。
+   2 处探针均在本批内执行并已回滚；`git diff` 只留测试文件与清单/报告。
+
+### 结论登记（partial 行内的边界与差异）
+
+- **`:84` 差异（P2）**：Go 的 `StrategyInstanceActivity` 对 `limit=0`/`offset=-1` 做钳制（0→1、-1→0），Rust 按 reviewed schema（`limit` 1..200、`offset`≥0）直接 400 拒绝，属 fail-closed 收紧；如需完全对齐要么放宽 schema 要么在 schema 里写明默认值，记 P2 复核。
+- **`:122 partial`**：可达半边为 `strategy.instance_activity` 缺 `instanceId` → 400、`strategy.definition_versions.*` 缺 `definitionId` → 400（`backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets`）。不可迁移：Rust 模型目录没有 instantiate/start/stop/refresh/update-risk 这些生命周期写工具（与第 50 批登记的「模型目录不含外部写/交易工具」同类边界），控制台经 `/api/v1/strategies/{instanceId}/{action}` 写入，空 id 不匹配路由形态（404 `NOT_FOUND`），不存在「空 id 传给服务」的等价路径。
+- **`:141 partial`**：可达半边为缺失实例 404、未知定义 404、instantiate 空 body 200 / 畸形 JSON 400（`instantiate_accepts_empty_body_but_rejects_malformed_json`）。未迁移：Go 的「空 definition id」与「`stop action=restart` 非法」在 Rust 由路由形态与动作枚举承担（空 id → 404；只有 pause/stop 两个路由，restart 不存在 → 404），无等价的「服务内非法动作」分支。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 32 条：`market_index_constituents_tools_test.go`/`market_news_tools_test.go`/`mcp_server_lifecycle_authorization_test.go`（各 3），`adk_capability_contracts_test.go`/`adk_closure_contracts_test.go`/`adk_runtime_contracts_test.go`/`adk_summary_contracts_test.go`/`typed_product_capabilities_test.go`/`watchlist_adapter_test.go`/`workflow_bridge_contracts_test.go`/`workflow_tools_error_boundaries_test.go`（各 2）等；随后 `internal/app/apiserver`（574，按 servercore/servercoretest 分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）等。
+- 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与策略实例写工具（本批 `:122`）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 活动读分页钳制差异（本批 `:84`）、第 51 批 `:128` 的 instance summary/optimization no-op/validationInstrument 三个无 owner 断言、`market.depth` 自由文本 instrument 推断、`watchlist.list includeQuotes` 行情富化、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`（1834 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2814 Rust** / **947 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

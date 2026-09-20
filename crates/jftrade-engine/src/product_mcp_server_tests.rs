@@ -1199,6 +1199,165 @@ fn unwired_production_bundle_keeps_every_reviewed_tool_callable_without_payloads
     }
 }
 
+/// Parity: go:452dea11:internal/assistant/assembly/application_strategy_lifecycle_test.go:84
+/// `TestApplicationAdapterStrategyInstanceLifecyclePorts` (activity half) and
+/// `:122`/`:141` (invalid kind and missing instance boundaries).
+///
+/// Go's `StrategyInstanceActivity(instance, kind, limit, offset)` trims the
+/// instance id, defaults to `logs`, clamps the page and reports "not found"
+/// separately from an unavailable service. The Rust owner is the MCP
+/// `strategy.instance_activity` tool, which must normalize the request before
+/// it reaches the strategy read port and fail closed on invalid input.
+#[test]
+fn strategy_instance_activity_tool_normalizes_kind_and_paging_before_the_read_port() {
+    #[derive(Debug, Default)]
+    struct RecordingStrategyRead {
+        reads: Mutex<Vec<(String, String)>>,
+        missing: bool,
+        unavailable: bool,
+    }
+
+    impl crate::product::StrategyReadSnapshotPort for RecordingStrategyRead {
+        fn read(
+            &self,
+            path: &str,
+            query: &str,
+        ) -> Result<Option<Value>, crate::product::StrategyReadSnapshotError> {
+            self.reads
+                .lock()
+                .expect("strategy reads")
+                .push((path.to_owned(), query.to_owned()));
+            if self.unavailable {
+                return Err(crate::product::StrategyReadSnapshotError::Unavailable(
+                    "strategy runtime is offline".to_owned(),
+                ));
+            }
+            if self.missing {
+                return Ok(None);
+            }
+            Ok(Some(json!({"instanceId": "instance-1"})))
+        }
+    }
+
+    let (_directory, mut ports) = production_bundle();
+    let recorder = Arc::new(RecordingStrategyRead::default());
+    ports.strategy_read =
+        Arc::clone(&recorder) as Arc<dyn crate::product::StrategyReadSnapshotPort>;
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+
+    let logs = executor
+        .execute_production(
+            "strategy.instance_activity",
+            &json!({"instanceId": " instance-1 "}),
+        )
+        .expect("default logs activity");
+    assert_eq!(logs["instanceId"], "instance-1");
+    let audit = executor
+        .execute_production(
+            "strategy.instance_activity",
+            &json!({
+                "instanceId": "instance-1",
+                "kind": "AUDIT",
+                "eventKind": "pause",
+                "limit": 10,
+                "offset": 2,
+                "fromTime": "2026-01-01T00:00:00Z",
+                "toTime": "2026-01-02T00:00:00Z",
+                "level": "warn",
+            }),
+        )
+        .expect("audit activity");
+    assert_eq!(audit["instanceId"], "instance-1");
+
+    let reads = recorder.reads.lock().expect("strategy reads").clone();
+    assert_eq!(
+        reads.len(),
+        2,
+        "the activity tool must issue exactly one read per call: {reads:?}"
+    );
+    assert_eq!(reads[0].0, "/api/v1/strategies/instance-1/logs");
+    assert_eq!(reads[0].1, "limit=50&offset=0");
+    assert_eq!(reads[1].0, "/api/v1/strategies/instance-1/audit");
+    for expected in [
+        "limit=10",
+        "offset=2",
+        "kind=pause",
+        // The reviewed query encoder escapes `-` as `%2D` as well as the
+        // timestamp separators, so the wire shape is asserted literally.
+        "fromTime=2026%2D01%2D01T00%3A00%3A00Z",
+        "toTime=2026%2D01%2D02T00%3A00%3A00Z",
+    ] {
+        assert!(
+            reads[1].1.contains(expected),
+            "audit query {expected} missing from {}",
+            reads[1].1
+        );
+    }
+    assert!(
+        !reads[1].1.contains("level="),
+        "the audit read must not forward the logs-only level filter: {}",
+        reads[1].1
+    );
+
+    for (arguments, message) in [
+        (
+            json!({"instanceId": "instance-1", "kind": "traces"}),
+            "kind must be logs or audit",
+        ),
+        (
+            json!({"instanceId": "instance-1", "limit": 0}),
+            "limit must be between 1 and 200",
+        ),
+        (
+            json!({"instanceId": "instance-1", "limit": 201}),
+            "limit must be between 1 and 200",
+        ),
+        (
+            json!({"instanceId": "instance-1", "offset": -1}),
+            "offset must be between 0 and 5000000",
+        ),
+        (json!({}), "instanceId is required"),
+    ] {
+        let failure = executor
+            .execute_production("strategy.instance_activity", &arguments)
+            .expect_err(message);
+        assert_eq!(failure.status, 400, "{message}");
+        assert_eq!(failure.code, "BAD_REQUEST", "{message}");
+        assert_eq!(failure.message, message);
+    }
+
+    for (port, status, code) in [
+        (
+            RecordingStrategyRead {
+                missing: true,
+                ..Default::default()
+            },
+            404,
+            "STRATEGY_INSTANCE_NOT_FOUND",
+        ),
+        (
+            RecordingStrategyRead {
+                unavailable: true,
+                ..Default::default()
+            },
+            503,
+            "STRATEGY_ACTIVITY_UNAVAILABLE",
+        ),
+    ] {
+        let (_directory, mut ports) = production_bundle();
+        ports.strategy_read = Arc::new(port);
+        let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+        let failure = executor
+            .execute_production(
+                "strategy.instance_activity",
+                &json!({"instanceId": "instance-1"}),
+            )
+            .expect_err("a missing or unavailable strategy runtime must fail closed");
+        assert_eq!(failure.status, status);
+        assert_eq!(failure.code, code);
+    }
+}
+
 /// Parity: go:452dea11:internal/assistant/assembly/adk_strategy_test.go:19
 /// `TestADKCoreToolHandlersSurfaceSubscriptionErrors`. Go's
 /// `market.subscriptions` handler returns the market-data service failure

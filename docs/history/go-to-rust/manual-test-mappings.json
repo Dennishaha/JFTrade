@@ -6937,25 +6937,25 @@
     "evidence_type": "partial"
   },
   "internal/assistant/assembly/application_strategy_lifecycle_test.go:84:TestApplicationAdapterStrategyInstanceLifecyclePorts": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::strategy_instance_activity_tool_normalizes_kind_and_paging_before_the_read_port + crates/jftrade-engine/src/product_strategy_runtime_write_product_tests.rs::strategy_runtime_write_product_replays_browser_failure_recovery_and_restart + crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::instantiate_persists_the_same_normalized_binding_as_runtime_update",
+    "conclusion": "已覆盖：Go 通过助手工具依赖调用策略实例生命周期（instantiate/start/stop(pause,stop)/refresh/update-risk/activity），并断言实例 id trim、logs 默认 kind、分页归一化与运行时调用次数。Rust owner 分裂为三处且各有断言：新测试 strategy_instance_activity_tool_normalizes_kind_and_paging_before_the_read_port 断言 MCP strategy.instance_activity 把 \" instance-1 \" trim 成 /api/v1/strategies/instance-1/logs 且首读 query 恰为 limit=50&offset=0、kind 大小写折叠后 AUDIT 走 /audit 并携带 limit=10/offset=2/kind=pause/fromTime/toTime、logs-only 的 level 不进入 audit 读，非法 kind/limit/offset/缺 instanceId 一律 400 BAD_REQUEST，端口缺实例 404 STRATEGY_INSTANCE_NOT_FOUND、端口不可用 503 STRATEGY_ACTIVITY_UNAVAILABLE（探针：把默认 kind 改成 audit → 首读路径断言转红；把 limit 下界改成 0 → limit=0 用例转红）；strategy_runtime_write_product_replays_browser_failure_recovery_and_restart 断言 start/update/update-runtime-risk/pause/stop/refresh-definition 的 HTTP 生命周期与失败恢复、重启重放；instantiate_persists_the_same_normalized_binding_as_runtime_update 断言 instantiate 的绑定归一化与持久化。差异记录：Go 对 limit=0/offset=-1 做钳制（0→1、-1→0），Rust 按 schema（limit 1..200、offset≥0）直接 400 拒绝，属 fail-closed 收紧，已列 P2。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(strategy_instance_activity_tool_normalizes_kind_and_paging_before_the_read_port) | test(strategy_runtime_write_product_replays_browser_failure_recovery_and_restart) | test(instantiate_persists_the_same_normalized_binding_as_runtime_update)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/assembly/application_strategy_lifecycle_test.go:122:TestApplicationAdapterStrategyInstanceLifecycleRejectsInvalidInputs": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::strategy_instance_activity_tool_normalizes_kind_and_paging_before_the_read_port + crates/jftrade-engine/src/product_mcp_server_tests.rs::backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets",
+    "conclusion": "部分覆盖：Go 用空 ApplicationPorts 构造工具依赖，空 id 的 instantiate/start/stop/refresh/risk/activity 都必须报错。Rust 可达半边：strategy.instance_activity 缺 instanceId → 400 BAD_REQUEST（本批新测试），strategy.definition_versions.* 缺 definitionId → 400（backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets）。不可迁移半边（记录差异）：Rust 助手目录里没有 instantiate/start/stop/refresh/update-risk 这些生命周期写工具（第 50/51 批已登记的「模型目录不含 9 个外部写/交易工具」同类边界，本处是策略实例写工具），控制台经 /api/v1/strategies/{instanceId}/{action} 路由写入，空 instanceId 无法匹配该路由形态（404 NOT_FOUND，见 strategy_runtime_write_routes_register_only_with_explicit_test_port），因此不存在「空 id 传给服务」的等价路径。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(strategy_instance_activity_tool_normalizes_kind_and_paging_before_the_read_port) | test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/application_strategy_lifecycle_test.go:141:TestApplicationAdapterStrategyInstanceLifecycleRejectsDefinitionAndActivityBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::strategy_instance_activity_tool_normalizes_kind_and_paging_before_the_read_port + crates/jftrade-engine/src/product_mcp_server_tests.rs::backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets + crates/jftrade-engine/src/product_strategy_definition_write_port.rs::tests::instantiate_accepts_empty_body_but_rejects_malformed_json",
+    "conclusion": "部分覆盖：可达半边 —— activity 的缺失实例 404 STRATEGY_INSTANCE_NOT_FOUND 与端口不可用 503 STRATEGY_ACTIVITY_UNAVAILABLE（本批新测试）；未知定义 404 STRATEGY_DEFINITION_NOT_FOUND（backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets）；instantiate 的空 body 接受/畸形 JSON 400（instantiate_accepts_empty_body_but_rejects_malformed_json）。未迁移：Go 的「空 definition id」与「stop action=restart 非法」在 Rust 没有等价路径 —— instantiate 是 POST /api/v1/strategy-definitions/{definitionId}/instantiate（空 id 不匹配路由 → 404），停止动作只有 pause/stop 两个独立路由，restart 不存在（404），因此 Go 的错误分支在 Rust 由路由形态与 schema 枚举承担。差异与边界已记录，列 P2 复核。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(strategy_instance_activity_tool_normalizes_kind_and_paging_before_the_read_port) | test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) | test(instantiate_accepts_empty_body_but_rejects_malformed_json)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/maintenance_test.go:12:TestDatabaseMaintenanceOwnsADKBusyPurgeAndCompactPaths": {
     "status": "[~]",
