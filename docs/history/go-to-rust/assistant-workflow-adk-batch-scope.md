@@ -1256,3 +1256,69 @@ Rust 侧 `tasks.create/update` 属未实现的写工具（不在 `PRODUCTION_TOO
 ### 下批目标
 
 `internal/assistant/engine/runner_chat_test.go`（24 条，余 20 条 `[~]`）：先读 `runner_chat_test.go:56/69/102/127/156/181` 与 `internal/assistant/engine/runner_chat.go`，逐条比对 `hydrateRunExecutionResult`、`completeChatRun`、`markFailedChatRun`、`persistRunTerminalState`、`attachFinalAssistantMessage` 与 Rust 的 `persist_success`/`persist_failure`/`persisted_turn_response`。重点核对：tool-only run 合成 final reply、run 级终态与审计事件的原子写入、pending approval 的 assistant prompt 落盘、run handle 生命周期（`startRun`/`finishRun`/`cancelRun` 终态 noop）。
+
+## 第二十四批：ADK run 生命周期审计与终态投影（runner_chat_test.go/store_test.go/input_request_test.go 共 7 条 [x]，含 2 个真实功能缺口）
+
+本批把 `internal/assistant/engine/runner_chat_test.go` 的终态/审计条目与两条被遗漏的审计契约一起结清，并修掉两处真实功能缺失。
+
+### 缺口 1：Rust 从不写 ADK audit 行
+
+Go 的 `Runtime.audit` 在每个生命周期转换写一行 `AuditEvent`（`run.completed`、`run.failed`、`run.timed_out`、`run.cancelled`、`run.denied`、`run.awaiting_approval`、`run.awaiting_input`），`GET /api/v1/adk/audit` 直接回读这些行。Rust 的 store 与读路由都已接好，但生产 runtime 一行都没写，控制台审计视图恒为空。
+
+Rust 修复（`crates/jftrade-engine`）：
+
+- 新增 `product_adk_model_runtime_audit.rs`：`RunAuditEvent`、`record_run_audit`（best-effort，唯一键冲突视为已被更早的 fenced 尝试写过而保留首行，其余错误只打日志）、`lifecycle_audit_kind`、`terminal_audit_message`、`terminal_audit_fields`。用 `include!` 挂在 `product_adk_model_runtime.rs` 模块作用域，保持生产片段在 800 行上限内。
+- `product_adk_model_runtime_stream.rs`：`persist_success` 写 `run.completed`，`persist_failure` 按状态派生 `run.failed`/`run.timed_out` 并携带 `errorCode`/`failureReason`。
+- `product_adk_model_runtime_lifecycle.rs`：`persist_cancelled` 写 `run.cancelled`（`RUN_CANCELLED`）。
+- `product_adk_model_runtime_tool_persistence.rs`：审批停写 `run.awaiting_approval`（含 `pendingApprovals` 计数）。
+- `product_adk_model_runtime_input_call.rs`：输入停写 `run.awaiting_input`（含 `requestId` 与 `decisionKind`，不泄漏 `blockingReason`）。
+
+### 缺口 2：审批拒绝没有 `approval_denied` 与 `run.resumed`
+
+Go 的 `markDeniedResumedRun` 把被拒的续跑投影成 `status=DENIED`、`resumeState="approval_denied"`、`message="approval denied"`（清空 `errorCode`/`failureReason`），`auditResumedRun` 再写 `run.resumed` + 终态 kind 两行，二者都带 `resumeState`。Rust 原先只写 `status=DENIED` 与一句自造消息，`resumeState` 与两条审计都缺失。
+
+Rust 修复：新增 `record_resumed_run_audit`（`run.resumed` 后接 `lifecycle_audit_kind(status)`，共用幂等插入），`product_adk_model_runtime_events.rs` 的 `resume_approval` denied 分支改用 Go 的字段与消息。
+
+### 本批结清条目
+
+| Go 测试 | Rust 测试 | 结论 |
+| --- | --- | --- |
+| `runner_chat_test.go:181` `TestPersistRunTerminalStateWritesRunAndAudit` | `a_failed_run_persists_its_terminal_state_and_audit_row` | `[x]` 终态 run + `run.failed` 审计行 |
+| `runner_chat_test.go:267` `TestFinishPendingApprovalRunPersistsPendingStateAndAssistantPrompt` | `a_gated_call_parks_the_run_and_audits_awaiting_approval` | `[x]` `PENDING`/`waiting_approval` + `run.awaiting_approval` |
+| `runner_chat_test.go:325` `TestCompleteChatRunFailurePersistsUserFacingErrorReply` | `a_failed_run_persists_the_provider_error_and_audit_row` | `[x]` 终态落盘半；**wire 差异另列为 P0 未关闭（见下）** |
+| `runner_chat_test.go:376` `TestCompleteChatRunSuccessPersistsCompletedRunAndAssistantReply` | `a_completed_run_persists_the_reply_and_audits_run_completed` | `[x]` `COMPLETED`/`completed` + `run.completed` |
+| `runner_chat_test.go:1124` `TestCancelRunOnTerminalStateIsNoop` | `a_cancelled_run_audits_run_cancelled_and_terminates_once` | `[x]` 幂等取消 + 单条 `run.cancelled` |
+| `store_test.go:720` `TestApprovalDenialRecordsResumedAndDeniedAuditEvents` | `a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state` | `[x]` `approval_denied` + `run.resumed`/`run.denied` |
+| `input_request_test.go:584` `TestRequestUserToolPausesAndResumesChatRun` | `a_pending_input_run_audits_awaiting_input_with_the_decision_kind` | `[x]` `PENDING_INPUT`/`waiting_input` + `run.awaiting_input` |
+
+另有 `lifecycle_audit_helpers_match_the_reference_table` 冻结 helper 表（kind、detail、omitempty 字段）。
+
+批准续跑同样补了审计：Go 的 `auditResumedRun` 在 `PersistRunTerminalState` 之前执行，因此 `persist_success` 的 `chat.resumed` 分支先写 `run.resumed`（`resumeState=adk_confirmation_resolved`）再写 `run.completed`；`store_ops_test.go:565` 的既有回归新增了这两行的断言。
+
+### 未关闭的 P0：provider 失败在 chat 路由的 wire 行为
+
+- Go 行为（冻结证据）：provider HTTP 500 对 `POST /api/v1/adk/chat` 与 `/stream` 都是 **HTTP 200 + failed run**，`reply = userFacingADKError(err)`、`run.finalMessageId` 非空、`degraded=true`，SSE 以 `final` 事件结束。见 `tests/fixtures/compatibility/api-transport/adk-chat-stream.json` 的 `chat-provider-failure`/`stream-provider-failure` 与 `docs/history/go-to-rust/route-ledgers/adk-chat-stream.md` 的 go-behavior quirk。
+- Rust 现状：可重试 provider 故障走 `product_adk_model_runtime_retry.rs`，run 保持 `RUNNING` + `providerRetry`/`resumeState=provider_waiting` 以便恢复，路由回 502；`finalMessageId` 在 Rust 中全仓没有实现（仅前端类型与 openapi 声明存在）。
+- 为什么本批不直接改：该行为是 Rust 产品刻意的 durable-retry 设计（提交 5853c5d4），与 provider 失败即终态的 Go 语义冲突，属于公开 API 契约变更（`ADR`/release gate 范围），且 `contracts/openapi/openapi.json` 的 chat 路由只声明 200/400。先登记复现条件、预期、修复位置与回归要求，交由下一批按“保 durable 还是按 Go 投影”决策后再改。
+- 复现条件：active provider 返回 5xx（fixture 用 500），body 带合法 `clientRequestId`/`agentId`/`message`，请求 `POST /api/v1/adk/chat`（或 `/stream`）。
+- 预期（Go）：`200 ok=true` + `data.run.status=FAILED`、`errorCode=MODEL_CALL_FAILED`、`reply` 为用户可见错误文本、`finalMessageId` 非空；SSE 以 `final` 事件收尾。
+- 修复位置：`product_adk_model_runtime_retry.rs` 的 `is_provider_retryable_error`/`persist_provider_retry` 终态化策略，以及 `product_adk_model_runtime_stream.rs` 的 `finish_chat`/`persist_failure` 投影（含 `finalMessageId`）。
+- 回归要求：先把 fixture 的两个 provider-failure 用例写成 Rust 失败回归（200 + FAILED + reply + finalMessageId + SSE `final`），再改生产实现；若最终决定保留 durable retry，必须在 `adk-chat-stream.md` 登记为有意的行为分歧并同步 openapi/前端契约。
+
+### 文件规模
+
+`product_adk_model_runtime_stream.rs` 增行后达到 811 行，超过 workspace 的 800 行生产上限（`pnpm run check:rust:architecture` 拦截）。按既有 `include!` 约定把 `persist_failure` 抽到新文件 `crates/jftrade-engine/src/product_adk_model_runtime_failure.rs`（181 行，文本包含回同一模块作用域），主片段回到 640 行。
+
+### 验证
+
+- `cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine --all-targets --locked`：通过（0 警告）。
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：**1479 passed / 0 failed**（上批基线 1470，本批 +9）。
+- `pnpm run check:quick`（含 1499 条引擎测试 + 兼容 replay + 桌面 release 测试）、`pnpm run check:compatibility`、`pnpm run check:zero-go`、`pnpm run check:rust:architecture`、`python3 scripts/compatibility/audit_test_parity.py`、`git diff --check`：全部通过。
+- 中途 `check:quick` 报 `.rcgu.o ≥ 50000`（本机累积 114197 个中间对象，无 cargo/rustc 进程在跑），按门禁提示清理 `target/debug/deps/*.rcgu.o` 后通过。
+- 探针 A（`record_run_audit` 入口短路）：6 条审计回归全部转红，`cp` 备份恢复后通过。
+- 探针 B（`record_resumed_run_audit` 短路）：`a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state` 转红（`audit rows must contain run.resumed`），恢复后通过。
+- 映射清单：`[x]` 805 → **812**，全部 `function_exact`，0 重复 rust_entry，key 集合仍为 4451，0 U+FFFD。
+
+### 下批目标
+
+`internal/assistant/engine/runner_chat_test.go` 余 17 条 `[~]`：`:56`（`ADK_INPUT_UNSUPPORTED`）、`:69`（`HydrateRunExecutionResult` 字段投影）、`:102`（顶层 followUp 不提升为 pending input）、`:127`（tool-only run 合成 final reply）、`:156`（`markFailedChatRun` context→终态映射）、`:225`（`AttachFinalAssistantMessage` 与 `finalMessageId`）、`:490`（`ProjectedChatResponse` 投影）、`:541`（非法 permissionMode override）、`:552`（run 冻结 resolved model 快照）、`:609`（provider override 不改 agent）、`:737`（projection 持久化边界）、`:846`（已 resolve 的 approval 不回流）、`:891`（stream 关闭后后台 resume）、`:1043`（`resolveSession` 复用/标题裁剪）、`:1079`（run handle 生命周期）。优先级：先把 P0 的 provider-failure wire 决策连同 `finalMessageId` 一起处理（`:225`/`:325`/`:490` 归属同一决策面），再按 `:156`/`:127`/`:69` 顺序补齐终态与投影语义。

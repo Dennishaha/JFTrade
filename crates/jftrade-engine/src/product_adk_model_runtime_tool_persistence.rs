@@ -276,6 +276,21 @@ impl ProductionAdkChatRuntime {
                 json!({"id": session.id, "agentId": chat.agent_id, "createdAt": session.created_at, "updatedAt": session.updated_at})
             })
             .unwrap_or_else(|| json!({"id": chat.session_id, "agentId": chat.agent_id}));
+        // Go's `finishPendingApprovalRun` audits `run.awaiting_approval` with
+        // the count of parked approvals, so the audit view can explain why a
+        // run stopped without a terminal status.
+        self.record_run_audit(&RunAuditEvent {
+            id: format!("{}:audit:run.awaiting_approval", chat.run_id),
+            subject_id: chat.run_id.clone(),
+            kind: "run.awaiting_approval",
+            detail: "Agent run is waiting for approval.",
+            metadata: json!({
+                "runId": chat.run_id,
+                "agentId": chat.agent_id,
+                "status": "PENDING",
+                "pendingApprovals": pending.len(),
+            }),
+        });
         // Go's `finishPendingApprovalRun` answers with the approval prompt
         // (and no assistant placeholder message), so the console can show the
         // operator exactly what to do next.

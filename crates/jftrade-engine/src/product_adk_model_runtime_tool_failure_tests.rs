@@ -823,6 +823,27 @@ fn a_resumed_approval_run_completes_with_the_confirmation_resolved_state() {
         "the durable payload keeps the confirmation state: {payload}"
     );
     assert!(payload["completedAt"].is_string());
+
+    // Go's `auditResumedRun` runs before the terminal persistence step, so an
+    // approved continuation records `run.resumed` with the resolved
+    // `resumeState` ahead of `run.completed`.
+    let rows = store.list_audit_events().expect("list audit events");
+    let resumed = rows
+        .iter()
+        .find(|row| row.kind == "run.resumed")
+        .unwrap_or_else(|| panic!("a resumed run must audit run.resumed: {rows:?}"));
+    assert_eq!(resumed.subject_id, "run-resumed-projection");
+    let resumed_payload: Value =
+        serde_json::from_str(&resumed.payload_json).expect("resumed audit payload");
+    assert_eq!(
+        resumed_payload["metadata"]["resumeState"], "adk_confirmation_resolved",
+        "the resume audit records the resolved state: {resumed_payload}"
+    );
+    assert!(
+        rows.iter().any(|row| row.kind == "run.completed"),
+        "the resumed run still audits its terminal kind: {rows:?}"
+    );
+
     drop(run_lease);
     let _ = runtime;
 }

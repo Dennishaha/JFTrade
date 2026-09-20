@@ -271,6 +271,22 @@ impl ProductionAdkChatRuntime {
                 ));
             }
         }
+        // Go's `markFailedChatRun` + `PersistRunTerminalState` audit
+        // `run.cancelled` with the run/agent/status fields, so a cancelled run
+        // is visible in the audit view next to the run itself.
+        self.record_run_audit(&RunAuditEvent {
+            id: format!("{}:audit:run.cancelled", chat.run_id),
+            subject_id: chat.run_id.clone(),
+            kind: "run.cancelled",
+            detail: terminal_audit_message("CANCELLED"),
+            metadata: terminal_audit_fields(
+                &chat.run_id,
+                &chat.agent_id,
+                "CANCELLED",
+                "RUN_CANCELLED",
+                &format_adk_error(error),
+            ),
+        });
         Ok(())
     }
 }

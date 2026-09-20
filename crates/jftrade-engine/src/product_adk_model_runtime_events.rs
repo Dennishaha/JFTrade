@@ -426,8 +426,15 @@ impl ProductionAdkChatRuntime {
         if denied {
             let now = run.updated_at.clone();
             let mut denied_payload = payload;
+            // Go's `markDeniedResumedRun` projects the denial the same way as
+            // every other resumed terminal state: `resumeState` becomes
+            // `approval_denied` and the run keeps the fixed "approval denied"
+            // message with empty errorCode/failureReason.
             denied_payload["status"] = Value::String("DENIED".to_owned());
-            denied_payload["message"] = Value::String("assistant tool call was denied".to_owned());
+            denied_payload["resumeState"] = Value::String("approval_denied".to_owned());
+            denied_payload["message"] = Value::String("approval denied".to_owned());
+            denied_payload["errorCode"] = Value::String(String::new());
+            denied_payload["failureReason"] = Value::String(String::new());
             denied_payload["completedAt"] = Value::String(now.clone());
             let denied_event_id = format!("{run_id}:denied");
             let event = AdkRunEvent {
@@ -435,7 +442,7 @@ impl ProductionAdkChatRuntime {
                 session_id: &run.session_id,
                 invocation_id: &run.id,
                 author: &run.agent_id,
-                content: "assistant tool call was denied",
+                content: "approval denied",
             };
             let owner_id = lease_owner_id(run_id);
             let run_lease = RunLeaseGuard::acquire(Arc::clone(&self.store), run_id, &owner_id)?;
@@ -452,6 +459,18 @@ impl ProductionAdkChatRuntime {
                     run_lease.token(),
                 )
                 .map_err(storage_unavailable)?;
+            // Go's `auditResumedRun` writes `run.resumed` followed by the
+            // lifecycle kind of the status the continuation reached, both
+            // carrying `resumeState=approval_denied` so the console can label
+            // the denial as an approval outcome rather than a plain failure.
+            record_resumed_run_audit(
+                self.store.as_ref(),
+                run_id,
+                &run.agent_id,
+                "DENIED",
+                "approval_denied",
+                "",
+            );
             return Ok(());
         }
         let message = object

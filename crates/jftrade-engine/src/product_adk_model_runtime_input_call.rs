@@ -178,6 +178,42 @@ impl ProductionAdkChatRuntime {
             })
             .unwrap_or_else(|| json!({"id": chat.session_id, "agentId": chat.agent_id}));
 
+        // Go's `FinishPendingInputRun` audits `run.awaiting_input` with the
+        // run/agent/status/requestId fields (plus `decisionKind` when the
+        // originating tool call declared one).
+        let mut metadata = serde_json::Map::new();
+        metadata.insert("runId".to_owned(), Value::String(chat.run_id.clone()));
+        metadata.insert("agentId".to_owned(), Value::String(chat.agent_id.clone()));
+        metadata.insert(
+            "status".to_owned(),
+            Value::String("PENDING_INPUT".to_owned()),
+        );
+        if let Some(request_id) = input_request.get("id").and_then(Value::as_str) {
+            metadata.insert(
+                "requestId".to_owned(),
+                Value::String(request_id.to_owned()),
+            );
+        }
+        if let Some(decision_kind) = call
+            .arguments
+            .get("decisionKind")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            metadata.insert(
+                "decisionKind".to_owned(),
+                Value::String(decision_kind.to_owned()),
+            );
+        }
+        self.record_run_audit(&RunAuditEvent {
+            id: format!("{}:audit:run.awaiting_input", chat.run_id),
+            subject_id: chat.run_id.clone(),
+            kind: "run.awaiting_input",
+            detail: "Agent run is waiting for user input.",
+            metadata: Value::Object(metadata),
+        });
+
         Ok(AdkChatPortOutput::Json(json!({
             "reply": "我需要你确认几个选择，回答后会继续执行。",
             "session": session,
