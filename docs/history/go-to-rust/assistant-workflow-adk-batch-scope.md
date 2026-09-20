@@ -1157,3 +1157,44 @@ Go 的 `http.fetch`（`internal/assistant/engine/tool_net.go:14`）是模型可�
 `internal/assistant/engine/tools_test.go` 剩余 7 条 `[~]`：task schema 1 条、`models.list`
 schema 1 条、tool registry 序列化 1 条、`account.orders` 慢端口/stream 3 条、
 backtest companion 1 条、descriptor access mode 1 条。
+
+## 第二十二批：本地工具 schema 与访问模式投影（tools_test.go 再结清 4 条）
+
+### 功能修复
+
+- `product_mcp_schema_catalog_dispatch.rs`：为本地工具补审查 schema——`models.list`
+  （query/providerId/callableOnly/limit）、`workflow.wait`（seconds/durationMs/reason，含 25s 与
+  25000ms 上限）、`http.fetch`（url 必填、maxBytes 1..1MiB）。此前 ADK 投影对这些工具退回通用
+  占位 schema，缺具体字段且不体现上限。
+- 三个 `[x]` 复用已有运行时断言（目录 `requiresApprovalIn` 为数组、`workflow.wait`/`system.status`
+  为 `[]`；toolAccessMode 三态投影；backtest companion 规则），另补两条独立回归避免同一
+  Rust 入口被多条 Go 测试引用。
+
+### 新增回归
+
+- `product_mcp_protocol_tests.rs::models_list_schema_is_safe_and_complete`：四个字段齐备、
+  `additionalProperties=false`、schema 文本不含 apiKey。
+- `product_mcp_protocol_tests.rs::local_tool_schemas_are_reviewed`：workflow.wait/http.fetch 的
+  字段与上限。
+- `product_adk_model_runtime_gate_tests.rs::explicit_access_modes_project_their_declared_tool_sets`：
+  all/selected/none 三态投影矩阵。
+- `product_adk_model_runtime_gate_tests.rs::selected_backtest_tools_gain_the_kline_sync_companion`：
+  research_backtest/optimize 隐含 companion，无关选择不隐含，none 不隐含。
+
+### 验证
+
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：
+  1462 passed，0 failed（上一批 1458，本批 +4）。
+- `cargo fmt --all`、`pnpm run check:rust:architecture`：通过。
+- `python3 scripts/compatibility/audit_test_parity.py`：`[x]` 797 → **801**，0 重复 `[x]`，
+  0 断裂引用。
+
+### 下一批
+
+`internal/assistant/engine/tools_test.go` 剩余 3 条 `[~]`，全部围绕 30 秒工具超时与不挂起契约：
+`TestAccountOrdersCompletesWithoutHanging`(468) / `TestAccountOrdersWithSlowPortfolioSummary`(605) /
+`TestAccountOrdersStreamCompletes`(837)。已确认 Rust 侧缺 Go `executeRegisteredTool` 的
+30s `context.WithTimeout` 与 panic 恢复（`product_adk_tool_executor.rs` 无超时包装、
+`classify_tool_failure` 只有 MODEL_CALL_TIMEOUT 映射到 TIMEOUT）。实现要点：在工具执行边界加
+30s 超时（结果映射 `TIMEOUT`/retryable）与 panic 捕获（`tool panic: ...`），并让
+`account.orders` 与慢 `portfolio.summary` 并发时互不阻塞；补超时/panic/慢端口回归后用探针验证。

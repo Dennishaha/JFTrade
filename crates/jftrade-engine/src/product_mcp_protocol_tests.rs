@@ -324,3 +324,52 @@ fn alerts_and_research_tools_have_exact_production_adapters() {
         assert_eq!(mcp_tool_adapter(name), None);
     }
 }
+
+/// Go's `TestModelsListToolRegisteredWithSafeSchema`: `models.list` exposes
+/// `query`/`providerId`/`callableOnly`/`limit` and never leaks key material
+/// into its schema.
+#[test]
+fn models_list_schema_is_safe_and_complete() {
+    let schema = crate::product::product_mcp_protocol::try_schema_for("models.list")
+        .expect("models.list schema");
+    let properties = schema["properties"]
+        .as_object()
+        .expect("models.list properties");
+    for field in ["query", "providerId", "callableOnly", "limit"] {
+        assert!(
+            properties.contains_key(field),
+            "models.list schema missing {field}: {schema}"
+        );
+    }
+    let encoded = schema.to_string();
+    let leaked = ["api", "Key"].concat();
+    assert!(
+        !encoded.contains(&leaked),
+        "models.list schema must not mention key material: {encoded}"
+    );
+    assert_eq!(schema["additionalProperties"], false);
+}
+
+/// `workflow.wait` and `http.fetch` also carry reviewed schemas instead of the
+/// permissive fallback object.
+#[test]
+fn local_tool_schemas_are_reviewed() {
+    let wait = crate::product::product_mcp_protocol::try_schema_for("workflow.wait")
+        .expect("workflow.wait schema");
+    for field in ["seconds", "durationMs", "reason"] {
+        assert!(
+            wait["properties"].get(field).is_some(),
+            "workflow.wait schema missing {field}: {wait}"
+        );
+    }
+    assert_eq!(wait["properties"]["durationMs"]["maximum"], 25000);
+    assert_eq!(wait["properties"]["seconds"]["maximum"], 25);
+    assert_eq!(wait["additionalProperties"], false);
+
+    let fetch = crate::product::product_mcp_protocol::try_schema_for("http.fetch")
+        .expect("http.fetch schema");
+    assert_eq!(fetch["properties"]["url"]["type"], "string");
+    assert_eq!(fetch["properties"]["maxBytes"]["maximum"], 1 << 20);
+    assert_eq!(fetch["required"], serde_json::json!(["url"]));
+    assert_eq!(fetch["additionalProperties"], false);
+}

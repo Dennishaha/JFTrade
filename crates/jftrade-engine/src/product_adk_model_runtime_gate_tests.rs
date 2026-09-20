@@ -697,3 +697,83 @@ fn agent_tool_scope_follows_the_go_access_mode_normalization() {
         "strategy.optimize implies the kline sync companion too"
     );
 }
+
+/// Go's `TestBacktestToolsIncludeRequiredKLineSyncStatusCompanion`: an agent
+/// that selects `strategy.research_backtest` (or `strategy.optimize`) must also
+/// receive `backtest.kline_sync_status`, while an unrelated selection must not.
+#[test]
+fn selected_backtest_tools_gain_the_kline_sync_companion() {
+    let scope = ProductionAdkChatRuntime::agent_tool_scope;
+    for parent in ["strategy.research_backtest", "strategy.optimize"] {
+        let selected = scope(&json!({
+            "tools": [parent],
+            "toolAccessMode": "selected",
+        }));
+        assert!(
+            selected.exposes(parent),
+            "{parent} must stay visible to its own selection"
+        );
+        assert!(
+            selected.exposes("backtest.kline_sync_status"),
+            "{parent} must imply the kline sync companion"
+        );
+    }
+
+    let unrelated = scope(&json!({
+        "tools": ["market.snapshot"],
+        "toolAccessMode": "selected",
+    }));
+    assert!(
+        !unrelated.exposes("backtest.kline_sync_status"),
+        "the companion is not granted to unrelated selections"
+    );
+
+    // An empty allowlist has no parent, so the companion stays hidden too.
+    let none = scope(&json!({
+        "tools": [],
+        "toolAccessMode": "none",
+    }));
+    assert!(!none.exposes("backtest.kline_sync_status"));
+}
+
+/// Go's `TestToolDescriptorsRespectExplicitAccessModes`: the three access
+/// modes project exactly the declared descriptor sets.  `tools.search` backs
+/// the reference test, but the projection rule is the access mode itself, so
+/// this asserts the mode matrix directly.
+#[test]
+fn explicit_access_modes_project_their_declared_tool_sets() {
+    let scope = ProductionAdkChatRuntime::agent_tool_scope;
+    let declared = ["market.snapshot", "orders.place"];
+
+    let all = scope(&json!({
+        "tools": declared,
+        "toolAccessMode": "all",
+    }));
+    for name in declared {
+        assert!(all.exposes(name), "all mode exposes {name}");
+    }
+    assert!(
+        all.exposes("market.search"),
+        "all mode ignores the stale allowlist"
+    );
+
+    let selected = scope(&json!({
+        "tools": ["orders.place"],
+        "toolAccessMode": "selected",
+    }));
+    assert!(selected.exposes("orders.place"));
+    assert!(
+        !selected.exposes("market.snapshot"),
+        "selected mode exposes only the declared tools"
+    );
+    assert!(!selected.exposes("market.search"));
+
+    let none = scope(&json!({
+        "tools": declared,
+        "toolAccessMode": "none",
+    }));
+    for name in declared {
+        assert!(!none.exposes(name), "none mode hides {name}");
+    }
+    assert!(!none.exposes("market.search"));
+}

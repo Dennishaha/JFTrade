@@ -10675,11 +10675,11 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/tools_test.go:25:TestToolRegistrySerializesEmptyApprovalModesAsArray": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::tool_catalog_marks_external_unavailable_tools_non_callable",
+    "conclusion": "function_exact：目录投影对每个工具断言 requiresApprovalIn 是数组，并明确断言 workflow.wait/system.status 的 requiresApprovalIn == []（空列表必须序列化为 []，不能省略）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:44:TestDefaultTaskToolSchemaIncludesPlannerProjectionFields": {
     "status": "[~]",
@@ -10689,11 +10689,11 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/tools_test.go:61:TestModelsListToolRegisteredWithSafeSchema": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_protocol_tests.rs::models_list_schema_is_safe_and_complete",
+    "conclusion": "function_exact：models.list 的审查 schema 含 query/providerId/callableOnly/limit，additionalProperties=false，且 schema 文本不含 apiKey。此前 Rust 走通用占位 schema，缺这些具体字段。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:87:TestTaskWriteToolsMarkedLowRiskCanSkipApproval": {
     "status": "[x]",
@@ -10794,18 +10794,18 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:726:TestBacktestToolsIncludeRequiredKLineSyncStatusCompanion": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::selected_backtest_tools_gain_the_kline_sync_companion",
+    "conclusion": "function_exact：选中 strategy.research_backtest 或 strategy.optimize 时同样暴露 backtest.kline_sync_status；不相关的 selected 选择不授予 companion；toolAccessMode=none 也不暴露。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:743:TestToolDescriptorsRespectExplicitAccessModes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::explicit_access_modes_project_their_declared_tool_sets",
+    "conclusion": "function_exact：toolAccessMode=all 暴露全部并忽略陈旧 allowlist；selected 只暴露声明工具；none 全部隐藏。与 Go ToolDescriptorsForAgent 三种访问模式的投影规则一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:775:TestChatContinuesAfterToolFailure": {
     "status": "[x]",

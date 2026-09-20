@@ -6,6 +6,35 @@ fn product_schema_for(name: &str) -> Option<Value> {
         return Some(schema);
     }
     match name {
+        // Local tools whose reviewed schema the reference keeps explicit;
+        // without these the ADK projection falls back to an open object.
+        "models.list" => Some(strict_object(
+            object([
+                ("query", string_schema(1, 200)),
+                ("providerId", string_schema(1, 120)),
+                (
+                    "callableOnly",
+                    json!({"type": "boolean", "description": "Only providers that are enabled and keyed. Defaults to true."}),
+                ),
+                ("limit", json!({"type": "integer", "minimum": 1, "maximum": 100})),
+            ]),
+            &[],
+        )),
+        "workflow.wait" => Some(strict_object(
+            object([
+                ("seconds", json!({"type": "number", "minimum": 0, "maximum": 25})),
+                ("durationMs", json!({"type": "integer", "minimum": 1, "maximum": 25000})),
+                ("reason", string_schema(1, 500)),
+            ]),
+            &[],
+        )),
+        "http.fetch" => Some(strict_object(
+            object([
+                ("url", string_schema(1, 2048)),
+                ("maxBytes", json!({"type": "integer", "minimum": 1, "maximum": 1 << 20})),
+            ]),
+            &["url"],
+        )),
         "research.screen" => Some(research_screen_schema()),
         "prediction.discover" => Some(prediction_discovery_schema()),
         "prediction.combo_quote" => Some(prediction_quote_schema()),
