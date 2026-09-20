@@ -1222,6 +1222,196 @@ fn backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets() 
     assert_eq!(missing_version.code, "BAD_REQUEST");
 }
 
+/// Parity: go:452dea11:internal/assistant/assembly/portfolio_tools_test.go:338
+/// `TestAccountOrdersFiltersAccountEnvironmentMarketAndActiveStatus`. Go
+/// resolves the account suffix and forwards the account, environment, market,
+/// and `activeOnly` dimensions as the execution filter before it reports the
+/// filtered count. The Rust owner is the MCP `account.orders` tool plus the
+/// execution read port.
+#[test]
+fn account_orders_forwards_scope_account_environment_and_market_filters() {
+    #[derive(Debug, Default)]
+    struct RecordingExecutionRead {
+        queries: Mutex<Vec<String>>,
+    }
+
+    impl crate::product::ExecutionReadSnapshotPort for RecordingExecutionRead {
+        fn read(
+            &self,
+            path: &str,
+            query: &str,
+        ) -> Result<Value, crate::product::ExecutionReadSnapshotError> {
+            assert_eq!(path, "/api/v1/execution/orders");
+            self.queries
+                .lock()
+                .expect("recorded queries")
+                .push(query.to_owned());
+            Ok(json!({
+                "orders": [{"internalOrderId": "active"}],
+                "checkedAt": "2026-09-01T00:00:00Z",
+            }))
+        }
+    }
+
+    let (_directory, mut ports) = production_bundle();
+    let recording = Arc::new(RecordingExecutionRead::default());
+    ports.execution_read = recording.clone();
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+
+    let payload = executor
+        .execute_production(
+            "account.orders",
+            &json!({
+                "accountId": "8240",
+                "tradingEnvironment": "REAL",
+                "market": "US",
+                "activeOnly": true,
+            }),
+        )
+        .expect("active account orders");
+    assert_eq!(payload["count"], 1);
+    assert_eq!(payload["activeOnly"], true);
+    assert_eq!(payload["orders"][0]["internalOrderId"], "active");
+
+    executor
+        .execute_production("account.orders", &json!({"tradingEnvironment": "REAL"}))
+        .expect("current account orders");
+    assert_eq!(
+        recording.queries.lock().expect("queries").as_slice(),
+        [
+            "scope=ACTIVE&tradingEnvironment=REAL&accountId=8240&market=US",
+            "scope=CURRENT&tradingEnvironment=REAL",
+        ]
+    );
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/portfolio_tools_test.go:155
+/// `TestPortfolioLayeredToolsReportValidationDiscoveryAndPartialReadStates`
+/// (validation and fail-closed halves). Go requires `tradingEnvironment` on
+/// every layered portfolio tool before it touches a broker and surfaces an
+/// unavailable reader instead of a fabricated account list. The Rust owner is
+/// `product_portfolio_projection::{execute_portfolio_accounts, ...}` behind the
+/// ADK tool executor.
+#[test]
+fn portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader() {
+    use crate::product::product_adk_model_runtime::AdkToolExecutor;
+
+    let (_directory, ports) = production_bundle();
+    let executor = crate::product::product_adk_model_runtime::ProductionAdkToolExecutor::with_ports(
+        Arc::clone(&ports.mcp_catalog),
+        Arc::clone(&ports.mcp_store),
+        Arc::new(ports),
+    );
+
+    for name in [
+        "portfolio.accounts",
+        "portfolio.overview",
+        "portfolio.positions",
+    ] {
+        let missing_environment = executor
+            .execute(name, &json!({}))
+            .expect_err("tradingEnvironment is required");
+        assert_eq!(
+            missing_environment, "tradingEnvironment is required",
+            "{name}"
+        );
+
+        let unreadable = executor
+            .execute(name, &json!({"tradingEnvironment": "REAL"}))
+            .expect_err("a missing trade reader must fail closed");
+        assert_eq!(unreadable, "broker trade reader is unavailable", "{name}");
+    }
+}
+
+/// Regression net for `portfolio.summary` as it exists in Rust today.
+///
+/// The Go assembly tool aggregates per-account `accountSummaries`; the Rust MCP
+/// tool merges the three single-account snapshots instead, so this test pins
+/// the merged payload (no shared top-level `funds`) and the `brokerId` guard
+/// while the aggregation gap stays tracked as a follow-up.
+#[test]
+fn portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers() {
+    #[derive(Debug)]
+    struct RecordingPortfolioRead {
+        paths: Mutex<Vec<String>>,
+    }
+
+    impl crate::product::PortfolioSnapshotPort for RecordingPortfolioRead {
+        fn read(
+            &self,
+            path: &str,
+            query: &str,
+        ) -> Result<Value, crate::product::PortfolioSnapshotError> {
+            assert_eq!(query, "accountId=8240&tradingEnvironment=REAL&market=US");
+            self.paths
+                .lock()
+                .expect("portfolio paths")
+                .push(path.to_owned());
+            match path {
+                "/api/v1/portfolio/futu/positions" => Ok(json!({
+                    "positions": [{"symbol": "US.AAPL"}],
+                    "connectivity": "connected",
+                    "checkedAt": "2026-09-01T00:00:00Z",
+                })),
+                "/api/v1/portfolio/futu/cash-balances" => Ok(json!({
+                    "balances": [{"currency": "USD"}],
+                    "connectivity": "connected",
+                    "checkedAt": "2026-09-01T00:00:00Z",
+                })),
+                other => panic!("unexpected portfolio path {other}"),
+            }
+        }
+    }
+
+    #[derive(Debug)]
+    struct RecordingBrokerOrders;
+
+    impl crate::product::BrokerReadSnapshotPort for RecordingBrokerOrders {
+        fn read(
+            &self,
+            path: &str,
+            query: &str,
+        ) -> Result<Value, crate::product::BrokerReadSnapshotError> {
+            assert_eq!(path, "/api/v1/brokers/futu/orders");
+            assert_eq!(query, "accountId=8240&tradingEnvironment=REAL&market=US");
+            Ok(json!({
+                "orders": [{"internalOrderId": "order-1"}],
+                "connectivity": "connected",
+                "checkedAt": "2026-09-01T00:00:00Z",
+            }))
+        }
+    }
+
+    let (_directory, mut ports) = production_bundle();
+    ports.portfolio = Arc::new(RecordingPortfolioRead {
+        paths: Mutex::new(Vec::new()),
+    });
+    ports.broker = Arc::new(RecordingBrokerOrders);
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+
+    let payload = executor
+        .execute_production(
+            "portfolio.summary",
+            &json!({"accountId": "8240", "tradingEnvironment": "REAL", "market": "US"}),
+        )
+        .expect("portfolio summary");
+    assert_eq!(payload["brokerId"], "futu");
+    assert_eq!(payload["positions"][0]["symbol"], "US.AAPL");
+    assert_eq!(payload["balances"][0]["currency"], "USD");
+    assert_eq!(payload["orders"][0]["internalOrderId"], "order-1");
+    assert_eq!(payload["connectivity"], "connected");
+    assert_eq!(payload["checkedAt"], "2026-09-01T00:00:00Z");
+    assert!(
+        payload.get("funds").is_none(),
+        "the summary must not expose an ambiguous top-level funds bucket"
+    );
+
+    let unsupported = executor
+        .execute_production("portfolio.summary", &json!({"brokerId": "akshare"}))
+        .expect_err("brokerId must stay futu");
+    assert_eq!(unsupported.code, "BAD_REQUEST");
+}
+
 #[test]
 fn production_mcp_pine_leaves_execute_native_spec_and_validation() {
     let (_directory, ports) = production_bundle();

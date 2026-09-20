@@ -7,6 +7,9 @@ mod store_parity;
 #[path = "product_adk_input_response_parity_tests.rs"]
 mod input_response_parity;
 
+#[path = "product_portfolio_parity_tests.rs"]
+mod portfolio_parity;
+
 impl ProductionToolCatalog {
     /// Test-only catalog seeded with explicit descriptor rows, so policy
     /// regressions can use a confirmation-gated tool without depending on a

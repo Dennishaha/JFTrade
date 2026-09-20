@@ -89,19 +89,19 @@ fn select_account_market(
     Ok(("HK".to_owned(), 1))
 }
 
-struct PortfolioResolution {
-    status: String,
-    mode: String,
-    message: String,
-    requested_id: Option<String>,
-    environment: String,
-    market: Option<String>,
-    candidates: Vec<Value>,
-    target_indices: Vec<usize>,
-    selected_account_ids: Vec<String>,
+pub(crate) struct PortfolioResolution {
+    pub(crate) status: String,
+    pub(crate) mode: String,
+    pub(crate) message: String,
+    pub(crate) requested_id: Option<String>,
+    pub(crate) environment: String,
+    pub(crate) market: Option<String>,
+    pub(crate) candidates: Vec<Value>,
+    pub(crate) target_indices: Vec<usize>,
+    pub(crate) selected_account_ids: Vec<String>,
 }
 
-fn resolve_portfolio_selection(
+pub(crate) fn resolve_portfolio_selection(
     accounts: &[Value],
     target_env: &str,
     target_market: Option<&str>,
@@ -196,7 +196,7 @@ fn resolve_portfolio_selection(
         }
         return PortfolioResolution {
             status: "not_found".to_owned(),
-            mode: "none".to_owned(),
+            mode: "account_id".to_owned(),
             message: format!("accountId \"{req_id}\" did not match a discovered account"),
             requested_id: Some(req_id.to_owned()),
             environment: target_env.to_owned(),
@@ -210,7 +210,7 @@ fn resolve_portfolio_selection(
     if candidate_values.is_empty() {
         return PortfolioResolution {
             status: "not_found".to_owned(),
-            mode: "none".to_owned(),
+            mode: "all_matching_accounts".to_owned(),
             message: "no broker accounts matched the requested environment and market".to_owned(),
             requested_id: None,
             environment: target_env.to_owned(),
@@ -312,6 +312,13 @@ fn portfolio_base_payload(
             "lastError": last_error,
         }),
     );
+    base.insert("selection".to_owned(), selection_value(resolution));
+    base.insert("partial".to_owned(), json!(false));
+    base.insert("warnings".to_owned(), json!([]));
+    base
+}
+
+pub(crate) fn selection_value(resolution: &PortfolioResolution) -> Value {
     let mut selection = json!({
         "status": resolution.status,
         "mode": resolution.mode,
@@ -328,10 +335,30 @@ fn portfolio_base_payload(
     if !resolution.message.is_empty() {
         selection["message"] = Value::String(resolution.message.clone());
     }
-    base.insert("selection".to_owned(), selection);
-    base.insert("partial".to_owned(), json!(false));
-    base.insert("warnings".to_owned(), json!([]));
-    base
+    selection
+}
+
+pub(crate) fn discovery_failed_selection(
+    env: &str,
+    market: Option<&str>,
+    account_id: Option<&str>,
+    message: &str,
+) -> Value {
+    let mut selection = json!({
+        "status": "discovery_failed",
+        "mode": "none",
+        "message": message,
+        "tradingEnvironment": env,
+        "candidateAccounts": [],
+        "selectedAccountIds": [],
+    });
+    if let Some(m) = market {
+        selection["market"] = Value::String(m.to_owned());
+    }
+    if let Some(id) = account_id {
+        selection["requestedAccountId"] = Value::String(id.to_owned());
+    }
+    selection
 }
 
 fn discovery_failed_payload(
@@ -355,21 +382,10 @@ fn discovery_failed_payload(
             "lastError": err,
         }),
     );
-    let mut selection = json!({
-        "status": "discovery_failed",
-        "mode": "none",
-        "message": err,
-        "tradingEnvironment": env,
-        "candidateAccounts": [],
-        "selectedAccountIds": [],
-    });
-    if let Some(m) = market {
-        selection["market"] = Value::String(m.to_owned());
-    }
-    if let Some(id) = account_id {
-        selection["requestedAccountId"] = Value::String(id.to_owned());
-    }
-    base.insert("selection".to_owned(), selection);
+    base.insert(
+        "selection".to_owned(),
+        discovery_failed_selection(env, market, account_id, err),
+    );
     base.insert("partial".to_owned(), json!(true));
     base.insert("warnings".to_owned(), json!([err]));
     Value::Object(base)

@@ -15,6 +15,7 @@ use super::product_mcp_protocol::{
 };
 use super::product_production_ports::{ProductionPortBundle, ProductionToolCatalog};
 use super::strategy_pine_mcp::{PINE_SPEC_TOOL, VALIDATE_PINE_TOOL, dispatch_strategy_pine_mcp};
+use crate::product::product_backtest_execution::now_timestamp;
 use crate::product::{BacktestResultViewError, BacktestResultViewRequest};
 use jftrade_store_sqlite::AdkStore;
 
@@ -535,17 +536,49 @@ impl ProductionMcpToolExecutor {
     fn account_orders(&self, arguments: &Value) -> Result<Value, McpToolFailure> {
         let trading_environment = required_string(arguments, "tradingEnvironment")?;
         let active_only = optional_bool_strict(arguments, "activeOnly", false)?;
+        let market = optional_string(arguments, "market");
+        let requested_id = optional_string(arguments, "accountId");
+        let ports = self.ports()?;
+        let scope = resolve_account_orders_scope(
+            ports.as_ref(),
+            &trading_environment,
+            market.as_deref(),
+            requested_id.as_deref(),
+        );
+        let (account_id, selection, discovered_accounts) = match scope {
+            AccountOrdersScope::Empty {
+                selection,
+                discovered,
+                warning,
+            } => {
+                return Ok(json!({
+                    "orders": [],
+                    "count": 0,
+                    "activeOnly": active_only,
+                    "partial": true,
+                    "selection": selection,
+                    "discoveredAccounts": discovered,
+                    "warnings": [warning],
+                    "checkedAt": now_timestamp(),
+                }));
+            }
+            AccountOrdersScope::Read {
+                account_id,
+                selection,
+                discovered,
+            } => (account_id, Some(selection), Some(discovered)),
+            AccountOrdersScope::Passthrough { account_id } => (Some(account_id), None, None),
+        };
         let query = query_string([
             (
                 "scope",
                 Some(if active_only { "ACTIVE" } else { "CURRENT" }.to_owned()),
             ),
             ("tradingEnvironment", Some(trading_environment)),
-            ("accountId", optional_string(arguments, "accountId")),
-            ("market", optional_string(arguments, "market")),
+            ("accountId", account_id),
+            ("market", market),
         ]);
-        let payload = self
-            .ports()?
+        let payload = ports
             .execution_read
             .read("/api/v1/execution/orders", &query)
             .map_err(execution_error)?;
@@ -561,6 +594,13 @@ impl ProductionMcpToolExecutor {
         result.insert("orders".to_owned(), orders);
         result.insert("count".to_owned(), json!(count));
         result.insert("activeOnly".to_owned(), Value::Bool(active_only));
+        result.insert("partial".to_owned(), Value::Bool(false));
+        if let Some(selection) = selection {
+            result.insert("selection".to_owned(), selection);
+        }
+        if let Some(discovered) = discovered_accounts {
+            result.insert("discoveredAccounts".to_owned(), Value::Array(discovered));
+        }
         Ok(Value::Object(result))
     }
 
@@ -623,6 +663,100 @@ impl ProductionMcpToolExecutor {
         Ok(
             json!({"query": query, "providerId": provider_id, "callableOnly": callable_only, "models": models, "totalReturned": models.len()}),
         )
+    }
+}
+
+/// Account scope resolved for `account.orders`.
+///
+/// Go resolves a requested `accountId` (exact match, then a unique suffix)
+/// against the discovered broker accounts before it filters the execution
+/// orders, and it reports the outcome through `selection`. Rust keeps the same
+/// owner split: the execution snapshot filter stays exact, and this tool layer
+/// performs the resolution against the trade read port.
+enum AccountOrdersScope {
+    /// The deployment has no discovery source; forward the filter unchanged.
+    Passthrough { account_id: String },
+    /// Read the orders with the resolved (or absent) account filter.
+    Read {
+        account_id: Option<String>,
+        selection: Value,
+        discovered: Vec<Value>,
+    },
+    /// Discovery failed or did not resolve a unique account: answer with an
+    /// empty payload instead of reading orders for an unknown account.
+    Empty {
+        selection: Value,
+        discovered: Vec<Value>,
+        warning: String,
+    },
+}
+
+fn resolve_account_orders_scope(
+    ports: &ProductionPortBundle,
+    environment: &str,
+    market: Option<&str>,
+    requested_id: Option<&str>,
+) -> AccountOrdersScope {
+    use crate::product::product_portfolio_projection::{
+        discovery_failed_selection, resolve_portfolio_selection, selection_value,
+    };
+    use crate::product::product_production_ports::product_production_ports_trade::trade_projection::account_value;
+
+    let Some(requested_id) = requested_id else {
+        return AccountOrdersScope::Read {
+            account_id: None,
+            selection: json!({
+                "status": "resolved",
+                "mode": "all_matching_orders",
+                "requestedAccountId": "",
+                "tradingEnvironment": environment,
+                "candidateAccounts": [],
+                "selectedAccountIds": [],
+            }),
+            discovered: Vec::new(),
+        };
+    };
+    let Some(reader) = ports.trade_read_port.as_ref() else {
+        return AccountOrdersScope::Passthrough {
+            account_id: requested_id.to_owned(),
+        };
+    };
+    match reader.read_accounts(0, None, None) {
+        Ok(snapshots) => {
+            let discovered = snapshots
+                .iter()
+                .cloned()
+                .map(account_value)
+                .collect::<Vec<_>>();
+            let resolution =
+                resolve_portfolio_selection(&discovered, environment, market, Some(requested_id));
+            let selection = selection_value(&resolution);
+            if resolution.status == "resolved" {
+                return AccountOrdersScope::Read {
+                    account_id: resolution.selected_account_ids.first().cloned(),
+                    selection,
+                    discovered,
+                };
+            }
+            AccountOrdersScope::Empty {
+                warning: resolution.message.clone(),
+                selection,
+                discovered,
+            }
+        }
+        Err(error) => {
+            let message = error.to_string();
+            AccountOrdersScope::Empty {
+                selection: discovery_failed_selection(
+                    environment,
+                    market,
+                    Some(requested_id),
+                    &message,
+                ),
+                discovered: Vec::new(),
+                warning: message,
+            }
+        }
     }
 }
 

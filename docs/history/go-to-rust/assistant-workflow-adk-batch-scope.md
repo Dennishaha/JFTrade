@@ -2259,3 +2259,57 @@ Go 这 10 条用例横跨 ADK 工具层（注册表 + ToolDeps）与领域服务
 - 跨批 follow-up 汇总：P1 = 策略定义版本/快照的生产 wire 形状（本批 `:308` 引出：生产返回 store 原始行含 `visualModelJson`、无 `isCurrent`，冻结 fixture 为 `{definitionId,version,name,savedAt,isCurrent}` 与 `visualModel`）、工作流触发日志 active/page 过滤（第 42 批 `:559`）、`workflow_runs.*` 过滤参数（第 43 批 `:183`）、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言（第 44/45 批）、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2786 Rust** / **933 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第四十六批：assembly `portfolio_tools_test.go` 全量结清（8 条；4 条新 `[x]`，4 条 `partial`）
+
+范围：`internal/assistant/assembly/portfolio_tools_test.go` 8 条逐条结清——本批新增 **4 条 `[x]`**（`:85`、`:255`、`:338`、`:444`），`partial` 4 条（`:15`、`:155`、`:288`、`:376`）。`[x]` 计数 933 → **937**，Rust 测试 2786 → **2794**。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'Portfolio|AccountOrders' -count=1`（checkout `/tmp/go452dea11.niwD1G`）。
+
+### 本批结论（2 处行为修正 + 1 处复用重构 + 8 条新增回归）
+
+Go 这 8 条用例覆盖三层组合读取（accounts/overview/positions）、多账户摘要（summary）、账户解析矩阵（exact/后缀/环境与市场隔离）与 `account.orders` 的账户+环境+市场+activeOnly 过滤。Rust 的等价 owner 是 `ProductionAdkToolExecutor` + `ProductionMcpToolExecutor` + `product_portfolio_projection`。
+
+行为修正：
+
+1. `crates/jftrade-engine/src/product_portfolio_projection.rs`：`resolve_portfolio_selection` 的 `not_found` mode 对齐 Go `resolvePortfolioAccounts`——带 accountId 未命中 → `account_id`，无 accountId 且无候选 → `all_matching_accounts`（此前统一返回 `none`）；`discovery_failed` 仍为 `none`。`selection_value` / `discovery_failed_selection` 提取为 `pub(crate)`，`discovery_failed_payload` 改为复用同一构造。
+2. `crates/jftrade-engine/src/product_mcp_production_executor.rs::account_orders`：请求 `accountId` 时先经 `TradeReadPort` discovery 解析（exact → 唯一后缀），命中后把完整账户 id 交给执行层过滤，并回填 `selection`/`discoveredAccounts`/`partial`；未命中或 discovery 失败返回空 `orders` + `partial=true` + `warnings`（对应 Go 的 `emptyAccountOrdersResult`），且不再访问执行库。此前 Rust 把短 id 原样透传给「精确相等」的执行过滤，`accountId=240` 会静默返回空列表。未挂 trade reader 的部署保留透传边界（见 `:338` 的 partial 说明）。
+
+复用重构：后缀解析只保留在 `product_portfolio_projection`，工具层通过 `pub(crate)` 入口复用，避免在 MCP/ADK 层复制账户匹配规则。
+
+新增回归（8 条）：
+
+- `product_portfolio_parity_tests.rs::portfolio_layered_tools_keep_discovery_overview_and_positions_separate`（`:85`）：三层读取账本（accounts 只 discovery；overview 每账户 funds+positions+orders；positions 只读 positions 且不读 funds），并断言 overview/positions item 不泄漏 funds、payload 无顶层 funds。
+- `product_portfolio_parity_tests.rs::portfolio_account_resolution_matches_the_go_exact_suffix_and_isolation_matrix`（`:255`）：六例解析矩阵 + 无 accountId 的 `all_matching_accounts` + 无匹配市场的 mode 标签。
+- `product_portfolio_parity_tests.rs::account_orders_resolves_requested_account_suffixes_through_discovery`（`:338`）：后缀 240→8240 的执行 query、`selection.mode=unique_suffix`、未命中空结果与不读执行库、无 accountId 的 `all_matching_orders`、discovery 失败空结果。
+- `product_portfolio_parity_tests.rs::portfolio_overview_reports_partial_reads_without_classifying_empty_funds_as_assets`（`:444`）：零资金不归类资产、currency balance / market asset 归类资产、单读失败与三读失败的 partial/errors/positionCount。
+- `product_portfolio_parity_tests.rs::portfolio_layered_tools_report_discovery_failure_and_partial_read_states`（`:155`/`:288`）：三个工具的 discovery_failed + partial + warnings，以及逐能力失败时的 errors/warnings。
+- `product_mcp_server_tests.rs::account_orders_forwards_scope_account_environment_and_market_filters`（`:338` 透传边界）：无 trade reader 时 query 原样带 `accountId`/`market`，`count`/`activeOnly`/orders 透传。
+- `product_mcp_server_tests.rs::portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader`（`:155`）：三个工具缺 `tradingEnvironment` 报错、缺 reader 时 fail-closed。
+- `product_mcp_server_tests.rs::portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers`（`:15`/`:288` 现状固化）：`portfolio.summary` 合并 positions/balances/orders + connectivity/checkedAt 一致性、无顶层 funds、`brokerId` 非 futu 报 BAD_REQUEST。
+- 新 fixture `product_portfolio_parity_tests.rs`（`AdkPortfolioFixtureRead` + `AdkPortfolioFixtureOrders`）：记录型 `TradeReadPort`，支持 discovery 失败与按 funds/positions/orders 单点失败，并由 `product_production_ports_adk_tests.rs` 以 `#[path]` 引入。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. 两处 `not_found` mode 改回 `"none"` → `portfolio_account_resolution_matches_the_go_exact_suffix_and_isolation_matrix` 与 `account_orders_resolves_requested_account_suffixes_through_discovery` 同时转红。
+2. `resolve_account_orders_scope` 短路为透传 → `account_orders_resolves_requested_account_suffixes_through_discovery` 转红（`selection` 为 Null）。
+3. 删除 `funds_have_assets` 的 `market_info_list` 分支 → `portfolio_overview_reports_partial_reads_without_classifying_empty_funds_as_assets` 转红。
+4. `read_account_overview_item` 把 `partial` 固定为 `false` → `portfolio_layered_tools_report_discovery_failure_and_partial_read_states` 转红。
+5. 三处 `accountId`/`market` 过滤参数删除（`account.orders`）→ `account_orders_forwards_scope_account_environment_and_market_filters` 转红。
+6. 缺 `tradingEnvironment` 的校验与缺 reader 的 fail-closed 分别改坏 → `portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader` 转红。
+
+### 结论登记（partial 行内的边界）
+
+- **:15 partial**：Rust `portfolio.summary` 是三个单账户快照的合并，不含 Go 的 `accountSummaries` 多账户聚合、`hasAssetsOrPositions` 排序与 `queryMarket` 逐账户投影；排序规则在 overview 层有等价测试，缺口登记 P1。
+- **:155 partial**：Go 第 (3) 子用例的 broker runtime `lastError` 警告在 Rust 无来源——`portfolio.*` 经 `TradeReadPort` 直连 discovery，base payload 固定 `connectivity="connected"`/`lastError=""`，bundle 的 `/api/v1/brokers/{brokerId}/runtime` 端口未被该投影消费；其余三个子场景已闭环。
+- **:288 partial**：Go 的 summary partial/warnings/discovery 语义在 Rust summary 上不存在（同 :15 缺口），只能由分层工具的等价行为间接证明。
+- **:376 partial**：读取记账（funds=1/positions=1 → funds=1/positions=2 的 Rust 拆分等价）与 runtime/session 投影均已覆盖，但 Rust 的 runtime 形状是 `session/connection`，不是 Go 的 `connectivity/lastError/accounts` 三元组；Go 的 runtime nil → "empty response" 在 Rust 对应端口不可用错误。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 余量：`tool_catalog_test.go`（7 条）、`product_adapters_test.go`（6 条）…；随后 `internal/app/apiserver`（574）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）等。
+- 跨批 follow-up 汇总：P1 = `portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial（本批 `:15`/`:288` 引出）、`portfolio.*` 无法投影 broker runtime `lastError`（本批 `:155` 引出）、策略定义版本/快照的生产 wire 形状（第 45 批 `:308`）、工作流触发日志 active/page 过滤（第 42 批 `:559`）、`workflow_runs.*` 过滤参数（第 43 批 `:183`）、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言（第 44/45 批）、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`（1768 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2794 Rust** / **937 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
