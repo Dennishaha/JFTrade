@@ -193,16 +193,32 @@ impl ProductionToolCatalog {
             } else {
                 json!([])
             };
+            // The reference keeps the permission class, risk level and
+            // per-mode confirmation list on every descriptor and derives
+            // `RequireConfirmation` from them, so the wire projection has to
+            // carry the real metadata: a hard-coded `read`/`low`/`[]` triple
+            // would tell the runtime (and the settings UI) that a
+            // live-trading or strategy-write tool never needs confirmation.
+            let policy = tool_access_policy(definition.id);
+            let requires_approval_in = policy
+                .requires_approval_in
+                .map(|modes| {
+                    modes
+                        .iter()
+                        .map(|mode| Value::String((*mode).to_owned()))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
             tools.push(json!({
                 "id": definition.id,
                 "name": definition.id,
                 "category": definition.category,
                 "displayName": definition.display_name,
                 "description": definition.display_name,
-                "permission": "read",
+                "permission": policy.permission,
                 "allowedModes": allowed_modes,
-                "requiresApprovalIn": [],
-                "riskLevel": "low",
+                "requiresApprovalIn": requires_approval_in,
+                "riskLevel": policy.risk_level,
                 "idempotencyMode": "replay_safe",
             }));
         }
@@ -773,11 +789,10 @@ impl ProductionToolCatalog {
 }
 
 include!("product_production_ports_adk_catalog.rs");
-
+include!("product_production_ports_adk_policy.rs");
 
 #[path = "product_production_ports_adk_read.rs"]
 mod read;
-
 include!("product_production_ports_adk_stream.rs");
 
 #[cfg(test)]

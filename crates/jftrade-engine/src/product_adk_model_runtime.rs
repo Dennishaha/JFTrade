@@ -54,6 +54,10 @@ mod gate_tests;
 #[path = "product_adk_model_runtime_tool_failure_tests.rs"]
 mod tool_failure_tests;
 
+#[cfg(test)]
+#[path = "product_adk_model_runtime_catalog_policy_tests.rs"]
+mod catalog_policy_tests;
+
 const MAX_RESPONSE_BYTES: usize = 4 << 20;
 const DEFAULT_TIMEOUT_MS: u64 = 120_000;
 /// Go `assistantmodel.MaxMessageLength`: a chat message longer than this many
@@ -711,6 +715,30 @@ impl AgentToolScope {
     }
 }
 
+#[cfg(test)]
+impl ChatExecution {
+    /// Test constructor: the policy tests drive staging and the tool loop
+    /// without a model provider, so they build the execution directly.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn for_test(
+        run_id: String,
+        session_id: String,
+        agent_id: String,
+        permission_mode: String,
+        request: ModelRequest,
+    ) -> Self {
+        Self {
+            route: AdkChatRoute::Chat,
+            run_id,
+            session_id,
+            agent_id,
+            resumed: false,
+            permission_mode,
+            request,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 struct ChatExecution {
     route: AdkChatRoute,
@@ -721,6 +749,10 @@ struct ChatExecution {
     /// the terminal projection records `resumeState=adk_confirmation_resolved`
     /// exactly like the reference runtime's `hydrateResumedRun`.
     resumed: bool,
+    /// The agent's resolved permission mode.  `ToolRequiresApproval` combines
+    /// it with each descriptor's permission/risk to decide whether a requested
+    /// call runs immediately or waits for the operator.
+    permission_mode: String,
     request: ModelRequest,
 }
 

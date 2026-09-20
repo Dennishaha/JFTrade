@@ -50,6 +50,45 @@ fn first_tool_call_failure(payload_json: &str) -> Option<String> {
         })
 }
 
+/// Build the terminal chat envelope for a run whose released tool calls just
+/// finished, or raise the persisted failure when the loop did not complete it.
+///
+/// Go's `CompleteChatRun` returns `ProjectedChatResponse` after
+/// `PersistRunTerminalState`, so the caller reads whatever terminal projection
+/// the run loop persisted instead of inventing a response from the release
+/// decision.
+impl ProductionAdkChatRuntime {
+    pub(super) fn persisted_turn_response(
+        &self,
+        run_id: &str,
+    ) -> Result<Value, AdkChatPortError> {
+        let run = self
+            .store
+            .get_run(run_id)
+            .map_err(storage_unavailable)?
+            .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
+        if run.status.eq_ignore_ascii_case("COMPLETED")
+            && let Some(response) = persisted_response(&run.payload_json)?
+        {
+            return Ok(response);
+        }
+        match run.status.to_ascii_uppercase().as_str() {
+            "COMPLETED" => persisted_response(&run.payload_json)?
+                .ok_or_else(|| unavailable("completed ADK run has no persisted response")),
+            "FAILED" | "TIMED_OUT" | "CANCELLED" | "DENIED" => {
+                Err(replayed_run_error(
+                    &serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?,
+                    &run.status,
+                ))
+            }
+            _ => existing_run_output(&run, AdkChatRoute::Chat).and_then(|output| match output {
+                AdkChatPortOutput::Json(response) => Ok(response),
+                _ => Err(unavailable("persisted ADK run has no JSON projection")),
+            }),
+        }
+    }
+}
+
 fn persisted_response(raw: &str) -> Result<Option<Value>, AdkChatPortError> {
     let value: Value = serde_json::from_str(raw).map_err(storage_unavailable)?;
     Ok(value.get("response").cloned())

@@ -9,6 +9,56 @@ pub(crate) struct ProductionToolDefinition {
     pub(crate) research_operation: Option<&'static str>,
 }
 
+/// Permission class and risk level for one production tool.
+///
+/// The reference runtime keeps these on every `ToolDescriptor` and derives
+/// `RequireConfirmation` from them (`ToolRequiresApproval`).  The Rust catalog
+/// persists the same three fields on the wire projection, so the runtime can
+/// decide whether a call runs immediately or waits for the operator instead of
+/// treating every tool as approval-gated.
+#[derive(Clone, Copy)]
+pub(crate) struct ToolAccessPolicy {
+    pub(crate) permission: &'static str,
+    pub(crate) risk_level: &'static str,
+    /// Modes whose call must be confirmed; `None` means "permission class
+    /// default" rather than an explicit list.
+    pub(crate) requires_approval_in: Option<&'static [&'static str]>,
+}
+
+const APPROVAL_MODES: &[&str] = &["approval", "less_approval", "all"];
+
+const READ_ONLY_POLICY: ToolAccessPolicy = ToolAccessPolicy {
+    permission: "read_internal",
+    risk_level: "low",
+    requires_approval_in: None,
+};
+
+/// Look up the access policy for a production tool id.
+///
+/// Reads default to `read_internal`/low, which is the reference class for every
+/// catalog entry that does not explicitly opt into a write class.  The
+/// remaining entries mirror the reference descriptor metadata one for one
+/// (`strategy.research_backtest` is `optimize_strategy` but low risk, and
+/// `interaction.request_user` is a low-risk interaction, so both stay
+/// automatically executable).
+pub(crate) fn tool_access_policy(id: &str) -> ToolAccessPolicy {
+    match id {
+        // Global settings change: confirmed in every mode, like Go's
+        // `market.provider.select`.
+        "market.provider.select" => ToolAccessPolicy {
+            permission: "write_settings",
+            risk_level: "high",
+            requires_approval_in: Some(APPROVAL_MODES),
+        },
+        "strategy.research_backtest" => ToolAccessPolicy {
+            permission: "optimize_strategy",
+            risk_level: "low",
+            requires_approval_in: None,
+        },
+        _ => READ_ONLY_POLICY,
+    }
+}
+
 pub(crate) const PRODUCTION_TOOL_DEFINITIONS: &[ProductionToolDefinition] = &[
     ProductionToolDefinition {
         id: "interaction.request_user",

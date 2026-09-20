@@ -21,8 +21,8 @@ use crate::product::product_adk_chat_stream_port::{
 };
 
 use super::{
-    ChatExecution, ModelResponse, ProductionAdkChatRuntime, RunLeaseGuard, run_cancelled,
-    storage_unavailable, stream_from_payload, unavailable,
+    ChatExecution, ModelResponse, ProductionAdkChatRuntime, RunLeaseGuard, ToolCallStaging,
+    run_cancelled, storage_unavailable, stream_from_payload, unavailable,
 };
 
 #[path = "product_adk_model_runtime_stream_events.rs"]
@@ -150,7 +150,7 @@ impl ProductionAdkChatRuntime {
         match result {
             Ok(model_response) if !model_response.tool_calls.is_empty() => {
                 match self.persist_tool_calls(&chat, &model_response, &run_lease) {
-                    Ok(AdkChatPortOutput::Json(response)) => {
+                    Ok(ToolCallStaging::Pending(AdkChatPortOutput::Json(response))) => {
                         let event = self
                             .emit_post_terminal_event(
                                 &chat,
@@ -168,7 +168,12 @@ impl ProductionAdkChatRuntime {
                             });
                         let _ = sender.send(super::encode_sse_event(&event));
                     }
-                    Ok(_) => {}
+                    Ok(ToolCallStaging::Pending(_)) => {}
+                    Ok(ToolCallStaging::Released) => {
+                        // The released calls keep the run RUNNING; the loop
+                        // below executes them and publishes the final frame.
+                        self.run_tool_loop_stream(&chat, &sender, &cancellation, &run_lease);
+                    }
                     Err(error) => {
                         let event = self
                             .emit_post_terminal_event(
@@ -264,6 +269,35 @@ impl ProductionAdkChatRuntime {
                 let _ = sender.send(super::encode_sse_event(&event));
             }
         }
+    }
+
+    /// Execute the calls a live stream released without confirmation and
+    /// publish whatever terminal frame the run loop persisted.
+    ///
+    /// A stream that only needed automatically executable tools must finish in
+    /// the same connection: Go's ADK loop runs those tools inline and emits the
+    /// `final` event afterwards, so the client never sees a false approval
+    /// wait.
+    fn run_tool_loop_stream(
+        &self,
+        chat: &super::ChatExecution,
+        sender: &ApiStreamSender,
+        cancellation: &Arc<AtomicBool>,
+        run_lease: &RunLeaseGuard,
+    ) {
+        self.run_tool_loop(chat.clone(), Arc::clone(cancellation), run_lease);
+        let event = match self.latest_stream_event(&chat.run_id) {
+            Ok(Some(event)) => event,
+            Ok(None) => json!({
+                "type": "error",
+                "message": "assistant tool execution finished without a projection",
+            }),
+            Err(error) => json!({
+                "type": "error",
+                "message": super::format_adk_error(&error),
+            }),
+        };
+        let _ = sender.send(super::encode_sse_event(&event));
     }
 
     pub(super) fn forward_provider_event(

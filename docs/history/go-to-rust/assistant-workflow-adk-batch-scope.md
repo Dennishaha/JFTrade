@@ -984,3 +984,74 @@ JFTrade memory:
   `runner_chat_test.go`。
 - 下一批 P0：把 `tool_policy` 接进 `product_adk_model_runtime_tool_persistence.rs`，
   让 `permissionMode` 真正决定哪些工具直接执行、哪些进入审批。
+
+## 第十九批：把 tool_policy 真正接进 ADK 运行时（permissionMode 生效）
+
+本批把上批只存在于纯函数层的 `ToolRequiresApproval` 接到运行时，修复一个真实功能缺口：修前
+`persist_tool_calls` 对任何 `tool_executor.supports()` 命中的工具一律 stage 成
+`PENDING_APPROVAL`，完全不读 `provider.agent_payload["permissionMode"]`，因此 approval 模式下
+73/75 个本应自动执行的读取工具都会要求操作员审批，与 `docs/adk.md` 承诺的权限模式语义不符。
+
+### 功能修复
+
+- `product_adk_model_runtime_tool_persistence.rs`：新增 `ToolCallStaging::{Pending,Released}`；
+  staging 结果按 `tool_catalog.requires_approval(name, permission_mode)` 区分挂起与释放。
+  非审批调用写 `RUNNING` 并原样继续工具循环，只有真正门控的调用才写
+  `PENDING_APPROVAL` + `pendingApprovals` 并把 run 置 `PENDING`。
+- 修复 `known` 的语义错误：可用性只看 `tool_executor.supports()`，`replay_safe_tool()` 只决定
+  claim 的 `fail_closed`。修前把两者合并，导致任何非 replay-safe 工具（含 `live_trading` 类）
+  都会以 503 `ADK_TOOL_UNAVAILABLE` 被拒，永远到不了审批队列。
+- 审批挂起投影对齐 Go `finishPendingApprovalRun`：`resumeState=waiting_approval`、
+  `message=等待用户审批后继续执行。`、`reply=我已经准备好执行需要授权的操作，请先在 ADK 审批队列里确认或拒绝。`
+- `product_adk_model_runtime_tool_loop.rs`：抽出 `run_tool_loop(&self, chat, cancellation, run_lease)`
+  复用同一执行循环；`run_approval_continuation` 自行取租约后调用，chat/stream 路径借用调用方已持有的
+  租约（fencing token 不改变）。循环内 `Released` 继续下一轮、`Pending` 停止。
+- `product_adk_model_runtime_stream.rs` / `product_adk_model_runtime_events.rs`：chat 与 live stream
+  在 `Released` 时继续执行并回传终态投影，不再把 release 当作终态 `final`。
+- `product_production_ports_adk_catalog.rs` + `product_production_ports_adk_policy.rs`：目录输出真实
+  `permission`/`riskLevel`/`requiresApprovalIn`；新增 `requires_approval()`（缺描述符 fail-closed）；
+  策略片段拆到独立 include 文件以守住 product* 800 行上限（主文件 800 行）。
+
+### 新增回归（`product_adk_model_runtime_catalog_policy_tests.rs`，7 条）
+
+- `read_tool_runs_without_approval_in_approval_mode`：approval 模式读工具 `Released`，run 保持
+  `RUNNING`，`pendingApprovals` 为空，`toolCall.status=RUNNING`。
+- `blank_permission_mode_still_releases_reads`：缺省/空 `permissionMode` 归一化为 `approval`。
+- `unknown_permission_mode_normalizes_to_approval`：`NormalizePermissionMode` 等价性（含 `all` 与
+  `less_approval` 保留）。
+- `unknown_tool_stays_unavailable`：目录外工具仍以 503 `ADK_TOOL_UNAVAILABLE` fail-closed。
+- `released_calls_are_executed_by_the_tool_loop`：释放后的调用被工具循环真实执行且写入 `toolResults`。
+- `gated_call_persists_the_go_approval_projection`：门控调用写入 Go 的
+  `waiting_approval`/中文 message/审批提示语/`pendingApprovals` 投影。
+- `live_trading_call_is_gated_in_every_mode`：`live_trading` 在 approval/less_approval/all 都要求审批，
+  运行时写成 `PENDING_APPROVAL`。
+
+### 探针证据
+
+- 探针 A：把 staging 判定改回「一律 gated」→ `read_tool_runs_without_approval_in_approval_mode`、
+  `blank_permission_mode_still_releases_reads`、`released_calls_are_executed_by_the_tool_loop` 三条转红。
+- 探针 B：把 `known` 改回 `replay_safe_tool(name) && supports(name)` →
+  `gated_call_persists_the_go_approval_projection` 转红（503 而非审批挂起）。
+- 两次探针均为临时替换生产实现，验证后立即从备份恢复，`git diff` 只剩有意变更。
+
+### 验证
+
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：
+  1448 passed，0 failed（基线 1446，新增 2 条净计测试）。
+- `cargo clippy -p jftrade-engine --all-targets --locked`：通过。
+- `cargo fmt --all`、`pnpm run check:rust:architecture`（product* 800 行以内）：通过。
+- `python3 scripts/compatibility/audit_test_parity.py`：4451 Go 测试 / `[x]` 790、
+  0 重复 `[x]`、0 断裂引用；本批把 `internal/assistant/engine/tools_test.go` 的两条映射从纯策略
+  证据升级为运行时行为证据（`read_tool_runs_without_approval_in_approval_mode`、
+  `live_trading_call_is_gated_in_every_mode`）。
+- 说明：一次全量运行出现 `adk_lease_fencing_takeover_edge_conditions::
+  test_lease_expiration_boundary_before_and_after_expiry` 的时间边界抖动（该用例与本次改动无关），
+  单独复跑与随后两次全量复跑均通过。
+
+### 下一批
+
+- `internal/assistant/engine/tools_test.go` 剩余 14 条 `[~]`：`workflow.wait` 4 条、`http.fetch`
+  安全分类 3 条、task schema 1 条、`account.orders` 慢端口/stream 3 条、`models.list` schema 1 条、
+  backtest companion 1 条、descriptor access mode 1 条。
+- 之后转 `internal/assistant/engine/runner_chat_test.go`（20 条）→ `store_test.go`（20 条）→
+  `session_context_test.go`（19 条）。

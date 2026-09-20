@@ -418,6 +418,18 @@ impl ProductionAdkChatRuntime {
     /// `ToolDescriptorsForAgent` normalization: an explicit `toolAccessMode`
     /// wins, otherwise a non-empty `tools` list is an allowlist and an empty
     /// list exposes every registered tool.
+    /// The agent's resolved permission mode, normalized like the reference
+    /// `NormalizePermissionMode`: an unknown or blank value falls back to
+    /// `approval`, so a malformed payload is gated rather than silently
+    /// unrestricted.
+    fn agent_permission_mode(payload: &Value) -> String {
+        let raw = payload
+            .get("permissionMode")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        jftrade_assistant::normalize_permission_mode(raw).to_owned()
+    }
+
     fn agent_tool_scope(payload: &Value) -> AgentToolScope {
         let tools = payload
             .get("tools")

@@ -1,6 +1,23 @@
 use super::*;
 use crate::product::product_adk_mutation_port::AdkMutationPortError;
 
+impl ProductionToolCatalog {
+    /// Test-only catalog seeded with explicit descriptor rows, so policy
+    /// regressions can use a confirmation-gated tool without depending on a
+    /// production adapter being installed.
+    pub(crate) fn from_tool_rows(rows: Vec<Value>) -> Self {
+        Self {
+            tools: rows,
+            bindings: BTreeMap::new(),
+            research_bindings: BTreeMap::new(),
+            active_provider_state: None,
+            trade_runtime: None,
+            backtest_execution_ready: false,
+            pine_readiness: None,
+        }
+    }
+}
+
 #[derive(Debug)]
 struct UnreadyChatRuntime;
 

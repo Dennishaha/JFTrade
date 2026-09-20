@@ -1,4 +1,38 @@
 impl ProductionAdkChatRuntime {
+    /// Test constructor that swaps the production tool executor for a fixture.
+    ///
+    /// The approval-policy regressions only need the staging decision plus the
+    /// released-call execution path, so they inject a recording executor
+    /// instead of the MCP-backed production one.
+    #[cfg(test)]
+    pub(super) fn with_tool_executor_for_test(
+        store: Arc<AdkStore>,
+        session_store: Arc<AdkSessionStore>,
+        settings_path: &Path,
+        cancellation_registry: Arc<RunCancellationRegistry>,
+        tool_catalog: Arc<crate::product::product_production_ports::ProductionToolCatalog>,
+        tool_executor: Arc<dyn AdkToolExecutor>,
+    ) -> Self {
+        let secrets_path = settings_path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .map_or_else(
+                || PathBuf::from("[FUNC]/adk-[FUNC].json"),
+                |parent| parent.join("[FUNC]/adk-[FUNC].json"),
+            );
+        Self {
+            store,
+            session_store,
+            secrets_path,
+            cancellation_registry,
+            tool_catalog,
+            tool_executor,
+            continuation_supervisor: Arc::new(ContinuationSupervisor::default()),
+            run_gate: Arc::new(RunGate::default()),
+            recovery_supervisor: None,
+        }
+    }
+
     pub(crate) fn new(
         store: Arc<AdkStore>,
         session_store: Arc<AdkSessionStore>,
@@ -248,6 +282,7 @@ impl ProductionAdkChatRuntime {
                 session_id,
                 agent_id,
                 resumed: false,
+                permission_mode: Self::agent_permission_mode(&provider.agent_payload),
                 request: ModelRequest {
                     endpoint: provider.endpoint,
                     api_key: provider.api_key,
@@ -489,6 +524,7 @@ impl ProductionAdkChatRuntime {
             session_id: resumed_session_id.clone(),
             agent_id: run.agent_id,
             resumed: true,
+            permission_mode: Self::agent_permission_mode(&provider.agent_payload),
             request: ModelRequest {
                 endpoint: provider.endpoint,
                 api_key: provider.api_key,
@@ -601,7 +637,20 @@ impl ProductionAdkChatRuntime {
         if let Ok(ref response) = result
             && !response.tool_calls.is_empty()
         {
-            return self.persist_tool_calls(&chat, response, &run_lease);
+            return match self.persist_tool_calls(&chat, response, &run_lease)? {
+                ToolCallStaging::Pending(output) => Ok(output),
+                // No call needed confirmation, so the run keeps its lease and
+                // executes the released calls in the same turn.  Go's ADK loop
+                // only parks the run when a `RequireConfirmation` wrapper
+                // actually asks the operator.
+                ToolCallStaging::Released => {
+                    let run_id = chat.run_id.clone();
+                    self.run_tool_loop(chat, Arc::clone(&cancellation), &run_lease);
+                    Ok(AdkChatPortOutput::Json(
+                        self.persisted_turn_response(&run_id)?,
+                    ))
+                }
+            };
         }
         self.finish_chat(&chat, result, &run_lease)
     }

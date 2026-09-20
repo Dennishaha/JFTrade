@@ -10704,9 +10704,9 @@
   },
   "internal/assistant/engine/tools_test.go:106:TestLowRiskWriteToolsCanSkipApproval": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-assistant/src/model.rs::tests::memory_and_draft_writes_skip_approval_in_approval_mode",
-    "conclusion": "function_exact：`memory.remember`/`memory.forget`（write_memory）与 `strategy.save_draft`（write_strategy）在 approval 模式下不要求审批，且在 less_approval/all 同样直接执行。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_catalog_policy_tests.rs::read_tool_runs_without_approval_in_approval_mode",
+    "conclusion": "function_exact：运行时路径验证 approval 模式低风险读取不进入审批——persist_tool_calls 返回 Released，run 保持 RUNNING，toolCalls[0].status=RUNNING 且 pendingApprovals 为空，随后由工具循环真正执行并写入 toolResults。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:129:TestApprovalModeRequiresMediumAndHigherRiskApproval": {
@@ -10788,9 +10788,9 @@
   },
   "internal/assistant/engine/tools_test.go:700:TestLiveTradingToolsAreAvailableInAllModesWithApproval": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-assistant/src/model.rs::tests::live_trading_tools_stay_available_and_gated_in_every_mode",
-    "conclusion": "function_exact：`permission=live_trading` 在 approval/less_approval/all 三种模式都 allowed，且三种模式都要求审批（含 all）。Go 的 `ToolAllowedInMode` 由同一策略模块的 `tool_allowed_in_mode` 承担。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_catalog_policy_tests.rs::live_trading_call_is_gated_in_every_mode",
+    "conclusion": "function_exact：live_trading 描述符在 approval/less_approval/all 三模式都要求审批，运行时将其写成 PENDING 投影（toolCall=PENDING_APPROVAL、requiresUser=true、pendingApprovals 长度 1）。同时修复了把非 replay-safe 工具误判为不可用而直接 503 的缺陷。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:726:TestBacktestToolsIncludeRequiredKLineSyncStatusCompanion": {
