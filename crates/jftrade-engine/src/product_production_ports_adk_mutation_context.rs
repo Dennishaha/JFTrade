@@ -195,7 +195,10 @@ pub(crate) fn compact_session_projection(
     let active_segments = current_revision_segments(&stored_segments, &current_revision)?;
 
     let recent_start = recent_user_event_start(&events, recent_window);
-    let protected_start = protected_tail_start(&events);
+    // Both the read projection and the compaction cutoff anchor the protected
+    // tail the same way, so an unresolved approval cannot be summarised away.
+    let protected_start =
+        super::super::read::read_helpers::protected_context_event_start(&events);
     let compaction_cutoff = recent_start.min(protected_start);
     let mut active_end = 0usize;
     for segment in &active_segments {
@@ -622,17 +625,4 @@ fn recent_user_event_start(
         }
     }
     0
-}
-
-fn protected_tail_start(events: &[jftrade_store_sqlite::StoredAdkEvent]) -> usize {
-    events
-        .iter()
-        .position(|event| {
-            let content = event.content.to_ascii_lowercase();
-            content.contains("approval")
-                || content.contains("pending_input")
-                || content.contains("pending approval")
-                || content.contains("awaiting_input")
-        })
-        .unwrap_or(events.len())
 }

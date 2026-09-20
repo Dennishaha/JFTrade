@@ -1813,3 +1813,43 @@ Go 的期望：`reply` = 整轮 assistant 文本合并（`先说明一下。优�
 - SSE 帧转发：自动压缩产生的 notice/context delta 目前只由 runtime 方法返回（Go 测试同样直接调用该方法），尚未转发进 chat SSE 流；workflow canvas 的 `MaybeAutoCompactSessionDuringWorkflow` 调用点接线同样待补（Rust 已提供 `allow_active_run=true` 入口）。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1666 passed）、`pnpm run check:rust:architecture`（`product_adk_model_runtime_events.rs` 触限后把 include 移到 lifecycle 片段并压缩注释，回到 800 行）、`git diff --check`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / 2700 Rust / 859 `[x]`）。
+## 第三十六批：保护尾锚点与 session context 读取边界（`session_context_test.go` 结清 9 条）
+
+范围：把 `internal/assistant/engine/session_context_test.go` 剩余 9 行逐条映射到 Rust，并修复读取重建路径的真实差异。`[x]` 由 859 → **867**，Rust 测试 2700 → **2709**（engine+store nextest 1675 passed）。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/engine/ -run 'TestProtectedTail|TestSessionContextIgnoresHandoffSegmentsWithoutRevision|TestAppendADKEventWithStaleRetryRefreshesSession|TestCompactedSessionViewTracksEventsAppendedDuringInvocation|TestHasActiveRunDoesNotTreatPendingApprovalAsExecuting|TestCompactedSessionPreservesOriginalCallForPendingApproval' -count=1`：9 条通过；`TestProtectedTail` 单独复跑（4 条）与文件内 helper 定义逐条核对。
+
+### 本批实现（3 处）
+
+1. **结构化保护尾锚点**：`protected_context_event_start` 从「content 子串包含 approval」改为解析真实写入的 `assistant.tool_call` 信封：`status=PENDING_APPROVAL` 的调用是锚点，`assistant.tool` 结果（同名 `callId`）或 `{runId}:denied` 终止事件表示审批已解决；信封带 `functionCallId`/`originalCallId` 时回退到原始调用事件索引（对应 Go `OriginalCallFrom` + `functionCallEventIndex`）。
+2. **读取与压缩共享同一锚点**：`product_production_ports_adk_mutation_context.rs` 删除本地 `protected_tail_start` 副本，`/sessions/{id}/context` 快照与压缩 cutoff 共用 read 侧实现，避免两条路径分裂。
+3. **修复无 revision 旧 handoff 段被采纳**：`rebuild_context_snapshot` 原先在「无 context-state 行」时把所有 active 段当成当前链，导致无 `contextRevisionId` 的旧段重新出现在 `summaryPreview`。现在只有携带当前 revision 的段参与投影；`/sessions/{id}/context` 首次读取时像 Go `ensureSessionContextRevision` 那样锚定并持久化新 revision（`ctx-<uuid>`），后续读取稳定。
+
+### 新增回归（9 条 Rust 测试）
+
+- `protected_tail_starts_at_the_earliest_unresolved_approval`（:773）
+- `protected_tail_rewinds_a_pending_approval_to_its_original_call`（:787）
+- `protected_tail_ignores_an_approval_with_a_durable_tool_outcome`（:800）
+- `protected_tail_keeps_only_the_approval_that_is_still_pending`（:813）
+- `protected_tail_ignores_approvals_closed_by_a_denied_run`（denied run 关闭全部待审批的补充用例）
+- `session_context_ignores_handoff_segments_without_a_revision`（:827）
+- `session_context_tracks_events_appended_after_a_compaction`（:922）
+- `a_run_waiting_for_approval_does_not_block_chat_auto_compaction`（:977，同一用例同时断言 RUNNING 仍阻塞 chat 入口）
+- `compaction_preserves_the_call_of_a_pending_approval`（:1009）
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. 去掉「已解决审批跳过」分支 → `:800`、`:813`、denied 三条转红（已解决审批仍锚定保护尾）。
+2. 忽略 `functionCallId` 回退 → `:787` 转红（起点停在审批信封索引 3 而非原始调用索引 1）。
+3. 读取重建不再锚定 revision → `:827` 转红（`contextRevisionId` 为空，legacy 段仍被采纳）。
+
+### 仍未结清（下一批）
+
+- `:868`（Go `appendADKEventWithStaleRetry`）标为边界保留：Rust 按 session 主键直接追加事件，没有 ADK session 句柄与 append 锁表层。
+- 已知差异（本批未修，登记为 P1）：`/sessions/{id}/context` 在已有 context-state 行时直接返回已存 payload，压缩后追加事件不会刷新 `rawEventCount`/`currentInputTokens`（Go 每次 Snapshot 重算并保存）；Rust 的 timeline 读取本身是实时的。
+- 自动压缩 notice/context delta 仍未转发进 chat SSE 帧；workflow canvas 的 `allow_active_run=true` 调用点待接线（承自第三十五批）。
+- 下一批进入 `store_lifecycle_test.go`（17 行），随后 `input_request_test.go`（15）、`mcp_server_test.go`（13）。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1675 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`（`product_production_ports_adk_read.rs` 触限后压缩注释回到 798 行）、`git diff --check`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / 2709 Rust / 867 `[x]`）。

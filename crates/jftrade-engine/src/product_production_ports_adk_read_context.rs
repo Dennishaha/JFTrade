@@ -5,6 +5,7 @@ use super::*;
 pub(crate) fn rebuild_context_snapshot(
     session_id: &str,
     session_payload_json: &str,
+    stored_revision: &str,
     events: &[jftrade_store_sqlite::StoredAdkEvent],
     segments: &[jftrade_store_sqlite::StoredAdkHandoffSegment],
     context_window_tokens: usize,
@@ -25,17 +26,26 @@ pub(crate) fn rebuild_context_snapshot(
             .unwrap_or(0)
     };
 
-    let mut current_revision = String::new();
-    for segment in segments {
-        let payload: Value = serde_json::from_str(&segment.payload_json)
-            .map_err(|error| invalid_payload("handoff segment", error))?;
-        if let Some(revision) = payload
-            .get("contextRevisionId")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|revision| !revision.is_empty())
-        {
-            current_revision = revision.to_owned();
+    // Go anchors the projection on the revision stored in the session context
+    // state and only then reads the handoff chain for that revision.  A
+    // database without a context-state row is recovered from the newest
+    // revisioned segment (an interrupted compaction), but handoff rows that
+    // never carried a revision belong to the legacy layout and stay invisible:
+    // adopting them would resurrect a summary the console already compacted
+    // past.
+    let mut current_revision = stored_revision.trim().to_owned();
+    if current_revision.is_empty() {
+        for segment in segments {
+            let payload: Value = serde_json::from_str(&segment.payload_json)
+                .map_err(|error| invalid_payload("handoff segment", error))?;
+            if let Some(revision) = payload
+                .get("contextRevisionId")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|revision| !revision.is_empty())
+            {
+                current_revision = revision.to_owned();
+            }
         }
     }
     let mut active_segments = Vec::new();
@@ -47,7 +57,7 @@ pub(crate) fn rebuild_context_snapshot(
             .and_then(Value::as_str)
             .map(str::trim)
             .unwrap_or_default();
-        if current_revision.is_empty() || revision == current_revision {
+        if !current_revision.is_empty() && revision == current_revision {
             active_segments.push((segment, payload));
         }
     }

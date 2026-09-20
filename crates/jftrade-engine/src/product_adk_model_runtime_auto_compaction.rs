@@ -62,6 +62,7 @@ impl ProductionAdkChatRuntime {
         let mut snapshot = context_projection::rebuild_context_snapshot(
             session_id,
             &session.payload_json,
+            "",
             &events,
             &segments,
             window,

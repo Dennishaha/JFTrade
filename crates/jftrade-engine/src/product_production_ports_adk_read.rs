@@ -569,22 +569,26 @@ impl ProductionAdkPort {
                 );
                 return Ok(AdkReadSnapshot::Json(snapshot));
             }
-            // Older Go-owned databases may contain the session and transcript
-            // events but no context-state row.  Rebuild the same durable
-            // handoff projection used after compaction instead of returning a
-            // synthetic zero-boundary snapshot.
+            // A database without a context-state row still gets Go's ensured
+            // revision: a legacy handoff row (no `contextRevisionId`) must not
+            // reach the projection, and the anchored revision is persisted.
             let events = self
                 .session_store
                 .list_events(&id)
                 .map_err(|error| AdkReadSnapshotError::Unavailable(error.to_string()))?;
-            return Ok(AdkReadSnapshot::Json(rebuild_context_snapshot(
+            let revision = format!("ctx-{}", crate::product_id::generate_uuid_v4());
+            let snapshot = rebuild_context_snapshot(
                 &id,
                 &session.payload_json,
+                &revision,
                 &events,
                 &self.store.list_handoff_segments(&id, true)?,
                 resolve_session_context_window_tokens(&self.store, &id, &session.payload_json),
                 resolve_session_context_recent_window(&self.store, &id, &session.payload_json),
-            )?));
+            )?;
+            self.store
+                .upsert_session_context(&id, &snapshot.to_string())?;
+            return Ok(AdkReadSnapshot::Json(snapshot));
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/sessions/", "") {
             let Some(session) = self.store.get_session(&id)? else {

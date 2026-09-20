@@ -53,17 +53,123 @@ pub(super) fn recent_context_event_start(
     0
 }
 
-pub(super) fn protected_context_event_start(events: &[jftrade_store_sqlite::StoredAdkEvent]) -> usize {
+/// Call id of a durable `assistant.tool_call` envelope that is still waiting
+/// for an operator decision, plus the original call it belongs to when the
+/// envelope names one.
+///
+/// Go records the same state as a `toolconfirmation` function call that has no
+/// matching function response, so the anchor has to survive compaction until
+/// the operator answers it.
+fn pending_approval_anchor(
+    event: &jftrade_store_sqlite::StoredAdkEvent,
+) -> Option<(String, Option<String>)> {
+    if !event.author.trim().eq_ignore_ascii_case("assistant.tool_call") {
+        return None;
+    }
+    let value: Value = serde_json::from_str(event.content.trim()).ok()?;
+    let object = value.as_object()?;
+    let status = object.get("status").and_then(Value::as_str)?.trim();
+    if !status.eq_ignore_ascii_case("PENDING_APPROVAL") {
+        return None;
+    }
+    let call_id = object
+        .get("id")
+        .or_else(|| object.get("callId"))
+        .and_then(Value::as_str)?
+        .trim()
+        .to_owned();
+    if call_id.is_empty() {
+        return None;
+    }
+    let original = object
+        .get("functionCallId")
+        .or_else(|| object.get("originalCallId"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty() && *value != call_id)
+        .map(str::to_owned);
+    Some((call_id, original))
+}
+
+/// Call id carried by a durable envelope (`callId` on tool results, `id` on
+/// staged calls).
+fn envelope_call_id(event: &jftrade_store_sqlite::StoredAdkEvent) -> Option<String> {
+    let value: Value = serde_json::from_str(event.content.trim()).ok()?;
+    let object = value.as_object()?;
+    let call_id = object
+        .get("callId")
+        .or_else(|| object.get("id"))
+        .and_then(Value::as_str)?
+        .trim();
+    (!call_id.is_empty()).then(|| call_id.to_owned())
+}
+
+/// Approval call ids that already have a durable tool outcome.  Go derives the
+/// same set from the `toolconfirmation` function responses.
+fn resolved_tool_call_ids(
+    events: &[jftrade_store_sqlite::StoredAdkEvent],
+) -> std::collections::BTreeSet<String> {
     events
         .iter()
-        .position(|event| {
-            let content = event.content.to_ascii_lowercase();
-            content.contains("approval")
-                || content.contains("pending_input")
-                || content.contains("pending approval")
-                || content.contains("awaiting_input")
-        })
-        .unwrap_or(events.len())
+        .filter(|event| event.author.trim().eq_ignore_ascii_case("assistant.tool"))
+        .filter_map(envelope_call_id)
+        .collect()
+}
+
+/// Runs that ended through the denial path (`{runId}:denied`).  Every pending
+/// approval of such a run was denied together, so none of them anchors the
+/// protected tail any more.
+fn denied_run_ids(
+    events: &[jftrade_store_sqlite::StoredAdkEvent],
+) -> std::collections::BTreeSet<String> {
+    events
+        .iter()
+        .filter(|event| event.id.trim().ends_with(":denied"))
+        .map(|event| event.invocation_id.trim().to_owned())
+        .filter(|run_id| !run_id.is_empty())
+        .collect()
+}
+
+/// Index of the durable call envelope that carries `call_id`, matching Go's
+/// `functionCallEventIndex` lookup for an approval's original call.
+fn call_envelope_index(
+    events: &[jftrade_store_sqlite::StoredAdkEvent],
+    call_id: &str,
+) -> Option<usize> {
+    events
+        .iter()
+        .position(|event| envelope_call_id(event).is_some_and(|id| id == call_id))
+}
+
+/// Go `protectedTailStart`: the earliest event a compaction must keep because
+/// an approval is still unresolved.
+///
+/// Go ignores approvals that already have a function response and rewinds an
+/// unresolved approval to the function call it confirms.  The Rust transcript
+/// keeps approvals as `assistant.tool_call` envelopes whose `status` stays
+/// `PENDING_APPROVAL` until a matching `assistant.tool` result (or a denied
+/// run terminal event) records the outcome, so the same skip and rewind apply
+/// to those envelopes.
+pub(crate) fn protected_context_event_start(
+    events: &[jftrade_store_sqlite::StoredAdkEvent],
+) -> usize {
+    let resolved = resolved_tool_call_ids(events);
+    let denied_runs = denied_run_ids(events);
+    let mut start = events.len();
+    for (index, event) in events.iter().enumerate() {
+        let Some((call_id, original_id)) = pending_approval_anchor(event) else {
+            continue;
+        };
+        if resolved.contains(&call_id) || denied_runs.contains(event.invocation_id.trim()) {
+            continue;
+        }
+        let candidate = original_id
+            .as_deref()
+            .and_then(|original| call_envelope_index(events, original))
+            .unwrap_or(index);
+        start = start.min(candidate);
+    }
+    start
 }
 
 pub(super) fn sanitize_provider(

@@ -14,13 +14,15 @@ use serde_json::{Value, json};
 use tempfile::tempdir;
 
 use jftrade_store_sqlite::{
-    AdkArtifactStore, AdkSessionStore, AdkStore, RecordAdkEventParams, initialize_current,
+    AdkArtifactStore, AdkSessionStore, AdkStore, RecordAdkEventParams, StoredAdkEvent,
+    initialize_current,
 };
 
 use crate::product::product_adk_mutation_port::{
     AdkMutationInput, AdkMutationOperation, AdkMutationPort,
 };
 use crate::product::product_production_ports::ProductionAdkPort;
+use crate::product::product_production_ports::product_production_ports_adk::read::read_helpers::protected_context_event_start;
 use crate::product::{AdkReadSnapshot, AdkReadSnapshotPort};
 
 fn context_port() -> (tempfile::TempDir, ProductionAdkPort) {
@@ -843,5 +845,451 @@ fn each_context_compaction_creates_the_next_current_revision() {
         second["rawEventCount"].as_u64().unwrap_or(0)
             > second["compactedEventCount"].as_u64().unwrap_or(0),
         "raw diagnostics stay separate from the compacted view: {second}"
+    );
+}
+
+/// Transcript envelope for the protected-tail unit checks.  The author and the
+/// JSON shape follow the durable writes (`assistant.tool_call` for a staged
+/// call, `assistant.tool` for its outcome).
+fn protected_tail_event(id: &str, author: &str, content: &str) -> StoredAdkEvent {
+    StoredAdkEvent {
+        id: id.to_owned(),
+        app_name: "jftrade".to_owned(),
+        user_id: "local".to_owned(),
+        session_id: "session-protected-tail".to_owned(),
+        invocation_id: "run-protected-tail".to_owned(),
+        author: author.to_owned(),
+        content: content.to_owned(),
+        timestamp: "2026-09-20T00:00:00Z".to_owned(),
+    }
+}
+
+fn pending_call_envelope(call_id: &str) -> String {
+    json!({
+        "id": call_id,
+        "name": "strategy.research_backtest",
+        "arguments": {"symbol": "TME"},
+        "status": "PENDING_APPROVAL",
+    })
+    .to_string()
+}
+
+fn tool_outcome_envelope(call_id: &str) -> String {
+    json!({
+        "callId": call_id,
+        "name": "strategy.research_backtest",
+        "status": "SUCCEEDED",
+        "output": {"symbol": "TME"},
+    })
+    .to_string()
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:773
+/// `TestProtectedTailStartsAtEarliestUnresolvedApprovalEvent`.
+#[test]
+fn protected_tail_starts_at_the_earliest_unresolved_approval() {
+    let events = vec![
+        protected_tail_event("ctx-protect-0", "user", "old user"),
+        protected_tail_event(
+            "ctx-protect-1",
+            "assistant.tool_call",
+            &pending_call_envelope("call-protect-1"),
+        ),
+        protected_tail_event("ctx-protect-2", "assistant.stream", "middle"),
+        protected_tail_event("ctx-protect-3", "user", "middle user"),
+        protected_tail_event(
+            "ctx-protect-4",
+            "assistant.tool_call",
+            &pending_call_envelope("call-protect-4"),
+        ),
+        protected_tail_event("ctx-protect-5", "assistant.stream", "tail"),
+    ];
+    assert_eq!(
+        protected_context_event_start(&events),
+        1,
+        "the protected tail starts at the earliest unresolved approval"
+    );
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:787
+/// `TestProtectedTailIncludesOriginalFunctionCallForPendingApproval`.
+#[test]
+fn protected_tail_rewinds_a_pending_approval_to_its_original_call() {
+    let events = vec![
+        protected_tail_event("ctx-original-0", "user", "old user"),
+        protected_tail_event(
+            "ctx-original-call",
+            "assistant.tool_call",
+            &json!({
+                "id": "call-original",
+                "name": "strategy.research_backtest",
+                "status": "RUNNING",
+            })
+            .to_string(),
+        ),
+        protected_tail_event(
+            "ctx-original-wait",
+            "assistant.tool",
+            &json!({
+                "callId": "call-original",
+                "name": "strategy.research_backtest",
+                "status": "DENIED",
+                "output": {"error": "confirmation required"},
+            })
+            .to_string(),
+        ),
+        protected_tail_event(
+            "ctx-original-approval",
+            "assistant.tool_call",
+            &json!({
+                "id": "approval-original-call",
+                "name": "strategy.research_backtest",
+                "status": "PENDING_APPROVAL",
+                "functionCallId": "call-original",
+            })
+            .to_string(),
+        ),
+        protected_tail_event("ctx-original-tail", "assistant.stream", "tail"),
+    ];
+    assert_eq!(
+        protected_context_event_start(&events),
+        1,
+        "a pending approval keeps the function call it confirms"
+    );
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:800
+/// `TestProtectedTailIgnoresResolvedApprovalEvent`.
+#[test]
+fn protected_tail_ignores_an_approval_with_a_durable_tool_outcome() {
+    let events = vec![
+        protected_tail_event("ctx-resolved-0", "user", "old user"),
+        protected_tail_event(
+            "ctx-resolved-1",
+            "assistant.tool_call",
+            &pending_call_envelope("call-resolved"),
+        ),
+        protected_tail_event("ctx-resolved-2", "assistant.stream", "middle"),
+        protected_tail_event(
+            "ctx-resolved-3",
+            "assistant.tool",
+            &tool_outcome_envelope("call-resolved"),
+        ),
+        protected_tail_event("ctx-resolved-4", "assistant.stream", "tail"),
+    ];
+    assert_eq!(
+        protected_context_event_start(&events),
+        events.len(),
+        "an approval with a durable outcome leaves no protected tail"
+    );
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:813
+/// `TestProtectedTailKeepsOnlyUnresolvedApprovalWhenOlderApprovalResolved`.
+#[test]
+fn protected_tail_keeps_only_the_approval_that_is_still_pending() {
+    let events = vec![
+        protected_tail_event("ctx-mixed-0", "user", "old user"),
+        protected_tail_event(
+            "ctx-mixed-1",
+            "assistant.tool_call",
+            &pending_call_envelope("call-mixed-resolved"),
+        ),
+        protected_tail_event(
+            "ctx-mixed-2",
+            "assistant.tool",
+            &tool_outcome_envelope("call-mixed-resolved"),
+        ),
+        protected_tail_event("ctx-mixed-3", "assistant.stream", "middle"),
+        protected_tail_event(
+            "ctx-mixed-4",
+            "assistant.tool_call",
+            &pending_call_envelope("call-mixed-pending"),
+        ),
+        protected_tail_event("ctx-mixed-5", "assistant.stream", "tail"),
+    ];
+    assert_eq!(
+        protected_context_event_start(&events),
+        4,
+        "only the approval that is still pending anchors the tail"
+    );
+}
+
+/// A denied run closes every pending approval it owned, so its staged calls
+/// stop anchoring the protected tail even though no tool outcome was written.
+#[test]
+fn protected_tail_ignores_approvals_closed_by_a_denied_run() {
+    let mut events = vec![
+        protected_tail_event("ctx-denied-0", "user", "old user"),
+        protected_tail_event(
+            "ctx-denied-1",
+            "assistant.tool_call",
+            &pending_call_envelope("call-denied"),
+        ),
+        protected_tail_event("ctx-denied-2", "assistant.stream", "middle"),
+    ];
+    let denied = StoredAdkEvent {
+        id: "run-protected-tail:denied".to_owned(),
+        author: "agent-protected-tail".to_owned(),
+        content: "approval denied".to_owned(),
+        ..protected_tail_event("run-protected-tail:denied", "agent-protected-tail", "")
+    };
+    events.push(denied);
+    events.push(protected_tail_event(
+        "ctx-denied-4",
+        "assistant.stream",
+        "tail",
+    ));
+    assert_eq!(
+        protected_context_event_start(&events),
+        events.len(),
+        "a denied run leaves no unresolved approval behind"
+    );
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:827
+/// `TestSessionContextIgnoresHandoffSegmentsWithoutRevision`.
+///
+/// A handoff row written before revisions existed must not be adopted by the
+/// rebuilt projection: the first read anchors a revision (Go's
+/// `ensureSessionContextRevision`) and the chain for that revision is empty.
+#[test]
+fn session_context_ignores_handoff_segments_without_a_revision() {
+    let (_directory, port) = context_port();
+    seed_provider(&port, "provider-no-legacy", 100_000);
+    seed_agent(&port, "agent-no-legacy", "provider-no-legacy", 1);
+    seed_session(&port, "session-no-legacy", "agent-no-legacy");
+    append_context_events(&port, "session-no-legacy", 0, 2);
+    port.store
+        .save_handoff_segment(
+            "session-no-legacy",
+            "old-handoff-without-revision",
+            1,
+            &json!({
+                "id": "old-handoff-without-revision",
+                "sessionId": "session-no-legacy",
+                "sequence": 1,
+                "startEventIndex": 0,
+                "endEventIndex": 1,
+                "summary": "old summary",
+                "mode": "manual",
+                "estimatedTokens": 2,
+                "active": true,
+                "createdAt": "2026-01-01T00:00:00Z",
+                "updatedAt": "2026-01-01T00:00:00Z"
+            })
+            .to_string(),
+        )
+        .expect("insert a legacy handoff segment");
+
+    let snapshot = context_snapshot(&port, "session-no-legacy");
+    assert_ne!(
+        snapshot["contextRevisionId"], "",
+        "the first read anchors a revision: {snapshot}"
+    );
+    assert_eq!(snapshot["summaryPreview"], "", "{snapshot}");
+    assert_eq!(snapshot["activeHandoffCount"], 0, "{snapshot}");
+    assert_eq!(snapshot["compactedEventCount"], 0, "{snapshot}");
+    let reread = context_snapshot(&port, "session-no-legacy");
+    assert_eq!(
+        reread["contextRevisionId"], snapshot["contextRevisionId"],
+        "the anchored revision is durable: {reread}"
+    );
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:922
+/// `TestCompactedSessionViewTracksEventsAppendedDuringInvocation`.
+///
+/// A compacted session keeps absorbing the events a live invocation appends:
+/// the raw count grows and the new transcript rows stay in the projection.
+#[test]
+fn session_context_tracks_events_appended_after_a_compaction() {
+    let (_directory, port) = context_port();
+    seed_provider(&port, "provider-live-view", 100_000);
+    seed_agent(&port, "agent-live-view", "provider-live-view", 1);
+    seed_session(&port, "session-live-view", "agent-live-view");
+    append_context_events(&port, "session-live-view", 0, 6);
+    compact(
+        &port,
+        "session-live-view",
+        json!({"mode": "aggressive", "trigger": "manual", "reason": "test live projected view"}),
+    );
+    let before_timeline = session_timeline(&port, "session-live-view");
+
+    let live_call = json!({
+        "id": "call-live",
+        "name": "test.tool",
+        "arguments": {"value": 1},
+        "status": "RUNNING",
+    })
+    .to_string();
+    port.session_store
+        .record_event(RecordAdkEventParams {
+            id: "event-live-call",
+            app_name: "jftrade",
+            user_id: "local",
+            session_id: "session-live-view",
+            invocation_id: "inv-live",
+            author: "assistant.tool_call",
+            content: &live_call,
+        })
+        .expect("append the live call");
+    port.session_store
+        .record_event(RecordAdkEventParams {
+            id: "event-live-result",
+            app_name: "jftrade",
+            user_id: "local",
+            session_id: "session-live-view",
+            invocation_id: "inv-live",
+            author: "assistant.tool",
+            content: &tool_outcome_envelope("call-live"),
+        })
+        .expect("append the live result");
+
+    let timeline = session_timeline(&port, "session-live-view");
+    assert_eq!(
+        timeline.len(),
+        before_timeline.len() + 2,
+        "the projected session tracks events appended during the invocation"
+    );
+    assert!(
+        timeline
+            .iter()
+            .any(|entry| entry["id"] == "event-live-call"),
+        "the appended call stays projected: {timeline:?}"
+    );
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:977
+/// `TestHasActiveRunDoesNotTreatPendingApprovalAsExecuting`.
+///
+/// A run waiting for approval is quiescent, so the chat entry point may still
+/// compact; a `RUNNING` run keeps the same entry point from advancing.
+#[test]
+fn a_run_waiting_for_approval_does_not_block_chat_auto_compaction() {
+    let (directory, port) = context_port();
+    seed_provider(&port, "provider-pending-run", 80);
+    seed_agent(&port, "agent-pending-run", "provider-pending-run", 1);
+    seed_session(&port, "session-pending-run", "agent-pending-run");
+    append_large_context_events(&port, "session-pending-run", 80);
+    seed_session(&port, "session-running-run", "agent-pending-run");
+    append_large_context_events(&port, "session-running-run", 80);
+    for (run_id, session_id, status) in [
+        ("run-waiting-approval", "session-pending-run", "PENDING"),
+        ("run-executing", "session-running-run", "RUNNING"),
+    ] {
+        port.store
+            .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+                id: run_id,
+                session_id,
+                agent_id: "agent-pending-run",
+                status,
+                client_request_id: &format!("request-{run_id}"),
+                request_fingerprint: &format!("fingerprint-{run_id}"),
+                payload_json: &json!({"id": run_id, "sessionId": session_id, "status": status})
+                    .to_string(),
+            })
+            .expect("seed run");
+    }
+    let runtime = runtime_for(&directory, &port);
+
+    let mut pending_deltas = Vec::new();
+    runtime
+        .maybe_auto_compact_session(
+            "session-pending-run",
+            &pending_user_text(),
+            false,
+            |delta| {
+                pending_deltas.push(delta);
+                Ok(())
+            },
+        )
+        .expect("chat auto compaction with a parked approval");
+    assert!(
+        pending_deltas
+            .iter()
+            .any(|delta| matches!(delta, super::SessionContextDelta::Context(_))),
+        "a run waiting for approval must not block compaction: {pending_deltas:?}"
+    );
+
+    let mut running_deltas = Vec::new();
+    runtime
+        .maybe_auto_compact_session(
+            "session-running-run",
+            &pending_user_text(),
+            false,
+            |delta| {
+                running_deltas.push(delta);
+                Ok(())
+            },
+        )
+        .expect("chat auto compaction with a live run");
+    assert!(
+        running_deltas.is_empty(),
+        "a running run keeps the chat entry point from compacting: {running_deltas:?}"
+    );
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:1009
+/// `TestCompactedSessionPreservesOriginalCallForPendingApproval`.
+///
+/// An aggressive compaction must stop short of the staged call whose approval
+/// is still unresolved, so the projected session keeps that call while only
+/// the events before it are summarised away.
+#[test]
+fn compaction_preserves_the_call_of_a_pending_approval() {
+    let (_directory, port) = context_port();
+    seed_provider(&port, "provider-pending-pair", 100_000);
+    seed_agent(&port, "agent-pending-pair", "provider-pending-pair", 1);
+    seed_session(&port, "session-pending-pair", "agent-pending-pair");
+    append_context_events(&port, "session-pending-pair", 0, 8);
+    port.session_store
+        .record_event(RecordAdkEventParams {
+            id: "ctx-pair-approval",
+            app_name: "jftrade",
+            user_id: "local",
+            session_id: "session-pending-pair",
+            invocation_id: "run-pending-pair",
+            author: "assistant.tool_call",
+            content: &pending_call_envelope("call-pair-original"),
+        })
+        .expect("append the staged call");
+    port.session_store
+        .record_event(RecordAdkEventParams {
+            id: "ctx-pair-tail",
+            app_name: "jftrade",
+            user_id: "local",
+            session_id: "session-pending-pair",
+            invocation_id: "run-pending-pair",
+            author: "assistant.stream",
+            content: "tail",
+        })
+        .expect("append the tail event");
+
+    let snapshot = compact(
+        &port,
+        "session-pending-pair",
+        json!({"mode": "aggressive", "trigger": "manual", "reason": "test pending approval pair"}),
+    );
+    // The recent-user window normalizes to two turns, so the cutoff lands on
+    // the second-to-last user event and the staged call at index 8 is never
+    // summarised.
+    assert_eq!(
+        snapshot["compactedEventCount"], 4,
+        "the summary stops before the staged call: {snapshot}"
+    );
+    assert!(
+        snapshot["breakdown"]["protectedTailTokens"]
+            .as_u64()
+            .unwrap_or(0)
+            > 0,
+        "the staged call stays in the protected tail: {snapshot}"
+    );
+    let timeline = session_timeline(&port, "session-pending-pair");
+    assert!(
+        timeline
+            .iter()
+            .any(|entry| entry["id"] == "ctx-pair-approval"),
+        "the projected session keeps the original call: {timeline:?}"
     );
 }
