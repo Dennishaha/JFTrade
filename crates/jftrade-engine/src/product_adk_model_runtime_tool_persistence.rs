@@ -52,11 +52,41 @@ impl ProductionAdkChatRuntime {
                 message: "stored ADK run payload must be a JSON object".to_owned(),
             });
         }
-        if let Some(input_call) = response
+        let input_calls = response
             .tool_calls
             .iter()
-            .find(|call| call.name == "interaction.request_user")
-        {
+            .filter(|call| call.name == "interaction.request_user")
+            .collect::<Vec<_>>();
+        // Go's `PendingInputRequests` refuses a run with two blocking
+        // questions in flight (`simultaneous input requests are not supported
+        // for run <id>`), and `CompleteChatRun` projects that error as a
+        // terminal FAILED run.  Parking on only the first call would drop the
+        // second function call from the run and strand the model's retry.
+        if input_calls.len() > 1 {
+            return Err(AdkChatPortError::Failed {
+                status: 400,
+                code: "ADK_INPUT_REQUEST_CONFLICT".to_owned(),
+                message: format!(
+                    "simultaneous input requests are not supported for run {}",
+                    chat.run_id
+                ),
+            });
+        }
+        if let Some(input_call) = input_calls.first().copied() {
+            // Go's input tool returns a soft `invalid_arguments` result for a
+            // model-correctable malformed call instead of parking the run, so
+            // the same turn can retry with the feedback attached.
+            if let Some(error) = request_user_arguments_error(&input_call.arguments) {
+                self.persist_correctable_input_feedback(
+                    chat,
+                    input_call,
+                    &run,
+                    payload,
+                    run_lease,
+                    &error,
+                )?;
+                return Ok(ToolCallStaging::Released);
+            }
             return self
                 .persist_pending_input_call(chat, input_call, &run, payload, run_lease)
                 .map(ToolCallStaging::Pending);

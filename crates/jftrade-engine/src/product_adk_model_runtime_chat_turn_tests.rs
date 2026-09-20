@@ -654,3 +654,121 @@ fn a_gated_tool_call_parks_the_run_with_only_pending_approvals() {
         "the parked run answers with the approval prompt"
     );
 }
+
+/// Parity: go:452dea11:internal/assistant/engine/input_request_test.go:72
+/// `TestInputRequestToolRunReturnsCorrectableFeedbackForInvalidArgs`.
+///
+/// A malformed `interaction.request_user` call is a model-correctable slip:
+/// Go returns an `invalid_arguments` result instead of parking the run, so the
+/// model retries inside the same run.  The provider request for round two must
+/// carry that feedback and the run must reach its normal terminal state.
+#[test]
+fn an_invalid_request_user_call_returns_correctable_feedback_before_parking() {
+    let (directory, store, session_store) = initialized_stores();
+    let (endpoint, provider) = spawn_scripted_model_provider(vec![
+        scripted_tool_call(
+            "call-input-invalid",
+            "interaction.request_user",
+            json!({
+                "decisionKind": "material_tradeoff",
+                "blockingReason": "The selected option changes the result.",
+                "questions": [{
+                    "question": "Too many choices?",
+                    "options": [
+                        {"label": "A"},
+                        {"label": "B"},
+                        {"label": "C"},
+                        {"label": "D"},
+                    ],
+                }],
+            }),
+        ),
+        scripted_text("参数已修正，继续执行。"),
+    ]);
+    store
+        .upsert_provider(
+            "provider-input-feedback",
+            &json!({
+                "id": "provider-input-feedback",
+                "displayName": "Input Feedback Provider",
+                "baseUrl": endpoint,
+                "model": "fixture-model",
+                "apiKey": "sk-fixture",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    store
+        .upsert_agent(
+            "agent-input-feedback",
+            &json!({
+                "id": "agent-input-feedback",
+                "name": "Input Feedback",
+                "providerId": "provider-input-feedback",
+                "permissionMode": "all",
+                "status": "ENABLED",
+                "tools": ["interaction.request_user"],
+            })
+            .to_string(),
+        )
+        .expect("persist agent");
+    let executor = Arc::new(RecordingToolExecutor::new(Vec::new()));
+    let runtime =
+        runtime_with_production_catalog(&directory, &store, &session_store, Arc::clone(&executor));
+
+    let output = runtime
+        .dispatch(
+            AdkChatRoute::Chat,
+            &chat_input(
+                "11111111-1111-4111-8111-111111111103",
+                json!({
+                    "agentId": "agent-input-feedback",
+                    "message": "@input.required 先确认参数",
+                }),
+            ),
+        )
+        .expect("chat with malformed interaction arguments");
+    let AdkChatPortOutput::Json(response) = output else {
+        panic!("chat must answer with the projected JSON envelope");
+    };
+    assert_eq!(
+        response["run"]["status"], "COMPLETED",
+        "the corrected turn must finish instead of parking: {response}"
+    );
+    assert!(
+        response["inputRequest"].is_null(),
+        "an invalid call must not publish an input request: {response}"
+    );
+    assert_eq!(response["run"]["toolCalls"][0]["status"], "SUCCEEDED");
+    assert_eq!(
+        response["run"]["toolCalls"][0]["output"]["status"],
+        "invalid_arguments"
+    );
+
+    let requests = provider.join().expect("scripted provider thread");
+    assert_eq!(
+        requests.len(),
+        2,
+        "correctable feedback must be fed back to the provider"
+    );
+    let feedback = requests[1]
+        .get("input")
+        .and_then(Value::as_array)
+        .and_then(|input| {
+            input.iter().find(|item| {
+                item.get("type").and_then(Value::as_str) == Some("function_call_output")
+                    && item.get("call_id").and_then(Value::as_str) == Some("call-input-invalid")
+            })
+        })
+        .expect("the second round carries the invalid-arguments feedback");
+    let feedback = feedback["output"].as_str().unwrap_or_default();
+    assert!(
+        feedback.contains("invalid_arguments") && feedback.contains("requires two to 3 options"),
+        "the feedback must name the correctable slip: {feedback}"
+    );
+    assert!(
+        executor.executed().is_empty(),
+        "a malformed interaction call never reaches the tool executor"
+    );
+}

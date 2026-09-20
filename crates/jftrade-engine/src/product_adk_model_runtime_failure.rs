@@ -59,6 +59,12 @@ impl ProductionAdkChatRuntime {
         // Go's `MarkFailedChatRun` sets `Degraded = true` on every terminal
         // failure.
         payload["degraded"] = Value::Bool(true);
+        // Go's `failInputContinuation` overwrites `resumeState` with
+        // `input_resume_failed` after `markFailedChatRun`, so the console can
+        // tell a dead input continuation from a plain provider outage.
+        if chat.resumed_from_input {
+            payload["resumeState"] = Value::String("input_resume_failed".to_owned());
+        }
         if let Some(object) = payload.as_object_mut() {
             object.remove("providerRetry");
         }

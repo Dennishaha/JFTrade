@@ -589,6 +589,7 @@ fn persist_success_marks_a_run_degraded_from_its_failed_tool_calls() {
         session_id: "session-persist-success".to_owned(),
         agent_id: "agent-persist-success".to_owned(),
         resumed: false,
+        resumed_from_input: false,
         permission_mode: "approval".to_owned(),
         context_deltas: Vec::new(),
         request: super::ModelRequest {
@@ -792,6 +793,7 @@ fn a_resumed_approval_run_completes_with_the_confirmation_resolved_state() {
         session_id: "session-resumed-projection".to_owned(),
         agent_id: "agent-resumed-projection".to_owned(),
         resumed: true,
+        resumed_from_input: false,
         permission_mode: "approval".to_owned(),
         context_deltas: Vec::new(),
         request: super::ModelRequest {

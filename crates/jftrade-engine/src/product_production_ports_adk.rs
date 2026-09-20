@@ -336,47 +336,7 @@ impl ProductionToolCatalog {
                     .unwrap_or(&name)
                     .to_owned();
                 if name == "interaction.request_user" {
-                    return Some(json!({
-                        "type": "function",
-                        "name": name,
-                        "description": "向用户提问以解决关键阻塞问题（缺少必要信息、重大取舍、越界授权）。用户回答后将恢复执行并继续完成原始请求。",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "title": {"type": "string", "description": "提问标题"},
-                                "decisionKind": {
-                                    "type": "string",
-                                    "enum": ["missing_required_context", "material_tradeoff", "scope_boundary"],
-                                    "description": "阻塞类型"
-                                },
-                                "blockingReason": {"type": "string", "description": "为什么必须由用户决策的原因"},
-                                "questions": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "question": {"type": "string"},
-                                            "options": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "label": {"type": "string"},
-                                                        "description": {"type": "string"},
-                                                        "recommended": {"type": "boolean"}
-                                                    },
-                                                    "required": ["label"]
-                                                }
-                                            },
-                                            "allowOther": {"type": "boolean"}
-                                        },
-                                        "required": ["question"]
-                                    }
-                                }
-                            },
-                            "required": ["decisionKind", "blockingReason", "questions"]
-                        }
-                    }));
+                    return Some(input_request_tool_value(&name));
                 }
                 if let Some(schema) = crate::product::product_mcp_protocol::try_schema_for(&name) {
                     return Some(json!({

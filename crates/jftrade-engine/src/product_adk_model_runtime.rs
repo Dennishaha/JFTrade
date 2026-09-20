@@ -85,6 +85,10 @@ mod expiry_tests;
 #[path = "product_adk_session_context_tests.rs"]
 mod session_context_tests;
 
+#[cfg(test)]
+#[path = "product_adk_input_request_parity_tests.rs"]
+mod input_request_parity_tests;
+
 include!("product_adk_model_runtime_audit.rs");
 
 const MAX_RESPONSE_BYTES: usize = 4 << 20;
@@ -710,6 +714,7 @@ impl ChatExecution {
             session_id,
             agent_id,
             resumed: false,
+            resumed_from_input: false,
             permission_mode,
             context_deltas: Vec::new(),
             request,
@@ -727,6 +732,12 @@ struct ChatExecution {
     /// the terminal projection records `resumeState=adk_confirmation_resolved`
     /// exactly like the reference runtime's `hydrateResumedRun`.
     resumed: bool,
+    /// True when this execution is a continuation of an answered input
+    /// request.  Go's `completeInputContinuation` finishes that run with
+    /// `resumeState=input_resolved` and `failInputContinuation` fails it with
+    /// `input_resume_failed`, so the terminal projection needs the kind of
+    /// resume, not only the fact that the run was resumed.
+    resumed_from_input: bool,
     /// The agent's resolved permission mode.  `ToolRequiresApproval` combines
     /// it with each descriptor's permission/risk to decide whether a requested
     /// call runs immediately or waits for the operator.

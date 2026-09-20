@@ -633,3 +633,63 @@ pub(crate) const PRODUCTION_TOOL_DEFINITIONS: &[ProductionToolDefinition] = &[
         research_operation: None,
     },
 ];
+
+/// Go's `inputRequestToolDescriptor` wire declaration.
+///
+/// The description carries the blocking-only guidance, the two-or-three option
+/// rule and the resume contract, and the schema pins the same budgets the
+/// runtime validator enforces (`buildInputRequest`), so the model sees the
+/// contract before it calls the tool.  Kept beside the catalog policy so the
+/// tool-catalog owner file stays inside the 800-line production budget.
+pub(crate) fn input_request_tool_value(name: &str) -> Value {
+    json!({
+        "type": "function",
+        "name": name,
+        "description": "向用户提问以解决关键阻塞问题（缺少必要信息、重大取舍、越界授权）。禁止询问可选下一步、是否继续或先看哪部分，也不得替代写操作审批；每题必须提供 2 到 3 个选项 (each question must offer two or three options)，可自由回答时设置 allowOther。用户回答后的工具结果会携带 originalRequest 与 continuationInstruction，必须据此继续完成原始请求。",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "提问标题"},
+                "decisionKind": {
+                    "type": "string",
+                    "enum": ["missing_required_context", "material_tradeoff", "scope_boundary"],
+                    "description": "The genuine blocking boundary. Optional next steps and whether to continue are not blocking decisions."
+                },
+                "blockingReason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Why the original task cannot safely continue without this user answer."
+                },
+                "questions": {
+                    "type": "array",
+                    "minItems": 1,
+                    "description": "All decisions needed for the current step. Ask them together.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "question": {"type": "string"},
+                            "options": {
+                                "type": "array",
+                                "minItems": 2,
+                                "maxItems": 3,
+                                "description": "Present exactly two or three concise choices.",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "label": {"type": "string"},
+                                        "description": {"type": "string"},
+                                        "recommended": {"type": "boolean"}
+                                    },
+                                    "required": ["label"]
+                                }
+                            },
+                            "allowOther": {"type": "boolean"}
+                        },
+                        "required": ["question", "options"]
+                    }
+                }
+            },
+            "required": ["decisionKind", "blockingReason", "questions"]
+        }
+    })
+}

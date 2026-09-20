@@ -1931,3 +1931,42 @@ Go 的期望：`reply` = 整轮 assistant 文本合并（`先说明一下。优�
 - 跨批 follow-up 汇总：P1 = Go `SaveRun` 终态谓词逐字对齐（`:146`/`:250` 引出的 CAS 缺口）、tool alias 归一化（`:641`）；P2 = 内置 skill bundle 落盘/内容哈希与缺失工具注册（`:792`）。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（**1691 passed**）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2725 Rust** / **877 `[x]`**，0 重复 `rust_entry`、0 非 `function_exact` 的 `[x]`）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`（先按 target-health 提示执行 `pnpm run clean:rust:artifacts`）。
+
+## 第三十九批：`input_request_test.go` 全量结清（输入续跑状态、并行提问冲突与 approval 过渡）
+
+范围：`input_request_test.go` 16 条逐条结清——本批新增 13 条 `[x]`（`:584` 已在早前批次结清）、2 条带明确结论的 `[~]`（`:225`、`:530`）；同时修 4 处真实行为差异（输入续跑终态 `input_resolved`、输入续跑失败 `input_resume_failed`、同轮并行提问冲突、`allowOther` 缺省值）。`[x]` 877 → **890**，Rust 测试 2725 → **2738**（engine lib 测试 1268 passed）。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/engine/ -run '<16 条 input_request 测试名>' -count=1`：16 条全通过（1.179s）。
+
+### 本批修复（4 处生产行为）
+
+1. **输入续跑成功终态**：Go `completeInputContinuation` 写 `resumeState=input_resolved`；Rust 过去对所有续跑统一写 `adk_confirmation_resolved`。新增 `ChatExecution.resumed_from_input`（由 payload 的 `input_resuming`/`input_resume_pending` 判定），`persist_success` 与持久化 payload 两处投影按续跑类型分流；同时补齐 Go 的 `run.input_resolved` 审计行（输入续跑不再写 `run.resumed`）。
+2. **输入续跑失败终态**：Go `failInputContinuation` 在 `markFailedChatRun` 之后写 `resumeState=input_resume_failed`；Rust 过去保留 `provider_executing`。`persist_failure` 对输入续跑改写为 `input_resume_failed`，保持 `FAILED` + 分类 errorCode + degraded + completedAt。
+3. **同轮并行提问冲突**：Go `PendingInputRequests` 对同一 run 的两个阻塞提问返回 `errInputRequestConflict`（`simultaneous input requests are not supported for run <id>`），`CompleteChatRun` 投影为 200 + FAILED run。Rust 过去只停泊第一个、丢弃第二个 function call；现在 `persist_tool_calls` 检测到多个 `interaction.request_user` 调用即返回 `ADK_INPUT_REQUEST_CONFLICT`，`execute_chat` 按 Go 语义返回终态投影（FAILED/MODEL_CALL_FAILED/degraded，无 inputRequest、无 toolCalls）。
+4. **`allowOther` 缺省值**：Go `buildInputRequest` 原样拷贝 `source.AllowOther`（缺省 false），Rust 过去 `unwrap_or(true)`，会让控制台对模型未允许的题目提供自由回答；改为 false，并在构建用例中断言。
+
+### 新增回归（9 条 Rust 测试）
+
+- `crates/jftrade-engine/src/product_adk_input_response_parity_tests.rs`（7 条）：`input_request_questions_publish_the_reference_ids_labels_and_defaults`（:16 构建半边）、`input_response_payload_anchors_the_resumed_run_to_the_original_request`（:773）、`simultaneous_input_request_calls_fail_the_run_instead_of_parking`（:305）、`an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state`（:413）、`an_answered_input_request_can_transition_into_an_approval_wait`（:694）、`sequential_questions_in_one_run_keep_both_answered_requests`（:647）、`a_restarted_runtime_resumes_a_pending_input_run`（:738，补 `input_resolved` 断言）；既有 `input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected`（:16 答案半边）、`cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer`（:490）、`responding_to_a_missing_or_corrupt_input_run_reports_the_store_error`（:225）、`a_resumed_input_run_replays_the_original_request_anchor_to_the_provider`（:802）同批登记。
+- `crates/jftrade-engine/src/product_adk_model_runtime_chat_turn_tests.rs`：`an_invalid_request_user_call_returns_correctable_feedback_before_parking`（:72）；`crates/jftrade-engine/src/product_adk_input_request_parity_tests.rs`：`request_user_arguments_accept_valid_calls_and_report_the_reference_errors`（:114、:72 校验半边）、`request_user_tool_declaration_publishes_the_two_or_three_option_budget`（:556）；`:449` 复用既有 `product_production_ports_adk_tests.rs::adk_respond_to_input_strict_validation_idempotency_and_conflict`。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `persist_tool_calls` 的并行提问检测短路 → `simultaneous_input_request_calls_fail_the_run_instead_of_parking` 转红（run 停泊在第一个问题）。
+2. `resumed_from_input` 判定恒 false → 续跑恢复用例转红（终态回落到 `adk_confirmation_resolved`/`provider_executing`）。
+3. `allow_other` 回退 `unwrap_or(true)` → 构建用例转红（`questions[0].allowOther` 期望 false）。
+
+### 结论登记（`[~]` 行与 `[x]` 行内的边界）
+
+- **`:225`（store 错误面）**：缺失 run 的 404 与损坏 payload 已锁定；Go 的 `nil store`、空 id `errInputRequestInvalid`、关闭库与 SQLite trigger 注入在 Rust 无等价入口（端口先做必填校验，存储错误统一 500），保留为 Go 内部边界。
+- **`:305`（事件对账分支）**：`nil execution`、`missing session`、`filters irrelevant and invalid events`、`existing pending request` 依赖 Go 的「事件重放 → PendingInputRequests 对账」架构；Rust 在落盘时直接判定并已用 correctable feedback 拦截非法调用，不再重建该清单，登记为架构差异。
+- **`:530`（timeline primitive）**：Go 断言 `TimelinePrimitivesForRunActivity` + `GroupTimelinePrimitives` 的排序/合并行为；Rust 没有 primitive 投影层，输入历史由 run payload 的 `inputRequests` 承载（`session_timeline` 只投影会话事件并过滤 `assistant.tool`/`assistant.stream`）。若控制台后续要渲染 input_request 条目，需先定义 Rust 侧 primitive 语义再补测。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/engine/mcp_server_test.go`（13 条）→ `adk_edges_test.go`（12）→ `workflow_tools_test.go`（11）；随后按 backlog 进入 `internal/app/apiserver`（574）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`internal/assistant/assembly`（102）等。
+- 跨批 follow-up 汇总：P1 = Go `SaveRun` 终态谓词逐字对齐（`:146`/`:250` 引出的 CAS 缺口）、tool alias 归一化（`:641`）、审批续跑失败 `resumeState=approval_continuation_failed`（Go `markApprovalContinuationFailed`，Rust 目前仍是 `approval_resuming`）；P2 = 内置 skill bundle 落盘/内容哈希与缺失工具注册（`:792`）。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2738 Rust** / **890 `[x]`**，0 重复 `rust_entry`、0 非 `function_exact` 的 `[x]`）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
