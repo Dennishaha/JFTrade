@@ -1746,3 +1746,34 @@ Go 的期望：`reply` = 整轮 assistant 文本合并（`先说明一下。优�
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1657 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / 2691 Rust / 853 `[x]`）、`git diff --check`、`pnpm run check:quick`。
 
 下一批：继续 `session_context_test.go`（先做上下文提示 + 自动压缩 deltas，再评估 `protectedTailStart` 的 Rust 锚点语义）。
+## 第三十四批：会话压缩 gate 与上下文通知落地（`session_context_test.go:287` 结清）
+
+范围：第三十三批登记的下一批首组第一项——上下文压缩通知与 gate。`[x]` 由 853 → **854**，Rust 测试 2691 → **2694**。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/engine/ -run 'TestCompactSessionContextWritesContextNotice|TestMaybeAutoCompactSessionSkipsWhenSessionCompactionAlreadyRunning|TestSessionServiceAutoCompactionUsesSessionGate' -count=1`：3 条通过。
+
+### 本批实现（3 处）
+
+1. **store 侧通知读写**：`crates/jftrade-store-sqlite/src/adk.rs` 新增 `save_session_notice`（按 id upsert，保留首次 `created_at`）与 `list_session_notices`（`ORDER BY created_at ASC, id ASC`），对应 Go `StoreCore.SaveSessionNotice` / `SessionNotices`。
+2. **会话级压缩 gate**：`crates/jftrade-engine/src/product_adk_session_compaction_gate.rs` 复刻 Go `Runtime.beginSessionCompaction`——按 session 键控的进程内集合，guard drop 即释放；空 session id 直接放行。手动压缩路由在 gate 被占用时返回 `500 ADK_SESSION_CONTEXT_COMPACT_FAILED` / `session context compaction already running`（Go 的错误文本，handler 对 active run 之外的错误映射 500）。
+3. **上下文通知**：新增 `crates/jftrade-engine/src/product_production_ports_adk_notices.rs`，复刻 Go `context_notice.go` 的三段文本与 `streaming → final/error` 生命周期、id 形状 `notice-<session>-<timestamp>`；`compact_session_context` 拆成外层（gate + 通知）与 `compact_session_context_locked`（活跃 run 检查 → 投影重建 → durable 写入），失败路径同样落 error 通知（与 Go 在活跃 run 409 时仍写错误通知一致）；`GET /api/v1/adk/sessions/{id}` 的 timeline 现在按 Go `BuildSessionTimeline` 的语义把通知与消息合并后重排 `sequence`。
+
+### 新增回归（3 条 Rust 测试）
+
+- `manual_context_compaction_writes_the_done_notice_into_the_timeline`：手动压缩后 timeline 出现唯一 `context_notice`，`status=final`、文本为「已压缩上下文，继续使用最新摘要。」，且转录条目仍在同一 timeline。
+- `a_second_compaction_is_rejected_while_the_session_gate_is_held`：持锁时路由返回 500 且**不**写通知；释放后同一请求成功并落 final 通知。
+- `a_rejected_compaction_records_the_failed_notice`：存在 RUNNING run 时 409，timeline 落 `error` 通知与失败文本。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. 不创建通知 → 手动压缩与失败通知两条用例转红（timeline 无 context_notice）。
+2. 成功分支不更新为 final → 手动压缩用例转红（status `streaming` vs `final`）。
+3. gate 恒成功（跳过重复插入检查）→ 持锁用例转红（第二次压缩被执行，返回快照而非 500）。
+
+### 仍未结清（下一批）
+
+- `:341`、`:446`、`:506`、`:569`、`:703`：Rust 仍缺 `maybeAutoCompactSession(DuringWorkflow)` 与 `AutoCompactForModelContext`——阈值（0.85 auto / 0.93 aggressive）、pending user text 投影、streaming→final 通知 delta 与 context delta、活跃 RUNNING run 跳过（workflow 入口允许）、模型上下文读取前自动压缩。gate 与通知基础设施本批已就绪，下一批可直接接线；`:446`、`:506` 的结论已同步更新为“gate 已实现、自动压缩入口待补”。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1660 passed）、`pnpm run check:rust:architecture`、`git diff --check`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / 2694 Rust / 854 `[x]`）。

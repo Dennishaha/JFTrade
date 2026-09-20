@@ -16,7 +16,7 @@ mod agent_validation;
 #[path = "product_production_ports_adk_mutation_entities.rs"]
 mod entities;
 #[path = "product_production_ports_adk_mutation_helpers.rs"]
-mod helpers;
+pub(super) mod helpers;
 #[path = "product_production_ports_adk_mutation_provider.rs"]
 mod provider;
 #[path = "product_production_ports_adk_mutation_runs.rs"]
@@ -188,7 +188,7 @@ fn workflow_payload(
     Ok(value)
 }
 
-fn now_rfc3339() -> String {
+pub(super) fn now_rfc3339() -> String {
     OffsetDateTime::now_utc()
         .format(&Rfc3339)
         .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned())

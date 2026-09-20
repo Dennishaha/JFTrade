@@ -6,6 +6,8 @@ mod context_projection;
 pub(super) mod read_helpers;
 #[path = "product_production_ports_adk_context_window.rs"]
 pub(super) mod context_window;
+#[path = "product_production_ports_adk_notices.rs"]
+pub(super) mod notices;
 
 use context_projection::rebuild_context_snapshot;
 use read_helpers::{
@@ -594,7 +596,7 @@ impl ProductionAdkPort {
             // `ADK_SESSION_GET_FAILED` fallback.  Console reload affordances
             // key off that code, so it is a public contract rather than a
             // transport-level unavailable signal.
-            let timeline = self
+            let messages = self
                 .session_store
                 .list_events(&id)
                 .map_err(|e| {
@@ -609,6 +611,16 @@ impl ProductionAdkPort {
                 .enumerate()
                 .map(|(sequence, event)| timeline_value(event, sequence))
                 .collect::<Vec<_>>();
+            // Go `BuildSessionTimeline` merges the session's notices with the
+            // transcript before renumbering, so a compaction notice shows up in
+            // the timeline at the position it was announced in.
+            let notices = self
+                .store
+                .list_session_notices(&id)?
+                .into_iter()
+                .map(notices::session_notice_value)
+                .collect::<Result<Vec<_>, _>>()?;
+            let timeline = notices::merge_session_timeline(messages, notices);
             let runs = self
                 .store
                 .list_runs()?

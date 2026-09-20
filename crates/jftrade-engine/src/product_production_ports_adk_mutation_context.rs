@@ -19,35 +19,9 @@ pub(super) fn compact_session_context(
         .get_session(&session_id)
         .map_err(session_mutation_failed)?
         .ok_or_else(|| not_found_mutation("ADK_SESSION_NOT_FOUND", "session not found"))?;
-    if port
-        .store
-        .list_runs()
-        .map_err(session_mutation_failed)?
-        .into_iter()
-        .any(|run| run.session_id == session_id && run.status.eq_ignore_ascii_case("RUNNING"))
-    {
-        // Go's `handleADKCompactSessionContext` keeps the route's own code
-        // and only escalates the status to 409 when the service reports an
-        // active run.
-        return Err(AdkMutationPortError::Failed {
-            status: 409,
-            code: "ADK_SESSION_CONTEXT_COMPACT_FAILED".to_owned(),
-            message: "session has an active run".to_owned(),
-        });
-    }
-
-    // Go resolves both numbers from the session's effective agent: the window
-    // from that agent's provider and the retained user turns from the agent's
-    // normalized `RecentUserWindow`.
-    let context_window = super::super::read::context_window::resolve_session_context_window_tokens(
-        &port.store,
-        &session_id,
-        &session.payload_json,
-    );
-    let events = port
-        .session_store
-        .list_events(&session_id)
-        .map_err(session_mutation_failed)?;
+    // The transport rejects a malformed body before the runtime is reached, so
+    // parsing stays ahead of the notice: an invalid mode or window must not
+    // leave a failed-compaction notice in the session timeline.
     let mode = normalize_context_mode(input.body.get("mode"))?;
     let trigger = input
         .body
@@ -73,13 +47,104 @@ pub(super) fn compact_session_context(
         ),
     )?;
 
+    // Go `Runtime.CompactSessionContext` takes the session compaction gate,
+    // announces the compaction, and only then checks for an active run, so the
+    // rejected attempt still leaves the console's error notice behind.
+    let (guard, acquired) =
+        crate::product::product_adk_session_compaction_gate::begin_session_compaction(&session_id);
+    let _guard = guard;
+    if !acquired {
+        return Err(AdkMutationPortError::Failed {
+            status: 500,
+            code: "ADK_SESSION_CONTEXT_COMPACT_FAILED".to_owned(),
+            message: "session context compaction already running".to_owned(),
+        });
+    }
+    let notice = super::super::read::notices::create_context_compaction_notice(
+        &port.store,
+        &session_id,
+    );
+    match compact_session_context_locked(
+        port,
+        &session_id,
+        &session,
+        &mode,
+        &trigger,
+        &reason,
+        recent_window,
+    ) {
+        Ok(value) => {
+            if let Some(notice) = notice.as_ref() {
+                super::super::read::notices::update_context_compaction_notice(
+                    &port.store,
+                    notice,
+                    super::super::read::notices::TIMELINE_STATUS_FINAL,
+                    super::super::read::notices::CONTEXT_COMPACTION_DONE_TEXT,
+                );
+            }
+            Ok(value)
+        }
+        Err(error) => {
+            if let Some(notice) = notice.as_ref() {
+                super::super::read::notices::update_context_compaction_notice(
+                    &port.store,
+                    notice,
+                    super::super::read::notices::TIMELINE_STATUS_ERROR,
+                    super::super::read::notices::CONTEXT_COMPACTION_FAILED_TEXT,
+                );
+            }
+            Err(error)
+        }
+    }
+}
+
+/// The gated compaction path: the active-run check, the projection rebuild and
+/// the durable write all happen while the session gate is held.
+fn compact_session_context_locked(
+    port: &ProductionAdkPort,
+    session_id: &str,
+    session: &jftrade_store_sqlite::StoredAdkEntity,
+    mode: &str,
+    trigger: &str,
+    reason: &str,
+    recent_window: usize,
+) -> Result<Value, AdkMutationPortError> {
+    if port
+        .store
+        .list_runs()
+        .map_err(session_mutation_failed)?
+        .into_iter()
+        .any(|run| run.session_id == session_id && run.status.eq_ignore_ascii_case("RUNNING"))
+    {
+        // Go's `handleADKCompactSessionContext` keeps the route's own code
+        // and only escalates the status to 409 when the service reports an
+        // active run.
+        return Err(AdkMutationPortError::Failed {
+            status: 409,
+            code: "ADK_SESSION_CONTEXT_COMPACT_FAILED".to_owned(),
+            message: "session has an active run".to_owned(),
+        });
+    }
+
+    // Go resolves both numbers from the session's effective agent: the window
+    // from that agent's provider and the retained user turns from the agent's
+    // normalized `RecentUserWindow`.
+    let context_window = super::super::read::context_window::resolve_session_context_window_tokens(
+        &port.store,
+        session_id,
+        &session.payload_json,
+    );
+    let events = port
+        .session_store
+        .list_events(session_id)
+        .map_err(session_mutation_failed)?;
     let stored_segments = port
         .store
-        .list_handoff_segments(&session_id, false)
+        .list_handoff_segments(session_id, false)
         .map_err(session_mutation_failed)?;
     let current_state = port
         .store
-        .get_session_context(&session_id)
+        .get_session_context(session_id)
         .map_err(session_mutation_failed)?
         .map(|stored| decode_mutation_payload(&stored.payload_json, "session context"))
         .transpose()?;
@@ -167,7 +232,7 @@ pub(super) fn compact_session_context(
             .iter()
             .map(|segment| handoff_summary(&segment.payload_json))
             .collect::<Result<Vec<_>, _>>()?;
-        let summary = build_handoff_summary(&prior_summaries, summary_events, &mode, &reason);
+        let summary = build_handoff_summary(&prior_summaries, summary_events, mode, reason);
         let sequence = stored_segments
             .iter()
             .filter_map(|segment| usize::try_from(segment.sequence).ok())
@@ -176,7 +241,7 @@ pub(super) fn compact_session_context(
             .saturating_add(1);
         let id = format!(
             "handoff-{}-{}",
-            normalize_id(&session_id),
+            normalize_id(session_id),
             crate::product_id::generate_uuid_v4()
         );
         let payload = json!({
@@ -216,7 +281,7 @@ pub(super) fn compact_session_context(
         ));
         let synthetic = StoredAdkHandoffSegment {
             id: segment_id,
-            session_id: session_id.clone(),
+            session_id: session_id.to_owned(),
             active: true,
             sequence,
             payload_json,
@@ -360,7 +425,7 @@ pub(super) fn compact_session_context(
     let snapshot_json = snapshot.to_string();
     port.store
         .commit_session_context_compaction(
-            &session_id,
+            session_id,
             &expected_revision,
             pending_segment
                 .as_ref()

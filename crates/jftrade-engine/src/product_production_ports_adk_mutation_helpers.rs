@@ -81,7 +81,7 @@ pub(super) fn next_id(prefix: &str) -> String {
     generate_prefixed_id(prefix)
 }
 
-pub(super) fn normalize_id(value: &str) -> String {
+pub(crate) fn normalize_id(value: &str) -> String {
     let mut normalized = String::new();
     let mut last_dash = false;
     for character in value.trim().to_ascii_lowercase().chars() {

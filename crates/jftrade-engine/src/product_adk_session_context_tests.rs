@@ -158,6 +158,146 @@ fn estimate_handoff_tokens(segments: &[Value]) -> usize {
     bytes.div_ceil(4)
 }
 
+fn session_timeline(port: &ProductionAdkPort, session_id: &str) -> Vec<Value> {
+    match port
+        .read(&format!("/api/v1/adk/sessions/{session_id}"), "")
+        .expect("read session")
+    {
+        AdkReadSnapshot::Json(value) => value["timeline"].as_array().cloned().unwrap_or_default(),
+        other => panic!("expected JSON session, got {other:?}"),
+    }
+}
+
+fn context_notices(entries: &[Value]) -> Vec<Value> {
+    entries
+        .iter()
+        .filter(|entry| entry["kind"] == "context_notice")
+        .cloned()
+        .collect()
+}
+
+#[test]
+fn manual_context_compaction_writes_the_done_notice_into_the_timeline() {
+    let (_directory, port) = context_port();
+    seed_provider(&port, "provider-notice", 100_000);
+    seed_agent(&port, "agent-notice", "provider-notice", 1);
+    seed_session(&port, "session-notice", "agent-notice");
+    append_context_events(&port, "session-notice", 0, 6);
+
+    compact(
+        &port,
+        "session-notice",
+        json!({"mode": "normal", "trigger": "manual", "reason": "test notice"}),
+    );
+
+    let entries = session_timeline(&port, "session-notice");
+    let notices = context_notices(&entries);
+    assert_eq!(notices.len(), 1, "{entries:?}");
+    assert_eq!(notices[0]["status"], "final", "{notices:?}");
+    assert_eq!(
+        notices[0]["text"], "已压缩上下文，继续使用最新摘要。",
+        "{notices:?}"
+    );
+    assert_eq!(notices[0]["sessionId"], "session-notice", "{notices:?}");
+    assert!(
+        entries.iter().any(|entry| entry["kind"] == "user_message"),
+        "the transcript stays in the same timeline: {entries:?}"
+    );
+}
+
+#[test]
+fn a_second_compaction_is_rejected_while_the_session_gate_is_held() {
+    let (_directory, port) = context_port();
+    seed_provider(&port, "provider-gate", 100_000);
+    seed_agent(&port, "agent-gate", "provider-gate", 1);
+    seed_session(&port, "session-gate", "agent-gate");
+    append_context_events(&port, "session-gate", 0, 6);
+
+    let (guard, acquired) =
+        crate::product::product_adk_session_compaction_gate::begin_session_compaction(
+            "session-gate",
+        );
+    assert!(acquired);
+    let rejected = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CompactSessionContext,
+            identifiers: BTreeMap::from([("sessionId".to_owned(), "session-gate".to_owned())]),
+            body: json!({"mode": "normal", "trigger": "auto"}),
+            webhook_secret: None,
+        })
+        .expect_err("a held gate rejects the compaction");
+    match rejected {
+        crate::product::product_adk_mutation_port::AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 500);
+            assert_eq!(code, "ADK_SESSION_CONTEXT_COMPACT_FAILED");
+            assert_eq!(message, "session context compaction already running");
+        }
+        other => panic!("expected the route's own failure envelope, got {other:?}"),
+    }
+    assert!(
+        context_notices(&session_timeline(&port, "session-gate")).is_empty(),
+        "a gated attempt must not announce a compaction"
+    );
+    drop(guard);
+
+    compact(
+        &port,
+        "session-gate",
+        json!({"mode": "normal", "trigger": "auto"}),
+    );
+    let notices = context_notices(&session_timeline(&port, "session-gate"));
+    assert_eq!(notices.len(), 1, "{notices:?}");
+    assert_eq!(notices[0]["status"], "final", "{notices:?}");
+}
+
+#[test]
+fn a_rejected_compaction_records_the_failed_notice() {
+    let (_directory, port) = context_port();
+    seed_provider(&port, "provider-failed", 100_000);
+    seed_agent(&port, "agent-failed", "provider-failed", 1);
+    seed_session(&port, "session-failed", "agent-failed");
+    append_context_events(&port, "session-failed", 0, 6);
+    port.store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: "run-active-failed",
+            session_id: "session-failed",
+            agent_id: "agent-failed",
+            status: "RUNNING",
+            client_request_id: "request-active-failed",
+            request_fingerprint: "fingerprint-active-failed",
+            payload_json: r#"{"id":"run-active-failed","sessionId":"session-failed","agentId":"agent-failed","status":"RUNNING"}"#,
+        })
+        .expect("seed active run");
+
+    let rejected = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CompactSessionContext,
+            identifiers: BTreeMap::from([("sessionId".to_owned(), "session-failed".to_owned())]),
+            body: json!({"mode": "normal", "trigger": "manual"}),
+            webhook_secret: None,
+        })
+        .expect_err("an active run blocks manual compaction");
+    match rejected {
+        crate::product::product_adk_mutation_port::AdkMutationPortError::Failed {
+            status, ..
+        } => {
+            assert_eq!(status, 409);
+        }
+        other => panic!("expected 409 for an active run, got {other:?}"),
+    }
+    let notices = context_notices(&session_timeline(&port, "session-failed"));
+    assert_eq!(notices.len(), 1, "{notices:?}");
+    assert_eq!(notices[0]["status"], "error", "{notices:?}");
+    assert_eq!(
+        notices[0]["text"], "上下文压缩失败，将继续使用当前上下文。",
+        "{notices:?}"
+    );
+}
+
 #[test]
 fn session_context_window_follows_the_composer_provider_override() {
     let (_directory, port) = context_port();

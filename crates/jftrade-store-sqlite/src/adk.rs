@@ -1342,6 +1342,104 @@ impl AdkStore {
         })
     }
 
+    /// Go `StoreCore.SaveSessionNotice`: upsert one notice by id while keeping
+    /// the original `created_at`, so a notice first written as `streaming` and
+    /// later finalized keeps the timeline position it was announced in.
+    pub fn save_session_notice(
+        &self,
+        session_id: &str,
+        id: &str,
+        run_id: &str,
+        kind: &str,
+        status: &str,
+        payload_json: &str,
+    ) -> Result<StoredAdkEntity, AdkStoreError> {
+        if session_id.trim().is_empty() {
+            return Err(AdkStoreError::Validation(
+                "session notice requires a session id".to_owned(),
+            ));
+        }
+        if id.trim().is_empty() {
+            return Err(AdkStoreError::Validation(
+                "session notice requires an id".to_owned(),
+            ));
+        }
+        decode_json_object(payload_json, "session notice")?;
+        let now = Self::now_rfc3339();
+        let connection = self.lock_connection()?;
+        self.ensure_session_write_allowed(session_id)?;
+        let created_at = connection
+            .query_row(
+                "SELECT created_at FROM adk_session_notices WHERE id = ?1",
+                params![id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)?
+            .unwrap_or_else(|| now.clone());
+        connection
+            .execute(
+                "INSERT INTO adk_session_notices
+                     (id, session_id, run_id, kind, status, payload_json, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                 ON CONFLICT(id) DO UPDATE SET
+                     session_id = excluded.session_id,
+                     run_id = excluded.run_id,
+                     kind = excluded.kind,
+                     status = excluded.status,
+                     payload_json = excluded.payload_json,
+                     updated_at = excluded.updated_at",
+                params![
+                    id,
+                    session_id,
+                    run_id,
+                    kind,
+                    status,
+                    payload_json,
+                    created_at,
+                    now
+                ],
+            )
+            .map_err(AdkStoreError::Query)?;
+        Ok(StoredAdkEntity {
+            id: id.to_owned(),
+            payload_json: payload_json.to_owned(),
+            created_at,
+            updated_at: now,
+        })
+    }
+
+    /// Go `StoreCore.SessionNotices`: notices ordered by `created_at`, then id.
+    pub fn list_session_notices(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<StoredAdkEntity>, AdkStoreError> {
+        if session_id.trim().is_empty() {
+            return Ok(Vec::new());
+        }
+        let connection = self.lock_connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT id, payload_json, created_at, updated_at
+                 FROM adk_session_notices
+                 WHERE session_id = ?1
+                 ORDER BY created_at ASC, id ASC",
+            )
+            .map_err(AdkStoreError::Query)?;
+        let rows = statement
+            .query_map(params![session_id], |row| {
+                Ok(StoredAdkEntity {
+                    id: row.get(0)?,
+                    payload_json: row.get(1)?,
+                    created_at: row.get(2)?,
+                    updated_at: row.get(3)?,
+                })
+            })
+            .map_err(AdkStoreError::Query)?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(AdkStoreError::Query)
+    }
+
     // --- Runs ---
     /// Acquire the single durable execution lease for a run.
     ///

@@ -185,6 +185,8 @@ pub(crate) mod product_adk_model_runtime;
 pub mod product_adk_mutation_port;
 #[path = "product_adk_run_timeout.rs"]
 pub(crate) mod product_adk_run_timeout;
+#[path = "product_adk_session_compaction_gate.rs"]
+pub(crate) mod product_adk_session_compaction_gate;
 #[path = "product_mcp_production_executor.rs"]
 mod product_mcp_production_executor;
 #[path = "product_mcp_protocol.rs"]

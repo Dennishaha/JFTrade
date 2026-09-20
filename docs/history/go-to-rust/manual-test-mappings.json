@@ -9597,11 +9597,11 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/session_context_test.go:287:TestCompactSessionContextWritesContextNotice": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_session_context_tests.rs::manual_context_compaction_writes_the_done_notice_into_the_timeline",
+    "conclusion": "function_exact（本批实现并验证）：手动压缩现在按 Go `Runtime.CompactSessionContext` 的顺序执行——先取会话压缩 gate，再写一条 streaming 的 `context_notice`（文本「正在压缩上下文...」，id 形状 `notice-<session>-<timestamp>`），成功后用同一 id 更新为 final +「已压缩上下文，继续使用最新摘要。」，失败时更新为 error +「上下文压缩失败，将继续使用当前上下文。」。通知行落在新实现的 AdkStore::save_session_notice / list_session_notices（adk_session_notices，created_at 保持首次写入值、按 created_at,id 排序），并由 GET /api/v1/adk/sessions/{id} 的 timeline 读取按 Go BuildSessionTimeline 的语义与消息合并后重排 sequence。实现：crates/jftrade-engine/src/product_production_ports_adk_notices.rs + product_production_ports_adk_mutation_context.rs（compact_session_context 外层 gate/通知包装 + compact_session_context_locked 内层执行）。反向探针：不创建通知 → 本行与 a_rejected_compaction_records_the_failed_notice 转红；成功分支不更新为 final → 本行转红（status streaming vs final）。边界：Go 的失败通知在每次 runtime 失败时都会写（例如活跃 run 409），Rust 保持同样行为；但传输层参数校验（mode/recentUserWindow 非法）发生在通知创建之前，因此不会留下失败通知行。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked session_context_tests::",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/session_context_test.go:341:TestMaybeAutoCompactSessionEmitsContextNoticeDeltas": {
     "status": "[~]",
@@ -9613,16 +9613,16 @@
   "internal/assistant/engine/session_context_test.go:446:TestMaybeAutoCompactSessionSkipsWhenSessionCompactionAlreadyRunning": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "conclusion": "partial（本批推进：gate 已实现，自动压缩入口仍缺）：本批落地了 Go `Runtime.beginSessionCompaction` 的会话级压缩 gate（crates/jftrade-engine/src/product_adk_session_compaction_gate.rs，进程内按 session 键控，guard drop 即释放），手动压缩路由已在持锁时返回 500 ADK_SESSION_CONTEXT_COMPACT_FAILED 「session context compaction already running」且不再写通知——由 a_second_compaction_is_rejected_while_the_session_gate_is_held 覆盖，反向探针（让 gate 恒成功）令其转红。仍未完成：Rust 还没有 `maybeAutoCompactSession(DuringWorkflow)` 这一自动压缩入口（阈值 0.85/0.93、pending user text 投影、streaming→final 通知 delta、context delta、active run 跳过），因此本行描述的“gate 被占用时自动压缩返回 0 个 delta 且不写通知”还没有对应测试。已登记为下一批 P1 首项。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked session_context_tests::",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/session_context_test.go:506:TestSessionServiceAutoCompactionUsesSessionGate": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "conclusion": "partial（本批推进：gate 已实现，模型上下文自动压缩仍缺）：Go 断言在 gate 被占用时 `sessionService.Get`（即模型上下文读取）不压缩，释放后同一读取完成自动压缩。Rust 侧 gate 已存在并可被自动压缩复用，但模型上下文构建路径（durable_context_items）尚未接入 `AutoCompactForModelContext`：没有 canAdvanceAutoCompaction 守卫、没有压缩理由文本「context usage exceeded automatic compaction threshold before model call」。该读取路径是本行与 :703 的共同前置，已登记为下一批 P1。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked session_context_tests::",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/session_context_test.go:569:TestMaybeAutoCompactSessionDuringWorkflowAllowsActiveParent": {
     "status": "[~]",
