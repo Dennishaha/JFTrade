@@ -285,7 +285,7 @@ pub(crate) fn provider_model(row: jftrade_store_sqlite::StoredAdkEntity) -> Resu
     }))
 }
 
-fn safe_capabilities(value: Option<&Value>) -> Value {
+pub(crate) fn safe_capabilities(value: Option<&Value>) -> Value {
     let Some(object) = value.and_then(Value::as_object) else {
         return json!({});
     };

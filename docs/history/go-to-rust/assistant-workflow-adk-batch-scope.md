@@ -1970,3 +1970,49 @@ Go 的期望：`reply` = 整轮 assistant 文本合并（`先说明一下。优�
 - 跨批 follow-up 汇总：P1 = Go `SaveRun` 终态谓词逐字对齐（`:146`/`:250` 引出的 CAS 缺口）、tool alias 归一化（`:641`）、审批续跑失败 `resumeState=approval_continuation_failed`（Go `markApprovalContinuationFailed`，Rust 目前仍是 `approval_resuming`）；P2 = 内置 skill bundle 落盘/内容哈希与缺失工具注册（`:792`）。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2738 Rust** / **890 `[x]`**，0 重复 `rust_entry`、0 非 `function_exact` 的 `[x]`）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第四十批：`mcp_server_test.go` 全量结清（engine 13 条 + assembly 7 条；runtime status 脱敏落地）
+
+范围：`internal/assistant/engine/mcp_server_test.go`（13 条）与 `internal/assistant/assembly/mcp_server_test.go`（7 条）逐条结清——本批 20 条全部落为 `[x]`，其中 6 条为带明确结论的边界（Go registry/通知面在 Rust 不存在）。`[x]` 890 → **910**，Rust 测试 2738 → **2751**（engine+store nextest 1717 passed）。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/engine/ ./internal/assistant/assembly/ -run '<20 条 mcp_server 测试名>' -count=1`：20 条全通过（engine 13 条 + assembly 7 条）。
+
+### 本批修复（2 处生产缺口）
+
+1. **runtime status 资源缺失**：Go `sanitizedMCPRuntimeStatus`（providers/agents/skills 摘要 + `storeConfigured` + `snapshotError`）在 Rust 完全没有实现，`resources/read` 只回空对象。新增 `McpRequestContext.status_store: Option<Arc<AdkStore>>`（`new`/`from_production_ports` 注入，`with_executor` 为 None）、`runtime_status_value`、`sanitized_tool_descriptors`、`sanitized_provider/agent/skill`、`normalize_tool_access_mode`；store 读取失败统一投影 `snapshotError="runtime snapshot unavailable"`，无 store 时 `providers/agents/skills` 显式空数组（对齐 Go 的“未配置”与“未知”区分）。
+2. **`safe_capabilities` 可见性**：脱敏 provider 摘要需要复用 capabilities 过滤，`product_mcp_protocol.rs` 的 `safe_capabilities` 由私有提升为 `pub(crate)`。
+
+### 新增回归（13 条 Rust 测试）
+
+- `crates/jftrade-engine/src/product_mcp_server_tests.rs`（13 条）：`tool_failures_are_returned_as_mcp_tool_errors`（engine :162）、`runtime_status_resource_reports_store_and_reviewed_tools`（:293）、`runtime_status_resource_includes_configured_providers_agents_and_skills`（:333）、`runtime_status_resource_serializes_sanitized_descriptors`（:358）、`runtime_status_subscription_validation_rejects_unknown_uris`（:367）、`rotating_the_token_rejects_the_previous_secret`（assembly :22）、`mcp_tools_list_exposes_only_reviewed_read_tools`（engine :17）、`write_capable_names_are_never_reachable_through_the_reviewed_allowlist`（:119）、`stateless_post_only_requests_never_issue_a_session_header`（:194）、`tool_calls_resolve_the_current_executor_on_every_request`（:440）、`runtime_status_resource_reflects_live_dependency_availability`（:382）、`replacement_disable_and_close_release_each_listener_owner`（assembly :203）、`cold_start_listener_failure_records_the_reason_and_recovery_clears_it`（assembly :257）。
+- 复用并强化证据：`disabled_runtime_has_stopped_status_and_releases_listener`（assembly :76，补 running + `endpoint=http://127.0.0.1:<port>/mcp`）、`port_conflict_keeps_previous_listener_and_reset_rebinds`（assembly :181，补 `last_error` 断言）、`shutdown_is_idempotent_and_closed_runtime_rejects_rebind`（engine :136）、`reviewed_mcp_catalog_reports_native_and_fail_closed_counts`（:129）、`host_rebinding_and_missing_host_are_rejected`（:266）、`loopback_policy_rejects_non_loopback_peer_addresses`（assembly :280）、`token_auth_and_tools_list_use_reviewed_catalog`（assembly :106）。
+- 辅助断言：`advertised_tool_names`、`advertised_availability` 两个只读 helper；`with_executor` 标注为 `#[cfg(test)]`（生产仅用 `from_production_ports`）后 clippy 无 dead_code 告警。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `sanitized_provider` 改为直接回传原始 `capabilities` → `runtime_status_resource_serializes_sanitized_descriptors` 转红（输出泄漏 `apiKey: sk-leak`），回滚后恢复。
+2. `runtime_status_value` 的无 store 分支去掉 `providers/agents/skills` 空数组 → `runtime_status_resource_reports_store_and_reviewed_tools` 转红（`left: Null, right: []`），回滚后恢复。
+3. `call_tool` 去掉 `REVIEWED_READ_ONLY_TOOLS` 允许列表闸门（改为只拦 `\0` 前缀）→ `write_capable_names_are_never_reachable_through_the_reviewed_allowlist` 转红（错误文案从 `unknown tool "..."` 变为 `tool "..." is unavailable in the Rust MCP runtime`），回滚后恢复；该用例因此锁定“拒绝来自 reviewed 白名单而非能力图”。
+
+### 文档修正（`docs/adk.md`）
+
+旧文档把 Go 的行为写成了 Rust 现状：一是把 MCP 服务描述为“使用 go-sdk 提供 transport”，二是声称“运行时工具目录变化会发送 `tools/list_changed` 和 `resources/updated` 通知”。后者在 Rust 监听器里没有实现面：`rg -n 'list_changed|resources/updated' crates/` 全仓 0 命中，`notifications/*` 仅接受 `notifications/initialized` 与 `notifications/cancelled` 且不回推。因此改为：transport 是“与 go-sdk v1.7.0 线协议兼容的 Rust 实现”，资源内容按 `sanitizedMCPRuntimeStatus` 逐字段列出，并明确写出「无主动通知、需重新 `tools/list` 或重读资源」以及按请求投影 `ready`/`fail-closed` 的事实。
+
+### 结论登记（`[x]` 行内的边界）
+
+- **engine `:382`（registry 变更同步）**：Go 断言 registry 变更后客户端收到 `tools/list_changed` 与 `resources/updated`；Rust 无 registry 变更/主动 SSE 通知面。等价证据是工具面每次请求从运行期能力图重投影（绑定 SystemRead → `ready`，移除 adapter → `fail-closed` 且 `tools/call` 得 `-32602`）。通知通道本身不迁移。
+- **engine `:440`（替换 handler 刷新）**：Go 重注册同名工具后下一次 call 走新 handler；Rust 无可替换 registry，等价不变式为每次调用重新解析当前 executor（计数 executor 连续两次返回 `version=1`、`2`）。
+- **engine `:119`（write-capable 替换被拒）**：Go 在 `NewLocalMCPHandler` 构造期报错；Rust 无构造期注册面，改为断言 reviewed 白名单全部 `read_*` + 写工具不可达。
+- **engine `:129`（至少一个 reviewed 工具）**：Go 对空 registry 报错；Rust 的 reviewed 名单是 69 项常量，不存在空目录状态，登记为结构不变式。
+- **engine `:136`（Close 注销 registry listener）**：Rust 无 registry listener；等价契约为关闭幂等 + 关闭后拒绝重绑 + 端口释放。
+- **assembly `:257`（意外退出释放 handler）**：Rust 的意外退出分支存在（worker guard 写 `MCP listener stopped unexpectedly` 并翻转 running），但 Go 依赖可注入的 `manager.listen` seam；以冷启动绑定失败路径 + 恢复清空 `last_error` 作为可达证据，serve 异常注入登记为边界。
+- 通用差异：Go 测试通过 `httptest` + MCP SDK 客户端驱动，Rust 用原始 socket 请求（2026-07-28 协议要求 `Mcp-Protocol-Version`/`Mcp-Method`，且 `resources/read` 必须携带匹配的 `Mcp-Name`），`-32602` 在 Rust wire 上映射为 HTTP 400——与既有 `modern_unknown_tool_is_json_rpc_invalid_params_not_http_success` 一致。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/engine/adk_edges_test.go`（12 条）→ `workflow_tools_test.go`（11 条）；随后按 backlog 进入 `internal/app/apiserver`（574）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`internal/assistant/assembly`（余量）等。
+- 跨批 follow-up 汇总：P1 = Go `SaveRun` 终态谓词逐字对齐（`:146`/`:250` 引出的 CAS 缺口）、tool alias 归一化（`:641`）、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 内置 skill bundle 落盘/内容哈希与缺失工具注册（`:792`）、MCP registry 变更通知通道（engine `:382`/`:440` 提出的 SSE 通知面，若控制台需要动态刷新再单独立项）。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（1717 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2751 Rust** / **910 `[x]`**，0 重复 `rust_entry`、0 非 `function_exact` 的 `[x]`）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

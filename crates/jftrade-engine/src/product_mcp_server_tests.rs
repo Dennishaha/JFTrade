@@ -1,6 +1,8 @@
 use super::*;
 use crate::product::product_mcp_protocol::{mcp_tool_adapter, mcp_tool_availability};
-use crate::product::product_mcp_server::dispatch::normalize_legacy_mcp_arguments;
+use crate::product::product_mcp_server::dispatch::{
+    normalize_legacy_mcp_arguments, sanitized_agent, sanitized_provider, sanitized_skill,
+};
 use crate::product::product_production_ports::{
     MarketDataCapabilityMatrix, ProductionAdapterBinding, SharedTradeReadRuntime,
     production_adapter_bindings,
@@ -1489,6 +1491,26 @@ fn production_mcp_runtime_dependency_store_failures_return_503() {
     assert_eq!(failure.code, "SYSTEM_READ_UNAVAILABLE");
 }
 
+fn advertised_tool_names(response: &Value) -> Vec<String> {
+    response["result"]["tools"]
+        .as_array()
+        .expect("tools/list tools")
+        .iter()
+        .filter_map(|tool| tool["name"].as_str().map(str::to_owned))
+        .collect()
+}
+
+fn advertised_availability(response: &Value, name: &str) -> String {
+    response["result"]["tools"]
+        .as_array()
+        .expect("tools/list tools")
+        .iter()
+        .find(|tool| tool["name"] == name)
+        .and_then(|tool| tool["x-jftrade-availability"].as_str())
+        .map(str::to_owned)
+        .unwrap_or_else(|| panic!("{name} is not advertised: {response}"))
+}
+
 #[test]
 fn rust_listener_contract_is_backed_by_frozen_go_sdk_corpus() {
     let corpus: Value = serde_json::from_str(include_str!(
@@ -1512,6 +1534,646 @@ fn rust_listener_contract_is_backed_by_frozen_go_sdk_corpus() {
         .map(Value::String)
         .collect::<Vec<_>>();
     assert_eq!(&names, expected_names);
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/mcp_server_test.go:17
+/// `TestLocalMCPHandlerExposesOnlyReviewedReadTools`: the listener advertises
+/// the reviewed read subset (including the strategy-version reads), never the
+/// write-capable names, keeps the `system.status` object schema, and dispatches
+/// the reviewed reads.
+#[test]
+fn mcp_tools_list_exposes_only_reviewed_read_tools() {
+    let runtime = ProductMcpServerRuntime::with_executor(catalog(), Arc::new(SuccessExecutor));
+    let port = available_port();
+    runtime
+        .apply(&enabled_record(port, "none", ""))
+        .expect("start MCP");
+    let (status, listed) = request_modern_with_status(port, "tools/list", 11, None, json!({}));
+    assert_eq!(status, 200, "tools/list response: {listed}");
+    let names = advertised_tool_names(&listed);
+    for reviewed in [
+        "system.status",
+        "strategy.definition_versions.list",
+        "strategy.definition_versions.get",
+    ] {
+        assert!(
+            names.iter().any(|name| name == reviewed),
+            "tools/list missing reviewed read tool {reviewed}: {listed}"
+        );
+    }
+    for write_capable in ["strategy.save_definition", "http.fetch", "tasks.create"] {
+        assert!(
+            !names.iter().any(|name| name == write_capable),
+            "tools/list exposed non-reviewed tool {write_capable}: {listed}"
+        );
+    }
+    let status_tool = listed["result"]["tools"]
+        .as_array()
+        .expect("tools/list tools")
+        .iter()
+        .find(|tool| tool["name"] == "system.status")
+        .expect("system.status descriptor");
+    assert_eq!(
+        status_tool["inputSchema"]["type"], "object",
+        "system.status schema = {status_tool}"
+    );
+
+    let (status, call) = request_modern_with_status(
+        port,
+        "tools/call",
+        12,
+        Some("system.status"),
+        json!({"name": "system.status", "arguments": {}}),
+    );
+    assert_eq!(status, 200, "tools/call response: {call}");
+    assert!(call.get("error").is_none(), "tools/call error: {call}");
+    assert!(call["result"]["content"].as_array().is_some());
+
+    let (status, version_call) = request_modern_with_status(
+        port,
+        "tools/call",
+        13,
+        Some("strategy.definition_versions.get"),
+        json!({
+            "name": "strategy.definition_versions.get",
+            "arguments": {"definitionId": "def-1", "version": "0.1.0"}
+        }),
+    );
+    assert_eq!(status, 200, "strategy version response: {version_call}");
+    assert!(
+        version_call.get("error").is_none(),
+        "reviewed strategy version read must dispatch: {version_call}"
+    );
+    runtime.shutdown_blocking().expect("shutdown MCP");
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/mcp_server_test.go:119
+/// `TestLocalMCPHandlerRejectsWriteCapableReplacementOfReviewedName`: a
+/// write-capable tool can never take over an MCP-callable name.  Rust has no
+/// registry replacement surface, so the equivalent invariant is proven against
+/// the wire: even an executor that claims every reviewed name cannot reach a
+/// write-capable one, and no reviewed descriptor carries a write permission.
+#[test]
+fn write_capable_names_are_never_reachable_through_the_reviewed_allowlist() {
+    #[derive(Debug)]
+    struct PermissiveExecutor;
+
+    impl McpToolExecutor for PermissiveExecutor {
+        fn execute(&self, _name: &str, _arguments: &Value) -> Result<Value, String> {
+            Ok(json!({"written": true}))
+        }
+    }
+
+    for name in REVIEWED_READ_ONLY_TOOLS {
+        let policy =
+            crate::product::product_production_ports::product_production_ports_adk::tool_access_policy(
+                name,
+            );
+        assert!(
+            policy.permission.starts_with("read_"),
+            "reviewed MCP tool {name} must stay read-only, got {}",
+            policy.permission
+        );
+    }
+
+    let runtime = ProductMcpServerRuntime::with_executor(catalog(), Arc::new(PermissiveExecutor));
+    let port = available_port();
+    runtime
+        .apply(&enabled_record(port, "none", ""))
+        .expect("start MCP");
+    let (status, listed) = request_modern_with_status(port, "tools/list", 21, None, json!({}));
+    assert_eq!(status, 200, "tools/list response: {listed}");
+    let names = advertised_tool_names(&listed);
+    for write_capable in ["strategy.save_definition", "http.fetch", "tasks.create"] {
+        assert!(
+            !names.iter().any(|name| name == write_capable),
+            "write-capable name {write_capable} is advertised: {listed}"
+        );
+        let (status, call) = request_modern_with_status(
+            port,
+            "tools/call",
+            22,
+            Some(write_capable),
+            json!({"name": write_capable, "arguments": {}}),
+        );
+        assert_eq!(status, 400, "tools/call response: {call}");
+        assert_eq!(
+            call["error"]["code"], -32602,
+            "write-capable name {write_capable} must stay unreachable: {call}"
+        );
+        assert_eq!(
+            call["error"]["message"],
+            json!(format!("unknown tool \"{write_capable}\"")),
+            "the reviewed allowlist, not the capability graph, must reject {write_capable}: {call}"
+        );
+        assert!(
+            call.get("result").is_none(),
+            "write-capable name {write_capable} produced a result: {call}"
+        );
+    }
+    runtime.shutdown_blocking().expect("shutdown MCP");
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/mcp_server_test.go:194
+/// `TestLocalMCPHandlerServesStatelessPostOnlyRequests`: request/response carry
+/// no `Mcp-Session-Id`, a session-less client can list and call tools, and
+/// non-POST verbs answer 405 with `Allow: POST`.
+#[test]
+fn stateless_post_only_requests_never_issue_a_session_header() {
+    let runtime = ProductMcpServerRuntime::with_executor(catalog(), Arc::new(SuccessExecutor));
+    let port = available_port();
+    runtime
+        .apply(&enabled_record(port, "none", ""))
+        .expect("start MCP");
+    let initialize = request(
+        port,
+        None,
+        r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#,
+        "127.0.0.1:1",
+    );
+    assert!(initialize.contains("200 OK"), "response = {initialize}");
+    assert!(
+        !initialize.to_ascii_lowercase().contains("mcp-session-id"),
+        "stateless MCP answered a session header: {initialize}"
+    );
+    let call = request(
+        port,
+        None,
+        r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"system.status"}}"#,
+        "127.0.0.1:1",
+    );
+    assert!(call.contains("200 OK"), "response = {call}");
+    assert!(
+        !call.to_ascii_lowercase().contains("mcp-session-id"),
+        "stateless MCP answered a session header: {call}"
+    );
+    assert!(
+        call.contains("\"result\""),
+        "session-less tools/call must dispatch: {call}"
+    );
+    for method in ["GET", "DELETE"] {
+        let response = request_with_method(port, method, Some("localhost"), None, "");
+        assert!(
+            response.contains("405 Method Not Allowed"),
+            "{method} response = {response}"
+        );
+        assert!(
+            response.to_ascii_lowercase().contains("allow: post"),
+            "{method} response = {response}"
+        );
+    }
+    runtime.shutdown_blocking().expect("shutdown MCP");
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/mcp_server_test.go:440
+/// `TestLocalMCPHandlerRefreshesReplacedToolHandler`: Rust has no registry
+/// replacement notification, so the equivalent observable invariant is that a
+/// call is resolved against the current executor on every request instead of a
+/// cached per-runtime handler result.
+#[test]
+fn tool_calls_resolve_the_current_executor_on_every_request() {
+    #[derive(Debug, Default)]
+    struct CountingExecutor {
+        calls: std::sync::atomic::AtomicU32,
+    }
+
+    impl McpToolExecutor for CountingExecutor {
+        fn execute(&self, _name: &str, _arguments: &Value) -> Result<Value, String> {
+            let call = self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+            Ok(json!({"version": call.to_string()}))
+        }
+    }
+
+    let runtime =
+        ProductMcpServerRuntime::with_executor(catalog(), Arc::new(CountingExecutor::default()));
+    let port = available_port();
+    runtime
+        .apply(&enabled_record(port, "none", ""))
+        .expect("start MCP");
+    for (id, expected) in [(31_u64, "1"), (32_u64, "2")] {
+        let (status, call) = request_modern_with_status(
+            port,
+            "tools/call",
+            id,
+            Some("system.status"),
+            json!({"name": "system.status", "arguments": {}}),
+        );
+        assert_eq!(status, 200, "tools/call response: {call}");
+        let text = call["result"]["content"][0]["text"]
+            .as_str()
+            .expect("tool content text");
+        assert!(
+            text.contains(&json!({"version": expected}).to_string()),
+            "call {id} must resolve the current executor: {call}"
+        );
+    }
+    runtime.shutdown_blocking().expect("shutdown MCP");
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/mcp_server_test.go:162
+/// `TestLocalMCPHandlerReturnsToolFailuresAsMCPToolErrors`: a failing tool is a
+/// successful JSON-RPC response whose result carries `isError` plus the
+/// failure text, not a transport error.
+#[test]
+fn tool_failures_are_returned_as_mcp_tool_errors() {
+    #[derive(Debug)]
+    struct FailingExecutor;
+
+    impl McpToolExecutor for FailingExecutor {
+        fn execute(&self, _name: &str, _arguments: &Value) -> Result<Value, String> {
+            Err("status provider unavailable".to_owned())
+        }
+    }
+
+    let runtime = ProductMcpServerRuntime::with_executor(catalog(), Arc::new(FailingExecutor));
+    let port = available_port();
+    runtime
+        .apply(&enabled_record(port, "none", ""))
+        .expect("start MCP");
+    let (status, response) = request_modern_with_status(
+        port,
+        "tools/call",
+        21,
+        Some("system.status"),
+        json!({"name": "system.status", "arguments": {}}),
+    );
+    assert_eq!(
+        status, 200,
+        "tool failure stays a JSON-RPC result: {response}"
+    );
+    let result = &response["result"];
+    assert_eq!(
+        result["isError"], true,
+        "Go marks the tool result as an error: {response}"
+    );
+    let text = result["content"][0]["text"].as_str().unwrap_or_default();
+    assert!(
+        text.contains("status provider unavailable"),
+        "the failure text is forwarded: {response}"
+    );
+    runtime.shutdown_blocking().expect("shutdown MCP");
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/mcp_server_test.go:293
+/// `TestLocalMCPHandlerReadsSanitizedRuntimeStatusResource`: the runtime-status
+/// resource is the only listed resource, answers `application/json`, and never
+/// leaks an internal snapshot error for a runtime without a store.
+#[test]
+fn runtime_status_resource_reports_store_and_reviewed_tools() {
+    let runtime = runtime();
+    let port = available_port();
+    runtime
+        .apply(&enabled_record(port, "none", ""))
+        .expect("start MCP");
+    let (status, listed) = request_modern_with_status(port, "resources/list", 31, None, json!({}));
+    assert_eq!(status, 200, "resources/list response: {listed}");
+    let resources = listed["result"]["resources"]
+        .as_array()
+        .expect("resources/list resources");
+    assert_eq!(resources.len(), 1, "resources = {listed}");
+    assert_eq!(resources[0]["uri"], "jftrade://runtime/status");
+
+    let (status, read) = request_modern_with_status(
+        port,
+        "resources/read",
+        32,
+        Some("jftrade://runtime/status"),
+        json!({"uri": "jftrade://runtime/status"}),
+    );
+    assert_eq!(status, 200, "resources/read response: {read}");
+    let contents = read["result"]["contents"]
+        .as_array()
+        .expect("resources/read contents");
+    assert_eq!(contents.len(), 1);
+    assert_eq!(contents[0]["mimeType"], "application/json");
+    let runtime_status: Value =
+        serde_json::from_str(contents[0]["text"].as_str().expect("status text"))
+            .expect("decode runtime status");
+    assert_eq!(
+        runtime_status["storeConfigured"], false,
+        "Go reports a store-less runtime: {runtime_status}"
+    );
+    assert!(
+        runtime_status["tools"]
+            .as_array()
+            .is_some_and(|tools| !tools.is_empty()),
+        "the tool catalog is always reported: {runtime_status}"
+    );
+    assert!(
+        runtime_status.get("snapshotError").is_none(),
+        "a store-less runtime is configured, not broken: {runtime_status}"
+    );
+    for key in ["providers", "agents", "skills"] {
+        assert_eq!(
+            runtime_status[key],
+            json!([]),
+            "Go answers empty {key} summaries: {runtime_status}"
+        );
+    }
+    runtime.shutdown_blocking().expect("shutdown MCP");
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/mcp_server_test.go:333
+/// `TestSanitizedMCPRuntimeStatusIncludesConfiguredDataAndErrors`: a runtime
+/// with a store reports the configured providers/agents/skills without a
+/// snapshot error.
+#[test]
+fn runtime_status_resource_includes_configured_providers_agents_and_skills() {
+    let directory = tempfile::tempdir().expect("runtime status temp directory");
+    let adk_path = directory.path().join("adk.db");
+    let connection = rusqlite::Connection::open(&adk_path).expect("create status database");
+    jftrade_store_sqlite::initialize_current(&connection, "adk").expect("initialize schema");
+    drop(connection);
+    let store = Arc::new(jftrade_store_sqlite::AdkStore::open(&adk_path).expect("open store"));
+    store
+        .upsert_provider(
+            "provider-status",
+            &json!({
+                "id": "provider-status",
+                "displayName": "Status Provider",
+                "model": "fixture-model",
+                "enabled": true,
+                "apiKey": "sk-fixture",
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    store
+        .upsert_agent(
+            "agent-status",
+            &json!({
+                "id": "agent-status",
+                "name": "Status Agent",
+                "providerId": "provider-status",
+                "status": "ENABLED",
+                "tools": ["system.status"],
+            })
+            .to_string(),
+        )
+        .expect("persist agent");
+    store
+        .upsert_skill(
+            "skill-status",
+            &json!({
+                "id": "skill-status",
+                "displayName": "Status Skill",
+                "source": "builtin",
+                "enabled": true,
+                "builtin": true,
+                "tools": ["system.status"],
+                "version": "1",
+            })
+            .to_string(),
+        )
+        .expect("persist skill");
+    let runtime = ProductMcpServerRuntime::new(catalog(), Arc::clone(&store));
+    let port = available_port();
+    runtime
+        .apply(&enabled_record(port, "none", ""))
+        .expect("start MCP");
+    let (status, read) = request_modern_with_status(
+        port,
+        "resources/read",
+        41,
+        Some("jftrade://runtime/status"),
+        json!({"uri": "jftrade://runtime/status"}),
+    );
+    assert_eq!(status, 200, "resources/read response: {read}");
+    let text = read["result"]["contents"][0]["text"]
+        .as_str()
+        .expect("status text");
+    let runtime_status: Value = serde_json::from_str(text).expect("decode runtime status");
+    assert_eq!(runtime_status["storeConfigured"], true);
+    assert!(
+        runtime_status.get("snapshotError").is_none(),
+        "a readable store is not an error: {runtime_status}"
+    );
+    assert_eq!(
+        runtime_status["providers"][0]["id"], "provider-status",
+        "providers = {runtime_status}"
+    );
+    assert_eq!(runtime_status["agents"][0]["id"], "agent-status");
+    assert_eq!(runtime_status["skills"][0]["id"], "skill-status");
+    runtime.shutdown_blocking().expect("shutdown MCP");
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/mcp_server_test.go:358
+/// `TestSanitizedMCPRuntimeStatusSerializesDescriptors`: the sanitized
+/// provider/agent/skill summaries keep the console-facing fields, normalize
+/// `toolAccessMode`, and never carry an API key.
+#[test]
+fn runtime_status_resource_serializes_sanitized_descriptors() {
+    let provider: Value = serde_json::from_str(
+        &json!({
+            "id": "provider-descriptor",
+            "displayName": "Descriptor Provider",
+            "model": "model",
+            "enabled": true,
+            "default": true,
+            "apiKey": "sk-secret-fixture",
+            "capabilities": {"tools": true, "apiKey": "sk-leak"},
+        })
+        .to_string(),
+    )
+    .expect("provider payload");
+    let sanitized_provider = sanitized_provider(jftrade_store_sqlite::StoredAdkEntity {
+        id: "provider-descriptor".to_owned(),
+        payload_json: provider.to_string(),
+        created_at: String::new(),
+        updated_at: String::new(),
+    });
+    assert_eq!(sanitized_provider["id"], "provider-descriptor");
+    assert_eq!(sanitized_provider["hasApiKey"], true);
+    assert_eq!(sanitized_provider["default"], true);
+    assert_eq!(sanitized_provider["capabilities"], json!({"tools": true}));
+    assert!(
+        !sanitized_provider.to_string().contains("sk-secret-fixture")
+            && !sanitized_provider.to_string().contains("sk-leak"),
+        "the sanitized provider must not leak key material: {sanitized_provider}"
+    );
+
+    let agent = json!({
+        "id": "agent-descriptor",
+        "name": "Descriptor Agent",
+        "providerId": "provider-descriptor",
+        "model": "model",
+        "tools": ["system.status"],
+        "toolAccessMode": "selected",
+        "skills": ["skill-descriptor"],
+        "permissionMode": "approval",
+        "status": "ENABLED",
+        "builtin": true,
+    });
+    let sanitized_agent = sanitized_agent(jftrade_store_sqlite::StoredAdkEntity {
+        id: "agent-descriptor".to_owned(),
+        payload_json: agent.to_string(),
+        created_at: String::new(),
+        updated_at: String::new(),
+    });
+    assert_eq!(sanitized_agent["providerId"], "provider-descriptor");
+    assert_eq!(sanitized_agent["toolAccessMode"], "selected");
+    assert_eq!(sanitized_agent["permissionMode"], "approval");
+    assert_eq!(sanitized_agent["builtin"], true);
+
+    let skill = json!({
+        "id": "skill-descriptor",
+        "displayName": "Descriptor Skill",
+        "description": "desc",
+        "source": "builtin",
+        "enabled": true,
+        "builtin": true,
+        "tools": ["system.status"],
+        "version": "1",
+        "validationStatus": "warning",
+        "validationError": "future.tool is unavailable",
+    });
+    let sanitized_skill = sanitized_skill(jftrade_store_sqlite::StoredAdkEntity {
+        id: "skill-descriptor".to_owned(),
+        payload_json: skill.to_string(),
+        created_at: String::new(),
+        updated_at: String::new(),
+    });
+    assert_eq!(sanitized_skill["validationStatus"], "warning");
+    assert_eq!(
+        sanitized_skill["validationError"],
+        "future.tool is unavailable"
+    );
+    assert_eq!(sanitized_skill["source"], "builtin");
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/mcp_server_test.go:382
+/// `TestLocalMCPHandlerSynchronizesReviewedToolsAndRuntimeSubscriptions`: Rust
+/// has no tool-registry change notification, so the equivalent contract is that
+/// the advertised tool surface is re-projected from the runtime's capability
+/// graph on every request: the same reviewed name is `ready` while its adapter
+/// is bound and `fail-closed` once the adapter disappears, and a fail-closed
+/// name can never be dispatched.
+#[test]
+fn runtime_status_resource_reflects_live_dependency_availability() {
+    let (_ready_directory, ready_ports) = production_bundle();
+    let ready_port = available_port();
+    let ready_runtime = ProductMcpServerRuntime::from_production_ports(Arc::new(ready_ports));
+    ready_runtime
+        .apply(&enabled_record(ready_port, "none", ""))
+        .expect("start ready MCP");
+    let (status, ready_list) =
+        request_modern_with_status(ready_port, "tools/list", 51, None, json!({}));
+    assert_eq!(status, 200, "tools/list response: {ready_list}");
+    assert_eq!(
+        advertised_availability(&ready_list, "system.runtime_dependencies"),
+        "ready",
+        "bound adapter must project readiness: {ready_list}"
+    );
+    ready_runtime
+        .shutdown_blocking()
+        .expect("shutdown ready MCP");
+
+    let (_closed_directory, mut closed_ports) = production_bundle();
+    closed_ports.bound_adapters.remove(
+        &crate::product::product_production_route_registry::ProductionRouteAdapter::SystemRead,
+    );
+    let closed_port = available_port();
+    let closed_runtime = ProductMcpServerRuntime::from_production_ports(Arc::new(closed_ports));
+    closed_runtime
+        .apply(&enabled_record(closed_port, "none", ""))
+        .expect("start fail-closed MCP");
+    let (status, closed_list) =
+        request_modern_with_status(closed_port, "tools/list", 52, None, json!({}));
+    assert_eq!(status, 200, "tools/list response: {closed_list}");
+    assert_eq!(
+        advertised_availability(&closed_list, "system.runtime_dependencies"),
+        "fail-closed",
+        "missing adapter must fail closed: {closed_list}"
+    );
+    let (status, call) = request_modern_with_status(
+        closed_port,
+        "tools/call",
+        53,
+        Some("system.runtime_dependencies"),
+        json!({"name": "system.runtime_dependencies", "arguments": {}}),
+    );
+    assert_eq!(status, 400, "tools/call response: {call}");
+    assert_eq!(
+        call["error"]["code"], -32602,
+        "fail-closed tool must not dispatch: {call}"
+    );
+    closed_runtime
+        .shutdown_blocking()
+        .expect("shutdown fail-closed MCP");
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/mcp_server_test.go:367
+/// `TestLocalMCPRuntimeStatusSubscriptionValidation`: subscribe and
+/// unsubscribe only accept the runtime-status URI.
+#[test]
+fn runtime_status_subscription_validation_rejects_unknown_uris() {
+    let runtime = runtime();
+    let port = available_port();
+    runtime
+        .apply(&enabled_record(port, "none", ""))
+        .expect("start MCP");
+    let (status, accepted) = request_modern_with_status(
+        port,
+        "resources/subscribe",
+        51,
+        None,
+        json!({"uri": "jftrade://runtime/status"}),
+    );
+    assert_eq!(status, 200, "valid subscription = {accepted}");
+    for method in ["resources/subscribe", "resources/unsubscribe"] {
+        let (status, rejected) =
+            request_modern_with_status(port, method, 52, None, json!({"uri": "jftrade://invalid"}));
+        assert_eq!(status, 200, "{method} stays a JSON-RPC error: {rejected}");
+        assert_eq!(
+            rejected["error"]["code"], -32002,
+            "{method} must report resource not found: {rejected}"
+        );
+        let (status, missing) = request_modern_with_status(port, method, 53, None, Value::Null);
+        assert!(
+            status >= 400 || missing.get("error").is_some(),
+            "{method} without params must be rejected: {status} {missing}"
+        );
+    }
+    runtime.shutdown_blocking().expect("shutdown MCP");
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/mcp_server_test.go:22
+/// `TestMCPServerManagerEnforcesBearerAndSupportsTokenRotation`: rotating the
+/// token replaces the accepted secret immediately.
+#[test]
+fn rotating_the_token_rejects_the_previous_secret() {
+    let runtime = runtime();
+    let port = available_port();
+    let (first_token, first_hash) = jftrade_settings::SystemMcpServerSecrets
+        .issue()
+        .expect("first fixture secret");
+    let (second_token, second_hash) = jftrade_settings::SystemMcpServerSecrets
+        .issue()
+        .expect("second fixture secret");
+    let payload = r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#;
+    runtime
+        .apply(&enabled_record(port, "token", &first_hash))
+        .expect("start MCP with the first token");
+    assert!(
+        request(port, Some(&first_token), payload, "127.0.0.1:1").contains("200 OK"),
+        "the active token is accepted"
+    );
+    assert!(
+        request(port, Some(&second_token), payload, "127.0.0.1:1").contains("401 Unauthorized"),
+        "an unrelated token is rejected"
+    );
+    runtime
+        .apply(&enabled_record(port, "token", &second_hash))
+        .expect("rotate the MCP token");
+    assert!(
+        request(port, Some(&second_token), payload, "127.0.0.1:1").contains("200 OK"),
+        "the rotated token is accepted"
+    );
+    assert!(
+        request(port, Some(&first_token), payload, "127.0.0.1:1").contains("401 Unauthorized"),
+        "the previous token is rejected after rotation"
+    );
+    runtime.shutdown_blocking().expect("shutdown MCP");
 }
 
 #[test]
@@ -1596,6 +2258,14 @@ fn disabled_runtime_has_stopped_status_and_releases_listener() {
     // Parity: internal/assistant/assembly/mcp_server_test.go:76 TestMCPServerManagerStartsAndStopsOnLoopback
     let runtime = runtime();
     let port = available_port();
+    runtime
+        .apply(&enabled_record(port, "none", ""))
+        .expect("start MCP");
+    let started = runtime
+        .status(&enabled_record(port, "none", ""))
+        .expect("started MCP status");
+    assert!(started.running, "started MCP status = {started:?}");
+    assert_eq!(started.endpoint, format!("http://127.0.0.1:{port}/mcp"));
     runtime
         .apply(&McpServerSettingsRecord::new(
             false,
@@ -1933,11 +2603,13 @@ fn port_conflict_keeps_previous_listener_and_reset_rebinds() {
         .apply(&enabled_record(second, "none", ""))
         .expect_err("conflicting MCP bind");
     assert!(error.contains("port conflict"), "error = {error}");
+    let previous = runtime
+        .status(&enabled_record(first, "none", ""))
+        .expect("previous status");
+    assert!(previous.running, "previous status = {previous:?}");
     assert!(
-        runtime
-            .status(&enabled_record(first, "none", ""))
-            .expect("previous status")
-            .running
+        previous.last_error.contains("port conflict"),
+        "previous status = {previous:?}"
     );
     drop(occupied);
     runtime
@@ -1948,6 +2620,84 @@ fn port_conflict_keeps_previous_listener_and_reset_rebinds() {
             .status(&enabled_record(second, "none", ""))
             .expect("rebound status")
             .running
+    );
+    runtime.shutdown_blocking().expect("shutdown MCP");
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/mcp_server_test.go:203
+/// `TestMCPServerManagerReleasesHandlersOnReplacementDisableAndClose`: each
+/// replacement listener owns the port it binds, and replacing, disabling or
+/// closing the runtime releases the previous owner's port.
+#[test]
+fn replacement_disable_and_close_release_each_listener_owner() {
+    let runtime = runtime();
+    let first = available_port();
+    let second = available_port();
+    runtime
+        .apply(&enabled_record(first, "none", ""))
+        .expect("start first MCP");
+    runtime
+        .apply(&enabled_record(second, "none", ""))
+        .expect("replace MCP listener");
+    assert!(
+        runtime
+            .status(&enabled_record(second, "none", ""))
+            .expect("replacement status")
+            .running
+    );
+    let replaced = StdTcpListener::bind(("127.0.0.1", first))
+        .expect("replaced listener must release the previous port");
+    drop(replaced);
+    runtime
+        .apply(&McpServerSettingsRecord::new(
+            false,
+            i32::from(second),
+            "none",
+            "",
+        ))
+        .expect("disable MCP");
+    let disabled =
+        StdTcpListener::bind(("127.0.0.1", second)).expect("disabled MCP must release its port");
+    drop(disabled);
+    runtime.shutdown_blocking().expect("close MCP");
+    runtime.shutdown_blocking().expect("close MCP twice");
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/mcp_server_test.go:257
+/// `TestMCPServerManagerReleasesHandlerOnUnexpectedServeExit`: Rust publishes
+/// `MCP listener stopped unexpectedly` through the worker guard and flips the
+/// running flag, but the reference test's injectable listener seam does not
+/// exist.  The reachable equivalent is the cold-start failure path: a listener
+/// that cannot bind leaves a stopped runtime with the recorded reason, and the
+/// recovery apply clears it.
+#[test]
+fn cold_start_listener_failure_records_the_reason_and_recovery_clears_it() {
+    let runtime = runtime();
+    let occupied_port = available_port();
+    let occupied = StdTcpListener::bind(("127.0.0.1", occupied_port)).expect("occupy MCP port");
+    let error = runtime
+        .apply(&enabled_record(occupied_port, "none", ""))
+        .expect_err("conflicting MCP bind");
+    assert!(error.contains("port conflict"), "error = {error}");
+    let failed = runtime
+        .status(&enabled_record(occupied_port, "none", ""))
+        .expect("failed MCP status");
+    assert!(!failed.running, "failed MCP status = {failed:?}");
+    assert!(
+        failed.last_error.contains("port conflict"),
+        "failed MCP status = {failed:?}"
+    );
+    drop(occupied);
+    runtime
+        .apply(&enabled_record(occupied_port, "none", ""))
+        .expect("recover MCP listener");
+    let recovered = runtime
+        .status(&enabled_record(occupied_port, "none", ""))
+        .expect("recovered MCP status");
+    assert!(recovered.running, "recovered MCP status = {recovered:?}");
+    assert!(
+        recovered.last_error.is_empty(),
+        "recovered MCP status = {recovered:?}"
     );
     runtime.shutdown_blocking().expect("shutdown MCP");
 }

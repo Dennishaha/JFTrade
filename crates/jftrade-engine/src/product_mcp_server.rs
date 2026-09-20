@@ -11,8 +11,8 @@ use super::product_mcp_protocol::{
     is_invalid_request, is_method_not_found, is_modern_protocol, known_method,
     mcp_tool_availability, model_search_text, negotiate_initialize_version, optional_bool,
     optional_integer, optional_string, provider_model, requires_object_params, reviewed_tool_name,
-    rpc_request_id, tool_descriptors_with_ports, validate_call_shape, validate_headers,
-    validate_message, validate_standard_headers, validate_tool_arguments,
+    rpc_request_id, safe_capabilities, tool_descriptors_with_ports, validate_call_shape,
+    validate_headers, validate_message, validate_standard_headers, validate_tool_arguments,
 };
 use super::product_production_ports::ProductionToolCatalog;
 use axum::body::{Body, to_bytes};
@@ -330,6 +330,11 @@ struct McpRequestContext {
     catalog: Arc<ProductionToolCatalog>,
     executor: Arc<dyn McpToolExecutor>,
     production_ports: Option<Arc<super::product_production_ports::ProductionPortBundle>>,
+    /// Store behind the sanitized runtime-status resource.  Go's
+    /// `sanitizedMCPRuntimeStatus` reads the snapshot from `runtime.Store()`
+    /// and reports `storeConfigured=false` when the runtime has none, so the
+    /// context keeps the same optional handle.
+    status_store: Option<Arc<AdkStore>>,
 }
 pub(crate) struct ProductMcpServerRuntime {
     state: Arc<Mutex<McpServerState>>,
@@ -342,42 +347,41 @@ pub(crate) struct ProductMcpServerRuntime {
 impl ProductMcpServerRuntime {
     #[allow(dead_code)]
     pub(crate) fn new(catalog: Arc<ProductionToolCatalog>, store: Arc<AdkStore>) -> Arc<Self> {
-        Self::with_executor(
+        Self::build(
             Arc::clone(&catalog),
-            Arc::new(ProductionMcpToolExecutor::new(catalog, store)),
+            Arc::new(ProductionMcpToolExecutor::new(catalog, Arc::clone(&store))),
+            None,
+            Some(store),
         )
     }
     pub(crate) fn from_production_ports(
         ports: Arc<super::product_production_ports::ProductionPortBundle>,
     ) -> Arc<Self> {
         let catalog = Arc::clone(&ports.mcp_catalog);
-        Self::with_production_executor(
+        Self::build(
             catalog,
             Arc::new(ProductionMcpToolExecutor::from_production_ports(
                 Arc::clone(&ports),
             )),
-            ports,
+            Some(Arc::clone(&ports)),
+            Some(Arc::clone(&ports.mcp_store)),
         )
     }
+    /// Test-only constructor: production listeners always resolve tools
+    /// through `from_production_ports` and the composition root's ports.
+    #[cfg(test)]
     fn with_executor(
         catalog: Arc<ProductionToolCatalog>,
         executor: Arc<dyn McpToolExecutor>,
     ) -> Arc<Self> {
-        Self::build(catalog, executor, None)
-    }
-
-    fn with_production_executor(
-        catalog: Arc<ProductionToolCatalog>,
-        executor: Arc<dyn McpToolExecutor>,
-        ports: Arc<super::product_production_ports::ProductionPortBundle>,
-    ) -> Arc<Self> {
-        Self::build(catalog, executor, Some(ports))
+        Self::build(catalog, executor, None, None)
     }
 
     fn build(
         catalog: Arc<ProductionToolCatalog>,
         executor: Arc<dyn McpToolExecutor>,
         production_ports: Option<Arc<super::product_production_ports::ProductionPortBundle>>,
+        status_store: Option<Arc<AdkStore>>,
     ) -> Arc<Self> {
         let state = Arc::new(Mutex::new(McpServerState {
             router: Router::new(),
@@ -398,6 +402,7 @@ impl ProductMcpServerRuntime {
             catalog,
             executor,
             production_ports,
+            status_store,
         });
         let router = Router::new()
             .route(MCP_PATH, any(dispatch::handle_mcp_request))

@@ -355,25 +355,185 @@ fn read_resource(context: &McpRequestContext, params: &Value) -> Result<Value, (
     if uri != MCP_RUNTIME_STATUS_URI {
         return Err((-32002, format!("resource not found: {uri}")));
     }
-    let status = context
-        .state
-        .upgrade()
-        .and_then(|state| {
-            state.lock().ok().map(|state| {
-            json!({
-                "running": state.server.as_ref().is_some_and(McpServerOwner::is_running),
-                "endpoint": state.bind.as_deref().map(|bind| format!("http://{bind}{MCP_PATH}")),
-                "tools": tool_descriptors_with_ports(
-                    &context.catalog,
-                    context.production_ports.as_deref(),
-                )
-            })
-        })
-        })
-        .unwrap_or_else(|| json!({"running": false, "tools": []}));
+    let status = runtime_status_value(context);
     Ok(
         json!({"contents": [{"uri": uri, "mimeType": "application/json", "text": serde_json::to_string(&status).unwrap_or_else(|_| "{}".to_owned())}]}),
     )
+}
+
+/// Go `sanitizedMCPRuntimeStatus`: the runtime-status resource reports whether
+/// the runtime owns a store, the sanitized tool catalog, and — when the store
+/// is readable — the provider/agent/skill summaries.  A failed snapshot is
+/// flattened to the fixed `runtime snapshot unavailable` marker so internal
+/// storage errors never cross the MCP boundary.
+fn runtime_status_value(context: &McpRequestContext) -> Value {
+    let mut status = serde_json::Map::new();
+    status.insert(
+        "storeConfigured".to_owned(),
+        Value::Bool(context.status_store.is_some()),
+    );
+    status.insert(
+        "tools".to_owned(),
+        Value::Array(sanitized_tool_descriptors(&context.catalog)),
+    );
+    let Some(store) = context.status_store.as_ref() else {
+        // Go answers empty summaries instead of omitting the keys, so the
+        // console can distinguish "nothing configured" from "unknown".
+        status.insert("providers".to_owned(), Value::Array(Vec::new()));
+        status.insert("agents".to_owned(), Value::Array(Vec::new()));
+        status.insert("skills".to_owned(), Value::Array(Vec::new()));
+        return Value::Object(status);
+    };
+    let providers = store.list_providers();
+    let agents = store.list_agents();
+    let skills = store.list_skills();
+    match (providers, agents, skills) {
+        (Ok(providers), Ok(agents), Ok(skills)) => {
+            status.insert(
+                "providers".to_owned(),
+                Value::Array(providers.into_iter().map(sanitized_provider).collect()),
+            );
+            status.insert(
+                "agents".to_owned(),
+                Value::Array(agents.into_iter().map(sanitized_agent).collect()),
+            );
+            status.insert(
+                "skills".to_owned(),
+                Value::Array(skills.into_iter().map(sanitized_skill).collect()),
+            );
+        }
+        _ => {
+            status.insert(
+                "snapshotError".to_owned(),
+                Value::String("runtime snapshot unavailable".to_owned()),
+            );
+        }
+    }
+    Value::Object(status)
+}
+
+fn sanitized_tool_descriptors(catalog: &ProductionToolCatalog) -> Vec<Value> {
+    catalog
+        .callable_tools()
+        .into_iter()
+        .filter(|tool| reviewed_tool_name(tool).is_some())
+        .map(|tool| {
+            let text = |key: &str| {
+                tool.get(key)
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned()
+            };
+            json!({
+                "name": text("id"),
+                "displayName": text("displayName"),
+                "category": text("category"),
+                "permission": text("permission"),
+                "riskLevel": text("riskLevel"),
+            })
+        })
+        .collect()
+}
+
+fn stored_payload(row: &jftrade_store_sqlite::StoredAdkEntity) -> Value {
+    serde_json::from_str(&row.payload_json).unwrap_or(Value::Null)
+}
+
+fn payload_text(payload: &Value, key: &str) -> String {
+    payload
+        .get(key)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .unwrap_or_default()
+        .to_owned()
+}
+
+pub(super) fn sanitized_provider(row: jftrade_store_sqlite::StoredAdkEntity) -> Value {
+    let payload = stored_payload(&row);
+    let has_api_key = payload
+        .get("hasApiKey")
+        .and_then(Value::as_bool)
+        .unwrap_or_else(|| {
+            payload
+                .get("apiKey")
+                .and_then(Value::as_str)
+                .is_some_and(|key| !key.trim().is_empty())
+        });
+    json!({
+        "id": row.id,
+        "displayName": payload_text(&payload, "displayName"),
+        "model": payload_text(&payload, "model"),
+        "enabled": payload.get("enabled").and_then(Value::as_bool).unwrap_or(false),
+        "default": payload.get("default").and_then(Value::as_bool).unwrap_or(false),
+        "hasApiKey": has_api_key,
+        "capabilities": safe_capabilities(payload.get("capabilities")),
+    })
+}
+
+pub(super) fn sanitized_agent(row: jftrade_store_sqlite::StoredAdkEntity) -> Value {
+    let payload = stored_payload(&row);
+    let tools = payload
+        .get("tools")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let skills = payload
+        .get("skills")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let status = payload_text(&payload, "status");
+    json!({
+        "id": row.id,
+        "name": payload_text(&payload, "name"),
+        "providerId": payload_text(&payload, "providerId"),
+        "model": payload_text(&payload, "model"),
+        "tools": tools,
+        "toolAccessMode": normalize_tool_access_mode(
+            &payload_text(&payload, "toolAccessMode"),
+            &tools,
+        ),
+        "skills": skills,
+        "permissionMode": jftrade_assistant::normalize_permission_mode(
+            &payload_text(&payload, "permissionMode"),
+        ),
+        "status": if status.is_empty() { "ENABLED".to_owned() } else { status },
+        "builtin": payload.get("builtin").and_then(Value::as_bool).unwrap_or(false),
+    })
+}
+
+pub(super) fn sanitized_skill(row: jftrade_store_sqlite::StoredAdkEntity) -> Value {
+    let payload = stored_payload(&row);
+    json!({
+        "id": row.id,
+        "displayName": payload_text(&payload, "displayName"),
+        "description": payload_text(&payload, "description"),
+        "source": payload_text(&payload, "source"),
+        "enabled": payload.get("enabled").and_then(Value::as_bool).unwrap_or(false),
+        "builtin": payload.get("builtin").and_then(Value::as_bool).unwrap_or(false),
+        "tools": payload.get("tools").and_then(Value::as_array).cloned().unwrap_or_default(),
+        "version": payload_text(&payload, "version"),
+        "validationStatus": payload_text(&payload, "validationStatus"),
+        "validationError": payload_text(&payload, "validationError"),
+    })
+}
+
+/// Go `assistantmodel.NormalizeToolAccessMode`: an explicit mode wins, an
+/// unknown mode falls back to `selected` when the agent declares tools and
+/// `all` when it does not.
+fn normalize_tool_access_mode(value: &str, tools: &[Value]) -> String {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "selected" => "selected".to_owned(),
+        "none" => "none".to_owned(),
+        "all" => "all".to_owned(),
+        _ if tools
+            .iter()
+            .any(|tool| tool.as_str().is_some_and(|tool| !tool.trim().is_empty())) =>
+        {
+            "selected".to_owned()
+        }
+        _ => "all".to_owned(),
+    }
 }
 
 fn subscribe_resource(params: &Value) -> Result<Value, (i64, String)> {

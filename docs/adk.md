@@ -161,13 +161,14 @@ Provider 默认允许局域网和本机模型地址，但始终拒绝 link-local
 
 ## 本机 MCP Server
 
-JFTrade 可作为本机 MCP Server，使用 `github.com/modelcontextprotocol/go-sdk v1.7.0` 提供无状态 Streamable HTTP transport。该服务默认关闭，在“设置 → 智能体 → MCP 服务”中启用；默认端点为 `http://127.0.0.1:6697/mcp`。
+JFTrade 可作为本机 MCP Server，提供与 `github.com/modelcontextprotocol/go-sdk v1.7.0` 线协议兼容的 Rust 无状态 Streamable HTTP transport（逐项对应关系见 [Go → Rust 迁移记录](history/go-to-rust/README.md)）。该服务默认关闭，在“设置 → 智能体 → MCP 服务”中启用；默认端点为 `http://127.0.0.1:6697/mcp`。
 
 - 仅绑定 `127.0.0.1`，不提供 stdio、局域网或公网监听。即使选择“无 Token”，也仍只接受本机连接。
 - 默认使用 Bearer Token 鉴权。Token 只在生成或重置响应中显示一次；设置文件只保存不可逆校验值。重置后旧 Token 会立即失效。
 - 服务使用无状态 Streamable HTTP，仅接受 `POST`，不依赖 `Mcp-Session-Id`；`GET`、`DELETE` 返回 `405`，并保留 SDK 的 localhost Host 防护。
 - 仅公开经过固定白名单审核的只读工具：系统、行情、账户与风险、策略读取和回测读取工具。交易、写入、HTTP 抓取、Agent/Skill/任务/记忆管理工具不会出现在 `tools/list` 中。
-- 客户端可读取 `jftrade://runtime/status` JSON 资源；内容只包含脱敏的运行时、Provider 摘要、Agent、Skill 和工具目录，不包含 API Key。资源支持订阅，运行时工具目录变化会发送 `tools/list_changed` 和 `resources/updated` 通知。
+- 客户端可读取 `jftrade://runtime/status` JSON 资源；内容为 `storeConfigured`、脱敏的 Provider/Agent/Skill 摘要与工具目录（名称、显示名、类别、权限、风险级别），不包含 API Key。Runtime 无 Store 时三个摘要为空数组，快照读取失败时只回 `snapshotError: "runtime snapshot unavailable"`。
+- 工具目录与运行时状态是**按请求**从审核白名单和运行期能力图重新投影的：适配器绑定或缺失会分别得到 `x-jftrade-availability` 的 `ready` 与 `fail-closed`，而不是依赖启动快照。Rust listener 不提供 `tools/list_changed` / `resources/updated` 主动通知（`resources/subscribe` 仅校验 URI），因此客户端需在需要刷新时重新 `tools/list` 或重读资源。
 
 通用 MCP 客户端配置示例：
 
