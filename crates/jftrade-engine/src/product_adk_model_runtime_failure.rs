@@ -11,38 +11,17 @@ impl ProductionAdkChatRuntime {
         error: &AdkChatPortError,
         run_lease: &RunLeaseGuard,
     ) -> Result<(), AdkChatPortError> {
-        let (error_status, error_code, error_message, message) = match error {
-            AdkChatPortError::Unavailable(message) => (
-                503,
-                "ADK_UNAVAILABLE".to_owned(),
-                message.clone(),
-                message.clone(),
-            ),
-            AdkChatPortError::Conflict(message) => (
-                409,
-                "ADK_CHAT_IDEMPOTENCY_CONFLICT".to_owned(),
-                message.clone(),
-                message.clone(),
-            ),
-            AdkChatPortError::Failed {
-                status,
-                code,
-                message,
-            } => (
-                *status,
-                code.clone(),
-                message.clone(),
-                format!("{code}: {message}"),
-            ),
+        // Go's `markFailedChatRun` writes `adkErr.Error()` to both `Message` and
+        // `FailureReason`; the classified code lives on `ErrorCode`.  The
+        // frozen provider-failure fixture shows the raw provider text in both
+        // fields with no `CODE: ` prefix.
+        let (error_status, message) = match error {
+            AdkChatPortError::Unavailable(message) => (503, message.clone()),
+            AdkChatPortError::Conflict(message) => (409, message.clone()),
+            AdkChatPortError::Failed { status, message, .. } => (*status, message.clone()),
         };
-        let status = if matches!(
-            error,
-            AdkChatPortError::Failed { code, .. } if code == "MODEL_CALL_TIMEOUT"
-        ) {
-            "TIMED_OUT"
-        } else {
-            "FAILED"
-        };
+        let error_message = message.clone();
+        let (status, error_code) = run_terminal_state(error);
         let run = self
             .store()
             .get_run(&chat.run_id)
@@ -66,13 +45,19 @@ impl ProductionAdkChatRuntime {
             serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
         payload["id"] = Value::String(chat.run_id.clone());
         payload["status"] = Value::String(status.to_owned());
+        // Go's `markFailedChatRun` keeps the raw error text on `Message` and
+        // `FailureReason`, and the classified run-level code on `ErrorCode`.
         payload["message"] = Value::String(message.clone());
+        payload["failureReason"] = Value::String(message.clone());
         payload["errorStatus"] = Value::from(error_status);
-        payload["errorCode"] = Value::String(error_code.clone());
+        payload["errorCode"] = Value::String(error_code.to_owned());
         payload["errorMessage"] = Value::String(error_message.clone());
+        // Go's `MarkFailedChatRun` stamps `CompletedAt` on every terminal
+        // failure and additionally sets `CancelledAt` for a cancellation, so
+        // the console can distinguish an interrupted run from a clean one.
+        payload["completedAt"] = Value::String(run.updated_at.clone());
         // Go's `MarkFailedChatRun` sets `Degraded = true` on every terminal
-        // failure, so the console can distinguish an interrupted run from a
-        // clean one when it renders the failure envelope.
+        // failure.
         payload["degraded"] = Value::Bool(true);
         if let Some(object) = payload.as_object_mut() {
             object.remove("providerRetry");
@@ -172,10 +157,34 @@ impl ProductionAdkChatRuntime {
                 &chat.run_id,
                 &chat.agent_id,
                 status,
-                &error_code,
+                error_code,
                 &error_message,
             ),
         });
         Ok(())
     }
+}
+
+/// Go's `RunStatusForContext` + `RunErrorCode` table for a terminal chat run.
+///
+/// The surrounding context decides the terminal status and the matching
+/// *run-level* code, so a model timeout is `TIMED_OUT`/`RUN_TIMED_OUT` (never
+/// the provider's own `MODEL_CALL_TIMEOUT`), an unsupported GO-ADK input
+/// request is `FAILED`/`ADK_INPUT_UNSUPPORTED` (checked before the status
+/// switch, exactly like the reference), and every other failure is
+/// `FAILED`/`MODEL_CALL_FAILED`.
+pub(super) fn run_terminal_state(error: &AdkChatPortError) -> (&'static str, &'static str) {
+    if matches!(
+        error,
+        AdkChatPortError::Failed { code, .. } if code == "ADK_INPUT_UNSUPPORTED"
+    ) {
+        return ("FAILED", "ADK_INPUT_UNSUPPORTED");
+    }
+    if matches!(
+        error,
+        AdkChatPortError::Failed { code, .. } if code == "MODEL_CALL_TIMEOUT"
+    ) {
+        return ("TIMED_OUT", "RUN_TIMED_OUT");
+    }
+    ("FAILED", "MODEL_CALL_FAILED")
 }

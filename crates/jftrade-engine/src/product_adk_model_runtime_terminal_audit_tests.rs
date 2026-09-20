@@ -242,10 +242,24 @@ fn a_timed_out_run_audits_the_timed_out_lifecycle_kind() {
         .expect("read run")
         .expect("run row");
     assert_eq!(run.status, "TIMED_OUT");
+    let payload: Value = serde_json::from_str(&run.payload_json).expect("decode payload");
+    // Go's `markFailedChatRun` + `RunErrorCode`: a context deadline classifies
+    // as `TIMED_OUT`/`RUN_TIMED_OUT` at run level; the provider's own
+    // `MODEL_CALL_TIMEOUT` stays on the port error only.
+    assert_eq!(payload["errorCode"], "RUN_TIMED_OUT");
+    assert_eq!(
+        payload["failureReason"],
+        "assistant model request timed out"
+    );
+    assert!(payload["completedAt"].is_string());
+    assert!(
+        payload.get("cancelledAt").is_none(),
+        "a timeout must not stamp cancelledAt: {payload}"
+    );
     let rows = audit_rows(&store);
     let (_, _, audit) = audit_row(&rows, "run.timed_out");
     assert_eq!(audit["metadata"]["status"], "TIMED_OUT");
-    assert_eq!(audit["metadata"]["errorCode"], "MODEL_CALL_TIMEOUT");
+    assert_eq!(audit["metadata"]["errorCode"], "RUN_TIMED_OUT");
 }
 
 /// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:1124
@@ -283,6 +297,25 @@ fn a_cancelled_run_audits_run_cancelled_and_terminates_once() {
     let payload: Value = serde_json::from_str(&run.payload_json).expect("decode payload");
     assert_eq!(payload["errorCode"], "RUN_CANCELLED");
     assert_eq!(payload["errorStatus"], 499);
+    // Go's `markFailedChatRun`: the raw error text drives `message` and
+    // `failureReason`, both timestamps are stamped and the run is degraded.
+    assert_eq!(
+        payload["failureReason"],
+        "CLIENT_DISCONNECTED: assistant chat client disconnected"
+    );
+    assert_eq!(payload["degraded"], json!(true));
+    assert!(
+        payload["cancelledAt"].is_string(),
+        "cancelledAt must be stamped: {payload}"
+    );
+    assert!(
+        payload["completedAt"].is_string(),
+        "completedAt must be stamped: {payload}"
+    );
+    assert_eq!(
+        payload["cancelledAt"], payload["completedAt"],
+        "Go stamps both timestamps with the same instant: {payload}"
+    );
 
     let rows = audit_rows(&store);
     let cancelled: Vec<_> = rows
@@ -509,6 +542,176 @@ fn a_failed_run_persists_the_provider_error_and_audit_row() {
     assert_eq!(audit["metadata"]["failureReason"], "provider down");
 }
 
+/// Go's `RunErrorCode` checks `ErrADKInputUnsupported` *before* the status
+/// switch, so an unsupported GO-ADK input request classifies as
+/// `ADK_INPUT_UNSUPPORTED` even though the run status stays `FAILED`.
+///
+/// Reference: go:452dea11:internal/assistant/model/runner_lifecycle.go:33
+/// `RunErrorCode` plus `runner_chat_test.go:56`
+/// `TestRequestedInputEventFailsWithUnsupportedInputCode`.
+#[test]
+fn run_terminal_state_classifies_unsupported_input_before_the_status_switch() {
+    let unsupported = super::AdkChatPortError::Failed {
+        status: 400,
+        code: "ADK_INPUT_UNSUPPORTED".to_owned(),
+        message: "GO-ADK requested input is unsupported".to_owned(),
+    };
+    assert_eq!(
+        super::runtime_stream::run_terminal_state(&unsupported),
+        ("FAILED", "ADK_INPUT_UNSUPPORTED")
+    );
+
+    let timeout = super::AdkChatPortError::Failed {
+        status: 504,
+        code: "MODEL_CALL_TIMEOUT".to_owned(),
+        message: "assistant model request timed out".to_owned(),
+    };
+    assert_eq!(
+        super::runtime_stream::run_terminal_state(&timeout),
+        ("TIMED_OUT", "RUN_TIMED_OUT"),
+        "a context deadline wins over the provider's own code"
+    );
+
+    let provider = super::AdkChatPortError::Failed {
+        status: 502,
+        code: "MODEL_CALL_FAILED".to_owned(),
+        message: "provider down".to_owned(),
+    };
+    assert_eq!(
+        super::runtime_stream::run_terminal_state(&provider),
+        ("FAILED", "MODEL_CALL_FAILED")
+    );
+
+    // A transport-level outage keeps Go's default terminal mapping.
+    assert_eq!(
+        super::runtime_stream::run_terminal_state(&super::AdkChatPortError::Unavailable(
+            "down".to_owned()
+        )),
+        ("FAILED", "MODEL_CALL_FAILED")
+    );
+}
+
+/// Go's `markFailedChatRun` + `RunStatusForContext` + `RunErrorCode` map the
+/// surrounding context error onto a terminal run: a cancellation is
+/// `CANCELLED`/`RUN_CANCELLED`, a context deadline is `TIMED_OUT`/
+/// `RUN_TIMED_OUT` (never the provider's own `MODEL_CALL_TIMEOUT`), and any
+/// other failure is `FAILED`/`MODEL_CALL_FAILED`.  Every branch stamps
+/// `CompletedAt`, sets `Degraded = true`, copies the raw error text to
+/// `Message`/`FailureReason`, and only the cancellation also stamps
+/// `CancelledAt`.
+///
+/// Reference: go:452dea11:internal/assistant/engine/runner_chat_test.go:156
+/// `TestMarkFailedChatRunMapsContextToTerminalState`.
+#[test]
+fn terminal_failure_mapping_matches_the_reference_table() {
+    let (directory, store, session_store) = initialized_stores();
+    let runtime = runtime_for(&directory, &store, &session_store);
+
+    // Cancellation: CANCELLED / RUN_CANCELLED with both timestamps.
+    create_running_run(&store, "run-map-cancelled", json!([]));
+    let cancelled_chat = chat_for("run-map-cancelled");
+    let lease = RunLeaseGuard::acquire(
+        Arc::clone(&store),
+        "run-map-cancelled",
+        "owner-map-cancelled",
+    )
+    .expect("acquire cancellation lease");
+    runtime
+        .persist_cancelled(
+            &cancelled_chat,
+            &super::AdkChatPortError::Failed {
+                status: 499,
+                code: "CLIENT_DISCONNECTED".to_owned(),
+                message: "assistant chat client disconnected".to_owned(),
+            },
+            &lease,
+        )
+        .expect("persist cancellation");
+    let cancelled: Value = serde_json::from_str(
+        &store
+            .get_run("run-map-cancelled")
+            .expect("read cancelled run")
+            .expect("cancelled run row")
+            .payload_json,
+    )
+    .expect("decode cancelled payload");
+    assert_eq!(cancelled["status"], "CANCELLED");
+    assert_eq!(cancelled["errorCode"], "RUN_CANCELLED");
+    assert_eq!(cancelled["degraded"], json!(true));
+    assert!(cancelled["cancelledAt"].is_string());
+    assert!(cancelled["completedAt"].is_string());
+
+    // Timeout: TIMED_OUT / RUN_TIMED_OUT with completedAt only.
+    create_running_run(&store, "run-map-timeout", json!([]));
+    let timeout_chat = chat_for("run-map-timeout");
+    let lease = RunLeaseGuard::acquire(Arc::clone(&store), "run-map-timeout", "owner-map-timeout")
+        .expect("acquire timeout lease");
+    runtime
+        .persist_failure(
+            &timeout_chat,
+            &super::AdkChatPortError::Failed {
+                status: 504,
+                code: "MODEL_CALL_TIMEOUT".to_owned(),
+                message: "assistant model request timed out".to_owned(),
+            },
+            &lease,
+        )
+        .expect("persist timeout");
+    let timed_out: Value = serde_json::from_str(
+        &store
+            .get_run("run-map-timeout")
+            .expect("read timed out run")
+            .expect("timed out run row")
+            .payload_json,
+    )
+    .expect("decode timed out payload");
+    assert_eq!(timed_out["status"], "TIMED_OUT");
+    assert_eq!(
+        timed_out["errorCode"], "RUN_TIMED_OUT",
+        "Go's RunErrorCode maps a context deadline to RUN_TIMED_OUT: {timed_out}"
+    );
+    assert_eq!(timed_out["degraded"], json!(true));
+    assert!(timed_out["completedAt"].is_string());
+    assert!(
+        timed_out.get("cancelledAt").is_none(),
+        "a timeout must not stamp cancelledAt: {timed_out}"
+    );
+
+    // Other failure: FAILED / MODEL_CALL_FAILED with the raw error text.
+    create_running_run(&store, "run-map-failed", json!([]));
+    let failed_chat = chat_for("run-map-failed");
+    let lease = RunLeaseGuard::acquire(Arc::clone(&store), "run-map-failed", "owner-map-failed")
+        .expect("acquire failure lease");
+    runtime
+        .persist_failure(
+            &failed_chat,
+            &super::AdkChatPortError::Failed {
+                status: 400,
+                code: "MODEL_CALL_FAILED".to_owned(),
+                message: "model exploded".to_owned(),
+            },
+            &lease,
+        )
+        .expect("persist failure");
+    let failed: Value = serde_json::from_str(
+        &store
+            .get_run("run-map-failed")
+            .expect("read failed run")
+            .expect("failed run row")
+            .payload_json,
+    )
+    .expect("decode failed payload");
+    assert_eq!(failed["status"], "FAILED");
+    assert_eq!(failed["errorCode"], "MODEL_CALL_FAILED");
+    assert_eq!(
+        failed["failureReason"], "model exploded",
+        "Go keeps the raw error text on FailureReason: {failed}"
+    );
+    assert_eq!(failed["message"], "model exploded");
+    assert_eq!(failed["degraded"], json!(true));
+    assert!(failed["completedAt"].is_string());
+}
+
 /// Go's `FinishPendingInputRun` parks the run as `PENDING_INPUT` with
 /// `resumeState=waiting_input`, the fixed message and the input request, then
 /// audits `run.awaiting_input` with `runId`/`agentId`/`status`/`requestId`
@@ -654,6 +857,12 @@ fn a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state() {
     runtime
         .resume_approval("run-denied-audit")
         .expect("resume the denied continuation");
+    // Go's `runCanContinueResolvedApproval` treats a run that already reached a
+    // non-resumable status as a silent no-op, so the second pass (the route
+    // racing the recovery scanner) must not fabricate an error.
+    runtime
+        .resume_approval("run-denied-audit")
+        .expect("an already-denied continuation must be a silent no-op");
 
     let run = store
         .get_run("run-denied-audit")

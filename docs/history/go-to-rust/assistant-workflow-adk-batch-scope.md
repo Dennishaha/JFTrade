@@ -1322,3 +1322,63 @@ Rust 修复：新增 `record_resumed_run_audit`（`run.resumed` 后接 `lifecycl
 ### 下批目标
 
 `internal/assistant/engine/runner_chat_test.go` 余 17 条 `[~]`：`:56`（`ADK_INPUT_UNSUPPORTED`）、`:69`（`HydrateRunExecutionResult` 字段投影）、`:102`（顶层 followUp 不提升为 pending input）、`:127`（tool-only run 合成 final reply）、`:156`（`markFailedChatRun` context→终态映射）、`:225`（`AttachFinalAssistantMessage` 与 `finalMessageId`）、`:490`（`ProjectedChatResponse` 投影）、`:541`（非法 permissionMode override）、`:552`（run 冻结 resolved model 快照）、`:609`（provider override 不改 agent）、`:737`（projection 持久化边界）、`:846`（已 resolve 的 approval 不回流）、`:891`（stream 关闭后后台 resume）、`:1043`（`resolveSession` 复用/标题裁剪）、`:1079`（run handle 生命周期）。优先级：先把 P0 的 provider-failure wire 决策连同 `finalMessageId` 一起处理（`:225`/`:325`/`:490` 归属同一决策面），再按 `:156`/`:127`/`:69` 顺序补齐终态与投影语义。
+
+## 第二十五批：runner_chat_test.go 终态映射与审计投影（runner_chat_test.go:156 结清、:56 保留边界）
+
+批次范围：`internal/assistant/engine/runner_chat_test.go:156`（`TestMarkFailedChatRunMapsContextToTerminalState`，`[x]`）与 `:56`（`TestRequestedInputEventFailsWithUnsupportedInputCode`，`[~]` 保留边界 + 映射契约已补）。
+
+Go 行为（go:452dea11）：
+- `internal/assistant/model/runner_lifecycle.go:16` `RunStatusForContext` + `:33` `RunErrorCode`：deadline → `TIMED_OUT`/`RUN_TIMED_OUT`，canceled → `CANCELLED`/`RUN_CANCELLED`，其他 → `FAILED`/`MODEL_CALL_FAILED`；`ErrADKInputUnsupported` 在 status switch **之前**先判，因此 `FAILED` 也取 `ADK_INPUT_UNSUPPORTED`。
+- `markFailedChatRun` 把 `err.Error()` 原样同时写入 `Message` 与 `FailureReason`；`CompletedAt` 必写，取消时另写 `CancelledAt`（同一时刻），且 `Degraded = true`。
+
+Rust 修复前差异：
+1. `persist_failure` 把 provider 的 `MODEL_CALL_TIMEOUT` 直接当 run 级 `errorCode`（Go 是 `RUN_TIMED_OUT`）；
+2. `message` 写成 `"{code}: {message}"`（Go 是原始错误文本，fixture `chat-provider-failure`/`stream-provider-failure` 亦然）；
+3. 不写 `failureReason` 与 `completedAt`；
+4. `persist_cancelled` 缺 `failureReason`/`degraded`/`completedAt`/`cancelledAt`；
+5. 没有 `ADK_INPUT_UNSUPPORTED` 分支。
+
+修复位置：
+- `crates/jftrade-engine/src/product_adk_model_runtime_failure.rs`：新增 `run_terminal_state(error) -> (status, error_code)` 冻结 Go 的判定优先级；`persist_failure` 改写 `message`/`failureReason` = 原始错误文本、`errorCode` = 分类码、`completedAt`、`degraded=true`，并清 `providerRetry`。
+- `crates/jftrade-engine/src/product_adk_model_runtime_lifecycle.rs`：`persist_cancelled` 按 Go 补 `failureReason`/`degraded`/`completedAt`/`cancelledAt`。
+- 新回归（`product_adk_model_runtime_terminal_audit_tests.rs`）：`run_terminal_state_classifies_unsupported_input_before_the_status_switch`（三条优先级 + `Unavailable` 默认分支）、`terminal_failure_mapping_matches_the_reference_table`（取消/超时/普通失败走真实 store + runtime 断言全部投影字段）。
+
+探针：把 `run_terminal_state` 的 `RUN_TIMED_OUT` 改回 `MODEL_CALL_TIMEOUT` → `terminal_failure_mapping_matches_the_reference_table` 转红（`left: MODEL_CALL_TIMEOUT` / `right: RUN_TIMED_OUT`），用 `cp` 备份恢复后通过。
+
+`:56` 为什么只能保留 partial：该测试的输入是 vendored Google ADK 的 `adksession.Event.RequestedInput` 事件（`consumeEvent` → `errADKInputUnsupported`），Rust 不走 ADK 事件循环、直接调 Responses API，因此没有 `RequestedInput`/`InterruptID` 事件面。可移植的只有终态映射契约（先判 `ADK_INPUT_UNSUPPORTED` 再进 status switch），已由 `run_terminal_state_classifies_unsupported_input_before_the_status_switch` 断言；不伪造事件源。若未来 Rust 接入 ADK 事件循环，需补事件级回归。
+
+验证：
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：**1481 passed / 0 failed**（上批 1479）。
+- `cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine --all-targets --locked`（修掉一处 `needless_borrow`）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`、`git diff --check`：全部通过。
+- `python3 scripts/compatibility/audit_test_parity.py`：`[x]` 812 → **813**、`partial` 123 → 124、`missing` 3364 → 3362；Rust 测试总数 2638 → **2640**；0 重复 `[x]`、0 U+FFFD、4451 key 不变。
+- `pnpm run check:quick`：首次因 target-health（`target/debug/deps` ≥ 50000 个 `.rcgu.o`）失败，确认 `pgrep -fl "cargo|rustc"` 为空后 `find target/debug/deps -maxdepth 1 -name '*.rcgu.o' -delete`，重跑通过。
+- 未关闭 P0 原样保留：provider 5xx 的 chat wire 行为（HTTP 200 + failed run + `reply` + `finalMessageId` vs Rust 的 502 + durable retry），本批未触碰该决策。
+
+### 下批目标
+
+`internal/assistant/engine/runner_chat_test.go` 余 14 条 `[~]`：`:56`（保留边界）、`:69`（`HydrateRunExecutionResult` 字段投影）、`:102`（顶层 followUp 不提升为 pending input）、`:127`（tool-only run 合成 final reply）、`:225`（`AttachFinalAssistantMessage` 消息与 run link）、`:490`（`ProjectedChatResponse` 投影字段）、`:541`（非法 permissionMode override）、`:552`（run 冻结 resolved model 快照）、`:609`（provider override 不改 agent）、`:737`（projection 持久化边界）、`:846`（已 resolve 的 approval 不回流）、`:891`（stream 关闭后后台 resume）、`:1043`（`resolveSession` 复用/标题裁剪）、`:1079`（run handle 生命周期）。
+优先级：先落 P0 的 provider-failure wire 决策（连同 `finalMessageId`；`:225`/`:490` 与其同一决策面）：先把冻结 fixture 用例写成 Rust 失败回归，再决定「按 Go 收敛为 200 + FAILED + reply + finalMessageId」或「保留 durable retry 并在 route-ledger 登记为有意分歧 + 同步 OpenAPI/前端」。随后按 `:127` → `:69` 的顺序补齐投影语义，再接 `store_test.go`（20）→ `session_context_test.go`（19）。
+
+另有 `runner_continuation_boundaries_test.go:87` 未结清分支（本批如实降回 `[~]` partial）：missing-run continuation 在 Go 返回 nil 而 Rust 回 `Unavailable`；foreign unexpired lease 不被 steal（Rust 走 takeover 等待）；`stageResolvedApproval(missing)`/`markApprovalContinuationFailed(missing)`/`attachParentWorkflowResolution(empty)`/nil-runtime reconcile 的无副作用分支。这三项按 P1 与 `store_test.go` 同批消化。
+
+## 第二十五批补充：审批 continuation 竞态修复（`runner_continuation_boundaries_test.go:136` 结清）
+
+`check:quick` 在批次收尾时稳定复现了一条此前被 nextest 顺序掩盖的 P0 竞态：`adk_approval_deny_returns_the_resolution_envelope_without_a_sync_message` 间歇性失败，报 `503 ADK_CONTINUATION_UNAVAILABLE: assistant chat run is already DENIED`。
+
+根因：`resume_approval` 对任何「非 RUNNING 且非 `PENDING_INPUT`+`input_resume_pending`」的 run 都伪造 `Unavailable`。审批/输入路由与 durable recovery scanner 会为同一 continuation 竞争，输的一方把赢家已经写好的终态当成自己的失败，并据此回滚已 staged 的审批 → 路由回 503。Go 相反：`continueResolvedApprovalRun`/`continueResolvedInput` 对缺失或不可续跑的 run 返回 nil，`runCanContinueResolvedApproval` 只放行 PENDING 或处于 `approval_resuming` 的 RUNNING leaf。
+
+修复（`crates/jftrade-engine/src/product_adk_model_runtime_events.rs`）：该分支改为 `return Ok(())` 静默 no-op，与并发赢家保持一致，不再回滚别人的 durable 写入。
+
+新增/加强回归：
+- `a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state`：连续两次 resume 同一已 DENIED run 都必须 Ok，且 `run.resumed`/`run.denied` 审计行保持唯一。
+- `test_adk_resume_approval_cas_rejection`：原断言「非可续跑状态必须报错且含 `already PENDING_INPUT`」是 Rust 自造契约，改为断言返回 Ok 且 durable 状态逐字段不被改写。
+- `adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection`（新）：锚定 `runner_continuation_boundaries_test.go:136` 的 denial 关闭 sibling、unrelated approval 不替换 embedded projection 两条子用例。
+
+探针：
+- 探针 A（`resolve_and_stage_approval` 的 denial 分支改为 `if false && denied`）：新 sibling 回归转红（`call 0 was closed by the denial: left PENDING_APPROVAL / right DENIED`），`cp` 备份恢复后通过。
+- 探针 B（把 `resume_approval` 的 no-op 改回伪造 `Unavailable`）：terminal-audit 回归与 `test_adk_resume_approval_cas_rejection` 同时转红，恢复后通过。
+
+验证：
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：**1482 passed / 0 failed**。
+- `cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine --all-targets --locked`、`python3 scripts/compatibility/audit_test_parity.py`：通过（814 function_exact，0 重复 `rust_entry`，0 U+FFFD，4451 key 不变）。
+- `:87` 如实降回 `[~]` partial：missing-run/foreign-lease/empty-projection 等分支仍未覆盖。

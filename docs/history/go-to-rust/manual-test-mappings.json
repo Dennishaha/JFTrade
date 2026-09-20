@@ -8996,10 +8996,10 @@
   },
   "internal/assistant/engine/runner_chat_test.go:56:TestRequestedInputEventFailsWithUnsupportedInputCode": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::run_terminal_state_classifies_unsupported_input_before_the_status_switch",
+    "conclusion": "部分覆盖（边界保留 + 映射已补齐）：本测试的输入是 vendored Google ADK 的 `adksession.Event.RequestedInput` 事件（`consumeEvent` → `errADKInputUnsupported`），Rust 不走 ADK 事件循环、直接调用 Responses API，因此没有 `RequestedInput`/`InterruptID` 这个事件面，无法迁移该触发器本身。可迁移的契约是它的终态映射：`runErrorCode` 先判 `ErrADKInputUnsupported` 再进 status switch，得 `FAILED`/`ADK_INPUT_UNSUPPORTED`；该分支已在 production 侧实现（product_adk_model_runtime_failure.rs 的 run_terminal_state）并由 run_terminal_state_classifies_unsupported_input_before_the_status_switch 逐项断言（含 MODEL_CALL_TIMEOUT 与默认 MODEL_CALL_FAILED 的优先级顺序）。保留边界原因：Rust 侧不存在产生该事件的代码路径，因此只保留映射契约而不伪造事件源；如未来 Rust 接入 ADK 事件循环需补事件级回归。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runner_chat_test.go:69:TestHydrateRunExecutionResultPopulatesRunFields": {
     "status": "[~]",
@@ -9023,11 +9023,11 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/runner_chat_test.go:156:TestMarkFailedChatRunMapsContextToTerminalState": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::terminal_failure_mapping_matches_the_reference_table",
+    "conclusion": "function_exact：新增回归按 Go 的 `RunStatusForContext`/`RunErrorCode`/`markFailedChatRun` 表逐行断言三条终态。取消：persist_cancelled 落 status=CANCELLED、errorCode=RUN_CANCELLED（不是 provider 的 code）、message/failureReason 为原始错误文本、degraded=true、cancelledAt 与 completedAt 同刻。超时：persist_failure 落 status=TIMED_OUT、errorCode=RUN_TIMED_OUT（此前 Rust 错写成 provider 的 MODEL_CALL_TIMEOUT）、failureReason 原文、completedAt 存在且不写 cancelledAt。普通失败：status=FAILED、errorCode=MODEL_CALL_FAILED、message/failureReason=原始错误文本、degraded=true。修复位置：新增 crates/jftrade-engine/src/product_adk_model_runtime_failure.rs（从 stream 片段抽出 persist_failure）里的 run_terminal_state 映射与 completedAt/degraded/failureReason 写入，以及 product_adk_model_runtime_lifecycle.rs 的 persist_cancelled 补齐 failureReason/degraded/completedAt/cancelledAt。另有 run_terminal_state_classifies_unsupported_input_before_the_status_switch 冻结 Go「先判 ErrADKInputUnsupported 再进 status switch」的优先级。探针：把 RUN_TIMED_OUT 改回 MODEL_CALL_TIMEOUT → terminal_failure_mapping_matches_the_reference_table 转红（left: MODEL_CALL_TIMEOUT, right: RUN_TIMED_OUT），cp 备份恢复后通过。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:181:TestPersistRunTerminalStateWritesRunAndAudit": {
     "status": "[x]",
@@ -9171,17 +9171,17 @@
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:87:TestResolvedContinuationsHonorForeignLeasesAndEmptyState": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state",
+    "conclusion": "部分覆盖（本批补齐一条真实缺口，其余分支仍待办）：①不可续跑 run 必须静默 no-op —— 已补齐并断言（Rust resume_approval 之前对非 RUNNING/非 input_resume_pending 伪造 Unavailable，已改为 Ok(())；见 product_adk_model_runtime_events.rs），同一不变量另有 test_adk_resume_approval_cas_rejection 断言 durable 状态不被改写。②missing-run continuation 返回 nil —— 未覆盖且存在差异：Rust resume_approval 对缺失 run 仍返回 Unavailable(\"persisted ADK run disappeared\")，需按 Go 缺口决策后补测试。③foreign unexpired lease 不得被 steal（continueResolvedInput 直接返回 nil）—— 未覆盖：Rust 走 acquire_run_lease_with_retry 等待租约到期后接管，属有意 takeover 设计，需单独登记。④stageResolvedApproval(missing)/markApprovalContinuationFailed(missing)/attachParentWorkflowResolution(empty)/nil-runtime Reconcile 等无副作用分支 —— 未逐条覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:136:TestResolvedApprovalContinuationKeepsSiblingStateAtomic": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection",
+    "conclusion": "function_exact：四个子用例全部落到 Rust store 的 `resolve_and_stage_approval`。①approved action waits for pending sibling：`adk_multiple_approvals_continue_only_after_all_are_approved` 断言首个批准后 run 保持 PENDING、sibling 工具调用保持 PENDING_APPROVAL，第二个批准才翻 RUNNING/approval_resuming 并释放全部调用。②denial closes pending siblings before resume：新回归断言一次 DENIED 在同一次写入里把 sibling 审批行与工具调用都置 DENIED 且清 requiresUser。③unrelated approval cannot replace embedded state：新回归断言不在 run.pendingApprovals 内的审批被解析后 should_continue=false 且 run payload 逐字节不变。④terminal run cannot restart from old approval：`test_adk_resume_approval_cas_rejection` 断言不可续跑状态是静默 no-op 且 durable 状态不被改写。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:188:TestStartRunPersistsExecutionLeaseClaimFailure": {
     "status": "[~]",

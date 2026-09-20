@@ -2734,8 +2734,14 @@ fn test_adk_resume_approval_cas_rejection() {
     let res = runtime.resume_approval(run_id);
     assert!(res.is_ok(), "cancelled run is treated as ok without continuation");
 
-    // Now test with status changed to RUNNING concurrently
-    let run_id2 = "run-cas-running-test";
+    // A run that is no longer resumable is Go's silent no-op, not a failure:
+    // `continueResolvedInput` returns nil unless the run is RUNNING with an
+    // answered request, and `continueResolvedApprovalRun` returns nil unless
+    // `runCanContinueResolvedApproval` holds.  The approval/input routes race
+    // the durable recovery scanner for the same continuation, so the caller
+    // that arrives late must not turn the winner's state into a fabricated
+    // error.
+    let run_id2 = "run-non-resumable-input-test";
     let payload2 = json!({
         "id": run_id2,
         "status": "PENDING_INPUT",
@@ -2753,14 +2759,19 @@ fn test_adk_resume_approval_cas_rejection() {
         })
         .expect("create run 2");
 
-    let res2 = runtime.resume_approval(run_id2);
-    assert!(res2.is_err(), "non-resumable state must be rejected");
-    match res2.unwrap_err() {
-        crate::product::product_adk_chat_stream_port::AdkChatPortError::Unavailable(msg) => {
-            assert!(msg.contains("already PENDING_INPUT"));
-        }
-        err => panic!("unexpected error variant: {:?}", err),
-    }
+    runtime
+        .resume_approval(run_id2)
+        .expect("a non-resumable run must be a silent no-op");
+
+    // The no-op must not mutate the durable state either.
+    let untouched = store
+        .get_run(run_id2)
+        .expect("read run 2")
+        .expect("run 2 exists");
+    assert_eq!(untouched.status, "PENDING_INPUT");
+    let untouched_payload: Value =
+        serde_json::from_str(&untouched.payload_json).expect("decode run 2 payload");
+    assert_eq!(untouched_payload["resumeState"], "other_state");
 }
 
 struct AdkTestPortfolioFundsReadPort;
@@ -7364,6 +7375,159 @@ fn adk_multiple_approvals_continue_only_after_all_are_approved() {
         assert_eq!(call["requiresUser"], false, "call {index} clears requiresUser");
     }
 
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/runner_continuation_boundaries_test.go:136
+/// `TestResolvedApprovalContinuationKeepsSiblingStateAtomic`.
+///
+/// Go keeps the run `PENDING` while an approved sibling is still unresolved,
+/// denies every still-pending sibling when one approval is denied, refuses to
+/// let an approval that is not embedded in the run's own `pendingApprovals`
+/// replace the durable projection, and never restarts a terminal run from an
+/// old approval.  The Rust store owns all four rules so the route layer only
+/// forwards the resolution.
+#[test]
+fn adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection() {
+    let (_port, store, _directory) = setup_test_adk_mutation_port(None);
+    let run_id = "run-approval-siblings-deny";
+    let payload = json!({
+        "id": run_id,
+        "sessionId": "session-approval-siblings",
+        "agentId": "agent-approval-siblings",
+        "status": "PENDING",
+        "workMode": "chat",
+        "toolCalls": [
+            {"id": "call-sib-one", "name": "approval.required.one", "status": "PENDING_APPROVAL", "requiresUser": true},
+            {"id": "call-sib-two", "name": "approval.required.two", "status": "PENDING_APPROVAL", "requiresUser": true},
+        ],
+        "pendingApprovals": [
+            {
+                "id": "approval-sib-one",
+                "runId": run_id,
+                "agentId": "agent-approval-siblings",
+                "toolName": "approval.required.one",
+                "status": "PENDING",
+                "functionCallId": "call-sib-one",
+                "confirmationCallId": "call-sib-one:confirmation",
+            },
+            {
+                "id": "approval-sib-two",
+                "runId": run_id,
+                "agentId": "agent-approval-siblings",
+                "toolName": "approval.required.two",
+                "status": "PENDING",
+                "functionCallId": "call-sib-two",
+                "confirmationCallId": "call-sib-two:confirmation",
+            },
+        ],
+    });
+    store
+        .create_run(jftrade_store_sqlite::CreateAdkRunParams {
+            id: run_id,
+            session_id: "session-approval-siblings",
+            agent_id: "agent-approval-siblings",
+            status: "PENDING",
+            client_request_id: "request-approval-siblings",
+            request_fingerprint: "fingerprint-approval-siblings",
+            payload_json: &payload.to_string(),
+        })
+        .expect("seed sibling approval run");
+    for (id, call_id, tool) in [
+        ("approval-sib-one", "call-sib-one", "approval.required.one"),
+        ("approval-sib-two", "call-sib-two", "approval.required.two"),
+    ] {
+        store
+            .create_approval(
+                id,
+                run_id,
+                "agent-approval-siblings",
+                "PENDING",
+                &json!({
+                    "id": id,
+                    "runId": run_id,
+                    "agentId": "agent-approval-siblings",
+                    "toolName": tool,
+                    "status": "PENDING",
+                    "functionCallId": call_id,
+                    "confirmationCallId": format!("{call_id}:confirmation"),
+                })
+                .to_string(),
+            )
+            .expect("seed sibling approval");
+    }
+    // An approval row that belongs to the run but is not embedded in its
+    // `pendingApprovals` must never replace the durable projection.
+    store
+        .create_approval(
+            "approval-sib-orphan",
+            run_id,
+            "agent-approval-siblings",
+            "PENDING",
+            &json!({
+                "id": "approval-sib-orphan",
+                "runId": run_id,
+                "agentId": "agent-approval-siblings",
+                "toolName": "approval.required.one",
+                "status": "PENDING",
+            })
+            .to_string(),
+        )
+        .expect("seed orphan approval");
+
+    // Denying one approval closes every still-pending sibling in the same
+    // write: the sibling row and its tool call both become DENIED.
+    let denied = store
+        .resolve_and_stage_approval("approval-sib-one", "DENIED")
+        .expect("deny the first approval")
+        .expect("first resolution");
+    assert!(denied.changed, "the denial commits");
+    assert_eq!(denied.approval.status, "DENIED");
+    let staged = denied.run.as_ref().expect("staged run");
+    let staged_payload: Value = serde_json::from_str(&staged.payload_json).expect("run payload");
+    for (index, call) in staged_payload["toolCalls"]
+        .as_array()
+        .expect("tool calls")
+        .iter()
+        .enumerate()
+    {
+        assert_eq!(call["status"], "DENIED", "call {index} was closed by the denial");
+        assert_eq!(call["requiresUser"], false, "call {index} clears requiresUser");
+    }
+    let sibling = store
+        .list_approvals()
+        .expect("list approvals")
+        .into_iter()
+        .find(|approval| approval.id == "approval-sib-two")
+        .expect("sibling row survives");
+    assert_eq!(
+        sibling.status, "DENIED",
+        "a denial closes still-pending siblings before the continuation"
+    );
+
+    // An approval that is not embedded in `pendingApprovals` is dropped
+    // instead of rewriting the run's own projection.
+    let untouched_before = store
+        .get_run(run_id)
+        .expect("read run")
+        .expect("run row")
+        .payload_json;
+    let unrelated = store
+        .resolve_and_stage_approval("approval-sib-orphan", "APPROVED")
+        .expect("resolve the orphan approval")
+        .expect("orphan resolution");
+    assert!(
+        !unrelated.should_continue,
+        "an unrelated approval must not release the continuation"
+    );
+    assert_eq!(
+        store
+            .get_run(run_id)
+            .expect("read run")
+            .expect("run row")
+            .payload_json,
+        untouched_before,
+        "an unrelated approval must not replace the embedded projection"
+    );
 }
 
 /// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:527

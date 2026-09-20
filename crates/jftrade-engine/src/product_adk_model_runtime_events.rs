@@ -370,10 +370,15 @@ impl ProductionAdkChatRuntime {
         let is_resumable_input = run.status.eq_ignore_ascii_case("PENDING_INPUT")
             && resume_state.eq_ignore_ascii_case("input_resume_pending");
         if !is_running && !is_resumable_input {
-            return Err(unavailable(format!(
-                "assistant chat run is already {}",
-                run.status
-            )));
+            // Go's `runCanContinueResolvedApproval` and `continueResolvedInput`
+            // treat a run that is no longer resumable as a silent no-op: the
+            // route, a browser retry and the durable recovery scanner all race
+            // for the same continuation, and the owner that arrives late must
+            // not report the winner's terminal state as its own failure.  The
+            // approval route depends on this to answer the resolution envelope
+            // (and to leave the winner's terminal write untouched) instead of
+            // rolling the staged resolution back with a fabricated 503.
+            return Ok(());
         }
         let payload = if is_resumable_input {
             let mut updated_payload = payload;

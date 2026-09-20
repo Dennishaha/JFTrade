@@ -221,11 +221,21 @@ impl ProductionAdkChatRuntime {
             stream_event_id = Some(format!("{}:stream:{}", chat.run_id, sequence));
             stream_event_content = Some(format_adk_error(error));
         }
+        // Go's `markFailedChatRun` projects a cancellation through the same
+        // table as every other terminal failure: the raw error text lands on
+        // `Message` and `FailureReason`, `ErrorCode` is the classified
+        // `RUN_CANCELLED`, and both `CancelledAt` and `CompletedAt` are stamped
+        // with `Degraded = true`.
+        let message = format_adk_error(error);
         payload["status"] = Value::String("CANCELLED".to_owned());
-        payload["message"] = Value::String(format_adk_error(error));
+        payload["message"] = Value::String(message.clone());
+        payload["failureReason"] = Value::String(message.clone());
+        payload["degraded"] = Value::Bool(true);
+        payload["completedAt"] = Value::String(run.updated_at.clone());
+        payload["cancelledAt"] = Value::String(run.updated_at.clone());
         payload["errorStatus"] = Value::from(499);
         payload["errorCode"] = Value::String("RUN_CANCELLED".to_owned());
-        payload["errorMessage"] = Value::String(format_adk_error(error));
+        payload["errorMessage"] = Value::String(message);
         let updated = match (stream_event_id.as_ref(), stream_event_content.as_ref()) {
             (Some(event_id), Some(content)) => self
                 .store
