@@ -488,6 +488,15 @@ impl ProductionAdkChatRuntime {
         // the console can tell a resumed run from a plain chat run.  The
         // reference writes the state before the run becomes terminal, so the
         // projection must carry both fields on the terminal envelope too.
+        // Go's `AttachFinalAssistantMessage` derives the transcript id from
+        // `syntheticAssistantMessageID(runID, replyResult)` and writes
+        // `run.FinalMessageID = message.ID`, so the timeline entry, the stored
+        // transcript event and the run link all share one id.  A successful
+        // turn carries no synthetic kind, which Go's helper defaults to
+        // `local`.  The reasoning slot stays empty: Rust's `ModelResponse`
+        // carries only the visible text, so there is no reasoning buffer to
+        // fold into the digest the way Go's `googleADKExecution.result()` does.
+        let final_message_id = synthetic_assistant_message_id(&chat.run_id, "local", "", &text);
         let completed_at = now.clone();
         let resume_state = Value::String(if chat.resumed {
             "adk_confirmation_resolved".to_owned()
@@ -511,11 +520,12 @@ impl ProductionAdkChatRuntime {
             "degraded": degraded,
             "resumeState": resume_state,
             "completedAt": completed_at,
+            "finalMessageId": final_message_id.clone(),
             "createdAt": run.created_at,
             "updatedAt": now,
         });
         let timeline = json!({
-            "id": format!("{}:assistant", chat.run_id),
+            "id": final_message_id.clone(),
             "kind": "assistant_message",
             "status": "final",
             "text": text.clone(),
@@ -567,9 +577,9 @@ impl ProductionAdkChatRuntime {
             events.push(final_event);
             final_sequence = Some(sequence);
         }
-        let assistant_event_id = format!("{}:{}", chat.run_id, chat.agent_id);
+        payload["finalMessageId"] = Value::String(final_message_id.clone());
         let assistant_event = AdkRunEvent {
-            id: &assistant_event_id,
+            id: &final_message_id,
             session_id: &chat.session_id,
             invocation_id: &chat.run_id,
             author: &chat.agent_id,

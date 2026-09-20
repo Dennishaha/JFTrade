@@ -306,6 +306,320 @@ fn resolve_provider_follows_the_default_selection_and_its_repair() {
     assert_eq!(switched.model, "second-model");
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:541
+/// `TestRunChatRejectsInvalidPermissionModeOverride` plus the override table in
+/// `internal/assistant/model/runner_state.go:78` `ValidateChatOverrides`.
+///
+/// Go validates the per-request overrides before any agent or provider lookup:
+/// an unknown `permissionModeOverride`, `workModeOverride` or
+/// `reasoningEffortOverride` is rejected with `invalid ... mode %q` /
+/// `invalid reasoning effort %q`, and a blank override means "absent".  The Rust
+/// port accepted every override string silently, so a request that asked for
+/// `"root"` ran with the agent's own mode instead of failing closed.
+#[test]
+fn chat_rejects_invalid_permission_work_mode_and_reasoning_overrides() {
+    let (directory, store, session_store) = initialized_stores();
+    let secrets = directory.path().join("secrets");
+    std::fs::create_dir_all(&secrets).expect("create secrets directory");
+    std::fs::write(
+        secrets.join("adk-secrets.json"),
+        r#"{"provider-override":"sk-override"}"#,
+    )
+    .expect("write provider secrets");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, "{}").expect("write settings");
+
+    store
+        .upsert_provider(
+            "provider-override",
+            &json!({
+                "id": "provider-override",
+                "displayName": "Override Provider",
+                "baseUrl": "https://override.example/v1",
+                "model": "override-model",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    store
+        .upsert_agent(
+            "agent-override",
+            &json!({
+                "id": "agent-override",
+                "name": "Override Agent",
+                "providerId": "provider-override",
+                "permissionMode": "approval",
+                "status": "ENABLED",
+            })
+            .to_string(),
+        )
+        .expect("persist agent");
+
+    let runtime = ProductionAdkChatRuntime::new(
+        Arc::clone(&store),
+        session_store,
+        &settings_path,
+        Arc::new(RunCancellationRegistry::default()),
+        Arc::new(crate::product::product_production_ports::ProductionToolCatalog::empty_for_test()),
+    );
+
+    // Every rejected override reports the reference wording and the
+    // `400 ADK_CHAT_FAILED` classification Go's handler uses.  The assertions
+    // drive the real chat entry point so the validation order is exercised too:
+    // Go rejects the override *before* resolving the agent, so the same error
+    // comes back even for an agent id that does not exist.
+    // Each probe needs its own identity: a repeated `clientRequestId` with a
+    // changed fingerprint is the idempotency conflict the reference also
+    // reports, which would mask the override validation under test.
+    let mut sequence = 0_u32;
+    let mut dispatch = |agent_id: &str, field: &str, value: &str| {
+        sequence += 1;
+        let request_id = format!("888888{:02}-8888-4888-8888-888888888888", sequence + 10);
+        let body = serde_json::json!({
+            "clientRequestId": request_id,
+            "agentId": agent_id,
+            "message": "override probe",
+            field: value,
+        })
+        .to_string();
+        runtime.dispatch(
+            AdkChatRoute::Chat,
+            &AdkChatInput {
+                body: body.into_bytes(),
+                client_request_id: request_id,
+            },
+        )
+    };
+
+    for (field, value, expected) in [
+        (
+            "permissionModeOverride",
+            "root",
+            "invalid permission mode \"root\"",
+        ),
+        (
+            "workModeOverride",
+            "workflow",
+            "invalid work mode \"workflow\"",
+        ),
+        (
+            "reasoningEffortOverride",
+            "turbo",
+            "invalid reasoning effort \"turbo\"",
+        ),
+    ] {
+        for agent_id in ["agent-override", "agent-that-does-not-exist"] {
+            match dispatch(agent_id, field, value)
+                .expect_err("an unknown override must fail closed")
+            {
+                AdkChatPortError::Failed {
+                    status,
+                    code,
+                    message,
+                } => {
+                    assert_eq!(status, 400, "{field} status for {agent_id}");
+                    assert_eq!(code, "ADK_CHAT_FAILED", "{field} code for {agent_id}");
+                    assert_eq!(message, expected, "{field} message for {agent_id}");
+                }
+                other => panic!("{field} must classify as a chat failure: {other:?}"),
+            }
+        }
+    }
+
+    // A valid override wins over the agent's own mode on the run snapshot, and
+    // the provider display name is captured alongside it.  The model endpoint is
+    // a closed loopback port, so the run reaches the provider boundary and fails
+    // after the snapshot is written.
+    let override_run_id = "88888888-8888-4888-8888-888888888888";
+    let override_body = serde_json::json!({
+        "clientRequestId": override_run_id,
+        "agentId": "agent-override",
+        "message": "override probe",
+        "permissionModeOverride": "less_approval",
+    })
+    .to_string();
+    let _ = runtime.dispatch(
+        AdkChatRoute::Chat,
+        &AdkChatInput {
+            body: override_body.into_bytes(),
+            client_request_id: override_run_id.to_owned(),
+        },
+    );
+    let snapshot: Value = serde_json::from_str(
+        &store
+            .get_run(&format!("run-{override_run_id}"))
+            .expect("read override run")
+            .expect("override run row")
+            .payload_json,
+    )
+    .expect("decode override run payload");
+    assert_eq!(
+        snapshot["permissionMode"], "less_approval",
+        "the validated override must win over the agent's own mode: {snapshot}"
+    );
+    assert_eq!(
+        snapshot["providerName"], "Override Provider",
+        "the snapshot must carry the resolved provider display name: {snapshot}"
+    );
+
+    // Without an override the agent's own normalized mode is kept.
+    let plain_run_id = "88888889-8888-4888-8888-888888888888";
+    let plain_body = serde_json::json!({
+        "clientRequestId": plain_run_id,
+        "agentId": "agent-override",
+        "message": "override probe",
+    })
+    .to_string();
+    let _ = runtime.dispatch(
+        AdkChatRoute::Chat,
+        &AdkChatInput {
+            body: plain_body.into_bytes(),
+            client_request_id: plain_run_id.to_owned(),
+        },
+    );
+    let plain: Value = serde_json::from_str(
+        &store
+            .get_run(&format!("run-{plain_run_id}"))
+            .expect("read plain run")
+            .expect("plain run row")
+            .payload_json,
+    )
+    .expect("decode plain run payload");
+    assert_eq!(plain["permissionMode"], "approval");
+
+    // Blank overrides are "absent" rather than invalid, exactly like Go's
+    // trimmed comparisons, and every documented value is accepted.
+    for accepted in [
+        ("permissionModeOverride", "all"),
+        ("permissionModeOverride", "  approval  "),
+        ("workModeOverride", "loop"),
+        ("workModeOverride", ""),
+        ("reasoningEffortOverride", "xhigh"),
+        ("reasoningEffortOverride", "MAX"),
+    ] {
+        if let Err(error) = dispatch("agent-override", accepted.0, accepted.1) {
+            panic!("{accepted:?} must be accepted, got {error:?}");
+        }
+    }
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:552
+/// `TestRunStoresResolvedModelSnapshot`.
+///
+/// Go's `startRun` freezes the resolved provider/model/permission selection onto
+/// the run row, so renaming the provider or changing its model afterwards does
+/// not rewrite the history of an existing run.  The Rust run payload carried
+/// `providerId` and `model` but omitted `providerName` and `permissionMode`, so
+/// the console could not render the same snapshot the reference stores.
+#[test]
+fn run_snapshot_freezes_provider_name_model_and_permission_mode() {
+    let (directory, store, session_store) = initialized_stores();
+    let secrets = directory.path().join("secrets");
+    std::fs::create_dir_all(&secrets).expect("create secrets directory");
+    std::fs::write(
+        secrets.join("adk-secrets.json"),
+        r#"{"snapshot-provider":"sk-snapshot"}"#,
+    )
+    .expect("write provider secrets");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, "{}").expect("write settings");
+
+    store
+        .upsert_provider(
+            "snapshot-provider",
+            &json!({
+                "id": "snapshot-provider",
+                "displayName": "Snapshot Provider",
+                "baseUrl": "https://snapshot.example/v1",
+                "model": "snapshot-model-v1",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    store
+        .upsert_agent(
+            "agent-model-snapshot",
+            &json!({
+                "id": "agent-model-snapshot",
+                "name": "Snapshot Agent",
+                "providerId": "snapshot-provider",
+                "permissionMode": "approval",
+                "status": "ENABLED",
+            })
+            .to_string(),
+        )
+        .expect("persist agent");
+
+    let runtime = ProductionAdkChatRuntime::new(
+        Arc::clone(&store),
+        Arc::clone(&session_store),
+        &settings_path,
+        Arc::new(RunCancellationRegistry::default()),
+        Arc::new(crate::product::product_production_ports::ProductionToolCatalog::empty_for_test()),
+    );
+
+    let request_id = "77777777-7777-4777-8777-777777777777";
+    let body = format!(
+        r#"{{"clientRequestId":"{request_id}","agentId":"agent-model-snapshot","message":"hello"}}"#
+    );
+    // The provider endpoint is never contacted: `prepare_chat` persists the run
+    // snapshot before the model call, and the closed loopback port fails the
+    // call afterwards, which leaves the frozen snapshot on the row.
+    let _ = runtime.dispatch(
+        AdkChatRoute::Chat,
+        &AdkChatInput {
+            body: body.into_bytes(),
+            client_request_id: request_id.to_owned(),
+        },
+    );
+
+    let run_id = format!("run-{request_id}");
+    let snapshot = |store: &Arc<AdkStore>| -> Value {
+        let run = store
+            .get_run(&run_id)
+            .expect("read run")
+            .expect("run row exists");
+        serde_json::from_str(&run.payload_json).expect("decode run payload")
+    };
+
+    let first = snapshot(&store);
+    assert_eq!(first["model"], "snapshot-model-v1");
+    assert_eq!(
+        first["providerName"], "Snapshot Provider",
+        "the run must freeze the resolved provider display name: {first}"
+    );
+    assert_eq!(
+        first["permissionMode"], "approval",
+        "the run must freeze the effective permission mode: {first}"
+    );
+
+    // Renaming the provider and changing its model must not rewrite the run.
+    store
+        .upsert_provider(
+            "snapshot-provider",
+            &json!({
+                "id": "snapshot-provider",
+                "displayName": "Snapshot Provider Renamed",
+                "baseUrl": "https://snapshot.example/v1",
+                "model": "snapshot-model-v2",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("rename provider");
+    let stored = snapshot(&store);
+    assert_eq!(
+        stored["model"], "snapshot-model-v1",
+        "the stored model must stay the started snapshot: {stored}"
+    );
+    assert_eq!(
+        stored["providerName"], "Snapshot Provider",
+        "the stored provider name must stay the started snapshot: {stored}"
+    );
+}
+
 /// Go's `resolveAgentDefinition` checks `status` before the soft-delete marker,
 /// so a row that is both disabled and deleted reports "agent is disabled".
 #[test]

@@ -301,6 +301,60 @@ impl ProductionAdkChatRuntime {
     }
 }
 
+/// Request field carrying the per-request permission-mode override.
+///
+/// Go's `ChatRequest.PermissionModeOverride` is validated by
+/// `ValidateChatOverrides` before the agent is resolved, and the returned
+/// (normalized) value overrides the agent's own `permissionMode` when the run
+/// snapshot is taken.
+pub(super) const PERMISSION_MODE_OVERRIDE_FIELD: &str = "permissionModeOverride";
+
+/// Go's `model.ValidPermissionMode`: `approval`, `less_approval`, `all`.
+///
+/// `ValidateChatOverrides` trims the value, treats a blank override as absent,
+/// and otherwise rejects the request with `invalid permission mode %q` before
+/// any agent or provider lookup runs.
+fn validate_permission_mode_override(
+    request: &serde_json::Map<String, Value>,
+) -> Result<Option<String>, AdkChatPortError> {
+    let Some(raw) = text_field(request, "permissionModeOverride") else {
+        return Ok(None);
+    };
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "approval" | "less_approval" | "all" => Ok(Some(raw.trim().to_ascii_lowercase())),
+        _ => Err(chat_failed(format!(
+            "invalid permission mode {raw:?}"
+        ))),
+    }
+}
+
+/// Go's `model.ValidWorkMode`: blank, `chat` or `loop`.
+fn validate_work_mode_override(
+    request: &serde_json::Map<String, Value>,
+) -> Result<(), AdkChatPortError> {
+    let Some(raw) = text_field(request, "workModeOverride") else {
+        return Ok(());
+    };
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "" | "chat" | "loop" => Ok(()),
+        _ => Err(chat_failed(format!("invalid work mode {raw:?}"))),
+    }
+}
+
+/// Go's `model.ValidateOptionalReasoningEffort`: blank, `low`, `medium`,
+/// `high`, `xhigh` or `max`, compared case-insensitively after trimming.
+fn validate_reasoning_effort_override(
+    request: &serde_json::Map<String, Value>,
+) -> Result<(), AdkChatPortError> {
+    let Some(raw) = text_field(request, "reasoningEffortOverride") else {
+        return Ok(());
+    };
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "" | "low" | "medium" | "high" | "xhigh" | "max" => Ok(()),
+        _ => Err(chat_failed(format!("invalid reasoning effort {raw:?}"))),
+    }
+}
+
 fn run_cancelled() -> AdkChatPortError {
     AdkChatPortError::Failed {
         status: 499,
@@ -417,8 +471,20 @@ impl ProductionAdkChatRuntime {
             .and_then(Value::as_u64)
             .unwrap_or(DEFAULT_TIMEOUT_MS)
             .clamp(15_000, 600_000);
+        // Go's `validateChatOverrides` ran before the agent was resolved and
+        // its permission result wins over the agent's own `permissionMode`
+        // when the run snapshot is taken.  The override string is carried on
+        // the request by `prepare_chat`, which performs that validation.
+        let permission_mode = text_field(request, PERMISSION_MODE_OVERRIDE_FIELD)
+            .unwrap_or_else(|| Self::agent_permission_mode(&agent_payload));
         Ok(ResolvedProvider {
             id: selected.id.clone(),
+            name: value
+                .get("displayName")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .trim()
+                .to_owned(),
             agent_id,
             agent_payload: agent_payload.clone(),
             endpoint,
@@ -435,6 +501,7 @@ impl ProductionAdkChatRuntime {
                 .map(str::trim)
                 .filter(|value| !value.is_empty())
                 .map(str::to_owned),
+            permission_mode,
             instruction,
             timeout: Duration::from_millis(timeout_ms),
         })

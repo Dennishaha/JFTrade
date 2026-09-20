@@ -1469,3 +1469,55 @@ Rust 修复前差异：
 决策项仍需与本领域同批评估：`runner_continuation_boundaries_test.go:188`（`RUN_LEASE_CLAIM_FAILED` 语义）、`:242`（租约存储错误传播与关闭 store 回归）、`:275`/`:427`（goal-run 后台续跑引擎缺口）。
 
 随后按 `store_test.go`（20）→ `session_context_test.go`（19）推进；`internal/app/apiserver`（349）与 `pkg/backtest`（174）保持为后续大领域批次。
+
+## 第二十八批：chat 覆盖校验、run 快照字段与成功路径 finalMessageId 链接（runner_chat_test.go 结清 3 条）
+
+范围：`internal/assistant/engine/runner_chat_test.go` 的 `:225`、`:541`、`:552`。三行均为 Rust 真实功能缺口，不是计数对齐。`[x]` 由 820 → **823**。
+
+### :541 `TestRunChatRejectsInvalidPermissionModeOverride`（fail-open 修复）
+
+冻结证据：Go `ValidateChatOverrides`（`internal/assistant/model/runner_state.go:78`）在 `runChat` 中紧跟 `prepareChatRequest`、且**在 `resolveAgentDefinition` 之前**执行：
+`workModeOverride` 非空且不属于 `{chat,loop}` → `invalid work mode %q`；`permissionModeOverride` 去空格后非空且不属于 `{approval,less_approval,all}` → `invalid permission mode %q`；`reasoningEffortOverride` 不属于 `{low,medium,high,xhigh,max}` → `invalid reasoning effort %q`；空白视为缺省。
+
+Rust 修复前的问题：完全没有 override 校验。请求里写 `permissionModeOverride: "root"` 会静默沿用 agent 自身模式——即 fail-open，比 Go 更宽松。
+
+修复：`product_adk_model_runtime_lifecycle.rs` 新增 `validate_permission_mode_override` / `validate_work_mode_override` / `validate_reasoning_effort_override` 与 `PERMISSION_MODE_OVERRIDE_FIELD`；`product_adk_model_runtime_events.rs` 的 `prepare_chat` 在指纹与 agent 解析之前调用（复刻 Go 顺序），校验后的规范化权限模式经 `request_object` 传给 `resolve_provider` 并冻结进 run 快照。
+
+回归 `chat_rejects_invalid_permission_work_mode_and_reasoning_overrides`：三类非法值对真实 agentId 与**不存在的** agentId 都返回 `(400, ADK_CHAT_FAILED, 参考原文)`（同时锁住"校验先于 agent 解析"的顺序）；合法值 `all`/`"  approval  "`/`loop`/空串/`xhigh`/`MAX` 全部接受；带 override 的 run 快照 `permissionMode=less_approval`。探针：把 `validate_permission_mode_override` 短路成 `Ok(None)` 后回归转红（回 200 投影而非 400），`cp` 恢复后通过。
+
+### :552 `TestRunStoresResolvedModelSnapshot`（快照字段缺失）
+
+冻结证据：Go `startRun` 把解析后的 provider display name、model 与有效 permissionMode 冻结到 run 行；之后重命名 provider 或改其 model **不得**改写已存在 run 的历史。
+
+Rust 修复前的问题：run payload 只写 `providerId`/`model`，缺 `providerName` 与 `permissionMode`，控制台拿不到与 Go 相同的快照字段。
+
+修复：`ResolvedProvider` 增加 `name`/`permission_mode`，由 `resolve_provider` 从 provider payload 的 `displayName` 与（override 优先 / 否则 agent 的 `normalize_permission_mode`）填充；初始 payload 写入 `providerName` 与 `permissionMode`。
+
+回归 `run_snapshot_freezes_provider_name_model_and_permission_mode`：快照 `model=snapshot-model-v1`、`providerName=Snapshot Provider`、`permissionMode=approval`；改名为 `Snapshot Provider Renamed` 且 model 改 v2 后，落盘 run 仍保持 v1 与原名。
+
+### :225 `TestAttachFinalAssistantMessagePersistsMessageAndRunLink`（成功路径从不写 finalMessageId）
+
+冻结证据：Go `AttachFinalAssistantMessage` 追加 assistant transcript 条目、写 `run.FinalMessageID = message.ID`、`SaveRun` 后返回更新过的 run；消息 id 由 `syntheticAssistantMessageID(runID, replyResult)` 决定（kind 缺省 `local`，摘要 = `sha256(kind\0reasoning\0reply)` 前 8 字节 hex）。上一批只修了**失败**路径的 finalMessageId，成功路径仍是自造的 `"{run}:{agent}"` session event id，且 `finalMessageId` 完全缺失，控制台无法把 reply 反查回 transcript 行。
+
+修复：`persist_success` 改用 `synthetic_assistant_message_id(run_id, "local", "", text)`，把同一个 id 同时写到 `run_value.finalMessageId`、`payload.finalMessageId`、timeline 条目 id 与 `AdkRunEvent.id`，四者共享一个 id。摘要里 reasoning 槽留空并写明原因：Rust 的 `ModelResponse` 只带可见文本，没有 Go `googleADKExecution.result()` 那种 reasoning buffer 可参与摘要；这是如实记录的能力差异，不是遗漏。
+
+回归 `a_completed_run_links_its_final_assistant_message_across_the_transcript`：断言 `run.finalMessageId` 非空且等于 `timeline[0].id`、timeline 为 `assistant_message`/`final` 且文本等于回复；落盘 payload 同 id；用 `session_store.list_events` 找到该 id 并断言 `content`/`invocationId`/`author` 与 run 对应。探针：短路 `payload["finalMessageId"]` 写入后回归转红，`cp` 恢复后通过。
+
+### 验证
+
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：**1490 passed / 0 failed**（上批 1488）。
+- `cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine --all-targets --locked`、`pnpm run check:zero-go`、`pnpm run check:compatibility`（EXIT=0）、`pnpm run check:rust:architecture`：通过。
+- `python3 scripts/compatibility/audit_test_parity.py`：820 → **823 function_exact**、0 重复 `rust_entry`、4451 key 不变、0 U+FFFD、Rust 测试总数 2647 → 2650。
+
+### 下批目标
+
+`runner_chat_test.go` 余 9 条 `[~]`：`:56`（边界保留）、`:69`、`:102`、`:127`、`:490`、`:609`、`:737`、`:846`、`:891`、`:1043`、`:1079`。建议顺序：
+
+1. `:69` `HydrateRunExecutionResult` 字段投影（`toolCalls`/`toolSummaries`/`preToolContent`/`preToolReasoning`/`optimizationTaskId`/`pendingApprovals`/`usage.toolCallsTotal`）——与 `:490` 同一投影面，可同批。
+2. `:490` `ProjectedChatResponse` 需要从 session transcript 反推 `preToolContent` 与 `reply`（Go 用 `ProjectedAssistantMessageForRun` 读投影），Rust 目前只有 run payload，缺口可能比 `:69` 大，先取证再决定实现或如实登记。
+3. `:127` tool-only run 合成 final reply——注意 Go 的 `testProviderFinalReply` 是**测试替身**（假 provider 的第二轮回复），不是生产合成路径；真正的生产合成只有 `tool_failure` 分支。需先确认 Rust 的工具循环是否已复刻该轮次，再判定 `[x]` 还是 `boundary`。
+4. `:102` 顶层 follow-up 不升级为 pending input、`:609` provider override 不改 agent、`:737` projection 持久化边界、`:846` 已 resolve 的 approval 不回流、`:891` stream 关闭后后台 resume、`:1043` resolveSession 复用/标题裁剪 28 字符、`:1079` run handle 生命周期。
+
+决策项仍需与本领域同批评估：`runner_continuation_boundaries_test.go:188`（`RUN_LEASE_CLAIM_FAILED`）、`:242`（租约存储错误传播）、`:275`/`:427`（goal-run 后台续跑引擎缺口）。
+
+随后按 `store_test.go`（20）→ `session_context_test.go`（19）推进；`internal/app/apiserver`（349）与 `pkg/backtest`（174）保持为后续大领域批次。

@@ -429,6 +429,78 @@ fn a_gated_call_parks_the_run_and_audits_awaiting_approval() {
     assert_eq!(audit["metadata"]["pendingApprovals"], 1);
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:225
+/// `TestAttachFinalAssistantMessagePersistsMessageAndRunLink`.
+///
+/// Go's `AttachFinalAssistantMessage` appends the assistant transcript entry,
+/// writes `run.FinalMessageID = message.ID`, saves the run, and returns the
+/// updated run.  The projection therefore exposes one id that links the run to
+/// the stored session event and to the rendered timeline entry.
+///
+/// Rust used to derive an ad-hoc `"{run}:{agent}"` id for the session event and
+/// never wrote `finalMessageId` at all, so a console could not resolve the reply
+/// back to its transcript row.  The id now follows Go's
+/// `syntheticAssistantMessageID(runID, replyResult)` (kind defaults to `local`
+/// for a plain successful turn) and is shared by all three surfaces.
+#[test]
+fn a_completed_run_links_its_final_assistant_message_across_the_transcript() {
+    let (directory, store, session_store) = initialized_stores();
+    let runtime = runtime_for(&directory, &store, &session_store);
+    create_running_run(&store, "run-final-message", json!([]));
+    let chat = chat_for("run-final-message");
+    let lease = RunLeaseGuard::acquire(Arc::clone(&store), "run-final-message", "owner-final")
+        .expect("acquire run lease");
+
+    let response = runtime
+        .persist_success(
+            &chat,
+            super::ModelResponse {
+                text: "all set".to_owned(),
+                tool_calls: Vec::new(),
+            },
+            &lease,
+        )
+        .expect("persist success");
+
+    let final_message_id = response["run"]["finalMessageId"]
+        .as_str()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| panic!("a completed run must link its final message: {response}"))
+        .to_owned();
+    assert_eq!(
+        response["run"]["finalMessageId"], response["timeline"][0]["id"],
+        "the run link and the timeline entry must share one id: {response}"
+    );
+    assert_eq!(response["timeline"][0]["kind"], "assistant_message");
+    assert_eq!(response["timeline"][0]["status"], "final");
+    assert_eq!(response["timeline"][0]["text"], "all set");
+
+    // The stored run carries the same link, exactly like Go's `store.SaveRun`
+    // after `run.FinalMessageID = message.ID`.
+    let stored: Value = serde_json::from_str(
+        &store
+            .get_run("run-final-message")
+            .expect("read run")
+            .expect("run row")
+            .payload_json,
+    )
+    .expect("decode run payload");
+    assert_eq!(stored["finalMessageId"], final_message_id);
+
+    // The linked id resolves to a real session transcript event whose content is
+    // the assistant reply, which is what makes the link useful to the console.
+    let events = session_store
+        .list_events("session-run-final-message")
+        .expect("list session events");
+    let final_event = events
+        .iter()
+        .find(|event| event.id == final_message_id)
+        .unwrap_or_else(|| panic!("the linked id must resolve to a session event: {events:?}"));
+    assert_eq!(final_event.content, "all set");
+    assert_eq!(final_event.invocation_id, "run-final-message");
+    assert_eq!(final_event.author, "agent-terminal");
+}
+
 /// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:376
 /// TestCompleteChatRunSuccessPersistsCompletedRunAndAssistantReply.
 ///

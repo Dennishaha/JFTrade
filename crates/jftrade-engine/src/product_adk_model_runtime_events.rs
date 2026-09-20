@@ -143,6 +143,13 @@ impl ProductionAdkChatRuntime {
                 "message exceeds maximum length of {MAX_MESSAGE_LENGTH} characters"
             )));
         }
+        // Go's `runChat` validates every per-request override right after
+        // `prepareChatRequest` and *before* the agent definition is resolved,
+        // so an invalid override is reported even when the agent itself would
+        // not resolve.  The message strings are the reference wording.
+        let permission_override = validate_permission_mode_override(object)?;
+        validate_work_mode_override(object)?;
+        validate_reasoning_effort_override(object)?;
         let fingerprint = fingerprint(&input.body);
         if let Some(existing) = self
             .store
@@ -156,7 +163,19 @@ impl ProductionAdkChatRuntime {
         // provider resolution.  The guard is released when the run finishes,
         // including every later error branch.
         let run_slot = self.run_gate.try_acquire()?;
-        let provider = self.resolve_provider(object)?;
+        // `ValidateChatOverrides` returns the trimmed permission mode, and Go
+        // writes it onto the agent before the run snapshot is taken; carrying
+        // the normalized value keeps `resolve_provider` free of re-validation.
+        let mut request_object = object.clone();
+        if let Some(permission_override) = permission_override {
+            request_object.insert(
+                PERMISSION_MODE_OVERRIDE_FIELD.to_owned(),
+                Value::String(permission_override),
+            );
+        } else {
+            request_object.remove(PERMISSION_MODE_OVERRIDE_FIELD);
+        }
+        let provider = self.resolve_provider(&request_object)?;
         let agent_id = provider.agent_id.clone();
         let model = text_field(object, "model")
             .or_else(|| provider.agent_model.clone())
@@ -214,7 +233,13 @@ impl ProductionAdkChatRuntime {
             "resumeState": "provider_executing",
             "requestMessage": message.clone(),
             "providerId": provider.id.clone(),
+            // Go's `startRun` captures the resolved provider display name
+            // and the effective permission mode on the run, so a later
+            // provider rename or agent edit cannot rewrite an existing
+            // run's history.
+            "providerName": provider.name.clone(),
             "model": model.clone(),
+            "permissionMode": provider.permission_mode.clone(),
             "route": match route { AdkChatRoute::Chat => "chat", AdkChatRoute::Stream => "stream" },
             "toolResults": [],
         });

@@ -105,6 +105,10 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
 #[derive(Debug)]
 struct ResolvedProvider {
     id: String,
+    /// Go's `Run.ProviderName`: the resolved provider's display name, captured
+    /// on the run when it starts so a later provider rename cannot rewrite
+    /// the history of an existing run.
+    name: String,
     agent_id: String,
     /// Resolved agent payload, so the request builder can scope the
     /// model-visible tool list without re-reading the store.
@@ -113,6 +117,9 @@ struct ResolvedProvider {
     api_key: String,
     model: String,
     agent_model: Option<String>,
+    /// Go's `Run.PermissionMode`: the effective mode after
+    /// `validateChatOverrides` + `applyChatModelOverride`, frozen onto the run.
+    permission_mode: String,
     instruction: Option<String>,
     timeout: Duration,
 }

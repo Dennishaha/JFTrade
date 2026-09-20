@@ -9037,11 +9037,11 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:225:TestAttachFinalAssistantMessagePersistsMessageAndRunLink": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_completed_run_links_its_final_assistant_message_across_the_transcript",
+    "conclusion": "function_exact：Go 的 AttachFinalAssistantMessage 追加 assistant transcript 条目、把 run.FinalMessageID 指向它、SaveRun 后返回更新过的 run；消息 id 由 syntheticAssistantMessageID(runID, replyResult) 决定（kind 缺省 \"local\"，摘要 = sha256(kind\\0reasoning\\0reply) 前 8 字节 hex）。Rust 修复前用自造的 \"{run}:{agent}\" 作 session event id，且全仓没有 finalMessageId，控制台无法把 reply 反查回 transcript 行。修复位置：crates/jftrade-engine/src/product_adk_model_runtime_stream.rs 的 persist_success——改用 synthetic_assistant_message_id(run_id,\"local\",\"\",text)（Rust 的 ModelResponse 只带可见文本，没有 Go 那种 reasoning buffer 参与摘要），把同一个 id 同时写到 run_value.finalMessageId、payload.finalMessageId、timeline 条目 id 与 AdkRunEvent.id，三者共享一个 id。回归断言：response.run.finalMessageId 非空且等于 timeline[0].id、timeline 条目为 assistant_message/final 且 text 为回复；落盘 payload.finalMessageId 相同；用 session_store.list_events 找到该 id，断言 content/invocationId/author 与 run 对应。探针：短路 payload[\"finalMessageId\"] 写入后该回归转红（finalMessageId 缺失），cp 恢复后通过。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:267:TestFinishPendingApprovalRunPersistsPendingStateAndAssistantPrompt": {
     "status": "[x]",
@@ -9079,18 +9079,18 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/runner_chat_test.go:541:TestRunChatRejectsInvalidPermissionModeOverride": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::chat_rejects_invalid_permission_work_mode_and_reasoning_overrides",
+    "conclusion": "function_exact：Go 的 ValidateChatOverrides（internal/assistant/model/runner_state.go:78）在 runChat 中紧跟 prepareChatRequest、且在 resolveAgentDefinition 之前执行：workModeOverride 非空且不属于 {chat,loop} → \"invalid work mode %q\"；permissionModeOverride 去空格后非空且不属于 {approval,less_approval,all} → \"invalid permission mode %q\"；reasoningEffortOverride 非空且不属于 {low,medium,high,xhigh,max} → \"invalid reasoning effort %q\"；空白视为缺省。Rust 此前完全不做 override 校验，请求里写 \"root\" 会静默沿用 agent 自身模式，属于 fail-open。修复位置：crates/jftrade-engine/src/product_adk_model_runtime_lifecycle.rs 新增 validate_permission_mode_override / validate_work_mode_override / validate_reasoning_effort_override 与 PERMISSION_MODE_OVERRIDE_FIELD，由 product_adk_model_runtime_events.rs 的 prepare_chat 在指纹/agent 解析之前调用（与 Go 的顺序一致），校验后的规范化权限模式经 request_object 传给 resolve_provider 并冻结进 run 快照。回归断言：三类非法值对真实 agentId 与不存在的 agentId 都返回 (400, ADK_CHAT_FAILED, 参考原文)——同时锁住校验先于 agent 解析的顺序；合法值 all/\"  approval  \"/loop/空串/xhigh/MAX 全部被接受；带 override 的 run 快照 permissionMode=less_approval 且 providerName 已冻结。探针：把 validate_permission_mode_override 短路成 Ok(None) 后该回归转红（返回 200 投影而非 400），cp 恢复后通过。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:552:TestRunStoresResolvedModelSnapshot": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::run_snapshot_freezes_provider_name_model_and_permission_mode",
+    "conclusion": "function_exact：Go 的 startRun 把解析后的 provider display name、model 与有效 permissionMode 冻结到 run 行；之后重命名 provider 或改其 model 不得改写已存在 run 的历史。Rust 的 run payload 原本只写 providerId/model，缺 providerName 与 permissionMode，控制台拿不到与 Go 相同的快照字段。修复位置：crates/jftrade-engine/src/product_adk_model_runtime_lifecycle.rs 的 ResolvedProvider 增加 name/permission_mode 并由 resolve_provider 从 provider payload 的 displayName 与 （override 优先 / 否则 agent 的 normalize_permission_mode）填充；product_adk_model_runtime_events.rs 的初始 payload 写入 providerName 与 permissionMode。回归断言：run 快照 model=snapshot-model-v1、providerName=Snapshot Provider、permissionMode=approval；把 provider 改名为 \"Snapshot Provider Renamed\" 且 model 改为 v2 后，落盘 run 仍保持 v1 与原名。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_test.go:609:TestChatRequestProviderOverrideRunsWithoutEditingAgent": {
     "status": "[~]",
