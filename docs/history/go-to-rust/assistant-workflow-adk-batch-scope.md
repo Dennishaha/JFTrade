@@ -1198,3 +1198,61 @@ backtest companion 1 条、descriptor access mode 1 条。
 `classify_tool_failure` 只有 MODEL_CALL_TIMEOUT 映射到 TIMEOUT）。实现要点：在工具执行边界加
 30s 超时（结果映射 `TIMEOUT`/retryable）与 panic 捕获（`tool panic: ...`），并让
 `account.orders` 与慢 `portfolio.summary` 并发时互不阻塞；补超时/panic/慢端口回归后用探针验证。
+
+## 第二十三批：internal/assistant/engine/tools_test.go 结清（3 条超时/不挂起 + 1 条 schema）
+
+批次范围：`internal/assistant/engine/tools_test.go` 剩余 4 条 `[~]`，全部结清。`tools_test.go` 现为 21/21 `[x]`。
+
+### 功能缺口与修复
+
+Go `executeRegisteredTool`（`internal/assistant/engine/tools.go:373`）对每个注册 handler 做两件 Rust 此前完全缺失的事：
+
+1. `context.WithTimeout(ctx, 30*time.Second)`：handler 超过 30s 必须返回 `context.DeadlineExceeded`。
+2. `recover()` → `tool panic: %v`：handler panic 不能杀死 run，只能变成 tool call 上的错误文本。
+
+`classifyToolError`（`internal/assistant/engine/runner_tools.go:485`）再把 `DeadlineExceeded` 映射为 `("TIMEOUT", true)`、`Canceled` 映射为 `("CANCELLED", false)`。
+
+Rust 修复（`crates/jftrade-engine`）：
+
+- 新增 `AdkToolExecutor::execution_deadline()`（默认 30s），生产实现沿用该默认值，工具循环按执行器声明的 deadline 运行，避免把常量埋在调用点。
+- 新增 `execute_tool_with_timeout()`（`product_adk_model_runtime_tool_loop.rs`）：把 handler 放到具名工作线程执行，`catch_unwind` 捕获 panic 转 `tool panic: <text>`；主循环以 50ms 片轮询，同时观察取消信号与 deadline，deadline 到期返回 `context deadline exceeded`/`TOOL_EXECUTION_TIMEOUT`，取消返回 `context canceled`/`TOOL_EXECUTION_CANCELLED`；handler 返回后再复查一次 context（对齐 Go 的“返回后重新读 ctx.Err()”语义）。超时路径故意 detach worker（Go 同样无法杀死 goroutine），持久 claim fencing 已阻止陈旧 owner 提交迟到结果。
+- `classify_tool_failure` 增加 `TOOL_EXECUTION_TIMEOUT → ("TIMEOUT", true)`、`TOOL_EXECUTION_CANCELLED → ("CANCELLED", false)`；`RUN_CANCELLED`/`CLIENT_DISCONNECTED` 原映射保持不变。
+- `run_tool_loop_stream` 提权为 `pub(super)`，供本批流式回归直接驱动。
+- 超时/panic 辅助拆到 `product_adk_model_runtime_tool_timeout.rs` 并以 `include!` 引入，`product_adk_model_runtime_tool_loop.rs` 保持 762 行（低于 800 行生产上限）。
+
+### 新增回归（8 条，`product_adk_model_runtime_tool_deadline_tests.rs`）
+
+| Rust 测试 | 对应 Go 测试 | 断言要点 |
+| --- | --- | --- |
+| `account_orders_completes_without_hanging` | `tools_test.go:468` | 5 个 console 读工具在一次 `run_tool_loop` 内全部执行、各自落盘 `SUCCEEDED`，整体 <30s |
+| `account_orders_completes_with_a_slow_portfolio_summary` | `tools_test.go:605` | 慢 `portfolio.summary`（500ms）不阻塞 `account.orders`（fast read elapsed <400ms），两条调用都落盘 |
+| `account_orders_stream_completes` | `tools_test.go:837` | 流式路径复用有界 tool loop，stream run 的两条调用落盘且 worker <30s 结束 |
+| `a_hanging_tool_is_bounded_and_classified_as_a_timeout` | 派生（30s 语义） | 200ms deadline 下挂起工具被截断，分类 `("TIMEOUT", true)` |
+| `a_panicking_tool_becomes_a_visible_tool_panic_failure` | 派生（recover 语义） | 错误文本为 `tool panic: split brain detector exploded`，分类 `TOOL_EXECUTION_FAILED` |
+| `a_cancelled_tool_call_reports_the_context_cancellation` | 派生（ctx 取消） | 取消在 <2s 内打断等待，分类 `("CANCELLED", false)` |
+| `the_default_tool_execution_deadline_is_thirty_seconds` | 派生（常量冻结） | executor 与生产 executor 的 deadline 均为 30s |
+| `an_expired_tool_deadline_is_projected_onto_the_tool_call` | 派生（落盘投影） | deadline 到期写入 `status=FAILED`、`errorCode=TIMEOUT`、`error="context deadline exceeded"`、`error.retryable=true`，run 级 `failureReason` 保持空 |
+
+### 探针证据
+
+- 探针 A（把 deadline 分支改成固定 30s 循环）：6 条测试中的超时/取消用例挂住不返回，进程需外部终止 → 说明 deadline 分支是唯一的时间边界，测试确实依赖它。
+- 探针 B（panic payload 文本丢弃）：`a_panicking_tool_becomes_a_visible_tool_panic_failure` 转红（`left: "tool failed"`，`right: "tool panic: split brain detector exploded"`）。
+- 探针 C（删除循环内与返回后的取消复查）：`a_cancelled_tool_call_reports_the_context_cancellation` 转红并跑满 30s（`cancellation must interrupt the wait instead of running to the deadline`）。
+- 探针均以临时备份 `cp` 恢复，恢复后 `grep` 复核 `if remaining.is_zero()`、`panic_text(payload)`、双重取消复查均存在。
+
+### 第 4 条：tasks schema（`tools_test.go:44`）
+
+Go 的 `skillsruntime.DefaultToolInputSchema("tasks.create"/"tasks.update")` 必须含 10 个 planner 投影字段（order/modeHint/agentRole/plannerStepId/planSource/workflowMode/objective/childProviderId/childModel/plannerWarnings）。
+
+Rust 侧 `tasks.create/update` 属未实现的写工具（不在 `PRODUCTION_TOOL_DEFINITIONS`，因此没有 registry descriptor 可断言），但字段语义由 mutation 路径守护：`product_production_ports_adk_mutation_tasks.rs` 逐字段读取/规范化，`product_production_ports_adk_tests.rs::adk_task_normalization_and_validation_match_go` 断言 `order`、`modeHint`、`agentRole`、`plannerStepId`、`planSource`、`workflowMode`、`objective` 原样往返，`plannerWarnings` 与 `dependsOn` 一同 trim/dedupe/sort；`childProviderId`/`childModel` 由 `TestTaskAndMemoryCRUDContracts` 对应回归断言。本行以 `local_tool_schemas_are_reviewed` + `adk_task_normalization_and_validation_match_go` 记为 function_exact，并在结论中写明“Rust 无 tasks descriptor，字段等价由 mutation 契约守护”。
+
+### 验证
+
+- `cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine --all-targets --locked`：通过（clippy 0 错误）。
+- `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：**1470 passed / 0 failed**（上批基线 1462，本批 +8）。
+- `pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`、`pnpm run check:rust:architecture`、`git diff --check`：通过。
+- 映射清单：`[x]` 801 → **805**，`function_exact` 805，0 重复 rust_entry，key 集合仍为 4451。
+
+### 下批目标
+
+`internal/assistant/engine/runner_chat_test.go`（24 条，余 20 条 `[~]`）：先读 `runner_chat_test.go:56/69/102/127/156/181` 与 `internal/assistant/engine/runner_chat.go`，逐条比对 `hydrateRunExecutionResult`、`completeChatRun`、`markFailedChatRun`、`persistRunTerminalState`、`attachFinalAssistantMessage` 与 Rust 的 `persist_success`/`persist_failure`/`persisted_turn_response`。重点核对：tool-only run 合成 final reply、run 级终态与审计事件的原子写入、pending approval 的 assistant prompt 落盘、run handle 生命周期（`startRun`/`finishRun`/`cancelRun` 终态 noop）。

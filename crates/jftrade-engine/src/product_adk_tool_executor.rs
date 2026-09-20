@@ -35,6 +35,13 @@ pub(crate) trait AdkToolExecutor: Send + Sync + std::fmt::Debug {
     ) -> Result<Value, String> {
         self.execute(name, arguments)
     }
+    /// Go's `executeRegisteredTool` bounds every handler with a 30-second
+    /// context (`context.WithTimeout(ctx, 30*time.Second)`).  The runtime asks
+    /// the executor for that deadline so the tool loop can enforce it without
+    /// hard-coding the reference constant at the call site.
+    fn execution_deadline(&self) -> std::time::Duration {
+        std::time::Duration::from_secs(30)
+    }
     fn attach_ports(&self, _ports: Arc<ProductionPortBundle>) {}
     fn detach_ports(&self) {}
 }

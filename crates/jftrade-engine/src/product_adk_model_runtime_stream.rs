@@ -278,7 +278,7 @@ impl ProductionAdkChatRuntime {
     /// the same connection: Go's ADK loop runs those tools inline and emits the
     /// `final` event afterwards, so the client never sees a false approval
     /// wait.
-    fn run_tool_loop_stream(
+    pub(super) fn run_tool_loop_stream(
         &self,
         chat: &super::ChatExecution,
         sender: &ApiStreamSender,

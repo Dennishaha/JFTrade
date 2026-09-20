@@ -58,6 +58,10 @@ mod tool_failure_tests;
 #[path = "product_adk_model_runtime_catalog_policy_tests.rs"]
 mod catalog_policy_tests;
 
+#[cfg(test)]
+#[path = "product_adk_model_runtime_tool_deadline_tests.rs"]
+mod tool_deadline_tests;
+
 const MAX_RESPONSE_BYTES: usize = 4 << 20;
 const DEFAULT_TIMEOUT_MS: u64 = 120_000;
 /// Go `assistantmodel.MaxMessageLength`: a chat message longer than this many

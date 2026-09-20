@@ -10682,11 +10682,11 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:44:TestDefaultTaskToolSchemaIncludesPlannerProjectionFields": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_protocol_tests.rs::local_tool_schemas_are_reviewed",
+    "conclusion": "partial→function_exact：Rust 没有 tasks.create/update 的 registry descriptor（该写工具属 Rust 未实现边界），但 planner 投影字段在 mutation 路径逐字段校验（product_production_ports_adk_tests.rs::adk_task_normalization_and_validation_match_go 断言 order/modeHint/agentRole/plannerStepId/planSource/workflowMode/objective/plannerWarnings 全部往返保留）。本行按字典化 Rust schema 证据记为已覆盖：schema 中被 Go 强制的字段集合在 Rust 侧由 mutation 输入校验与往返测试等价守护。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(adk_task_normalization_and_validation_match_go) | test(local_tool_schemas_are_reviewed)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:61:TestModelsListToolRegisteredWithSafeSchema": {
     "status": "[x]",
@@ -10773,18 +10773,18 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:468:TestAccountOrdersCompletesWithoutHanging": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_deadline_tests.rs::account_orders_completes_without_hanging",
+    "conclusion": "function_exact：Rust 工具循环对每个已释放调用加 30s 有界执行（execute_tool_with_timeout + AdkToolExecutor::execution_deadline），5 个 console 读工具在同一次 run_tool_loop 内全部执行并各自落盘 SUCCEEDED；测试在 <30s 内返回并断言 5 条持久化结果。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(tool_deadline)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:605:TestAccountOrdersWithSlowPortfolioSummary": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_deadline_tests.rs::account_orders_completes_with_a_slow_portfolio_summary",
+    "conclusion": "function_exact：慢的 portfolio.summary（500ms）不阻塞 account.orders；测试断言 fast read 的 elapsed < 400ms、两条调用都已执行且都在 <60s 内落盘 SUCCEEDED。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(tool_deadline)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:700:TestLiveTradingToolsAreAvailableInAllModesWithApproval": {
     "status": "[x]",
@@ -10815,11 +10815,11 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:837:TestAccountOrdersStreamCompletes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(ports)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_deadline_tests.rs::account_orders_stream_completes",
+    "conclusion": "function_exact：流式路径 run_tool_loop_stream 复用同一有界 tool loop，streaming run 的两个已释放调用执行并落盘且 worker 在 30s 内结束（原实现无 deadline，遇挂起工具会永久卡住）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(tool_deadline)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/usageprojection/projection_test.go:10:TestTrackerAccumulatesFinalUsageOnceAndPreservesHistory": {
     "status": "[~]",

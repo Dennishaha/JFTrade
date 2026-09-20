@@ -169,14 +169,28 @@ impl ProductionAdkChatRuntime {
                         // the reference observes through `ctx.Done()`.
                         let cancellation_handle = Arc::clone(&cancellation);
                         let run_id = chat.run_id.clone();
-                        let runtime = self;
-                        let outcome = self
-                            .tool_executor
-                            .execute_cancellable(&name, &arguments, &|| {
-                                cancellation_handle.load(Ordering::Acquire)
-                                    || runtime.run_is_cancelled(&run_id)
-                            })
-                            .map_err(tool_failed);
+                        let store = Arc::clone(&self.store);
+                        let cancellation_probe = Arc::new(move || {
+                            cancellation_handle.load(Ordering::Acquire)
+                                || store
+                                    .get_run(&run_id)
+                                    .ok()
+                                    .flatten()
+                                    .is_some_and(|run| {
+                                        run.status.eq_ignore_ascii_case("CANCELLED")
+                                    })
+                        });
+                        // Go's `executeRegisteredTool` bounds every handler
+                        // with a 30s context and recovers panics into
+                        // `tool panic: %v`; the runtime must never let a
+                        // hanging or panicking tool wedge the run.
+                        let outcome = execute_tool_with_timeout(
+                            &self.tool_executor,
+                            &name,
+                            &arguments,
+                            cancellation_probe,
+                            self.tool_executor.execution_deadline(),
+                        );
                         if heartbeat.stop() || run_lease.is_lost() {
                             return;
                         }
@@ -556,6 +570,8 @@ impl ProductionAdkChatRuntime {
     }
 }
 
+include!("product_adk_model_runtime_tool_timeout.rs");
+
 /// Select calls released by approval that do not yet have a durable result.
 fn executable_tool_calls(payload: &Value) -> Vec<Value> {
     let Some(calls) = payload.get("toolCalls").and_then(Value::as_array) else {
@@ -686,7 +702,8 @@ fn tool_error_text(error: &AdkChatPortError) -> String {
 fn classify_tool_failure(error: &AdkChatPortError) -> (&'static str, bool) {
     match error {
         AdkChatPortError::Failed { code, .. } => match code.as_str() {
-            "MODEL_CALL_TIMEOUT" => ("TIMEOUT", true),
+            "MODEL_CALL_TIMEOUT" | "TOOL_EXECUTION_TIMEOUT" => ("TIMEOUT", true),
+            "TOOL_EXECUTION_CANCELLED" => ("CANCELLED", false),
             "RUN_CANCELLED" | "CLIENT_DISCONNECTED" => ("CANCELLED", false),
             "ADK_TOOL_OUTCOME_UNKNOWN" => ("SUBMISSION_UNKNOWN", false),
             "ADK_RUN_LEASE_LOST" => ("RUN_LEASE_LOST", true),
