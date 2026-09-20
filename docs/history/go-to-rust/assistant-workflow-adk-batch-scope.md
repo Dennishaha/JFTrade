@@ -2442,3 +2442,40 @@ Go 这 5 条描述 `assembly.Open` 拥有的运行时句柄：构建 tools/servi
 - 跨批 follow-up 汇总：P1 = `portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `market.depth` 自由文本 instrument 推断（第 47 批）、`watchlist.list includeQuotes` 行情富化（第 47 批）、`research.calendar` 缺省输入 fail-closed 差异（第 48 批）、运行期动态工具注册与可空句柄（本批 `:74`/`:131` 引出）、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2808 Rust** / **942 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第五十批：assembly `adk_product_catalog_test.go` 全量结清（4 条；2 条新 `[x]`，2 条 `partial`）
+
+范围：`internal/assistant/assembly/adk_product_catalog_test.go` 4 条逐条结清——本批新增 **2 条 `[x]`**（`:13`、`:138`），`partial` 2 条（`:29`、`:77`）。`[x]` 计数 942 → **944**，Rust 测试 2808 → **2812**。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestDefaultBuiltinAgentToolsExistInAssembledRegistry|TestCapabilityCatalogSurfacesAreRegisteredAndMCPBounded|TestProductToolRegistryAndOperationSchemasAreCatalogBacked|TestProductReadSchemasRejectInvalidRoutingAndFreeTextFields' -count=1`（checkout `/tmp/go452dea11.niwD1G`，`ok`）。
+
+### 本批结论（3 条新增回归，无生产改动）
+
+Go 这 4 条把「内置 Agent 工具目录」和「券商能力目录」钉在一起：默认助手引用的工具必须在组装 registry 中；每个能力 feature 的工具必须按访问级别带 permission/risk 且只读面只放 reviewed 读；product 工具与操作 schema 必须由 `CapabilityCatalog` 供数；读 schema 不接受自由文本 `query` 或越权的 `tradingEnvironment`。Rust 的对应 owner 是 `ProductionToolCatalog`/`PRODUCTION_TOOL_DEFINITIONS`（模型目录）、`validate_agent_tools`（成员校验）、`product_broker_capabilities_projection`（能力目录）与 `product_mcp_schema_catalog`（reviewed schema），本轮把缺口补成断言：
+
+- `product_production_ports_adk_tests.rs::builtin_default_agent_tools_all_resolve_in_the_assembled_catalog`（`:13`）：组装目录非空；内置默认模板用完整目录创建且保留全部工具（membership bypass 只在「集合相等」时生效）；同一目录在无 bypass 的普通 Agent 上仍全部解析；未知工具 `not.an.assembled.tool` 返回 400 `unknown ADK tool: not.an.assembled.tool`。
+- `product_broker_capabilities_projection_tests.rs::capability_access_classes_bound_the_reviewed_read_only_surface`（`:29`）：50 个 feature 都必须有 tool 映射；读类 `read_only`/`none`/`surface.readOnlyMcp=true` + 在 `REVIEWED_READ_ONLY_TOOLS` 内 + 在 `PRODUCTION_TOOL_DEFINITIONS` 注册且 `tool_access_policy=read_internal`；写类 `write_external`/high、交易类 `live_trading`/critical 都不得进入只读 MCP 面；6 个 execution feature 另断言 approval/less_approval/all 三模式全部要求审批；目录只保留 read/trade/write 三类。
+- `product_broker_capabilities_projection_tests.rs::reviewed_tool_operation_schemas_are_catalog_backed`（`:77`）：每个 feature 的 tool 至少被一个 operation 声明；`market.capabilities` 是唯一注册但无 broker operation 的目录项；`REVIEWED_READ_ONLY_TOOLS` 全部注册且 permission 为 `read_internal`；每个声明 `operation` enum 的 reviewed schema 与该工具的能力目录操作集合完全相等，并用 `market.candles`/`research.rankings`/`research.screen`/`prediction.history`/`derivatives.option_analysis` 守卫「比较非空」。
+- `product_mcp_protocol_tests.rs::reviewed_read_schemas_keep_structured_routing_without_free_text_fields`（`:138`）：`market.capabilities` 有 `tradingEnvironment` 且无 `query`；`market.snapshot`/`research.news`/`research.calendar` 都不含 `tradingEnvironment`；`account.orders` 保留 `activeOnly` 且无 `query`。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `catalog_feature` 把写类 permission 改成 `write_internal` → `capability_access_classes_bound_the_reviewed_read_only_surface` 转红（left `write_internal` / right `write_external`，定位 `alerts.price.set`）。
+2. `typed_instrument_schema` 删掉 `research.valuation` 的 `constituents` → `reviewed_tool_operation_schemas_are_catalog_backed` 转红（left `{detail}` / right `{constituents, detail}`）。
+3. `common_capability_properties` 加回 `query` → `reviewed_read_schemas_keep_structured_routing_without_free_text_fields` 转红（打印 properties 含 `query`）。
+4. `validate_agent_tools` 的 `known` 置空 → `builtin_default_agent_tools_all_resolve_in_the_assembled_catalog` 转红（400 `unknown ADK tool: interaction.request_user`）。
+   4 处探针均在本批内执行并已回滚；`git diff` 只留三份测试文件与清单/报告。
+
+### 结论登记（partial 行内的边界与差异）
+
+- **`:29 partial`**：能力目录层的三类访问级别 + 只读 MCP 面 membership + 交易类三模式审批已全部断言；不可迁移的一半是 Go 在 registry 中注册 `ProductTradeToolDefinitions()`/`ProductWriteToolDefinitions()` 的 9 个外部写/交易工具，Rust 的模型目录 `PRODUCTION_TOOL_DEFINITIONS`（79 条）刻意不含 `execution.order_*`/`execution.combo_*`/`alerts.*.set`/`watchlist.remote.modify`，这些工具的 descriptor permission/`riskLevel`/`RequiresApprovalIn` 在 Rust 无 owner。列 P1 待办：若要让模型可直接下单/改提醒，必须先有对应 production port 与审批/幂等 owner，再补注册。
+- **`:77 partial`**：目录到操作的关系与 operation schema 等价已断言（其余 reviewed 工具保持无 enum 的单一操作语义，与 Go 一致）；同 `:29` 的原因，Go 的 `productTools` 还含 6 个交易与 3 个外部写工具，Rust 未注册，故整行记为部分覆盖。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 38 条：`application_adapter_boundaries_test.go`/`application_strategy_lifecycle_test.go`/`market_index_constituents_tools_test.go`/`market_news_tools_test.go`/`mcp_server_lifecycle_authorization_test.go`（各 3），`adk_capability_contracts_test.go`/`adk_closure_contracts_test.go`/`adk_runtime_contracts_test.go`/`adk_summary_contracts_test.go`/`typed_product_capabilities_test.go`/`watchlist_adapter_test.go`/`workflow_bridge_contracts_test.go`/`workflow_tools_error_boundaries_test.go`（各 2）等；随后 `internal/app/apiserver`（574，按 servercore/servercoretest 分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）等。
+- 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（本批 `:29`/`:77` 引出）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `market.depth` 自由文本 instrument 推断（第 47 批）、`watchlist.list includeQuotes` 行情富化（第 47 批）、`research.calendar` 缺省输入 fail-closed 差异（第 48 批）、运行期动态工具注册与可空句柄（第 49 批）、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`（1832 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2812 Rust** / **944 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

@@ -6692,32 +6692,32 @@
     "evidence_type": "missing"
   },
   "internal/assistant/assembly/adk_product_catalog_test.go:13:TestDefaultBuiltinAgentToolsExistInAssembledRegistry": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::builtin_default_agent_tools_all_resolve_in_the_assembled_catalog",
+    "conclusion": "已覆盖：Go 遍历 DefaultBuiltinToolNames() 并要求组装后的 registry 中存在每个默认工具。Rust 由 validate_agent_tools 这一唯一 owner 承担：内置默认模板只在工具集合等于组装目录时保留 membership bypass；测试断言组装目录非空、默认模板用完整目录创建且保留全部工具、同一目录在无 bypass 的普通 Agent 上仍全部解析，未知工具 not.an.assembled.tool 返回 BAD_REQUEST unknown ADK tool（探针：把 known 置空后本测试在默认模板分支立刻转红）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(builtin_default_agent_tools_all_resolve_in_the_assembled_catalog)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/assembly/adk_product_catalog_test.go:29:TestCapabilityCatalogSurfacesAreRegisteredAndMCPBounded": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs::capability_access_classes_bound_the_reviewed_read_only_surface",
+    "conclusion": "部分覆盖：静态能力目录 50 个 feature 每个都必须带 tool 映射；读类断言 permission=read_only、approval=none、surface.readOnlyMcp=true、工具在 REVIEWED_READ_ONLY_TOOLS 内、在 PRODUCTION_TOOL_DEFINITIONS 注册且 tool_access_policy 为 read_internal；写类 write_external/high、交易类 live_trading/critical 且两者都不进入只读 MCP 面，另按 6 个 execution feature 断言三模式全部要求审批，并断言目录只保留 read/trade/write 三类（探针：把写类 permission 改成 write_internal 后本测试以 left=write_internal/right=write_external 转红）。不可迁移的一半：Go 在同一 registry 注册 ProductTradeToolDefinitions()/ProductWriteToolDefinitions() 的 9 个外部写/交易工具，Rust 模型目录 PRODUCTION_TOOL_DEFINITIONS（79 条）刻意不含 execution/alert/watchlist 变更工具，其 descriptor permission/riskLevel/RequiresApprovalIn 无对应 owner，保留为边界并在批次文档记录。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(capability_access_classes_bound_the_reviewed_read_only_surface)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/adk_product_catalog_test.go:77:TestProductToolRegistryAndOperationSchemasAreCatalogBacked": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs::reviewed_tool_operation_schemas_are_catalog_backed",
+    "conclusion": "部分覆盖：能力目录到操作的关系与操作 schema 等价由本测试断言——每个 feature 的 tool 至少被一个 operation 声明；market.capabilities 是唯一注册但没有 broker operation 的目录项；REVIEWED_READ_ONLY_TOOLS 全部在 PRODUCTION_TOOL_DEFINITIONS 注册且 permission=read_internal；每个声明 operation enum 的 reviewed schema 与能力目录该工具的操作集合完全相等（含 market.candles/research.rankings/research.screen/prediction.history/derivatives.option_analysis 的非空守卫；探针：删掉 research.valuation 的 constituents 后本测试以 left={detail}/right={constituents,detail} 转红）。不可迁移的一半：Go 的 productTools 还含 6 个交易与 3 个外部写工具，Rust 未注册这些模型工具，故整行记为部分覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(reviewed_tool_operation_schemas_are_catalog_backed)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/adk_product_catalog_test.go:138:TestProductReadSchemasRejectInvalidRoutingAndFreeTextFields": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_protocol_tests.rs::reviewed_read_schemas_keep_structured_routing_without_free_text_fields",
+    "conclusion": "已覆盖：market.capabilities 保留结构化 tradingEnvironment 且不含 query；market.snapshot、research.news、research.calendar 的 properties 均不含 tradingEnvironment（禁止用交易环境路由行情/研究读）；account.orders 保留 activeOnly 且不含被忽略的 query（探针：给 common_capability_properties 加回 query 后本测试以 properties 列表含 query 转红）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(reviewed_read_schemas_keep_structured_routing_without_free_text_fields)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/assembly/adk_runtime_contracts_test.go:13:TestADKRuntimeStrategyToolsPreserveOwnerContracts": {
     "status": "[~]",

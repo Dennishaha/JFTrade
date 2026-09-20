@@ -523,3 +523,254 @@ fn customization_tools_map_to_their_single_opend_action() {
         assert_eq!(protocols[0]["kind"], "request", "{feature} protocol kind");
     }
 }
+
+/// Parity: go:452dea11:internal/assistant/assembly/adk_product_catalog_test.go:29
+/// TestCapabilityCatalogSurfacesAreRegisteredAndMCPBounded
+///
+/// Go walks the builtin capability catalog and requires every feature tool to
+/// carry the class of its access level: reviewed reads are `read_internal` and
+/// inside the local read-only MCP surface, external writes are
+/// `write_external`/high, and trading tools are `live_trading`/critical with
+/// confirmation in every mode and never in the read-only surface.
+///
+/// Rust keeps the class metadata on the capability catalog projection
+/// (`permission`/`approval` plus `surface.readOnlyMcp`) and the tool-level
+/// permission class on the ADK descriptor policy, so the reachable half
+/// asserts both layers for reads. The registered-descriptor half of the write
+/// and trade classes is unreachable: `PRODUCTION_TOOL_DEFINITIONS` deliberately
+/// holds no execution/alert/watchlist mutation tool, so those features are
+/// asserted at the catalog layer and recorded as a boundary in the batch note.
+#[test]
+fn capability_access_classes_bound_the_reviewed_read_only_surface() {
+    use crate::product::product_mcp_protocol::REVIEWED_READ_ONLY_TOOLS;
+    use crate::product::product_production_ports::product_production_ports_adk::{
+        PRODUCTION_TOOL_DEFINITIONS, tool_access_policy,
+    };
+    use jftrade_assistant::{
+        ALL_PERMISSION_MODES, ToolDescriptor, ToolIdempotencyMode, tool_requires_approval,
+    };
+
+    let catalog = catalog();
+    let features = catalog["features"].as_array().expect("catalog features");
+    assert!(!features.is_empty(), "the catalog publishes its features");
+    let registered = PRODUCTION_TOOL_DEFINITIONS
+        .iter()
+        .map(|definition| definition.id)
+        .collect::<BTreeSet<_>>();
+
+    let mut classes = BTreeSet::new();
+    let mut approval_gated = 0_usize;
+    for feature in features {
+        let id = feature["id"].as_str().expect("feature id");
+        let tool = feature["surface"]["tool"].as_str().expect("feature tool");
+        assert!(!tool.is_empty(), "{id} has no tool mapping");
+        let access = feature["access"].as_str().expect("feature access");
+        classes.insert(access.to_owned());
+        let reviewed = REVIEWED_READ_ONLY_TOOLS.contains(&tool);
+        match access {
+            "read" => {
+                assert_eq!(
+                    feature["permission"], "read_only",
+                    "{id} read permission class"
+                );
+                assert_eq!(feature["approval"], "none", "{id} read approval class");
+                assert_eq!(
+                    feature["surface"]["readOnlyMcp"], true,
+                    "{id} reviewed read must opt into the read-only MCP surface"
+                );
+                assert!(
+                    reviewed,
+                    "{id} is a reviewed read capability but {tool} is absent from the read-only MCP surface"
+                );
+                assert!(
+                    registered.contains(tool),
+                    "{id} maps to unregistered tool {tool}"
+                );
+                assert_eq!(
+                    tool_access_policy(tool).permission,
+                    "read_internal",
+                    "{tool} registered permission class"
+                );
+            }
+            "write" => {
+                assert_eq!(
+                    feature["permission"], "write_external",
+                    "{id} write permission class"
+                );
+                assert_eq!(feature["approval"], "high", "{id} write approval class");
+                assert!(
+                    !reviewed,
+                    "{id} external write {tool} leaked into the read-only MCP surface"
+                );
+            }
+            "trade" => {
+                assert_eq!(
+                    feature["permission"], "live_trading",
+                    "{id} trading permission class"
+                );
+                assert_eq!(
+                    feature["approval"], "critical",
+                    "{id} trading approval class"
+                );
+                assert!(
+                    !reviewed,
+                    "{id} trading tool {tool} leaked into the read-only MCP surface"
+                );
+                // Go's `len(RequiresApprovalIn) == 3`: every trading tool is
+                // confirmed in every permission mode. Rust derives that from
+                // the `live_trading` permission class, so the catalog class
+                // has to keep gating all three modes once a descriptor exists.
+                let descriptor = ToolDescriptor {
+                    name: tool.to_owned(),
+                    display_name: tool.to_owned(),
+                    description: tool.to_owned(),
+                    category: "execution".to_owned(),
+                    permission: feature["permission"]
+                        .as_str()
+                        .expect("feature permission")
+                        .to_owned(),
+                    risk_level: feature["approval"]
+                        .as_str()
+                        .expect("feature approval")
+                        .to_owned(),
+                    idempotency_mode: ToolIdempotencyMode::ReplaySafe,
+                    allowed_modes: ALL_PERMISSION_MODES
+                        .iter()
+                        .map(|mode| (*mode).to_owned())
+                        .collect(),
+                    requires_approval_in: Vec::new(),
+                    input_schema: serde_json::json!({"type": "object"}),
+                };
+                for mode in ALL_PERMISSION_MODES {
+                    assert!(
+                        tool_requires_approval(&descriptor, mode),
+                        "{id} must stay confirmation-gated in {mode}"
+                    );
+                }
+                approval_gated += 1;
+            }
+            other => panic!("{id} declares unknown access class {other}"),
+        }
+    }
+    assert_eq!(
+        classes,
+        BTreeSet::from(["read".to_owned(), "trade".to_owned(), "write".to_owned()]),
+        "the catalog keeps exactly the three reviewed access classes"
+    );
+    assert_eq!(
+        approval_gated, 6,
+        "the six trading features keep their every-mode confirmation"
+    );
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/adk_product_catalog_test.go:77
+/// TestProductToolRegistryAndOperationSchemasAreCatalogBacked
+///
+/// Go builds one `catalogOperations` map from the builtin capability catalog,
+/// requires every registered product tool except `market.capabilities` to own
+/// at least one operation, requires `ProductToolOperations()` to equal the
+/// catalog operations per tool, and requires every
+/// `LocalMCPReadOnlyToolNames` entry to be registered with `read_internal`.
+///
+/// Rust keeps the tool-to-operation relation on the capability catalog and the
+/// accepted operation values in the reviewed MCP schema, so the reachable
+/// assertions are: every feature's tool owns at least one operation, the
+/// reviewed read-only surface is registered with the read class,
+/// `market.capabilities` stays the catalog entry without broker operations, and
+/// every schema that declares an operation enum matches the catalog exactly.
+/// The execution/alert/watchlist mutation half of Go's product tool set has no
+/// Rust registration to check and is recorded as a boundary in the batch note.
+#[test]
+fn reviewed_tool_operation_schemas_are_catalog_backed() {
+    use crate::product::product_mcp_protocol::{REVIEWED_READ_ONLY_TOOLS, try_schema_for};
+    use crate::product::product_production_ports::product_production_ports_adk::{
+        PRODUCTION_TOOL_DEFINITIONS, tool_access_policy,
+    };
+
+    let mut catalog_operations: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for feature in catalog()["features"].as_array().expect("catalog features") {
+        let id = feature["id"].as_str().expect("feature id");
+        let tool = feature["surface"]["tool"].as_str().expect("feature tool");
+        let mut feature_tools = BTreeSet::new();
+        for operation in feature["operations"].as_array().expect("feature operations") {
+            let operation_id = operation["id"].as_str().expect("operation id");
+            let Some(operation_tool) = operation["tool"].as_str() else {
+                continue;
+            };
+            feature_tools.insert(operation_tool.to_owned());
+            catalog_operations
+                .entry(operation_tool.to_owned())
+                .or_default()
+                .insert(operation_id.to_owned());
+        }
+        assert!(
+            feature_tools.contains(tool),
+            "{id} maps to {tool} but no operation declares that tool: {feature_tools:?}"
+        );
+    }
+
+    let registered = PRODUCTION_TOOL_DEFINITIONS
+        .iter()
+        .map(|definition| definition.id)
+        .collect::<BTreeSet<_>>();
+    // Go skips exactly one product tool: the capability directory itself is not
+    // a broker operation, so it must stay without catalog operations.
+    assert!(
+        registered.contains("market.capabilities"),
+        "the capability directory must stay registered"
+    );
+    assert!(
+        !catalog_operations.contains_key("market.capabilities"),
+        "the capability directory must not claim a broker operation"
+    );
+
+    let mut operation_enums = BTreeSet::new();
+    for name in REVIEWED_READ_ONLY_TOOLS {
+        assert!(
+            registered.contains(*name),
+            "local MCP tool {name} is not registered in the production catalog"
+        );
+        assert_eq!(
+            tool_access_policy(name).permission,
+            "read_internal",
+            "local MCP tool {name} permission class"
+        );
+        let schema = try_schema_for(name)
+            .unwrap_or_else(|| panic!("local MCP tool {name} has no reviewed schema"));
+        let Some(values) = schema["properties"]["operation"]["enum"].as_array() else {
+            continue;
+        };
+        let declared = values
+            .iter()
+            .map(|value| {
+                value
+                    .as_str()
+                    .expect("operation enum value")
+                    .to_owned()
+            })
+            .collect::<BTreeSet<_>>();
+        let catalog_values = catalog_operations.get(*name).unwrap_or_else(|| {
+            panic!("{name} declares operation values but no catalog operation maps to it")
+        });
+        assert_eq!(
+            &declared, catalog_values,
+            "{name} operation schema must equal the capability catalog operations"
+        );
+        operation_enums.insert((*name).to_owned());
+    }
+
+    // The equality above must not pass vacuously if every schema loses its
+    // operation enum.
+    for name in [
+        "market.candles",
+        "research.rankings",
+        "research.screen",
+        "prediction.history",
+        "derivatives.option_analysis",
+    ] {
+        assert!(
+            operation_enums.contains(name),
+            "{name} must declare the operation enum compared against the catalog"
+        );
+    }
+}

@@ -3379,6 +3379,76 @@ fn adk_agent_update_revalidates_the_merged_payload() {
     assert!(payload.get("tools").is_none());
 }
 
+/// Parity: go:452dea11:internal/assistant/assembly/adk_product_catalog_test.go:13
+/// TestDefaultBuiltinAgentToolsExistInAssembledRegistry
+///
+/// Go walks `DefaultBuiltinToolNames()` and fails when the assembled registry
+/// has no entry for one of them. The Rust builtin default template keeps its
+/// membership bypass only while the supplied list equals the composed catalog,
+/// so every id the default agent references has to resolve through the same
+/// validation owner that rejects unknown tools.
+#[test]
+fn builtin_default_agent_tools_all_resolve_in_the_assembled_catalog() {
+    let (port, _directory) = agent_validation_port();
+    let assembled = port.tool_catalog.ids();
+    assert!(
+        !assembled.is_empty(),
+        "the assembled catalog must expose at least one tool"
+    );
+
+    let default_agent = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateAgent,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "id": "jftrade-default",
+                "name": "JFTrade Default",
+                "status": "ENABLED",
+                "tools": assembled.clone(),
+            }),
+            webhook_secret: None,
+        })
+        .expect("the builtin default template must only reference assembled tools");
+    assert_eq!(
+        default_agent["tools"].as_array().map(Vec::len),
+        Some(assembled.len()),
+        "the builtin default keeps every assembled tool: {default_agent}"
+    );
+
+    let resolved = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateAgent,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "id": "agent-catalog-probe",
+                "name": "Catalog Probe",
+                "status": "ENABLED",
+                "tools": assembled.clone(),
+            }),
+            webhook_secret: None,
+        })
+        .expect("every assembled tool id must resolve without the builtin bypass");
+    assert_eq!(
+        resolved["tools"].as_array().map(Vec::len),
+        Some(assembled.len())
+    );
+
+    let error = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateAgent,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "id": "agent-unknown-tool",
+                "name": "Unknown Tool",
+                "status": "ENABLED",
+                "tools": ["not.an.assembled.tool"],
+            }),
+            webhook_secret: None,
+        })
+        .expect_err("a tool outside the assembled registry must be rejected");
+    assert_bad_request(error, "unknown ADK tool: not.an.assembled.tool");
+}
+
 /// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:707
 /// TestADKSkillInstallAndUninstallFailureRoutes
 ///

@@ -373,3 +373,51 @@ fn local_tool_schemas_are_reviewed() {
     assert_eq!(fetch["required"], serde_json::json!(["url"]));
     assert_eq!(fetch["additionalProperties"], false);
 }
+
+/// Parity: go:452dea11:internal/assistant/assembly/adk_product_catalog_test.go:138
+/// TestProductReadSchemasRejectInvalidRoutingAndFreeTextFields
+///
+/// The reviewed read schemas keep structured routing instead of the free-text
+/// input the reference removed: `market.capabilities` keeps the structured
+/// `tradingEnvironment` and exposes no `query`, `market.snapshot`,
+/// `research.news` and `research.calendar` never accept `tradingEnvironment`,
+/// and `account.orders` keeps `activeOnly` without an ignored `query`.
+#[test]
+fn reviewed_read_schemas_keep_structured_routing_without_free_text_fields() {
+    let property_names = |name: &str| {
+        schema_for(name)["properties"]
+            .as_object()
+            .unwrap_or_else(|| panic!("{name} must keep an object schema"))
+            .keys()
+            .cloned()
+            .collect::<Vec<String>>()
+    };
+
+    let capabilities = property_names("market.capabilities");
+    assert!(
+        capabilities.contains(&"tradingEnvironment".to_owned()),
+        "market.capabilities lost structured tradingEnvironment: {capabilities:?}"
+    );
+    assert!(
+        !capabilities.contains(&"query".to_owned()),
+        "market.capabilities must not expose free-text query: {capabilities:?}"
+    );
+
+    for name in ["market.snapshot", "research.news", "research.calendar"] {
+        let fields = property_names(name);
+        assert!(
+            !fields.contains(&"tradingEnvironment".to_owned()),
+            "{name} must not route by trading environment: {fields:?}"
+        );
+    }
+
+    let orders = property_names("account.orders");
+    assert!(
+        orders.contains(&"activeOnly".to_owned()),
+        "account.orders lost its activeOnly filter: {orders:?}"
+    );
+    assert!(
+        !orders.contains(&"query".to_owned()),
+        "account.orders must not expose an ignored query field: {orders:?}"
+    );
+}
