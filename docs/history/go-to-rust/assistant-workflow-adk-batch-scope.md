@@ -2184,7 +2184,7 @@ Go 这 11 条用例作用于 Wails 助手适配器 `ApplicationAdapter`：把领
 - 同文件 `market_candles_compact_tool_forwards_market_symbol_period_and_limit`（`:123`）与 `market_candles_advanced_tool_normalizes_session_and_adjustment_labels`（`:138`）：period/limit/游标/sessions/adjustment 的转发与归一化。
 - `crates/jftrade-research/tests/catalog_parameter_availability_boundaries.rs::screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels`（`:226`）：` futu `/` us ` 归一化命中 `futu|US` 目录，` cn ` 对 futu 拒绝。
 - `crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_backtest_cancel_reports_false_without_a_cancellable_run`（`:226`）：缺失/终态运行 `cancelled=false` 且状态不改写，queued 运行 `cancelled=true` 并落库 `status=cancelled`。
-- `crates/jftrade-engine/src/product_mcp_production_executor.rs::backtest_runs_filters_resolve_nested_request_fields_and_top_level_status`（`:278` 的记录半边）：嵌套 `request.definitionId`/`definitionVersion` 与顶层 status/provider 过滤、limit 截断与 `truncated` 标记。
+- `crates/jftrade-engine/src/product_mcp_production_executor_tests.rs::backtest_runs_filters_resolve_nested_request_fields_and_top_level_status`（`:278` 的记录半边）：嵌套 `request.definitionId`/`definitionVersion` 与顶层 status/provider 过滤、limit 截断与 `truncated` 标记（第 45 批把 MCP executor 单元测试拆到 `product_mcp_production_executor_tests.rs`，以满足 800 行生产文件预算）。
 
 ### 探针（改坏 → 转红 → 回滚）
 
@@ -2211,3 +2211,51 @@ Go 这 11 条用例作用于 Wails 助手适配器 `ApplicationAdapter`：把领
 - 跨批 follow-up 汇总：P1 = 工作流触发日志的 active/page 过滤（第 42 批 `:559`）、`workflow_runs.*` 过滤参数（第 43 批 `:183`）、Go `SaveRun` 终态谓词逐字对齐、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `backtest.kline_sync_status` 的 intervals 字面量投影断言（本批 `:278` 引出）、per-agent 技能授权过滤（第 42 批 `:285`）、模型侧 memory/artifact 直接工具（`:474`/`:488`）。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`（1755 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2781 Rust** / **930 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:ai-context`、`pnpm run check:quick`。
+
+## 第四十五批：assembly `adk_strategy_test.go` 全量结清（10 条；3 条新 `[x]`，6 条 `partial`）
+
+范围：`internal/assistant/assembly/adk_strategy_test.go` 10 条逐条结清——本批新增 **3 条 `[x]`**（`:19`、`:308`、`:397`），`partial` 6 条（`:32`、`:77`、`:194`、`:449`、`:699`、`:774`），`:605` 保持既有 `[x]`。`[x]` 计数 930 → **933**，Rust 测试 2781 → **2786**。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestADK' -count=1 -v`（checkout `/tmp/go452dea11.niwD1G`）。
+
+### 本批结论（2 处生产修复 + 5 条新增回归）
+
+Go 这 10 条用例横跨 ADK 工具层（注册表 + ToolDeps）与领域服务：订阅错误面、任务/记忆 CRUD 与审计、策略定义版本快照、backtest.runs 过滤、provider 冻结与并发隔离。Rust 的等价 owner 是 `ProductionAdkToolExecutor` + `ProductionMcpToolExecutor` + 生产端口。
+
+生产修复：
+
+1. `crates/jftrade-engine/src/product_production_ports_strategy.rs`：`ProductionStrategyDefinitionPort::versions` 先按 `get_definition(id, include_deleted=true)` 判定存在性，未知 definitionId 现在返回 `None`（路由/MCP 404），与冻结 fixture（`versions-missing` → 404）和 Go 的 `found=false` 对齐；此前生产路径会回答 200 + 空列表（fixture replay 用 fixture port，掩盖了该差异）。软删除定义仍返回历史（`versions-soft-deleted` → 200）。
+2. `crates/jftrade-engine/src/product_mcp_production_executor_helpers.rs`：`filter_backtest_runs` 在未过滤/空列表时也注入 `runCount`，恢复 Go legacy 两键形状（此前直接返回路由 payload，模型侧看不到计数）。
+
+新增回归：
+
+- `product_mcp_server_tests.rs::market_subscriptions_surface_quote_port_failures_without_fixture_payloads`（`:19`）：失败订阅端口 → 503 `MARKET_DATA_QUOTE_READ_UNAVAILABLE` + 原始 message。
+- `product_mcp_server_tests.rs::backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets`（`:194`/`:308`）：result_view 缺 runId、kline_sync_status 缺 taskId、version list 缺 definitionId 均 400；未知 taskId → 404 `BACKTEST_SYNC_TASK_NOT_FOUND`；未知 definitionId → 404 `STRATEGY_DEFINITION_NOT_FOUND`。
+- `product_production_ports_strategy_tests.rs::strategy_definition_versions_report_unknown_ids_and_keep_deleted_history`（`:308`）：missing→None、两版历史、软删除后仍 2 条、未知版本→None、0.1.0 快照保留首次脚本。
+- `product_mcp_production_executor_tests.rs::backtest_runs_filters_match_the_go_definition_version_status_and_limit_matrix`（`:397`）：未过滤 `runCount=4`、definitionId+version+status+limit 组合 `runCount=1/totalMatched=2/truncated=true` 且 newest 优先、version-only、provider 大小写不敏感。
+- `product_production_ports_adk_tests.rs::detached_adk_tool_executor_reports_domain_tools_as_unavailable`（`:449` 不可用半边）：未挂载端口时 research/optimize/portfolio/kline/result_view 全部 fail-closed。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. 去掉 `versions` 存在性判定 → `strategy_definition_versions_report_unknown_ids_and_keep_deleted_history` 与 `backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets` 同时转红。
+2. 去掉 `filter_backtest_runs` 的 `runCount` 注入 → `backtest_runs_filters_match_the_go_definition_version_status_and_limit_matrix` 转红。
+3. `quote_error` 的 Unavailable message 固定为 "quote failed" → `market_subscriptions_surface_quote_port_failures_without_fixture_payloads` 转红。
+4. 分离态执行器错误文案改成 "not configured" → `detached_adk_tool_executor_reports_domain_tools_as_unavailable` 转红。
+
+### 结论登记（partial 行内的边界）
+
+- **:32 partial**：`recordADKWorkflowAudit` 无对应物（probe：`rg "recordADKWorkflowAudit" crates/ apps/ workers/` 0 命中）；`brokerReadQuery` 的 brokerId 默认由路由路径固定 `/api/v1/brokers/futu/{resource}`，空 market 默认 HK 在 `resolve_account` 内；scope/merge 半边由第 44 批 `order_scope_defaults_to_current_and_status_lists_merge_case_insensitively` 覆盖。
+- **:77 partial**：任务/记忆 CRUD 由 `adk_task_and_memory_crud_contracts_match_go` 覆盖；`system.status` 的 `adk.enabled` 块与审计 kind（`task.saved`/`memory.deleted`）无对应写入（probe 0 命中）。
+- **:194 partial**：`strategy.save_draft` / `strategy.save_definition` / `strategy.update_instance_mode` 不是 Rust 助手工具（REST 写入承担），`strategy.definitions` 不返回 instanceCount。
+- **:449 partial**：不可用/派发/视图投影三半各有证据；未在同一用例断言 research_backtest 内嵌 `resultView` 入参归一与 `readyToRetry=true`（P2）。
+- **:699 partial**：显式 provider 归一 + 冻结值写进候选 payload 有既有测试；Go 的 `freezeBacktestProviderID(value, default)` 在 default 变化时的 prepare/queue 双点断言无同名 helper/用例。
+- **:774 partial**：Rust 的 provider 解析只读请求 payload（`requested_provider` 白名单校验），显式 override 天然隔离；缺少 Go 式双 goroutine 通道用例（ADK 工具执行器为同步接口，P2）。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 余量：`portfolio_tools_test.go`（8 条）、`tool_catalog_test.go`（7 条）、`product_adapters_test.go`（6 条）…；随后 `internal/app/apiserver`（574）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）等。
+- 跨批 follow-up 汇总：P1 = 策略定义版本/快照的生产 wire 形状（本批 `:308` 引出：生产返回 store 原始行含 `visualModelJson`、无 `isCurrent`，冻结 fixture 为 `{definitionId,version,name,savedAt,isCurrent}` 与 `visualModel`）、工作流触发日志 active/page 过滤（第 42 批 `:559`）、`workflow_runs.*` 过滤参数（第 43 批 `:183`）、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言（第 44/45 批）、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2786 Rust** / **933 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

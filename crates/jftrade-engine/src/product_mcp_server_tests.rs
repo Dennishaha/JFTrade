@@ -1126,6 +1126,102 @@ fn production_tools_fail_closed_before_any_domain_service_is_configured() {
     }
 }
 
+/// Parity: go:452dea11:internal/assistant/assembly/adk_strategy_test.go:19
+/// `TestADKCoreToolHandlersSurfaceSubscriptionErrors`. Go's
+/// `market.subscriptions` handler returns the market-data service failure
+/// unchanged ("feed unavailable") instead of a fixture payload. The Rust
+/// owner is the MCP `market.subscriptions` tool plus the quote-read port.
+#[test]
+fn market_subscriptions_surface_quote_port_failures_without_fixture_payloads() {
+    #[derive(Debug)]
+    struct FailingSubscriptionQuotePort;
+
+    impl crate::product::MarketDataQuoteReadSnapshotPort for FailingSubscriptionQuotePort {
+        fn read<'a>(
+            &'a self,
+            _path: &'a str,
+            _query: &'a str,
+        ) -> crate::product::MarketDataQuoteReadFuture<'a> {
+            Box::pin(async move {
+                Err(
+                    crate::product::MarketDataQuoteReadSnapshotError::Unavailable(
+                        "feed unavailable".to_owned(),
+                    ),
+                )
+            })
+        }
+    }
+
+    let (_directory, mut ports) = production_bundle();
+    ports.market_data_quote = Arc::new(FailingSubscriptionQuotePort);
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+
+    let failure = executor
+        .execute_production("market.subscriptions", &json!({}))
+        .expect_err("a failing subscription feed must not answer a fixture payload");
+    assert_eq!(failure.status, 503);
+    assert_eq!(failure.code, "MARKET_DATA_QUOTE_READ_UNAVAILABLE");
+    assert_eq!(failure.message, "feed unavailable");
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/adk_strategy_test.go:194
+/// `TestADKStrategyToolsHandleNegativeAndFallbackScenarios` (validation half)
+/// plus `:308`
+/// `TestADKStrategyDefinitionVersionToolsExposeImmutableSnapshotsAndFailures`.
+/// Go validates tool inputs before reaching a store and answers a missing
+/// target as not found; the Rust owner is the production MCP executor on top
+/// of the production port bundle.
+#[test]
+fn backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets() {
+    let (_directory, ports) = production_bundle();
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+
+    let missing_run_id = executor
+        .execute_production("backtest.result_view", &json!({}))
+        .expect_err("backtest.result_view without runId");
+    assert_eq!(missing_run_id.status, 400);
+    assert_eq!(missing_run_id.code, "BAD_REQUEST");
+
+    let missing_task_id = executor
+        .execute_production("backtest.kline_sync_status", &json!({}))
+        .expect_err("backtest.kline_sync_status without taskId");
+    assert_eq!(missing_task_id.status, 400);
+    assert_eq!(missing_task_id.code, "BAD_REQUEST");
+
+    let unknown_task = executor
+        .execute_production(
+            "backtest.kline_sync_status",
+            &json!({"taskId": "sync-missing"}),
+        )
+        .expect_err("unknown sync task must answer not found");
+    assert_eq!(unknown_task.status, 404);
+    assert_eq!(unknown_task.code, "BACKTEST_SYNC_TASK_NOT_FOUND");
+
+    let missing_definition_id = executor
+        .execute_production("strategy.definition_versions.list", &json!({}))
+        .expect_err("version list without definitionId");
+    assert_eq!(missing_definition_id.status, 400);
+    assert_eq!(missing_definition_id.code, "BAD_REQUEST");
+
+    let unknown_definition = executor
+        .execute_production(
+            "strategy.definition_versions.list",
+            &json!({"definitionId": "missing-definition"}),
+        )
+        .expect_err("an unknown definition must answer not found");
+    assert_eq!(unknown_definition.status, 404);
+    assert_eq!(unknown_definition.code, "STRATEGY_DEFINITION_NOT_FOUND");
+
+    let missing_version = executor
+        .execute_production(
+            "strategy.definition_versions.get",
+            &json!({"definitionId": "missing-definition"}),
+        )
+        .expect_err("version lookup without version");
+    assert_eq!(missing_version.status, 400);
+    assert_eq!(missing_version.code, "BAD_REQUEST");
+}
+
 #[test]
 fn production_mcp_pine_leaves_execute_native_spec_and_validation() {
     let (_directory, ports) = production_bundle();

@@ -6748,53 +6748,53 @@
     "evidence_type": "missing"
   },
   "internal/assistant/assembly/adk_strategy_test.go:19:TestADKCoreToolHandlersSurfaceSubscriptionErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::market_subscriptions_surface_quote_port_failures_without_fixture_payloads",
+    "conclusion": "function_exact（新增回归测试）：Go 的 `market.subscriptions` handler 直接把行情服务的失败原样返回（`feed unavailable`），不得伪造 payload。Rust owner 是 MCP `market.subscriptions` + quote-read 端口：新测试把生产 bundle 的 `market_data_quote` 换成返回 `Unavailable(\"feed unavailable\")` 的端口，断言工具错误为 503 + `MARKET_DATA_QUOTE_READ_UNAVAILABLE` 且 message 原样保留（探针：把 quote_error 的 Unavailable message 固定为 \"quote failed\" → 该测试转红）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_subscriptions_surface_quote_port_failures_without_fixture_payloads)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/assembly/adk_strategy_test.go:32:TestADKWorkflowAuditAndAdapterHelpers": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::order_scope_defaults_to_current_and_status_lists_merge_case_insensitively",
+    "conclusion": "partial：可达半边已有独立证据 —— normalizeTradingBrokerScope / mergeBrokerValues 由 `TradeRequest::history_scope`/`status_codes` 承担（空值/空格/CURRENT、` history `、非法值、status+statuses 去重见该测试）。差异记录（Go 独有）：(1) `recordADKWorkflowAudit` 在 Rust 无对应物（probe：`rg \"recordADKWorkflowAudit\" crates/ apps/ workers/` 0 命中），Rust 的 ADK 审计由 `/api/v1/adk/audit` 写入路径承担；(2) `brokerReadQuery` 的 BrokerID 默认 \"futu\" 在 Rust 由路由路径固定为 `/api/v1/brokers/futu/{resource}`（工具不产出 brokerId 查询参数），空 market 默认 HK 在 `resolve_account` 内实现（probe：`rg -n \"unwrap_or\\(\\\"HK\\\"\\)\" crates/jftrade-engine/src/product_production_ports_trade_requests.rs` 命中租户账户解析分支），未在同一用例断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(order_scope_defaults_to_current_and_status_lists_merge_case_insensitively)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/adk_strategy_test.go:77:TestADKSystemAndWorkflowToolHandlersReflectBusinessState": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_task_and_memory_crud_contracts_match_go",
+    "conclusion": "partial：任务/记忆的 CRUD 生命周期由该测试覆盖（create → list(status 过滤) → patch/DONE → detail → delete 404 `ADK_TASK_NOT_FOUND`；memory create → list(agentId+key) → delete → 重复删除 404 `ADK_MEMORY_NOT_FOUND`）。差异记录（Go 独有）：(1) 该用例断言的 `system.status` 的 `adk.enabled` 块在 Rust 由 `GET /api/v1/system/status` 的 ADK 投影承担，未在同一用例断言；(2) 审计 kind 生命周期（首条 `task.saved`、末条 `memory.deleted`）在 Rust 无对应写入（probe：`rg -n \"task.saved|memory.deleted\" crates/ apps/ workers/` 0 命中），Rust 的 ADK mutation 端口不写审计行。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_task_and_memory_crud_contracts_match_go)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/adk_strategy_test.go:194:TestADKStrategyToolsHandleNegativeAndFallbackScenarios": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets",
+    "conclusion": "partial：Rust 侧可达半边是“先校验标识、再触达存储”的负例路径 —— 新测试断言 backtest.result_view 缺 runId 400、backtest.kline_sync_status 缺 taskId 400 且未知 taskId 404 `BACKTEST_SYNC_TASK_NOT_FOUND`、definition_versions.list 缺 definitionId 400。差异记录（Go 独有工具层）：`strategy.save_draft`（骨架脚本回落 + Pine v6 校验）、`strategy.save_definition`（name 校验）、`strategy.update_instance_mode`（instanceId/executionMode 校验）在 Rust 没有助手工具（probe：这些名字只出现在 model-runtime 审批/失败夹具中，`ProductionMcpToolExecutor::supports` 列表不含），Rust 的等价写入是 REST `/api/v1/strategy-definitions*` 与 `/api/v1/strategies/{instanceId}`；`strategy.definitions` 的实例计数（Go 返回 instanceCount）在 Rust 只投影 definitions+definitionCount。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/adk_strategy_test.go:308:TestADKStrategyDefinitionVersionToolsExposeImmutableSnapshotsAndFailures": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::strategy_definition_versions_report_unknown_ids_and_keep_deleted_history；crates/jftrade-engine/src/product_mcp_server_tests.rs::backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets",
+    "conclusion": "function_exact（含真实功能修复+两条回归）：Go 对从未保存的 definitionId 返回 not found、对软删除定义仍列出历史、对未知 version 返回 not found，并返回不可变快照（含首次保存的脚本）。Rust owner 是 `ProductionStrategyDefinitionPort::{versions, version}`：本次修复 `versions` 先按 `get_definition(id, include_deleted=true)` 判定存在性（软删除仍算存在），否则此前生产路由/工具会以 200 + 空列表回答未知 id；新端口测试断言 missing→None、两版历史按 savedAt 倒序、软删除后仍返回 2 条、未知版本→None、0.1.0 快照保留首次脚本；MCP 层由新测试断言未知 definition → 404 `STRATEGY_DEFINITION_NOT_FOUND`（探针：去掉存在性判定 → 两条测试同时转红）。遗留差异（已登记 P1）：生产 `versions`/`version` 仍返回 store 原始 camelCase 行（含 `visualModelJson`，无 `isCurrent`），与冻结 fixture 的 `{definitionId,version,name,savedAt,isCurrent}` / `visualModel` 形状不同 —— fixture replay 使用 fixture port，故该 wire 形状差异未在本批改动。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy_definition_versions_report_unknown_ids_and_keep_deleted_history) | test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/assembly/adk_strategy_test.go:397:TestADKBacktestRunsFiltersByDefinitionVersionStatusAndLimit": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_production_executor_tests.rs::backtest_runs_filters_match_the_go_definition_version_status_and_limit_matrix",
+    "conclusion": "function_exact（含功能补齐+回归）：Go 的 backtest.runs 未过滤时返回 legacy 两键形状（runs+runCount）、按 definitionId+definitionVersion+status+limit 过滤时 newest 优先并给出 runCount/totalMatched/truncated、status 大小写不敏感、marketDataProvider 大小写不敏感。Rust owner 是 `helpers::filter_backtest_runs`：本批补齐未过滤/空列表时也注入 `runCount`（此前直接返回路由 payload，模型看不到计数），过滤维度沿用第 44 批的顶层+request.* 解析；新测试逐项复刻 Go 的四个场景（run-newest/run-older/run-baseline/run-other 矩阵）（探针：去掉 runCount 注入 → 该测试转红）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest_runs_filters_match_the_go_definition_version_status_and_limit_matrix)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/assembly/adk_strategy_test.go:449:TestADKStrategyToolContractsCoverUnavailableAndSuccessfulViewScenarios": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::detached_adk_tool_executor_reports_domain_tools_as_unavailable；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::test_portfolio_and_research_backtest_execution_dispatch；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::test_research_backtest_result_view_projection",
+    "conclusion": "partial：不可用半边由新测试覆盖 —— 未挂载生产端口的 `ProductionAdkToolExecutor` 对 strategy.research_backtest / strategy.optimize / portfolio.* / backtest.kline_sync_status / backtest.result_view 既不 supports，也返回含 \"unavailable\" 的错误（不伪造 payload）；成功半边由既有 test_portfolio_and_research_backtest_execution_dispatch（挂载后派发）与 test_research_backtest_result_view_projection（六种视图投影）覆盖。差异记录：Go 断言 research_backtest 内嵌 `resultView` 入参归一（view/limit/include 透传、缺省 view=summary）与 `backtest.kline_sync_status` 成功载荷 `readyToRetry=true`；Rust 的 `add_retry_hint`/kline 状态投影存在但未在同一用例断言内嵌 resultView 入参归一，登记为 P2。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(detached_adk_tool_executor_reports_domain_tools_as_unavailable) | test(test_portfolio_and_research_backtest_execution_dispatch) | test(test_research_backtest_result_view_projection)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/adk_strategy_test.go:605:TestADKStrategyOptimizePersistsTasksAndCancelsQueuedRunsOnFailure": {
     "status": "[x]",
@@ -6806,16 +6806,16 @@
   "internal/assistant/assembly/adk_strategy_test.go:699:TestADKBacktestProviderFreezesDefaultAcrossPreparationAndQueue": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_strategy_optimize_execution_tests.rs::candidate_payload_keeps_the_requested_provider_override",
-    "conclusion": "partial（请求侧冻结已实现，默认侧冻结由写端承担）：Go 的 `freezeBacktestProviderID` 去空格+转小写后冻结请求值，否则冻结当前默认，并断言准备阶段与每个候选入队都用同一个 provider。Rust 现已把候选 payload 的 `marketDataProvider` 规范化为 trim+小写后再下发；未显式指定时 payload 不带该字段，由 ProductionBacktestPort 在 start 时解析当前默认 provider。差异：Go 在循环前冻结一次，Rust 是按候选解析当前默认，因此若默认 provider 在多个候选入队之间被并发改写，同一批优化理论上可能落到两个 provider；本行保持 partial 并登记为待评估项（需要在工具层读一次默认并写进每个候选）。",
+    "conclusion": "partial：显式 provider 归一（` YFINANCE ` → yfinance）与“冻结值写进每个候选 payload”由既有 optimize 测试覆盖（另一条用例断言冻结值被带到每个候选）；Rust 的冻结实现是 `requested_provider`（trim+lowercase+白名单校验）与 `persist_request_with_provider`（把 `__marketDataProvider` 落进存储请求）。差异记录：Go 的 `freezeBacktestProviderID(value, default)` 在 default 变化时不重读默认值的 prepare/queue 双点断言在 Rust 没有同名 helper/用例 —— Rust 的 research backtest 由持久化请求决定 provider，运行期不再读默认值；未在一处断言“prepare 后切换默认不影响 queue”。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(candidate_payload_keeps_the_requested_provider_override)'",
     "evidence_type": "partial"
   },
   "internal/assistant/assembly/adk_strategy_test.go:774:TestADKConcurrentResearchBacktestOverridesStayIsolated": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_strategy_optimize_execution_tests.rs::candidate_payload_keeps_the_requested_provider_override",
+    "conclusion": "partial：Go 断言显式 per-request override 既不读取也不改变默认 provider，并发两请求互不串扰。Rust 的结构保证是同一条：`requested_provider`/`frozen_market_data_provider` 只读请求 payload（经白名单校验），从不读 `BacktestMarketDataProviderState`，因此显式 override 天然隔离；既有测试覆盖归一与携带。差异记录：Rust 没有 Go 那样的双 goroutine 通道用例 —— ADK 工具执行器是同步接口（`execute_cancellable` 只对 workflow.wait 有取消通道），并发隔离由“每请求独立 payload”保证而非并发测试断言，登记为 P2（若要补，可在 model runtime 层加多线程 MCP 用例）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(candidate_payload_keeps_the_requested_provider_override)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/adk_summary_contracts_test.go:9:TestADKStrategySummariesHideSourceDetailsAndCountLinkedInstances": {
     "status": "[~]",
@@ -6924,7 +6924,7 @@
   },
   "internal/assistant/assembly/application_adapter_test.go:278:TestApplicationAdapterProjectsBacktestState": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::test_research_backtest_data_readiness_and_sync_lifecycle；crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_sync_read_projects_persisted_task；crates/jftrade-engine/src/product_mcp_production_executor.rs::backtest_runs_filters_resolve_nested_request_fields_and_top_level_status",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::test_research_backtest_data_readiness_and_sync_lifecycle；crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_sync_read_projects_persisted_task；crates/jftrade-engine/src/product_mcp_production_executor_tests.rs::backtest_runs_filters_resolve_nested_request_fields_and_top_level_status",
     "conclusion": "partial：已覆盖半边 —— `backtestDataReadinessFromService` 的同步态投影由 research_backtest 启动路径覆盖（status=syncing_data、dataSync.taskId/symbol/sessionScope/rehabType/since/until、nextTool=backtest.kline_sync_status、nextAction=wait_kline_sync，见 test_research_backtest_data_readiness_and_sync_lifecycle），持久化同步任务的进度投影由 production_sync_read_projects_persisted_task 覆盖（status/completedIntervals）。未对齐部分（记录差异）：(1) Go 的 nil→零值 DataReadiness 与 `DataSync.Status=progress.Status`、`Intervals=[Interval1m] → \"1m\"` 逐字段断言在 Rust 无同名 helper，Rust 由 `format_syncing_response`/`backtest.kline_sync_status` 组装，intervals 由落库 sync_data 投影，尚未有断言固定在 \"1m\" 字面量上（P2 待补）；(2) `backtestRunSummaryFromService` 的扁平摘要（ID/DefinitionID/Symbol 顶层 + provider 默认 \"futu\"）在 Rust 无对应 DTO —— Rust `backtest.runs` 返回存储投影（request 嵌套），本次修复让 `definitionId`/`definitionVersion` 过滤同时解析顶层与 request.*（新增回归测试），status/marketDataProvider 保持顶层。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_research_backtest_data_readiness_and_sync_lifecycle) | test(production_sync_read_projects_persisted_task) | test(backtest_runs_filters_resolve_nested_request_fields_and_top_level_status)'",
     "evidence_type": "partial"

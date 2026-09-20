@@ -92,6 +92,106 @@ fn instantiate_persists_the_same_normalized_binding_as_runtime_update() {
     assert_eq!(result["binding"]["interval"], "5m");
 }
 
+/// Parity: go:452dea11:internal/assistant/assembly/adk_strategy_test.go:308
+/// `TestADKStrategyDefinitionVersionToolsExposeImmutableSnapshotsAndFailures`.
+/// Go reports `found=false` for a definition id that was never saved, keeps
+/// listing the history of a soft-deleted definition, and returns the stored
+/// snapshot unchanged for a known version. The Rust owner is
+/// `ProductionStrategyDefinitionPort::{versions, version}`.
+#[test]
+fn strategy_definition_versions_report_unknown_ids_and_keep_deleted_history() {
+    let dir = tempdir().expect("tempdir");
+    let db_path = dir.path().join("strategy-versions.db");
+    let connection = rusqlite::Connection::open(&db_path).expect("create strategy database");
+    jftrade_store_sqlite::initialize_current(&connection, "strategy")
+        .expect("initialize strategy schema");
+    drop(connection);
+    let store = Arc::new(
+        StrategyDefinitionStore::open_existing(
+            &db_path,
+            jftrade_store_sqlite::STRATEGY_DEFINITION_PRODUCTION_PROFILE,
+        )
+        .expect("open strategy definition store"),
+    );
+    let definition = |script: &str, at: &str| jftrade_store_sqlite::StoredStrategyDefinition {
+        id: "def-versioned".to_owned(),
+        name: "Versioned".to_owned(),
+        version: "0.1.0".to_owned(),
+        description: "first".to_owned(),
+        runtime: "pine-pinets".to_owned(),
+        source_format: "pine-v6".to_owned(),
+        symbol: "US.AAPL".to_owned(),
+        interval: "5m".to_owned(),
+        script: script.to_owned(),
+        visual_model_json: r#"{"engine":"pine-v6","version":1}"#.to_owned(),
+        created_at: at.to_owned(),
+        updated_at: at.to_owned(),
+        deleted_at: None,
+    };
+    store
+        .save_definition(
+            definition(
+                "//@version=6\nstrategy(\"Versioned\")\n",
+                "2026-07-26T01:00:00Z",
+            ),
+            "2026-07-26T01:00:00Z",
+        )
+        .expect("save first version");
+    store
+        .save_definition(
+            definition(
+                "//@version=6\nstrategy(\"Versioned\")\nplot(close)\n",
+                "2026-07-26T02:00:00Z",
+            ),
+            "2026-07-26T02:00:00Z",
+        )
+        .expect("save second version");
+
+    let port = ProductionStrategyDefinitionPort {
+        store: Arc::clone(&store),
+    };
+    assert!(
+        port.versions("missing-definition")
+            .expect("unknown definition probe")
+            .is_none(),
+        "an unknown definition id must answer not-found instead of an empty list"
+    );
+
+    let versions = port
+        .versions("def-versioned")
+        .expect("list versions")
+        .expect("saved definition has history");
+    assert_eq!(versions.len(), 2);
+    assert_eq!(versions[0]["version"], "0.1.1");
+    assert_eq!(versions[1]["version"], "0.1.0");
+    assert_eq!(versions[0]["definitionId"], "def-versioned");
+
+    let snapshot = port
+        .version("def-versioned", "0.1.0")
+        .expect("read version")
+        .expect("stored snapshot");
+    assert_eq!(
+        snapshot["script"],
+        "//@version=6\nstrategy(\"Versioned\")\n",
+        "the immutable snapshot must keep the first saved script"
+    );
+    assert_eq!(snapshot["visualModelJson"], r#"{"engine":"pine-v6","version":1}"#);
+    assert!(
+        port.version("def-versioned", "9.9.9")
+            .expect("unknown version probe")
+            .is_none()
+    );
+
+    store
+        .delete_definition("def-versioned", "2026-07-27T00:00:00Z")
+        .expect("soft delete definition");
+    let deleted = port
+        .versions("def-versioned")
+        .expect("list deleted versions")
+        .expect("a soft-deleted definition keeps its history");
+    assert_eq!(deleted.len(), 2);
+}
+
 #[test]
 fn strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters() {
     let dir = tempdir().expect("tempdir");

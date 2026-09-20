@@ -782,6 +782,54 @@ fn adk_tool_executor_supports_read_only_mcp_and_pine_validation() {
     assert!(!executor.supports("nonexistent.tool"));
 }
 
+/// Parity: go:452dea11:internal/assistant/assembly/adk_strategy_test.go:449
+/// `TestADKStrategyToolContractsCoverUnavailableAndSuccessfulViewScenarios`
+/// (unavailable half). Go's registry without the backtest dependencies answers
+/// "unavailable" for `strategy.research_backtest`, `backtest.result_view`, and
+/// `backtest.kline_sync_status` instead of a fabricated payload. The Rust
+/// owner is `ProductionAdkToolExecutor` before the production port bundle is
+/// attached.
+#[test]
+fn detached_adk_tool_executor_reports_domain_tools_as_unavailable() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let adk_path = directory.path().join("adk.db");
+    let connection = rusqlite::Connection::open(&adk_path).expect("create ADK database");
+    jftrade_store_sqlite::initialize_current(&connection, "adk").expect("initialize ADK schema");
+    drop(connection);
+    let store = Arc::new(AdkStore::open(&adk_path).expect("open adk store"));
+    let bindings = PRODUCTION_TOOL_DEFINITIONS
+        .iter()
+        .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
+        .collect::<BTreeMap<_, _>>();
+    let tool_catalog =
+        Arc::new(ProductionToolCatalog::from_bindings(&bindings).expect("catalog bindings"));
+
+    use crate::product::product_adk_model_runtime::AdkToolExecutor;
+
+    let executor = crate::product::product_adk_model_runtime::ProductionAdkToolExecutor::new(
+        Arc::clone(&tool_catalog),
+        Arc::clone(&store),
+    );
+    for name in [
+        "strategy.research_backtest",
+        "strategy.optimize",
+        "portfolio.accounts",
+        "portfolio.overview",
+        "portfolio.positions",
+        "backtest.kline_sync_status",
+        "backtest.result_view",
+    ] {
+        assert!(!executor.supports(name), "{name} needs the production ports");
+        let error = executor
+            .execute(name, &json!({"taskId": "sync-1", "runId": "run-1"}))
+            .expect_err("a detached executor must not fabricate a payload");
+        assert!(
+            error.contains("unavailable"),
+            "{name} error must report unavailable, got {error:?}"
+        );
+    }
+}
+
 #[test]
 fn adk_respond_to_input_strict_validation_idempotency_and_conflict() {
     let directory = tempfile::tempdir().expect("temporary directory");

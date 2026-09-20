@@ -110,6 +110,19 @@ impl StrategyDefinitionSnapshotPort for ProductionStrategyDefinitionPort {
         &self,
         definition_id: &str,
     ) -> Result<Option<Vec<Value>>, StrategyDefinitionSnapshotError> {
+        // Go's version store answers found=false for a definition id that was
+        // never saved, while a soft-deleted definition still lists its
+        // history.  The existence probe therefore has to include deleted rows
+        // before the immutable version rows are read, otherwise an unknown id
+        // would answer 200 with an empty list instead of the documented 404.
+        let exists = self
+            .store
+            .get_definition(definition_id, true)
+            .map_err(|e| StrategyDefinitionSnapshotError::Unavailable(e.to_string()))?
+            .is_some();
+        if !exists {
+            return Ok(None);
+        }
         let versions = self
             .store
             .list_versions(definition_id)

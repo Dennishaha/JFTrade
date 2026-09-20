@@ -406,7 +406,16 @@ pub(super) fn filter_backtest_runs(
     payload: Value,
     arguments: &Value,
 ) -> Result<Value, McpToolFailure> {
-    let Some(runs) = super::nullable_runs(&payload)? else {
+    let runs = super::nullable_runs(&payload)?;
+    let run_count = runs.as_ref().map_or(0, |runs| runs.len());
+    let Some(runs) = runs else {
+        // Go's unfiltered `backtest.runs` answer keeps the legacy two-key
+        // shape (`runs` + `runCount`), so an empty production list still
+        // reports `runCount: 0` instead of dropping the counter.
+        let mut payload = payload;
+        if let Some(object) = payload.as_object_mut() {
+            object.insert("runCount".to_owned(), Value::from(run_count));
+        }
         return Ok(payload);
     };
     let definition_id = super::optional_string(arguments, "definitionId");
@@ -420,6 +429,10 @@ pub(super) fn filter_backtest_runs(
         && provider.is_none()
         && limit <= 0
     {
+        let mut payload = payload;
+        if let Some(object) = payload.as_object_mut() {
+            object.insert("runCount".to_owned(), Value::from(run_count));
+        }
         return Ok(payload);
     }
     let mut filtered = runs
