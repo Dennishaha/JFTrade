@@ -614,3 +614,10 @@ mod tests;
 #[cfg(test)]
 #[path = "product_tool_catalog_parity_tests.rs"]
 mod tool_catalog_parity;
+
+/// Reference `market.index_constituents` is a tool-only capability (no HTTP
+/// route), so its executor coverage lives beside the MCP server owner that
+/// hosts the tool catalog and the production port bundle.
+#[cfg(test)]
+#[path = "product_mcp_index_constituents_tool_tests.rs"]
+mod index_constituents_tool;

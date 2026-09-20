@@ -13,7 +13,10 @@ use super::helpers::{
     bounded_integer, instrument, optional_string_array, path_segment, query_string, required_field,
     run_provider_action, run_quote_read,
 };
-use super::{McpToolFailure, ProductionMcpToolExecutor, provider_actions_error, quote_error};
+use super::{
+    McpToolFailure, ProductionMcpToolExecutor, index_constituents_error, provider_actions_error,
+    quote_error,
+};
 use crate::product::product_market_data_provider_actions_port::{
     BATCH_SNAPSHOTS_PATH, MarketDataProviderActionsRequest,
 };
@@ -49,6 +52,22 @@ impl ProductionMcpToolExecutor {
         let payload =
             run_quote_read(port, SUBSCRIPTIONS_PATH.to_owned(), query).map_err(quote_error)?;
         subscription_projection(payload)
+    }
+
+    /// Reference `market.index_constituents`: the reviewed schema pins
+    /// `limit` to 1..1000 with a 200 default, and the market-data port keeps
+    /// the AKShare ownership check so a Futu deployment answers a capability
+    /// error instead of an empty member list.
+    pub(super) fn market_index_constituents(
+        &self,
+        arguments: &Value,
+    ) -> Result<Value, McpToolFailure> {
+        let (market, symbol) = instrument(arguments)?;
+        let limit = bounded_integer(arguments, "limit", 200, 1, 1000)?;
+        self.ports()?
+            .market_index_constituents
+            .read(&market, &symbol, limit as usize)
+            .map_err(index_constituents_error)
     }
 }
 

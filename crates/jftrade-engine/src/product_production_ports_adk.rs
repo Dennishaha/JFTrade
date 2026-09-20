@@ -468,6 +468,18 @@ impl ProductionToolCatalog {
                     ProductionAdapterBinding::ExternalUnavailable
                 }
             }
+            ProductionRouteAdapter::MarketIndexConstituentsRead => {
+                // The AKShare helper is the only owner of the CN index
+                // constituent feed; Futu/OpenD stays explicitly unavailable
+                // instead of surfacing a generic tool failure.
+                let helper_ready = snapshot.helper_ready
+                    && snapshot.provider == Some(jftrade_settings::MarketDataProvider::Akshare);
+                if helper_ready {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
             ProductionRouteAdapter::MarketDataFuturesRead => {
                 let futu_ready = snapshot.provider
                     == Some(jftrade_settings::MarketDataProvider::Futu)

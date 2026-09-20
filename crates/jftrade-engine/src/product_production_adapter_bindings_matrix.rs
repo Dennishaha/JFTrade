@@ -106,6 +106,14 @@ impl MarketDataCapabilityMatrix {
         ) && self.helper_ready
     }
 
+    /// Only the AKShare helper serves CN index constituents.  Futu has no
+    /// index-member feed and the yfinance helper has no such route, so the
+    /// startup projection must stay unavailable for every other provider.
+    pub(crate) fn can_read_index_constituents(&self) -> bool {
+        matches!(self.active_provider, Some(ActiveMarketDataProvider::Akshare))
+            && self.helper_ready
+    }
+
     /// The static matrix can prove helper-backed screening, while Futu's
     /// OpenD reader is resolved dynamically from the shared runtime. Keep the
     /// conservative matrix result here; route/tool readiness performs the
@@ -284,6 +292,11 @@ pub(crate) fn production_adapter_bindings(
         ready.push(Adapter::MarketDataNewsActionsRead);
     } else {
         unavailable.push(Adapter::MarketDataNewsActionsRead);
+    }
+    if matrix.can_read_index_constituents() {
+        ready.push(Adapter::MarketIndexConstituentsRead);
+    } else {
+        unavailable.push(Adapter::MarketIndexConstituentsRead);
     }
 
     bind_adapters(&mut bindings, Ready, &ready);

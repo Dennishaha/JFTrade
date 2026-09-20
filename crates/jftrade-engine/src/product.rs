@@ -88,6 +88,7 @@ include!("product_market_data_derivative_read_port.rs");
 include!("product_market_data_options_read_port.rs");
 include!("product_market_data_news_actions_read_port.rs");
 include!("product_market_data_news_search_read_port.rs");
+include!("product_market_index_constituents_read_port.rs");
 include!("product_market_data_quote_read_port.rs");
 include!("product_market_data_prediction_read_port.rs");
 #[path = "product_market_data_runtime_status.rs"]

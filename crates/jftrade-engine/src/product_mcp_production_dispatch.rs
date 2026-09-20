@@ -16,6 +16,7 @@ impl ProductionMcpToolExecutor {
                 | "market.depth"
                 | "market.broker_queue"
                 | "market.capital_flow"
+                | "market.index_constituents"
                 | "market.snapshot"
                 | "market.candles"
                 | "market.snapshots"
@@ -96,6 +97,7 @@ impl ProductionMcpToolExecutor {
             | "market.depth"
             | "market.broker_queue"
             | "market.capital_flow" => self.market_microstructure(name, arguments),
+            "market.index_constituents" => self.market_index_constituents(arguments),
             "market.snapshot" => self.market_snapshot(arguments),
             "market.candles" => self.market_candles(arguments),
             "market.snapshots" => self.market_snapshots(arguments),

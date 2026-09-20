@@ -184,6 +184,16 @@ pub(crate) const PRODUCTION_TOOL_DEFINITIONS: &[ProductionToolDefinition] = &[
         adapter: ProductionRouteAdapter::MarketDataSubscriptionRead,
         research_operation: None,
     },
+    // Reference `market.index_constituents` (`market_capability_tools.go`):
+    // CN index member lists are AKShare-only and stay off the public HTTP
+    // contract, so this descriptor is the only surface for the capability.
+    ProductionToolDefinition {
+        id: "market.index_constituents",
+        category: "market",
+        display_name: "指数成分股",
+        adapter: ProductionRouteAdapter::MarketIndexConstituentsRead,
+        research_operation: None,
+    },
     ProductionToolDefinition {
         id: "watchlist.list",
         category: "watchlist",

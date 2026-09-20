@@ -45,11 +45,11 @@ use crate::product::{
     MarketDataDerivativeReadSnapshotPort, MarketDataNewsActionsReadSnapshotPort,
     MarketDataNewsSearchReadSnapshotPort, MarketDataOptionsReadSnapshotPort,
     MarketDataPredictionReadSnapshotPort, MarketDataProviderReadSnapshotPort,
-    MarketDataQuoteReadSnapshotPort, PluginSnapshotPort, PluginUninstallGuidanceSnapshotPort,
-    PortfolioSnapshotPort, ProductConfig, ResearchPresetReadSnapshotPort, ResearchReadSnapshotPort,
-    StrategyDefinitionSnapshotPort, StrategyReadSnapshotPort, StrategyRuntimeStatusPort,
-    SystemReadSnapshotPort, WatchlistMembershipSnapshotPort, WatchlistReadSnapshotPort,
-    WsLiveSnapshotPort,
+    MarketDataQuoteReadSnapshotPort, MarketIndexConstituentsReadPort, PluginSnapshotPort,
+    PluginUninstallGuidanceSnapshotPort, PortfolioSnapshotPort, ProductConfig,
+    ResearchPresetReadSnapshotPort, ResearchReadSnapshotPort, StrategyDefinitionSnapshotPort,
+    StrategyReadSnapshotPort, StrategyRuntimeStatusPort, SystemReadSnapshotPort,
+    WatchlistMembershipSnapshotPort, WatchlistReadSnapshotPort, WsLiveSnapshotPort,
 };
 
 pub(crate) fn provider_request_matches(
@@ -429,6 +429,10 @@ pub(crate) struct ProductionPortBundle {
     pub market_data_options: Arc<dyn MarketDataOptionsReadSnapshotPort>,
     pub market_data_news_actions: Arc<dyn MarketDataNewsActionsReadSnapshotPort>,
     pub market_data_news_search: Arc<dyn MarketDataNewsSearchReadSnapshotPort>,
+    /// CN index constituent listings consumed by the ADK tool
+    /// `market.index_constituents`.  The reference has no public HTTP route
+    /// for this feed, so the port is tool-only.
+    pub market_index_constituents: Arc<dyn MarketIndexConstituentsReadPort>,
     pub market_data_quote: Arc<dyn MarketDataQuoteReadSnapshotPort>,
     pub market_data_prediction: Arc<dyn MarketDataPredictionReadSnapshotPort>,
     pub remote_watchlist: Arc<dyn crate::product::RemoteWatchlistSnapshotPort>,

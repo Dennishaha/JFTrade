@@ -6972,25 +6972,25 @@
     "evidence_type": "missing"
   },
   "internal/assistant/assembly/market_index_constituents_tools_test.go:14:TestADKMarketIndexConstituentsToolForwardsNormalizedInputs": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_index_constituents_tool_tests.rs::market_index_constituents_tool_normalizes_its_inputs_before_the_read_port + crates/jftrade-engine/src/product_mcp_index_constituents_tool_tests.rs::market_index_constituents_descriptor_keeps_the_reviewed_policy_and_skill + crates/jftrade-engine/src/product_production_ports_market_index_constituents_tests.rs::index_constituents_read_forwards_the_normalized_leaf_and_limit",
+    "conclusion": "已覆盖：Rust 新增 tool-only 能力 `market.index_constituents`（AKShare 所有、无公开 HTTP 路由），executor 断言缺 instrument → 400 BAD_REQUEST、limit 1001/0 → 400 且消息含 `between 1 and 1000`、`{\"market\":\"sh\",\"symbol\":\"000300\",\"limit\":\"300\"}` 归一化为 `SH`/`000300`/300 后到达读端口、缺 limit 走默认 200、输出保留 `instrumentId=SH.000300`；描述符断言 category=market、permission=read_internal、riskLevel=low、requiresApprovalIn=[]（等价 Go 的 `RequiresApprovalIn` 为空），reviewed schema 为 strict object 且 required=[market,symbol]、limit.default=200，并断言内建技能 `jftrade-market` 的 tools 含该工具（等价 Go 的 RequiredSkills=[jftrade-market]）。端口级 fixture 断言真实 helper 请求行为 `GET /providers/akshare/index-constituents/SH/000300?limit=300`，`weight` 为 null 时原样保留。差异（P2）：Go `intValue` 对 float64 截断（300.7→300），Rust `bounded_integer` 直接 400 拒绝；Go `inferMarketSymbol` 还支持从 `query` 文本推断，Rust 走 instrumentId/market+symbol，模型 schema 仅公开 market/symbol。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(index_constituents)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/assembly/market_index_constituents_tools_test.go:60:TestADKMarketIndexConstituentsToolFailsClosedWithoutPort": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_index_constituents_tool_tests.rs::market_index_constituents_tool_fails_closed_without_an_owner_port + crates/jftrade-engine/src/product_production_ports_market_index_constituents_tests.rs::index_constituents_read_requires_akshare_and_a_ready_helper",
+    "conclusion": "已覆盖：Rust 缺 owner 端口分两层失败关闭——只装配 catalog/store 的 executor 返回 503 `MCP_PRODUCTION_EXECUTOR_UNAVAILABLE`；已装配 bundle 但未选提供商时端口返回 503 `MARKET_INDEX_CONSTITUENTS_UNAVAILABLE`（消息 active market-data provider is not configured）；helper 未 ready 同样 503 而不返回空列表。差异：Go 的 nil dep 直接返回字符串错误，Rust 保留结构化 code/status。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(index_constituents)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/assembly/market_index_constituents_tools_test.go:69:TestADKMarketIndexConstituentsToolSurfacesProviderCapabilityAsClearMessage": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_index_constituents_tool_tests.rs::market_index_constituents_tool_reports_the_active_futu_owner + crates/jftrade-engine/src/product_mcp_index_constituents_tool_tests.rs::market_index_constituents_tool_surfaces_the_provider_capability + crates/jftrade-engine/src/product_production_ports_market_index_constituents_tests.rs::index_constituents_read_requires_akshare_and_a_ready_helper",
+    "conclusion": "已覆盖：激活 Futu 后真实端口返回 409 `MARKET_DATA_CAPABILITY_UNSUPPORTED`，消息为 `market-data capability is unsupported: active provider \"futu-opend\" does not support index constituents`（等价 Go 的 ErrCapabilityUnsupported 包装与 `futu-opend` 标签）；yfinance 同样 409 且标签为 `yahoo-finance`；helper 返回 400 `AKSHARE_UNSUPPORTED` 时折叠为同一 409 capability 类；非 CN 市场（如 HK.HSI）不触碰 helper 直接 409，`CN` 裸代码为 400 BAD_REQUEST（CN 聚合仅接受 `SH.<code>`/`SZ.<code>`）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(index_constituents)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/assembly/market_news_tools_test.go:15:TestADKMarketNewsAndCorporateActionsToolsForwardNormalizedInputs": {
     "status": "[~]",

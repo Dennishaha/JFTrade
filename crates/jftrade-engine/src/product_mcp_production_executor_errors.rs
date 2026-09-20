@@ -5,10 +5,10 @@ use crate::product::{
     BrokerReadSnapshotError, ExecutionReadSnapshotError, MarketDataCatalogReadSnapshotError,
     MarketDataDerivativeReadSnapshotError, MarketDataNewsSearchReadSnapshotError,
     MarketDataOptionsReadSnapshotError, MarketDataPredictionReadSnapshotError,
-    MarketDataProviderReadSnapshotError, MarketDataQuoteReadSnapshotError, PluginSnapshotError,
-    PortfolioSnapshotError, RemoteWatchlistSnapshotError, ResearchReadSnapshotError,
-    StrategyDefinitionSnapshotError, StrategyReadSnapshotError, SystemReadSnapshotError,
-    WatchlistReadSnapshotError,
+    MarketDataProviderReadSnapshotError, MarketDataQuoteReadSnapshotError,
+    MarketIndexConstituentsReadError, PluginSnapshotError, PortfolioSnapshotError,
+    RemoteWatchlistSnapshotError, ResearchReadSnapshotError, StrategyDefinitionSnapshotError,
+    StrategyReadSnapshotError, SystemReadSnapshotError, WatchlistReadSnapshotError,
 };
 use jftrade_research::ScreenCatalogError;
 
@@ -75,6 +75,25 @@ pub(super) fn news_search_error(error: MarketDataNewsSearchReadSnapshotError) ->
             McpToolFailure::unavailable("MARKET_DATA_NEWS_SEARCH_UNAVAILABLE", message)
         }
         MarketDataNewsSearchReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            retry_after_seconds,
+        } => McpToolFailure {
+            status,
+            code,
+            message,
+            retry_after_seconds,
+        },
+    }
+}
+
+pub(super) fn index_constituents_error(error: MarketIndexConstituentsReadError) -> McpToolFailure {
+    match error {
+        MarketIndexConstituentsReadError::Unavailable(message) => {
+            McpToolFailure::unavailable("MARKET_INDEX_CONSTITUENTS_UNAVAILABLE", message)
+        }
+        MarketIndexConstituentsReadError::Failed {
             status,
             code,
             message,

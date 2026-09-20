@@ -103,6 +103,10 @@ pub(crate) enum ProductionRouteAdapter {
     MarketDataOptionsSellerRead,
     MarketDataNewsActionsRead,
     MarketDataNewsSearchRead,
+    /// CN index constituent listings.  The reference exposes this feed only
+    /// through the ADK tool `market.index_constituents`, so the adapter has no
+    /// entry in the canonical HTTP route manifest.
+    MarketIndexConstituentsRead,
     MarketDataPredictionRead,
     MarketDataSubscriptionAcquireWrite,
     MarketDataSubscriptionReleaseWrite,
@@ -199,6 +203,7 @@ impl ProductionRouteAdapter {
             Self::MarketDataOptionsSellerRead => "market-data-options-seller-read",
             Self::MarketDataNewsActionsRead => "market-data-news-actions-read",
             Self::MarketDataNewsSearchRead => "market-data-news-search-read",
+            Self::MarketIndexConstituentsRead => "market-index-constituents-read",
             Self::MarketDataPredictionRead => "market-data-prediction-read",
             Self::MarketDataSubscriptionAcquireWrite => "market-data-subscription-acquire-write",
             Self::MarketDataSubscriptionReleaseWrite => "market-data-subscription-release-write",

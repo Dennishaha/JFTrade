@@ -36,6 +36,8 @@ mod product_production_ports_execution;
 pub(crate) mod product_production_ports_helper_runtime;
 #[path = "product_production_ports_market_data.rs"]
 mod product_production_ports_market_data;
+#[path = "product_production_ports_market_index_constituents.rs"]
+mod product_production_ports_market_index_constituents;
 #[path = "product_production_ports_plugins.rs"]
 mod product_production_ports_plugins;
 #[path = "product_production_ports_provider.rs"]
@@ -84,6 +86,7 @@ pub(crate) use product_production_ports_market_data::{
 };
 pub(crate) use product_production_ports_market_data::product_production_ports_market_data_prediction::*;
 pub(crate) use product_production_ports_market_data::product_production_ports_market_data_prediction;
+pub(crate) use product_production_ports_market_index_constituents::ProductionMarketIndexConstituentsPort;
 pub(crate) use product_production_ports_plugins::ProductionPluginPort;
 pub(crate) use product_production_ports_provider::ProductionMarketDataProviderPort;
 pub(crate) use product_production_ports_provider::provider_now_rfc3339;
@@ -561,6 +564,10 @@ pub(crate) fn production_ports(
         helper: config.market_data_helper.clone(),
         trade_runtime: config.trade_runtime.clone(),
     });
+    let market_index_constituents_port = Arc::new(ProductionMarketIndexConstituentsPort {
+        active_provider_state: Arc::clone(&active_provider_state),
+        helper: config.market_data_helper.clone(),
+    });
     let market_data_prediction_port = Arc::new(ProductionMarketDataPredictionPort {
         active_provider_state: Arc::clone(&active_provider_state),
         trade_runtime: config.trade_runtime.clone(),
@@ -719,6 +726,7 @@ pub(crate) fn production_ports(
         market_data_options: market_data_options_port,
         market_data_news_actions: market_data_news_port.clone(),
         market_data_news_search: market_data_news_port,
+        market_index_constituents: market_index_constituents_port,
         market_data_quote: market_data_quote_port,
         market_data_prediction: market_data_prediction_port,
         remote_watchlist: remote_watchlist_port.clone(),

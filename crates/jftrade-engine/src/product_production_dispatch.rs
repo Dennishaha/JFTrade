@@ -182,6 +182,14 @@ impl ProductApi {
             Target::MarketDataNewsSearchRead => {
                 self.market_data_news_search_read(&request.path, &request.query)
             }
+            // CN index constituents stay on the assistant tool surface: the
+            // reference publishes no HTTP route for the feed, so the transport
+            // must fail closed instead of inventing a path for it.
+            Target::MarketIndexConstituentsRead => Err(ApiFailure::new(
+                404,
+                "NOT_FOUND",
+                "market.index_constituents is available only through the assistant tool surface",
+            )),
             Target::MarketDataPredictionRead => {
                 self.market_data_prediction_read_api.dispatch(request)
             }

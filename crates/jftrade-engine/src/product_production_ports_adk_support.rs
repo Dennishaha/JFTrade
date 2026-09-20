@@ -35,6 +35,7 @@ pub(super) fn is_provider_dynamic_adapter(adapter: ProductionRouteAdapter) -> bo
             | ProductionRouteAdapter::MarketDataSubscriptionHeartbeatWrite
             | ProductionRouteAdapter::MarketDataNewsActionsRead
             | ProductionRouteAdapter::MarketDataNewsSearchRead
+            | ProductionRouteAdapter::MarketIndexConstituentsRead
             | ProductionRouteAdapter::ResearchScreenWrite
             | ProductionRouteAdapter::MarketDataFuturesRead
             | ProductionRouteAdapter::MarketDataOptionsChainRead

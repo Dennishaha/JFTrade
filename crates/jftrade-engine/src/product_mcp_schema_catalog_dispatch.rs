@@ -102,6 +102,26 @@ fn product_schema_for(name: &str) -> Option<Value> {
             read_properties(instrument_operation_properties(name)),
             &["instrumentId"],
         )),
+        // Reference `skillsruntime` schema for `market.index_constituents`:
+        // strict object, `market`/`symbol` required, `limit` 1..1000 with a
+        // 200 default and no additional properties.
+        "market.index_constituents" => Some(strict_object(
+            object([
+                ("market", string_schema(1, 16)),
+                ("symbol", string_schema(1, 80)),
+                (
+                    "limit",
+                    json!({
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 1000,
+                        "default": 200,
+                        "description": "成分股条数，默认 200。",
+                    }),
+                ),
+            ]),
+            &["market", "symbol"],
+        )),
         "research.technical_indicators" => Some(technical_indicator_schema()),
         "derivatives.option_screen"
         | "derivatives.option_events"
