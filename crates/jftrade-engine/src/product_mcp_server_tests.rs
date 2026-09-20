@@ -4129,3 +4129,160 @@ fn production_catalog_registers_application_tools_from_the_composition_root() {
         );
     }
 }
+
+/// Sends one raw request with an arbitrary path so the router's own 404
+/// boundary can be asserted next to the MCP path.
+fn request_path(port: u16, path: &str, token: Option<&str>) -> String {
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("connect MCP listener");
+    stream
+        .set_read_timeout(Some(MCP_TEST_IO_TIMEOUT))
+        .expect("set MCP timeout");
+    let auth = token
+        .map(|token| format!("Authorization: Bearer {token}\r\n"))
+        .unwrap_or_default();
+    let request = format!(
+        "POST {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 2\r\n{auth}\r\n{{}}"
+    );
+    stream
+        .write_all(request.as_bytes())
+        .expect("write MCP request");
+    let mut response = String::new();
+    stream
+        .read_to_string(&mut response)
+        .expect("read MCP response");
+    response
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/mcp_server_lifecycle_authorization_test.go:27
+/// `TestMCPServerManagerRemainingLifecycleBoundaries`: a token-mode start
+/// without a configured hash fails with the reference reason and keeps it in
+/// the status projection, a same-port apply is an idempotent no-op that clears
+/// the recorded error, and an unconfigured port projects the reference
+/// 6697 endpoint.  Go's nil-manager/nil-runtime branches have no Rust owner
+/// because the composition root always constructs the runtime with a catalog.
+#[test]
+fn lifecycle_boundaries_report_the_missing_token_and_keep_same_port_applies_idempotent() {
+    let runtime = runtime();
+    let port = available_port();
+
+    let error = runtime
+        .apply(&enabled_record(port, "token", ""))
+        .expect_err("a token-mode start without a hash must fail");
+    assert!(error.contains("token"), "error = {error}");
+    let failed = runtime
+        .status(&enabled_record(port, "token", ""))
+        .expect("failed MCP status");
+    assert!(!failed.running, "failed MCP status = {failed:?}");
+    assert!(
+        failed.last_error.contains("token"),
+        "failed MCP status = {failed:?}"
+    );
+
+    runtime
+        .apply(&enabled_record(port, "none", ""))
+        .expect("start MCP listener");
+    runtime
+        .apply(&enabled_record(port, "none", ""))
+        .expect("same-port apply is a no-op");
+    let running = runtime
+        .status(&enabled_record(port, "none", ""))
+        .expect("running MCP status");
+    assert!(running.running, "running MCP status = {running:?}");
+    assert!(
+        running.last_error.is_empty(),
+        "running MCP status = {running:?}"
+    );
+
+    let unconfigured = runtime
+        .status(&McpServerSettingsRecord::new(false, 0, "none", ""))
+        .expect("unconfigured MCP status");
+    assert!(
+        unconfigured.endpoint.ends_with(":6697/mcp"),
+        "default endpoint = {}",
+        unconfigured.endpoint
+    );
+    runtime.shutdown_blocking().expect("shutdown MCP");
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/mcp_server_lifecycle_authorization_test.go:74
+/// `TestMCPServerManagerRemainingServeFailureStates`: an unexpected listener
+/// exit publishes its reason only while the failed server is still the current
+/// owner; a failure from a replaced listener leaves the newer state untouched.
+#[test]
+fn unexpected_serve_failure_publishes_only_for_the_current_generation() {
+    let runtime = runtime();
+    let port = available_port();
+    runtime
+        .apply(&enabled_record(port, "none", ""))
+        .expect("start MCP listener");
+    let state = Arc::clone(&runtime.state);
+    let generation = state.lock().expect("runtime state").generation;
+    let weak = Arc::downgrade(&state);
+
+    assert!(publish_listener_failure(&weak, generation, "accept failed"));
+    let failed = runtime
+        .status(&enabled_record(port, "none", ""))
+        .expect("serve failure status");
+    assert!(
+        failed.last_error.contains("accept failed"),
+        "serve failure status = {failed:?}"
+    );
+    assert!(
+        failed.last_error.contains("stopped unexpectedly"),
+        "serve failure status = {failed:?}"
+    );
+
+    {
+        let mut guard = state.lock().expect("runtime state");
+        guard.generation = guard.generation.wrapping_add(1);
+        guard.last_error.clear();
+    }
+    assert!(
+        !publish_listener_failure(&weak, generation, "stale accept failure"),
+        "a replaced listener must not publish its failure"
+    );
+    let guard = state.lock().expect("runtime state");
+    assert!(
+        guard.last_error.is_empty(),
+        "stale failure changed the recorded error: {}",
+        guard.last_error
+    );
+    assert!(
+        guard.server.is_some(),
+        "the current listener stays installed"
+    );
+    drop(guard);
+    runtime.shutdown_blocking().expect("shutdown MCP");
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/mcp_server_lifecycle_authorization_test.go:95
+/// `TestMCPAuthorizedHandlerRemainingRequestBoundaries`: a blank bearer never
+/// authorizes and the 401 advertises the `Bearer` challenge, while a foreign
+/// path is answered by the router's own 404 instead of the MCP handler.
+#[test]
+fn authorization_boundaries_challenge_blank_bearer_and_reject_foreign_paths() {
+    let runtime = runtime();
+    let port = available_port();
+    let (_token, token_hash) = jftrade_settings::SystemMcpServerSecrets
+        .issue()
+        .expect("fixture secret");
+    runtime
+        .apply(&enabled_record(port, "token", &token_hash))
+        .expect("start MCP listener");
+
+    let blank = request(port, Some(""), "{}", "127.0.0.1:1");
+    assert!(blank.contains("401 Unauthorized"), "response = {blank}");
+    assert!(
+        blank
+            .to_ascii_lowercase()
+            .contains("www-authenticate: bearer"),
+        "response = {blank}"
+    );
+
+    let foreign = request_path(port, "/other", None);
+    assert!(foreign.contains("404 Not Found"), "response = {foreign}");
+    let mcp = request_path(port, "/mcp", None);
+    assert!(mcp.contains("401 Unauthorized"), "response = {mcp}");
+
+    runtime.shutdown_blocking().expect("shutdown MCP");
+}

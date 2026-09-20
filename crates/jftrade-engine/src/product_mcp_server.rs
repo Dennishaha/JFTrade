@@ -219,18 +219,8 @@ impl McpServerOwner {
                     .map_err(|error| error.to_string())
                 });
                 running_for_thread.store(false, Ordering::Release);
-                if let Err(error) = &result
-                    && let Some(state) = state.upgrade()
-                    // `apply` holds the runtime state lock while it waits for
-                    // the readiness barrier.  Never wait on that lock from
-                    // the worker's error path: a conversion/startup error is
-                    // returned to `apply`, which records it after the lock is
-                    // released; later runtime failures can publish here when
-                    // the lock is available.
-                    && let Ok(mut guard) = state.try_lock()
-                    && guard.generation == generation
-                {
-                    guard.last_error = format!("MCP listener stopped unexpectedly: {error}");
+                if let Err(error) = &result {
+                    publish_listener_failure(&state, generation, error);
                 }
                 result
             })
@@ -292,6 +282,33 @@ impl Drop for McpServerOwner {
             let _ = thread.join();
         }
     }
+}
+
+/// Publish an unexpected listener exit for the worker that owns `generation`.
+///
+/// The reference `serve` failure path records `lastError` for the current
+/// server and leaves a replaced one untouched; the generation fence carries
+/// that rule here.  `apply` holds the runtime state lock while it waits for the
+/// readiness barrier, so the worker's error path must never block on it: a
+/// conversion/startup error is returned to `apply`, which records the message
+/// after releasing the lock, while later runtime failures publish through this
+/// helper only when the lock is free and the generation still matches.
+fn publish_listener_failure(
+    state: &Weak<Mutex<McpServerState>>,
+    generation: u64,
+    error: &str,
+) -> bool {
+    let Some(state) = state.upgrade() else {
+        return false;
+    };
+    let Ok(mut guard) = state.try_lock() else {
+        return false;
+    };
+    if guard.generation != generation {
+        return false;
+    }
+    guard.last_error = format!("MCP listener stopped unexpectedly: {error}");
+    true
 }
 
 fn rollback_failed_shutdown(

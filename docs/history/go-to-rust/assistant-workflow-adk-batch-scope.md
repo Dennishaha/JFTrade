@@ -2623,3 +2623,40 @@ Go 的 ADK 工具 `market.news`/`market.corporate_actions` 在 Rust 的等价名
 - 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与策略实例写工具（第 52 批 `:122`）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 活动读分页钳制差异（第 52 批 `:84`）、第 51 批 `:128` 的三个无 owner 断言、第 53 批的 float 截断与 `query` 文本推断差异、本批的 `limit>50` 钳制/工具入参差异与 capability 措辞差异、`market.depth` 自由文本 instrument 推断、`watchlist.list includeQuotes` 行情富化、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`（1850 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2830 Rust** / **951 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第五十五批：assembly `mcp_server_lifecycle_authorization_test.go` 全量结清（3 条；2 条新 `[x]`，1 条 `partial`）
+
+范围：`internal/assistant/assembly/mcp_server_lifecycle_authorization_test.go` 3 条逐条结清——本批新增 **2 条 `[x]`**（`:74`、`:95`），`partial` 1 条（`:27`）。`[x]` 计数 951 → **953**，Rust 测试 2830 → **2833**（新增 3 条，另含 1 处生产重构）。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestMCPServerManagerRemainingLifecycleBoundaries|TestMCPServerManagerRemainingServeFailureStates|TestMCPAuthorizedHandlerRemainingRequestBoundaries' -count=1`（checkout `/tmp/go452dea11.niwD1G`，`ok`）。
+
+### 本批结论（1 处生产重构 + 3 条新回归）
+
+Go 用可注入 `failingMCPListener` 断言 serve 失败状态；Rust 的 `axum::serve` 没有该 seam，于是把 worker 的错误发布判定抽成生产函数 `publish_listener_failure(state, generation, error)`（`crates/jftrade-engine/src/product_mcp_server.rs`），worker 与测试共用同一实现，行为不变：
+
+- `unexpected_serve_failure_publishes_only_for_the_current_generation`（`:74`）：当前 generation 的失败写入 `MCP listener stopped unexpectedly: accept failed`；被替换的监听器（generation 已递增）失败既不写 `last_error` 也不替换当前 owner。
+- `lifecycle_boundaries_report_the_missing_token_and_keep_same_port_applies_idempotent`（`:27` 可达半边）：token 模式缺 hash → 报错含 `token` 且 `last_error` 记录、`running=false`；未配置端口的状态投影端点为 `http://127.0.0.1:6697/mcp`；同端口重复 apply 幂等且清空 `last_error`。
+- `authorization_boundaries_challenge_blank_bearer_and_reject_foreign_paths`（`:95`）：空 `Authorization: Bearer` → 401 且响应头 `www-authenticate: Bearer`；非 `/mcp` 路径 → 404；`/mcp` 未授权 → 401。
+- 既有证据引用：`disabled_runtime_has_stopped_status_and_releases_listener`、`shutdown_is_idempotent_and_closed_runtime_rejects_rebind`、`port_conflict_keeps_previous_listener_and_reset_rebinds`、`loopback_policy_rejects_non_loopback_peer_addresses`、`host_rebinding_and_missing_host_are_rejected`、`cold_start_listener_failure_records_the_reason_and_recovery_clears_it`。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. token 校验改成恒假（`if false && …`）→ `lifecycle_boundaries_report_the_missing_token_and_keep_same_port_applies_idempotent` 转红（缺 hash 的 apply 不再报错）。
+2. `publish_listener_failure` 去掉 generation 比较 → `unexpected_serve_failure_publishes_only_for_the_current_generation` 转红（陈旧失败写进 `last_error`）。
+3. 401 响应删除 `WWW-Authenticate: Bearer` → `authorization_boundaries_challenge_blank_bearer_and_reject_foreign_paths` 转红（challenge 断言失败）。
+   3 处探针均在本批内执行并已回滚；`git diff` 只留 `product_mcp_server.rs` 的重构、测试文件、清单与报告。
+
+### 结论登记（partial 行内的边界与差异）
+
+- **`:27 partial`**：未迁移的是「nil 接收者」三连（nil manager 的 Reconfigure/Status/Close、nil runtime 的 Reconfigure、`closeMCPHTTPServer(nil)`）——Rust 的 composition root 总是用 catalog 构造 runtime，没有可空 handle 路径；其余生命周期分支（缺 token、同端口幂等、禁用释放、Close 幂等 + closed 拒绝、端口冲突回退）均有断言。
+- **`:74 差异**：Go 在 matched 失败时把 `server`/`listener` 置 nil；Rust 保留 owner 直到下一次 apply/shutdown，由 worker 翻 `running=false` 并保留 `last_error`，`status` 因此报告未运行且带原因。
+- **`:95 差异**：Go 在「已禁用但 handler 仍在」的 manager 上断言 503；Rust 禁用即停止并释放监听器（`disabled_runtime_has_stopped_status_and_releases_listener`），不存在该 503 路径，属刻意收紧。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 23 条：`adk_capability_contracts_test.go`/`adk_closure_contracts_test.go`/`adk_runtime_contracts_test.go`/`adk_summary_contracts_test.go`/`typed_product_capabilities_test.go`/`watchlist_adapter_test.go`/`workflow_bridge_contracts_test.go`/`workflow_tools_error_boundaries_test.go`/`maintenance_test.go`（各 2），`adk_backtest_adapter_test.go`/`adk_strategy_input_validation_test.go`/`adk_tool_failure_contracts_test.go`/`product_execution_contracts_test.go`/`workflow_execution_injection_test.go`（各 1）；随后 `internal/app/apiserver`（574，按 servercore/servercoretest 分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）等。
+- 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与策略实例写工具（第 52 批 `:122`）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 活动读分页钳制差异（第 52 批 `:84`）、第 51 批 `:128` 的三个无 owner 断言、第 53 批 float 截断与 `query` 文本推断、第 54 批 `limit>50` 钳制与 capability 措辞、第 55 批的禁用 503 路径差异、`market.depth` 自由文本 instrument 推断、`watchlist.list includeQuotes` 行情富化、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-strategy -p jftrade-store-sqlite -p jftrade-research --all-targets --locked --no-fail-fast`（1853 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2833 Rust** / **953 `[x]`**）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
