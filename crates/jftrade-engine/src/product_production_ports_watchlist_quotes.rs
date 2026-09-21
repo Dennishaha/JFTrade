@@ -5,6 +5,10 @@ use jftrade_settings::MarketDataProvider;
 use jftrade_watchlist::normalize_instrument_id;
 use serde_json::{json, Value};
 
+/// Go `WithQuoteCacheTTL` default: a batch-quote read inside this window is
+/// served from the watchlist cache without touching the provider.
+const WATCHLIST_QUOTE_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(30);
+
 use super::{
     string_array, ProductionWatchlistPort, WatchlistWritePortError, MAX_PAGE_LIMIT,
 };
@@ -17,6 +21,11 @@ use crate::product::product_production_ports::product_production_ports_trade::{
 pub(crate) struct WatchlistQuoteCacheEntry {
     pub(crate) quote: Value,
     pub(crate) cached_at: std::time::Instant,
+    /// `ActiveProviderState` generation observed when the quote was fetched.
+    /// Go clears the watchlist quote cache in `ChangeQuoteProvider` and drops
+    /// in-flight results owned by the previous provider; tagging every entry
+    /// with the producing generation gives Rust the same fence.
+    pub(crate) provider_generation: u64,
 }
 
 fn val_to_f64(v: Option<&Value>) -> Option<f64> {
@@ -107,6 +116,13 @@ pub(crate) fn parse_helper_snapshot(
 }
 
 impl ProductionWatchlistPort {
+    fn provider_generation(&self) -> u64 {
+        self.active_provider_state
+            .as_ref()
+            .map(|state| state.snapshot().generation)
+            .unwrap_or_default()
+    }
+
     pub(crate) fn handle_batch_quotes(
         &self,
         value: &Value,
@@ -138,16 +154,39 @@ impl ProductionWatchlistPort {
             .as_ref()
             .and_then(|s| s.get())
             .unwrap_or(MarketDataProvider::Futu);
+        let provider_generation = self.provider_generation();
 
         let now = provider_now_rfc3339();
         let mut quotes_map: HashMap<String, Value> = HashMap::new();
         let mut error_messages: HashMap<String, String> = HashMap::new();
 
+        // Go serves a cached quote for the whole TTL window without calling the
+        // provider again (`WithQuoteCacheTTL`); only ids that are missing or
+        // owned by another provider generation are fetched below.
+        let mut cached_ids: BTreeSet<String> = BTreeSet::new();
+        {
+            let cache_guard = self.quote_cache.lock().unwrap_or_else(|e| e.into_inner());
+            for id in &normalized {
+                let fresh = cache_guard.get(id).filter(|entry| {
+                    entry.provider_generation == provider_generation
+                        && entry.cached_at.elapsed() <= WATCHLIST_QUOTE_CACHE_TTL
+                });
+                if let Some(entry) = fresh {
+                    quotes_map.insert(id.clone(), entry.quote.clone());
+                    cached_ids.insert(id.clone());
+                }
+            }
+        }
+
         if (active_provider == MarketDataProvider::Akshare
             || active_provider == MarketDataProvider::Yfinance)
             && let Some(helper) = self.helper.clone()
         {
-            let ids_to_fetch = normalized.clone();
+            let ids_to_fetch: Vec<String> = normalized
+                .iter()
+                .filter(|id| !cached_ids.contains(*id))
+                .cloned()
+                .collect();
             let provider_name = if active_provider == MarketDataProvider::Akshare {
                 "akshare"
             } else {
@@ -392,26 +431,39 @@ impl ProductionWatchlistPort {
             }
         }
 
+        let current_generation = self.provider_generation();
         let mut cache_guard = self.quote_cache.lock().unwrap_or_else(|e| e.into_inner());
         let now_inst = std::time::Instant::now();
-        for (id, quote) in &quotes_map {
-            cache_guard.insert(
-                id.clone(),
-                WatchlistQuoteCacheEntry {
-                    quote: quote.clone(),
-                    cached_at: now_inst,
-                },
-            );
+        // A request that started under the previous provider must not
+        // repopulate the cache after a switch, matching Go's in-flight fence.
+        // Only quotes fetched by this request refresh the cache window; served
+        // entries keep their original age instead of renewing the TTL.
+        if current_generation == provider_generation {
+            for (id, quote) in &quotes_map {
+                if cached_ids.contains(id) {
+                    continue;
+                }
+                cache_guard.insert(
+                    id.clone(),
+                    WatchlistQuoteCacheEntry {
+                        quote: quote.clone(),
+                        cached_at: now_inst,
+                        provider_generation,
+                    },
+                );
+            }
         }
 
         let mut quotes = Vec::new();
         let mut errors = Vec::new();
-        let ttl = std::time::Duration::from_secs(30);
 
         for id in &normalized {
             if let Some(quote) = quotes_map.remove(id) {
                 quotes.push(quote);
-            } else if let Some(entry) = cache_guard.get(id).filter(|e| e.cached_at.elapsed() <= ttl) {
+            } else if let Some(entry) = cache_guard.get(id).filter(|entry| {
+                entry.provider_generation == current_generation
+                    && entry.cached_at.elapsed() <= WATCHLIST_QUOTE_CACHE_TTL
+            }) {
                 quotes.push(entry.quote.clone());
             } else if let Some(msg) = error_messages.get(id) {
                 errors.push(json!({
@@ -433,5 +485,192 @@ impl ProductionWatchlistPort {
             "errors": errors,
             "observedAt": now,
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::product::product_active_provider_state::ActiveProviderState;
+    use crate::product::product_production_ports::SharedTradeReadRuntime;
+    use crate::product::product_production_ports::product_production_ports_watchlist::ProductionWatchlistPort;
+    use jftrade_integration_futu::SecuritySnapshotReadPort;
+    use jftrade_settings::MarketDataProviderRuntimePort;
+    use jftrade_store_sqlite::WatchlistStore;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
+
+    fn snapshot(symbol: &str) -> jftrade_marketdata::BrokerSecuritySnapshot {
+        jftrade_marketdata::BrokerSecuritySnapshot {
+            symbol: Some(symbol.to_owned()),
+            market: Some(
+                symbol
+                    .split('.')
+                    .next()
+                    .unwrap_or_default()
+                    .to_ascii_uppercase(),
+            ),
+            last_price: Some("101".parse().expect("last price")),
+            previous_close: Some("100".parse().expect("previous close")),
+            security_type: Some("stock".to_owned()),
+            ..Default::default()
+        }
+    }
+
+    struct CountingSnapshotReader {
+        calls: AtomicUsize,
+        switch_to: Option<MarketDataProvider>,
+        state: Option<Arc<ActiveProviderState>>,
+    }
+
+    impl CountingSnapshotReader {
+        fn new() -> Self {
+            Self {
+                calls: AtomicUsize::new(0),
+                switch_to: None,
+                state: None,
+            }
+        }
+
+        fn switching_to(state: Arc<ActiveProviderState>, provider: MarketDataProvider) -> Self {
+            Self {
+                calls: AtomicUsize::new(0),
+                switch_to: Some(provider),
+                state: Some(state),
+            }
+        }
+    }
+
+    impl SecuritySnapshotReadPort for CountingSnapshotReader {
+        fn query(
+            &self,
+            symbols: &[String],
+        ) -> Result<Vec<jftrade_marketdata::BrokerSecuritySnapshot>, String> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            // Model a provider switch that commits while this snapshot read is
+            // still in flight, so the cache fence is exercised deterministically.
+            if let (Some(state), Some(provider)) = (&self.state, self.switch_to) {
+                let _ = state.activate(provider);
+            }
+            Ok(symbols.iter().map(|symbol| snapshot(symbol)).collect())
+        }
+    }
+
+    fn watchlist_store(directory: &tempfile::TempDir) -> Arc<WatchlistStore> {
+        let path = directory.path().join("watchlist.db");
+        let connection = rusqlite::Connection::open(&path).expect("create watchlist database");
+        jftrade_store_sqlite::initialize_current(&connection, "watchlist")
+            .expect("initialize watchlist schema");
+        drop(connection);
+        Arc::new(WatchlistStore::open(&path).expect("watchlist store"))
+    }
+
+    fn watchlist_port(
+        reader: Arc<CountingSnapshotReader>,
+        state: Arc<ActiveProviderState>,
+    ) -> (ProductionWatchlistPort, tempfile::TempDir) {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let runtime = SharedTradeReadRuntime::default();
+        runtime.set_security_snapshots(Some(reader));
+        let port = ProductionWatchlistPort {
+            store: watchlist_store(&directory),
+            trade_runtime: Some(Arc::new(runtime)),
+            active_provider_state: Some(state),
+            helper: None,
+            quote_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        };
+        (port, directory)
+    }
+
+    fn batch(port: &ProductionWatchlistPort) -> Value {
+        port.handle_batch_quotes(&json!({ "instrumentIds": ["HK.00700"] }))
+            .expect("batch quotes")
+    }
+
+    #[test]
+    fn quote_cache_serves_repeat_reads_within_one_provider_generation() {
+        let reader = Arc::new(CountingSnapshotReader::new());
+        let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+        let (port, _directory) = watchlist_port(Arc::clone(&reader), state);
+
+        let first = batch(&port);
+        let cached = batch(&port);
+
+        assert_eq!(reader.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(first["quotes"], cached["quotes"]);
+        assert!(cached["errors"].as_array().expect("errors").is_empty());
+    }
+
+    #[test]
+    fn provider_switch_drops_quotes_cached_under_the_previous_provider() {
+        let reader = Arc::new(CountingSnapshotReader::new());
+        let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+        let (port, _directory) = watchlist_port(Arc::clone(&reader), Arc::clone(&state));
+        batch(&port);
+        assert_eq!(reader.calls.load(Ordering::SeqCst), 1);
+
+        state
+            .activate(MarketDataProvider::Akshare)
+            .expect("switch provider");
+        let switched = batch(&port);
+
+        assert_eq!(
+            reader.calls.load(Ordering::SeqCst),
+            2,
+            "a quote cached under the previous provider generation must not be served"
+        );
+        assert_eq!(switched["quotes"].as_array().expect("quotes").len(), 1);
+        let cache = port.quote_cache.lock().expect("quote cache");
+        let entry = cache.get("HK.00700").expect("cache entry");
+        assert_eq!(entry.provider_generation, state.snapshot().generation);
+    }
+
+    #[test]
+    fn in_flight_snapshot_does_not_repopulate_the_cache_after_a_provider_switch() {
+        // Parity: go:452dea11:internal/watchlist/service_quotes_test.go:174 TestChangeQuoteProviderRejectsPreviousProviderInflightResults
+        let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+        let reader = Arc::new(CountingSnapshotReader::switching_to(
+            Arc::clone(&state),
+            MarketDataProvider::Akshare,
+        ));
+        let (port, _directory) = watchlist_port(reader, state);
+
+        let result = batch(&port);
+
+        assert_eq!(result["quotes"].as_array().expect("quotes").len(), 1);
+        assert!(
+            port.quote_cache.lock().expect("quote cache").is_empty(),
+            "a snapshot that started under the previous provider must not repopulate the cache"
+        );
+    }
+
+    #[test]
+    fn rejected_provider_switch_preserves_the_current_quote_cache() {
+        // Parity: go:452dea11:internal/watchlist/service_quotes_test.go:210 TestChangeQuoteProviderFailurePreservesCurrentCache
+        let reader = Arc::new(CountingSnapshotReader::new());
+        let activation: Arc<
+            dyn Fn(MarketDataProvider, Option<MarketDataProvider>) -> Result<(), String>
+                + Send
+                + Sync,
+        > = Arc::new(|_, _| Err("provider health check failed".to_owned()));
+        let state = Arc::new(
+            ActiveProviderState::new(Some(MarketDataProvider::Futu)).with_activation(activation),
+        );
+        let (port, _directory) = watchlist_port(Arc::clone(&reader), Arc::clone(&state));
+        batch(&port);
+        assert_eq!(reader.calls.load(Ordering::SeqCst), 1);
+
+        assert!(
+            state.activate(MarketDataProvider::Akshare).is_err(),
+            "the activation callback rejects the switch"
+        );
+        let cached = batch(&port);
+
+        assert_eq!(
+            reader.calls.load(Ordering::SeqCst),
+            1,
+            "a rejected provider switch must keep the current cache"
+        );
+        assert_eq!(cached["quotes"].as_array().expect("quotes").len(), 1);
     }
 }

@@ -24536,17 +24536,17 @@
   },
   "internal/watchlist/futu/source_boundaries_test.go:51:TestFutuWatchlistReaderRemainingSourceAndReadErrors": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/watchlist_reader_tests.rs::tests::watchlist_reader_rejects_blank_and_unknown_group_names",
+    "conclusion": "partial：Rust 断言 blank/未知组名在读取前被拒（不发起远程读），且上游 CustomizationError 原样上抛；差异：Go 逐项断言 nil source 返回 nil/无错、provider/remote 读错误、blank 组、成员组读错、缺失组、成员 provider 错误六类边界及其错误分类。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/futu/source_boundaries_test.go:99:TestFutuWatchlistFreshAndRemoteIDRemainingBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/watchlist_reader_tests.rs::tests::watchlist_fresh_member_read_rechecks_remote_ambiguity",
+    "conclusion": "partial：Rust 断言 fresh 读取跳过缓存并重新校验远程歧义、成员规范化保持 canonical id/别名；差异：Go 还断言非法 remoteGroupId（含控制/空白）被拒、缺失远程组不命中、fresh provider 错误、unsupported fresh reader 错误、以及 nil reader 的 clock 返回非零时间。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/futu/source_boundaries_test.go:137:TestFutuSnapshotRemainingProviderRateLimitAndSplitPaths": {
     "status": "[~]",
@@ -24557,101 +24557,101 @@
   },
   "internal/watchlist/futu/source_boundaries_test.go:181:TestWatchlistQuoteRemainingFormattingAndTimeBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::provider_switch_drops_quotes_cached_under_the_previous_provider",
+    "conclusion": "partial：Rust 的 watchlist quote 投影对缺失/空 updateTime 省略字段，数值文本按 f64 解析并对无效值留空；差异：Go 断言 nil watchlist 字符串为空、空白/非法已知市场时间不解析、RFC3339 与 legacy 布局可解析、preferred extended fallback、零价扩展块与 nil float clone 等一组边界，Rust 未实现 watchlist 字符串与 legacy 时间解析辅助函数。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/futu/source_test.go:44:TestFutuWatchlistReaderMarksDuplicateNamesAmbiguousAndCachesReads": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "部分覆盖：Rust 缺少 Futu remote watchlist reader；Go 语义要求规范化重名组标记 ambiguous、稳定唯一 remote ID、禁止导入歧义组，并缓存普通读取且 fresh 读取绕过缓存",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist`",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/watchlist_reader_tests.rs::tests::watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous",
+    "conclusion": "partial：Rust 断言同一规范化名（Growth / \" growth \"）的组全部标 ambiguous、system 组不标；差异：Go 同一测试还断言 remoteGroupId 稳定唯一、歧义组导入被拒、groups/members 各只读一次（缓存命中）与 fresh 读取单独计数，Rust 把这些拆到 watchlist_member_conversion_preserves_canonical_id_and_broker_alias、watchlist_reader_cache_uses_ttl_and_returns_copies、watchlist_fresh_read_bypasses_and_replaces_group_and_member_caches 三条测试；该 Rust 测试的 rust_entry 已被 pkg/futu/watchlist_reader_test.go:72 的 [x] 行占用（唯一引用约束），本行保持 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/futu/source_test.go:83:TestRemoteMembersKeepBrokerCodeAndSecurityIDAsSeparateAliases": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-integration-futu/src/watchlist_reader_tests.rs::tests::watchlist_member_conversion_preserves_canonical_id_and_broker_alias",
-    "conclusion": "partial：Rust 已断言 canonical instrumentId、brokerCode、brokerSecurityId 三者互不相同（与 Go 的 BrokerCode/SecurityID 分离语义等价）；但 Go 这条测试断言的是 internal/watchlist `remoteMembersFromBroker` 的 RemoteMember 投影（JSON 字段 `securityId`），Rust 的 remote watchlist 是 feature 透传，未建立独立 RemoteMember/`securityId` 投影层，字段名与承载层不同，不能标记 function_exact。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(watchlist_member_conversion_preserves_canonical_id_and_broker_alias)' --locked",
-    "evidence_type": "partial"
+    "conclusion": "[x]：成员转换保留 canonical instrumentId，并把 brokerCode 与 brokerSecurityId 作为互不相等的独立别名透出，与 Go 断言（brokerCode=00700、securityID=700 且两者不相等）逐项一致；Rust fixture 用 JP.7203/brokerCode 7203/brokerSecurityId 123456 表达同一契约。本批核验后把既有 partial 升级为 [x] 并补 `// Parity: go:452dea11:internal/watchlist/futu/source_test.go:83` 锚点（该 Rust 测试同时保留 pkg/futu 同源锚点）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/watchlist/futu/source_test.go:174:TestFutuWatchlistSnapshotDoesNotSplitGlobalOrCanceledFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "部分覆盖：Rust 缺少远程快照批处理错误边界；Go 要求全局 provider/cancel 错误整体失败，不拆成逐标的伪成功结果",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist`",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/security_snapshot_coordinator_tests.rs::tests::security_snapshot_coordinator_classifies_remote_rate_limit",
+    "conclusion": "partial：Rust 快照协调器把远程限流分类为 rate-limit 并可整体失败、且对空/异常结果有独立断言（security_snapshot_coordinator_handles_empty_and_unexpected_results）；差异：Go 断言 watchlist snapshot source 在全局服务失败、限流、无权限文案、context.Canceled 四类情况下返回 0 quotes + 每个 id 一条同文案 itemError 且只发起 1 次快照调用——Rust 的 watchlist 端口把失败映射为 per-item SNAPSHOT_FAILED/NO_SNAPSHOT，但没有这四类全局失败的专项回归测试。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/futu/source_test.go:221:TestFutuWatchlistSnapshotUsesDelayedFallbackWhenSubscriptionQuotaIsFull": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "部分覆盖：Rust 缺少订阅配额感知的延时快照回退；Go 在 quota full 时必须保留可用延时值并避免重复订阅",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist`",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/tests/fake_framed_opend_runtime_tests.rs::test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds",
+    "conclusion": "partial：Rust 在 BasicQot 无权限/配额不可用时进入 delayed StockScreen 回退（snapshot_fallback.rs，延迟行统一标 futu:stock-screen-delayed，测试 snapshot_fallback_protocol.rs::delayed_snapshot_fallback_reads_static_info_and_pages_stock_screen_without_subscribing 与 fake_framed_opend_runtime_tests 覆盖进入回退与分页）；差异：Go 断言 watchlist 层在配额满时对每个 symbol 单独尝试主源（批次为 {\"SH.600519\"}/{\"US.AAPL\"} 单元素）并对同一批次调用回退源，且回退 quote 必须带 change/changePercent；Rust 的 watchlist 批量路径按市场合并后交给统一 security_snapshots（内部再走延迟回退），没有该逐个 symbol 主源批次的等价断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/futu/source_test.go:267:TestFutuWatchlistSnapshotUsesMarketSpecificChunksWithPerItemErrors": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/security_snapshot_coordinator_tests.rs::tests::security_snapshot_batches_split_hk_and_other_markets_by_size",
+    "conclusion": "partial：Rust 断言 HK 批次上限 20、其他市场 400 的分片（SECURITY_SNAPSHOT_HK_BATCH_SIZE/SECURITY_SNAPSHOT_OTHER_BATCH_SIZE），并在端口层把 symbol-scoped 失败降级为单项错误；差异：Go 用 423 个 id 断言每批同市场、四个市场都被查询、US.BAD 单项错误（quotes=ids-1、errors=1）以及 quote.change/changePercent 由快照推导；Rust 没有等价的 watchlist 端到端批量断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/futu/source_test.go:316:TestFutuWatchlistSnapshotIsolatesMarketPermissionFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::symbol_scoped_snapshot_errors_are_detectable_through_context",
+    "conclusion": "partial：Rust 用 symbol-scoped 快照错误分类（jftrade-broker::is_symbol_scoped_snapshot_error）把单市场失败隔离为单项错误，成功市场继续返回；差异：Go 断言 SH/SZ 市场级权限失败时其他市场 quote 仍按原顺序返回、错误项为失败市场代表 id 且文案保留 OpenD 原文、批次内不得混市场。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/futu/source_test.go:357:TestFutuWatchlistSnapshotIsolatesUnknownAndOTCSymbolErrors": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/security_snapshot_coordinator_tests.rs::tests::security_snapshot_coordinator_rejects_invalid_and_unavailable_inputs",
+    "conclusion": "partial：Rust 断言无效/不可用输入被拒绝并分类，未知股票与 OTC 文案按 symbol-scoped 处理；差异：Go 断言 5 个 id 中 BBKCF/KXIAY 两条失败被隔离（成功 id 不继承错误、错误文案保留原文），且失败后按单 symbol 重试（reader.batches[0] == 原始 id 列表、后续为单元素批次）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/futu/source_test.go:396:TestWatchlistQuotePreservesSnapshotDisplayMetadataAndAvoidsUnknownTimezoneGuess": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "部分覆盖：Rust 缺少远程 quote projection；Go 要求保留 snapshot display metadata，未知交易所时区不得猜测或伪造",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist`",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::quote_cache_serves_repeat_reads_within_one_provider_generation",
+    "conclusion": "partial：Rust 的 batch-quotes 投影保留 name/securityType/volume/turnover/observedAt/updateTime 等展示字段，且 updateTime 缺省时不写入（同 Go 的省略语义）；差异：Go 断言 SG.D05（无时区未知市场）带字符串 updateTime 时必须省略该字段、同时保留 name/securityType/volume/turnover/assetClass 研报字段，Rust 没有该市场级时区猜测定向测试。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/futu/source_test.go:418:TestWatchlistQuoteSelectsExtendedSessionPriceAndChange": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "部分覆盖：Rust 缺少 extended-session quote 选择器；Go 按盘前/盘后有效价与涨跌幅优先级投影，不能回退到未知或过期字段",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist`",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_snapshot_route_projects_cached_extended_quote_contract",
+    "conclusion": "partial：Rust 的 Futu 快照路由断言扩展时段（pre/after/overnight）报价契约投影；差异：Go 断言 watchlistQuoteFromBrokerSnapshot 在 session=pre/after/overnight 时 price 取扩展价、change=扩展价-常规收盘、changePercent 非空；Rust 的 watchlist 批量投影当前只取常规价（lastPrice/previousClose），未按 session 提升扩展价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/futu/source_test.go:445:TestFutuWatchlistSourceIdentityDoesNotUseTradingAccount": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist/remote_watchlist_tests.rs::remote_read_query_defaults_to_groups",
+    "conclusion": "partial：Rust 的远程来源标识由 provider 派生（sourceId 形如 futu:default，与交易账户无关），与 Go 的“来源 ID 不依赖账户”结论一致；差异：Go 还断言 runtime 关闭时 source.Status=\"disabled\" 且 watchlist.ErrStalePreview 被 IsConflict 归类为冲突；Rust 用 WatchlistStoreError 状态码与 RemoteWatchlistSnapshotError 表达，没有同名 IsConflict 分类函数。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/futu/source_test.go:459:TestFutuWatchlistSourceReportsUnavailableRuntimeBeforeDiscovery": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_watchlist_remote_write_product_tests.rs::remote_watchlist_write_product_replays_failure_recovery_restart_without_local_state",
+    "conclusion": "partial：Rust 在远程端口缺失/不可用时 fail-closed（远程读写端口只在显式注入时注册，失败不落地本地状态），与 Go 的“发现前 runtime 不可用即报 unavailable+error”意图一致；差异：Go 断言 source.Status=\"unavailable\" 且 Error 非空的具体投影，Rust 以端口缺失/错误映射（WatchlistWritePortError/RemoteWatchlistSnapshotError 状态码）表达，没有 source 状态字符串断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/futu/source_test.go:470:TestFutuWatchlistSourceReportsFailedOpenDProbe": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::futu_switch_without_physical_probe_does_not_claim_opend_ready",
+    "conclusion": "partial：Rust 断言 Futu 激活必须通过物理探测才会把 opend_ready 置位（未探测不宣称就绪）；差异：Go 断言 OpenD 探测失败时 source.Status=\"unavailable\" 且 Error==\"connection refused\"（错误原文透出），Rust 的就绪位只影响 ProviderRuntimeSnapshot 与路由可用性，没有把探测错误原文投影为 source.Error 的接口。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/quote_preview_boundaries_test.go:12:TestBatchQuotesRejectsUnsafeInputAndHonorsCanceledFlights": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-watchlist/src/lib.rs::malformed_identity_and_unbounded_pages_fail_closed",
+    "conclusion": "partial：Rust 的 batch-quotes 在入口校验 instrumentIds（1–500 条、normalize_instrument_id 失败即 400 WATCHLIST_INVALID），与 Go 的 ErrValidation 边界一致；差异：Go 还断言 quote single-flight 预约（reserveQuoteFlights 首次 owned、重复 id 进入 waiting）与取消的 waiter 返回 context.Canceled；Rust 的 quote 缓存没有 in-flight 预约/等待机制（已知缺口，见本批小结）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/quote_preview_boundaries_test.go:37:TestQuoteCacheAndImportHelpersKeepAbsentDataExplicit": {
     "status": "[x]",
@@ -24669,115 +24669,115 @@
   },
   "internal/watchlist/service_quotes_test.go:62:TestBatchQuotesCachesAndSingleflightsOverlappingRequests": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::quote_cache_serves_repeat_reads_within_one_provider_generation",
+    "conclusion": "partial：本批修复后 Rust 在同一 provider generation 内命中 quote 缓存不再访问快照源（测试断言两次调用只发起 1 次源读取）；差异：Go 还断言并发重叠请求被 single-flight 折叠为 1 次源调用（第二个 goroutine 共享首个 flight）；Rust 未实现 in-flight 预约/等待，并发同 id 请求仍会各自访问源（已知缺口）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/service_quotes_test.go:100:TestBatchQuotesTurnsBatchFailureIntoPerItemErrors": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::quote_cache_serves_repeat_reads_within_one_provider_generation",
+    "conclusion": "partial：Rust 把源失败降级为 per-item 错误（SNAPSHOT_FAILED 携带上游错误、无结果时 NO_SNAPSHOT），响应仍为 200 且 quotes/errors 数组齐备；差异：Go 断言整批失败时 result.Quotes 为空、每个 id 一条 Code=SNAPSHOT_FAILED 且 Message 保留 \"provider down\" 原文；Rust 没有该整批失败场景的定向断言（现有测试断言 errors 为空数组）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/service_quotes_test.go:117:TestBatchQuotesHonorsProviderCachePolicy": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::quote_cache_serves_repeat_reads_within_one_provider_generation",
+    "conclusion": "partial：Rust 在固定 30 秒 TTL（WATCHLIST_QUOTE_CACHE_TTL）内命中缓存、超时后重新读取源；差异：Go 的 TTL 由 provider 提供（QuoteCacheTTL()，fixture 为 15s），断言 provider TTL 之前只调源 1 次、之后调 2 次；Rust 未实现按 provider 协商 TTL。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/service_quotes_test.go:145:TestBatchQuotesPreservesPartialResultsAndUpdatesKnownMetadata": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::quote_cache_serves_repeat_reads_within_one_provider_generation",
+    "conclusion": "partial：Rust 保留部分结果并按请求顺序返回 quotes+errors、observedAt 由服务端生成；差异：Go 还断言去重后按输入顺序返回、并且把成功 quote 的 name/type 写回本地标的基础信息库（InstrumentMetadata）；Rust 的 batch-quotes 不写 instrument metadata（无该副作用），因此 Go 的 metadata 断言在 Rust 无对应实现。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/service_quotes_test.go:174:TestChangeQuoteProviderRejectsPreviousProviderInflightResults": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::in_flight_snapshot_does_not_repopulate_the_cache_after_a_provider_switch",
+    "conclusion": "[x]：本批修复——quote 缓存条目带 provider_generation，切换 provider 后旧代际结果既不出现在缓存也不被服务：测试让 provider 在快照读取期间完成切换，断言迟到结果不得回填缓存；配套测试 provider_switch_drops_quotes_cached_under_the_previous_provider 断言切换后必须重新读取源而不是命中旧代际缓存（Go 断言则覆盖“旧 provider 请求仍返回、结束后不得复活旧缓存”）。本批新增回归测试与 `// Parity: go:452dea11:internal/watchlist/service_quotes_test.go:174` 锚点。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/watchlist/service_quotes_test.go:210:TestChangeQuoteProviderFailurePreservesCurrentCache": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::rejected_provider_switch_preserves_the_current_quote_cache",
+    "conclusion": "[x]：本批新增——激活回调返回错误时 provider 与 generation 不变，已缓存 quote 继续命中且不再访问源（测试断言切换被拒后源调用次数仍为 1），与 Go 的 ChangeQuoteProvider 失败保留当前缓存一致。本批新增回归测试与 `// Parity: go:452dea11:internal/watchlist/service_quotes_test.go:210` 锚点。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/watchlist/service_quotes_test.go:230:TestResetQuoteCacheRejectsPreviousProviderInflightMetadata": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::provider_switch_drops_quotes_cached_under_the_previous_provider",
+    "conclusion": "partial：Rust 用 provider_generation 围栏保证旧 provider 的迟到结果不会写入缓存（等价于 Go 的“旧 provider 不得更新元数据”安全属性）；差异：Rust 没有 ResetQuoteCache API，也不在 batch-quotes 路径写 instrument metadata，因此 Go 的“重置后 in-flight 结果不得写库”场景在 Rust 无对应副作用可断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/service_quotes_test.go:270:TestQuoteResultHelpersReturnEmptySlicesForNilValues": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::quote_cache_serves_repeat_reads_within_one_provider_generation",
+    "conclusion": "partial：Rust 的 batch-quotes 响应始终构造 quotes/errors 数组（测试断言缓存命中时 errors 为空数组而非 null），不存在 Go 的 nil slice 语义；差异：Go 断言 nonNilQuotes(nil)/nonNilQuoteErrors(nil) 返回空切片，Rust 无同名 helper，等价性质由类型与构造过程保证。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/service_test.go:220:TestServiceCRUDNormalizesAndDelegates": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-watchlist/src/lib.rs::membership_plan_normalizes_identity_and_deduplicates_inputs",
+    "conclusion": "partial：Rust 断言分组计划对 instrumentId/组名/新组名做规范化去重并按 revision fence 提交；差异：Go 断言 service 层把 9 类仓储操作（ListGroups/Create/Update/Delete/ListItems 选项规范化/GetMemberships/ReplaceMemberships/ListBindings/DeleteBinding/ListImportRuns）逐项委托给仓储并回传参数。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/service_test.go:335:TestServiceRejectsInvalidDomainInputsBeforeRepositoryWrites": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-watchlist/src/lib.rs::malformed_identity_and_unbounded_pages_fail_closed",
+    "conclusion": "partial：Rust 在写仓储前拒绝非法 instrumentId/空组名/超长组名（WatchlistError::InvalidInstrument/MissingGroupName/GroupNameTooLong），并有 revision fence 冲突测试（store crate 的 concurrent_group_updates_commit_with_revision_fence）；差异：Go 断言统一 ErrValidation 分类与 IsConflict 对可重试冲突（stale preview/revision）的分类一致性，Rust 用 WatchlistError + WatchlistStoreError 状态码表达。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/service_test.go:386:TestUnavailableServiceGuardsEveryRepositoryOperation": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/tests/watchlist_write_compatibility.rs::watchlist_write_fixture_matches_go_owner_for_all_eight_routes",
+    "conclusion": "partial：Rust 的 8 条 watchlist 写路由在未注入端口时 fail-closed（只注册显式 test port，缺端口返回错误而非本地兜底）；差异：Go 断言 NewService(nil) 下每一个仓储操作都返回 ErrUnavailable，Rust 以端口缺失/错误码映射表达同一守卫。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/service_test.go:431:TestServiceSynchronizesSourceHealthAndRemoteGroups": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/watchlist_store_contracts.rs::watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog",
+    "conclusion": "partial：Rust 断言 sources 与 remote catalog 的读取分页/过滤与持久化；差异：Go 断言来源健康状态同步（ready/unavailable 投影）、nil 连接器组规范化为空列表、以及缺失来源/连接器错误/远程组持久化错误/来源持久化错误四类失败路径。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/service_test.go:508:TestServiceBuildsImportPreviewFromFreshConnectorState": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/watchlist_store_contracts.rs::watchlist_membership_mutations_and_preview_commit_lifecycle",
+    "conclusion": "partial：Rust 断言 import preview 创建（含隐式本地组）→ 修订/差异 → commit 的完整生命周期并持久化；差异：Go 断言 preview 元数据、diff、必须向连接器发起 fresh 成员读取（requestedIDs）且要求来自 fresh 状态。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/service_test.go:562:TestServicePreviewImportRejectsUnsafeOrUnusableSnapshots": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/watchlist_store_contracts.rs::watchlist_membership_mutations_and_preview_commit_lifecycle",
+    "conclusion": "partial：Rust 的 preview 校验拒绝不安全/不可用输入（store 层 preview 创建与提交的校验错误）；差异：Go 用表驱动逐项断言非法/不可用快照的错误码与 ErrValidation 分类。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/service_test.go:645:TestServiceCommitImportRevalidatesAndConstrainsDeletes": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/watchlist_store_contracts.rs::watchlist_membership_mutations_and_preview_commit_lifecycle",
+    "conclusion": "partial：Rust 断言 commit 在 revision fence 下提交并约束删除（成员/组删除受保护组与 revision 限制）；差异：Go 断言 commit 时必须重新读取 fresh 连接器状态（freshGroupIDs）后才落地删除。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/watchlist/service_test.go:678:TestServiceCommitImportRejectsExpiredStaleAndInvalidRequests": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/watchlist_store_contracts.rs::concurrent_group_updates_commit_with_revision_fence",
+    "conclusion": "partial：Rust 断言过期/陈旧 revision 的提交被拒（concurrent_group_updates_commit_with_revision_fence 覆盖并发 revision 冲突与恢复）；差异：Go 表驱动断言过期、stale、非法三类 commit 请求的错误分类。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/store/backtest/adapter_lifecycle_test.go:18:TestBacktestRunStoreDirectlyImplementsDomainLifecycle": {
     "status": "[~]",

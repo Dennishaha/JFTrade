@@ -231,6 +231,7 @@ fn watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous() {
 fn watchlist_member_conversion_preserves_canonical_id_and_broker_alias() {
     // Parity: go:452dea11:pkg/futu/watchlist_reader_test.go:89
     // TestConvertFutuWatchlistSecuritiesPreservesCanonicalIDAndBrokerAlias.
+    // Parity: go:452dea11:internal/watchlist/futu/source_test.go:83 TestRemoteMembersKeepBrokerCodeAndSecurityIDAsSeparateAliases
     let members = convert_members(&[json!({
         "instrumentId": "JP.7203",
         "market": "JP",
