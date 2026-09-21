@@ -288,6 +288,65 @@ fn adk_backtest_run_summaries_keep_counts_without_raw_series() {
     assert_eq!(filtered["runs"][0]["id"], "a", "{filtered}");
 }
 
+/// Parity: go:452dea11:internal/assistant/assembly/adk_strategy_input_validation_test.go:10
+/// `TestStrategyADKInputsAndSummariesEnforceBusinessBoundaries` — the queued
+/// backtest-summary branch.
+///
+/// Go's `SummarizeADKBacktestRuns` copies an explicit `useExtendedHours` onto a
+/// run that has no result yet and leaves `totalReturn` nil, because
+/// `summarizeADKBacktestRun` returns the identity fields untouched while
+/// `run.Result == nil`. The Rust result-view projection answers the same empty
+/// summary instead of deriving a zero return from the request's initial
+/// balance, and the run list keeps the explicit selection.
+#[test]
+fn queued_backtest_summaries_keep_explicit_extended_hours_without_return_metrics() {
+    use crate::product::BacktestResultViewRequest;
+    use crate::product::product_research_backtest_projection::project_authoritative_result_view;
+
+    let run = json!({
+        "id": "run-queued",
+        "status": "QUEUED",
+        "request": {
+            "definitionId": "definition-1",
+            "symbol": "US.AAPL",
+            "interval": "1d",
+            "initialBalance": 100_000.0,
+            "useExtendedHours": true
+        }
+    });
+    let view = project_authoritative_result_view(
+        &run,
+        None,
+        &BacktestResultViewRequest {
+            run_id: "run-queued".to_owned(),
+            view: Some("summary".to_owned()),
+            ..Default::default()
+        },
+    )
+    .expect("queued summary projection");
+
+    assert_eq!(view["run"]["useExtendedHours"], true, "{view}");
+    assert_eq!(
+        view["summary"],
+        json!({}),
+        "a run without a stored result has no summary metrics: {view}"
+    );
+    assert_eq!(view["series"], json!({}), "{view}");
+
+    let filtered =
+        helpers::filter_backtest_runs(json!({"runs": [run]}), &json!({"status": "queued"}))
+            .expect("queued run list");
+    assert_eq!(filtered["runCount"], 1, "{filtered}");
+    assert_eq!(
+        filtered["runs"][0]["request"]["useExtendedHours"], true,
+        "the stored selection survives the list projection: {filtered}"
+    );
+    assert!(
+        filtered["runs"][0].get("totalReturn").is_none(),
+        "a queued run never carries a derived return: {filtered}"
+    );
+}
+
 #[test]
 fn pine_external_mode_parser_accepts_only_supported_values() {
     assert_eq!(pine_external_mode_value(None), PINE_MODE_OFF);

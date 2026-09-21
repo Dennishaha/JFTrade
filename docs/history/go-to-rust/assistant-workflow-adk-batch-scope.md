@@ -3040,3 +3040,37 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 - 跨批 follow-up 汇总：P0 无新增。P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与 workflow CRUD 工具族（第 62/63 批）、策略实例读写工具（第 52 批 `:122`；第 56/59 批补充）、**策略定义写入缺视觉模型归一与 legacy 拒绝（本批新增）**、`portfolio.summary` 多账户聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照生产 wire 形状（含 `visualModelJson` 直出）、工作流触发日志 active/page 过滤与 `workflow_runs.*` 过滤参数（第 62 批）、`workflow.*` 单条读路由缺口（第 62 批）、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`、ADK 维护缺 owner-side busy/lease handoff（第 64 批）；P2 同前批（写期 canvas 校验更严、交互式会话守卫不迁移、`watchlist.list` includeQuotes、`tradingCosts` 类型解码、`RecordWorkflowAudit` 回调、`market.depth` 推断、`research.calendar` fail-closed、动态工具注册、`backtest.kline_sync_status` 字面量、resultView 归一、per-agent 技能过滤、模型侧 memory/artifact 工具、第 53/54/55 批各项）。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-strategy --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast`（45 passed）、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1681 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2856 Rust** / **959 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第六十六批：`internal/assistant/assembly/adk_strategy_input_validation_test.go`（1 条）
+
+### 范围与基线
+
+- 目标文件：`internal/assistant/assembly/adk_strategy_input_validation_test.go`（`:10` `TestStrategyADKInputsAndSummariesEnforceBusinessBoundaries`，四个子测试）。
+- Go 基线：`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestStrategyADKInputsAndSummariesEnforceBusinessBoundaries' -count=1`，PASS。
+- Go 语义：①`ValidateADKStrategyDraftScript` 对空白草稿 no-op；`ValidateADKStrategyScript("strategy.validate_pine","\t")` 报错含「非空」；`StrategyValidatePineToolPayload({"script":" "})` → ok=false、errors 恰 1 条含「必填」、saveHint.message 非空；②合法脚本 + `includeRequirements:false` → ok=true、requirements nil、normalizedScript 非空；③`StrategyMetadataPayload` 暴露 allowedEntryDirection/maxPositionSize/maxIntradayLoss{value,alertMessage}/maxConsLossDays{count,alertMessage}；④`SummarizeADKBacktestRuns` 对 QUEUED run 保留显式 `useExtendedHours:true` 且 `totalReturn` 为 nil（`summarizeADKBacktestRun` 在 `run.Result == nil` 时只回身份字段；`internal/backtest/result_view.go::resultViewSummaryPayload` 对无 result 的 run 直接回 `{}`）。
+
+### 本批改动
+
+- **生产修正**：`crates/jftrade-engine/src/product_research_backtest_projection.rs::enrich_summary_payload` 增加 missing-result 早退——run 没有非空 `result` 且当前摘要为空时原样返回 `{}`，不再用 request 的 initialBalance 造出 `quoteCurrency`/`totalReturn:0.0`（legacy 顶层摘要仍走原富化路径，避免影响既有兼容用例）。
+- 新增回归 `product_mcp_production_executor_tests.rs::queued_backtest_summaries_keep_explicit_extended_hours_without_return_metrics`：queued run（无 result、显式 `useExtendedHours:true`）→ `run.useExtendedHours == true`、`summary == {}`、`series == {}`；列表路径 `filter_backtest_runs` 保留 `request.useExtendedHours == true` 且无 `totalReturn`。
+- 补强既有回归：`crates/jftrade-strategy/tests/pine_mcp_contract.rs::validation_payload_matches_go_owner_field_set_and_defaults_requirements` 增加 ② 的 false 分支（ok/requirements None/normalized/metadata 四条）；`product_mcp_server_tests.rs::production_mcp_pine_leaves_execute_native_spec_and_validation` 增加 ① 的模型工具面空白脚本断言（ok=false、errors 含「必填」、saveHint 为对象）。
+- ③ 由既有 `validation_metadata_projects_declared_risk_limits_like_go` 覆盖（逐字段核对一致）。
+
+### `:10 [~]`（partial 边界）
+
+- Go-only：`ValidateADKStrategyDraftScript` 的空草稿 no-op 与严格校验「报错含非空」属于未发布的 `strategy.save_draft` 工具层（Rust 明确不发布 `strategy.save_draft`/`strategy.save_definition`，见 `product_adk_store_parity_tests.rs:496`），Rust 对应物是 `strategy.validate_pine` 的校验载荷（errors/saveHint），文案为「必填」而非「非空」，无同名错误对象。
+- 结构差异（前批已登记）：Go 的 `backtest.runs` 列表会对每个 run summarize（提升 `useExtendedHours`、附计数、缺 result 时不带 totalReturn），Rust 该工具返回原始存储行 + `runCount`；本批新增回归断言的是原始行语义。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. 删掉 `enrich_summary_payload` 的 missing-result 早退 → `queued_backtest_summaries_keep_explicit_extended_hours_without_return_metrics` 转红（exit 100，summary 出现 quoteCurrency/totalReturn）。
+2. `validate_script` 的 requirements 恒为 `Some(...)`（忽略 include_requirements）→ strategy 契约测试转红（exit 100）。
+3. 空脚本分支的 `errors` 清空 → `production_mcp_pine_leaves_execute_native_spec_and_validation` 转红（exit 100）。
+   3 处探针均在本批内执行并按字节回滚，回滚后 engine 1682 / strategy 45 全绿。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 3 条：`adk_tool_failure_contracts_test.go` 1、`product_execution_contracts_test.go` 1、`workflow_execution_injection_test.go` 1；随后 `internal/app/apiserver`（574，按 servercore/servercoretest/datamigration 等子域分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）、`internal/integration/akshare`（73）、`internal/integration/yfinance`（68）、`pkg/market`（56）。
+- 跨批 follow-up 汇总：P0 无新增。P1 = 模型目录缺 9 个外部写/交易工具（第 50 批）与 workflow CRUD 工具族（第 62/63 批）、策略实例读写工具（第 52/56/59 批）、策略定义写入缺视觉模型归一与 legacy 拒绝（第 65 批）、`portfolio.summary` 多账户聚合、`portfolio.*` broker runtime `lastError`、策略定义版本/快照生产 wire 形状、工作流触发日志与 `workflow_runs.*` 过滤（第 62 批）、`workflow.*` 单条读路由（第 62 批）、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState`、ADK 维护缺 owner-side busy/lease handoff（第 64 批）；P2 同前批，另加本批「`backtest.runs` 列表未 summarize」沿用既有登记。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1682 passed）、`node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast`（45 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2857 Rust** / **959 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

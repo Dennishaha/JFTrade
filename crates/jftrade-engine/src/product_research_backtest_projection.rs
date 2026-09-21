@@ -620,6 +620,16 @@ fn enrich_summary_payload(
     run_val: &Value,
     data: &NormalizedBacktestData,
 ) -> Value {
+    // A run whose stored result is still missing (queued, running, or failed
+    // before producing a result) answers `{}` in Go's `resultViewSummaryPayload`
+    // and `summarizeADKBacktestRun`, so the projection must not invent a return
+    // from the request's initial balance. Legacy payloads that carry their
+    // summary at the run level keep the enrichment they had before.
+    let has_result = run_val.get("result").is_some_and(|value| !value.is_null());
+    let summary_is_empty = summary.as_object().is_none_or(serde_json::Map::is_empty);
+    if !has_result && summary_is_empty {
+        return summary;
+    }
     let req = run_val.get("request").unwrap_or(&Value::Null);
     let initial_balance = parse_f64_val(req.get("initialBalance"));
     let pnl = parse_f64_val(summary.get("pnl"));

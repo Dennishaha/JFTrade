@@ -6742,10 +6742,10 @@
   },
   "internal/assistant/assembly/adk_strategy_input_validation_test.go:10:TestStrategyADKInputsAndSummariesEnforceBusinessBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_production_executor_tests.rs::queued_backtest_summaries_keep_explicit_extended_hours_without_return_metrics",
+    "conclusion": "partial：四个子测试逐条对齐。①空脚本载荷：`strategy.validate_pine` 传 `script:\" \"` 时 Rust 与 Go 一致返回 ok=false、errors 含「必填」（Go 文案 `script 是必填项`）、saveHint 非空——`crates/jftrade-strategy/tests/pine_mcp_contract.rs::validation_payload_matches_save_hint_and_rejection_contract` 覆盖 `\" \\n\\t \"` 载荷的三段断言，本批在 `product_mcp_server_tests.rs::production_mcp_pine_leaves_execute_native_spec_and_validation` 增加模型工具面 `execute_production(\"strategy.validate_pine\", {\"script\":\" \"})` 的同形断言。②合法脚本 + `includeRequirements:false`：本批在 `validation_payload_matches_go_owner_field_set_and_defaults_requirements` 增加 false 分支断言（ok=true、requirements=None、normalized_script == script.trim()、metadata.name 保留）。③risk metadata：既有 `validation_metadata_projects_declared_risk_limits_like_go` 覆盖 allowedEntryDirection/maxDrawdown/maxIntradayLoss{value,type,alertMessage}/maxIntradayFilledOrders{count,alertMessage}/maxPositionSize/maxConsLossDays{count,alertMessage}，与 Go 的四个字段（含 alertMessage/count）一致。④QUEUED 回测摘要：Go 的 `summarizeADKBacktestRun` 在 `run.Result == nil` 时只回身份字段 + 显式 useExtendedHours（无 totalReturn/quoteCurrency），Rust 结果视图此前会给 queued run 造出 `{\"quoteCurrency\":\"USD\",\"totalReturn\":0.0}`；本批修正 `product_research_backtest_projection.rs::enrich_summary_payload`——当 run 没有非空 `result` 且摘要为空时原样返回 `{}`（legacy 顶层摘要仍按原逻辑富化），新增回归 `queued_backtest_summaries_keep_explicit_extended_hours_without_return_metrics`（queued run：`run.useExtendedHours==true`、`summary=={}`、`series=={}`；列表路径保留 `request.useExtendedHours==true` 且无 totalReturn）。Go-only/结构差异：`ValidateADKStrategyDraftScript` 的空草稿 no-op 与 `ValidateADKStrategyScript` 的「报错含非空」属未发布的 save_draft 工具层（Rust 明确不发布 `strategy.save_draft`/`strategy.save_definition`，见 `product_adk_store_parity_tests.rs:496`），Rust 由 `strategy.validate_pine` 载荷表达；Go 的 `backtest.runs` 列表会 summarize（提升 useExtendedHours 并附计数），Rust 该工具返回原始行（已在前批登记）。探针：删掉 `enrich_summary_payload` 的 missing-result 早退、把 `validate_script` 的 requirements 恒为 Some、把空脚本 errors 清空 → 三处各自转红（exit 100）后按字节回滚。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(queued_backtest_summaries_keep_explicit_extended_hours_without_return_metrics)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/adk_strategy_test.go:19:TestADKCoreToolHandlersSurfaceSubscriptionErrors": {
     "status": "[x]",

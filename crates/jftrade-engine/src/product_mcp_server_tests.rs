@@ -1669,6 +1669,22 @@ fn production_mcp_pine_leaves_execute_native_spec_and_validation() {
         .expect("native Pine validation");
     assert_eq!(validation["ok"], true);
     assert!(validation["saveHint"].is_null());
+
+    // A whitespace-only script is still a validation payload, not a tool
+    // error: Go answers `ok=false` with the required-script error and a hint.
+    let blank = executor
+        .execute_production("strategy.validate_pine", &json!({"script": " "}))
+        .expect("blank Pine script answers a payload");
+    assert_eq!(blank["ok"], false, "{blank}");
+    assert!(
+        blank["errors"].as_array().is_some_and(|errors| {
+            errors
+                .iter()
+                .any(|error| error.as_str().is_some_and(|text| text.contains("必填")))
+        }),
+        "{blank}"
+    );
+    assert!(blank["saveHint"].is_object(), "{blank}");
 }
 
 #[test]

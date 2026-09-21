@@ -249,6 +249,19 @@ fn validation_payload_matches_go_owner_field_set_and_defaults_requirements() {
     );
     assert_eq!(result.metadata["pyramiding"], 2);
     assert!(result.requirements.is_some());
+
+    // Go's save-draft path may omit requirements without losing the compiled
+    // contract: the payload stays ok, keeps the normalized script and only
+    // drops the requirements block.
+    let without_requirements = validate_script(EMA_SCRIPT, false, false);
+    assert!(
+        without_requirements.ok,
+        "errors: {:?}",
+        without_requirements.errors
+    );
+    assert!(without_requirements.requirements.is_none());
+    assert_eq!(without_requirements.normalized_script, EMA_SCRIPT.trim());
+    assert_eq!(without_requirements.metadata["name"], "EMA");
     assert_eq!(result.external_engine["engine"], "pinets-shadow");
     assert_eq!(result.external_engine["status"], "disabled");
     assert!(result.save_hint.is_none());
