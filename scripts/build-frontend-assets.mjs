@@ -2,6 +2,7 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { verifyStagedWebAssets } from "./check-web-assets.mjs";
 import { spawnChecked } from "./lib/spawn.mjs";
 
 const rootDir = resolve(import.meta.dirname, "..");
@@ -13,6 +14,18 @@ run("pnpm", ["run", "build:docs:generated"]);
 run("pnpm", ["run", "stage:docs"]);
 run("pnpm", ["--filter", "@jftrade/web", "run", "test:production-bundle"]);
 writeWebManifest(srcDir, manifestPath);
+verifyStagedAssets(srcDir, manifestPath);
+
+function verifyStagedAssets(distRoot, manifest) {
+  const failures = verifyStagedWebAssets({ distRoot, manifestPath: manifest });
+  if (failures.length === 0) {
+    return;
+  }
+  for (const failure of failures) {
+    console.error(`staged web asset: ${failure}`);
+  }
+  process.exit(1);
+}
 
 function writeWebManifest(directory, outputPath) {
   const files = filesBelow(directory).map((file) => ({

@@ -259,6 +259,26 @@ fn frontend_facade_contract_names_are_versioned_in_one_place() {
     );
 }
 
+#[test]
+fn desktop_shell_keeps_development_frontend_external_and_embeds_staged_dist_for_release() {
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let config: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(manifest_dir.join("tauri.conf.json")).expect("read tauri configuration"),
+    )
+    .expect("decode tauri configuration");
+    let build = &config["build"];
+    assert_eq!(build["devUrl"], "http://127.0.0.1:3003");
+    assert!(
+        build["beforeDevCommand"]
+            .as_str()
+            .expect("beforeDevCommand")
+            .contains("dev-tauri-frontend.mjs"),
+        "development frontend must be served by the external dev process"
+    );
+    assert_eq!(build["frontendDist"], "../../web/dist");
+    assert_eq!(config["bundle"]["active"], true);
+}
+
 #[derive(Default)]
 struct FakeSupervisor {
     fail_ready: Option<ProcessRole>,

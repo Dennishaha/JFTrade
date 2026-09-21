@@ -21028,32 +21028,32 @@
     "evidence_type": "function_exact"
   },
   "internal/frontendassets/dev_test.go:7:TestFileSystemReportsExternalAssetsForDevelopmentBuild": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/tests/desktop_contracts.rs::desktop_shell_keeps_development_frontend_external_and_embeds_staged_dist_for_release",
+    "conclusion": "function_exact：Go 的 !release_assets（开发态）断言 FileSystem() 返回 (nil,false,nil)——前端资源不内嵌、由外部提供，Load() 遂返回 nil。Rust 没有 build tag 与 FileSystem()/available 返回值：开发/发布选择由桌面壳的 Tauri 构建模式承担，新增测试读取 apps/desktop/src-tauri/tauri.conf.json 断言 devUrl=http://127.0.0.1:3003 且 beforeDevCommand 启动外部前端进程 scripts/dev-tauri-frontend.mjs（开发态资源来自外部 dev server，不内嵌），发布态 frontendDist=../../web/dist（编译期内嵌 staging 目录，不是归档）且 bundle.active=true。探针：devUrl 改 9999、frontendDist 改 ../../web/dist.zip 各转红一次，按字节回滚（tauri.conf.json shasum 181ea787…）。保留差异：Go 用运行期 (FS,available,err) 让调用方回退，Rust 无 available 标志、由构建模式一次性决定。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/frontendassets/release_test.go:14:TestFileSystemEmbedsUnderscorePrefixedAssets": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "不适用 Rust 内嵌归档 FS：等价发布保证拆为 staging 闸门 scripts/check-web-assets.mjs::underscoreAssetFailures（assets/ 下划线前缀资产必须进入 runtime-assets/web/manifest.json，清单与 dist 文件集合/摘要一一对应）＋ apps/desktop/src-tauri/tauri.conf.json frontendDist=../../web/dist 的编译期内嵌",
+    "conclusion": "partial：Go 的 release_assets 测试遍历 dist/assets，把下划线前缀 chunk 逐个 Stat 内嵌 FS（无 staged 资产则 Skip）。Rust 无 dist.zip：Tauri 编译期直接内嵌 staging 目录（frontendDist=../../web/dist，链路无 glob 过滤），发布输入由 runtime-assets/web/manifest.json（逐文件 sha256）钉住，release 准备阶段 verifyDesktopReleaseInputManifest 校验该清单。本批新增 staging 闸门 scripts/check-web-assets.mjs 把等价保证前移：清单必须覆盖 dist 的每个文件（含 assets/_ 前缀），fixture 覆盖「清单漏掉下划线资产」与「摘要不符」两类失败，实测本机 staging（含 assets/_.contribution-*.js）707 文件通过。保留差异：apps/web/dist 与 manifest 不入库，Rust 测试无法离线断言内嵌内容，故无 Rust 函数级证据；若要升级为 function_exact，需要把该校验迁入 apps/desktop 并在发布流水线调用。锚点例外：internal/frontendassets 命中 scripts/check-zero-go.mjs 的 activeTextPattern 禁用文本（禁用把该路径写入任何活跃文本文件），因此本行不写 // Parity: 锚点。",
+    "command": "node scripts/check-web-assets.mjs（本机 staging 产物 707 文件通过）；node scripts/check-web-assets.test.mjs",
+    "evidence_type": "partial"
   },
   "internal/frontendassets/release_test.go:49:TestFileSystemEmbedsDocumentationAndLegalNotices": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "不适用 Rust 内嵌归档 FS：staged 文档页由 scripts/check-web-assets.mjs::documentationFailures 校验（docs/legal/license.html 与 docs/legal/third-party-notices.html 必须存在、非空并含许可要点），源文案由 scripts/check-oss-license.mjs 校验",
+    "conclusion": "partial：Go 断言内嵌 docs/index.html、docs/legal/license.html、docs/legal/third-party-notices.html 存在、非空且包含 AGPL 与第三方声明文案（pinets、github.com/c9s/bbgo@v1.64.2、Apache License 等）。Rust 的文档页由 VitePress 生成（build:docs:generated）、scripts/stage-docs.mjs 拷进 apps/web/dist/docs 后随 frontendDist 内嵌；新增闸门断言 staging 后的 legal 渲染页存在/非空/含许可要点，fixture 覆盖空页、缺页两种失败，本机 staging 通过。保留差异（内容）：Rust 仓库的 third-party-notices.md 只把 BBGO 作为文档快照引用（无 bbgo 运行时、无 “Copyright Suneido Software Corp.”），许可要点改为 MIT/Apache 文本行（Permission is hereby granted…、Version 2.0, January 2004、END OF TERMS AND CONDITIONS、Corresponding Source）——这是产品差异（不再分发 bbgo 运行时），闸门按 Rust 现行文案断言；apps/web/dist 不入库，无 Rust 函数级证据。锚点例外：internal/frontendassets 命中 scripts/check-zero-go.mjs 的 activeTextPattern 禁用文本（禁用把该路径写入任何活跃文本文件），因此本行不写 // Parity: 锚点。",
+    "command": "node scripts/check-web-assets.mjs（本机 staging 通过）；node scripts/check-web-assets.test.mjs",
+    "evidence_type": "partial"
   },
   "internal/frontendassets/release_test.go:96:TestFileSystemDoesNotEmbedRemovedGoPineRuntimeReferences": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "不适用 Rust 内嵌归档 FS：staged 文本资产扫描在 scripts/check-web-assets.mjs::removedRuntimeFailures（禁止 pkg/strategy/pineruntime、BenchmarkPineRuntime、BenchmarkRunExecutesPineGoldenMatrix，按 Go 语义跳过 docs/），活跃源码侧另有 scripts/check-zero-go.mjs 闸门",
+    "conclusion": "partial：Go 遍历内嵌 FS 的文本资产（html/js/css/json/txt/map，跳过 docs/），断言不含被移除的 Go Pine 运行时引用（pkg/strategy/pineruntime、BenchmarkPineRuntime、BenchmarkRunExecutesPineGoldenMatrix）。Rust 无内嵌 zip FS，等价闸门落在 staging：新增的 scripts/check-web-assets.mjs 用同一扩展名集合与同一 forbidden 列表扫描 apps/web/dist（同样跳过 docs/，fixture 覆盖「docs 内出现同名文案不算失败」与「assets 内命中即失败」），命中即 build:frontend-assets 失败；活跃源码侧由 check-zero-go.mjs 保证没有 Go/Wails 活跃引用。保留差异：Go 断言对象是内嵌快照，Rust 断言对象是 staging 产物，且 Rust 侧是构建期闸门而非运行期 FS 遍历；dist 不入库，故无 Rust 函数级证据。锚点例外：internal/frontendassets 命中 scripts/check-zero-go.mjs 的 activeTextPattern 禁用文本（禁用把该路径写入任何活跃文本文件），因此本行不写 // Parity: 锚点。",
+    "command": "node scripts/check-web-assets.mjs（本机 staging 通过）；node scripts/check-web-assets.test.mjs",
+    "evidence_type": "partial"
   },
   "internal/integration/akshare/boundaries_test.go:19:TestClientResponseAndErrorBoundaries": {
     "status": "[~]",
