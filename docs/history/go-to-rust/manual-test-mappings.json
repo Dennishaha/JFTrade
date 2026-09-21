@@ -35,18 +35,18 @@
     "evidence_type": "boundary"
   },
   "cmd/jftrade-api/main_test.go:86:TestRunAPICommandStartsAndStopsAPI": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`pnpm run check:rust:workspace`",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/product_api_launcher_lifecycle.rs::api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal",
+    "conclusion": "function_exact：Go 的 runAPICommand 断言三件事——未配置 DISABLE_MARKETS_CACHE 时恰好写一次 setenv(\"DISABLE_MARKETS_CACHE\",\"1\")、runAPI 收到 notifyContext 派生的同一 ctx、返回前必须调用 stop() 停止信号订阅（即“能启动也能停”）。Rust launcher 是进程入口（jftrade-engine/src/bin/jftrade-api-rust.rs），没有可注入的 runAPI/getenv 参数，等价保证改为端到端子进程证据：用临时目录 + 显式 bind 启动真实二进制，等 ready 记录并对该地址建立 TCP 连接（证明 API 已在服务），然后发送 SIGTERM，断言退出码 0、ready 记录 address 等于配置地址、databaseLeaseStatus=acquired。本批修复真实缺口：原实现只 await tokio::signal::ctrl_c()（仅 SIGINT），服务管理器/systemd/docker 发送的 SIGTERM 会直接杀死进程（实测退出码 143，探针复现 exit code None），从不执行 handle.shutdown()；现改为 Unix 上 select(ctrl_c, SIGTERM) 后再 shutdown，行为与 Go 的 NotifyContext(INT, TERM)+defer stop() 对齐。探针一：把入口改回仅 ctrl_c → 本测试转红（退出码 None≠0，提示 shutdown path）；探针二：让配置的 bind 被默认地址替换（product_production_profile 改为直接用 DEFAULT_PRODUCT_BIND）→ 本测试转红（60s 内配置地址从未可连接）。两次均按字节回滚（bin shasum c49ccb69…、product_production_profile.rs 351162ac…）。保留差异：Rust 无 DISABLE_MARKETS_CACHE（bbgo 的磁盘行情缓存不存在，行情缓存由 ProviderRouter/设置承担，启动过程不写任何进程环境变量），故 Go 的 setenv 断言在 Rust 侧以“显式配置被逐字采用”的等价断言承载（见 :121 行）；Go 的 ctx 传递对应 Rust 的 handle 生命周期，stop() 对应信号等待结束后的 handle.shutdown()。锚点例外：该 Go 包路径命中 scripts/check-zero-go.mjs 的 activeTextPattern 禁用字面量，活跃文件不得写入，故本行无 // Parity: 锚点（先例：internal/frontendassets）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "cmd/jftrade-api/main_test.go:121:TestRunAPICommandPreservesConfiguredCacheAndWrapsStartupErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "部分映射：Rust 覆盖启动错误分类，但无 Go 环境变量 cache wrapper 语义",
-    "command": "`pnpm run check:rust:workspace`",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/product_api_launcher_lifecycle.rs::api_launcher_reports_startup_failure_when_the_configured_address_is_taken",
+    "conclusion": "function_exact：Go 断言两点——既有 DISABLE_MARKETS_CACHE=\"0\" 时不得 setenv（不得覆盖运维已配置的值），且 runAPI 返回的 startup 错误必须被包装（errors.Is 可沿错误链追溯，且带 \"JFTrade API-only server failed: \" 前缀）。Rust 无该环境变量（同上行差异说明），等价保证拆成三条可观察行为：(1) 运维显式配置被逐字采用——同批测试断言 ready 记录 address 等于配置地址而不是默认 127.0.0.1:3000；(2) 启动失败必须可见且带原因——测试先占用一个 loopback 端口，再用该地址启动，断言退出码 1、stdout 为空（失败进程不得谎报 ready）、stderr 同时含 \"Error: \" 与 AddrInUse（实测输出 `Error: Product(Bind(Os { code: 48, kind: AddrInUse, ... }))`，错误原因保留在链上）；(3) 释放端口后按同一设置目录重试必须重新启动成功并优雅停止，证明失败启动没有遗留 9 个 SQLite WriterLease 的占用。探针：把 launcher 的 `from_process_env()?.start().await?` 改成吞掉错误直接 `return Ok(())` → 本测试转红（退出码 Some(0)≠Some(1)），按字节回滚（bin shasum c49ccb69…）。保留差异：Go 用 fmt.Errorf 包装后交给 log.Fatalf 打印，Rust 由 main 返回 Box<dyn Error>，进程退出码 1、stderr 以 \"Error: \" 打印错误链，无固定前缀常量；Go 的“不覆盖既有值”针对缓存开关，Rust 对应的是不覆盖运维提供的 bind/settings 配置。锚点例外同 :86 行（禁用字面量）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "cmd/jftrade-api/main_test.go:142:TestRunAPICommandContinuesAfterBestEffortEnvironmentFailure": {
     "status": "[~]",
