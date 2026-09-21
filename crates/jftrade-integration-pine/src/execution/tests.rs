@@ -1,6 +1,23 @@
 use super::*;
 
 #[test]
+fn worker_chart_type_normalization_matches_the_pkg_chart_table() {
+    // Parity: go:452dea11:pkg/chart/chart_type_test.go:5 TestNormalizeChartType
+    for (value, want) in [
+        ("", "standard"),
+        ("standard", "standard"),
+        ("  HEIKINASHI ", "heikinashi"),
+        ("renko", "standard"),
+    ] {
+        assert_eq!(
+            normalize_chart_type(value),
+            want,
+            "NormalizeChartType({value:?})"
+        );
+    }
+}
+
+#[test]
 fn close_acknowledges_the_existing_revision_without_incrementing_it() {
     for (expected, actual) in [(3, 3), (0, 3), (0, 0)] {
         let request = PineRunRequest {

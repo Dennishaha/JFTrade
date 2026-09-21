@@ -24017,11 +24017,11 @@
     "evidence_type": "function_exact"
   },
   "pkg/chart/chart_type_test.go:5:TestNormalizeChartType": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_strategy_time_range_tests.rs::time_range_tests::chart_type_normalization_matches_the_pkg_chart_table; crates/jftrade-integration-pine/src/execution/tests.rs::worker_chart_type_normalization_matches_the_pkg_chart_table; crates/jftrade-engine/src/product_production_ports_backtest_parse.rs::with_normalized_chart_type; crates/jftrade-integration-pine/src/execution.rs::normalize_chart_type",
+    "conclusion": "function_exact：Go 的表驱动四行逐条落到 Rust 两处等价实现上——backtest 起点归一化（product_production_ports_backtest_parse.rs::with_normalized_chart_type，注释已声明参考 chart.NormalizeChartType）与 Pine worker 请求归一化（integration-pine/src/execution.rs::normalize_chart_type）：\"\"→standard、\"standard\"→standard、\"  HEIKINASHI \"→heikinashi（trim + 大小写不敏感）、\"renko\"→standard；两处共享同一语义，故用两条测试分别断言同一张表（engine 侧断言归一化后的 chartType 字段，pine 侧断言 worker 入参）。附带的既有边界也在本条测试中固化：缺省/null chartType → standard（Go 的空值回退），非字符串（数字/对象）→ 400 BAD_REQUEST \"chartType must be a string\"，不允许静默降级。保留差异：Go 用 ChartType 强类型枚举承载两种取值，Rust 以字符串 \"standard\"/\"heikinashi\" 透传到 worker wire 与响应体，未引入额外枚举层（wire 契约不变）。探针：① 两处去掉 trim（engine parse + pine execution）→ 两条测试同时转红（\"  HEIKINASHI \" 得到 standard）；② 把非字符串分支改成静默回退 standard → 边界断言转红（\"non-string chartType must keep the parse boundary\"）。两次均按字节回滚，回滚后 4 个文件 shasum 与探测前一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-pine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/observability/context_detach_and_importance_test.go:10:TestObservabilityBackgroundContextsAndImportanceRanks": {
     "status": "[~]",

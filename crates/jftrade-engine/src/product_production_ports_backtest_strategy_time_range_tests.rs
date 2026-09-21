@@ -44,6 +44,43 @@
     }
 
     #[test]
+    fn chart_type_normalization_matches_the_pkg_chart_table() {
+        // Parity: go:452dea11:pkg/chart/chart_type_test.go:5 TestNormalizeChartType
+        let normalize = |value: Option<&str>| {
+            let mut payload = start_payload("2026-03-08", "2026-03-08", "", "");
+            payload["chartType"] = match value {
+                Some(value) => json!(value),
+                None => Value::Null,
+            };
+            with_normalized_chart_type(&payload).expect("normalized chart type")["chartType"].clone()
+        };
+        for (value, want) in [
+            ("", "standard"),
+            ("standard", "standard"),
+            ("  HEIKINASHI ", "heikinashi"),
+            ("renko", "standard"),
+        ] {
+            assert_eq!(
+                normalize(Some(value)),
+                json!(want),
+                "NormalizeChartType({value:?})"
+            );
+        }
+        assert_eq!(normalize(None), json!("standard"), "missing chartType");
+
+        let mut payload = start_payload("2026-03-08", "2026-03-08", "", "");
+        payload["chartType"] = json!(3);
+        assert!(
+            matches!(
+                with_normalized_chart_type(&payload),
+                Err(BacktestsWritePortError::BadRequest(message))
+                    if message == "chartType must be a string"
+            ),
+            "non-string chartType must keep the parse boundary"
+        );
+    }
+
+    #[test]
     fn backtest_start_resolves_market_dates_with_dst() {
         // Parity: go:452dea11:internal/backtest/time_test.go:8 TestResolveBacktestTimeRangeUsesMarketDateAndDST
         let payload = start_payload("2026-03-08", "2026-03-08", "", "");
