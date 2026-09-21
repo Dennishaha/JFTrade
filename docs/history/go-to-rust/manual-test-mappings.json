@@ -19230,395 +19230,395 @@
   },
   "pkg/market/calendar/builtin_test.go:8:TestBuiltinResolverUSHolidayAndEarlyClose": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_policy.rs::builtin_us_early_close_preserves_extended_windows_and_shortens_regular_session",
+    "conclusion": "partial：Rust 断言 US 提前收盘日 regular 窗口缩短且盘前/盘后窗口保留；差异：Go 在同一测试里同时断言休市日无窗口与提前收盘 schedule，Rust 拆成 builtin_us_closed_holidays_have_no_session_windows 与 early-close 两条。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/calendar/builtin_test.go:38:TestBuiltinResolverHKWeekdayFallbackUsesTemplateSessions": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_policy.rs::builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go",
+    "conclusion": "partial：Rust 断言 HK 与大陆工作日/周末及别名边界的内置回退；差异：Go 断言 HK 工作日回退使用模板 session 的分钟窗口精确值，Rust 以同一测试的组合断言覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/calendar/builtin_test.go:54:TestBuiltinResolverMainlandHolidayFallbackClosesKnownHoliday": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_policy.rs::builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go",
+    "conclusion": "partial：Rust 覆盖大陆别名市场与节假日/周末关闭边界；差异：Go 断言已知节假日（如春节/国庆）在内置回退下关闭且无 session 窗口的逐日矩阵。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/calendar/builtin_test.go:73:TestBuiltinResolverMainlandWeekdayFallbackStillOpensRegularDay": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_policy.rs::builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go",
+    "conclusion": "partial：Rust 覆盖大陆工作日开放边界；差异：Go 断言非节假日工作日仍按模板打开常规时段（含 SH/SZ 别名）的逐日断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/calendar/builtin_test.go:92:TestBuiltinResolverMainlandAliasesShareHolidayFallback": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_calendar.rs::validate_snapshot_accepts_mainland_alias_markets",
+    "conclusion": "partial：Rust 断言大陆别名市场（CN/SH/SZ）共享快照校验；差异：Go 断言别名市场共享节假日回退结果（同一日 CN、SH、SZ 同时关闭）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/calendar/calendar_boundaries_test.go:8:TestBuiltinCalendarBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/manager_boundaries.rs::cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go",
+    "conclusion": "partial：Rust 覆盖内置/缓存回退与新鲜度边界；差异：Go 断言内置日历在年界、月界、周末的 schedule 边界矩阵。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/calendar/calendar_boundaries_test.go:34:TestCalendarHelperBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/manager_boundaries.rs::manager_lifecycle_and_market_lookup_boundaries_match_go",
+    "conclusion": "partial：Rust 覆盖日历管理器生命周期与查询边界；差异：Go 断言日历 helper（日期解析/窗口计算/标签）在非法输入下的边界返回。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/calendar/helpers_boundaries_test.go:8:TestSnapshotHelpersRespectMarketDateAndCoverageWindow": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::store_uses_the_snapshot_local_year_for_positive_offset_markets",
+    "conclusion": "partial：Rust 断言正偏移市场快照按市场本地年归档；差异：Go 断言快照 helper 以市场日期与覆盖窗口（from/to）计算，不因 UTC 日期漂移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/calendar/helpers_boundaries_test.go:52:TestTradingDaySessionHelpersReflectBusinessState": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/manager_boundaries.rs::manual_override_status_and_session_window_boundaries_match_go",
+    "conclusion": "partial：Rust 断言手工覆盖/状态与会话窗口边界一致；差异：Go 断言交易日会话 helper 反映业务状态（关闭日无窗口、覆盖日窗口来自覆盖）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/calendar/helpers_boundaries_test.go:87:TestBuiltinUSChristmasEveEarlyCloseAndTemplateCopies": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_policy.rs::builtin_us_early_close_preserves_extended_windows_and_shortens_regular_session",
+    "conclusion": "partial：Rust 断言 US 提前收盘模板保留延长时段并缩短常规时段；差异：Go 专门断言圣诞夜（Christmas Eve）与模板返回副本（修改返回值不影响内置模板）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/calendar/helpers_boundaries_test.go:136:TestBuiltinResolverCalendarBoundaryFallbacks": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/manager_boundaries.rs::cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go",
+    "conclusion": "partial：Rust 断言缓存快照回退与新鲜度边界；差异：Go 断言内置解析器在日历边界（跨年/月末/周末）回退时的具体 schedule 结果。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/calendar/helpers_boundaries_test.go:167:TestCalendarSessionNormalizationAndLocationFallbacks": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_policy.rs::builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go",
+    "conclusion": "partial：Rust 断言市场别名/时区归一化后的内置回退；差异：Go 断言会话归一化（排序/去重/非法窗口）与 Location 回退（时区不可用时不 panic）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/calendar/types_json_test.go:10:TestTradingDayScheduleJSONOmitsZeroUpdatedAt": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::trading_day_schedule_json_omits_zero_updated_at",
+    "conclusion": "[x]：零值 updatedAt 在 TradingDaySchedule JSON 中被省略、非零值以 RFC3339（2026-06-23T09:30:00Z）输出，与 Go 两条断言逐项一致；本批新增回归测试与 Parity 锚点（Rust 结构体用 Option + skip_serializing_if 实现同一 omitempty 契约）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/market/hk/hk_test.go:8:TestHKProfileUsesHongKongTimezoneAndSplitSessions": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/src/catalog_tests.rs::market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes",
+    "conclusion": "partial：Rust 断言 HK 的 tickSize 0.001、quoteCurrency=HKD、timezone=Asia/Hong_Kong；差异：Go 断言 hk.Location() 与拆分时段（上午/下午）窗口结构，Rust 拆分时段由 manager_session 的 HK 会话测试覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/hk/hk_test.go:20:TestLoadLocationFallsBackToUTC": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_policy.rs::market_local_midnight",
+    "conclusion": "boundary：Go 的 loadLocation 在时区数据库缺失时静默回退 UTC；Rust 用 jiff::tz::TimeZone::get 并在失败时返回错误（fail-closed，不静默降级），属保留边界差异，不迁就 Go 的静默回退。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "pkg/market/instrument_session_validation_test.go:8:TestInstrumentAndSessionValidationContracts": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/src/catalog_tests.rs::normalize_instrument_rejects_missing_inputs",
+    "conclusion": "partial：Rust 断言缺失输入与不支持市场/市场不匹配的错误码；差异：Go 断言 ParseInstrument 空输入、ParseQualifiedInstrumentSymbol 不接受不支持市场但接受别名，以及 tradingMinutesPerRegularDay 未知符号返回 0,false，Rust 无该分钟辅助函数。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/instrument_session_validation_test.go:31:TestTimeBoundaryValidationRules": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/manager_boundaries.rs::manager_lifecycle_and_market_lookup_boundaries_match_go",
+    "conclusion": "partial：Rust 对未知市场查询按 no-op/空处理；差异：Go 断言 TradingDayBoundaryStart/TradingPeriodLabelStart/SessionAwareIntradayBucketBounds/sessionWindowBounds 在未知市场、零时间、不支持周期下均拒绝，Rust 未提供这些函数以断言同等校验矩阵。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_normalization_test.go:32:TestMarketInputMatchingAndCalendarResolverLifecycle": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/manager_boundaries.rs::manager_lifecycle_and_market_lookup_boundaries_match_go",
+    "conclusion": "partial：Rust 覆盖日历管理器生命周期与市场查询边界（查询/未知市场 no-op）；差异：Go 断言 CN/CNSH 接受 SH 限定符、CNSZ 拒绝 SH 限定符、不支持市场不匹配符号，以及 SwapCalendarResolver/Reset 的全局解析器生命周期，Rust 无全局解析器可换入换出。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_normalization_test.go:83:TestTradingMinuteHelpersAndExtendedSessionFlags": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_session.rs::session_context_distinguishes_hk_lunch_and_weekend",
+    "conclusion": "partial：Rust 会话上下文暴露每个 session 的起止分钟并可判定常规/延长窗口；差异：Go 断言 TradingMinutesPerDay/TradingMinutesPerTradingDay（US 1440/390、HK 330、SH 240）与 pre/after/overnight 属于 extended 的标志位，Rust 未提供按日累计交易分钟与 extended 标志辅助函数。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_normalization_test.go:108:TestCalendarAndTradingPeriodLabels": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/candle_completion.rs::weekly_and_monthly_bars_wait_for_the_last_trading_session",
+    "conclusion": "partial：Rust 以日历边界决定周/月线收盘（最后交易日）；差异：Go 断言 TradingDayKey（2026-06-15）、CalendarPeriodKey 周 2026-06-08/月 2026-06、坏符号返回 empty/false，以及 TradingPeriodLabelStartForDate 的周/月起点与非法单位拒绝，Rust 无同名标签键辅助函数。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_normalization_test.go:140:TestParseInstrumentValidationAndProfileFormatting": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/src/catalog_tests.rs::normalize_instrument_rejects_unsupported_market_and_market_mismatch",
+    "conclusion": "partial：Rust 覆盖市场不匹配（US+SH.600519、HK+US.AAPL、SH+SZ.000001 等）与不支持市场拒绝；差异：Go 还断言 malformed symbol、code 不匹配与 HK profile 的 FormatProfile 输出格式，Rust 描述符格式化走 market_rule_to_api_value。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_normalization_test.go:161:TestMarketResolverAndSessionBoundaryFallbacks": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_session.rs::session_context_distinguishes_hk_lunch_and_weekend",
+    "conclusion": "partial：Rust 会话上下文对未知/关闭状态给出 closed/unknown 语义；差异：Go 断言缺失 schedule 时 ClassifySession=unknown、非 US 符号不得使用 US 延长窗口、零市场日/零时间不解析窗口的组合边界，Rust 未逐条断言这些回退。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_normalization_test.go:191:TestUSAfterHoursWindowsAndPeriodLabelBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_session.rs::session_context_handles_us_holidays_early_close_and_sunday_overnight",
+    "conclusion": "partial：Rust 覆盖 US 盘前/盘中/盘后与周日隔夜窗口、节假日与提前收盘；差异：Go 还断言周五 20:00 因下一交易日非周六而关闭、零周期不产生盘中 bucket，以及周/月标签键与标签起点边界，Rust 未覆盖周期标签与 bucket 边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_normalization_test.go:248:TestNormalizeMarketInputAliases": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/src/catalog_tests.rs::normalize_instrument_supports_suffix_formats_and_aliases",
+    "conclusion": "partial：Rust 覆盖后缀式（600519.SH/000001.SZ/00700.HK/AAPL.US）、.SS 别名与 SS→SH 规则；差异：Go 断言 SG 市场别名解析、unsupported market 错误文本与空符号拒绝的具体错误，Rust 另有缺失输入错误码。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_normalization_test.go:264:TestCustomCalendarSessionWindowsAndClosedDays": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_session.rs::manual_override_is_authoritative_for_closed_and_custom_windows",
+    "conclusion": "partial：Rust 断言手工覆盖自定义窗口优先于内置规则、关闭日不产生窗口；差异：Go 断言自定义 schedule 下 ClassifySession=regular/closed、关闭日 TradingDayKey 返回 empty/false、关闭 schedule 不产生 bucket，Rust 未逐项断言标签与 bucket 抑制。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_normalization_test.go:302:TestTradingDayBoundaryUsesCalendarOvernightCarryStart": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_session.rs::session_context_handles_us_holidays_early_close_and_sunday_overnight",
+    "conclusion": "partial：Rust 覆盖周日隔夜归属下一交易日（Sunday overnight carry）；差异：Go 断言 TradingDayKey=2026-06-16 与该交易日 boundary start 的精确值，Rust 以 session context 的 trading_date 表达同一语义但未断言 boundary start。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_normalization_test.go:330:TestSessionWindowBoundsRejectsMissingSessionWindows": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/manager_boundaries.rs::manual_override_status_and_session_window_boundaries_match_go",
+    "conclusion": "partial：Rust 覆盖手工覆盖下的会话窗口边界；差异：Go 断言缺少已分类 session window 时 sessionWindowBounds 返回 not-ok（不发明窗口），Rust 未断言该负路径。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_normalization_test.go:382:TestNonUSExtendedRequestsUseRegularWindowsAndLabelValidation": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/manager_boundaries.rs::manual_override_status_and_session_window_boundaries_match_go",
+    "conclusion": "partial：Rust 会话窗口按市场规则解析（HK 走常规窗口）；差异：Go 断言 HK extended 请求回落常规下午窗口的具体分钟范围，以及坏符号/非法单位下标签与 boundary helper 的 zero/false 边界，Rust 未逐项断言标签辅助函数。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_test.go:11:TestClassifySessionForUS": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/tests/market_data_production_compatibility.rs::test_go_compatible_candle_conversion_and_session_classification",
+    "conclusion": "partial：Rust 覆盖蜡烛转换时的 session 分类（pre/regular/after）；差异：Go 是 US 全矩阵（含 overnight/closed 与 DST 边界）的表驱动分类断言，Rust 未逐时段断言完整矩阵。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market)'",
+    "evidence_type": "partial"
   },
   "pkg/market/market_test.go:38:TestIsRegularTradingTimeUsesHolidayCalendarForUS": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_session.rs::session_context_handles_us_holidays_early_close_and_sunday_overnight",
+    "conclusion": "partial：Rust 断言 Juneteenth/Good Friday/独立日等休市日为 closed、提前收盘日 13:30 属 after 且 regular 窗口收缩为 570–780；差异：Go 断言 Black Friday 14:00 为 after-hours、12:30 仍为 regular 的 IsRegularTradingTime 结果。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_test.go:51:TestRegularTradingTimeForHKAndChinaLunchBreaks": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_session.rs::session_context_distinguishes_hk_lunch_and_weekend",
+    "conclusion": "partial：Rust 断言 HK 午休（12:30）为 closed、周末为 closed；差异：Go 断言 HK/SH/SZ 午休期间 IsRegularTradingTime=false 而盘中为 true 的逐市场矩阵。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_test.go:78:TestNormalizeMarketInputAndParseInstrument": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/src/catalog_tests.rs::normalize_instrument_handles_us_and_hk",
+    "conclusion": "partial：Rust 覆盖 us→US 归一化、hk:00700/hk 裸码补零、SH/SZ 映射 CN、后缀与别名；差异（已登记的 go-behavior quirk）：Go 对 `CN.600519` 与 market=CN+裸码返回 “requires an exchange-qualified symbol”，Rust 明确按代码前缀推断 SH/SZ（Rust 测试注释标注为有意的产品边界改进），故不判等价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_test.go:115:TestMarketDescriptorsExposeFrontendMetadata": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/src/catalog_tests.rs::market_rule_to_api_value_preserves_expected_schema",
+    "conclusion": "partial：Rust 断言 CN/US 规则投影字段（code/market/resolvedMarket/displayName/requiresExchangePrefix/tickSize/precision）与 HK tickSize 0.001；差异：Go 断言 US/HK/CN/SH 四个描述符的 quoteCurrency、supportsExtendedHours、aliases、regularSessions 数量等前端元数据矩阵。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_test.go:142:TestUserMarketDescriptorsKeepChinaExchangesAsCNSubset": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/src/catalog_tests.rs::market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes",
+    "conclusion": "partial：Rust 断言 CN 规则 child_markets=[SH,SZ] 与别名集合；差异：Go 断言 MarketSubsetChildren(\" cn \") 返回 [SH SZ]、子集分类一致性、UserMarketDescriptors 不暴露 SH/SZ 且技术描述符保留叶子，以及返回切片不共享底层存储。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_test.go:174:TestShouldUseRegularCloseAsPreviousClose": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/tests/cache_extended_sessions_parity.rs::test_cache_promotes_us_regular_close_when_after_hours_trade_arrives",
+    "conclusion": "partial：Rust 断言 US 盘后成交会把常规收盘价提升为 previous close；差异：Go 同时断言 US 盘中不重写、HK/SH/SZ 的未知或午休时段不重写 previous close。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_test.go:193:TestTradingPeriodKeys": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/candle_completion.rs::weekly_and_monthly_bars_wait_for_the_last_trading_session",
+    "conclusion": "partial：Rust 以周期收盘边界断言周/月线的最后交易日；差异：Go 断言 TradingPeriodKey（week=2026-06-15、month=2026-06-、非法单位 empty/false）的键格式与 ok 语义，Rust 无该键辅助函数。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_test.go:225:TestTradingPeriodLabelStart": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/fetch_window_timezone.rs::refresh_uses_market_local_boundaries_and_not_current_dst_offset",
+    "conclusion": "partial：Rust 断言刷新窗口使用市场本地边界而非当前 DST 偏移（等价于按市场本地日算周期起点）；差异：Go 断言 US 隔夜延长会话存在 TradingPeriodLabelStart 且起点精确值，Rust 无标签起点 API。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_test.go:239:TestTradingDayBoundaryStart": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/candle_completion.rs::hong_kong_daily_bar_remains_open_across_utc_midnight",
+    "conclusion": "partial：Rust 断言 HK 日线跨 UTC 午夜仍属同一交易日（交易日边界语义）；差异：Go 断言 US 隔夜与 HK 的 TradingDayBoundaryStart 精确时间戳，Rust 未暴露同名 boundary API。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/market_test.go:260:TestSessionAwareIntradayBucketBounds": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/candle_completion.rs::authoritative_half_day_closes_daily_and_partial_intraday_bars",
+    "conclusion": "partial：Rust 断言半日市收盘提前时盘中 bar 于权威收盘点结束；差异：Go 断言按 session 计算的 bucket 起止（末尾 clamp 到会话结束）与 ok=false 边界矩阵，Rust 未提供同名 bucket 计算函数。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/session_boundaries_test.go:10:TestMarketSessionBoundaryGuardClauses": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/manager_boundaries.rs::manager_lifecycle_and_market_lookup_boundaries_match_go",
+    "conclusion": "partial：Rust 覆盖管理器生命周期与市场查询守卫（未知市场 no-op/空结果）；差异：Go 断言 nil 解析器回退默认、ClassifySession 零时间=unknown、关闭时间=closed、坏符号与坏周期的 zero/false 守卫矩阵。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/session_boundaries_test.go:51:TestMarketSessionBucketClampsAtSessionEnd": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/candle_completion.rs::authoritative_half_day_closes_daily_and_partial_intraday_bars",
+    "conclusion": "partial：Rust 断言部分盘中 bar 在权威收盘点结束（clamp 语义）；差异：Go 断言 bucket 结束为常规收盘 −1ms 的精确值。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/session_boundaries_test.go:67:TestMarketSundayOvernightCarryWindow": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_session.rs::session_context_handles_us_holidays_early_close_and_sunday_overnight",
+    "conclusion": "partial：Rust 断言周日隔夜窗口归属下一交易日；差异：Go 断言周日隔夜 carry 窗口起止精确时间戳。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/session_boundaries_test.go:102:TestMarketLabelAndResolverFailureBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::unknown_market_probe_and_refresh_are_accepted_noops",
+    "conclusion": "partial：Rust 断言未知市场探针/刷新为 no-op；差异：Go 断言未知市场与零时间下 schedule/bounds/label 辅助函数全部拒绝，以及缺失 US profile/schedule 时常规与延长边界拒绝。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/session_calendar_refresh_contract_test.go:36:TestCoverage98ExtendedWindowFailsClosedWhenCalendarRefreshRemovesClassifiedWindow": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_session.rs::manual_override_is_authoritative_for_closed_and_custom_windows",
+    "conclusion": "partial：Rust 断言日历覆盖变更后关闭/自定义窗口即时生效（不会沿用旧分类窗口）；差异：Go 断言覆盖率 98% 的延长窗口在日历刷新移除已分类窗口后 fail-closed（不为缺失窗口发明边界）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/session_window_test.go:8:TestResolveSessionWindowUsesTradingCalendarBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/manager_boundaries.rs::manual_override_status_and_session_window_boundaries_match_go",
+    "conclusion": "partial：Rust 断言手工覆盖的会话窗口边界来自日历 schedule；差异：Go 断言会话窗口起止严格取交易日历边界（含 from/to 覆盖窗口）的完整结构。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/session_window_test.go:50:TestResolveSessionWindowRejectsClosedAndResolvesOvernightTradingDate": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_session.rs::session_context_handles_us_holidays_early_close_and_sunday_overnight",
+    "conclusion": "partial：Rust 断言周末关闭与周日隔夜窗口归属下一交易日；差异：Go 断言周末不解析窗口、隔夜窗口起止与跨午夜后仍解析同一交易日窗口。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/session_window_test.go:80:TestResolveTradingDaySessionWindowCoversNamedSessionsAndInvalidInputs": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_session.rs::manual_override_is_authoritative_for_closed_and_custom_windows",
+    "conclusion": "partial：Rust 断言自定义/关闭 schedule 的会话解析；差异：Go 断言按名称（regular/pre/after/overnight）解析交易日窗口，并拒绝零时间戳与未知符号。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/session_window_test.go:126:TestResolveSessionWindowDoesNotInventMissingCalendarData": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/manager_boundaries.rs::cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go",
+    "conclusion": "partial：Rust 断言缓存缺失/过期时回退内置规则而非发明数据；差异：Go 断言缺失 US 日历模板时不解析会话窗口与交易日窗口（明确 not-ok）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/session_window_test.go:142:TestResolveTradingDaySessionWindowTracksDaylightSavingTime": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(session)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/tests/fetch_window_timezone.rs::refresh_uses_market_local_boundaries_and_not_current_dst_offset",
+    "conclusion": "partial：Rust 断言窗口使用市场本地边界且不受当前 DST 偏移影响；差异：Go 断言 DST 切换前后盘后窗口起止随本地时钟变化（含具体偏移）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/sh/sh_test.go:8:TestSHProfileUsesChinaMarketAndTimezone": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/src/catalog_tests.rs::market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes",
+    "conclusion": "partial：Rust 断言 SH 规则 code=SH、resolvedMarket=CN、parentMarket=CN、requiresExchangePrefix；差异：Go 断言 sh.Location() 时区对象与市场/时区常量组合。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/sh/sh_test.go:20:TestLoadLocationFallsBackToUTC": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_policy.rs::market_local_midnight",
+    "conclusion": "boundary：同 HK 的 loadLocation 静默回退 UTC；Rust 改为显式错误（fail-closed），保留该边界差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "pkg/market/sz/sz_test.go:8:TestSZProfileUsesChinaMarketAndTimezone": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/src/catalog_tests.rs::market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes",
+    "conclusion": "partial：Rust 断言 SZ 规则 code=SZ、resolvedMarket=CN、parentMarket=CN、requiresExchangePrefix；差异：Go 断言 sz.Location() 时区对象与市场/时区常量组合。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/sz/sz_test.go:20:TestLoadLocationFallsBackToUTC": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_policy.rs::market_local_midnight",
+    "conclusion": "boundary：同 HK/SH 的 loadLocation 静默回退 UTC；Rust 改为显式错误（fail-closed），保留该边界差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "pkg/market/us/us_test.go:8:TestUSProfileUsesNewYorkTimezoneAndRegularSession": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/src/catalog_tests.rs::market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes",
+    "conclusion": "partial：Rust 市场规则 SSOT 断言 US 的 quoteCurrency=USD、tickSize=0.01、supportsExtendedHours 等字段；差异：Go 断言 us.Location() 时区对象与 RegularWindows 会话窗口，Rust 以 timezone 字段与日历规则表达。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/us/us_test.go:17:TestUSTradingDayAndEarlyCloseRules": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_policy.rs::builtin_us_early_close_preserves_extended_windows_and_shortens_regular_session",
+    "conclusion": "partial：Rust 断言提前收盘日窗口收缩与延长时段保留；差异：Go 断言美国交易日与提前收盘规则（含具体日期与窗口分钟）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/market/us/us_test.go:56:TestUSTradingCalendarEdgeBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(calendar)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-calendar/src/manager_session.rs::session_context_handles_us_holidays_early_close_and_sunday_overnight",
+    "conclusion": "partial：Rust 断言美国节假日/提前收盘/周日隔夜边界；差异：Go 覆盖美国日历的年末、DST 切换与观察日（observed holiday）边界矩阵。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "evidence_type": "partial"
   },
   "cmd/check-go-coverage/changed_lines_analysis_test.go:42:TestParseChangedGoLinesCollectsAddedAndModifiedHunks": {
     "status": "[~]",

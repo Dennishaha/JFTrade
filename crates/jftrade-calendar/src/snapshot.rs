@@ -425,6 +425,48 @@ mod tests {
     }
 
     #[test]
+    fn trading_day_schedule_json_omits_zero_updated_at() {
+        // Parity: go:452dea11:pkg/market/calendar/types_json_test.go:10 TestTradingDayScheduleJSONOmitsZeroUpdatedAt
+        use time::OffsetDateTime;
+        use time::format_description::well_known::Rfc3339;
+
+        let date = WireTimestamp::from_offset_datetime(
+            OffsetDateTime::parse("2026-06-23T00:00:00Z", &Rfc3339).expect("schedule date"),
+        );
+        let zero = serde_json::to_value(TradingDaySchedule {
+            market_code: "US".to_owned(),
+            date,
+            status: "closed".to_owned(),
+            sessions: Vec::new(),
+            reason: String::new(),
+            source_id: String::new(),
+            observed: false,
+            updated_at: None,
+        })
+        .expect("serialize zero schedule");
+        assert!(
+            zero.get("updatedAt").is_none(),
+            "zero schedule leaked updatedAt: {zero}"
+        );
+
+        let updated_at = WireTimestamp::from_offset_datetime(
+            OffsetDateTime::parse("2026-06-23T09:30:00Z", &Rfc3339).expect("updated at"),
+        );
+        let nonzero = serde_json::to_value(TradingDaySchedule {
+            market_code: "US".to_owned(),
+            date,
+            status: "closed".to_owned(),
+            sessions: Vec::new(),
+            reason: String::new(),
+            source_id: String::new(),
+            observed: false,
+            updated_at: Some(updated_at),
+        })
+        .expect("serialize nonzero schedule");
+        assert_eq!(nonzero["updatedAt"], "2026-06-23T09:30:00Z");
+    }
+
+    #[test]
     fn file_format_and_path_match_the_go_owner() {
         let fixture = fixture();
         assert_eq!(fixture.version, "stage9.calendar-snapshot-format.v1");
