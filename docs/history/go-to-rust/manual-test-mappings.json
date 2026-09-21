@@ -22828,45 +22828,45 @@
   },
   "internal/retry/do_attempts_test.go:8:TestDoUsesDefaultsAndReturnsEventualSuccess": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/recoverable_error_tests.rs::recoverable_errors_match_go_is_recoverable_opend_err",
+    "conclusion": "partial：Go 断言两件事——(a) MaxRetries=-3 先归一为 0，因此只尝试 1 次且成功时返回 nil（负值不放大尝试次数）；(b) FutuRateLimitShouldRetry(nil) 为 false。(a) 在 Rust 无对应对象：尝试次数是各 owner 的类型化常量（futu BasicQot 重放 2 次、backtest sync 4 次、sidecar 监控按崩溃次数），不存在可传负数的 Config 需要归一；(b) Rust 的分类器收类型化错误/可选文本，本行引用的测试断言 is_recoverable_error(None) == false 与 classify_recoverable(None) == None，即「没有错误就没有可重试对象」，语义与 Go 的 nil 短路一致。保留差异：没有 MaxRetries/BaseDelay/MaxDelay 结构体，也没有负数归一规则（类型层面已排除）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/retry/do_attempts_test.go:26:TestDoRetriesUntilSuccess": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/runtime_task.rs::runtime_task_backoff_replays_after_a_failed_reconnect_attempt",
+    "conclusion": "function_exact：Go 断言第一次尝试失败、第二次成功时 Do 返回 nil 且共调用 2 次（总尝试 = MaxRetries+1）。Rust 的等价 owner 是 futu OpenD 运行时任务的重连重放：首次重连失败后按 reconnect_delay 退避，下一次重连成功即恢复并继续任务。本行引用的测试用三次 accept 的时间戳与服务端握手断言「初始连接 → 失败的第一次重连 → 退避后成功的重连」，并断言 runtime.status().reconnects == 1（一次重试即成功）。保留差异：Rust 没有统一的 MaxRetries 配置，尝试次数与退避由该 owner 的 reconnect_initial_delay/reconnect_max_delay 常量决定。探针：把 reconnect_delay 改成恒返回 Duration::ZERO 后该测试转红（恢复连接与失败连接的间隔 <30ms 断言失败），按字节回滚（runtime_task.rs shasum 2b87942a…）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/retry/retry_test.go:10:TestDoRetriesWithDeterministicBackoff": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/tests/sidecar_subprocesses_crash_recovery_resilience.rs::test_exponential_backoff_progression_and_upper_bound_capping",
+    "conclusion": "partial：Go 的 Do 在 MaxRetries=3、BaseDelay=1ms、MaxDelay=2ms 下断言调用 4 次、Notify 收到的延迟依次是 [1ms,2ms,2ms]（确定性翻倍后封顶）、最终返回 retry exhausted 包装错误。Rust 没有共享的 Do 助手（复核实测：冻结基线里 internal/retry 也没有任何生产调用方，只有自身测试），等价能力按 owner 拆分：确定性翻倍+封顶由 crates/jftrade-engine 的 compute_helper_backoff 与 crates/jftrade-integration-pine 的 compute_pine_backoff 承担，本行引用的测试用黄金阶梯 500→1000→2000→4000→8000→10000（封顶）逐档断言两个函数，另 sidecar_chaos_and_backoff_stress 的 stress_test_backoff_extreme_inputs_and_overflow_resistance 覆盖 0..=100 档与乘法溢出抗性。保留差异：Rust 没有统一的 MaxRetries+1 尝试上限与 retry exhausted 包装错误（上限各自在 owner：futu BasicQot 重放 2 次、backtest sync 4 次、sidecar 监控按崩溃次数重启），也没有 Notify 回调（监控改为累计 restart/consecutive_failures 计数）。探针：把 compute_helper_backoff 改成 attempt>=2 恒返回 initial 后该测试转红，按字节回滚（product_runtime_helper_health.rs shasum a5ba59d0…）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/retry/retry_test.go:40:TestDoZeroBaseDelayDoesNotSleep": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_query.rs::basic_quote_query_replays_once_after_recoverable_session_timeout",
+    "conclusion": "function_exact：Go 断言 BaseDelay=0 时重试之间不 sleep（4 次尝试总耗时 <100ms）。Rust 的等价 owner 是 futu BasicQot 重放：BASIC_QUOTE_RETRY_BACKOFF = Duration::ZERO，且 query_with_retry 用 if !BASIC_QUOTE_RETRY_BACKOFF.is_zero() { sleep } 明确跳过休眠（注释写明 Go 的 withRetryingClient 无 provider 退避）。本行引用的测试同时断言 BASIC_QUOTE_QUERY_ATTEMPTS == 2 与 BASIC_QUOTE_RETRY_BACKOFF.is_zero()，并让第一次尝试超时、第二次返回行情，证明零退避的重放在没有等待的情况下完成——常量钉住 + 分支判定比计时断言更确定。保留差异：Rust 没有可配置的 BaseDelay 旋钮，零退避是各 owner 的显式常量。探针：把常量改成 1ms 后该测试转红，按字节回滚（basic_quote_query.rs 回滚到 c0b6fb19…）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/retry/retry_test.go:57:TestDoReturnsNonRetryableErrorImmediately": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_query.rs::basic_quote_query_returns_non_recoverable_rejection_without_replaying",
+    "conclusion": "function_exact：Go 用 ShouldRetry 恒 false 断言 Do 只调用一次并原样返回该错误（errors.Is）。Rust 的等价契约在 futu BasicQot 重放循环：只有 recoverable session 失败才重放，业务拒绝（retType<0）直接 return Err(error)。本批新增测试用 mock OpenD 返回 ret_type=-1/err_code=1000/retMsg=no permission，断言（1）返回的正是该 Rejected{ret_type:-1,error_code:1000,message}；（2）注入的 reconnect 闭包调用次数为 0；（3）服务端只接受了一次查询——即非可重试错误立即返回、不重放。探针：把 is_recoverable_session_error 的非会话分支改成返回 true 后该测试转红（重连被调用且错误变成连接失败），按字节回滚。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/retry/retry_test.go:76:TestFutuRateLimitShouldRetry": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/security_snapshot_coordinator_tests.rs::security_snapshot_coordinator_classifies_remote_rate_limit; crates/jftrade-integration-futu/src/trade_session_tests.rs::margin_ratio_server_throttling_maps_to_the_typed_rate_limit",
+    "conclusion": "partial：Go 的 FutuRateLimitShouldRetry 是文本谓词——错误文本含「频率太高」或含「retType=-1」即视为可重试，nil 视为不可重试。Rust 把限流识别拆到具体 owner 并按结构化字段判定：security snapshot 的 classify_security_snapshot_fetch_error 把「每30秒最多60次/频率太高/frequency too high/too many requests」提升为类型化 RateLimited（本行第一个引用覆盖远端限流分类），margin-ratio 的 margin_ratio_rate_limited_error 把「频率太高/rate limit/每30秒最多10次/too high+request」映射到 TradeSessionError::RateLimited（第二个引用覆盖），重放与否则由 errCode 决定（product_production_ports_backtest_sync.rs::futu_error_retryable：408/425/429/5xx 可重试，Decode/InvalidPagination 不可）。保留差异：Rust 刻意不把裸 retType=-1 当作限流——该前缀覆盖所有 OpenD 业务拒绝（例如权限错误 errCode=9/1000），futu 的 recoverable_error_tests 明确断言这类错误不可重放；Go 的字符串前缀判重试在 Rust 换成 errCode + 配额文案的组合判定。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/security/passwordhash/passwordhash_test.go:9:TestHashAndVerify": {
     "status": "[~]",

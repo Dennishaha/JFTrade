@@ -269,6 +269,7 @@ async fn test_node_pine_worker_crash_auto_recovery_and_single_ownership() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/retry/retry_test.go:10 TestDoRetriesWithDeterministicBackoff
 fn test_exponential_backoff_progression_and_upper_bound_capping() {
     let initial = Duration::from_millis(500);
     let max = Duration::from_millis(10000);

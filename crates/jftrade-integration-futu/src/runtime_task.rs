@@ -844,6 +844,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/retry/do_attempts_test.go:26 TestDoRetriesUntilSuccess
     fn runtime_task_backoff_replays_after_a_failed_reconnect_attempt() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
         let address = listener.local_addr().expect("address");

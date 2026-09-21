@@ -1129,6 +1129,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/retry/retry_test.go:40 TestDoZeroBaseDelayDoesNotSleep
     fn basic_quote_query_replays_once_after_recoverable_session_timeout() {
         assert_eq!(BASIC_QUOTE_QUERY_ATTEMPTS, 2);
         assert!(BASIC_QUOTE_RETRY_BACKOFF.is_zero());
@@ -1190,6 +1191,73 @@ mod tests {
             replay_session_is_open,
             "successful replay must replace the closed session for the next read"
         );
+        server.join().expect("server thread");
+    }
+
+    // Parity: go:452dea11:internal/retry/retry_test.go:57 TestDoReturnsNonRetryableErrorImmediately
+    #[test]
+    fn basic_quote_query_returns_non_recoverable_rejection_without_replaying() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let accepted = Arc::new(AtomicUsize::new(0));
+        let accept_counter = Arc::clone(&accepted);
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept session");
+            accept_counter.fetch_add(1, Ordering::SeqCst);
+            let init = read_framed_frame(&mut stream).expect("init request");
+            respond(
+                &mut stream,
+                &init,
+                vec![0x08, 0x00, 0x22, 0x03, 0x08, 0xf1, 0x07],
+            );
+            let query = read_framed_frame(&mut stream).expect("query request");
+            assert_request(&query);
+            // OpenD reports business rejections (permission, unknown symbol)
+            // with a negative retType; only recoverable session failures may
+            // be replayed.
+            respond(
+                &mut stream,
+                &query,
+                Response {
+                    ret_type: Some(-1),
+                    ret_msg: Some("no permission".to_owned()),
+                    err_code: Some(1000),
+                    s2c: None,
+                }
+                .encode_to_vec(),
+            );
+        });
+
+        let config = OpenDTcpProbeConfig::new(address, Duration::from_secs(1));
+        let session = OpenDInitializedSession::connect_with_push_notifications(&config, 1)
+            .expect("initial session");
+        let mut executor = OpenDBasicQuoteExecutor::new(session);
+        let lifecycle = lifecycle();
+        let reconnects = Arc::new(AtomicUsize::new(0));
+        let reconnect_counter = Arc::clone(&reconnects);
+        let error = executor
+            .query_with_retry(&lifecycle, &["US.AAPL".to_owned()], || {
+                reconnect_counter.fetch_add(1, Ordering::SeqCst);
+                OpenDInitializedSession::connect_with_push_notifications(
+                    &OpenDTcpProbeConfig::new(address, Duration::from_secs(1)),
+                    1,
+                )
+            })
+            .expect_err("business rejection is terminal for this read");
+        assert!(matches!(
+            error,
+            BasicQuoteQueryError::Rejected {
+                ret_type: -1,
+                error_code: 1000,
+                ref message,
+            } if message == "no permission"
+        ));
+        assert_eq!(
+            reconnects.load(Ordering::SeqCst),
+            0,
+            "non-recoverable rejection must return the original error without replaying"
+        );
+        assert_eq!(accepted.load(Ordering::SeqCst), 1);
         server.join().expect("server thread");
     }
 
