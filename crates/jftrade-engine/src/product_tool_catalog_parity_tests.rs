@@ -328,6 +328,10 @@ fn watchlist_list_normalizes_filters_and_rejects_out_of_range_limits() {
             .execute_production("watchlist.list", &json!({"limit": limit}))
             .expect_err("out-of-range limits must fail before the port");
         assert_eq!(failure.code, "BAD_REQUEST", "limit {limit}");
+        assert!(
+            failure.message.contains("between 1 and 200"),
+            "limit {limit} must name the accepted range: {failure:?}"
+        );
     }
 
     let quotes = executor

@@ -3074,3 +3074,38 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 - 跨批 follow-up 汇总：P0 无新增。P1 = 模型目录缺 9 个外部写/交易工具（第 50 批）与 workflow CRUD 工具族（第 62/63 批）、策略实例读写工具（第 52/56/59 批）、策略定义写入缺视觉模型归一与 legacy 拒绝（第 65 批）、`portfolio.summary` 多账户聚合、`portfolio.*` broker runtime `lastError`、策略定义版本/快照生产 wire 形状、工作流触发日志与 `workflow_runs.*` 过滤（第 62 批）、`workflow.*` 单条读路由（第 62 批）、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState`、ADK 维护缺 owner-side busy/lease handoff（第 64 批）；P2 同前批，另加本批「`backtest.runs` 列表未 summarize」沿用既有登记。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1682 passed）、`node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast`（45 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2857 Rust** / **959 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第六十七批：`internal/assistant/assembly/adk_tool_failure_contracts_test.go`（1 条）
+
+### 范围与基线
+
+- 目标文件：`internal/assistant/assembly/adk_tool_failure_contracts_test.go`（`:19` `TestADKToolFailuresPreserveBusinessErrorContracts`，3 个子测试）。
+- Go 基线：`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestADKToolFailuresPreserveBusinessErrorContracts' -count=1`，PASS。
+- Go 语义：①注入的 `MarketCandles`/`WatchlistList` 依赖在非法输入（`{}`、非法 `period`、`limit:0`）时绝不能被调用；watchlist 无依赖时报 "unavailable"、非法 limit 报 "between 1 and 200"；②`strategy.research_backtest` 在 readiness 出错时直接报错且不得入队，入队出错时报 "research queue unavailable"；`strategy.optimize` 在 `EnsureBacktestData` 出错时报 "optimization data source unavailable"；③`store.Close()` 后 `tasks.list`/`tasks.delete`/`memory.list`/`memory.forget` 四个工具都必须报错。
+- Rust 侦察：`product_mcp_production_executor_helpers.rs::instrument`（缺键 "market is required"、空片段 "market and symbol are required"）、`product_production_ports_market_data_quote_reads.rs::read_candles`（period 在 provider 读取前归一/拒绝）、`product_mcp_production_executor.rs::watchlist_list`（limit 1..=200，无端口 503）、`product_research_backtest_execution.rs::start_research_backtest_run`、`product_strategy_optimize_execution.rs::execute_strategy_optimize`、ADK read/mutation 端口。
+
+### 本批改动
+
+- 新增模块 `crates/jftrade-engine/src/product_adk_tool_failure_boundary_tests.rs`（挂载于 `product_mcp_server.rs`）：
+  - `market_candles_stop_missing_instrument_and_unsupported_period_before_provider_reads`：把真实 `ProductionMarketDataQuotePort`（provider history 为记录桩）装进生产 bundle，`{}` → 400/BAD_REQUEST，`period:"not-a-period"` → 400/BAD_REQUEST，且 history 端口 0 次请求、当前 K 线 0 次读取，落点等价 Go「依赖不得被调用」。
+  - `research_backtest_surfaces_queue_failure_without_answering_a_run`：coverage 恒 true + 失败队列端口（`Failed("research queue unavailable")`）→ 工具报错含 "failed to start research backtest"/"research queue unavailable"，Start 恰好 1 次、Cancel 0 次。
+- 补强既有回归：`product_tool_catalog_parity_tests.rs::watchlist_list_normalizes_filters_and_rejects_out_of_range_limits` 增加 limit 0/201 报文含 "between 1 and 200" 的断言（对齐 Go 子串）；`product_production_ports_adk_tests.rs::adk_routes_surface_durable_store_failures_instead_of_empty_success` 在故障前补种 `adk_tasks`/`adk_memory` 行并新增 `DeleteTask`/`DeleteMemory`（Go `tasks.delete`/`memory.forget`）断言：只能暴露存储故障，不得伪造 404。
+- 无生产代码改动：①② 的 Rust owner 已满足 Go 语义，③ 由新增断言闭环。
+
+### `:19 [~]`（partial 边界）
+
+- 差异（P2 文案）：Go 缺键报 "market and symbol are required"，Rust 缺键报 "market is required"（仅空 `instrumentId` 片段才用 Go 文案）；无端口 watchlist 报文为 "production MCP ports are not configured"（Go 为 "unavailable"）。两者都在 provider/端口读取前 fail-closed。
+- **本批新增 P1**：Go `strategy.optimize` 入队前执行 `EnsureBacktestData`（`tool_catalog.go:592` → `internal/backtest/data.go:38 EnsureDefinitionsData`：按候选定义解析、要求同 symbol/interval、取最小 queryStart/最大 endTime 与最大 warmup 后查覆盖并去重同步）；Rust `execute_strategy_optimize` 直接入队，缺 definition 级 readiness owner。复现：`strategy.optimize` + 无覆盖数据 → Go 回 readiness/syncing 载荷不建 run，Rust 直接建 run。修复方向：在 `product_strategy_optimize_execution.rs` 前补 definitions readiness（复用 `backtest_sync.check_coverage` 与同步去重）；回归测试按本批队列失败用例的 readiness 对应面补。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `read_candles` 的 period 归一改成 `unwrap_or("1m")` → `market_candles_stop_missing_instrument_and_unsupported_period_before_provider_reads` 转红（exit 100，provider 端口被读取）。
+2. `start_research_backtest_run` 的队列错误改成吞掉并返回伪 run → `research_backtest_surfaces_queue_failure_without_answering_a_run` 转红（exit 100）。
+   2 处探针均在本批内执行并按字节回滚，回滚后 engine 1684 全量复测通过。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 2 条：`product_execution_contracts_test.go` 1、`workflow_execution_injection_test.go` 1；随后进入 `internal/app/apiserver`（574，按 servercore/servercoretest/datamigration 等子域分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）、`internal/integration/akshare`（73）、`internal/integration/yfinance`（68）、`pkg/market`（56）。
+- 跨批 follow-up 汇总：P0 无新增。P1 = 前批清单 + **`strategy.optimize` 缺 definition 级数据 readiness 门（本批新增）**；P2 = 前批清单 + 本批 `market.candles` 缺键文案与无端口 watchlist 报文措辞。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1684 passed）、`pnpm run check:zero-go`（2880 tracked files / 0 release artifact）、`pnpm run check:compatibility`（desktop runtime 3 profiles / 6 link cases / 10 facade commands / 4 events）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2859 Rust** / **959 `[x]`**，0 破坏引用，5 条已登记 partial 引用缺失 + 2 条既有空断言告警）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`（含 `check:rust:target-health`，先按既有流程清理 `target/debug/deps/*.rcgu.o` 后通过）。

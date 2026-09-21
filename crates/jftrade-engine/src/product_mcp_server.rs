@@ -652,3 +652,11 @@ mod market_news_tool;
 #[cfg(test)]
 #[path = "product_mcp_watchlist_tool_tests.rs"]
 mod watchlist_tool;
+
+/// Reference `adk_tool_failure_contracts_test.go` pins the tool boundary for
+/// the market, watchlist, research and optimization handlers over one
+/// production port bundle, so its coverage lives beside the catalog owner
+/// that hosts those tools.
+#[cfg(test)]
+#[path = "product_adk_tool_failure_boundary_tests.rs"]
+mod tool_failure_boundary;

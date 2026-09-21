@@ -6451,6 +6451,9 @@ fn adk_catalog_session_and_observability_success_contracts_hold() {
 /// the catalog reads are pinned exactly by
 /// `catalog_read_faults_expose_the_go_resource_error_codes`, and the agent
 /// mutation code by `agent_save_storage_failure_is_not_client_classified`.
+/// Go's `tasks.delete` / `memory.forget` tools are covered by seeded task and
+/// memory rows whose deletes must surface the storage fault instead of a
+/// fabricated "not found".
 #[test]
 fn adk_routes_surface_durable_store_failures_instead_of_empty_success() {
     let (port, directory) = unready_adk_port();
@@ -6469,6 +6472,24 @@ fn adk_routes_surface_durable_store_failures_instead_of_empty_success() {
             r#"{"displayName":"Store Failure","baseUrl":"https://example.test/v1","model":"fixture-model","enabled":true}"#,
         )
         .expect("seed provider before the fault");
+    port.store
+        .upsert_task(
+            "task-store-failure",
+            "TODO",
+            "agent-store-failure",
+            "",
+            r#"{"id":"task-store-failure","title":"Store Failure","status":"TODO"}"#,
+        )
+        .expect("seed task before the fault");
+    port.store
+        .upsert_memory(
+            "workspace-store-failure",
+            "agent-store-failure",
+            "workspace",
+            "store-failure-note",
+            r#"{"id":"workspace-store-failure","key":"store-failure-note","value":"v"}"#,
+        )
+        .expect("seed memory before the fault");
 
     // Drop the tables the administrative reads depend on.  Reads and writes
     // both start failing at the store boundary from here on.
@@ -6576,6 +6597,44 @@ fn adk_routes_surface_durable_store_failures_instead_of_empty_success() {
             Ok(value) => panic!(
                 "{operation:?} must fail closed after the store fault, got {value}"
             ),
+        }
+    }
+
+    // Go closes the Assistant store and then requires `tasks.delete` and
+    // `memory.forget` to surface the closed storage.  Both rows exist before
+    // the fault, so a delete may only answer the storage failure - never a
+    // fabricated "not found" classification.
+    for (operation, identifier_key, identifier, not_found_code) in [
+        (
+            AdkMutationOperation::DeleteTask,
+            "taskId",
+            "task-store-failure",
+            "ADK_TASK_NOT_FOUND",
+        ),
+        (
+            AdkMutationOperation::DeleteMemory,
+            "memoryId",
+            "workspace-store-failure",
+            "ADK_MEMORY_NOT_FOUND",
+        ),
+    ] {
+        match port.mutate(&AdkMutationInput {
+            operation,
+            identifiers: BTreeMap::from([(identifier_key.to_owned(), identifier.to_owned())]),
+            body: Value::Null,
+            webhook_secret: None,
+        }) {
+            Err(AdkMutationPortError::Failed { code, .. }) => assert_ne!(
+                code, not_found_code,
+                "{operation:?} must surface the storage fault for a seeded row"
+            ),
+            Err(AdkMutationPortError::Unavailable(message)) => assert!(
+                !message.trim().is_empty(),
+                "{operation:?} must carry a diagnostic message"
+            ),
+            Ok(value) => {
+                panic!("{operation:?} must fail closed after the store fault, got {value}")
+            }
         }
     }
 }
