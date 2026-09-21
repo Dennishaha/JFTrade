@@ -30192,17 +30192,17 @@
   },
   "internal/trading/broker_account_read_failures_test.go:11:TestBrokerReadFailuresRemainVisibleAcrossAccountDataViews": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_adapter_forwards_unavailable_opend_errors_on_every_read_route",
+    "conclusion": "partial：Rust 断言不可用错误在每个 broker 读路由上透传；差异：Go 断言账户数据视图（资金/持仓/账户列表）失败在多个视图上保持可见（不被吞成空），Rust 未按视图逐项断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/broker_account_read_failures_test.go:87:TestFundsMapsMarketAssetsAlongsideCashBalances": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::funds_projection_preserves_currency_and_market_asset_arrays；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_cash_balances_prefer_currency_rows_over_summary_fallback",
+    "conclusion": "partial：Rust 断言资金投影同时保留币种余额与市场资产数组、现金余额优先取币种行；差异：Go 断言 funds 同时映射市场资产与现金余额的组合输出，Rust 分散在两条测试中。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/broker_boundaries_test.go:11:TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable": {
     "status": "[x]",
@@ -30213,10 +30213,10 @@
   },
   "internal/trading/broker_boundaries_test.go:62:TestServiceBrokerReadOperationsClassifyUpstreamFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_preserve_the_port_failure_code_and_message；crates/jftrade-broker/tests/foundation_corpus.rs::preserves_broker_error_display_and_snapshot_fallback_rules",
+    "conclusion": "partial：Rust 覆盖端口失败码/消息保留与 broker 错误分类；差异：Go 断言 broker 读操作对上游失败分类（可重试/不可用）的矩阵，Rust 侧未逐读操作断言分类结果。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/broker_boundaries_test.go:116:TestServiceBrokerWriteOperationsPropagateUpstreamFailures": {
     "status": "[x]",
@@ -30248,24 +30248,24 @@
   },
   "internal/trading/broker_test.go:186:TestServiceBrokerReadOperationsMapSnapshotsAndQueries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_projects_futu_funds_from_neutral_client；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_quote_projects_real_futu_tick_cache_for_all_symbols",
+    "conclusion": "partial：Rust 覆盖 broker 读操作的资金快照与报价缓存投影；差异：Go 断言 broker 读操作（账户/资金/持仓/报价/证券）映射快照与查询参数的整体矩阵，Rust 拆成多条投影测试。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/broker_test.go:453:TestServicePortfolioAndFallbackResponses": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent",
+    "conclusion": "partial（唯一引用约束）：该 Rust 测试已作为 internal/app/apiserver/servercoretest/portfolio_routes_test.go:12 的 function_exact 证据占用；本行按其断言覆盖（组合现金余额回退链）记为 partial 并保留引用。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/broker_test.go:533:TestServiceBrokerWriteAndTimeoutBehaviors": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E \"test(execution_orders)\"`",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::broker_adapter_place_and_cancel_keep_server_order_identity_and_submitted_status；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel",
+    "conclusion": "partial：Rust 覆盖下单/撤单保留服务端身份与 broker 失败时不宣告撤单成功；差异：Go 断言 broker 写操作与超时行为（超时错误分类）矩阵，Rust 侧超时分类断言缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/broker_test.go:648:TestPlaceBrokerOrderRunsPreTradeRiskBeforeBrokerSubmission": {
     "status": "[x]",
@@ -30276,10 +30276,10 @@
   },
   "internal/trading/broker_test.go:680:TestPlaceBrokerOrderCannotBypassRiskWithImplicitRealEnvironment": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_fails_closed_when_control_plane_unavailable_for_real；crates/jftrade-engine/src/product_execution_risk_coordinator.rs::real_order_fails_closed_when_control_plane_unavailable",
+    "conclusion": "partial：Rust 断言 REAL 单在控制面不可用时 fail-closed（无法绕过风控）；差异：Go 断言隐式 REAL 环境不能绕过风控（环境解析 + 风控的组合路径），Rust 侧隐式环境解析断言缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/broker_test.go:711:TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable": {
     "status": "[x]",
@@ -30290,10 +30290,10 @@
   },
   "internal/trading/broker_test.go:735:TestNormalizeSymbolsAndRuntimeDefaults": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::market_rules_match_trimmed_symbols_and_apply_overrides_in_order；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::buying_power_defaults_follow_settings_and_preserve_explicit_environment",
+    "conclusion": "partial：Rust 覆盖代码规范化（trim/覆盖顺序）与运行期默认值；差异：Go 断言 normalizeSymbols 与运行期默认值的组合行为（含空输入），Rust 分散断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/control_plane_idempotency_test.go:12:TestRealTradeControlPlaneKillSwitchReleaseIsIdempotentAndAudited": {
     "status": "[~]",
@@ -30318,17 +30318,17 @@
   },
   "internal/trading/control_plane_state_audit_test.go:13:TestControlPlaneRetainsActivationAndBoundsRepeatedAuditEvents": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_real_trade_control_plane_kill_switch_release_is_idempotent_and_audited；crates/jftrade-engine/src/product_execution_risk_coordinator.rs::mutate_with_activates_kill_switch_atomically_blocking_orders",
+    "conclusion": "partial：Rust 覆盖 kill switch 释放幂等且留审计、激活原子生效；差异：Go 断言控制面保留激活状态且重复审计事件数量有界（上限），Rust 未断言审计事件上界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/control_plane_state_audit_test.go:75:TestControlPlaneExecutesSimulatedOrdersThroughRiskEvaluation": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/risk_engine_tests.rs::simulate_bypasses_real_trade_controls_but_real_fails_closed；crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_allows_valid_simulate_order_even_if_real_controls_inactive",
+    "conclusion": "partial：Rust 覆盖模拟单绕过真实控制但仍走风控评估（模拟放行/真实 fail-closed）；差异：Go 断言控制面在模拟模式下执行订单并经过风控评估的完整路径与审计，Rust 断言风控决策层。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/control_plane_state_audit_test.go:99:TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations": {
     "status": "[x]",
@@ -30339,10 +30339,10 @@
   },
   "internal/trading/control_plane_state_audit_test.go:190:TestControlPlaneKeepsStateWhenAtomicPersistenceCannotComplete": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator.rs::mutate_with_persist_failure_fails_closed_and_preserves_memory_state",
+    "conclusion": "partial：Rust 断言原子持久化失败时 fail-closed 且保留内存状态；差异：Go 断言控制面在无法完成原子持久化时保持原状态（不产生半更新），Rust 断言内存保留策略，语义一致但断言点不同（无「原状态」快照对比）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/control_plane_state_audit_test.go:250:TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure": {
     "status": "[x]",
@@ -30360,73 +30360,73 @@
   },
   "internal/trading/execution_combo_lifecycle_test.go:83:TestExecutionOrderRechecksRiskImmediatelyBeforeBrokerSubmission": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_combo_amount_mode_precedence_and_leg_bypass；crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::test_place_broker_order_runs_pre_trade_risk_before_broker_submission",
+    "conclusion": "partial：Rust 覆盖组合金额模式优先级与提交前风控；差异：Go 断言在 broker 提交前「再次」风控复核（重检时点语义），Rust 断言单次提交前风控，未覆盖提交前重检。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_combo_lifecycle_test.go:110:TestExecutionEventParlayCompletePreviewAndAmountRisk": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::event_parlay_preview_rejects_inactive_contract_filtered_from_snapshot_list；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::event_parlay_preview_without_real_rfq_adapter_is_unavailable",
+    "conclusion": "partial：Rust 覆盖事件 parlay 预览对非活跃合约的过滤与无真实 RFQ 适配器时的不可用；差异：Go 断言事件 parlay 完整预览闭环 + 金额模式风控，Rust 侧金额模式断言在 pre_trade_risk 组合测试中，未串联。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_combo_lifecycle_test.go:150:TestEventParlayRejectsCallerControlledPrice": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::event_parlay_preview_without_real_rfq_adapter_is_unavailable；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::event_parlay_preview_surfaces_snapshot_transport_failure",
+    "conclusion": "partial：Rust 断言事件 parlay 预览依赖真实 RFQ 适配器（缺失即不可用）与快照传输失败可见；差异：Go 断言调用方提供的价格被拒绝（价格必须来自 RFQ），Rust 无该负例断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_combo_lifecycle_test.go:172:TestOptionComboValidationRejectsIncompleteRiskShape": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::option_combo_preview_rejects_invalid_legality_and_hidden_transport_failures；crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_enforces_combo_multi_leg_notional_and_hard_stops",
+    "conclusion": "partial：Rust 覆盖组合合法性拒绝与多腿名义/硬停风控；差异：Go 断言「不完整风险形状」（缺腿/缺乘数等）被拒绝的具体矩阵，Rust 侧矩阵未逐项覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_combo_lifecycle_test.go:205:TestExecutionComboPreviewKeepsLegacyBuyingPowerCompatible": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::option_combo_preview_normalizes_every_account_impact_and_unlimited_bounds；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::buying_power_defaults_follow_settings_and_preserve_explicit_environment",
+    "conclusion": "partial：Rust 覆盖组合账户影响归一（含无限额边界）与买入力默认值；差异：Go 断言旧版 buying power 字段兼容（遗留字段保持可用），Rust 未断言该兼容契约。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_combo_lifecycle_test.go:237:TestExecutionComboRejectsEveryUnsafeBoundary": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::option_combo_preview_rejects_invalid_legality_and_hidden_transport_failures；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures",
+    "conclusion": "partial：Rust 覆盖组合预览/下单的非法腿、账户与隐藏传输失败拒绝；差异：Go 的「所有不安全边界」矩阵（账户、腿、方向、价格、权力不足等）在 Rust 拆成多条，未逐项对照。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_combo_lifecycle_test.go:319:TestExecutionComboProviderStoreRiskAndGatewayFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::event_parlay_preview_surfaces_snapshot_transport_failure",
+    "conclusion": "partial：Rust 覆盖组合下单的隐藏传输失败与快照传输失败可见；差异：Go 断言 provider/store/risk/gateway 四类失败分别在组合生命周期中传播（组合矩阵），Rust 覆盖其中传输类与校验类。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_combo_lifecycle_test.go:412:TestExecutionComboHelperBranches": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::combo_intent_rejects_missing_kind_legs_and_account；crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::combo_preview_hash_binds_client_order_id",
+    "conclusion": "partial：Rust 覆盖组合意图校验与预览哈希绑定；差异：Go 的 helper 分支矩阵（腿比较、策略映射、空值等）在 Rust 无同形覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_combo_lifecycle_test.go:441:TestExecutionProductPreviewAndSubmissionFailureContractsComplete": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::option_combo_preview_place_and_cancel_keep_server_identity；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::product_rule_denials_return_the_go_reason_code_matrix",
+    "conclusion": "partial：Rust 覆盖组合预览/下单/撤单保留服务端身份与产品规则拒绝的原因码矩阵；差异：Go 断言预览与提交失败契约的完整集合（每种产品类型），Rust 覆盖期权组合与规则拒绝两类。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_combo_lifecycle_test.go:571:TestExecutionProductRemainingLifecycleAndUpdateHelpers": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::event_parlay_preview_rejects_inactive_contract_filtered_from_snapshot_list",
+    "conclusion": "partial：Rust 覆盖执行详情解析与订单更新缓存失败分支、事件 parlay 非活跃合约过滤；差异：Go 断言剩余生命周期与更新 helper 的完整分支集合，Rust 未逐项覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_combo_lifecycle_test.go:635:TestExecutionDetailsResolverAndOrderUpdateCacheFailureBranches": {
     "status": "[~]",
@@ -30437,45 +30437,45 @@
   },
   "internal/trading/execution_products_test.go:12:TestDerivativeSingleLegRequiresBrokerPreviewAndStableClientID": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::option_combo_preview_validates_non_spread_legality_against_opend_strategies；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_combo_complete_preview_place_cancel_and_buying_power",
+    "conclusion": "partial：Rust 覆盖期权合法性校验（单腿非价差策略）与组合预览/下单/撤单/买入力闭环；差异：Go 断言衍生品单腿预览必须带 clientOrderId、预览成功后下单必须带 previewId（缺则拒绝），Rust 未断言该单腿预览-下单绑定的错误分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_products_test.go:48:TestPredictionSingleLegEligibilityUsesSecurityFirmAndUSAuthority": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_prediction_tests.rs::prediction_eligibility_rejects_futu_securities_and_accepts_futu_inc；crates/jftrade-engine/src/product_production_ports_market_data_prediction_tests.rs::prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority",
+    "conclusion": "partial：Rust 覆盖预测资格按券商主体与美股权限判定（拒绝 Futu Securities、接受 Futu Inc、发现失败/空 firm/错误权限拒绝）；差异：Go 断言预测单腿下单资格的错误分支（按 product class + 权限），Rust 断言订阅资格，面不同但规则同源。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_products_test.go:85:TestSingleNonEventOrderRejectsAmountAndPredictionFields": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::single_equity_rejects_event_only_fields",
+    "conclusion": "function_exact：同一组三个用例（equity amount、predictionSide、quantityMode）逐项断言被拒绝且错误文本包含 \"event contracts only\"/\"quantityMode\"，与 Go 断言一致；本行补 // Parity: 锚点。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_products_test.go:128:TestRealFuturesPreviewRequiresFuturesAuthority": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_futures.rs::reports_reader_unavailable_without_invoking_query；crates/jftrade-engine/src/product_production_ports_market_data_futures.rs::maps_closed_opend_session_to_unavailable",
+    "conclusion": "partial：Rust 覆盖期货读不可用与闭市会话映射；差异：Go 断言真实期货预览需要期货权限（无权限时预览被拒绝），Rust 侧期货权限与预览的绑定断言缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_products_test.go:149:TestComboPreviewRejectsMixedProductsAndExpiredParlayRFQ": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::combo_intent_rejects_missing_kind_legs_and_account；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::event_parlay_preview_rejects_inactive_contract_filtered_from_snapshot_list",
+    "conclusion": "partial：Rust 覆盖组合意图缺少种类/腿/账户的拒绝与事件 parlay 非活跃合约拒绝；差异：Go 断言混合产品组合与过期 parlay RFQ 两类拒绝，Rust 未断言混合产品与 RFQ 过期。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_products_test.go:193:TestPreviewHashesBindStableClientOrderID": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::single_preview_hash_binds_client_order_id；crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::combo_preview_hash_binds_client_order_id",
+    "conclusion": "function_exact：Go 断言单腿执行哈希与组合意图哈希都绑定 clientOrderId（client-a 与 client-b 哈希不同）；Rust 两条测试分别覆盖单腿与组合分支，逐项一致；本行补 // Parity: 锚点。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:16:TestNormalizeExecutionOrderDefaultsUSLimitOrder": {
     "status": "[x]",
@@ -30514,66 +30514,66 @@
   },
   "internal/trading/execution_test.go:173:TestExecutionOrderServiceFacadeUsesInjectedStoresAndBrokerCommands": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_write_product_tests.rs::execution_write_product_replays_browser_boundary_failure_recovery_and_restart；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 覆盖执行写路由（列表/预览/下单/撤单/事件）在注入端口下的恢复与重放；差异：Go 断言 facade 把每次调用委派到注入的 store 与 broker 命令（逐调用参数断言），Rust 以端口接线与失败恢复断言覆盖，未逐调用断言 store 参数。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:285:TestExecutionOrderServiceFacadeReturnsBusinessErrors": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_preserve_the_port_failure_code_and_message；crates/jftrade-engine/src/product_execution_write_product_tests.rs::execution_write_product_replays_browser_boundary_failure_recovery_and_restart",
+    "conclusion": "partial：Rust 断言读路由保留端口失败码/消息、写路由在边界失败后可恢复；差异：Go 断言 facade 对五个入口分别返回 upstream 错误且预览入口不得把普通错误误分类为 RequestError，Rust 未对错误分类（RequestError vs upstream）逐入口断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:327:TestCreateExecutionOrderRejectsInvalidPayloadBeforeBrokerCall": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::event_single_rejects_negative_amount_and_invalid_prediction_side；crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::combo_intent_rejects_missing_kind_legs_and_account",
+    "conclusion": "partial：Rust 断言非法 payload 在解析/校验阶段被拒绝（事件单负金额、组合意图缺腿）；差异：Go 断言校验失败时 broker placeOrder 未被调用（调用计数为 0），Rust 路由测试未显式断言 broker 未被调用。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:342:TestCreateExecutionOrderRunsPreTradeRiskBeforeBrokerCall": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::test_place_broker_order_runs_pre_trade_risk_before_broker_submission",
+    "conclusion": "partial（唯一引用约束）：该 Rust 测试已作为 internal/trading/broker_test.go:648 的 function_exact 证据占用，本行不重复占用；其断言（预交易风控先于 broker 提交、拒绝时不下单）与本行语义一致，故记为 partial 并保留引用。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:367:TestCreateExecutionOrderAllowsRuntimeEnabledRealTradeBeforeBrokerCall": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/risk_engine_tests.rs::runtime_risk_enforce_applies_close_only_quantity_notional_and_daily_limits；crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_fails_when_real_trading_disabled",
+    "conclusion": "partial：Rust 覆盖运行期风控开关（开启时按限额放行、关闭时拒绝真实单）；差异：Go 断言运行期启用 REAL 后订单放行且到达 broker（placed=true），Rust 侧断言风控决策而非 broker 调用计数。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:397:TestCreateExecutionOrderAllowsSimulateWhenRealTradingIsDisabled": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_allows_valid_simulate_order_even_if_real_controls_inactive；crates/jftrade-trading/tests/risk_engine_tests.rs::simulate_bypasses_real_trade_controls_but_real_fails_closed",
+    "conclusion": "partial：Rust 断言模拟单不受真实交易控制影响（SIMULATE 放行、REAL fail-closed）；差异：Go 断言模拟单在真实交易禁用时仍创建并落到 broker（placed=true），Rust 断言风控决策层。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:426:TestPlaceExecutionOrderResolvesImplicitRealEnvironmentBeforeRisk": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_fails_when_kill_switch_active；crates/jftrade-engine/src/product_execution_risk_coordinator.rs::real_order_rejects_when_kill_switch_active",
+    "conclusion": "partial：Rust 覆盖 kill switch 生效时真实单被拒绝、模拟单不受影响；差异：Go 断言未显式指定环境时隐式解析为 REAL 并因此触发风控拒绝（且不下单），Rust 断言以显式环境/控制面状态驱动，未覆盖隐式环境解析分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:470:TestPlaceExecutionOrderFailsClosedWithoutRealRiskGateway": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::test_place_broker_order_fails_closed_when_real_risk_gateway_is_unavailable",
+    "conclusion": "partial（唯一引用约束）：该 Rust 测试已作为 internal/trading/broker_test.go:711 的 function_exact 证据占用；其断言（REAL 风控网关缺失时 fail-closed 且不下单）与本行语义一致，故记为 partial 并保留引用。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:496:TestKillSwitchActivationWaitsForInFlightRealPlacement": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator.rs::mutate_with_activates_kill_switch_atomically_blocking_orders；crates/jftrade-trading/src/real_trade.rs::unavailable_control_plane_fails_closed",
+    "conclusion": "partial：Rust 断言 kill switch 激活原子生效并阻塞真实单、控制面不可用时 fail-closed；差异：Go 断言激活操作会等待在途 REAL 下单完成（时序语义：激活完成前在途单仍成功、之后被拒绝），Rust 无同形在途等待断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:573:TestPreTradeRiskRejectsKillSwitchAndLimits": {
     "status": "[x]",
@@ -30584,10 +30584,10 @@
   },
   "internal/trading/execution_test.go:613:TestPreTradeRiskEnforcesAmountModeQuantityAndNotionalLimits": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_enforces_quantity_limit；crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_enforces_notional_limit_with_option_multiplier；crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_rejects_missing_or_negative_amount_in_amount_mode",
+    "conclusion": "partial：Rust 逐条覆盖金额模式、数量限额与名义限额（含期权乘数）；差异：Go 单条测试串联 amount/quantity/notional 三种模式的组合矩阵，Rust 拆成多条测试，无单条聚合断言（覆盖等价）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:687:TestPreTradeRiskSnapshotUsesNonNilEmptySlices": {
     "status": "[x]",
@@ -30605,38 +30605,38 @@
   },
   "internal/trading/execution_test.go:718:TestRealTradeEnvVariablesDoNotConfigurePreTradeRisk": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator.rs::real_order_fails_closed_when_control_plane_unavailable；crates/jftrade-trading/src/real_trade.rs::unavailable_control_plane_fails_closed",
+    "conclusion": "partial：Rust 断言风险配置只来自控制面（不可用即 fail-closed）；差异：Go 显式断言 REAL 交易相关环境变量不会配置预交易风控（环境变量被忽略的负例），Rust 无环境变量负例断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:738:TestRealTradeControlPlanePersistsKillSwitchAndHardStop": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator.rs::mutate_with_activates_kill_switch_atomically_blocking_orders；crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_real_trade_control_plane_kill_switch_release_is_idempotent_and_audited",
+    "conclusion": "partial：Rust 覆盖 kill switch 激活持久化与幂等释放审计；差异：Go 断言 kill switch 与 hard stop 同时持久化（重启后仍生效）的完整往返，Rust 拆在两条测试中，重启往返断言未合并。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:813:TestRealTradeControlPlaneRuntimeRiskConfigValidationAndDisableEvents": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/risk_engine_tests.rs::runtime_risk_normalizes_modes_and_clears_off_limits；crates/jftrade-trading/tests/risk_engine_tests.rs::runtime_risk_off_ignores_configured_limits",
+    "conclusion": "partial：Rust 覆盖运行期风控配置归一与关闭后忽略限额；差异：Go 断言配置校验失败事件与禁用事件（审计事件流）的具体内容，Rust 未断言事件流文本。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:874:TestRealTradeControlPlaneRollsBackFailedPersistence": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator.rs::mutate_with_persist_failure_fails_closed_and_preserves_memory_state；crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_control_plane_surfaces_hard_stop_rejection_audit_persistence_failure",
+    "conclusion": "partial：Rust 断言持久化失败时 fail-closed 并保留内存状态、硬停拒绝的审计持久化失败可上报；差异：Go 断言变更整体回滚（内存与磁盘一致），Rust 断言内存状态保留策略，语义方向一致但断言点不同。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:939:TestRealTradeControlPlaneFailsClosedWhenPersistedStateCannotLoad": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_control_plane_treats_empty_state_as_fresh_and_rejects_unavailable_mutations；crates/jftrade-trading/src/real_trade.rs::unavailable_control_plane_fails_closed",
+    "conclusion": "partial：Rust 断言空状态视为全新且不可用变更被拒绝、控制面不可用 fail-closed；差异：Go 断言持久化状态无法加载时控制面 fail-closed（拒绝交易），Rust 断言已覆盖不可用分支但未覆盖「读取失败」具体场景。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:965:TestNormalizeExecutionOrderUsesEnvFallbackAndSupportsNonLimitUSSessions": {
     "status": "[x]",
@@ -30661,17 +30661,17 @@
   },
   "internal/trading/execution_test.go:1014:TestExecutionOrderDetailsReturnsOrderAndBoundedRecentEvents": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 覆盖执行详情解析器与订单更新缓存失败分支；差异：Go 断言详情接口返回订单并限制最近事件数量（有界事件列表），Rust 侧事件数量上界的断言缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:1047:TestExecutionOrderDetailsRefreshesTargetHistoryBeforeReturning": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(execution)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches；crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_replays_history_fill_and_fee_once_after_restart",
+    "conclusion": "partial：Rust 覆盖详情解析与历史回放一次（重启后不重复）；差异：Go 断言详情返回前主动刷新目标订单历史（refresh 调用顺序），Rust 无该刷新时序断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_status_test.go:5:TestCanonicalBrokerOrderStatusCoversFutuLifecycle": {
     "status": "[x]",
@@ -30696,255 +30696,255 @@
   },
   "internal/trading/order_update_recovery_test.go:11:TestExecutionOrderHistoryFailsClosedForInvalidOrUnavailableBackfill": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_replays_history_fill_and_fee_once_after_restart；crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_keeps_external_unavailable_as_retryable_without_unknown_write",
+    "conclusion": "partial：Rust 覆盖历史回放一次（重启后不重复）与外部不可用保持可重试且不产生未知写入；差异：Go 断言历史回填对非法/不可用输入 fail-closed 的具体错误分支，Rust 侧非法输入分支未逐项断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_update_recovery_test.go:68:TestConcurrentSubscriptionWaitHonorsCallerCancellation": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/tests/client_recovery_boundaries.rs::reconnect_completes_while_a_notification_listener_reads_coordinator_state；crates/jftrade-trading/src/session.rs::reconnect_invalidates_accounts_and_rejects_stale_refresh",
+    "conclusion": "partial：Rust 覆盖重连与通知监听并发、过期刷新拒绝；差异：Go 断言并发订阅等待遵守调用方取消（ctx 取消立即返回），Rust 侧订单更新订阅等待的取消断言缺失（Futu 快照协调器有 coalesced 取消测试，但非本路径）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_concurrency_test.go:9:TestOrderUpdatesWorkerBrokerIDConcurrentInitializationAndPush": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_push_worker_tests.rs::test_p1_02_single_writer_lease_and_concurrency_fencing；crates/jftrade-trading/src/session.rs::reconnect_invalidates_accounts_and_rejects_stale_refresh",
+    "conclusion": "partial：Rust 覆盖执行推送 worker 的单写者租约与并发栅栏、会话重连拒绝过期刷新；差异：Go 断言订单更新 worker 的 brokerID 并发初始化只发生一次且推送不丢（并发初始化矩阵），Rust 侧该初始化并发断言缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_reconnect_test.go:12:TestOrderUpdatesWorkerResubscribesAfterSubscribeFailureAndPushResumes": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::subscription_failure_retry_is_fenced_to_its_generation；crates/jftrade-integration-futu/tests/provider_runtime_recovery.rs::latest_demand_replaces_stale_replay_while_reconnect_is_pending",
+    "conclusion": "partial：Rust 覆盖订阅失败重试受代际栅栏与重连期间以最新需求替换过期回放；差异：Go 断言订阅失败后重订阅且推送恢复（订阅计数 + 推送恢复），Rust 未断言订单更新推送恢复路径。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_reconnect_test.go:68:TestOrderUpdatesWorkerKeepsPushSubscriptionWhenRefreshFails": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/src/quote_push_tests.rs::lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push；crates/jftrade-integration-futu/src/subscriptions_tests.rs::failed_unsubscribe_is_deferred_until_its_retry_window",
+    "conclusion": "partial：Rust 覆盖推送生命周期（接受活跃推送、保留记录器失败、拒绝陈旧推送）与失败退订延迟；差异：Go 断言刷新失败时保留既有推送订阅（不退订），Rust 侧「刷新失败不导致退订」的断言缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_test.go:158:TestOrderUpdatesWorkerThrottleForceAndSubscribeOnce": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 无「订单更新 worker」——等价职责由 engine 的订单更新投影/协调与订阅执行器承担。Rust 侧：通知投影器幂等推进游标、订单更新缓存失败分支；差异：Go 的节流（throttle）与 force 强制同步、订阅只发生一次（subscribeCalls=1）在 Rust 无同形断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_test.go:180:TestOrderUpdatesWorkerCacheTTLTerminalRemovalAndDefensiveCopy": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 覆盖订单更新缓存失败分支与执行详情解析；差异：Go 断言 TTL 内命中缓存（currentCalls=1）、返回防御性拷贝（消费者改动不污染缓存）、终态订单从缓存移除，Rust 侧该 TTL/拷贝/终态清理语义无同形断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_test.go:228:TestOrderUpdatesWorkerCurrentHistoryCacheAndPushMetadata": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 覆盖订单更新推送的元数据投影（fill/push 事件）；差异：Go 断言本地缓存与历史缓存合并后的订单元数据逐项一致，Rust 侧未对 metadata 逐字段断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_test.go:263:TestOrderUpdatesWorkerForcedActiveSyncBypassesCache": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 覆盖强制同步路径（reconciliation 主动拉取）；差异：Go 断言 forced active sync 绕过缓存（currentCalls=2），Rust 无缓存旁路计数断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_test.go:280:TestOrderUpdatesWorkerSyncExecutionOrderHistoryUsesOrderScope": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 覆盖历史回放（含终态订单费用重试）与订单作用域查询；差异：Go 断言历史查询使用订单作用域（historyQueries 逐项断言），Rust 未断言查询作用域参数。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_test.go:322:TestOrderUpdatesWorkerStopIsIdempotentAndCanResubscribe": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 覆盖会话关闭幂等与重连后重放订阅；差异：Go 断言 Stop 幂等（subscription.stops=1）且可重新订阅（subscribeCalls=2），Rust 侧 worker 级 Stop/重订阅断言不存在。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_test.go:343:TestOrderUpdatesWorkerResubscribesWhenAccountSetChanges": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 覆盖账户集合变化触发重订阅（reconnect/replay）；差异：Go 断言账户集合变化时旧订阅停止、新订阅建立的逐项计数，Rust 无该计数矩阵。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_test.go:369:TestOrderUpdatesWorkerRefreshesExistingSubscriptionOnSync": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 覆盖订阅刷新（provider_runtime_recovery 的最新增量替换）；差异：Go 断言账户集合未变时刷新既有订阅（refreshCalls=1/2）并传账户 id 列表，Rust 侧刷新调用与账户参数断言缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_test.go:397:TestOrderUpdatesWorkerConcurrentSyncSubscribesOnce": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 覆盖并发建立只发生一次（订阅执行器并发 reconcile 幂等）；差异：Go 断言并发 sync 只订阅一次（subscribeCalls=1），Rust 的并发断言在 Futu 订阅执行器而非订单更新 worker 层。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_test.go:414:TestOrderUpdatesWorkerSnapshotCapsInvalidations": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 覆盖失效事件/游标推进（通知投影器游标与幂等）；差异：Go 断言快照中无效化记录数量被限制（20 条上限），Rust 未断言该上界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_test.go:427:TestOrderUpdatesWorkerInactiveSourcePreservesDiagnosticState": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 覆盖不可用源时保留诊断状态（fail-closed 且保留错误）；差异：Go 断言无活跃源时订阅数为 0 且 broker 诊断状态保留，Rust 侧该组合断言缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_test.go:442:TestOrderUpdatesWorkerSyncCoversSubscriptionAndHistoryFallbackPaths": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 覆盖订阅与历史回退路径（订单更新缓存失败分支、历史回放）；差异：Go 断言 sync 覆盖订阅失败回退到历史路径的事件序列与计数，Rust 无同形序列断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_test.go:469:TestOrderUpdatesWorkerMarksCurrentAndHistoryFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 覆盖失败可重试且不误写（reconciliation 保持可重试、不产生未知写入）；差异：Go 断言 current/history 失败分别被标记到 worker 状态，Rust 以协调器状态断言表达，字段不同。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_test.go:508:TestOrderUpdatesWorkerFeeSyncFiltersIdentifiersAndReportsFailure": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 覆盖费用同步（终态订单费用重试、费用项回退）；差异：Go 断言费用同步对订单 id 去重过滤（feeOrderIDs 唯一）并在源失败时不应用费用，Rust 侧去重与失败不下写断言在 reconciliation 测试中，未逐项合并。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/order_updates_test.go:531:TestOrderUpdatesWorkerHelperBoundariesCoverNilAndReplacementPaths": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(order)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
+    "conclusion": "partial：Rust 覆盖缓存边界（解析器/缓存失败分支）与替换路径；差异：Go 断言 helper 对 nil 与替换路径的边界（缓存命中 ok=false、移除后不可命中、回退查询），Rust 无同形 helper 级断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/ports_test.go:50:TestServiceUsesExplicitTradingPorts": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::broker_adapter_place_and_cancel_keep_server_order_identity_and_submitted_status；crates/jftrade-engine/src/product_execution_write_product_tests.rs::execution_write_routes_register_only_with_explicit_test_port",
+    "conclusion": "partial：Rust 断言执行写路由仅在显式测试端口下注册、下单/撤单保留服务端身份；差异：Go 断言服务使用显式注入的 trading ports（注入优于默认），Rust 以端口注册与接线断言表达。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/ports_test.go:82:TestServiceDefaultTradingPortsFailExplicitly": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_fail_closed_without_snapshot_port；crates/jftrade-trading/src/real_trade.rs::unavailable_control_plane_fails_closed",
+    "conclusion": "partial：Rust 断言缺端口时读路由 fail-closed、控制面不可用 fail-closed；差异：Go 断言默认 trading ports 每个方法显式返回错误（不可静默 no-op），Rust 以端口接线与 fail-closed 断言覆盖同类语义，未逐方法断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/responses_test.go:12:TestBrokerRuntimeResponseJSONShape": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_uses_only_the_typed_market_data_runtime_port；crates/jftrade-engine/src/product_market_data_runtime_status.rs::market_data_runtime_projection_matches_go_status_corpus",
+    "conclusion": "partial：Rust 覆盖运行期状态投影（typed port 与 wire corpus）；差异：Go 断言 broker 运行期响应 JSON 形状（字段集）逐字段，Rust 侧投影断言覆盖但未对 broker 运行期响应逐字段比对。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/responses_test.go:55:TestBrokerFundsResponseJSONShape": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::funds_projection_preserves_full_margin_pdt_and_exposure_fields；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::funds_projection_keeps_missing_margin_fields_absent",
+    "conclusion": "partial：Rust 覆盖资金投影的 margin/PDT/exposure 字段保留与缺失时省略；差异：Go 断言资金响应 JSON 形状（键集合与空值表示），Rust 断言字段保留/省略策略。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/responses_test.go:107:TestBrokerPositionsResponseJSONShape": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback",
+    "conclusion": "partial：Rust 覆盖持仓投影（稀释成本与账户盈亏优先、遗留回退）；差异：Go 断言持仓响应 JSON 形状逐字段，Rust 断言数值来源优先级。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/responses_test.go:141:TestBrokerReadStatusSerializesNullLastError": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::funds_projection_keeps_missing_margin_fields_absent；crates/jftrade-engine/src/product_market_data_runtime_status.rs::market_data_runtime_projection_matches_go_status_corpus",
+    "conclusion": "partial：Rust 覆盖缺失字段不以 null/零值伪造（省略缺失 margin 字段）；差异：Go 断言读状态在 lastError 为空时序列化为 null（显式 null 而非省略），Rust 侧该 wire 形状断言缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/risk_shape_boundaries_test.go:11:TestCommandRiskShapeRejectsSpoofedAndIncompatibleFields": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_combo_amount_mode_precedence_and_leg_bypass；crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_rejects_non_positive_quantity_in_units_mode",
+    "conclusion": "partial：Rust 覆盖组合金额模式优先级/腿旁路与非正数量拒绝；差异：Go 断言指令风控形状拒绝伪造与不兼容字段（字段组合矩阵），Rust 侧伪造字段矩阵未逐项断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/risk_shape_boundaries_test.go:78:TestExecutionProductAndPriceValidationBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::event_single_rejects_negative_amount_and_invalid_prediction_side；crates/jftrade-trading/tests/order_risk_compatibility.rs::order_validation_rejects_non_positive_quantity_and_optional_price",
+    "conclusion": "partial：Rust 覆盖事件单负金额/非法预测侧拒绝与非正数量、可选价格校验；差异：Go 断言执行产品与价格校验边界（产品类型 × 价格必填性）矩阵，Rust 拆成两条测试，未逐组合对照。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/risk_status_broker_boundaries_test.go:13:TestRiskDecisionAndHardStopBoundarySemantics": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_fails_when_hard_stop_matches；crates/jftrade-trading/tests/hard_stop_environment_scope.rs::hard_stop_environment_scope_blocks_only_matching_real_commands",
+    "conclusion": "partial：Rust 覆盖硬停匹配拒绝与硬停环境作用域（仅阻断匹配的真实命令、支持通配/大小写）；差异：Go 断言风控决策与硬停边界语义（决策结构、原因）的组合，Rust 以决策断言表达，结构字段不同。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/risk_status_broker_boundaries_test.go:82:TestOrderStatusMapsEveryBrokerLifecycleFamily": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::test_canonical_broker_order_status_covers_futu_lifecycle；crates/jftrade-trading/src/model.rs::canonical_status_and_transition_match_go_rules",
+    "conclusion": "partial：Rust 覆盖 Futu 生命周期族到规范状态的映射与状态迁移规则；差异：Go 断言订单状态映射覆盖每个 broker 生命周期族（枚举矩阵逐项），Rust 覆盖 Futu 族，其它 broker 族未逐项断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/risk_status_broker_boundaries_test.go:124:TestBrokerIdentityMismatchPropagatesAcrossReadAndWriteOperations": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_identity_tests.rs::reconciliation_broker_identity_claims_are_scoped_to_the_trading_account；crates/jftrade-engine/src/product_production_ports_execution_reconciliation_identity_tests.rs::reconciliation_client_identity_cannot_override_conflicting_order_attributes",
+    "conclusion": "partial：Rust 覆盖 broker 身份声明限定在交易账户内、客户端身份不能覆盖冲突属性；差异：Go 断言身份不匹配在读与写操作上都被传播（多入口矩阵），Rust 断言集中在协调器发现路径。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/risk_status_broker_boundaries_test.go:187:TestLowLevelTradingFallbackHelpers": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-broker/tests/foundation_corpus.rs::preserves_broker_error_display_and_snapshot_fallback_rules；crates/jftrade-trading/tests/order_risk_compatibility.rs::stored_status_and_terminal_classification_match_go_contract",
+    "conclusion": "partial：Rust 覆盖 broker 错误展示/快照回退规则与存储状态终态分类；差异：Go 断言低层交易回退 helper 的具体分支（空值/回退选择），Rust 无同形 helper 级断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/risk_status_broker_boundaries_test.go:228:TestServiceBrokerResolutionAndPredictionStoreBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(risk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_prediction_tests.rs::prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority；crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::single_order_accepts_explicit_market_and_code_without_symbol",
+    "conclusion": "partial：Rust 覆盖预测资格发现失败/nil firm/错误权限的拒绝与单一订单市场代码解析；差异：Go 断言 broker 解析与预测存储边界的组合（解析失败不落存储），Rust 未串联该组合。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/service_test.go:8:TestServiceReadQueryAppliesDefaultMarket": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_projects_futu_funds_from_neutral_client；crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::market_rules_match_trimmed_symbols_and_apply_overrides_in_order",
+    "conclusion": "partial：Rust 覆盖 broker 读投影与代码规范化；差异：Go 断言读查询在未指定市场时应用默认市场（provider 收到默认值），Rust 侧默认市场注入断言缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/service_test.go:24:TestServiceOrderUpdateDefaultsAreNoops": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_settings_filter_and_fail_closed；crates/jftrade-engine/src/product_production_ports_unavailable.rs",
+    "conclusion": "partial：Rust 覆盖通知投影在设置过滤下 fail-closed 与不可用端口；差异：Go 断言未配置订单更新 worker 时各入口为 no-op（返回零值且不报错），Rust 无同形 no-op 默认契约断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/trading/service_test.go:45:TestServiceOrderUpdatesDelegateToWorkerWhenPresent": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches；crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent",
+    "conclusion": "partial：Rust 覆盖订单更新解析/缓存与通知投影；差异：Go 断言 worker 存在时服务把订单更新调用委派给 worker（委派断言），Rust 为端口化组合，无同形委派断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/broker/broker_test.go:13:TestRegistryBasic": {
     "status": "[~]",

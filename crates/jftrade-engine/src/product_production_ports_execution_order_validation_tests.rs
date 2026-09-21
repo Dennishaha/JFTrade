@@ -79,6 +79,7 @@ fn single_order_payload() -> Value {
 // Verifies equity orders reject event-contract fields (amount, predictionSide, quantityMode) with BAD_REQUEST before broker call
 #[test]
 fn single_equity_rejects_event_only_fields() {
+    // Parity: go:452dea11:internal/trading/execution_products_test.go:85 TestSingleNonEventOrderRejectsAmountAndPredictionFields
     let cases = [
         (
             "amount",
@@ -118,6 +119,7 @@ fn single_equity_rejects_event_only_fields() {
 
 #[test]
 fn single_preview_hash_binds_client_order_id() {
+    // Parity: go:452dea11:internal/trading/execution_products_test.go:193 TestPreviewHashesBindStableClientOrderID
     let first = single_order_payload();
     let mut second = first.clone();
     second["clientOrderId"] = json!("client-b");
