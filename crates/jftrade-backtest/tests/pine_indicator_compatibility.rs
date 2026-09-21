@@ -2,6 +2,7 @@ use jftrade_backtest::{pine_compatible_ema, pine_compatible_macd};
 
 #[test]
 fn pine_ema_seeds_from_sma_after_nan_warmup() {
+    // Parity: go:452dea11:pkg/backtest/pine_ts_shadow_reference_test.go:8 TestPinetsShadowEMAUsesSMAInitialization
     let values = pine_compatible_ema(&[1.0, 2.0, 3.0, 4.0, 5.0], 3).expect("EMA");
 
     assert!(values[..2].iter().all(|value| value.is_nan()));
@@ -22,6 +23,7 @@ fn pine_ema_skips_nan_inputs_when_initializing_and_updating() {
 
 #[test]
 fn pine_macd_delays_signal_until_valid_macd_values_exist() {
+    // Parity: go:452dea11:pkg/backtest/pine_ts_shadow_reference_test.go:21 TestPinetsShadowMACDSkipsNaNValuesForSignalInitialization
     let (macd, signal, histogram) =
         pine_compatible_macd(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0], 3, 5, 2).expect("MACD");
 
