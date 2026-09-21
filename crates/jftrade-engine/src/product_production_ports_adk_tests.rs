@@ -8325,6 +8325,132 @@ fn strategy_optimize_rolls_back_candidates_and_validates_the_request() {
     );
 }
 
+/// Go's runtime contract test keeps every strategy read tool on its owner
+/// contract: Pine validation answers `ok` with the normalized script, and the
+/// result view echoes the run it was asked about.
+///
+/// Parity: go:452dea11:internal/assistant/assembly/adk_runtime_contracts_test.go:13
+#[tokio::test]
+async fn pine_validation_and_backtest_result_view_keep_their_owner_contracts() {
+    use crate::product::product_adk_model_runtime::AdkToolExecutor as _;
+    let (ports, executor, _directory) = setup_test_bundle_and_executor();
+    executor.attach_ports(Arc::clone(&ports));
+
+    let validation = executor
+        .execute(
+            "strategy.validate_pine",
+            &json!({"script": "//@version=6\nstrategy(\"Owner\", overlay=true)\nplot(close)\n"}),
+        )
+        .expect("Pine validation is port-free");
+    assert_eq!(validation["ok"], true, "{validation}");
+    assert!(
+        !validation["normalizedScript"]
+            .as_str()
+            .unwrap_or_default()
+            .trim()
+            .is_empty(),
+        "the normalized script must survive validation: {validation}"
+    );
+
+    let started = executor
+        .execute(
+            "strategy.research_backtest",
+            &json!({
+                "script": "//@version=6\nstrategy(\"Owner\", overlay=true)\nplot(close)\n",
+                "market": "HK",
+                "symbol": "HK.00700",
+                "startTime": "2026-01-01T00:00:00Z",
+                "endTime": "2026-01-02T00:00:00Z",
+                "waitForCompletionMs": 0,
+            }),
+        )
+        .expect("start one research backtest");
+    let run_id = started["runId"].as_str().expect("run id").to_owned();
+
+    let view = executor
+        .execute(
+            "backtest.result_view",
+            &json!({"runId": run_id, "view": "summary"}),
+        )
+        .expect("result view");
+    // The production projection describes the requested run instead of
+    // echoing the selector, so the identity lives on `run.id`.
+    assert_eq!(view["run"]["id"], run_id, "{view}");
+    assert_eq!(view["view"], "summary", "{view}");
+}
+
+/// Read the backtest run ids the production store currently holds, so a test
+/// can prove a tool call did or did not create a run.
+fn backtest_run_ids(
+    ports: &crate::product::product_production_ports::ProductionPortBundle,
+) -> Vec<String> {
+    let payload = ports.backtest_read.list().expect("list backtest runs");
+    payload
+        .get("runs")
+        .and_then(Value::as_array)
+        .map(|runs| {
+            runs.iter()
+                .filter_map(|run| run.get("id").and_then(Value::as_str).map(str::to_owned))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Go's `TestADKRuntimeResearchToolStopsBeforeRunWhenDataSyncIsPending`: when
+/// the readiness dependency answers `syncing_data`, the tool returns the sync
+/// task reference and never starts a backtest run.
+///
+/// Parity: go:452dea11:internal/assistant/assembly/adk_runtime_contracts_test.go:156
+#[tokio::test]
+async fn research_backtest_pending_data_sync_returns_the_sync_task_without_starting_a_run() {
+    use crate::product::product_adk_model_runtime::AdkToolExecutor as _;
+    let (ports, executor, _directory) = setup_test_bundle_and_executor();
+    executor.attach_ports(Arc::clone(&ports));
+
+    let ready = executor
+        .execute(
+            "strategy.research_backtest",
+            &json!({
+                "script": "//@version=6\nstrategy(\"Ready\", overlay=true)\nplot(close)\n",
+                "market": "HK",
+                "symbol": "HK.00700",
+                "startTime": "2026-01-01T00:00:00Z",
+                "endTime": "2026-01-02T00:00:00Z",
+                "waitForCompletionMs": 0,
+            }),
+        )
+        .expect("data ready must start one run");
+    let run_id = ready["runId"].as_str().expect("started run id").to_owned();
+    let before = backtest_run_ids(&ports);
+    assert_eq!(before, vec![run_id.clone()], "one run exists before the sync");
+
+    let pending = executor
+        .execute(
+            "strategy.research_backtest",
+            &json!({
+                "script": "//@version=6\nstrategy(\"Missing\", overlay=true)\nplot(close)\n",
+                "market": "HK",
+                "symbol": "HK.00001",
+                "startTime": "2026-01-01T00:00:00Z",
+                "endTime": "2026-01-02T00:00:00Z",
+                "waitForCompletionMs": 0,
+            }),
+        )
+        .expect("a pending data sync is answered, not raised");
+
+    assert_eq!(pending["status"], "syncing_data", "{pending}");
+    assert_eq!(pending["nextAction"], "wait_kline_sync", "{pending}");
+    assert!(
+        pending.get("runId").is_none() || pending["runId"].is_null(),
+        "a pending sync must not fabricate a run id: {pending}"
+    );
+    assert_eq!(
+        backtest_run_ids(&ports),
+        before,
+        "a pending data sync must stop before starting another run"
+    );
+}
+
 /// Go's `system.status` tool only enriches the status payload with the ADK
 /// module block while the assistant runtime reports itself available.
 ///
