@@ -7,7 +7,7 @@ use crate::runtime_dependencies;
 use jftrade_api::{
     AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, ApiState, Clock,
     LiveConnectionMetrics, LiveHub, LiveHubLifecycle, PortFuture, RouteCatalog, RouteCatalogError,
-    RouteSpec, SseEvent, SystemClock, TransportMetrics, build_router,
+    RouteSpec, SseEvent, SystemClock, TransportMetrics, WebAccessStatePort, build_router,
 };
 use jftrade_calendar::CalendarManager;
 use jftrade_datamanagement::{

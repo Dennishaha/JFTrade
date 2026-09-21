@@ -31,6 +31,41 @@ fn disabled_web_access_does_not_start_a_listener() {
     runtime.shutdown_blocking().expect("shutdown Web runtime");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:188 TestBrowserNavigationGetsFriendlyDisabledWebPage
+#[test]
+fn web_runtime_reports_browser_access_state_for_the_desktop_listener() {
+    let runtime = ProductWebServerRuntime::new();
+    runtime.install_router(router());
+    assert_eq!(
+        runtime.web_access_state(),
+        jftrade_api::WebAccessState::Disabled,
+        "a fresh runtime has no browser surface"
+    );
+    runtime
+        .apply(&SecuritySettingsRecord::default())
+        .expect("keep Web access disabled");
+    assert_eq!(
+        runtime.web_access_state(),
+        jftrade_api::WebAccessState::Disabled
+    );
+
+    runtime
+        .apply(&enabled_record(available_port()))
+        .expect("enable Web access");
+    assert_eq!(
+        runtime.web_access_state(),
+        jftrade_api::WebAccessState::Available
+    );
+
+    runtime
+        .apply(&SecuritySettingsRecord::default())
+        .expect("disable Web access");
+    assert_eq!(
+        runtime.web_access_state(),
+        jftrade_api::WebAccessState::Disabled
+    );
+}
+
 // Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:243 TestSeparateWebListenerStartsAlongsideLoopbackDesktopSidecar
 // Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:222 TestWebAccessListenerBindUsesIndependentConfiguredPort
 #[test]

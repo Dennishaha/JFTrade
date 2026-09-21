@@ -121,6 +121,8 @@ JFTrade 默认仅供 Tauri 桌面应用使用，普通用户不需要密码、Ke
 
 Web 关闭时，Tauri 桌面产品不会创建浏览器监听器。开启后默认监听 `127.0.0.1:<webPort>`，仅供本机浏览器访问；打开“允许局域网/其他设备访问”后立即改为 `0.0.0.0:<webPort>`。当前内置服务只提供 HTTP，因此该选项仅适合可信局域网。通过互联网访问必须自行配置全程 HTTPS 反向代理，不能直接暴露 JFTrade 端口；同机代理应转发 `X-Forwarded-Proto: https` 和 `X-Forwarded-For`，JFTrade 只信任来自 loopback 的这些声明，并据此签发 `Secure` 会话 Cookie，以及执行访问范围和登录限速判断。
 
+Web 关闭时用浏览器直接打开常驻的桌面 API 端口（默认 `127.0.0.1:6699`）不会得到空白错误，而是返回一张提示页，指引到“设置 → Web 访问”设置密码并开启；`/api/**` 与 `/swagger/**` 请求仍返回 JSON 错误信封，不会拿到这张 HTML 页。
+
 正式产品从内嵌前端资源提供 Web UI；`JFTrade Dev` 没有内嵌资源，因此可选 Web 监听器会代理 Tauri 开发命令启动的本机 Vite 服务（默认 `127.0.0.1:3003`）。`/runtime-config.js` 由 Rust API 生成浏览器配置，不会把浏览器引向 Tauri sidecar。开发代理只接受 loopback 目标。
 
 Web 访问的启停、端口、改密和网络范围只能从可信桌面应用修改；浏览器设置页仅展示状态。旧版 `adminAuthRequired` 和 `secrets/admin.key` 不会迁移成 Web 密码，应用也不会读取、迁移或删除这些遗留内容；升级后 Web 保持关闭。

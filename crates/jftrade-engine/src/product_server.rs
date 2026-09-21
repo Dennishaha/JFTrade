@@ -657,6 +657,9 @@ pub(crate) async fn prepare_product_with_runtime_state(
     let mut state = ApiState::new(routes, access_policy, port)
         .with_live_hub(Arc::clone(&live_hub))
         .with_swagger_docs(swagger_docs());
+    if let Some(web_runtime) = web_runtime.as_ref() {
+        state = state.with_browser_access(Arc::clone(web_runtime) as Arc<dyn WebAccessStatePort>);
+    }
     state.metrics = metrics;
     state.live_connections = live_connections;
     if config.production || config.market_data_runtime_status_port.is_some() {

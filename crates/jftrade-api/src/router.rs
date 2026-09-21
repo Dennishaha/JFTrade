@@ -8,8 +8,9 @@ use axum::body::{Body, to_bytes};
 use axum::extract::ws::{CloseFrame, Message, WebSocketUpgrade};
 use axum::extract::{ConnectInfo, Request, State};
 use axum::http::header::{
-    ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS,
-    ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS, CACHE_CONTROL, CONNECTION, VARY,
+    ACCEPT, ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS,
+    ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS,
+    CACHE_CONTROL, CONNECTION, VARY,
 };
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, Response, StatusCode, Uri};
 use axum::middleware::{self, Next};
@@ -29,7 +30,7 @@ use crate::websocket::{
 use crate::{
     AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, AssetBundle, BufferedSseSink, Clock,
     LiveConnectionMetrics, RouteCatalog, SseEvent, SseWriter, SwaggerDocs, SystemClock,
-    TransportMetrics, websocket_origin_allowed,
+    TransportMetrics, WebAccessState, WebAccessStatePort, websocket_origin_allowed,
 };
 
 const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
@@ -66,6 +67,7 @@ pub struct ApiState {
     pub access: AccessPolicy,
     pub assets: AssetBundle,
     pub swagger_docs: Option<SwaggerDocs>,
+    pub browser_access: Option<Arc<dyn WebAccessStatePort>>,
     pub port: Arc<dyn ApiPort>,
     pub clock: Arc<dyn Clock>,
     pub metrics: Arc<TransportMetrics>,
@@ -82,6 +84,7 @@ impl ApiState {
             access,
             assets: AssetBundle::default(),
             swagger_docs: None,
+            browser_access: None,
             port,
             clock: Arc::new(SystemClock),
             metrics: Arc::new(TransportMetrics::default()),
@@ -100,6 +103,12 @@ impl ApiState {
     /// Serve the offline `/swagger` documentation panel for this state.
     pub fn with_swagger_docs(mut self, docs: SwaggerDocs) -> Self {
         self.swagger_docs = Some(docs);
+        self
+    }
+
+    /// Report Web access state for browser navigations on this listener.
+    pub fn with_browser_access(mut self, port: Arc<dyn WebAccessStatePort>) -> Self {
+        self.browser_access = Some(port);
         self
     }
 
@@ -163,6 +172,8 @@ async fn transport_middleware(
         } else {
             empty_response(StatusCode::NO_CONTENT)
         }
+    } else if let Some(page) = web_access_status_page(&state, &request) {
+        page
     } else if should_authenticate(request.uri().path()) {
         match authorize(&state, &request) {
             Ok(()) => {
@@ -308,6 +319,40 @@ fn should_authenticate(path: &str) -> bool {
         return true;
     }
     path.starts_with("/api/") && path != "/api/v1/auth/login" && path != "/api/v1/auth/session"
+}
+
+/// Friendly page for browser navigations that arrive while Web access is off.
+///
+/// Mirrors `acceptsWebAccessStatusPage` + `writeWebAccessStatusPage`: only
+/// `GET`/`HEAD` navigations with an HTML `Accept`, outside the API and Swagger
+/// surfaces, and only for callers without desktop capability or a Web session.
+fn web_access_status_page(state: &ApiState, request: &Request) -> Option<Response<Body>> {
+    let port = state.browser_access.as_ref()?;
+    if port.web_access_state() != WebAccessState::Disabled
+        || !accepts_web_access_status_page(request)
+        || state.access.desktop_trusted(request.headers())
+        || state.access.browser_authenticated(request.headers())
+    {
+        return None;
+    }
+    Some(crate::browser_access::web_access_disabled_page(
+        *request.method() == Method::HEAD,
+    ))
+}
+
+fn accepts_web_access_status_page(request: &Request) -> bool {
+    if !matches!(*request.method(), Method::GET | Method::HEAD) {
+        return false;
+    }
+    let path = request.uri().path();
+    if path.starts_with("/api/") || path.starts_with("/swagger") {
+        return false;
+    }
+    request
+        .headers()
+        .get(ACCEPT)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.to_ascii_lowercase().contains("text/html"))
 }
 
 fn is_write_method(method: &Method) -> bool {

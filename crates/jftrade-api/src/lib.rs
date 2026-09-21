@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 mod auth;
+mod browser_access;
 mod envelope;
 mod observability;
 mod ports;
@@ -15,6 +16,7 @@ pub use auth::{
     INTERNAL_PROXY_PROTOCOL_HEADER, SESSION_COOKIE, WebSessionValidator, canonical_origin,
     desktop_trusted_origins,
 };
+pub use browser_access::{WebAccessState, WebAccessStatePort};
 pub use envelope::{ApiFailure, Clock, FixedClock, SystemClock};
 pub use observability::{
     OpenDHealth, RequestObservabilitySnapshot, TransportEvent, TransportMetrics, TransportSnapshot,

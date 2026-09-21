@@ -81,6 +81,7 @@ struct ProductWebServerState {
     router: Option<axum::Router>,
     server: Option<ProductServerOwner>,
     bind: Option<String>,
+    web_access_enabled: bool,
 }
 
 impl ProductWebServerRuntime {
@@ -177,10 +178,22 @@ impl jftrade_api::AccessOriginProvider for ProductWebServerRuntime {
     }
 }
 
+impl jftrade_api::WebAccessStatePort for ProductWebServerRuntime {
+    fn web_access_state(&self) -> jftrade_api::WebAccessState {
+        let state = self.inner.lock().unwrap_or_else(|error| error.into_inner());
+        if state.web_access_enabled {
+            jftrade_api::WebAccessState::Available
+        } else {
+            jftrade_api::WebAccessState::Disabled
+        }
+    }
+}
+
 impl jftrade_settings::SecurityRuntimePort for ProductWebServerRuntime {
     fn apply(&self, record: &SecuritySettingsRecord) -> Result<(), String> {
         let desired = Self::desired_bind(record);
         let mut state = self.inner.lock().unwrap_or_else(|error| error.into_inner());
+        state.web_access_enabled = record.web_access_enabled();
         let current = state.bind.clone();
         if current == desired.as_ref().map(ToString::to_string)
             && (desired.is_none() || state.server.is_some())
