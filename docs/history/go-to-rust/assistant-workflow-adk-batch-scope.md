@@ -3218,3 +3218,47 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 - 跨批 follow-up 汇总：P0 无新增。P1 = 前批清单 + 本批新增 **Go workflow executor 编排层整体未迁移**（goal decision 工具、子运行计划/收口、workflow task toolset、runtime task 上限、审批 reconcile 与 completion blockers）——需要产品决策是否在 Rust 重建该层，或在清单中永久保留为边界；同时登记 `iteration_limit` 暂停、中断内部工具调用剪枝、`RUN_LEASE_CLAIM_FAILED` 错误码、跨连接声明级并发用例四项缺口。P2 = 前批清单 + workflowexec 内部 helper（plan/描述裁剪、任务排序、modelsList 包装层、`resultSummary` 回退文案）与"部分结果 + 错误并存"的任务工具返回形态。
 
 验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked --no-fail-fast`（**3042 passed / 2 skipped**，锚点插入前）、补锚点后复跑 `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（**1930 passed / 0 skipped**）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2925 Rust** / **1190 `[x]`**，missing 2432、partial 568、boundary 257；0 破坏引用、0 重复 rust_entry、未锚定告警 193）、`pnpm run check:compatibility`（278 OpenAPI operations / 18 route groups / 19 probes；desktop runtime 3 profiles / 6 link cases / 10 facade commands / 4 events）、`node scripts/check-zero-go.mjs`（2888 tracked files / 0 release artifact）、`pnpm run check:rust:architecture`、`git diff --check`，最后 `pnpm run check:quick`。
+
+## 第七十七批：`internal/assistant/engine` 全量收口（268 条，engine 余量清零）
+
+### 范围与结果
+
+- 范围：`internal/assistant/engine` 全部剩余 268 条 `missing`（119 个文件）——`providers/` 15、`skillsruntime/` 8、`persistence/` 22（技能注册与运行时 schema、provider responses 模型/probe、SQLite session schema 与 artifact 持久化），根目录 211（`runtime_store` 10、`adk_store_edges` 8、`adk_tool_edges` 7、`completion_review` 7、`skill_reg*` 13、`runner_*` 15、`session_context_projection` 5、`sqlite_tools`/`store_*` 25、`workflow_*` 20 等），以及 `completionreview/` 4、`adk22regression/` 3、`usageprojection/` 3、`workflowruntime/` 2。
+- 结果：`[x]` 1190 → **1196**、`missing` 2432 → **2164**（本批结清 268 条）、`partial` 568 → **768**、`boundary` 257 → **319**。本批 268 条 = **6 `[x]`（全部 function_exact）+ 200 partial + 62 boundary**。
+- **`internal/assistant/engine` 未核对余量归零**：域内 626 条 = 205 `[x]` + 312 partial + 109 boundary，无 `missing`。至此 `internal/assistant` 的 `assembly`、`engine`、`workflowexec/**` 三个子域全部收口，剩余仅 `internal/assistant` 非 engine/assembly/workflowexec 的 79 条（根目录 64、`model/` 10、`workflow/` 5）。
+- 本批只改证据清单与 5 个 Rust 文件的 6 行 `// Parity:` 锚点注释（见下），**未改任何生产实现或断言**，因此没有"先红后改"探针；差异以结论形式登记在清单与本节的缺口列表。
+
+### 分片执行
+
+- **A（45 条）**：`providers/` 15 + `skillsruntime/` 8 + `persistence/` 22。证据面为 `crates/jftrade-store-sqlite/tests/adk_session_store_contracts.rs`、`adk_artifact_store_contracts.rs`、`schema_migrations.rs`、`sqlite_query_plan_and_migrations_audit.rs` 与 `crates/jftrade-engine/src/product_production_ports_adk_mutation_provider.rs`。
+- **B（100 条）**：`adk22regression`、`adk_runner_edges`、`adk_schema`、`adk_skill_edges`、`adk_store_edges`、`adk_tool_edges`、`approval_*`（含 `approval_state_guard`）、canvas provider overrides、chat idempotency、`completion_review`、`context_cache`、`error_identity`、`event_projection*`、`exec_state_bounds`、`goal_state_boundaries`、`google_exec_concurrency`、`google_execution_replay_guards`、`google_memory`、`google_runner_failure_diagnostics`、`handoff_notice`、`input_continuation_*`、`input_workflow`、`lifecycle_reconciliation_failures`、`normalize`、`observability`、`planner_identity`、`planner_toolset`、`projection_canvas_memory_contracts`、`provider_base_url`、`provider_headers`、`reasoning_effort_lifecycle`、`responses_model_runtime`、`responses_stream_projection`、`resumed_execution_recovery_boundaries`。
+- **C（123 条）**：engine 根目录余量——`run_timeline`、`runner_chat_callbacks`、`runner_chat_continuation_signal`、`runner_chat_runtime_branches`、`runner_goal`、`runner_lifecycle_*`、`runner_plugin`、`runtime_store`、`session_compaction_boundaries`、`session_context_*`、`session_skill`、`session_wrap`、`skill_recover`、`skill_reg_fs`、`skill_reg`、`skill_registry_archives`、`skill_registry_http_sources`、`sqlite_dialector_boundaries`、`sqlite_tools`、`store_approve`、`store_async`、`store_audit_query`、`store_business`、`store_entity_lifecycle_edges`、`store_failure_normalization_boundaries`、`store_identity`、`store_lifecycle`、`store_maintenance_*`、`task_runner`、`taskset_biz`、`timeline_projection_helpers`、`tool_artifact_materialization`、`tool_registry_change`、`tool_schema_workflow`、`tools_net_transport_boundaries`、`tools_security`、`usageprojection/`、`workflow_agent_runtime_branches`、`workflow_approval*`、`workflow_child`、`workflow_execution_persistence`、`workflow_finalization_contracts`、`workflow_helpers_provider_failures`、`workflow_observation_projection`、`workflow_persistence`、`workflow_plan_boundaries`、`workflow_planner_runtime`、`workflow_resume`、`workflow_store*`、`workflowruntime/`。
+
+### 6 条新 `[x]` 与锚点
+
+- `adk22regression/native_runtime_test.go:86` → `adk_workflow_canvas_contracts.rs::restart_keeps_completed_nodes_and_the_inflight_request_identity`
+- `chat_request_idempotency_test.go:48` → `product_adk_model_runtime_lifecycle_tests.rs::concurrent_first_delivery_creates_one_durable_run_and_event`
+- `google_exec_concurrency_test.go:12` → `product_adk_model_runtime_fencing_tests.rs::fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit`
+- `persistence/google_artifact_test.go:186` → `adk_artifact_store_contracts.rs::adk_artifact_store_lifecycle_and_restart_durability`
+- `persistence/session_sqlite_schema_test.go:15` → `adk_session_store_contracts.rs::adk_session_store_rejects_missing_drifted_and_corrupted_go_databases`
+- `persistence/session_sqlite_test.go:58` → `adk_session_store_contracts.rs::adk_session_store_lifecycle_and_restart_durability`
+
+锚点写入 5 个文件共 6 行 `// Parity: go:452dea11:<go 文件>:<行> <测试名>`，写入后审计的"未锚定 function_exact"告警从 199 回到第七十六批基线 193（即本批 0 新增未锚定）。
+
+### 新增缺口登记（功能缺失，保留）
+
+- **P1｜provider 工具探测回写**：Go `TestProvider` 在连通性探测后再做一次带工具请求；失败时把 `capabilities.tools=false` 写回 provider 记录并在响应返回。Rust `product_production_ports_adk_mutation_runtime.rs::test_provider` 只做一次不带工具的连通性请求，返回存储中的 capabilities 且不写回。复现：对带工具请求返回 502 的 provider 调用 `POST /api/v1/adk/providers/{id}/test`。修复位置：该函数增加第二次带工具请求与 `store.upsert_provider` 回写；回归要求：新断言响应与落库 capabilities 均为 `tools=false`。驱动行 `runtime_store_test.go:362`。
+- **P2｜工具输出 artifact 物化**：Go 把超阈值的研究类工具输出物化为 artifact 并回填引用，且在没有 artifact store 或保存失败时回退保留原输出。Rust 有 ADK artifact store（版本化、生命周期、重启持久，见 `adk_artifact_store_contracts.rs`）但没有物化/回填与回退路径。驱动行 `tool_artifact_materialization_test.go:24/52/73`。
+- **P2｜ADK task runner 有界扇出**：Go 的 task set 以有界并发执行每个任务，且已取消批次仍带原上下文执行。Rust 无 task-set 执行器（工具调用按序，并发只在运行/审批围栏层）。驱动行 `task_runner_test.go:13/79`。
+- **P2｜ADK planner runtime**：Go 的 `planWorkflowWithADK` 具备内存会话回退、会话查找/创建错误前置上抛、provider 执行失败上抛。Rust 计划由画布图与运行入口承担，无 ADK 规划会话层。驱动行 `workflow_planner_runtime_test.go:12`。
+- **P2｜continuation-only 信号**：Go 按消息文本识别"仅继续"输入并写 `run.continuation_only` 审计；Rust 续跑只有显式 `request_input` 答复通道，无该分类器与审计种类。驱动行 `runner_chat_continuation_signal_test.go:9/22/52`。
+- **P2｜内置目录启动刷新**：Go 重开旧库时刷新内置 agent 受保护字段并保留用户模型选择与 `CreatedAt`；Rust 内置 agent/技能为编译期常量目录，无迁移刷新步骤。驱动行 `runtime_store_test.go:117`。
+- **结构差异（不迁移）**：GORM sqlite dialector 层（类型映射、clause 构造器、版本比较）在 Rust 由 rusqlite + 显式迁移与查询计划审计取代（`sqlite_dialector_boundaries_test.go`、`sqlite_tools_test.go` 4 条）；`workflowruntime` facade 装配由 engine composition root 承担（`workflowruntime/runtime_test.go` 2 条）；"非工作流父忽略子回调"的类型区分在 Rust 由运行负载 workflow 标识判定（`workflow_child_test.go:137`，按边界登记）。
+
+### 仍未结清（下一批）
+
+- 下一批（第七十八批）范围：`internal/assistant` 除已结清的 engine/assembly/workflowexec 之外全部余量 **79 条**——根目录 64（`workflow_crud` 10、`workflows` 7、`workflows_extended` 6、`service_business_helpers` 4、`service_business` 4、`service_contract_boundaries` 4、`service_lifecycle_boundaries` 4、`service_test` 4、`service_skill_state_recovery` 3、`workflow_async_tools` 3、`workflow_lifecycle` 3、`workflows_resource_recovery` 3、`service_audit_pagination`/`service_builtin_agent_edit`/`service_recovery`/`workflow_store_failures` 各 1）、`model/` 10（`provider_reasoning_config` 3、`workflow_plan` 3、`timeline_helper`、`timeline_reply_ordering`、`workflow_graph_resume_identity`、`workflow_task_tools`）、`workflow/` 5（`rules_test.go`）。该批结清后 `internal/assistant/**` 全域归零。
+- 其后按域余量排序：`pkg/strategy` 333、`pkg/backtest` 237、`internal/store` 206、`internal/api` 180、`internal/strategy` 169、`pkg/bbgo` 145、`internal/integration` 141、`internal/marketdata` 112、`pkg/futu` 86、`internal/trading` 80（`internal/app/apiserver` 已在此前批次结清）。
+- 跨批 follow-up 汇总：P0 无新增。P1 = 前批清单 + 本批 provider 工具探测回写。P2 = 前批清单 + 本批 artifact 物化、task runner 有界扇出、planner runtime、continuation-only 信号、内置目录启动刷新。
+
+验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（**1930 passed / 0 skipped**）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2925 Rust** / **1196 `[x]`**；missing 2164、partial 768、boundary 319、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线）、`pnpm run check:compatibility`（278 OpenAPI operations / 18 route groups / 19 probes；desktop runtime 3 profiles / 6 link cases / 10 facade commands / 4 events）、`node scripts/check-zero-go.mjs`（2888 tracked files / 0 release artifact）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`（含 compatibility 全套与 pineworker 10 files / 98 tests）。

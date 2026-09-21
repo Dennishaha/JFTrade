@@ -368,6 +368,7 @@ fn unknown_model_status_is_not_a_successful_canvas_node() {
     assert_eq!(result["log"]["status"], "FAILED");
 }
 
+// Parity: go:452dea11:internal/assistant/engine/adk22regression/native_runtime_test.go:86 TestWorkflowGraphResumesByInterruptIDAndPreservesEventOrder
 #[test]
 fn restart_keeps_completed_nodes_and_the_inflight_request_identity() {
     let cluster = EngineTestCluster::new();

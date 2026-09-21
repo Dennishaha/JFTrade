@@ -37,6 +37,7 @@ fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStor
     )
 }
 
+// Parity: go:452dea11:internal/assistant/engine/chat_request_idempotency_test.go:48 TestConcurrentResponsesRequestReusesOneRunAndNativeAssistantEvent
 #[test]
 fn concurrent_first_delivery_creates_one_durable_run_and_event() {
     let (_directory, store, session_store) = initialized_stores();

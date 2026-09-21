@@ -66,6 +66,7 @@ fn seed_valid_go_adk_session_database(path: &Path) {
         .expect("seed schema");
 }
 
+// Parity: go:452dea11:internal/assistant/engine/persistence/session_sqlite_schema_test.go:15 TestSQLiteSessionServiceRejectsUnavailableAndPreservesIncompatibleDatabases
 #[test]
 fn adk_session_store_rejects_missing_drifted_and_corrupted_go_databases() {
     let directory = tempdir().expect("temp dir");
@@ -111,6 +112,7 @@ fn adk_session_store_rejects_symlink_aliases() {
     assert!(matches!(err, AdkSessionStoreError::NotRegularFile(_)));
 }
 
+// Parity: go:452dea11:internal/assistant/engine/persistence/session_sqlite_test.go:58 TestSQLiteSessionServiceReopenPreservesADKEvents
 #[test]
 fn adk_session_store_lifecycle_and_restart_durability() {
     let directory = tempdir().expect("temp dir");

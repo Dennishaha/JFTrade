@@ -71,6 +71,7 @@ fn adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases() {
     assert!(matches!(err, AdkArtifactStoreError::Schema(_)));
 }
 
+// Parity: go:452dea11:internal/assistant/engine/persistence/google_artifact_test.go:186 TestGoogleADKArtifactServicePersistsAcrossRestartAndUserScope
 #[test]
 fn adk_artifact_store_lifecycle_and_restart_durability() {
     let directory = tempdir().expect("temp dir");
