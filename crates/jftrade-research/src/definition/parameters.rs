@@ -239,3 +239,159 @@ pub(super) fn normalize_factor_params(factor_ref: &FactorRef) -> FactorParams {
     }
     serde_json::from_value(Value::Object(values)).unwrap_or_else(|_| factor_ref.params.clone())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn futu_catalog() -> &'static Value {
+        normalization_catalog(FUTU_CATALOG_VERSION, "").expect("futu catalog")
+    }
+
+    fn code_of(parameter: &Value, value: &Value) -> Result<(), String> {
+        validate_parameter_value("params.value", parameter, value, futu_catalog())
+            .map_err(|error| error.code)
+    }
+
+    /// Parity: go:452dea11:pkg/researchscreen/definition_edges_test.go:56
+    /// TestParameterValidationRejectsTypeRangeStepAndEnumErrors
+    ///
+    /// Go exercises the parameter validator directly and requires one error code
+    /// per invalid shape (wrong type, non-numeric array element, non-finite
+    /// number, fractional integer, minimum, maximum, step, enum) while a valid
+    /// string and a valid integer pass. Rust keeps the same validator at the
+    /// same layer, so the matrix is asserted against the function itself.
+    ///
+    /// The Go `math.NaN()` case has no Rust analogue: parameter values arrive as
+    /// `serde_json::Value`, which cannot hold NaN or infinity, so the
+    /// non-finite branch is unreachable from any input the product accepts.
+    #[test]
+    fn parameter_validation_rejects_type_range_step_and_enum_errors() {
+        let bounded = json!({
+            "name": "value",
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 10,
+            "step": 2,
+        });
+        for (name, parameter, value, code) in [
+            (
+                "string type",
+                json!({"name": "value", "type": "string"}),
+                json!(1),
+                "invalid_type",
+            ),
+            (
+                "array type",
+                json!({"name": "value", "type": "integer_array"}),
+                json!(1),
+                "invalid_type",
+            ),
+            (
+                "non numeric element",
+                json!({"name": "value", "type": "number_array"}),
+                json!(["bad"]),
+                "invalid_type",
+            ),
+            (
+                "fractional integer",
+                bounded.clone(),
+                json!(2.5),
+                "invalid_type",
+            ),
+            ("minimum", bounded.clone(), json!(0), "minimum"),
+            ("maximum", bounded.clone(), json!(12), "maximum"),
+            ("step", bounded.clone(), json!(3), "step"),
+            (
+                "enum",
+                json!({"name": "value", "type": "integer", "enum": "period"}),
+                json!(999),
+                "invalid_enum",
+            ),
+        ] {
+            assert_eq!(
+                code_of(&parameter, &value),
+                Err(code.to_owned()),
+                "{name} must fail with {code}"
+            );
+        }
+
+        let string_parameter = json!({"name": "value", "type": "string"});
+        assert_eq!(code_of(&string_parameter, &json!("ok")), Ok(()));
+        assert_eq!(code_of(&bounded, &json!(4)), Ok(()));
+    }
+
+    /// Parity: go:452dea11:pkg/researchscreen/definition_edges_test.go:94
+    /// TestUnionValidationCoversEveryProviderShape
+    ///
+    /// Go accepts the empty union plus the string, integer and integer-array
+    /// members, and rejects an unsupported union name, a mistyped type, every
+    /// missing member, a mistyped member value and an out-of-enum type.
+    #[test]
+    fn union_validation_covers_every_provider_member_shape() {
+        for values in [
+            json!({}),
+            json!({"optionParamType": 1, "optionParamString": "call"}),
+            json!({"optionParamType": 2, "optionParamInteger": 7}),
+            json!({"optionParamType": 3, "optionParamIntegers": [7, 8]}),
+        ] {
+            let fields = values.as_object().cloned().expect("union object");
+            assert_eq!(
+                validate_union_parameter("option", "optionParam", &fields),
+                Ok(()),
+                "valid union {values}"
+            );
+        }
+
+        for (name, parameter, values, code) in [
+            (
+                "unsupported name",
+                "other",
+                json!({"name": "other"}),
+                "unsupported_union",
+            ),
+            (
+                "fractional type",
+                "optionParam",
+                json!({"optionParamType": 1.5}),
+                "invalid_type",
+            ),
+            (
+                "string required",
+                "optionParam",
+                json!({"optionParamType": 1}),
+                "required",
+            ),
+            (
+                "integer required",
+                "optionParam",
+                json!({"optionParamType": 2}),
+                "required",
+            ),
+            (
+                "integers required",
+                "optionParam",
+                json!({"optionParamType": 3}),
+                "required",
+            ),
+            (
+                "integers mistyped",
+                "optionParam",
+                json!({"optionParamType": 3, "optionParamIntegers": ["bad"]}),
+                "invalid_type",
+            ),
+            (
+                "type out of enum",
+                "optionParam",
+                json!({"optionParamType": 4}),
+                "invalid_enum",
+            ),
+        ] {
+            let fields = values.as_object().cloned().expect("union object");
+            let error = validate_union_parameter("option", parameter, &fields)
+                .expect_err(&format!("{name} must be rejected"));
+            assert_eq!(error.code, code, "{name} error code");
+        }
+    }
+}

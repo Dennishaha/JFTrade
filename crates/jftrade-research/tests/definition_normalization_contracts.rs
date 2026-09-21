@@ -23,6 +23,13 @@ struct FixtureCase {
     error: Option<DefinitionFieldError>,
 }
 
+/// Parity: go:452dea11:pkg/researchscreen/definition_edges_test.go:249
+/// TestDefinitionNormalizationRejectsPoolSortAndIdentityErrors
+///
+/// The frozen cases carry the same rejections the Go owner asserts: unknown
+/// futu market, empty plate ids, empty or non-numeric watchlist ids, invalid
+/// sort direction, a sort factor without the sort role, and duplicate column or
+/// condition ids - each with its field path and code.
 #[test]
 fn normalization_and_field_errors_match_the_go_owner_corpus() {
     let fixture: Fixture = serde_json::from_str(FIXTURE).expect("fixture");

@@ -6,7 +6,11 @@ fn factor<'a>(catalog: &'a Value, key: &str) -> &'a Value {
         .as_array()
         .expect("catalog factors")
         .iter()
-        .find(|candidate| candidate["key"].as_str() == Some(key))
+        .find(|candidate| {
+            candidate["key"]
+                .as_str()
+                .is_some_and(|candidate| candidate.eq_ignore_ascii_case(key))
+        })
         .unwrap_or_else(|| panic!("catalog is missing factor {key}"))
 }
 
@@ -19,6 +23,22 @@ fn parameter<'a>(catalog: &'a Value, factor_key: &str, name: &str) -> &'a Value 
         .unwrap_or_else(|| panic!("factor {factor_key} is missing parameter {name}"))
 }
 
+/// Iterates catalog factor keys the way the Go editor lookup does: matching the
+/// frozen key case-insensitively so `SIMPLE.CHANGE_PCT` resolves too.
+fn factor_keys(catalog: &Value) -> impl Iterator<Item = &str> {
+    catalog["factors"]
+        .as_array()
+        .expect("catalog factors")
+        .iter()
+        .filter_map(|candidate| candidate["key"].as_str())
+}
+
+/// Parity: go:452dea11:pkg/researchscreen/catalog_test.go:9
+/// TestCatalogIsCompleteStableAndDoesNotExposeProviderEnums
+///
+/// Go pins the catalog header, the 402-factor / 11-category surface, the
+/// period/term enum sizes, ten representative factors and the guarantee that
+/// provider enum values never leak into the public projection.
 #[test]
 fn futu_catalog_preserves_stable_shape_and_public_projection() {
     let catalog = screen_catalog("futu", "").expect("futu catalog");
@@ -68,6 +88,13 @@ fn futu_catalog_preserves_stable_shape_and_public_projection() {
     assert!(catalog.to_string().find("ProviderID").is_none());
 }
 
+/// Parity: go:452dea11:pkg/researchscreen/catalog_test.go:45
+/// TestCatalogParametersExposeEditorContract
+///
+/// Go requires every parameter of the editor-facing factors to carry an editor
+/// type, default, step and minimum, the factors to publish roles/help/search
+/// keywords, and every filterable factor to expose a condition editor,
+/// operators and a resolvable value enum.
 #[test]
 fn futu_parameters_preserve_editor_bounds_defaults_and_enum_metadata() {
     let catalog = screen_catalog("futu", "").expect("futu catalog");
@@ -273,6 +300,65 @@ fn futu_parameters_preserve_editor_bounds_defaults_and_enum_metadata() {
             assert!(descriptor.get("step").is_some_and(Value::is_number));
         }
     }
+
+    // Go requires the editor-facing factors to publish roles, help text and
+    // search keywords, and every filterable factor to expose a condition editor,
+    // operators and a resolvable value enum.
+    for factor_key in [
+        "cumulative.price_change_pct",
+        "financial.roe",
+        "indicator.ma",
+        "option.stock_iv",
+    ] {
+        let descriptor = factor(&catalog, factor_key);
+        assert!(
+            descriptor["roles"]
+                .as_array()
+                .is_some_and(|roles| !roles.is_empty()),
+            "{factor_key} must publish roles"
+        );
+        assert!(
+            descriptor["help"]
+                .as_str()
+                .is_some_and(|help| !help.is_empty()),
+            "{factor_key} must publish help text"
+        );
+        assert!(
+            descriptor["searchKeywords"]
+                .as_array()
+                .is_some_and(|keywords| !keywords.is_empty()),
+            "{factor_key} must publish search keywords"
+        );
+    }
+    for candidate in catalog["factors"].as_array().expect("catalog factors") {
+        if candidate["filter"] != Value::Bool(true) {
+            continue;
+        }
+        let key = candidate["key"].as_str().expect("factor key");
+        assert!(
+            candidate["conditionEditor"]
+                .as_str()
+                .is_some_and(|editor| !editor.is_empty()),
+            "{key} must publish a condition editor"
+        );
+        assert!(
+            candidate["operators"]
+                .as_array()
+                .is_some_and(|operators| !operators.is_empty()),
+            "{key} must publish its operators"
+        );
+        if let Some(enum_name) = candidate["valueEnum"]
+            .as_str()
+            .filter(|name| !name.is_empty())
+        {
+            assert!(
+                catalog["enums"][enum_name]
+                    .as_array()
+                    .is_some_and(|values| !values.is_empty()),
+                "{key} value enum {enum_name} must resolve"
+            );
+        }
+    }
 }
 
 #[test]
@@ -327,6 +413,13 @@ fn catalog_availability_preserves_market_limits_and_reasons() {
     );
 }
 
+/// Parity: go:452dea11:pkg/researchscreen/catalog_embedded_test.go:31
+/// TestEmbeddedCatalogShapeAndSemantics
+///
+/// Go pins the embedded header, the nine-factor intersection, the akshare and
+/// yfinance market labels, the role/unit/format semantics of the shared
+/// factors, and that generated-only factors never appear in the embedded
+/// catalog. Lookups match keys case-insensitively (`SIMPLE.CHANGE_PCT`).
 #[test]
 fn embedded_catalog_keeps_provider_intersection_roles_and_units() {
     for (broker, market) in [("yfinance", "US"), ("akshare", "CN")] {
@@ -349,8 +442,21 @@ fn embedded_catalog_keeps_provider_intersection_roles_and_units() {
             factor(&catalog, "basic.industry")["roles"],
             serde_json::json!(["column"])
         );
+        assert_eq!(factor(&catalog, "simple.price")["filter"], true);
+        assert_eq!(factor(&catalog, "simple.price")["retrieve"], true);
+        assert_eq!(factor(&catalog, "simple.price")["sort"], true);
+        assert_eq!(factor(&catalog, "simple.price")["filterKind"], "interval");
         assert_eq!(factor(&catalog, "simple.price")["unit"], "currency");
         assert_eq!(factor(&catalog, "simple.price")["displayFormat"], "price");
+        assert_eq!(
+            factor(&catalog, "simple.price")["operators"],
+            serde_json::json!(["between"])
+        );
+        assert_eq!(
+            factor(&catalog, "SIMPLE.CHANGE_PCT")["displayFormat"],
+            "percent"
+        );
+        assert_eq!(factor(&catalog, "SIMPLE.CHANGE_PCT")["unit"], "percent");
         assert_eq!(factor(&catalog, "simple.volume")["valueType"], "integer");
         assert_eq!(factor(&catalog, "simple.volume")["unit"], "shares");
         assert_eq!(
@@ -358,6 +464,24 @@ fn embedded_catalog_keeps_provider_intersection_roles_and_units() {
             "integer"
         );
     }
+
+    let akshare = screen_catalog("akshare", "").expect("akshare catalog");
+    assert_eq!(akshare["version"], "embedded-stock-screen-v1");
+    assert_eq!(akshare["provider"], "akshare");
+    assert_eq!(akshare["querySchemaVersion"], 2);
+    assert_eq!(akshare["factors"].as_array().expect("factors").len(), 9);
+    assert_eq!(
+        akshare["markets"],
+        serde_json::json!(["SH", "SZ", "CN", "HK", "US"])
+    );
+    assert!(
+        factor_keys(&akshare).all(|key| !key.eq_ignore_ascii_case("indicator.ma")),
+        "generated-only factors must stay out of the embedded catalog"
+    );
+
+    let yfinance = screen_catalog("yfinance", "US").expect("yfinance catalog");
+    assert_eq!(yfinance["market"], "US");
+    assert_eq!(yfinance["markets"], serde_json::json!(["US"]));
 
     assert_eq!(
         screen_catalog("yfinance", "HK"),
@@ -383,4 +507,152 @@ fn screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_la
         screen_catalog("futu", " cn "),
         Err(ScreenCatalogError::UnsupportedFutuMarket)
     );
+}
+
+/// Parity: go:452dea11:pkg/researchscreen/catalog_test.go:97
+/// TestFactorDisplaySemanticsAreExplicitAndCorrected
+///
+/// Go pins unit, currency basis and display format for ten corrected factors;
+/// factors without a unit or basis keep empty strings.
+#[test]
+fn futu_factor_display_semantics_match_the_editor_table() {
+    let catalog = screen_catalog("futu", "").expect("futu catalog");
+    for (key, unit, currency_basis, display_format) in [
+        ("simple.price", "currency", "quote", "price"),
+        ("simple.market_cap", "currency", "quote", "compact_amount"),
+        (
+            "financial.net_profit",
+            "currency",
+            "reporting",
+            "compact_amount",
+        ),
+        (
+            "financial.float_market_cap",
+            "currency",
+            "quote",
+            "compact_amount",
+        ),
+        ("financial.equity_multiplier", "", "", "number"),
+        ("financial.money_turnover_cycle", "days", "", "integer"),
+        (
+            "financial.stockholder_profit_cagr",
+            "percent",
+            "",
+            "percent",
+        ),
+        (
+            "financial.surprise_revenue_date",
+            "timestamp",
+            "",
+            "timestamp",
+        ),
+        ("featured.cash_flow_net_in_count", "count", "", "integer"),
+        ("indicator.ma", "currency", "quote", "price"),
+    ] {
+        let descriptor = factor(&catalog, key);
+        assert_eq!(
+            descriptor["unit"].as_str().unwrap_or_default(),
+            unit,
+            "{key} unit"
+        );
+        assert_eq!(
+            descriptor["currencyBasis"].as_str().unwrap_or_default(),
+            currency_basis,
+            "{key} currency basis"
+        );
+        assert_eq!(
+            descriptor["displayFormat"].as_str().unwrap_or_default(),
+            display_format,
+            "{key} display format"
+        );
+    }
+}
+
+/// Parity: go:452dea11:pkg/researchscreen/catalog_edges_test.go:8
+/// TestCatalogHelperContractsCoverEditorVariants
+///
+/// Go asserts the generation-time `conditionContract`,
+/// `parameterEditorType` and `parameterHelp` mapping. Rust consumes the frozen
+/// projection those helpers produce, so the reachable rows are asserted against
+/// representative catalog entries: interval → range, enum → singleSelect, set →
+/// multiSelect, interval_or_set → rangeOrSet, position → indicatorCompare and
+/// pattern → pattern, plus the select/multiNumber/union/text/number editor
+/// types and the window/cumulative/indicator/union help texts.
+#[test]
+fn catalog_condition_and_parameter_editor_variants_match_the_frozen_projection() {
+    let catalog = screen_catalog("futu", "").expect("futu catalog");
+    for (key, editor, value_enum) in [
+        ("simple.price", "range", ""),
+        ("field.market", "singleSelect", "market"),
+        ("kline_shape.shape_type", "multiSelect", "kline_shape_type"),
+        (
+            "featured.cash_flow_net_in_count",
+            "rangeOrSet",
+            "cash_flow_period",
+        ),
+        ("indicator.ma", "indicatorCompare", ""),
+        ("pattern.ma_long", "pattern", ""),
+    ] {
+        let descriptor = factor(&catalog, key);
+        assert_eq!(
+            descriptor["conditionEditor"], editor,
+            "{key} condition editor"
+        );
+        assert_eq!(
+            descriptor["valueEnum"].as_str().unwrap_or_default(),
+            value_enum,
+            "{key} value enum"
+        );
+    }
+    assert!(
+        factor(&catalog, "basic.name")
+            .get("conditionEditor")
+            .is_none(),
+        "non-filter factors publish no condition editor"
+    );
+
+    for (factor_key, name, editor) in [
+        ("cumulative.price_change_pct", "days", "number"),
+        ("indicator.ma", "period", "select"),
+        ("indicator.ma", "indicatorParams", "multiNumber"),
+        ("option.stock_iv", "optionParam", "union"),
+        ("broker.holdings_ratio", "brokerParam", "text"),
+    ] {
+        assert_eq!(
+            parameter(&catalog, factor_key, name)["editorType"],
+            editor,
+            "{factor_key}.{name} editor"
+        );
+    }
+    for (name, fragment) in [
+        ("days", "统计窗口"),
+        ("duration", "累计周期"),
+        ("indicatorParams", "指标专用参数"),
+        ("optionParam", "期权参数联合类型"),
+        ("periodAverage", "可选参数"),
+    ] {
+        let help = parameter(&catalog, help_factor(name), name)["help"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned();
+        assert!(
+            help.contains(fragment),
+            "parameterHelp({name}) = {help:?} must contain {fragment:?}"
+        );
+    }
+    assert_eq!(
+        parameter(&catalog, "indicator.ma", "period")["help"],
+        "从目录枚举中选择",
+        "enum parameters publish the enum help text"
+    );
+}
+
+fn help_factor(parameter_name: &str) -> &'static str {
+    match parameter_name {
+        "days" => "cumulative.price_change_pct",
+        "duration" => "financial.net_profit",
+        "indicatorParams" => "indicator.ma",
+        "optionParam" => "option.stock_iv",
+        _ => "financial.net_profit",
+    }
 }

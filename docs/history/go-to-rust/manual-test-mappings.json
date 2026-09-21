@@ -24095,171 +24095,171 @@
   },
   "pkg/researchscreen/catalog_edges_test.go:8:TestCatalogHelperContractsCoverEditorVariants": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-research/tests/catalog_parameter_availability_boundaries.rs::catalog_condition_and_parameter_editor_variants_match_the_frozen_projection",
+    "conclusion": "部分覆盖：Go 直接断言生成期 helper 表（conditionContract 10 行、parameterEditorType 9 行、parameterHelp 7 行 + 枚举帮助）。本批新增 Rust 测试对同一映射的可达行逐条断言：interval→range、enum→singleSelect+market、set→multiSelect+kline_shape_type、interval_or_set→rangeOrSet+cash_flow_period、position→indicatorCompare、pattern→pattern、非 filter 无编辑器；select/multiNumber/union/text/number 编辑器；统计窗口/累计周期/指标专用参数/期权参数联合类型/可选参数帮助与枚举帮助。合成行（Filter=false→空、FilterKind=unknown→range 回退、自定义参数名）在冻结目录里不可达，保留边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(catalog_condition_and_parameter_editor_variants_match_the_frozen_projection)'",
+    "evidence_type": "partial"
   },
   "pkg/researchscreen/catalog_edges_test.go:82:TestCatalogParameterBoundsAndAvailability": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-research/tests/catalog_parameter_availability_boundaries.rs::futu_parameters_preserve_editor_bounds_defaults_and_enum_metadata",
+    "conclusion": "部分覆盖：Go 断言 int64PointerAtLeast/AtMost 的钳制与保留语义（含 nil 指针）、14 个参数名都有 minimum/step、days 必填且有默认与上界、broker/option 的市场可用性（HK broker unsupported、SH option unsupported 且 reason 含 SH、US option available）与 ValidateFactorUse 正反例。Rust：钳制结果固化在 fixture 并由 futu_parameters_preserve_editor_bounds_defaults_and_enum_metadata 逐参数断言 bounds/default/step/enum（clamp helper 是生成期函数，无运行时入口）；可用性由 catalog_availability_preserves_market_limits_and_reasons 断言；ValidateFactorUse 见 catalog_test.go:77 结论。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(futu_parameters_preserve_editor_bounds_defaults_and_enum_metadata)'",
+    "evidence_type": "partial"
   },
   "pkg/researchscreen/catalog_edges_test.go:138:TestValidateCatalogRejectsIncompleteSemanticRows": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "conclusion": "边界保留：Go 通过替换包级 generatedFactors/generatedEnums 构造 9 种语义不完整目录（空表、缺身份、缺角色、缺语义角色、缺编辑器、悬空 valueEnum、参数缺身份/枚举/必填默认值），要求 ValidateCatalog() 报错。Rust 的目录是冻结 fixture（catalog.rs 只校验 fixture 版本与 13 个目录变体数量），语义完整性由生成期与语料测试保证，没有运行时 ValidateCatalog 入口，也没有可变目录表，该拒绝矩阵在 Rust 模型下不可达。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "pkg/researchscreen/catalog_embedded_test.go:31:TestEmbeddedCatalogShapeAndSemantics": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/tests/catalog_parameter_availability_boundaries.rs::embedded_catalog_keeps_provider_intersection_roles_and_units",
+    "conclusion": "function_exact（本批补强断言）：Go 断言 embedded header（version/provider/querySchemaVersion）、9 个因子、akshare markets [SH,SZ,CN,HK,US]、yfinance market US 且 markets [US]、simple.price 的 filter/retrieve/sort/filterKind/unit/displayFormat/operators、大小写不敏感查找 SIMPLE.CHANGE_PCT（percent/percent）、simple.volume（shares/integer/integer）、basic.code/name/industry 角色，以及 indicator.ma 不得出现。Rust 同一测试现逐条断言以上全部（查找改为大小写不敏感以对齐 Go Lookup/LookupEmbedded）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(embedded_catalog_keeps_provider_intersection_roles_and_units)'",
+    "evidence_type": "function_exact"
   },
   "pkg/researchscreen/catalog_embedded_test.go:80:TestEmbeddedCatalogValidationUseFlags": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-research/tests/definition_normalization_contracts.rs::normalization_and_field_errors_match_the_go_owner_corpus",
+    "conclusion": "部分覆盖：Go 断言 ValidateEmbeddedFactorUse 拒绝 basic.code 过滤、basic.name/basic.industry 排序、simple.market_cap 全角色通过、futu-only 因子报 \"unknown embedded\"。Rust 无该 helper：嵌入目录角色约束固化在 fixture（roles 数组，由 embedded_catalog_keeps_provider_intersection_roles_and_units 断言），用途违规由语料 case factor-role-invalid 以 unsupported_role 覆盖，futu-only 因子在嵌入目录中不存在（新断言 indicator.ma 缺席）。差异：Go 的错误文本 \"unknown embedded\" 与逐用途布尔入参在 Rust 无对应入口。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(normalization_and_field_errors_match_the_go_owner_corpus)'",
+    "evidence_type": "partial"
   },
   "pkg/researchscreen/catalog_embedded_test.go:99:TestNormalizeDefinitionV2AcceptsEmbeddedCatalog": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-research/tests/definition_normalization_contracts.rs::normalization_and_field_errors_match_the_go_owner_corpus",
+    "conclusion": "部分覆盖：语料 case embedded-catalog（embedded-stock-screen-v1 + SH 归一化通过）与 unsupported-embedded-market 覆盖主路径与未知市场拒绝；Rust 在归一化前把 market trim+ASCII 大写（definition.rs 归一化头部），因此 Go 的 \"cn\" 小写接受行为成立但无独立断言；\"MO\" 拒绝与 unsupported-embedded-market 同类。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(normalization_and_field_errors_match_the_go_owner_corpus)'",
+    "evidence_type": "partial"
   },
   "pkg/researchscreen/catalog_embedded_test.go:121:TestNormalizeDefinitionV2EmbeddedRejectsOutOfCatalogFactors": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-research/tests/definition_normalization_contracts.rs::normalization_and_field_errors_match_the_go_owner_corpus",
+    "conclusion": "部分覆盖：语料 case factor-unknown（条件里出现生成期因子 indicator.ma → unsupported_factor）覆盖第一分支；第二分支（生成期因子作为 column 被拒）走同一 find_factor 路径但未单独断言，第三分支（gt → unsupported_operator）由 condition-operator-wrong-kind 覆盖同类。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(normalization_and_field_errors_match_the_go_owner_corpus)'",
+    "evidence_type": "partial"
   },
   "pkg/researchscreen/catalog_embedded_test.go:149:TestNormalizeDefinitionV2FutuContractUnchanged": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-research/tests/definition_normalization_contracts.rs::normalization_and_field_errors_match_the_go_owner_corpus",
+    "conclusion": "部分覆盖：语料 case unsupported-catalog（embedded-stock-screen-v0 → unsupported_catalog）与 unsupported-futu-market（futu 目录下 CN → unsupported_market）逐例断言；Go 的第一段（futu 定义成功）由 canonical-header-pool-sort-and-second-factor 与 empty-valid-definition 等价覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(normalization_and_field_errors_match_the_go_owner_corpus)'",
+    "evidence_type": "partial"
   },
   "pkg/researchscreen/catalog_test.go:9:TestCatalogIsCompleteStableAndDoesNotExposeProviderEnums": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/tests/catalog_parameter_availability_boundaries.rs::futu_catalog_preserves_stable_shape_and_public_projection",
+    "conclusion": "function_exact：Go 断言目录 header（version/providerVersion/schemaVersion/querySchemaVersion）、factors=402、categories=11、period/term 枚举 10/14、10 个代表因子存在且 providerId 非 0，并要求序列化结果不出现 providerId/ProviderID。Rust 同一测试逐条断言相同 header、402/11、period=10/term=14、同一组因子、每个因子无 providerId 字段且整份 JSON 不含 \"ProviderID\"。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(futu_catalog_preserves_stable_shape_and_public_projection)'",
+    "evidence_type": "function_exact"
   },
   "pkg/researchscreen/catalog_test.go:45:TestCatalogParametersExposeEditorContract": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/tests/catalog_parameter_availability_boundaries.rs::futu_parameters_preserve_editor_bounds_defaults_and_enum_metadata",
+    "conclusion": "function_exact（本批补强断言）：Go 要求 4 个编辑面因子（cumulative.price_change_pct、financial.roe、indicator.ma、option.stock_iv）的每个参数都有 editorType/default/step/minimum，因子有 roles/help/searchKeywords，且所有 filter 因子都有 conditionEditor、operators 与可解析的 valueEnum。Rust 原有断言已覆盖 editor/default/minimum/step/enum；本批新增因子级 roles/help/searchKeywords 与全目录 filter 因子 conditionEditor/operators/valueEnum 解析断言（探针：见 definition_edges_test.go:56 的 guard 探针同批记录）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(futu_parameters_preserve_editor_bounds_defaults_and_enum_metadata)'",
+    "evidence_type": "function_exact"
   },
   "pkg/researchscreen/catalog_test.go:77:TestValidateFactorUseRejectsUnsupportedPurposes": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-research/tests/catalog_parameter_availability_boundaries.rs::catalog_availability_preserves_market_limits_and_reasons",
+    "conclusion": "部分覆盖：Go 断言 ValidateFactorUse 拒绝 field.market 作条件、pattern 作排序、未知因子；ValidateFactorForMarket 拒绝 US 下的 broker.holdings_ratio；broker.broker_rank 在 HK 的 availability=unsupported。Rust 无这两个导出函数：用途约束在归一化的角色校验（语料 factor-role-invalid）与目录可用性投影中体现——catalog_availability_preserves_market_limits_and_reasons 断言 broker.holdings_ratio 在空市场/US 为 unsupported（含 OpenD 文档原因）、option.stock_iv 在 SH unsupported（reason 含 SH）、HK/US available，以及 markets 列表。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(catalog_availability_preserves_market_limits_and_reasons)'",
+    "evidence_type": "partial"
   },
   "pkg/researchscreen/catalog_test.go:97:TestFactorDisplaySemanticsAreExplicitAndCorrected": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/tests/catalog_parameter_availability_boundaries.rs::futu_factor_display_semantics_match_the_editor_table",
+    "conclusion": "function_exact（本批新增测试）：Go 对 10 个因子断言 unit/currencyBasis/displayFormat 的组合（无单位或基准的行保持空串）。Rust 新增 futu_factor_display_semantics_match_the_editor_table 逐行断言同一表格（simple.price、simple.market_cap、financial.net_profit、financial.float_market_cap、financial.equity_multiplier、financial.money_turnover_cycle、financial.stockholder_profit_cagr、financial.surprise_revenue_date、featured.cash_flow_net_in_count、indicator.ma）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(futu_factor_display_semantics_match_the_editor_table)'",
+    "evidence_type": "function_exact"
   },
   "pkg/researchscreen/definition_edges_test.go:13:TestDefinitionHelperContractsCoverSupportedValueShapes": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "conclusion": "部分覆盖：Go 直接断言 helper 契约——(*FieldError)(nil).Error() 文本、cleanIDs 的 trim+去重、inferOperator（map→between、slice→in、scalar→eq）、numericSlice（[]int64 与 []any{float64,json.Number}）与 numericJSONValue（六种数字类型接受、字符串拒绝）。Rust 无这些导出 helper：算子推断由语料 case inferred-set-operator / inferred-scalar-operator 覆盖三种形状；数值形状由 serde_json::Value 的类型系统承担（json.Number 在 serde_json 中不存在，数字一律 f64/i64）；FieldError 的 nil 文本、cleanIDs、numericSlice/numericJSONValue 属 Go 语言层 helper，无运行时入口。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(normalization_and_field_errors_match_the_go_owner_corpus)'",
+    "evidence_type": "partial"
   },
   "pkg/researchscreen/definition_edges_test.go:56:TestParameterValidationRejectsTypeRangeStepAndEnumErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/definition/parameters.rs::parameter_validation_rejects_type_range_step_and_enum_errors",
+    "conclusion": "function_exact（本批新增测试）：Go 直接调用 validateParameterValue 断言 9 种错误的 code（string/array 类型、非数字成员、NaN、分数整数、minimum、maximum、step、enum）与 2 个通过例。Rust 新增同层单测对 validate_parameter_value 逐例断言同一 code 表与 2 个通过例；差异：Go 的 math.NaN() 例在 Rust 不可达（serde_json::Value 无法承载 NaN/Infinity，非有限分支无输入可达）。探针：把 step 分支短路后本测试转红，shasum 校验按字节回滚（d4fa7e4e…）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(parameter_validation_rejects_type_range_step_and_enum_errors)'",
+    "evidence_type": "function_exact"
   },
   "pkg/researchscreen/definition_edges_test.go:94:TestUnionValidationCoversEveryProviderShape": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/src/definition/parameters.rs::union_validation_covers_every_provider_member_shape",
+    "conclusion": "function_exact（本批新增测试）：Go 断言 optionParam 联合类型 4 个通过形状（空、string/integer/integers 成员）与 7 个失败形状（未支持名称 other、类型非整数、三种成员缺失、integers 成员非整数、类型 4 越枚举）。Rust 新增同层单测以同一组输入调用 validate_union_parameter（含 name=\"other\" 的 unsupported_union 分支）逐条断言 Ok 与错误 code。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(union_validation_covers_every_provider_member_shape)'",
+    "evidence_type": "function_exact"
   },
   "pkg/researchscreen/definition_edges_test.go:132:TestConditionValueValidationCoversSetRangePositionAndPattern": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-research/tests/definition_normalization_contracts.rs::normalization_and_field_errors_match_the_go_owner_corpus",
+    "conclusion": "部分覆盖：Rust 语料 9 个 case 覆盖 Go 的全部子例类别——set（[1] 通过、空数组与字符串非法）、range/interval（min/max/intervals 合法；空对象、min>max、非数组 intervals、成员空对象非法）、position（1..4 合法、secondValue 或 secondFactor 必需、越界/非对象非法）、pattern（{} 与 match=true 合法；字符串与非布尔 match 非法），断言 path+code+message 全等；差异仅在 Go 直接调用 helper 函数的层次与 [x] 唯一引用约束。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(normalization_and_field_errors_match_the_go_owner_corpus)'",
+    "evidence_type": "partial"
   },
   "pkg/researchscreen/definition_edges_test.go:199:TestDefinitionNormalizationCoversPoolsSortsAndSecondFactors": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-research/tests/definition_normalization_contracts.rs::normalization_and_field_errors_match_the_go_owner_corpus",
+    "conclusion": "部分覆盖：Go 断言 market \" hk \"→HK、brokerId 默认 futu、watchlist \" 123 \"→123、plates parent/plateIds trim 去重、sort 默认 direction=desc 与 id=sort-1、secondFactor InstanceID 非空，并断言 ValidateDefinitionV2(normalized) 通过。Rust 语料 case canonical-header-pool-sort-and-second-factor、catalog-defaults 断言同一归一化输出（含 header 默认值），second-factor-must-be-indicator 覆盖 secondFactor 规则；Rust 没有独立 ValidateDefinitionV2 入口（归一化即校验），该步以 normalize 成功等价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(normalization_and_field_errors_match_the_go_owner_corpus)'",
+    "evidence_type": "partial"
   },
   "pkg/researchscreen/definition_edges_test.go:249:TestDefinitionNormalizationRejectsPoolSortAndIdentityErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-research/tests/definition_normalization_contracts.rs::normalization_and_field_errors_match_the_go_owner_corpus",
+    "conclusion": "function_exact：Go 的 8 种拒绝（SG 市场、plates 空 IDs、watchlist 空/非数字、sort direction 非法、sort 角色非法、重复 column/condition id）在本批 Rust 冻结语料中以 9 个 case（unsupported-futu-market、plate-ids-required、watchlist-id-required、watchlist-id-invalid、factor-key-required、duplicate-condition-id、duplicate-column-id、sort-direction-invalid、sort-factor-role-invalid）由同一个归一化入口逐例断言 path+code+message 全等。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(normalization_and_field_errors_match_the_go_owner_corpus)'",
+    "evidence_type": "function_exact"
   },
   "pkg/researchscreen/definition_test.go:10:TestNormalizeDefinitionPreservesParameterizedInstances": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-research/tests/definition_normalization_contracts.rs::normalization_and_field_errors_match_the_go_owner_corpus",
+    "conclusion": "部分覆盖：Go 断言两列 indicator.ma（IndicatorParams [20] / [60]）归一化后 InstanceID 非空且互不相同，且各自保留 20/60。Rust 由冻结语料 case parameterized-instance-identities（sourceTest 即本 Go 测试）断言同一组归一化输出：identity 以 key+params+index 稳定生成、参数原样保留。差异：①该 Rust 测试已作为本批 definition_edges_test.go:249 的 [x] 证据，按「[x] rust_entry 全局唯一」不在本行重复占用；②哈希串形状不同（Go factor_<16hex> vs Rust {prefix}-{key}-<10hex>，均为稳定哈希但字面不同）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(normalization_and_field_errors_match_the_go_owner_corpus)'",
+    "evidence_type": "partial"
   },
   "pkg/researchscreen/definition_test.go:35:TestNormalizeDefinitionRequiresExplicitV2Versions": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-research/tests/definition_normalization_contracts.rs::normalization_and_field_errors_match_the_go_owner_corpus",
+    "conclusion": "部分覆盖：Go 三个子例（缺 querySchemaVersion、V1、缺 catalogVersion）要求 FieldError 路径分别为 querySchemaVersion/catalogVersion。Rust 语料 case missing-query-schema、v1-query-schema、missing-catalog 逐例断言同一 path 与 code（unsupported_schema/unsupported_catalog），且 message 也全等（比 Go 更强）；仅因 [x] 唯一引用约束保持 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(normalization_and_field_errors_match_the_go_owner_corpus)'",
+    "evidence_type": "partial"
   },
   "pkg/researchscreen/definition_test.go:71:TestNormalizeDefinitionRejectsDuplicateConfigurationWithFieldPath": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-research/tests/definition_normalization_contracts.rs::normalization_and_field_errors_match_the_go_owner_corpus",
+    "conclusion": "部分覆盖：Go 断言两列同 key+params 时报 columns[1].factor / duplicate_factor。Rust 语料 case duplicate-column-factor 与 duplicate-condition-factor 断言同一 path+code（条件与列两条路径），仅因 [x] 唯一引用约束保持 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(normalization_and_field_errors_match_the_go_owner_corpus)'",
+    "evidence_type": "partial"
   },
   "pkg/researchscreen/definition_test.go:87:TestNormalizeDefinitionRejectsMarketIncompatibleFactor": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-research/tests/definition_normalization_contracts.rs::normalization_and_field_errors_match_the_go_owner_corpus",
+    "conclusion": "部分覆盖：Go 断言 US 定义中 broker.holdings_ratio 报 conditions[0].factor.factorKey。Rust 语料 case factor-market-invalid 断言同一 path（与 market 冲突的因子键），仅因 [x] 唯一引用约束保持 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(normalization_and_field_errors_match_the_go_owner_corpus)'",
+    "evidence_type": "partial"
   },
   "pkg/researchscreen/definition_test.go:103:TestNormalizeDefinitionValidatesParameterTypesEnumsAndUnions": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-research/tests/definition_normalization_contracts.rs::normalization_and_field_errors_match_the_go_owner_corpus",
+    "conclusion": "部分覆盖：Go 断言 period=999 报 columns[0].factor.params.period/invalid_enum、optionParamType=2 缺整数成员报 columns[0].factor.params.optionParam.integer/required。Rust 语料 case parameter-invalid-enum 与 parameter-union-member-required 断言同一 path+code；本批另新增 parameters.rs 单测覆盖更多类型/union 形状（见 definition_edges_test.go:56/94）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(normalization_and_field_errors_match_the_go_owner_corpus)'",
+    "evidence_type": "partial"
   },
   "pkg/researchscreen/definition_test.go:139:TestNormalizeDefinitionRejectsWrongOperatorForFactorKind": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-research/tests/definition_normalization_contracts.rs::normalization_and_field_errors_match_the_go_owner_corpus",
+    "conclusion": "部分覆盖：Go 断言 indicator.ma + between 报 conditions[0].operator/unsupported_operator。Rust 语料 case condition-operator-unknown 与 condition-operator-wrong-kind 断言同一 path+code，仅因 [x] 唯一引用约束保持 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(normalization_and_field_errors_match_the_go_owner_corpus)'",
+    "evidence_type": "partial"
   },
   "scripts/archive_frontend_assets_test.go:11:TestArchiveFrontendAssetsPreservesRelativePathsAndTimestamp": {
     "status": "[~]",
