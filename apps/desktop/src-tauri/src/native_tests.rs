@@ -262,6 +262,33 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn development_pine_runtime_without_staged_bundle_reports_unavailable_asset() {
+        let repository = tempfile::tempdir().expect("temporary repository root");
+        let result = retained_runtime_config(Some(repository.path()), Path::new("/unused"), None);
+        assert!(matches!(
+            result,
+            Err(NativeError::MissingAsset {
+                name: "PineTS worker bundle",
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn pine_worker_bundle_file_name_is_platform_independent() {
+        assert_eq!(PINE_WORKER_BUNDLE_FILE_NAME, "worker.mjs");
+        assert!(!PINE_WORKER_BUNDLE_FILE_NAME.contains(['/', '\\']));
+
+        let development = pine_worker_bundle_fallback(Some(Path::new("/repository")), Path::new("/unused"))
+            .expect("development bundle path");
+        assert!(development.ends_with("var/pineworker/worker.mjs"));
+
+        let release = pine_worker_bundle_fallback(None, Path::new("/resources"))
+            .expect("release bundle path");
+        assert!(release.ends_with("runtime/pineworker/worker.mjs"));
+    }
+
 
     // Parity: go:452dea11:internal/app/apiserver/runtimes/handle_lifecycle_test.go:417 TestHandleConcurrentCloseIsIdempotentAndAggregatesErrors
     // Parity: go:452dea11:internal/app/apiserver/application/resources_test.go:78 TestResourcesCloseIsIdempotentAndConcurrentSafe

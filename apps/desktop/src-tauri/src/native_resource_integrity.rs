@@ -29,6 +29,28 @@ fn start_native_product(
     tauri::async_runtime::block_on(builder.start()).map_err(Into::into)
 }
 
+/// Canonical staged file name of the PineTS worker bundle. The retired Go
+/// `pineworkerassets.BundleName()` returned this constant on every platform;
+/// staging, release manifests and runtime resolution must agree on it.
+const PINE_WORKER_BUNDLE_FILE_NAME: &str = "worker.mjs";
+
+/// Repository-relative (development) or resource-relative (release) default
+/// location of the PineTS worker bundle, ignoring the environment override.
+fn pine_worker_bundle_fallback(
+    repository_root: Option<&Path>,
+    resource_root: &Path,
+) -> Option<PathBuf> {
+    repository_root
+        .map(|root| root.join("var/pineworker").join(PINE_WORKER_BUNDLE_FILE_NAME))
+        .or_else(|| {
+            repository_root.is_none().then(|| {
+                resource_root
+                    .join("runtime/pineworker")
+                    .join(PINE_WORKER_BUNDLE_FILE_NAME)
+            })
+        })
+}
+
 fn retained_runtime_config(
     repository_root: Option<&Path>,
     resource_root: &Path,
@@ -37,9 +59,7 @@ fn retained_runtime_config(
     let release_asset = |path: &str| repository_root.is_none().then(|| resource_root.join(path));
     let pine_bundle = required_asset(
         "JFTRADE_PINEWORKER_BUNDLE",
-        repository_root
-            .map(|root| root.join("var/pineworker/worker.mjs"))
-            .or_else(|| release_asset("runtime/pineworker/worker.mjs")),
+        pine_worker_bundle_fallback(repository_root, resource_root),
         "PineTS worker bundle",
     )?;
     let pine_proto = required_asset(

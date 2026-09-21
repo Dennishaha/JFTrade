@@ -167,11 +167,18 @@ mod tests {
         let resource = directory.path().join("runtime/node/node");
         fs::create_dir_all(resource.parent().expect("resource parent")).expect("create resource");
         fs::write(&resource, b"node").expect("write resource");
+        let bundle = directory.path().join("runtime/pineworker/worker.mjs");
+        fs::create_dir_all(bundle.parent().expect("bundle parent"))
+            .expect("create bundle directory");
+        fs::write(&bundle, b"export default 'pineworker'").expect("write worker bundle");
         let manifest = json!({
             "schemaVersion": MANIFEST_SCHEMA,
             "target": {"platform": release_platform(), "architecture": release_architecture()},
             "nodeVersion": "v24.0.0",
-            "files": [{"resource": "runtime/node/node", "sha256": sha256_file(&resource).expect("hash")}]
+            "files": [
+                {"resource": "runtime/node/node", "sha256": sha256_file(&resource).expect("hash")},
+                {"resource": "runtime/pineworker/worker.mjs", "sha256": sha256_file(&bundle).expect("hash")}
+            ]
         });
         fs::write(
             directory.path().join("runtime/node/manifest.json"),
@@ -180,10 +187,41 @@ mod tests {
         .expect("write manifest");
         verify_release_resources(directory.path()).expect("verify exact resources");
 
-        fs::write(resource, b"tampered").expect("tamper resource");
+        fs::write(&resource, b"tampered").expect("tamper resource");
         assert!(matches!(
             verify_release_resources(directory.path()),
             Err(ResourceIntegrityError::Hash { .. })
+        ));
+
+        fs::write(&resource, b"node").expect("restore resource");
+        fs::write(&bundle, b"tampered worker").expect("tamper worker bundle");
+        assert!(matches!(
+            verify_release_resources(directory.path()),
+            Err(ResourceIntegrityError::Hash { path, .. })
+                if path.ends_with("runtime/pineworker/worker.mjs")
+        ));
+    }
+
+    #[test]
+    fn rejects_missing_staged_resource_instead_of_serving_without_it() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let manifest_directory = directory.path().join("runtime/node");
+        fs::create_dir_all(&manifest_directory).expect("create manifest directory");
+        let manifest = json!({
+            "schemaVersion": MANIFEST_SCHEMA,
+            "target": {"platform": release_platform(), "architecture": release_architecture()},
+            "nodeVersion": "v24.0.0",
+            "files": [{"resource": "runtime/pineworker/worker.mjs", "sha256": "0".repeat(64)}]
+        });
+        fs::write(
+            manifest_directory.join("manifest.json"),
+            serde_json::to_vec(&manifest).expect("manifest"),
+        )
+        .expect("write manifest");
+        assert!(matches!(
+            verify_release_resources(directory.path()),
+            Err(ResourceIntegrityError::Read { path, .. })
+                if path.ends_with("runtime/pineworker/worker.mjs")
         ));
     }
 
