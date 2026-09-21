@@ -150,7 +150,7 @@ mod tests {
 
     #[test]
     fn tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume() {
-        // Parity: internal/marketdata/cache_test.go:207 TestTickCandlesVolumeWindowAndLimit
+        // Parity: go:452dea11:internal/marketdata/cache_test.go:210 TestTickCandlesVolumeWindowAndLimit
         let now = 1_760_000_000_000_i64;
         let samples = vec![
             tick("100.10", Some("100"), now - 16 * 60_000, Some("regular")),
@@ -197,7 +197,7 @@ mod tests {
 
     #[test]
     fn tick_candles_use_explicit_volume_delta_across_trading_days() {
-        // Parity: internal/marketdata/cache_test.go:241
+        // Parity: go:452dea11:internal/marketdata/cache_test.go:241
         // TestTickCandlesUsesExplicitVolumeDeltaAcrossTradingDays
         //
         // The candle volume is the provider's explicit per-event delta, never

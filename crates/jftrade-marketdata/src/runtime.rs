@@ -253,6 +253,7 @@ mod tests {
 
     #[test]
     fn retry_delay_is_capped_after_four_failures() {
+        // Parity: go:452dea11:internal/marketdata/collector_test.go:355 TestRetryDelaySequence
         let recorder = MarketDataRuntimeRecorder::default();
         let generation = recorder.reconcile(["US.AAPL".to_owned()]);
         let now: WireTimestamp = "2026-08-24T00:00:00Z".parse().expect("timestamp");

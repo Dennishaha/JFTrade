@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn test_board_kind_defaults_empty_to_industry() {
-    // Parity: internal/marketdata/rankings_facade_test.go:193 TestServiceIndustriesDefaultsEmptyKindToIndustry
+    // Parity: go:452dea11:internal/marketdata/rankings_facade_test.go:184 TestServiceIndustriesDefaultsEmptyKindToIndustry
     let empty_query = QueryMap::parse("").expect("empty query");
     assert_eq!(board_kind(&empty_query).expect("kind"), "industry");
 

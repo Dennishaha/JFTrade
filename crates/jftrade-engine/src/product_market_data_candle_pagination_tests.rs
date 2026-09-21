@@ -908,6 +908,7 @@ async fn tick_candles_query_the_provider_once_on_cache_miss_and_ingest_the_sampl
 /// provider error.
 #[tokio::test]
 async fn tick_candles_fall_back_to_retained_cache_on_ticker_error() {
+    // Parity: go:452dea11:internal/marketdata/cache_test.go:337 TestServiceTickCandleFallsBackToRetainedCache
     let now_ms = current_unix_millis();
     let observed_at_ms = now_ms - 60_000;
     let router = ProviderRouter::new(8);

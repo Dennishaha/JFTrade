@@ -236,3 +236,62 @@ index/plate）停留在 `[~]`/boundary：Go 把这些块放在完整
 的权威契约只有九字段 envelope 并允许 provider 追加研究字段。Rust 侧
 `futu_securities_route_projects_broker_neutral_envelope_boundary` 断言这些
 块不存在且不得伪造。
+
+## 批次 F：internal/marketdata 剩余 112 条收口（go:452dea11）
+
+批次范围：`internal/marketdata` 在清单中剩余的全部 112 条 `missing`，覆盖 17 个文件
+（instrument_resolver 15、collector 13、subscription_lifecycle 12、service_facade 10、
+lifecycle_boundaries 8、provider_switch_lifecycle 7、provider_switch_boundaries 6、
+rankings_facade 6、cache 剩余 5、candle_sessions 5、company_research_facade 5、
+calendar_macro_facade 4、news_facade 4、subscriptions 4、index_constituents_facade 3、
+screen_facade 3、quote_availability 2）。
+
+分片执行：P0 生命周期与订阅所有权 46 条（subscription_lifecycle 12、provider_switch_lifecycle 7、
+provider_switch_boundaries 6、lifecycle_boundaries 8、collector 13）→ P1 数据语义与缓存 37 条
+（cache 剩余 5、candle_sessions 5、quote_availability 2、instrument_resolver 15、service_facade 10）
+→ P2 façade 只读投影 29 条（rankings 6、company_research 5、calendar_macro 4、news 4、
+index_constituents 3、screen 3、subscriptions 4）。每片先用 Go 断言摘要逐测试比对 Rust 入口池
+（`jftrade-marketdata`、`jftrade-engine` market_data 读/订阅端口、`jftrade-integration-futu`
+订阅执行器、`jftrade-integration-marketdata-helper`、`jftrade-watchlist`），再写回清单。
+
+结果：本批 112 条 = **5 `[x]`/function_exact + 104 partial + 3 boundary**，`internal/marketdata/**`
+全域归零（122 条 = 5 `[x]` + 114 partial + 3 boundary，0 missing）。全局 4451 条 =
+function_exact 1209 + partial 2147 + boundary 529 + module_only 4 + **missing 562**。
+
+本批新增 `[x]` 与锚点（锚点行号一律对齐清单键，去掉历史偏行）：
+
+| Go 测试 | Rust 入口 | 锚点动作 |
+| --- | --- | --- |
+| `collector_test.go:355` TestRetryDelaySequence | `jftrade-marketdata/src/runtime.rs::retry_delay_is_capped_after_four_failures` | 新增 `// Parity:`（退避 5/10/20/30/30 逐项一致） |
+| `cache_test.go:210` TestTickCandlesVolumeWindowAndLimit | `jftrade-marketdata/src/tick_candles.rs::tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume` | 既有锚点行号 :207 → :210 |
+| `cache_test.go:241` TestTickCandlesUsesExplicitVolumeDeltaAcrossTradingDays | `jftrade-marketdata/src/tick_candles.rs::tick_candles_use_explicit_volume_delta_across_trading_days` | 既有锚点补 `go:452dea11` 前缀 |
+| `lifecycle_boundaries_test.go:95` TestNormalizeInstrumentIDRejectsIncompleteValues | `jftrade-watchlist/src/lib.rs::test_normalize_instrument_id_rejects_incomplete_values` | 既有锚点行号 :87 → :95 |
+| `rankings_facade_test.go:184` TestServiceIndustriesDefaultsEmptyKindToIndustry | `jftrade-engine/src/product_production_ports_research_market_tests.rs::test_board_kind_defaults_empty_to_industry` | 既有锚点行号 :193 → :184 |
+
+另有两条被 Go 侧同行为路径先占用唯一 Rust 证据的行，按“`[x]` rust_entry 全局唯一”的审计规则
+保留 partial 并写明理由：`cache_test.go:337`（Rust 回落缓存测试已作为
+`internal/app/apiserver/marketdataapp/market_http_test.go:442` 的证据）与
+`candle_sessions_test.go:8`（会话解析测试已作为
+`internal/app/apiserver/marketdataapp/query_test.go:45` 的证据）。
+
+保留差异与补测候选（登记为后续批次输入）：
+
+1. **provider 状态 streamMode**：Go 的 poll-only 健康模式（degraded → `snapshot-poll-delayed`、
+   有需求 → `snapshot-poll-fallback`）在 Rust `/api/v1/market-data/provider` 对 helper provider
+   固定返回 `idle`（`product_production_ports_provider.rs`），`snapshot-poll-fallback` 只出现在
+   live WS heartbeat 的 `transport.mode`；涉及 `provider_switch_boundaries_test.go:81`、
+   `service_facade_test.go:335`、`subscriptions_test.go:100` 三条。
+2. **helper 解析器缓存与单飞**：Go `MarketSubsetInstrumentResolver` 的关键词归一缓存、TTL 失效、
+   单飞内二次查缓存、错误不缓存与 Reset 代际隔离在 Rust 无同形实现（provider 搜索由 Python
+   sidecar 承担）；涉及 `instrument_resolver_test.go:248/314/365/397`。
+3. **引用计数/并发压力断言缺口**：64 消费者并发 acquire/heartbeat/release、managed 并发 release
+   幂等、激活与关闭 exactly-one 之外的顺序竞争在 Rust 由类型与租约结构保证，缺少同形压力断言。
+4. **报价可用性**：Go 用 `Availability.Authoritative` 在运行时决定零值输出 `null`；Rust 由
+   `Option`/`PriceValue` 类型表达（缺失即 null、零值输出 `"0"`），无同形 wire 断言
+   （`quote_availability_test.go` 两条）。
+5. **不适用边界**：nil 接收者分支（`provider_switch_boundaries_test.go:37`、
+   `service_facade_test.go:320` 的 nil 序列化）在 Rust 类型系统下不存在，按边界保留。
+6. **CN 聚合→叶市场读路由**：snapshot/details/candles/depth/news/index 的 CN 聚合改写在 Rust
+   没有逐入口断言（前缀推断有测试，路由改写无）。
+
+验证：`cargo fmt --all -- --check`；`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-watchlist -p jftrade-engine --all-targets --locked --no-fail-fast`（**1782 passed / 0 skipped**）；`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2927 Rust** / **1209 `[x]`**；missing 562、partial 2147、boundary 529、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线、7 条 partial 无解析引用与 2 条无断言为前批已登记缺口）；`pnpm run check:compatibility`（EXIT=0）；`node scripts/check-zero-go.mjs`（2891 tracked files / 0 release artifact）；`pnpm run check:rust:architecture`；`git diff --check`；`pnpm run check:quick`（EXIT=0）；`pnpm run check:ai-context`。

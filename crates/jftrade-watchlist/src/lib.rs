@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_normalize_instrument_id_rejects_incomplete_values() {
-        // Parity: internal/marketdata/lifecycle_boundaries_test.go:87 TestNormalizeInstrumentIDRejectsIncompleteValues
+        // Parity: go:452dea11:internal/marketdata/lifecycle_boundaries_test.go:95 TestNormalizeInstrumentIDRejectsIncompleteValues
         assert_eq!(
             normalize_instrument_id("US."),
             Err(WatchlistError::InvalidInstrument)

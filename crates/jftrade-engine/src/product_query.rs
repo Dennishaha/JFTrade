@@ -305,6 +305,8 @@ mod tests {
 
     #[test]
     fn candle_sessions_parse_dedup_order_and_reject_invalid() {
+        // Parity: go:452dea11:internal/marketdata/candle_sessions_test.go:8
+        // TestParseCandleSessionsNormalizesCSVAndRepeatedValues
         let multi = vec![
             "overnight,regular".to_owned(),
             "extended".to_owned(),
