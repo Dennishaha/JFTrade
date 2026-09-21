@@ -15,6 +15,12 @@ fn fixed(value: &str) -> Fixed8 {
 }
 
 #[test]
+/// Parity: go:452dea11:pkg/broker/market_rules_snapshot_errors_test.go:14
+/// TestApplyMarketRulesMatchesAndOverridesConstraints
+///
+/// Go applies the first trimmed, case-insensitive symbol match, lets explicit
+/// positive constraints override the lot-size defaults, and returns the market
+/// untouched when no rule matches. Rust keeps the same order and normalization.
 fn market_rules_match_trimmed_symbols_and_apply_overrides_in_order() {
     let market = MarketQuantityConstraints {
         symbol: " hk.00700 ".to_owned(),
@@ -83,6 +89,12 @@ fn broker_lot_size_initializes_minimum_and_step_quantity() {
 }
 
 #[test]
+/// Parity: go:452dea11:pkg/broker/market_rules_snapshot_errors_test.go:33
+/// TestApplyMarketRuleIgnoresInvalidExplicitConstraints
+///
+/// Go ignores a zero minimum quantity and a negative step size, leaving the
+/// market at its previous constraints. Rust additionally rejects non-finite
+/// values and non-positive lot sizes through the same filter.
 fn market_rules_ignore_missing_non_positive_and_non_finite_constraints() {
     let market = MarketQuantityConstraints {
         symbol: "HK.00700".to_owned(),
@@ -138,6 +150,14 @@ fn market_rule_json_preserves_optional_wire_fields() {
 }
 
 #[test]
+/// Parity: go:452dea11:pkg/broker/market_rules_snapshot_errors_test.go:43
+/// TestSymbolScopedSnapshotError
+///
+/// Go marks symbol-scoped snapshot failures with a wrapper that keeps the
+/// cause message, stays discoverable through `errors.Is` and untouched through
+/// an outer context, and never classifies a plain error. Rust carries the same
+/// marker: the constructor keeps the message text, a wrapped source chain is
+/// detected, and unrelated errors are not.
 fn symbol_scoped_snapshot_errors_are_detectable_through_context() {
     let marked = SymbolScopedSnapshotError::new("bad symbol");
     assert_eq!(marked.to_string(), "bad symbol");
@@ -151,6 +171,12 @@ fn symbol_scoped_snapshot_errors_are_detectable_through_context() {
 }
 
 #[test]
+/// Parity: go:452dea11:pkg/broker/market_rules_snapshot_errors_test.go:63
+/// TestSnapshotRateLimitErrorCarriesRetryDelay
+///
+/// Go preserves the upstream message, defaults a missing delay to one second,
+/// and exposes the retry delay through a wrapped error while plain errors yield
+/// no delay. Rust keeps the same contract at the broker-neutral port.
 fn snapshot_rate_limits_preserve_retry_delay_and_context() {
     let explicit =
         SnapshotRateLimitError::with_message(Duration::from_millis(2_500), "quota exhausted");
@@ -173,6 +199,12 @@ fn snapshot_rate_limits_preserve_retry_delay_and_context() {
 }
 
 #[test]
+/// Parity: go:452dea11:pkg/broker/market_rules_snapshot_errors_test.go:85
+/// TestSnapshotAvailabilityErrorsExposeFallbackEligibility
+///
+/// Go tags entitlement, unsupported and quota failures as fallback eligible,
+/// keeps unknown kinds ineligible, and hides availability from plain errors.
+/// Rust projects the same taxonomy through its typed source chain.
 fn snapshot_availability_kinds_control_fallback_eligibility() {
     for (kind, eligible) in [
         ("entitlement", true),
@@ -201,6 +233,35 @@ fn snapshot_availability_kinds_control_fallback_eligibility() {
     assert!(!is_snapshot_fallback_eligible(&std::io::Error::other(
         "plain"
     )));
+}
+
+/// Parity: go:452dea11:pkg/broker/broker_test.go:175
+/// TestApplyMarketRuleIgnoresMissingAndInvalidLotSize
+///
+/// Go leaves MinQuantity/StepSize at 5 when the rule carries no lot size
+/// (`nil`), a zero lot size, or a negative lot size. Rust expresses the
+/// missing case as `None` and must ignore the same three shapes.
+#[test]
+fn apply_market_rule_ignores_missing_zero_and_negative_lot_size() {
+    let market = MarketQuantityConstraints {
+        symbol: "HK.00700".to_owned(),
+        min_quantity: fixed("5"),
+        step_size: fixed("5"),
+    };
+    for lot_size in [None, Some(0), Some(-100)] {
+        let unchanged = apply_market_rule(
+            market.clone(),
+            &MarketRuleItem {
+                symbol: "HK.00700".to_owned(),
+                lot_size,
+                ..MarketRuleItem::default()
+            },
+        );
+        assert_eq!(
+            unchanged, market,
+            "lot size {lot_size:?} must leave the quantity constraints alone"
+        );
+    }
 }
 
 #[derive(Debug)]

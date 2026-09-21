@@ -85,6 +85,12 @@ macro_rules! impl_taxonomy {
 
 impl_taxonomy!(ProductClass, MarketSegment, QuantityMode, OrderKind);
 
+/// Parity: go:452dea11:pkg/broker/broker_test.go:194
+/// TestBrokerError
+///
+/// Go builds a broker error from broker id, code and message and requires a
+/// non-empty rendering; the frozen corpus pins the exact
+/// `broker futu: [NOT_CONNECTED] ...` display for the same fields.
 #[test]
 fn preserves_broker_error_display_and_snapshot_fallback_rules() {
     let corpus = corpus();

@@ -623,21 +623,53 @@ fn feature_matches_filters(
     product_match && segment_match
 }
 
+/// Derives the console surface id of a catalog route the same way the frozen Go
+/// owner does: the path selects the root surface, `tab`/`surface`/`section`
+/// refine it, and any other route falls back to a dot-joined normalization of
+/// the whole route.
 pub(super) fn ui_surface_id(value: &str) -> String {
     let value = value.trim();
-    if value.is_empty() { return String::new(); }
-    if value == "/workspace" { return "workspace.root".to_owned(); }
-    if value.starts_with("/workspace?") {
-        if let Some(tab) = value.split("tab=").nth(1).and_then(|v| v.split('&').next()) { return format!("workspace.{tab}"); }
-        if let Some(surface) = value.split("surface=").nth(1).and_then(|v| v.split('&').next()) { return format!("workspace.{surface}"); }
+    if value.is_empty() {
+        return String::new();
     }
-    if value == "/watchlist" { return "watchlist.root".to_owned(); }
-    if value.starts_with("/research?")
-        && let Some(section) = value.split("section=").nth(1).and_then(|v| v.split('&').next())
-    {
-        return format!("research.{section}");
+    let (path, query) = match value.split_once('?') {
+        Some((path, query)) => (path, Some(query)),
+        None => (value, None),
+    };
+    match path {
+        "/workspace" => {
+            if let Some(tab) = query.and_then(|query| query_parameter(query, "tab")) {
+                return format!("workspace.{tab}");
+            }
+            if let Some(surface) = query.and_then(|query| query_parameter(query, "surface")) {
+                return format!("workspace.{surface}");
+            }
+            return "workspace.root".to_owned();
+        }
+        "/research" => {
+            if let Some(section) = query.and_then(|query| query_parameter(query, "section")) {
+                return format!("research.{section}");
+            }
+            return "research.market".to_owned();
+        }
+        "/watchlist" => return "watchlist.root".to_owned(),
+        _ => {}
     }
-    value.trim_start_matches('/').replace(['/', '?', '='], ".")
+    let normalized = value.trim_start_matches('/').replace(['/', '?', '='], ".");
+    if normalized.is_empty() {
+        "app.root".to_owned()
+    } else {
+        normalized
+    }
+}
+
+fn query_parameter(query: &str, key: &str) -> Option<String> {
+    query.split('&').find_map(|pair| {
+        let (name, value) = pair.split_once('=')?;
+        (name.trim() == key)
+            .then(|| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+    })
 }
 
 #[allow(dead_code)]

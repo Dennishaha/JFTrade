@@ -960,3 +960,154 @@ fn typed_product_capabilities_drive_feature_ids_and_reviewed_schemas() {
         }
     }
 }
+
+/// Parity: go:452dea11:pkg/broker/catalog_test.go:11
+/// TestCapabilityCatalog
+///
+/// Go validates the builtin catalog, requires at least 45 features, checks a
+/// set of required product feature ids, and pins the console surfaces of the
+/// warrant and future products. Rust keeps the catalog as the const
+/// `FEATURE_SPECS` table, so the equivalent assertions run against the
+/// projected catalog payload the HTTP API publishes.
+#[test]
+fn capability_catalog_publishes_required_product_surfaces() {
+    let catalog = catalog();
+    let features = catalog["features"].as_array().expect("catalog features");
+    assert!(
+        features.len() >= 45,
+        "catalog feature count {} must cover the product surface",
+        features.len()
+    );
+    for id in [
+        "derivatives.option_chain",
+        "derivatives.option_analysis",
+        "research.financials",
+        "prediction.discover",
+        "prediction.combo_quote",
+        "execution.combo_place",
+        "watchlist.remote.modify",
+    ] {
+        assert!(
+            features.iter().any(|feature| feature["id"] == id),
+            "catalog must define {id}"
+        );
+    }
+    let ui = |id: &str| {
+        features
+            .iter()
+            .find(|feature| feature["id"] == id)
+            .unwrap_or_else(|| panic!("{id} must exist in the capability catalog"))["surface"]["ui"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned()
+    };
+    assert_eq!(ui("derivatives.warrants"), "/workspace?tab=warrants");
+    assert_eq!(ui("derivatives.futures"), "/workspace");
+}
+
+/// Parity: go:452dea11:pkg/broker/product_capability_contracts_test.go:159
+/// TestBrokerFeatureRouterRejectsDeclaredFeatureWithoutAdapterInterface
+///
+/// Go resolves a declared feature whose adapter interface is not composed and
+/// fails with the concrete interface name (`OptionAnalyticsReader`). Rust has
+/// no router; the composition root evaluates the same declaration, publishes
+/// the required interface in the catalog and fails the feature closed with
+/// `CAPABILITY_UNAVAILABLE` while that reader is absent.
+#[test]
+fn declared_features_publish_the_reader_interface_that_gates_them() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    let provider = ready_provider();
+    let value = project(&runtime, &provider, "market=US").expect("projection");
+    let catalog_features = value["catalog"]["features"]
+        .as_array()
+        .expect("catalog features")
+        .clone();
+    let runtime_items = value["runtime"].as_array().expect("runtime items").clone();
+
+    for (feature_id, adapter) in [
+        ("derivatives.option_analysis", "OptionAnalyticsReader"),
+        ("derivatives.option_chain", "DerivativeCatalogReader"),
+        ("market.depth", "MarketMicrostructureReader"),
+    ] {
+        let declared = catalog_features
+            .iter()
+            .find(|feature| feature["id"] == feature_id)
+            .unwrap_or_else(|| panic!("{feature_id} must be declared"));
+        assert_eq!(
+            declared["adapterInterface"], adapter,
+            "{feature_id} must publish the interface that gates it"
+        );
+
+        let evaluated = runtime_items
+            .iter()
+            .find(|item| item["featureId"] == feature_id)
+            .unwrap_or_else(|| panic!("{feature_id} must be evaluated"));
+        assert_eq!(
+            evaluated["evaluation"]["state"], "unavailable",
+            "{feature_id} must fail closed while {adapter} is not composed"
+        );
+        assert_eq!(
+            evaluated["evaluation"]["quoteRight"]["code"], "CAPABILITY_UNAVAILABLE",
+            "{feature_id} must report the missing adapter interface"
+        );
+    }
+}
+
+/// Parity: go:452dea11:pkg/broker/product_capability_contracts_test.go:26
+/// TestCapabilityOperationSurfaceFallbacksAndOverrides
+///
+/// Go derives UI surface ids from catalog routes (bare `/workspace`,
+/// `/research`, `/watchlist` roots, `tab`/`surface`/`section` overrides and a
+/// normalized fallback that still yields `app.root` for `/`), then applies
+/// per-operation overrides such as the prediction-history subscription, which
+/// keeps `workspace.chart` as its surface and exposes no tool.
+#[test]
+fn ui_surface_ids_and_operation_overrides_follow_the_catalog_route_table() {
+    for (route, expected) in [
+        ("", ""),
+        ("/workspace", "workspace.root"),
+        ("/workspace?tab=options", "workspace.options"),
+        ("/workspace?surface=order", "workspace.order"),
+        ("/workspace?unknown=1", "workspace.root"),
+        ("/research", "research.market"),
+        ("/research?section=macro", "research.macro"),
+        ("/watchlist", "watchlist.root"),
+        ("/", "app.root"),
+        ("/settings/integrations?x=true", "settings.integrations.x.true"),
+        ("%zz", "%zz"),
+    ] {
+        assert_eq!(ui_surface_id(route), expected, "surface id for {route:?}");
+    }
+
+    let history = FEATURE_SPECS
+        .iter()
+        .find(|spec| spec.id == "prediction.history")
+        .expect("prediction.history");
+    let operations =
+        operations::catalog_operations(history.id, history.method, history.api, history.ui, history.tool);
+    let subscribe = operations
+        .iter()
+        .find(|operation| operation["id"] == "subscribe")
+        .expect("prediction history subscribe operation");
+    assert_eq!(subscribe["httpMethod"], "POST", "subscription method");
+    assert_eq!(
+        subscribe["uiSurfaceId"], "workspace.chart",
+        "subscription override keeps the chart surface"
+    );
+    assert!(
+        subscribe.get("tool").is_none(),
+        "the subscription override exposes no tool: {subscribe}"
+    );
+
+    let alerts = FEATURE_SPECS
+        .iter()
+        .find(|spec| spec.id == "alerts.price.list")
+        .expect("alerts.price.list");
+    let operations =
+        operations::catalog_operations(alerts.id, alerts.method, alerts.api, alerts.ui, alerts.tool);
+    assert_eq!(
+        operations[0]["uiSurfaceId"], "",
+        "a route without UI keeps an empty surface id"
+    );
+    assert_eq!(operations[0]["tool"], "alerts.price.list");
+}
