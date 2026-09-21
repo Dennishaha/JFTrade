@@ -19636,10 +19636,10 @@
   },
   "cmd/check-go-coverage/changed_lines_analysis_test.go:71:TestParseChangedGoLinesReportsPureRenameWithoutInventingChangedStatements": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`python3 scripts/compatibility/audit_test_parity.py`",
-    "evidence_type": "missing"
+    "rust_entry": "部分等价 owner：scripts/check-web-diff-coverage.mjs::changedWebSourceLines（`--name-status -z --diff-filter=ACMR --find-renames` :144-151 + rename previousPath :188-199 + `--unified=0 --find-renames` hunk 解析 :221-232）；证据测试：scripts/check-web-diff-thresholds.test.mjs::assertStagedRenameDiff（:56-84）",
+    "conclusion": "partial：Go 的 parseChangedGoLines 解析 `git diff` 文本，测试断言纯改名（similarity index 100% + rename from/to）时 files={internal/new.go} 而 lines 为空——改名不得被当成新增语句。Rust 侧没有 diff 解析实现：`rg -n \"find-renames|--unified=0|name-status\" crates --type rust` 0 命中（Go 覆盖工具已随 Go 运行时删除），等价 owner 是 Node 覆盖门禁 scripts/check-web-diff-coverage.mjs::changedWebSourceLines：先用 `git diff --name-status -z --diff-filter=ACMR --find-renames`（:144-151）取改动文件并在 status 以 R 开头时回带 previousPath（:188-199），再用 `--unified=0 --find-renames` 解析 hunk 头（:221-232）得到新增行号集合，只有集合非空才登记该文件（:173-176）。纯改名（git mv）不产生任何 hunk → 文件不入 changed，正好对应 Go 的“不虚增变更语句”。证据：scripts/check-web-diff-thresholds.test.mjs::assertStagedRenameDiff（:56-84）在临时仓库里 git mv 后断言 changedWebSourceLines 为空，随后只改第 4 行再断言恰好为 [[新路径, Set([4])]]；本机执行 `node scripts/check-web-diff-thresholds.test.mjs` EXIT=0（该文件属于 test-scripts 的 policy 套件，check:quick 的 `pnpm run test:scripts -- policy` 亦覆盖）。保留差异：Go 返回 files+lines 的全局映射（改名后的新路径仍在 files 里、lines 为空），Node 直接省略零变更文件；Go 解析 .go 全仓，Node 只覆盖 apps/web/src 下的 ts/tsx/vue（:214-217）；Node 侧证据是脚本测试而非 Rust 测试，审计只认 `*.rs::测试`，故本行判 partial 而非 function_exact。锚点例外：Node 脚本无法携带 `// Parity:` 锚点（审计只扫描 Rust 文件），按 internal/frontendassets 先例登记例外。",
+    "command": "node scripts/check-web-diff-thresholds.test.mjs",
+    "evidence_type": "partial"
   },
   "cmd/check-go-coverage/changed_lines_analysis_test.go:82:TestParseChangedGoLinesIgnoresDeletedFiles": {
     "status": "[~]",
@@ -19846,10 +19846,10 @@
   },
   "cmd/check-go-coverage/profile_analysis_test.go:109:TestAnalyzeProfilesRejectsEmptyBusinessCoverage": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "`pnpm run check:quick`",
-    "evidence_type": "missing"
+    "rust_entry": "部分等价 owner：scripts/check-web-diff-coverage.mjs::checkWebDiffCoverage（空改动集 :73-80；缺少覆盖条目失败 :86-101、渲染 :497）；证据测试：scripts/check-web-diff-thresholds.test.mjs:37、:43",
+    "conclusion": "partial：Go 的 analyzeProfiles 对两类“空输入”失败关闭——len(profiles)==0 → \"coverage profile contains no source files\"，以及所有语句都命中 exclusionRules（generated/vendored/tooling/contract 等）导致 business.total==0 → \"coverage profile contains no business statements\"（coverage.go:178-181、221-223）。Rust 侧没有覆盖度分析实现（无 llvm-cov/gate owner），等价 owner 是 Node 覆盖门禁 scripts/check-web-diff-coverage.mjs::checkWebDiffCoverage：当改动文件在覆盖报告里找不到条目、且改动行看起来可执行时，push missingCoverage 报告并使 passed=false（:86-101），渲染为 \"missing coverage entry for executable changed code\"（:497）——这就是 Go 第一类“没有数据即失败”的等价物；证据测试 scripts/check-web-diff-thresholds.test.mjs:37（缺失条目失败）与 :43（未跟踪文件失败），本机执行 `node scripts/check-web-diff-thresholds.test.mjs` EXIT=0。保留差异（已判定为 fail-open，登记待办）：Node 在 changedFiles.size===0 时直接 passed=true（:73-80），即“没有任何可测量的 web 改动”视为通过；Go 则对空 profile/零业务语句 fail-closed。Go 的业务语句边界由 exclusionRules 显式枚举（generated/vendored/tooling/contract/build-variant 等），Node 的对应概念是 isLikelyExecutableSourceLine 启发式（:467-470）加关键路径阈值（isCriticalWebPath）。后续项：若要完全对齐，应在 web 门禁补一条“存在改动文件但覆盖报告没有任何源文件条目 → 失败”的守卫并加脚本测试；本批不擅自改动 CI 门禁语义，仅登记（属于审计可复核的已知差异）。锚点例外：Node 脚本无法携带 `// Parity:` 锚点，按 internal/frontendassets 先例登记例外。",
+    "command": "node scripts/check-web-diff-thresholds.test.mjs",
+    "evidence_type": "partial"
   },
   "cmd/check-go-coverage/profile_analysis_test.go:120:TestAnalyzeProfilesRetainsRequiredCriticalScopesWithoutProfileData": {
     "status": "[~]",
