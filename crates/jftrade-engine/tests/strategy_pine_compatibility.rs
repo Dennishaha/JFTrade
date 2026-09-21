@@ -114,6 +114,7 @@ fn fixture() -> StrategyPineFixture {
     fixture
 }
 
+// Parity: go:452dea11:internal/api/strategy/pine_routes_contracts_test.go:148 TestAnalyzeStrategyPineRouteOmitsASTByDefault
 #[test]
 fn strategy_pine_replays_go_fixture_projection_status_and_headers() {
     let fixture = fixture();

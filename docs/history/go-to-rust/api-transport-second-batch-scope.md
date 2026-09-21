@@ -181,4 +181,39 @@ live 读取条目，新增回归集中在
    - 复现条件：active provider=Futu、无 router 缓存且无 trade runtime 回退时读取 snapshot。
    - 预期（Go）：502 默认映射；Rust 现状：503 `MARKET_DATA_QUOTE_READ_UNAVAILABLE`。
    - 结论：属于“缓存不可用”语义与“provider 调用失败”语义的分类边界，保留 `[~] partial`
-     并记录为后续 P2 决策项，不强行改成 502。
+    并记录为后续 P2 决策项，不强行改成 502。
+## 第八十二批：`internal/api` 全量归零（180 条 / 42 文件）
+
+本批按 P0（写安全与路由校验）→ P1（SSE/WS、绑定、研究路由）→ P2（只读路由与 wire）顺序分 6 片写回，把 `internal/api/**` 剩余的 180 条 `missing` 全部落到真实 Rust 证据或结构性结论。
+
+### 分片与结果
+
+| 片 | 范围 | 条数 | 主要证据入口 |
+| --- | --- | ---: | --- |
+| P0-a | `settings/**` | 26 | `product_tests.rs::product_server_persists_ui_settings_and_reports_actual_port`、`product_settings_read_tests.rs`、`jftrade-settings/tests/managed_account_validation.rs`、`jftrade-store-settings-file/tests/settings_file_contracts.rs` |
+| P0-b | `trading/**` | 28 | `product_execution_read_tests.rs`、`product_execution_write_product_tests.rs`、`execution_write_compatibility.rs`、`product_production_ports_trade_tests.rs` |
+| P0-c | `strategy/**` + `middleware/**` | 35 | `strategy_pine_compatibility.rs`、`product_strategy_runtime_write_port.rs`、`strategies_write_compatibility.rs`、`jftrade-api/tests/transport_contracts.rs` |
+| P1-a | `live/**` + `httpserver/**` | 25 | `ws_live_compatibility.rs`、`jftrade-api/src/websocket.rs`、`jftrade-api/src/sse.rs`、`product_query.rs` |
+| P1-b | `productfeatures/**` + `marketdata/**` | 28 | `research_screen_query.rs`、`product_production_ports_research_*`、`product_production_ports_market_data_news_tests.rs` |
+| P2 | `system/**`、`backtest/**`、`watchlist/**`、`research/**`、`origin/**` | 38 | `product_system_control_read_tests.rs`、`system_write_compatibility.rs`、`product_backtest_sync_start_tests.rs`、`watchlist_write_compatibility.rs`、`research_presets_write_compatibility.rs` |
+
+- `internal/api/**`：180 `missing` → 0；该域 327 条 = **128 function_exact + 184 partial + 15 boundary**。
+- 清单总量：4451 条 = **1200 function_exact + 1682 partial + 436 boundary + 4 module_only + 1129 missing**（第 81 批为 1199 / 1507 / 432 / 4 / 1309）。
+
+### 本批唯一升级为 `[x]` 的条目
+
+- `internal/api/strategy/pine_routes_contracts_test.go:148:TestAnalyzeStrategyPineRouteOmitsASTByDefault` → `crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_replays_go_fixture_projection_status_and_headers`（新增锚点 `// Parity: go:452dea11:internal/api/strategy/pine_routes_contracts_test.go:148 TestAnalyzeStrategyPineRouteOmitsASTByDefault`）。理由：Go 断言“缺省 includeAst 时 data 不含 ast 键且 sourceFormat=pine-v6”，Rust 用真实生产分发 `dispatch_strategy_pine_analyze` 回放冻结用例 `success-default-source-format` 并逐字断言整份 data 相等，期望值同样无 `ast` 键且 `sourceFormat=pine-v6`。
+
+### 关键行为差异登记（保留为 partial/boundary）
+
+- **HTTP 层与领域层错位**：多数 Go 用例是 gin handler 级断言（状态码 + 信封），Rust 对应断言位于 `product_*` 路由/端口用例或 `jftrade-api` 传输用例；本批逐条写明“Rust 已覆盖什么 + 差异为何”，不把服务层用例记成传输层等价。
+- **模板路由取代 handler 缺参分支**（boundary）：`settings/routes_uri_boundaries_test.go`、`strategy/routes_boundary_contracts_test.go` 的 URI 缺参 400，在 Rust 由模板路由不匹配→404 表达。
+- **已移除路由**（boundary/partial）：legacy `/api/v1/settings/yfinance`、`/api/v1/execution/orders/preview`、已移除的 data-migration 路由在 Rust 从未注册，由“注册清单”用例与统一 JSON 404 覆盖，无同名 404 响应断言。
+- **WS 契约回放模型**：`ws_live_compatibility.rs` 回放 `ws-live.json` 11 个用例逐字断言握手/帧/拒绝，但 `product_ws_live.rs` 的 replay 是契约模型而非真实连接驱动，故 13 条 live 用例保留 partial。
+- **仍缺的失败注入断言**：settings 写路由“持久化失败→错误码”逐路由映射、MCP 服务不可用 500、data-management 回调失败 500、plugin 缺失资源 404 等，Rust 侧只有部分 sentinel 断言。
+
+### 仍未结清（下一批）
+
+- 下一批（第八十三批）范围：`internal/strategy` 169 条，其后 `pkg/bbgo` 145、`internal/integration` 141、`internal/marketdata` 112、`pkg/futu` 86、`internal/trading` 80、`internal/backtest` 63、`pkg/market` 56，以及 `pkg/**` 其余存量，直至 4451 条清单全部完成。
+
+验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-api -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-api -p jftrade-engine --all-targets --locked --no-fail-fast`（**1768 passed / 0 skipped**）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / 2925 Rust / **1200 `[x]`**；missing 1129、partial 1682、boundary 436、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线，7 条 partial 无解析引用与 2 条无断言为前批已登记缺口）、`pnpm run check:compatibility`（278 OpenAPI operations / 18 route groups / 19 route probes）、`node scripts/check-zero-go.mjs`（2888 tracked files / 0 release artifact）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`、`pnpm run check:ai-context`。
