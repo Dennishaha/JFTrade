@@ -584,6 +584,7 @@ fn akshare_calendar_route(
     read_market_calendar(MarketDataProvider::Akshare, true, Some(client), path, query)
 }
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_calendar_forwarding_test.go:74 TestRuntimeCalendarMacroForwarding
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_calendar_test.go:33
 /// TestEmbeddedProviderServesCalendarOperations
 ///
@@ -726,6 +727,7 @@ fn macro_operations_map_to_provider_reads_on_the_wire() {
     assert_eq!(result["provider"]["featureId"], "research.macro");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_calendar_forwarding_test.go:131 TestRuntimeCalendarMacroCapabilityUnsupported
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_calendar_test.go:205
 /// TestEmbeddedProviderRejectsUnsupportedCalendarMacroOperations
 ///
@@ -762,6 +764,7 @@ fn calendar_and_macro_reject_unsupported_operations_without_a_helper_call() {
     }
 }
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_calendar_forwarding_test.go:119 TestRuntimeCalendarMacroPropagatesError
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_calendar_test.go:237
 /// TestEmbeddedProviderPropagatesCalendarMacroErrors
 ///

@@ -630,6 +630,7 @@ mod tests {
         assert!(runtime.connected);
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_akshare_test.go:97 TestRuntimeRetriesAProviderMarkedUnavailable
     #[test]
     fn recovery_after_a_failed_health_check_publishes_a_healthy_provider() {
         // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_health_test.go:167

@@ -337,6 +337,7 @@ fn boards_body(kind: &str, market: &str) -> String {
     )
 }
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_rankings_industry_forwarding_test.go:66 TestRuntimeForwardsRankingsToCapableActiveProvider
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_rankings_test.go:53
 /// TestEmbeddedProviderMapsRankingsOperationsToKinds
 ///
@@ -381,6 +382,7 @@ fn rankings_operations_map_to_provider_kinds_on_the_wire() {
     }
 }
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_rankings_industry_forwarding_test.go:125 TestRuntimeRankingsAndIndustriesRejectProvidersWithoutCapability
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_rankings_test.go:101
 /// TestEmbeddedProviderRejectsUnmappedRankingsOperations
 ///
@@ -422,6 +424,7 @@ fn rankings_reject_unmapped_operations_without_a_helper_call() {
     }
 }
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_rankings_industry_forwarding_test.go:92 TestRuntimeForwardsIndustryReadsToCapableActiveProvider
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_rankings_test.go:127
 /// TestEmbeddedProviderMapsIndustryBoardOperations
 ///

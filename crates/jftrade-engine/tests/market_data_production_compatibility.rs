@@ -727,6 +727,7 @@ async fn test_omitted_broker_subscription_lifecycle_and_single_demand_owner() {
     runtime.shutdown().await.expect("clean shutdown");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/data_plane_switch_test.go:16 TestApplyProviderSettingsUsesAtomicQuoteProviderSwitch
 #[tokio::test]
 async fn test_active_provider_mutation_atomic_single_state_source() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

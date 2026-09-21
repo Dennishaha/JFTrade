@@ -494,6 +494,7 @@ fn company_research_default_operations_project_on_the_wire() {
     assert_eq!(result["provider"]["featureId"], "research.ownership");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_company_forwarding_test.go:57 TestRuntimeCompanyResearchForwarding
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_company_test.go:148
 /// TestEmbeddedProviderCompanyResearchForwardsMarketSymbolAndStatement
 ///
@@ -572,6 +573,7 @@ fn company_research_rejects_non_default_operations() {
     }
 }
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_company_forwarding_test.go:95 TestRuntimeCompanyResearchPropagatesError
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_company_test.go:207
 /// TestEmbeddedProviderPropagatesCompanyResearchCapabilityErrors
 ///
@@ -619,6 +621,7 @@ fn company_research_propagates_capability_and_lifecycle_errors() {
     assert_eq!(fixture.join().len(), 1);
 }
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_company_forwarding_test.go:108 TestRuntimeCompanyResearchCapabilityUnsupported
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_company_test.go:226
 /// TestEmbeddedProviderCompanyResearchStaysOnBrokerPathForFutu
 ///

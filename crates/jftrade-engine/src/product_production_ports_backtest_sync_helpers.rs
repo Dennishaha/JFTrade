@@ -46,6 +46,7 @@ mod tests {
     use jftrade_integration_marketdata_helper::HelperCandlesResponse;
     use super::super::validate_helper_page;
 
+    // Parity: go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:310 TestBacktestProviderSyncerPinsFutuAndClosesOnFailures
     #[test]
     fn test_historical_k_line_syncer_rejects_empty_provider_result() {
         // Parity: internal/backtest/historical_source_test.go:12 TestHistoricalKLineSyncerRejectsEmptyProviderResult
@@ -67,6 +68,7 @@ mod tests {
         assert!(result.unwrap_err().contains("empty candle page"));
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:226 TestProviderHistoricalSourceFetchesAndParsesProviderPage
     #[test]
     fn test_historical_k_line_syncer_rejects_broken_pagination() {
         // Parity: internal/backtest/historical_source_test.go:65 TestHistoricalKLineSyncerRejectsBrokenPagination
@@ -86,6 +88,7 @@ mod tests {
         assert!(validate_helper_page(&broken_period, "US", "US.AAPL", "5m").is_err());
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:266 TestHistoricalPageParsingRejectsMalformedProviderValues
     #[test]
     fn test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume() {
         // Parity: internal/backtest/historical_source_test.go:94 TestHistoricalCandleConversionRejectsInvalidFieldsAndDefaultsVolume

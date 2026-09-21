@@ -812,6 +812,51 @@ async fn market_microstructure_depth_forwards_maximum_supported_level() {
     assert_eq!(requests[0].2["num"], 50);
 }
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_depth_test.go:143 TestMarketDepthNumClamping
+/// Go's depth query normalizes an out-of-range `num` to the supported window
+/// (default 10, hard clamps to 1..=50) instead of rejecting the request.
+/// Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_depth_test.go:143
+/// TestMarketDepthNumClamping
+#[tokio::test]
+async fn market_microstructure_depth_route_clamps_num_to_the_go_window() {
+    let reader = Arc::new(MicrostructureReaderFixture::success());
+    let mut router = ProviderRouter::new(8);
+    router
+        .acquire_demand(
+            "quote-test",
+            [InstrumentRef {
+                channel: "ORDER_BOOK".to_owned(),
+                market: "HK".to_owned(),
+                symbol: "00700".to_owned(),
+                interval: None,
+            }],
+            false,
+            0,
+        )
+        .expect("order-book demand");
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    let port =
+        ProductionMarketDataQuotePort::new(state, Some(Arc::new(Mutex::new(router))), None, None)
+            .with_microstructure(Some(reader.clone()));
+    for (query, expected) in [
+        ("num=0", 1),
+        ("num=-5", 1),
+        ("num=100", 50),
+        ("num=50", 50),
+        ("", 10),
+        ("num=5", 5),
+    ] {
+        port.read("/api/v1/market-data/depth/HK/00700", query)
+            .await
+            .unwrap_or_else(|error| panic!("depth read for {query:?} failed: {error:?}"));
+        let requests = reader.requests.lock().expect("microstructure requests");
+        let last = requests.last().expect("recorded depth request");
+        assert_eq!(last.2["num"], expected, "query={query:?}");
+    }
+}
+
 #[tokio::test]
 async fn market_microstructure_quote_routes_reject_invalid_queries_before_reader_call() {
     let reader = Arc::new(MicrostructureReaderFixture::success());
@@ -834,12 +879,12 @@ async fn market_microstructure_quote_routes_reject_invalid_queries_before_reader
             "endTime=not-a-time",
         ),
         ("/api/v1/market-data/depth/US/AAPL", "num=bad"),
-        ("/api/v1/market-data/depth/US/AAPL", "num=0"),
-        ("/api/v1/market-data/depth/US/AAPL", "num=51"),
     ];
 
     // Parity: internal/api/marketdata/routes_test.go:450 TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize
-    // Verifies invalid num/pageSize/date format queries are rejected with BAD_REQUEST before dispatching to provider
+    // Verifies non-integer num/pageSize and malformed date queries are rejected
+    // with BAD_REQUEST before dispatching to provider. Out-of-range values are
+    // clamped like the reference owner instead of rejected.
     for (path, query) in cases {
         let error = port.read(path, query).await.expect_err("invalid query");
         assert!(matches!(

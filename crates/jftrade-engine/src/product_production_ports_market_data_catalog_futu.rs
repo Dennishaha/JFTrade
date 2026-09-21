@@ -185,6 +185,7 @@ fn map_error(error: InstrumentSearchError) -> Error {
 mod tests {
     use super::*;
 
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/provider_test.go:86 TestBrokerSearchInstrumentPartsNormalizesKnownPrefixes
     /// Parity: go:452dea11:pkg/futu/marketdata_reader_boundaries_test.go:188
     /// TestMarketDataRuleHelpersRejectIncompleteBrokerPayloads (prefix half).
     ///
@@ -208,6 +209,7 @@ mod tests {
         }
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/provider_boundaries_test.go:271 TestBrokerSearchInstrumentPartsPreservesDottedCodes
     /// Parity: go:452dea11:pkg/futu/adapter_marketdata_search_test.go
     /// `canonicalSearchQuoteCode`: the bare code is kept only when the entry's
     /// market matches the caller's market prefix, otherwise the provider code

@@ -503,6 +503,7 @@ async fn unknown_portfolio_reconciliation_route_returns_json_not_found() {
 }
 
 // Parity: go:452dea11:internal/app/apiserver/servercoretest/frontend_test.go:25 TestServerServesFrontendAssetsAndSPAFallback
+// Parity: go:452dea11:internal/app/apiserver/webaccess/frontend_test.go:28 TestFrontendServesAssetsAndSPAFallback
 #[tokio::test]
 async fn unknown_api_is_json_but_frontend_uses_spa_fallback() {
     let (router, _) = fixture();

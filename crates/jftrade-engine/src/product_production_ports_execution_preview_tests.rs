@@ -1950,6 +1950,7 @@ fn option_combo_preview_validates_non_spread_legality_against_opend_strategies()
         .expect_err("a dropped strategy response must not be hidden");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:250 TestExecutionGatewayPlaceComboBoundaries
 /// Parity: go:452dea11:pkg/futu/adapter_combo_transport_test.go:199
 /// TestFutuComboPlaceValidatedLegAccountAndTransportFailures.
 ///

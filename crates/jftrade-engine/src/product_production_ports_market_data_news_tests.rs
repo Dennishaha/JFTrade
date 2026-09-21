@@ -53,6 +53,7 @@ async fn production_news_actions_port_forwards_yfinance_news_request() {
     server.await.expect("server");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_news_forwarding_test.go:52 TestRuntimeForwardsNewsAndCorporateActionsToCapableActiveProvider
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn production_news_actions_port_forwards_corporate_actions_window() {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
@@ -298,6 +299,7 @@ fn corporate_actions_projection_rejects_missing_events() {
     ));
 }
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_news_forwarding_test.go:89 TestRuntimeNewsAndCorporateActionsRejectProvidersWithoutCapability
 /// Parity: go:452dea11:internal/productfeatures/service_test.go:30
 /// TestQueryDoesNotFallbackWhenBrokerIsExplicit
 ///

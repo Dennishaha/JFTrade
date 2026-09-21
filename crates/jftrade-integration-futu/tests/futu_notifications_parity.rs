@@ -5,6 +5,7 @@ use jftrade_integration_futu::trade_proto::notify::{
 };
 use jftrade_integration_futu::trade_proto::qot_common::QotRight as QotCommonRight;
 
+// Parity: go:452dea11:internal/app/apiserver/tradingapp/notifications_lifecycle_test.go:29 TestOrderLifecycleNotificationMapsSubmittedCancelledAndFilled
 #[test]
 fn test_neutral_notification_builders_handle_nil_and_status_transitions() {
     // Parity: internal/integration/futu/notifications_test.go:13 TestNeutralNotificationBuildersHandleNilAndStatusTransitions
@@ -77,6 +78,7 @@ fn test_neutral_notification_builders_handle_nil_and_status_transitions() {
     assert_eq!(gtw_kick.message, "账户在别处登录：已在其它设备登录");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/tradingapp/notifications_test.go:10 TestOrderLifecycleNotificationHandlesUnrelatedAndPartialFillEvents
 #[test]
 fn test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories() {
     // Parity: internal/integration/futu/notifications_test.go:73 TestLiveNotificationFromResponseRoutesProtocolPayloadsToNeutralCategories
@@ -211,6 +213,7 @@ fn test_live_notification_from_response_routes_protocol_payloads_to_neutral_cate
     );
 }
 
+// Parity: go:452dea11:internal/app/apiserver/tradingapp/notifications_lifecycle_test.go:10 TestOrderPlacedNotificationMapsBrokerLabelAndMessage
 /// The table below freezes level/title/label for every program-status state the
 /// Go baseline enumerates, including the unknown fallback.
 #[test]
@@ -403,6 +406,7 @@ fn test_notification_labels_cover_every_supported_program_and_gateway_state() {
     }
 }
 
+// Parity: go:452dea11:internal/app/apiserver/tradingapp/notifications_lifecycle_test.go:62 TestExecutionOrderNotificationMessageOmitsBlankParts
 /// Notification-kind and quote-right labels are part of the neutral wire
 /// contract consumed by the console, so they must stay stable.
 #[test]

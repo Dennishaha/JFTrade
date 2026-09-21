@@ -450,6 +450,7 @@ mod tests {
         assert_eq!(again.restarts, 0);
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_akshare_test.go:78 TestRuntimeStopsNewSidecarWhenInitialAKShareActivationFails
     #[tokio::test]
     async fn a_failed_launch_never_leaves_a_child_or_a_stale_endpoint() {
         // Parity: go:452dea11:internal/app/apiserver/marketdataapp/sidecar_process_test.go:92
@@ -526,6 +527,7 @@ mod tests {
         let _ = fs::remove_dir_all(root);
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_akshare_test.go:11 TestRuntimeReusesSharedSidecarAcrossPythonProviders
     #[tokio::test]
     async fn managed_process_is_reused_until_an_explicit_stop_releases_it() {
         // Parity: go:452dea11:internal/app/apiserver/marketdataapp/sidecar_process_test.go:15

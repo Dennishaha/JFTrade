@@ -183,6 +183,7 @@ const SCREEN_ROWS: &str = r#"{
     "source": "yfinance-screen-us"
 }"#;
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_screen_forwarding_test.go:39 TestRuntimeScreenForwarding
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_screen_test.go:83
 /// TestEmbeddedProviderServesScreenAndProjectsRows
 ///
@@ -258,6 +259,7 @@ fn embedded_screen_projects_rows_and_forwards_the_definition() {
     assert_eq!(second["cells"]["col-industry"]["value"]["type"], "missing");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_screen_forwarding_test.go:77 TestRuntimeScreenCapabilityUnsupported
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_screen_test.go:168
 /// TestEmbeddedProviderRejectsFutuCatalogScreenWith409
 ///
@@ -336,6 +338,7 @@ fn embedded_screen_rejects_shapes_the_helper_cannot_execute() {
     let _ = fixture;
 }
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_screen_forwarding_test.go:63 TestRuntimeScreenPropagatesError
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_screen_test.go:214
 /// TestEmbeddedProviderMapsScreenCapabilityErrors
 ///

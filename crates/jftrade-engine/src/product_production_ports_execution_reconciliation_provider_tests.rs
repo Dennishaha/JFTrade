@@ -135,6 +135,8 @@ fn projection_ports(
     (broker, portfolio)
 }
 
+// Parity: go:452dea11:internal/app/apiserver/futuapp/runtime_contracts_test.go:14 TestCoordinatorProjectsConnectedRuntimeAndDiscoveredAccounts
+// Parity: go:452dea11:internal/app/apiserver/tradingapp/order_update_source_test.go:88 TestProductLifecycleOrderUpdateSourceAggregatesBrokersAndFees
 #[test]
 fn helper_market_data_providers_reconcile_futu_account_order_fill_and_fee() {
     for provider in [MarketDataProvider::Yfinance, MarketDataProvider::Akshare] {

@@ -97,6 +97,7 @@ impl OpenDProbe {
 mod tests {
     use super::*;
 
+    // Parity: go:452dea11:internal/app/apiserver/futuapp/runtime_probe_contracts_test.go:10 TestCoordinatorDisabledProbeAndSettingsBoundaries
     #[test]
     fn probe_opend_reports_closed_port_as_disconnected() {
         // Parity: go:452dea11:internal/integration/futu/probe_test.go:114 TestProbeOpenDReportsClosedPortAsDisconnected

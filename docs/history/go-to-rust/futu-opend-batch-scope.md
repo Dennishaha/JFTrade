@@ -5007,3 +5007,37 @@ servercore 第二片：继续消化剩余 servercore 文件（`servercoretest` �
 
 为清除 `check:rust:target-health` 的 `.rcgu.o` 阈值执行了 `pnpm run clean:rust:artifacts`（`cargo clean`，释放 31 GiB 构建产物，非用户数据）。
 `pnpm run check:rust:static` 只在既有 RUSTSEC-2026-0285（rustls 0.23.44，Cargo.lock 本批未改）上失败，其 target-health/格式/clippy/架构/生产策略分组均已通过；`check:quick` 的其余分组（policy、web、python 等）全绿。
+
+## 第七十五批：`internal/app/apiserver` 剩余分片（marketdataapp 64 + tradingapp 22 + backtestapp 14 + futuapp 11 + swagger 1 + webaccess 1）
+
+范围：`internal/app/apiserver` 在第七十四批后剩余的 142 条 `missing` 行（`webaccess` 30 条随本批一并处理）。本批完成 113 条清单映射（含上一批遗留的 webaccess 快捷片），`[x]` 1100 → **1154**、`missing` 2737 → **2597**、`partial` 395 → 470、`boundary` 215 → 226；`internal/app/apiserver` 下只剩 2 条**已登记的功能缺口**（见下），不再有未核对占位行。
+
+### 生产修正：深度档位钳制对齐（P1，公开 API 形状，先红后改）
+
+参考行为（`internal/app/apiserver/marketdataapp/market_depth_test.go:143 TestMarketDepthNumClamping`，配套 `http_bindings.go::DepthQuery.NumOrDefault(10, 50)`）：`/api/v1/market-data/depth/{market}/{symbol}?num=` 的越界值被**钳制**——`num=0/-5 → 1`、`num=100 → 50`、`num=50 → 50`、缺省 `10`、`num=5 → 5`，并把钳制后的档位转发给 OpenD；只有非整数才 400。
+
+修复前 Rust 的 `ProductionMarketDataQuotePort::read_depth` 用 `parse_bounded_query_i64(..)`，对 `num=0`/`num=51` 直接返回 `400 BAD_REQUEST "num must be between 1 and 50"`。探针证据：新增复现测试 `crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_microstructure_depth_route_clamps_num_to_the_go_window` 先转红（`depth read for "num=0" failed: Failed { status: 400, ... }`），改为 `parse_clamped_query_i64`（缺省 10、`clamp(1, 50)`、非整数仍 400）后转绿；同批把原“越界即 400”的用例从 `market_microstructure_quote_routes_reject_invalid_queries_before_reader_call` 移除并保留 `num=bad` 用例，新测试逐条断言转发值。新增 `// Parity:` 锚点指向该参考测试。
+
+### 本批发现并登记的真实差异（先记录，是否对齐待产品决策）
+
+1. **深度响应信封形状（P1，公开 API）**：Go 的 app 层适配器返回 `{request{market,symbol,instrumentId,num}, depth{...}, meta{instrumentId,source=bbgo:futu,fromCache}}`；Rust 的 `/api/v1/market-data/depth/{market}/{symbol}` 返回 provider 载荷（冻结语料 `tests/fixtures/compatibility/api-transport/market-data-quote-read.json` 的 `depth-ready` = `{symbol,bids,asks}`）。两侧形状不同，本批在 `market_depth_test.go:35/198/244` 记为 partial 并保留修复要求（候选：`crates/jftrade-engine` 深度路由或确认语料即目标形状）。
+2. **实时心跳信封不完整（P1，SSE/WS wire）**：Go 的 `LiveHeartbeat` 发布 `transport{mode,sampleFreshnessMs,activeInstruments,...}`、`staleReasons[]`、`liveQuote{...retryAfter,failureCount,lastError}`、`liveStream{supported,connected,backoffActive,...}`；Rust 的 WS 心跳（`ws-live.json` 冻结帧 + `jftrade-api` live 心跳）只发布 `at/intervalMs/liveClients/providerBrokerId/type` 与 `stale`。`heartbeat_test.go` 三条记为 partial，样本新鲜度、poll-only 策略折算与退避投影需补实现或产品决策。
+3. **`/swagger/` 调试面板未迁移（P2）**：`swagger_openapi_test.go:14` 保留 `missing`（非占位，已写明复现 `/swagger/`、`/swagger/doc.json` 均 404、候选修复位置 `crates/jftrade-api` 静态调试路由，回归要求覆盖索引/CSS/JS/doc.json 的 200 与内容类型）；同一 Swagger 2.0 文档冻结在 `contracts/openapi/openapi.json` 并由 `check:contracts` 校验。
+4. **远程禁用的友好 HTML 页未迁移（P2）**：`webaccess/security_integration_test.go:188` 保留 `missing`——Go 在远程 Web 访问禁用且浏览器直接导航时返回友好 HTML，Rust 的静态兜底走 SPA index（`transport_contracts.rs::unknown_api_is_json_but_frontend_uses_spa_fallback`），没有 `REMOTE_WEB_ACCESS_DISABLED` 分支；已写明复现、候选修复位置与回归要求。
+5. **助手侧 provider 聚合工具未迁移（P2，助理域）**：Go 的 `AssistantMarketProviders` / `SelectAssistantMarketProvider` 信封（`liveProvider/backtestProvider/providers[]/liveHealth/liveRuntime/before/after`）在 Rust 全仓无字段与工具（`assistant_provider_test.go` 四条 partial）；同一信息当前由 `GET /api/v1/market-data/provider` 与 `GET/PUT /api/v1/settings/{,backtest-}market-data-provider` 表达，scope 编码进路由、不返回 before/after。
+6. **Python 运行时/兼容别名模型差异（P2，边界）**：Go 的 `ResolvePythonRuntime`/`ProbePythonRuntime`/`EnvYFinanceSidecar` 别名链在 Rust 不存在——生产使用冻结 helper 二进制与内容寻址资产（`crates/jftrade-integration-marketdata-helper`），探针改为侧车 `/health`。四条 `python_runtime_test.go` 行分别记为 partial/boundary。
+7. **回测历史源的能力矩阵未被逐条断言（P1，部分覆盖）**：`backtestapp/historical_source_test.go` 14 条中的会话映射（regular/extended/overnight ↔ provider 能力）、市场级 lookback（`US:5m`）、provider 复权矩阵与 `decimalString` 多类型解析在 Rust 侧只有等价面断言（`sync_request_session_scope_parity_with_go`、`candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type`、`test_historical_k_line_syncer_*`、`market_rules_*`），逐条表驱动断言待补；其中 5 条已按 `[x]` 记（同步器分页/空结果/转换拒绝、复权枚举映射），其余 9 条 partial/boundary。
+
+### 本批新增 `[x]` 与锚点
+
+- 全批净增 `[x]` 54 条（1100 → 1154），涉及 marketdataapp 28、tradingapp 5、backtestapp 5、futuapp 8、webaccess（承上批）若干；其中 54 条均带真实、可解析的 `#[test]`/`#[tokio::test]` 引用（审计 0 破坏引用、0 重复 rust_entry）。
+- 为新 `[x]` 引用的 51 个 Rust 测试函数补 `// Parity: go:452dea11:<go 文件>:<行> <TestName>` 锚点（28 个 Rust 文件），未锚定告警 243 → **193**（净 −3，与新增 54 条批准相抵后为负）。
+- 代表性新锚点：`product_production_ports_market_data_quote.rs::read_depth` 钳制修复对应的 `market_microstructure_depth_route_clamps_num_to_the_go_window`、`provider_activation_recovery.rs::provider_activation_fails_closed_...`（quote 缓存保留）、`product_production_ports_research_market_tests.rs::rankings/industry_*`、`futu_notifications_parity.rs` 四条、`execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability` 等。
+
+### 验证
+
+`cargo fmt --all -- --check`、
+`cargo clippy -p jftrade-engine -p jftrade-api -p jftrade-marketdata -p jftrade-integration-futu -p jftrade-integration-marketdata-helper -p jftrade-store-sqlite --all-targets --locked`、
+`node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked --no-fail-fast`（**3042 passed / 2 skipped**，含修复后的深度钳制测试）、
+`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **1154 `[x]`** / missing 2597，0 破坏引用、0 重复 rust_entry、未锚定告警 193）、
+`pnpm run check:compatibility`、`pnpm run check:zero-go`、`pnpm run check:rust:architecture`、`git diff --check`，最后 `pnpm run check:quick`。

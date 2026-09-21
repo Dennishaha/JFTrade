@@ -88,6 +88,7 @@ async fn auth_session_sets_no_store_for_success_and_error_responses() {
     }
 }
 
+// Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:510 TestRemovedAuthTokenRouteReturnsNotFound
 #[tokio::test]
 async fn removed_auth_token_route_returns_not_found() {
     // Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:509 TestRemovedAuthTokenRouteReturnsNotFound

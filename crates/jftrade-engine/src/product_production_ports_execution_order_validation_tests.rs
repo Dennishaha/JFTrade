@@ -177,6 +177,7 @@ fn option_combo_payload(client_order_id: &str) -> Value {
     })
 }
 
+// Parity: go:452dea11:internal/app/apiserver/tradingapp/execution_gateway_boundaries_test.go:19 TestNormalizedBrokerComboIntentKeepsClientOrderIdentity
 #[test]
 fn combo_preview_hash_binds_client_order_id() {
     let first = option_combo_payload("client-a");

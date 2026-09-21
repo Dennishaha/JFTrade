@@ -562,6 +562,8 @@ mod tests {
         }
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:379 TestWebLogoutClearsSessionCookie
+    // Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:400 TestWebLoginCookieIsHttpOnlyAndSameSiteStrict
     #[test]
     fn auth_manager_login_validate_and_logout_flow() {
         let directory = tempfile::tempdir().expect("temporary directory");
@@ -676,6 +678,7 @@ mod tests {
         assert!(clear_cookie.contains("Path=/"));
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:335 TestWebLoginRejectsWrongPasswordAndRateLimits
     #[test]
     fn auth_manager_rate_limits_after_max_attempts() {
         let directory = tempfile::tempdir().expect("temporary directory");
@@ -706,7 +709,7 @@ mod tests {
         ));
     }
 
-    // Parity: go:452dea11:internal/app/apiserver/servercore/settings_security_test.go:116 TestDisablingWebImmediatelyInvalidatesBrowserButNotDesktop
+    // Parity: go:452dea11:internal/app/apiserver/servercore/settings_security_test.go:116 TestDisablingWebImmediatelyInvalidatesBrowserButNotDesktop; go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:352 TestPasswordChangesInvalidateWebSessions
     #[test]
     fn auth_sessions_are_cookie_bound_hashed_and_restart_durable() {
         let directory = tempfile::tempdir().expect("temporary directory");

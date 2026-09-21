@@ -269,6 +269,7 @@ fn broker_kline_adjustment_from_query(value: Option<&str>) -> Result<i32, String
 mod tests {
     use super::*;
 
+    // Parity: go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:162 TestProviderHistoricalSourceEnforcesProviderAdjustmentMatrix
     /// Parity: go:452dea11:pkg/futu/adapter_advanced_protocol_test.go:128
     /// TestBrokerKLineAdjustmentMapping.
     #[test]

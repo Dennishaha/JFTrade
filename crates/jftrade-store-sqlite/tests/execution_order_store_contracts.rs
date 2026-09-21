@@ -50,6 +50,7 @@ fn execution_orders_store_rejects_missing_drifted_and_corrupted_go_databases() {
     assert!(matches!(error, ExecutionOrderStoreError::Schema(_)));
 }
 
+// Parity: go:452dea11:internal/app/apiserver/tradingapp/order_updates_test.go:114 TestExecutionOrderUpdatesPersistBrokerLifecycleFields
 #[test]
 fn execution_orders_lifecycle_events_and_restart_durability() {
     let directory = tempfile::tempdir().expect("temporary directory");

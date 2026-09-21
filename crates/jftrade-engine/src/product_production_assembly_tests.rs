@@ -1377,6 +1377,7 @@ mod product_production_assembly_tests {
         assert!(sub_get["transport"].is_null());
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/futuapp/runtime_contracts_test.go:44 TestCoordinatorConnectedProbeWithoutBrokerFailsClosed
     #[test]
     fn production_system_read_reports_unavailable_opend_without_fake_health() {
         let (_temp_dir, _settings_path, config, security) = setup_test_env();
@@ -1401,6 +1402,7 @@ mod product_production_assembly_tests {
         ));
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/futuapp/coordinator_test.go:39 TestCoordinatorDisabledProjectionsAndRetryDiagnostics
     /// Parity: go:452dea11:internal/app/apiserver/servercore/settings_broker_futu_health_test.go:16 TestFutuRuntimeAndHealthDiagnoseEnabledButUnreachableOpenD
     ///
     /// An enabled but unreachable OpenD is `offline`/`disconnected` with the
@@ -1452,6 +1454,7 @@ mod product_production_assembly_tests {
         );
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/futuapp/runtime_contracts_test.go:58 TestCoordinatorEnabledClosedPortReportsManualRetryDiagnosis
     /// Parity: go:452dea11:internal/app/apiserver/servercore/settings_broker_futu_health_test.go:66 TestFutuOpenDHealthRejectsOldBuildAndGuidesUpgrade
     ///
     /// An unsupported build keeps `degraded` plus `OPEND_VERSION_UNSUPPORTED`,

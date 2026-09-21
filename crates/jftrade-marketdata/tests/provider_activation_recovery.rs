@@ -58,6 +58,8 @@ fn register_pair(router: &mut ProviderRouter, secondary_health: HealthStatus) {
         .expect("register yfinance");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/data_plane_switch_test.go:40 TestApplyProviderSettingsPreservesAtomicQuoteCacheOnFailure
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_akshare_test.go:48 TestRuntimeKeepsSharedSidecarOnCrossPythonActivationFailure
 #[test]
 fn provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update()
 {

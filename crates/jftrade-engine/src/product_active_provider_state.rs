@@ -317,6 +317,7 @@ mod tests {
         assert_eq!(attempts.load(Ordering::SeqCst), 3);
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_forwarding_test.go:191 TestRuntimeSidecarFailureAndCloseKeepSelectionStable
     #[test]
     fn activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed() {
         // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_test.go:414
@@ -525,6 +526,7 @@ mod tests {
         }
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/data_plane_switch_test.go:140 TestApplyProviderSettingsRollsBackFailedFutuDemandRestore
     #[test]
     fn failed_provider_change_restores_the_previous_subscription_owner() {
         // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_test.go:337
@@ -577,6 +579,7 @@ mod tests {
         assert_eq!(state.get(), Some(MarketDataProvider::Akshare));
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_forwarding_test.go:166 TestRuntimeSameProviderActivationDoesNotReleasePhysicalSubscriptions
     #[test]
     fn same_provider_activation_is_idempotent_after_a_rejected_switch() {
         // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_test.go:14

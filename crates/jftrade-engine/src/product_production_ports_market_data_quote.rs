@@ -408,7 +408,11 @@ impl ProductionMarketDataQuotePort {
                 message: "invalid URL escape".to_owned(),
                 retry_after_seconds: None,
             })?;
-        let num = parse_bounded_query_i64(&query_map, "num", Self::DEPTH_NUM_MAX)?.unwrap_or(10);
+        // Go normalizes an out-of-range depth level count instead of failing the
+        // request: the app binding clamps `num` into 1..=50 and defaults to 10
+        // (`marketdataapp.DepthQuery.NumOrDefault`). Only a non-integer value is
+        // a 400, so mirror that window here.
+        let num = parse_clamped_query_i64(&query_map, "num", 10, Self::DEPTH_NUM_MAX)?;
 
         let provider = self.active_provider()?;
         if provider == MarketDataProvider::Futu {
@@ -572,6 +576,25 @@ fn bad_query(message: impl Into<String>) -> MarketDataQuoteReadSnapshotError {
         message: message.into(),
         retry_after_seconds: None,
     }
+}
+
+/// Parse an integer query value into a supported window the way the reference
+/// owner does: a missing key uses `default`, and an out-of-range value is
+/// clamped instead of rejected. Only a non-integer value is an invalid query.
+fn parse_clamped_query_i64(
+    query: &QueryMap,
+    key: &str,
+    default: i64,
+    max: i64,
+) -> Result<i64, MarketDataQuoteReadSnapshotError> {
+    let Some(raw) = query.get_first(key) else {
+        return Ok(default);
+    };
+    let value = raw
+        .trim()
+        .parse::<i64>()
+        .map_err(|_| bad_query(format!("{key} must be an integer")))?;
+    Ok(value.clamp(1, max))
 }
 
 fn parse_bounded_query_i64(

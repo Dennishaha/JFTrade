@@ -1158,6 +1158,7 @@ mod tests {
         assert_eq!(value["depth"]["bids"][0]["price"], 319.0);
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_depth_test.go:306 TestMarketDepthEmptyOrderBook
     #[test]
     fn depth_read_returns_empty_arrays_for_empty_s2c_lists() {
         // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:559

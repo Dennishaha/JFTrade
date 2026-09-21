@@ -554,6 +554,7 @@ fn reconciliation_rejects_trade_client_when_opend_physical_session_is_unready() 
     assert!(error.contains("OpenD runtime is not ready"));
 }
 
+// Parity: go:452dea11:internal/app/apiserver/tradingapp/order_updates_test.go:20 TestBrokerOrderMappingsPreserveLifecycleFields
 #[test]
 fn reconciliation_replays_history_fill_and_fee_once_after_restart() {
     let (store, directory) = reconciliation_store();

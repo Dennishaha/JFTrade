@@ -506,6 +506,7 @@ mod tests {
         }
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/watchlist_source_test.go:175 TestWatchlistQuoteUsesPriorCloseForClosedRegularYahooQuote
     /// Parity: go:452dea11:pkg/futu/quote_snapshot_test.go:49
     /// TestQuoteSnapshotPreviousClosePriceInClosedSession and
     /// go:452dea11:pkg/futu/quote_snapshot_test.go:164
