@@ -572,3 +572,26 @@ pub(super) fn run_provider_action(
         )
     })?
 }
+
+/// Resolve a caller-supplied watchlist group reference the way Go's
+/// `resolveWatchlistGroup` does: an exact stored id wins, otherwise the group
+/// name matches case-insensitively. An unresolved reference stays `None` so the
+/// tool fails closed instead of listing an empty page.
+pub(super) fn resolve_watchlist_group_id(payload: &Value, reference: &str) -> Option<String> {
+    let wanted = reference.trim();
+    payload
+        .get("groups")
+        .and_then(Value::as_array)?
+        .iter()
+        .find_map(|group| {
+            let id = group
+                .get("groupId")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let name = group
+                .get("name")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            (id == wanted || name.eq_ignore_ascii_case(wanted)).then(|| id.to_owned())
+        })
+}

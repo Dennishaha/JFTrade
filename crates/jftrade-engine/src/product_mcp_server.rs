@@ -645,3 +645,10 @@ mod index_constituents_tool;
 #[cfg(test)]
 #[path = "product_mcp_market_news_tool_tests.rs"]
 mod market_news_tool;
+
+/// The reference `watchlist.list` adapter resolves the caller's group
+/// reference before it lists members, so its coverage lives beside the same
+/// catalog owner that hosts the production watchlist ports.
+#[cfg(test)]
+#[path = "product_mcp_watchlist_tool_tests.rs"]
+mod watchlist_tool;

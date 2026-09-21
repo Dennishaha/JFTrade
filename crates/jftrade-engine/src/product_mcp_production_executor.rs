@@ -268,24 +268,44 @@ impl ProductionMcpToolExecutor {
         let search = optional_string(arguments, "query");
         let cursor = optional_string(arguments, "cursor");
         let limit = bounded_integer(arguments, "limit", 50, 1, 200)?;
+        let ports = self.ports()?;
+        // Go's assistant adapter resolves the caller's group reference (stored
+        // id or case-insensitive name) before listing members, so naming a
+        // stored group still reads that group and an unknown reference fails
+        // closed instead of returning an empty page.
+        let group_id = match group.as_deref() {
+            Some(reference) => {
+                let scope = query_string([("limit", Some(limit.to_string()))]);
+                let payload = ports
+                    .watchlist
+                    .read("/api/v1/watchlist/groups", &scope)
+                    .map_err(watchlist_error)?;
+                let resolved = helpers::resolve_watchlist_group_id(&payload, reference);
+                Some(resolved.ok_or_else(|| {
+                    McpToolFailure::failed(
+                        404,
+                        "WATCHLIST_NOT_FOUND",
+                        format!("watchlist group \"{reference}\" was not found"),
+                    )
+                })?)
+            }
+            None => None,
+        };
         let has_item_filter =
-            group.is_some() || market.is_some() || search.is_some() || cursor.is_some();
+            group_id.is_some() || market.is_some() || search.is_some() || cursor.is_some();
         let path = if has_item_filter {
             "/api/v1/watchlist/items"
         } else {
             "/api/v1/watchlist/groups"
         };
         let query = query_string([
-            ("groupId", group),
+            ("groupId", group_id),
             ("market", market),
             ("query", search),
             ("cursor", cursor),
             ("limit", Some(limit.to_string())),
         ]);
-        self.ports()?
-            .watchlist
-            .read(path, &query)
-            .map_err(watchlist_error)
+        ports.watchlist.read(path, &query).map_err(watchlist_error)
     }
 
     fn plugins_catalog(&self) -> Result<Value, McpToolFailure> {

@@ -261,7 +261,14 @@ impl WatchlistReadSnapshotPort for RecordingWatchlistRead {
             .lock()
             .expect("watchlist reads")
             .push((path.to_owned(), query.to_owned()));
-        Ok(json!({"items": [], "groups": []}))
+        if path == "/api/v1/watchlist/groups" {
+            // The stored wire shape keeps `groupId`/`name`, so the tool's
+            // group resolution can mirror Go's `resolveWatchlistGroup`.
+            return Ok(json!({
+                "groups": [{"groupId": "group-tech", "name": "科技", "isDefault": false}]
+            }));
+        }
+        Ok(json!({"items": []}))
     }
 }
 
@@ -270,9 +277,11 @@ impl WatchlistReadSnapshotPort for RecordingWatchlistRead {
 ///
 /// Go trims the group/query/cursor filters, upper-cases the market, defaults
 /// the limit to a page size and rejects limits above 200 while keeping
-/// `includeQuotes` opt-in. Rust normalizes the same filters and bounds; the
-/// production watchlist snapshot has no quote enrichment, so the opt-in fails
-/// closed with a structured 503 instead of fabricating quotes.
+/// `includeQuotes` opt-in. The adapter resolves the caller's group reference
+/// (id or case-insensitive name) before it lists members, so an unknown group
+/// fails closed; Rust keeps that resolution in the tool and the production
+/// watchlist snapshot has no quote enrichment, so the opt-in fails closed with
+/// a structured 503 instead of fabricating quotes.
 #[test]
 fn watchlist_list_normalizes_filters_and_rejects_out_of_range_limits() {
     let recorder: Arc<RecordingWatchlistRead> = Arc::new(RecordingWatchlistRead::default());
@@ -304,14 +313,15 @@ fn watchlist_list_normalizes_filters_and_rejects_out_of_range_limits() {
     assert_eq!(
         recorder.reads.lock().expect("watchlist reads").as_slice(),
         [
+            ("/api/v1/watchlist/groups".to_owned(), "limit=20".to_owned()),
             (
                 "/api/v1/watchlist/items".to_owned(),
-                "groupId=%E7%A7%91%E6%8A%80&market=US&query=apple&cursor=next&limit=20".to_owned(),
+                "groupId=group%2Dtech&market=US&query=apple&cursor=next&limit=20".to_owned(),
             ),
             ("/api/v1/watchlist/groups".to_owned(), "limit=50".to_owned(),),
         ]
     );
-    assert_eq!(defaulted["items"], json!([]));
+    assert_eq!(defaulted["groups"][0]["groupId"], json!("group-tech"));
 
     for limit in [0, 201] {
         let failure = executor
@@ -325,7 +335,22 @@ fn watchlist_list_normalizes_filters_and_rejects_out_of_range_limits() {
         .expect_err("quote enrichment is unavailable in production");
     assert_eq!(quotes.code, "WATCHLIST_QUOTES_UNAVAILABLE");
     assert_eq!(quotes.status, 503);
-    assert_eq!(recorder.reads.lock().expect("watchlist reads").len(), 2);
+    assert_eq!(
+        recorder.reads.lock().expect("watchlist reads").len(),
+        3,
+        "the rejected limit/quotes inputs must not reach the watchlist port"
+    );
+
+    let unknown = executor
+        .execute_production("watchlist.list", &json!({"group": "missing"}))
+        .expect_err("an unknown group must fail closed");
+    assert_eq!(unknown.status, 404, "{unknown:?}");
+    assert_eq!(unknown.code, "WATCHLIST_NOT_FOUND");
+    assert_eq!(
+        recorder.reads.lock().expect("watchlist reads").len(),
+        4,
+        "an unknown group is only resolved, never listed"
+    );
 }
 
 #[derive(Debug)]

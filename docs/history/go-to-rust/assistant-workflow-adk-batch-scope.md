@@ -2845,3 +2845,39 @@ Go 这两条把 ADK 摘要契约钉在两件事上：策略定义/实例摘要�
 - 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与策略实例读写工具（第 52 批 `:122`；第 56 批确认含 `market.provider.select`/`backtest.cancel`；第 59 批补充策略实例读/摘要工具与定义摘要 wire 形状）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 第 56 批的 `tradingCosts` 字段级类型解码差异、第 57 批的 `watchlist.list includeQuotes`（第 47 批）与 `RecordWorkflowAudit` 回调无 owner、`market.depth` 自由文本 instrument 推断、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具、第 53/54 批的 float 截断/query 文本推断/limit>50 钳制/capability 措辞、第 55 批禁用 503 路径差异。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1673 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2846 Rust** / **957 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第六十一批：assembly `watchlist_adapter_test.go` 全量结清（1 条 `[x]` + 1 条 partial；新增 2 条回归 + 1 处生产行为补齐）
+
+范围：`internal/assistant/assembly/watchlist_adapter_test.go` 2 条逐条结清。本批新增 **1 条 `[x]`**（`:72`），`partial` 1 条（`:24`），并补齐一处真实生产行为（分组解析）；Rust 测试 2846 → **2848**，`[x]` 957 → **958**。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestADKWatchlistListReturnsRealDataWithoutImplicitQuoteCalls|TestWatchlistToolAdapterUnavailableAndMissingGroupBoundaries' -count=1`（checkout `/tmp/go452dea11.niwD1G`，`ok`）。
+
+### 本批结论（1 处生产行为补齐 + 2 条新回归 + 1 条既有回归同步）
+
+Go 的助手适配器在列成员之前会先 `ListGroups`，再用 `resolveWatchlistGroup` 按 id 或大小写不敏感名字解析调用方的分组引用；解析不到就报 `watchlist group %q not found`，绝不会拿未知分组去列一个空页。
+
+- 生产行为补齐：`watchlist_list`（product_mcp_production_executor.rs）此前把调用方的分组字符串原样当作 `groupId` 传给读取端口，Rust 的 store 只按 `member.group_id = ?` 精确匹配，因此带分组**名字**（Go 的常规用法）会静默返回空 items，未知分组也不会报错。现在改为先读 `/api/v1/watchlist/groups`，用新增的 `product_mcp_production_executor_helpers.rs::resolve_watchlist_group_id`（精确 id 或 `name.eq_ignore_ascii_case`）解析出存储 id，再以该 id 查成员；解析不到返回 404 `WATCHLIST_NOT_FOUND` 且不再触发 items 读取。工具层的错误映射表与读端口语义未动。
+- `:72 [x]`：新增 `product_mcp_watchlist_tool_tests.rs::watchlist_list_fails_closed_without_ports_and_for_unknown_groups`——未装配端口的 executor → 503 `MCP_PRODUCTION_EXECUTOR_UNAVAILABLE`（等价 Go 的 `watchlist is unavailable`）；`group="missing"` → 404 `WATCHLIST_NOT_FOUND`，记录型端口只看到 1 次 groups 读取、没有 items 读取（等价 `resolveWatchlistGroup` 返回 false 后不 ListItems）。
+- `:24 partial`：新增 `product_mcp_watchlist_tool_tests.rs::watchlist_list_serves_stored_groups_and_members_without_quote_enrichment`——production bundle 里播种分组 `US Tech` 与成员 `US.AAPL`，默认调用返回该分组、`group="us tech"` 返回 1 条成员，两者都不含 quotes/quoteErrors（不隐式取行情）；`includeQuotes:true` 以 503 `WATCHLIST_QUOTES_UNAVAILABLE` 作为已登记边界断言。
+- 既有回归同步：`product_tool_catalog_parity_tests.rs::watchlist_list_normalizes_filters_and_rejects_out_of_range_limits` 的期望读序列更新为「groups(limit=20) 解析 → items(groupId=group%2Dtech&...)」，并新增未知分组 404 与 `groups[0].groupId` 断言；limit 越界与 includeQuotes 仍在触达端口前被拒（读计数 3 不变）。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. 解析结果改回原样透传（`let resolved = Some(reference.to_owned());`）→ `:72` 测试转红（未知分组不再 404，而是去列 items）。
+2. `resolve_watchlist_group_id` 的名字比较改成大小写敏感（`name == wanted`）→ `:24` 测试转红（`group="us tech"` 解析不到 `US Tech`）。
+3. `include_quotes` 分支改成 `false && include_quotes` → `:24` 测试转红（`includeQuotes:true` 不再 503）。
+   3 处探针均在本批内执行并已回滚，`git diff` 只留生产补齐、两条新测试、既有回归同步、清单与审计产物。
+
+### 结论登记（`:24 partial` 的边界与差异，均为 P2）
+
+- ①`includeQuotes:true` 无行情富化 owner：Go 会走 BatchQuotes 并回传 quotes/quoteErrors/quotesObservedAt（快照源调用 1 次），Rust 直接 503 `WATCHLIST_QUOTES_UNAVAILABLE`（第 47/57 批同一 P2，本批不重复登记）。
+- ②载荷字段形状：Go 默认路径带 `includeQuotes`/`sources`/`recentImports`/`checkedAt`，成员路径带 `group`/`nextCursor`；Rust 只回传读取端口的 `groups`/`items`(`nextCursor`)。字段级补齐归入同一条 P2，未在本批扩面。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 11 条：`workflow_bridge_contracts_test.go`/`workflow_tools_error_boundaries_test.go`/`maintenance_test.go`（各 2），`adk_backtest_adapter_test.go`/`adk_strategy_input_validation_test.go`/`adk_tool_failure_contracts_test.go`/`product_execution_contracts_test.go`/`workflow_execution_injection_test.go`（各 1）；随后 `internal/app/apiserver`（574，按 servercore/servercoretest 分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）、`internal/integration/akshare`（73）、`internal/integration/yfinance`（68）、`pkg/market`（56）。
+- 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与策略实例读写工具（第 52 批 `:122`；第 56 批确认含 `market.provider.select`/`backtest.cancel`；第 59 批补充策略实例读/摘要工具与定义摘要 wire 形状）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `watchlist.list` 的 includeQuotes 行情富化与载荷字段形状（第 47/57 批 + 本批 ②）、第 56 批的 `tradingCosts` 字段级类型解码差异、第 57 批的 `RecordWorkflowAudit` 回调无 owner、`market.depth` 自由文本 instrument 推断、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具、第 53/54 批的 float 截断/query 文本推断/limit>50 钳制/capability 措辞、第 55 批禁用 503 路径差异。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1675 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2848 Rust** / **958 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
