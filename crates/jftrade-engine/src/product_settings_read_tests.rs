@@ -123,3 +123,75 @@ async fn settings_read_routes_require_the_authenticated_shadow_token() {
     assert_eq!(response["ok"], false);
     handle.shutdown().await.expect("shutdown shadow");
 }
+
+#[derive(Debug)]
+struct RecordingNotificationPort;
+
+impl ProductNotificationPort for RecordingNotificationPort {
+    fn deliver(&self, request: ProductNotificationRequest) -> ProductNotificationDelivery {
+        ProductNotificationDelivery {
+            delivered: true,
+            status: "delivered".to_owned(),
+            message: format!("desktop notification sent: {}", request.title),
+        }
+    }
+}
+
+// Parity: go:452dea11:internal/live/notification_delivery_test.go:5 TestNotificationDeliveryKeepsHostNotificationOutcomeExplicit
+#[tokio::test]
+async fn system_notification_delivery_keeps_the_host_outcome_explicit() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    fs::write(&settings_path, b"{}\n").expect("seed settings");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_notification_port(std::sync::Arc::new(RecordingNotificationPort));
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+
+    let (status, delivered) = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/settings/system-notifications/test",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200, "delivered notification: {delivered}");
+    assert_eq!(delivered["data"]["delivery"]["delivered"], true);
+    assert_eq!(delivered["data"]["delivery"]["status"], "delivered");
+    assert!(
+        delivered["data"]["delivery"]["message"]
+            .as_str()
+            .is_some_and(|message| !message.is_empty()),
+        "delivered notification must report a host message: {delivered}"
+    );
+
+    let (status, saved) = request_json_with_status(
+        address,
+        "PUT",
+        "/api/v1/settings/system-notifications",
+        Some(r#"{"enabled":true,"mode":"custom","levels":["error"],"categories":["other"]}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200, "notification settings: {saved}");
+
+    let (status, filtered) = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/settings/system-notifications/test",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200, "filtered notification: {filtered}");
+    assert_eq!(filtered["data"]["delivery"]["delivered"], false);
+    assert_eq!(filtered["data"]["delivery"]["status"], "filtered");
+    assert_eq!(
+        filtered["data"]["delivery"]["message"],
+        "notification filtered by desktop settings"
+    );
+    handle.shutdown().await.expect("shutdown product");
+}

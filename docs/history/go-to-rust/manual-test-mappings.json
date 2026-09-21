@@ -20119,87 +20119,87 @@
   },
   "cmd/generate-pineworker-proto/generator_test.go:17:TestGeneratePineworkerProtoReplacesOutputAfterSuccess": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-pine/tests/pineworker_proto_frozen_inputs.rs::pineworker_proto_tree_matches_the_frozen_digest",
+    "conclusion": "partial：Go 断言成功后用暂存目录替换 pkg/strategy/pineworker/pineworkerpb（existing.pb.go 被移除），protoc 参数含 --go-grpc_opt=paths=source_relative 且末三个参数恰为三个 proto 文件。Rust 没有 protoc 与输出目录替换：crates/jftrade-integration-pine/build.rs 用 tonic-prost 在构建期把 proto/pineworker 编译到 OUT_DIR，仓库不保留生成的 .pb.go，因此不存在需要替换的陈旧产物。等价约束由本批新增守卫承担：输入集合恰为记录的三个文件且整树冻结 digest 一致（任何编辑/删除转红），生成物每次构建重新产生。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked -E 'test(pineworker_proto_tree_matches_the_frozen_digest)'",
+    "evidence_type": "partial"
   },
   "cmd/generate-pineworker-proto/generator_test.go:40:TestGeneratePineworkerProtoPropagatesExitAndPreservesOutput": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无 protoc runner 与退出码传播面",
+    "conclusion": "boundary（owner 退场，保留）：Go 用假 protoc 返回 code 42，断言 protogen.ExitCode(err)=42、已存在输出原样保留、临时工作区 .generate-pineworker-proto-* 被清空。Rust 无 runner、无 ExitCode、无暂存工作区：proto 编译是 build.rs 的一部分，输入缺失/不可解析时 compile_protos 直接让构建失败（cargo 报错），没有「保留旧生成物」的盘上状态可断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked -E 'test(pineworker_proto)'",
+    "evidence_type": "boundary"
   },
   "cmd/generate-pineworker-proto/generator_test.go:54:TestGeneratePineworkerProtoPreservesOutputOnLineLimit": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无生成行数预算",
+    "conclusion": "boundary（owner 退场，保留）：Go 用 maxGeneratedLines=1 断言错误含 generated file exceeds 1 lines 且输出未被替换。Rust 生成的是 prost/tonic 产生的 Rust 源码，没有行数预算，也不做输出替换；「超限即失败且不破坏既有产物」在构建期由编译失败表达，无对应阈值可迁移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked -E 'test(pineworker_proto)'",
+    "evidence_type": "boundary"
   },
   "cmd/generate-pineworker-proto/generator_test.go:70:TestGeneratePineworkerProtoPreservesOutputOnCollision": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无按文件名平铺步骤",
+    "conclusion": "boundary（owner 退场，保留）：Go 让 raw 树出现 one/same.go 与 two/same.go，断言报 generated filename collision 且输出保留。Rust 没有「按 basename 平铺」这一步（prost 按 package 生成模块，不存在同名文件写入同一目录），所以碰撞不可表达；本批守卫改为断言冻结树保持平铺且不出现意外文件（子目录或非 .proto 会让 digest/结构守卫转红）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked -E 'test(pineworker_proto_tree_matches_the_frozen_digest)'",
+    "evidence_type": "boundary"
   },
   "cmd/generate-pineworker-proto/generator_test.go:87:TestGeneratePineworkerProtoChecksInputsBeforeCommands": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/tests/pineworker_proto_frozen_inputs.rs::pineworker_proto_inputs_are_verified_before_any_generation",
+    "conclusion": "function_exact（本批新增）：Go 删除第一个 proto 后断言报 missing Pineworker proto file 且 runner 未被调用（生成前先校验输入）。Rust 新守卫做同一件事：断言 proto/pineworker 的输入恰为记录的三个文件、build.rs 引用全部三个名字并调用 compile_protos（缺失即构建失败，先于任何生成），随后在临时目录复制整树并删除一个输入，断言同一文案 missing Pineworker proto file: <path>。差异：Go 的 runner 调用计数在 Rust 侧表现为该文件被 build.rs 注册为编译输入。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked -E 'test(pineworker_proto_inputs_are_verified_before_any_generation)'",
+    "evidence_type": "function_exact"
   },
   "cmd/generate-pineworker-proto/main_test.go:14:TestParseCLIConfig": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无 CLI 参数面（构建期生成）",
+    "conclusion": "boundary（owner 退场，保留）：Go 解析 -max-generated-lines（默认 defaultMaxGeneratedLines，可覆盖为 42）。Rust 的 PineTS proto 生成器不是可执行程序，而是 crates/jftrade-integration-pine/build.rs 的构建期步骤，没有 flag 解析、也没有行数限额参数可覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked -E 'test(pineworker_proto)'",
+    "evidence_type": "boundary"
   },
   "cmd/generate-pineworker-proto/main_test.go:25:TestParseCLIConfigRejectsInvalidArguments": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无 CLI 参数校验",
+    "conclusion": "boundary（owner 退场，保留）：Go 断言 -max-generated-lines=0 / -1 与位置参数都报错。Rust 无 CLI 与参数模型；等价的安全边界是 build.rs 只接受固定的冻结输入路径，输入缺失即失败（见 pineworker_proto_inputs_are_verified_before_any_generation）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked -E 'test(pineworker_proto_inputs_are_verified_before_any_generation)'",
+    "evidence_type": "boundary"
   },
   "cmd/generate-pineworker-proto/main_test.go:33:TestParseCLIConfigHelp": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无 CLI help 输出",
+    "conclusion": "boundary（owner 退场，保留）：Go 断言 -help 返回 flag.ErrHelp 且 stderr 含 -max-generated-lines。Rust 无 CLI，帮助文本/参数清单随命令一起退场。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked -E 'test(pineworker_proto)'",
+    "evidence_type": "boundary"
   },
   "cmd/generate-pineworker-proto/main_test.go:40:TestRunCLIReturnsParameterExitCode": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无进程退出码",
+    "conclusion": "boundary（owner 退场，保留）：Go 断言参数错误时 runCLI 返回退出码 2。Rust 生成器没有进程边界；参数错误面不存在，构建失败由 cargo 以非零状态呈现。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked -E 'test(pineworker_proto)'",
+    "evidence_type": "boundary"
   },
   "cmd/generate-pineworker-proto/output_test.go:12:TestFlattenGeneratedFiles": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-pine/tests/pineworker_proto_frozen_inputs.rs::pineworker_proto_tree_keeps_the_canonical_package_and_imports",
+    "conclusion": "partial：Go 断言 raw/proto/pineworker.pb.go 被平铺搬到 next/pineworker.pb.go 且内容不变（protoc 的 source_relative 输出带目录层级）。Rust 无平铺步骤：prost/tonic 按 package 生成单一模块，由 include_proto! 引入。本批守卫断言冻结树保留 canonical package jftrade.strategy.pineworker.v1、每个 import 都能从仓库根解析（compile_protos 的 include 根）、且 execution.rs 与 mock_worker.rs 都 include 同一 package 模块——即「生成物在唯一可导入地址」这一不变式。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked -E 'test(pineworker_proto_tree_keeps_the_canonical_package_and_imports)'",
+    "evidence_type": "partial"
   },
   "cmd/generate-pineworker-proto/output_test.go:26:TestFlattenGeneratedFilesRejectsNameCollisions": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无按名平铺步骤",
+    "conclusion": "boundary（owner 退场，保留）：Go 断言 one/same.go 与 two/same.go 报 generated filename collision。Rust 生成路径不按 basename 平铺（package 决定模块名），同名碰撞不可发生，故没有可迁移的失败分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked -E 'test(pineworker_proto_tree_matches_the_frozen_digest)'",
+    "evidence_type": "boundary"
   },
   "cmd/generate-pineworker-proto/output_test.go:41:TestEnforceGeneratedLineLimitMatchesWcSemantics": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无生成行数预算",
+    "conclusion": "boundary（owner 退场，保留）：Go 以换行计数（bytes.Count(content, '\\n')）判定行数，断言 2 行内容在限额 2 时通过、限额 1 时报 exceeds 1 lines。Rust 不产出受行数预算约束的 Go 文件，该守卫随生成器一起退场。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked -E 'test(pineworker_proto)'",
+    "evidence_type": "boundary"
   },
   "cmd/internal/protogen/files_test.go:13:TestCopyFileCopiesContent": {
     "status": "[~]",
@@ -22078,88 +22078,88 @@
     "evidence_type": "missing"
   },
   "internal/live/client_test.go:8:TestNormalizeSubscriptions": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_ws_live.rs::tests::subscription_normalization_matches_the_go_table",
+    "conclusion": "function_exact（本批新增）：Go 表断言 providerBrokerId 去空白小写、activeInstruments 去空去重排序、securityDetails 按 instrument 去重排序（market/symbol 大写、空 market 丢弃）、depth 的 num 夹取到 [1,50] 并按 instrument+num 去重排序、consoleRefresh 透传。Rust 新测试对 normalized_subscriptions 用同一输入表断言同一结果（Alpha→alpha、active=[HK.00700,US.AAPL]、security=[HK.00700,US.MSFT]、depth=[HK.00700|10,US.TME|1,US.TME|50]、consoleRefresh=true），并断言 None 输入得到全空默认投影。探针：把 num 夹取上界改成 100 → 测试转红（多出 US.TME|100）→ 按字节回滚（shasum 21e49c72…）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(subscription_normalization_matches_the_go_table)'",
+    "evidence_type": "function_exact"
   },
   "internal/live/client_test.go:47:TestClientRegistryTracksActiveInstruments": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/websocket.rs::tests::active_instruments_are_normalized_unioned_replaced_and_released",
+    "conclusion": "function_exact（本批补锚点）：Go 注册两个 client 并断言 ActiveInstrumentIDs 为排序并集 [HK.00700,US.AAPL,US.MSFT]，注销一个后只剩 [US.AAPL,US.MSFT]。Rust 同一测试用 LiveConnectionMetrics 的两个并发许可断言并集去重排序、某许可重新订阅后是替换而非合并、drop 一个许可即释放其标的、全部释放后为空。差异：Go 的 Unregister(id) 在 Rust 由许可 drop（RAII）承担。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(active_instruments_are_normalized_unioned_replaced_and_released)'",
+    "evidence_type": "function_exact"
   },
   "internal/live/client_test.go:63:TestClientSnapshotIsIsolatedAndUpdateIsCoalesced": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-api/src/websocket.rs::tests::live_hub_snapshot_is_isolated_and_subscriptions_are_replaced",
+    "conclusion": "partial：Go 断言两次 SetSubscriptions 只留一个待处理 Updated 信号（合并），且 Snapshot 返回深拷贝（改返回值不改变存储）。Rust 新测试证明隔离与替换：LiveHub::snapshot 返回拥有的 Vec，修改后 hub 不变；后一次 set_subscription 替换而非合并上一次；连接断开后快照清空。差异：Rust 没有 Updated() 合并唤醒通道——LiveHub 直接 broadcast 事件并在每次订阅变更时回调 demand listener（不做信号合并），因此「合并」这一半无可断言对象。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(live_hub_snapshot_is_isolated_and_subscriptions_are_replaced)'",
+    "evidence_type": "partial"
   },
   "internal/live/lifecycle_boundaries_test.go:10:TestNilClientAndPublisherBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 nil 接收者",
+    "conclusion": "boundary（owner 退场，保留）：Go 断言 nil *Client 的 ID/Updated/Snapshot/SetSubscriptions 与 nil *ReplayPublisher 的 Publish/After/Start/Close 都是安全 no-op。Rust 用 Arc/Option 表达缺失 owner，不存在可解引用的 nil：缺失端口一律 fail-closed（系统读未配置 → 503 SYSTEM_READ_UNAVAILABLE；ws-live 快照端口未配置 → 路由不注册），非法连接上限也被夹取（LiveConnectionMetrics::new(0) 的 limit=1，见 live_connection_limit_is_never_zero），而不是静默 no-op。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(live_connection_limit_is_never_zero)'",
+    "evidence_type": "boundary"
   },
   "internal/live/lifecycle_boundaries_test.go:38:TestReplayPublisherStartErrorAndNilSourceAreNoops": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无 Start(source) 注册面",
+    "conclusion": "boundary（owner 退场，保留）：Go 断言空出版本的 After(0) 为 nil、Start(nil) 无错、来源返回错误时原样透传（errors.Is）、stop 为 nil 也可接受。Rust 没有「向 publisher 注册来源」的接缝：生产事件由 owner 直接 publish 到 LiveHub，缺失来源表现为没有事件（连接保持等待）而不是注册期错误。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(lagged_connection_receives_resync_control_before_future_events)'",
+    "evidence_type": "boundary"
   },
   "internal/live/lifecycle_boundaries_test.go:63:TestReplayPublisherStartRacingCloseStopsLateSource": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无 Start/Close 竞态面",
+    "conclusion": "boundary（owner 退场，保留）：Go 让 Start 与 Close 竞态，断言晚到的 Start 返回 ErrClosed 且其 stop 被调用一次、Close 自身成功。Rust 的 LiveHub 关闭语义是 begin_shutdown 拒绝新连接（try_connect 返回 None）并广播 shutdown 信号（见 live_hub_shutdown_is_idempotent_and_rejects_new_sessions），没有「晚到来源的 stop 回调」这一对象。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(live_hub_shutdown_is_idempotent_and_rejects_new_sessions)'",
+    "evidence_type": "boundary"
   },
   "internal/live/notification_delivery_test.go:5:TestNotificationDeliveryKeepsHostNotificationOutcomeExplicit": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_settings_read_tests.rs::system_notification_delivery_keeps_the_host_outcome_explicit",
+    "conclusion": "function_exact（本批新增）：Go 断言 NotificationDelivered 给出 delivered=true/status=delivered/原消息，NotificationNotDelivered 给出 delivered=false/status/message（显式表达未投递原因）。Rust 新测试对 POST /api/v1/settings/system-notifications/test 断言同一契约：端口投递成功时 delivered=true、status=delivered、message 非空；当设置把该级别/类别过滤掉时 delivered=false、status=filtered、message=notification filtered by desktop settings。ProductNotificationDelivery 与 Go 的 live.NotificationDelivery 同字段、message omitempty。探针：改短过滤文案 → 转红 → 按字节回滚（shasum 99d1dbee…）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(system_notification_delivery_keeps_the_host_outcome_explicit)'",
+    "evidence_type": "function_exact"
   },
   "internal/live/publisher_test.go:11:TestReplayPublisherSequencesAndRetainsWindow": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-api/src/websocket.rs::tests::lagged_connection_receives_resync_control_before_future_events",
+    "conclusion": "boundary（架构替换，保留）：Go 的事件带自增 Sequence、按 retention+capacity 保留窗口、After(sequence) 返回增量（含显式 At 非法时回落 recordedAt）。Rust 不用服务端重放窗口：LiveHub 是容量有界的 broadcast，慢消费者触发 Lagged 时先收到 live.resync 控制事件（eventId live.resync|<at>|<dropped>、reason broadcast_lagged、action resubscribe、droppedEvents 计数），随后继续收到新事件——客户端按 resync 重新拉取而不是靠序号补发。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(lagged_connection_receives_resync_control_before_future_events)'",
+    "evidence_type": "boundary"
   },
   "internal/live/publisher_test.go:39:TestReplayPublisherNormalizesEventTimeToUTC": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_embeds_injected_live_market_data_calendar_and_request_summaries",
+    "conclusion": "partial：Go 断言带 +08:00 偏移的显式 At 被规范化为 UTC（2026-06-20T01:30:00Z）。Rust 没有 Notification.At 解析器，但实时投影同样以 UTC 归一：该测试用 +08:00 时间戳驱动行情记录器，断言 /system/status 的 observability.marketdata.lastRefreshAt=|2026-09-02T01:00:00Z|（同一方向、同一输出格式）。差异：Rust 不保留「显式 At 解析失败则回落 recordedAt」这条分支，因为事件时间由 owner 生成。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(system_status_embeds_injected_live_market_data_calendar_and_request_summaries)'",
+    "evidence_type": "partial"
   },
   "internal/live/publisher_test.go:57:TestReplayPublisherExpiresOldEventsWithoutResettingSequence": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无过期窗口与全局序号",
+    "conclusion": "boundary（owner 退场，保留）：Go 断言超过 retention 的旧事件被丢弃但序号继续自增（第二条事件 Sequence=2），After(0) 只剩新事件。Rust LiveHub 不保存事件历史、不分配全局序号，慢消费者丢弃由 broadcast 容量决定并以 live.resync 暴露（droppedEvents 计数），因此「过期淘汰但序号不复位」没有对应状态。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(lagged_connection_receives_resync_control_before_future_events)'",
+    "evidence_type": "boundary"
   },
   "internal/live/publisher_test.go:73:TestReplayPublisherCloseStopsSourcesOnce": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-api/src/websocket.rs::tests::live_hub_shutdown_is_idempotent_and_rejects_new_sessions",
+    "conclusion": "partial：Go 断言 Close 幂等（两次返回同一 stop 错误）、每个来源 stop 只调用一次、关闭后 Publish 返回 nil 且 Start 被拒绝（ErrClosed）。Rust 新测试证明幂等与拒绝语义：begin_shutdown 重复调用保持 ShuttingDown、watch 关闭信号置真、shutdown 后 try_connect 返回 None、mark_stopped 重复调用保持 Stopped。差异：Rust 没有 attached-source 回调，因此「stop 只调用一次」没有可断言对象；「关闭后再发布」在 Rust 表现为无接收者（broadcast send 失败）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(live_hub_shutdown_is_idempotent_and_rejects_new_sessions)'",
+    "evidence_type": "partial"
   },
   "internal/live/publisher_test.go:108:TestReplayPublisherConcurrentPublishAndAfter": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-api/src/websocket.rs::tests::lagged_connection_receives_resync_control_before_future_events",
+    "conclusion": "boundary（架构替换，保留）：Go 用 8 个写者各 100 次 Publish+After，断言最终 800 条且序号严格连续无丢失（服务端保留窗口保证）。Rust 的 LiveHub 是有界 broadcast：并发 publish 不保证「不丢」，慢消费者收到 live.resync 并携带 droppedEvents 计数后自行重同步，因此「序号连续无丢失」不是 Rust 的不变式；对应不变式改为「丢弃必须显式告知并以 resync 恢复」。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(lagged_connection_receives_resync_control_before_future_events)'",
+    "evidence_type": "boundary"
   },
   "internal/productfeatures/candle_query_options_test.go:8:TestNormalizeCandleOptionsAcceptsSessionsAndAdjustments": {
     "status": "[x]",

@@ -616,6 +616,7 @@ mod tests {
         drop(permit);
     }
 
+    // Parity: go:452dea11:internal/live/client_test.go:47 TestClientRegistryTracksActiveInstruments
     #[test]
     fn active_instruments_are_normalized_unioned_replaced_and_released() {
         let metrics = Arc::new(LiveConnectionMetrics::new(2));
@@ -661,6 +662,64 @@ mod tests {
         hub.mark_stopped();
         assert_eq!(hub.lifecycle(), LiveHubLifecycle::Stopped);
         assert_eq!(hub.lifecycle().as_str(), "stopped");
+    }
+
+    // Parity: go:452dea11:internal/live/client_test.go:63 TestClientSnapshotIsIsolatedAndUpdateIsCoalesced
+    #[tokio::test]
+    async fn live_hub_snapshot_is_isolated_and_subscriptions_are_replaced() {
+        let hub = Arc::new(LiveHub::new(8));
+        let connection = hub.connect();
+        connection.set_subscription("futu", &[" us.aapl ".to_owned(), "US.AAPL".to_owned()]);
+
+        let mut snapshot = hub.snapshot();
+        assert_eq!(snapshot.active_instruments, vec!["US.AAPL".to_owned()]);
+        snapshot.active_instruments.push("CHANGED".to_owned());
+        assert_eq!(
+            hub.snapshot().active_instruments,
+            vec!["US.AAPL".to_owned()],
+            "mutating a returned snapshot must not change the hub"
+        );
+
+        // A later snapshot replaces - never merges with - the previous set.
+        connection.set_subscription("futu", &["US.MSFT".to_owned()]);
+        assert_eq!(
+            hub.snapshot().active_instruments,
+            vec!["US.MSFT".to_owned()]
+        );
+
+        drop(connection);
+        assert_eq!(
+            hub.snapshot(),
+            LiveHubSnapshot {
+                connected: 0,
+                active_instruments: Vec::new(),
+            }
+        );
+    }
+
+    // Parity: go:452dea11:internal/live/publisher_test.go:73 TestReplayPublisherCloseStopsSourcesOnce
+    #[tokio::test]
+    async fn live_hub_shutdown_is_idempotent_and_rejects_new_sessions() {
+        let hub = Arc::new(LiveHub::new(8));
+        hub.mark_serving();
+        let connection = hub.try_connect().expect("serving hub accepts sessions");
+        let mut shutdown = hub.subscribe_shutdown();
+        assert!(!*shutdown.borrow_and_update());
+
+        hub.begin_shutdown();
+        hub.begin_shutdown();
+        assert_eq!(hub.lifecycle(), LiveHubLifecycle::ShuttingDown);
+        assert!(*shutdown.borrow_and_update(), "shutdown must signal once");
+        assert!(
+            hub.try_connect().is_none(),
+            "shutdown must refuse new demand owners"
+        );
+        drop(connection);
+
+        hub.mark_stopped();
+        hub.mark_stopped();
+        assert_eq!(hub.lifecycle(), LiveHubLifecycle::Stopped);
+        assert!(hub.try_connect().is_none());
     }
 
     #[tokio::test]
