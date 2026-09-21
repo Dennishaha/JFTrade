@@ -4,7 +4,10 @@
 //! production file budget (`*_tests.rs` files are exempt).
 
 use super::*;
-use crate::product::MarketDataProviderReadSnapshotError;
+use crate::product::{
+    MarketDataProviderReadSnapshotError, MarketDataQuoteReadSnapshotError, SystemReadSnapshotError,
+    WatchlistReadSnapshotError,
+};
 
 #[test]
 fn production_failure_projects_product_error_envelope() {
@@ -16,6 +19,39 @@ fn production_failure_projects_product_error_envelope() {
             "error": {"code": "MARKET_SNAPSHOT_FAILED", "message": "upstream refused"},
             "status": 502,
         })
+    );
+}
+
+/// Go's closure contract points every owner port at a failing implementation
+/// (`errors.New("owner port unavailable")`) and requires the tool to surface an
+/// error instead of an empty payload.  Rust keeps the same rule in the port
+/// error mappers, so an unavailable reader can never be mistaken for "no data".
+///
+/// Parity: go:452dea11:internal/assistant/assembly/adk_closure_contracts_test.go:73
+#[test]
+fn owner_port_failures_map_to_tool_failures_for_the_closure_readers() {
+    let quote = quote_error(MarketDataQuoteReadSnapshotError::Unavailable(
+        "owner port unavailable".to_owned(),
+    ));
+    assert_eq!(quote.status, 503);
+    assert_eq!(quote.code, "MARKET_DATA_QUOTE_READ_UNAVAILABLE");
+    assert_eq!(quote.message, "owner port unavailable");
+
+    let watchlist = watchlist_error(WatchlistReadSnapshotError::Unavailable(
+        "owner port unavailable".to_owned(),
+    ));
+    assert_eq!(watchlist.status, 503);
+    assert_eq!(watchlist.code, "WATCHLIST_UNAVAILABLE");
+
+    let system = system_error(SystemReadSnapshotError::Unavailable(
+        "owner port unavailable".to_owned(),
+    ));
+    assert_eq!(system.status, 503);
+    assert_eq!(system.code, "SYSTEM_READ_UNAVAILABLE");
+    assert!(
+        system.message.contains("owner port unavailable"),
+        "the owner reason survives: {}",
+        system.message
     );
 }
 

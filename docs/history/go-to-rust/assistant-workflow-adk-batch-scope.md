@@ -2703,3 +2703,44 @@ Go 这两条把新能力工具钉在「注册 → 入参转发 → 审批边界 
 - 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与策略实例写工具（第 52 批 `:122`，本批再次确认含 `market.provider.select`/`backtest.cancel`）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 本批 `tradingCosts` 字段级类型解码差异、活动读分页钳制差异（第 52 批）、第 51 批 `:128` 的 instance summary/optimization no-op/validationInstrument 三个无 owner 断言、`market.depth` 自由文本 instrument 推断、`watchlist.list includeQuotes` 行情富化、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具、第 53/54 批的 float 截断/query 文本推断/limit>50 钳制/capability 措辞、第 55 批禁用 503 路径差异。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1664 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2837 Rust** / 953 `[x]`，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第五十七批：assembly `adk_closure_contracts_test.go` 全量结清（2 条 partial；新增 3 条回归 + 1 处生产行为补齐）
+
+范围：`internal/assistant/assembly/adk_closure_contracts_test.go` 2 条逐条结清。本批新增 **0 条 `[x]`**（两条的可迁移半边都有差异面，见下），`partial` 2 条；Rust 测试 2837 → **2840**，`[x]` 953 保持不变。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestADKToolDependencyClosuresForwardNormalizedOwnerPorts|TestADKToolDependencyClosuresFailClosedWhenPortsAreMissing' -count=1`（checkout `/tmp/go452dea11.niwD1G`，`ok`）。
+
+### 本批结论（1 处生产行为补齐 + 3 条新回归 + 1 条既有回归扩容）
+
+Go 这两条把「闭包工具」钉在两件事上：端口入参归一化后转发，以及 owner 端口缺失/报错时一律 fail-closed。
+
+- 生产行为补齐：Go 的 `system.status` 工具在 `ToolDeps.ADKEnabled()` 为真时注入 `status["adk"] = {"module":"google.golang.org/adk/v2","enabled":true}`（`tool_catalog.go:199-203`；`ADKEnabled` 来自 `ApplicationAdapter.assistantEnabled = runtime != nil && runtime.Available()`）。Rust 的 `/api/v1/system/status` HTTP 投影刻意不提 ADK，因此本批在 ADK 工具层实现同样的合并：
+  - `product_adk_tool_executor.rs` 新增 `system_status_with_adk_module(status, runtime_ready)`（纯投影，便于逐分支断言）与 `adk_runtime_ready()`（读 `AdkChatStreamPort::runtime_ready`，即 Rust 的 runtime Available 语义），并把 `system.status` 提为显式分支、把原先 fallback 里的 MCP 调用抽成 `mcp_execute` 供两处复用。
+- 新增回归：
+  - `product_adk_model_runtime::tool_executor::tests::system_status_publishes_the_adk_module_block_only_for_a_ready_runtime`（ready → 注入 module/enabled 且保留 `status`/`workers`；未 ready → 无 `adk` 键）；
+  - `product_production_ports_adk_tests.rs::system_status_tool_stays_plain_without_a_configured_assistant_runtime`（端到端：生产 bundle 未配置可用模型 runtime 时不发布 `adk` 块）；
+  - `product_mcp_production_executor_tests.rs::owner_port_failures_map_to_tool_failures_for_the_closure_readers`（`quote_error`/`watchlist_error`/`system_error` 对 `Unavailable` 的 503 + 稳定错误码 + 保留 owner 原因）。
+- 既有回归扩容：`product_mcp_server_tests.rs::production_tools_fail_closed_before_any_domain_service_is_configured` 的待测清单加入 `system.futu_opend`/`market.snapshot`/`market.candles`/`watchlist.list`，未装配端口时四者都必须 503 `MCP_PRODUCTION_EXECUTOR_UNAVAILABLE`。
+- 既有证据引用（归一化半边）：`product_query.rs::candle_period_normalizes_aliases_and_rejects_unsupported`（60m/60min/k_60m → 1h，与 Go `pkg/broker/candle_period.go` 逐条一致）、`market_candles_compact_tool_forwards_market_symbol_period_and_limit`（工具层按设计原样转发，归一化落在读取端口）、`watchlist_list_normalizes_filters_and_rejects_out_of_range_limits`（groupName trim / market 大写 / limit 边界）。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `system_status_with_adk_module` 的注入条件加 `false &&` → 单元测试转红（ready 分支不再写 `adk`）。
+2. `adk_runtime_ready()` 恒返回 true → 端到端测试转红（未配置 runtime 也发布 `adk` 块）。
+3. `watchlist_error` 的 `Unavailable` 错误码改成 `WATCHLIST_READ_FAILED` → 映射测试转红。
+4. `market_candles` 在无端口时返回 `{"candles": []}` → 扩容后的 fail-closed 测试转红（打印 `domain tool without production ports must fail closed: Object {"candles": Array []}`）。
+   4 处探针均在本批内执行并已回滚；中途一次「给 bundle 注入失败读取器」的尝试因生产 bundle 的读取器是具体适配器（`ProductionMarketDataQuotePort`/`ProductionWatchlistPort`，`with_market_data_quote_read_snapshot_port` 只喂 HTTP 路由）而撤回，回滚后 `git diff` 只留三处生产/测试改动、清单与审计产物。
+
+### 结论登记（两条 partial 的边界与差异）
+
+- **`:12 partial`**：`system.status` 的 ADK 块、`market.snapshot`/`market.candles`/`watchlist.list` 的归一化都已逐条对上；未迁移的是 ①`watchlist.list` 的 `includeQuotes=true` 转发——Rust 返回 `WATCHLIST_QUOTES_UNAVAILABLE`（第 47 批 P2，行情富化无 owner）；②`RecordWorkflowAudit` 回调——Rust 由 `product_adk_model_runtime_audit.rs::record_audit_event` 直接写 ADK 审计行，没有 ToolDeps 回调句柄。
+- **`:73 partial`**：端口错误映射（本批新测试）与「未装配即 503」（扩容后的 fail-closed 循环）都已断言；未闭合的是「已装配但返回 error 的读取器 + 工具」这条组合路径不可注入；另有第 51 批已登记的刻意收紧：Go 在 `FutuOpenDHealth == nil` 时返回 `{"status":"unavailable"}` 载荷且无错误，Rust 选择 fail-closed。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 19 条：`adk_runtime_contracts_test.go`/`adk_summary_contracts_test.go`/`typed_product_capabilities_test.go`/`watchlist_adapter_test.go`/`workflow_bridge_contracts_test.go`/`workflow_tools_error_boundaries_test.go`/`maintenance_test.go`（各 2）、`adk_backtest_adapter_test.go`/`adk_strategy_input_validation_test.go`/`adk_tool_failure_contracts_test.go`/`product_execution_contracts_test.go`/`workflow_execution_injection_test.go`（各 1）；随后 `internal/app/apiserver`（574，按 servercore/servercoretest 分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）、`internal/integration/akshare`（73）、`internal/integration/yfinance`（68）、`pkg/market`（56）。
+- 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与策略实例写工具（第 52 批 `:122`，第 56 批确认含 `market.provider.select`/`backtest.cancel`）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 第 56 批的 `tradingCosts` 字段级类型解码差异、`watchlist.list includeQuotes` 行情富化（第 47 批，本批再次确认）、`market.depth` 自由文本 instrument 推断、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具、第 53/54 批的 float 截断/query 文本推断/limit>50 钳制/capability 措辞、第 55 批禁用 503 路径差异。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1667 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2840 Rust** / 953 `[x]`，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

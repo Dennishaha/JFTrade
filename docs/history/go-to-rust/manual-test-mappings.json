@@ -6679,17 +6679,17 @@
   },
   "internal/assistant/assembly/adk_closure_contracts_test.go:12:TestADKToolDependencyClosuresForwardNormalizedOwnerPorts": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_tool_executor.rs::system_status_publishes_the_adk_module_block_only_for_a_ready_runtime + crates/jftrade-engine/src/product_production_ports_adk_tests.rs::system_status_tool_stays_plain_without_a_configured_assistant_runtime + crates/jftrade-engine/src/product_query.rs::candle_period_normalizes_aliases_and_rejects_unsupported + crates/jftrade-engine/src/product_tool_catalog_parity_tests.rs::watchlist_list_normalizes_filters_and_rejects_out_of_range_limits + crates/jftrade-engine/src/product_mcp_production_executor_market_data.rs::market_candles_compact_tool_forwards_market_symbol_period_and_limit",
+    "conclusion": "部分覆盖（本批新增生产行为 + 2 条回归）：Go 断言五件事，Rust 逐条对应——①`system.status` 的 `adk` 块：Go 在 `ToolDeps.ADKEnabled()` 为真时注入 `{module: google.golang.org/adk/v2, enabled: true}`；Rust 本批在 `product_adk_tool_executor.rs` 新增 `system_status_with_adk_module` + `adk_runtime_ready()`（读 `AdkChatStreamPort::runtime_ready`，等价 Go `assistantEnabled = runtime != nil && runtime.Available()`），单元测试断言 ready 时注入且基础字段保留、未 ready 时无 `adk` 键，end-to-end 测试断言未配置 runtime 的生产 bundle 不发布 `adk` 块（探针：readiness 恒 true 时该测试转红）。②`market.snapshot` 归一化：`product_mcp_production_executor_helpers.rs::instrument` trim + ASCII 大写（US/AAPL）。③`market.candles`：limit 走 `bounded_integer`（接受数字字符串、越界报错），period 归一化映射（60m/60min/k_60m → 1h）与 Go `pkg/broker/candle_period.go` 逐条一致，但 Rust 刻意把它放在读取端口层（`normalize_candle_period` 于 `product_production_ports_market_data_quote_reads.rs:70` 调用），工具层按设计原样转发（`market_candles_compact_tool_forwards_market_symbol_period_and_limit`）——同一映射、不同层。④`watchlist.list`：`watchlist_list_normalizes_filters_and_rejects_out_of_range_limits` 覆盖 groupName trim、market 大写、limit 边界；差异：includeQuotes=true 在 Rust 返回 `WATCHLIST_QUOTES_UNAVAILABLE`（第 47 批登记的 P2，Go 直接转发给 port）。⑤`RecordWorkflowAudit`：Go 的 ToolDeps 回调在 Rust 无对应 owner（Rust 由 `product_adk_model_runtime_audit.rs::record_audit_event` 直接写 ADK store 审计行，见 product_adk_read_tests.rs:618），因此回调转发不可迁移，保留边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(system_status_publishes_the_adk_module_block_only_for_a_ready_runtime) | test(system_status_tool_stays_plain_without_a_configured_assistant_runtime) | test(candle_period_normalizes_aliases_and_rejects_unsupported) | test(watchlist_list_normalizes_filters_and_rejects_out_of_range_limits)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/adk_closure_contracts_test.go:73:TestADKToolDependencyClosuresFailClosedWhenPortsAreMissing": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_production_executor_tests.rs::owner_port_failures_map_to_tool_failures_for_the_closure_readers + crates/jftrade-engine/src/product_mcp_server_tests.rs::production_tools_fail_closed_before_any_domain_service_is_configured",
+    "conclusion": "部分覆盖：Go 用「端口存在但返回 error」要求 system.futu_opend/market.snapshot/market.candles/watchlist.list 都报错。Rust 本批新增 `owner_port_failures_map_to_tool_failures_for_the_closure_readers`：`quote_error`/`watchlist_error`/`system_error` 对 `Unavailable(\"owner port unavailable\")` 分别映射为 503 `MARKET_DATA_QUOTE_READ_UNAVAILABLE`/`WATCHLIST_UNAVAILABLE`/`SYSTEM_READ_UNAVAILABLE` 且保留 owner 原因——这正是四个工具 `.map_err(...)` 应用的映射。另一半在工具级断言：`production_tools_fail_closed_before_any_domain_service_is_configured` 的待测清单本批扩入 `system.futu_opend`/`market.snapshot`/`market.candles`/`watchlist.list`，未装配端口时全部 503 `MCP_PRODUCTION_EXECUTOR_UNAVAILABLE`（探针：让 market.candles 在无端口时返回空 candles，该测试立即转红）。未闭合处（记录差异）：Rust 无 Go 的可空 ToolDeps/回调句柄；生产 bundle 的 market-data quote 与 watchlist 读取器是具体适配器（`ProductionMarketDataQuotePort`/`ProductionWatchlistPort`），`with_market_data_quote_read_snapshot_port` 只喂 HTTP 路由，所以「已装配但返回 error 的读取器 + 工具」这条组合路径在本 bundle 不可注入，无法端到端复现；另外 Go 的 application adapter 在 `FutuOpenDHealth == nil` 时返回 `{\"status\":\"unavailable\"}` 且无错误，Rust 选择 fail-closed（第 51 批已登记的刻意收紧）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(owner_port_failures_map_to_tool_failures_for_the_closure_readers) | test(production_tools_fail_closed_before_any_domain_service_is_configured)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/adk_product_catalog_test.go:13:TestDefaultBuiltinAgentToolsExistInAssembledRegistry": {
     "status": "[x]",

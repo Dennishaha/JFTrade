@@ -14,6 +14,9 @@ use crate::product::product_mcp_production_executor::ProductionMcpToolExecutor;
 use crate::product::product_production_ports::{ProductionPortBundle, ProductionToolCatalog};
 use jftrade_store_sqlite::AdkStore;
 
+/// The module id the reference reports on `system.status.adk.module`.
+const GOOGLE_ADK_MODULE: &str = "google.golang.org/adk/v2";
+
 pub(crate) trait AdkToolExecutor: Send + Sync + std::fmt::Debug {
     /// Whether this process owns a concrete implementation for the named
     /// capability.  The model request is filtered with this predicate so a
@@ -104,6 +107,49 @@ impl ProductionAdkToolExecutor {
             *guard = None;
         }
     }
+
+    /// Project one call through the MCP production executor so descriptor,
+    /// allowlist and error mapping decisions stay in a single place.
+    fn mcp_execute(&self, name: &str, arguments: &Value) -> Result<Value, String> {
+        let guard = self
+            .mcp_executor
+            .read()
+            .map_err(|_| "tool executor lock poisoned".to_owned())?;
+        if let Some(mcp) = guard.as_ref() {
+            mcp.execute_production(name, arguments)
+                .map_err(|error| error.message)
+        } else {
+            Err(format!("tool executor is unavailable for {name}"))
+        }
+    }
+
+    /// Go answers `system.status`' ADK block from `ToolDeps.ADKEnabled`
+    /// (`ApplicationAdapter.assistantEnabled = runtime != nil &&
+    /// runtime.Available()`).  `AdkChatStreamPort::runtime_ready` is the same
+    /// question in Rust: a bundle without a usable model runtime must not
+    /// publish an enabled ADK module.
+    fn adk_runtime_ready(&self) -> bool {
+        self.ports
+            .read()
+            .map(|guard| {
+                guard
+                    .as_ref()
+                    .is_some_and(|ports| ports.adk_chat_stream.runtime_ready())
+            })
+            .unwrap_or(false)
+    }
+}
+
+/// Go's `system.status` handler merges the ADK module block into the status
+/// payload only when the assistant runtime is enabled.
+pub(crate) fn system_status_with_adk_module(mut status: Value, runtime_ready: bool) -> Value {
+    if runtime_ready && let Some(object) = status.as_object_mut() {
+        object.insert(
+            "adk".to_owned(),
+            json!({"module": GOOGLE_ADK_MODULE, "enabled": true}),
+        );
+    }
+    status
 }
 
 impl AdkToolExecutor for ProductionAdkToolExecutor {
@@ -278,18 +324,49 @@ impl AdkToolExecutor for ProductionAdkToolExecutor {
                     ports, arguments,
                 )
             }
-            _ => {
-                let guard = self
-                    .mcp_executor
-                    .read()
-                    .map_err(|_| "tool executor lock poisoned".to_owned())?;
-                if let Some(mcp) = guard.as_ref() {
-                    mcp.execute_production(name, arguments)
-                        .map_err(|error| error.message)
-                } else {
-                    Err(format!("tool executor is unavailable for {name}"))
-                }
+            // The reference enriches the system status projection with the
+            // ADK module block instead of teaching the HTTP payload about the
+            // assistant runtime.
+            "system.status" => {
+                let status = self.mcp_execute(name, arguments)?;
+                Ok(system_status_with_adk_module(
+                    status,
+                    self.adk_runtime_ready(),
+                ))
             }
+            _ => self.mcp_execute(name, arguments),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Go's `system.status` tool adds the `adk` block only when
+    /// `ToolDeps.ADKEnabled()` reports the assistant runtime available.
+    ///
+    /// Parity: go:452dea11:internal/assistant/assembly/adk_closure_contracts_test.go:12
+    #[test]
+    fn system_status_publishes_the_adk_module_block_only_for_a_ready_runtime() {
+        let status = json!({"status": "degraded", "workers": []});
+
+        let ready = system_status_with_adk_module(status.clone(), true);
+        assert_eq!(ready["adk"]["enabled"], true, "{ready}");
+        assert_eq!(
+            ready["adk"]["module"], "google.golang.org/adk/v2",
+            "{ready}"
+        );
+        assert_eq!(
+            ready["status"], "degraded",
+            "the base projection survives: {ready}"
+        );
+        assert_eq!(ready["workers"], json!([]));
+
+        let unready = system_status_with_adk_module(status, false);
+        assert!(
+            unready.get("adk").is_none(),
+            "a disabled runtime must not claim the ADK module: {unready}"
+        );
     }
 }

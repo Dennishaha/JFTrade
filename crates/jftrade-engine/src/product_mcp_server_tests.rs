@@ -1114,6 +1114,13 @@ fn production_tools_fail_closed_before_any_domain_service_is_configured() {
         ("research.screen_catalog", json!({"market": "US"})),
         ("market.providers", json!({})),
         ("system.runtime_dependencies", json!({})),
+        ("system.futu_opend", json!({})),
+        ("market.snapshot", json!({"market": "US", "symbol": "AAPL"})),
+        (
+            "market.candles",
+            json!({"market": "HK", "symbol": "00700", "period": "1h"}),
+        ),
+        ("watchlist.list", json!({"group": "Favorites"})),
     ] {
         let failure = executor
             .execute_production(name, &arguments)

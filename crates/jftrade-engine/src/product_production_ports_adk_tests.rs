@@ -8325,6 +8325,25 @@ fn strategy_optimize_rolls_back_candidates_and_validates_the_request() {
     );
 }
 
+/// Go's `system.status` tool only enriches the status payload with the ADK
+/// module block while the assistant runtime reports itself available.
+///
+/// Parity: go:452dea11:internal/assistant/assembly/adk_closure_contracts_test.go:12
+#[test]
+fn system_status_tool_stays_plain_without_a_configured_assistant_runtime() {
+    use crate::product::product_adk_model_runtime::AdkToolExecutor as _;
+    let (_ports, executor, _directory) = setup_test_bundle_and_executor();
+
+    let status = executor
+        .execute("system.status", &json!({}))
+        .expect("system status through the production executor");
+    assert!(status.get("status").is_some(), "{status}");
+    assert!(
+        status.get("adk").is_none(),
+        "a bundle without a usable model runtime must not publish the ADK module: {status}"
+    );
+}
+
 /// Go's `strategy.optimize` parses the backtest start input — including
 /// `tradingCosts` — before it queues the first candidate, so a malformed cost
 /// block fails the whole call and leaves no run or task behind.
