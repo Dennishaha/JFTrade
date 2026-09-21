@@ -5041,3 +5041,64 @@ servercore 第二片：继续消化剩余 servercore 文件（`servercoretest` �
 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked --no-fail-fast`（**3042 passed / 2 skipped**，含修复后的深度钳制测试）、
 `python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **1154 `[x]`** / missing 2597，0 破坏引用、0 重复 rust_entry、未锚定告警 193）、
 `pnpm run check:compatibility`、`pnpm run check:zero-go`、`pnpm run check:rust:architecture`、`git diff --check`，最后 `pnpm run check:quick`。
+
+## 批次 G：pkg/futu 剩余 86 条收口（go:452dea11）
+
+批次范围：`pkg/futu` 在清单中剩余的全部 86 条 `missing`，覆盖 37 个文件（live_opend 8、
+trade_proto_business 4、account_fill / adapter_prediction_boundaries / adapter_prediction_normalization /
+exchange_read_boundaries / kline_session_registry_boundaries / marketdata_bridge_success /
+opend/advanced / opend/trading_reads_contracts / security_query / security_snapshot_boundaries /
+time_normalization / trade_helpers / watchlist_reader_boundaries 各 3，其余为 2 条与 1 条小片）。
+
+分片执行：P0 交易/账户/下单与推送 19 条（trade_proto_business 4、trade_helpers 3、account_fill 3、
+trade_bounds 2、opend/subscription_info 2、opend/system_user_info 2、exchange_trade_push 1、
+trade_proto_sorting_contracts 1、trade_account_sorting_boundaries 1）→ P1 行情读取与快照语义 34 条
+（security_snapshot_boundaries 3、kline_session_registry_boundaries 3、marketdata_bridge_success 3、
+exchange_read_boundaries 3、time_normalization 3、security_query 3、watchlist_reader_boundaries 3，
+及 security_snapshot_reader_boundaries / security_snapshot_error_classification /
+quote_snapshot_adapter_boundaries / quote_snapshot_query / opend/orderbook 各 2，
+security_snapshot_products / watchlist_reader_integration / exchange_session 各 1）→
+P2 适配器与协议契约 33 条（adapter_prediction_boundaries 3、adapter_prediction_normalization 3、
+opend/advanced 3、opend/trading_reads_contracts 3、adapter_combo_rules 2、adapter_test 2、
+market_mapping_order_quantity 2、opend/proto_v108_contract 2、opend/read_boundary 2、
+live_opend 8，adapter_capabilities_service / opend/trading_methods /
+kline_history_subscription_boundaries 各 1）。
+
+结果：本批 86 条 = **0 `[x]` + 86 partial**，`pkg/futu/**` 全域归零（471 条 =
+353 `[x]` + 102 partial + 16 boundary，0 missing）。全局 4451 条 = function_exact 1209 +
+partial 2233 + boundary 529 + module_only 4 + **missing 476**。
+
+为什么本批没有新增 `[x]`：本批剩余条目是 Go 适配器层的多断言矩阵（symbol-scoped 错误分类 17 行、
+六类交易列表排序 tiebreaker、交易读包装器空值契约、live OpenD 契约），Rust 侧把同一职责拆到多条
+测试（`trade_proto_tests`、`trade_snapshots`、`security_snapshot_coordinator_tests`、
+`watchlist_reader_tests`、`subscription_executor`、engine trade/quote 端口），没有任何单条 Rust
+测试逐项断言同一集合，因此按 partial 记录而不占用 function_exact。`live_opend_test.go` 的 8 条
+是 `JFTRADE_FUTU_LIVE_TEST=1` 门控的 live 用例，对应 Rust 的 live workflow
+（`crates/jftrade-integration-futu/tests/live_opend_provider_runtime.rs`），普通 CI 不覆盖真实 OpenD。
+
+保留差异与补测候选（登记为后续批次输入）：
+
+1. **FUTURES availableFunds 优先级**：Go `trade_proto_business_test.go:77` 断言 FUTURES 账户下
+   Available 取 `availableFunds` 优先于 cashInfo `availableBalance`；Rust
+   `funds_snapshot_projection_preserves_available_and_withdrawable_cash` 走的是可提现现金路径，
+   未覆盖该优先级分支。
+2. **快照错误分类矩阵**：Rust 提供 `is_symbol_scoped_snapshot_error`、上下文标记测试与
+   `qot_sub_availability_classifier_matches_go_keyword_matrix`（订阅路径），但 Go 的 17 行
+   GetSecuritySnapshot 关键字/availability 矩阵（未知股票、美股 OTC、权限、配额、会话、限频、
+   异常 retType）未逐行断言。
+3. **mergeStaticInfo 仅补缺不覆盖**：`security_query_test.go:39` 与
+   `security_snapshot_reader_boundaries_test.go:54` 的合并规则在 Rust 无单项断言。
+4. **时间回退**：`formatBrokerOrderTime`/quote time 在缺时区时按市场时区回退、裸代码入参时按
+   解析出的市场回退（`time_normalization_test.go` 3 条）在 Rust 无同形断言。
+5. **交易读契约边界**：交易读包装器缺负载返回稳定空值（`opend/trading_reads_contracts_test.go:268`）
+   与 `ModifyOrder` 业务 retType 错误路径（`opend/trading_methods_test.go:161`）未逐包装器断言。
+6. **账户 tiebreaker 与二级缓存**：账户解析稳定 tiebreaker（account-id/市场，
+   `trade_account_sorting_boundaries_test.go:10`）、自选分组/成员读的二级缓存失败回退
+   （`watchlist_reader_boundaries_test.go:14/49`）缺同形断言。
+7. **协议注册表与字段编号**：10.9 高级协议唯一性/注册完整性（`opend/advanced_test.go:5`）、
+   C2S 字段探测严格校验（`:66`）与 proto v108 订单簿/Notify 字段编号
+   （`opend/proto_v108_contract_test.go`）依赖生成类型，无显式编号断言。
+8. **live OpenD**：8 条 live 用例（proto 契约、HKD 双柜台、权限发现、延迟快照、研究目录、
+   财报日历、周期声明、期权读闭环）只在显式 live workflow 验证。
+
+验证：`cargo fmt --all -- --check`；`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-broker --all-targets --locked --no-fail-fast`（**542 passed / 1 skipped**，跳过项为 live 门控）；`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2927 Rust** / **1209 `[x]`**；missing 476、partial 2233、boundary 529、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线、7 条 partial 无解析引用与 2 条无断言为前批已登记缺口）；`pnpm run check:compatibility`（EXIT=0）；`node scripts/check-zero-go.mjs`（2891 tracked files / 0 release artifact）；`pnpm run check:rust:architecture`；`git diff --check`；`pnpm run check:quick`（EXIT=0）；`pnpm run check:ai-context`。
