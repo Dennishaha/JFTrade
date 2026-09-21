@@ -30541,25 +30541,25 @@
     "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:367:TestCreateExecutionOrderAllowsRuntimeEnabledRealTradeBeforeBrokerCall": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/risk_engine_tests.rs::runtime_risk_enforce_applies_close_only_quantity_notional_and_daily_limits；crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_fails_when_real_trading_disabled",
-    "conclusion": "partial：Rust 覆盖运行期风控开关（开启时按限额放行、关闭时拒绝真实单）；差异：Go 断言运行期启用 REAL 后订单放行且到达 broker（placed=true），Rust 侧断言风控决策而非 broker 调用计数。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::runtime_enabled_real_trade_reaches_the_broker_after_risk_approval",
+    "conclusion": "function_exact：Go 在运行期启用 REAL（RealTradingEnabled=true、RuntimeMaxOrderNotional=500）后提交 1×100 的 REAL 单，要求既不报错又真的到达 broker（placed=true、Accepted、InternalOrderID 回填）。Rust 的等价路径：控制面文件（riskConfig.realTradingEnabled=true + maxOrderNotional=500）→ ExecutionRiskCoordinator 逐次重读并求值 → 批准后 execute_order_under_guard 执行券商闭包。新增测试把该状态写进 tempdir 控制面文件、挂到生产端口，提交 REAL 单，断言 ① 返回体含 internalOrderId；② RecordingTradeWriter.placed 恰好 1 条（风控批准后确实到达 broker，而非仅“决策放行”）。探针：把 coordinator 的决策快照改成 Default::default()（等价于忽略运行期 REAL 启用）→ 测试转红（下单被 REAL_TRADING_DISABLED 拒绝），按字节回滚（product_execution_risk_coordinator.rs shasum 8576a2f2… 探测前后一致）。差异：Go 断言 facade 返回的 Accepted/InternalOrderID，Rust 断言端口返回体 + 券商记录，两边都要求“批准且到达 broker”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:397:TestCreateExecutionOrderAllowsSimulateWhenRealTradingIsDisabled": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_allows_valid_simulate_order_even_if_real_controls_inactive；crates/jftrade-trading/tests/risk_engine_tests.rs::simulate_bypasses_real_trade_controls_but_real_fails_closed",
-    "conclusion": "partial：Rust 断言模拟单不受真实交易控制影响（SIMULATE 放行、REAL fail-closed）；差异：Go 断言模拟单在真实交易禁用时仍创建并落到 broker（placed=true），Rust 断言风控决策层。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::simulate_order_reaches_the_broker_while_real_trading_is_disabled",
+    "conclusion": "function_exact：Go 在 REAL 关闭时提交 SIMULATE 单，要求创建成功并到达 broker（placed=true）。Rust 的 execute_order_under_guard 只把 REAL 单交给风险协调器（coordinator 内部亦仅在 trading_environment == Real 时求值），SIMULATE 直接执行券商闭包。新增测试挂上默认（REAL 关闭）控制面后提交 SIMULATE 单，断言返回体含 internalOrderId 且 RecordingTradeWriter.placed 恰好 1 条。探针：把 guard 的 coordinator 分支改成对所有订单都返回 403 REAL_TRADING_DISABLED（即“REAL 关闭时误伤 SIMULATE”这一类回归）→ 测试转红，按字节回滚（product_production_ports_execution_orders_impl.rs shasum 41622082… 探测前后一致）。复核记录：先试过在 jftrade-trading/src/risk.rs 关掉 SIMULATE 的 allow 分支，但该类订单在引擎路径上根本不进入 evaluate_pre_trade_risk，探针不转红——这本身确认了“SIMULATE 不经 REAL 风控求值”的实现事实，最终探针落在 guard 分支上。差异：Go 断言 facade 的 placed/Accepted，Rust 断言券商记录与返回体。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:426:TestPlaceExecutionOrderResolvesImplicitRealEnvironmentBeforeRisk": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_fails_when_kill_switch_active；crates/jftrade-engine/src/product_execution_risk_coordinator.rs::real_order_rejects_when_kill_switch_active",
-    "conclusion": "partial：Rust 覆盖 kill switch 生效时真实单被拒绝、模拟单不受影响；差异：Go 断言未显式指定环境时隐式解析为 REAL 并因此触发风控拒绝（且不下单），Rust 断言以显式环境/控制面状态驱动，未覆盖隐式环境解析分支。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::implicit_real_environment_is_risk_rejected_before_the_broker_is_called",
+    "conclusion": "function_exact：Go 把默认环境设为 REAL，提交未显式指定环境的订单，要求隐式解析为 REAL 后触发风控拒绝，且订单网关零调用（stub 内 t.Fatal）。Rust 的等价物是 ProductionExecutionPort::place_order 先取 default_trading_environment 再交给 parse_order_with_defaults，因此缺省 tradingEnvironment 会被解析成 REAL 并进入风险协调器。新增测试挂默认 REAL 环境 + 默认（REAL 关闭）控制面，从 payload 删除 tradingEnvironment 后提交，断言 ① 错误为 Failed{403, REAL_TRADING_DISABLED}；② RecordingTradeWriter.placed 为空。探针：把 parse_order_with_defaults 的默认环境参数改为 None（等价于丢失隐式 REAL 解析）→ 测试转红（订单以 SIMULATE 通过并到达 broker），按字节回滚（product_production_ports_execution_orders_impl.rs shasum 41622082… 探测前后一致）。差异：Go 断言 RiskRejectedError，Rust 断言 403/REAL_TRADING_DISABLED 与券商零调用。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:470:TestPlaceExecutionOrderFailsClosedWithoutRealRiskGateway": {
     "status": "[x]",

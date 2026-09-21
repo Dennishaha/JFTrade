@@ -1,9 +1,9 @@
 # Trading 执行域第三批（第 117 批·分片一）
 
 本文件记录 `internal/trading/execution_test.go` 剩余 `partial` 行的逐条收口。该文件共 17 条
-`partial`，按“错误分类 / 校验时序 / 委派参数 / 风控时序 / 详情边界”分片推进；已完成**前两片**
-（分片一 `:285`、`:327`；分片二 `:173`、`:342`、`:470`）共 5 条 → `function_exact`，
-新增 5 条 Rust 测试，其余 12 行的分片计划见文末。两批均无生产语义变更，
+`partial`，按“错误分类 / 校验时序 / 委派参数 / 风控时序 / 详情边界”分片推进；已完成**前三片**
+（分片一 `:285`、`:327`；分片二 `:173`、`:342`、`:470`；分片三 `:367`、`:397`、`:426`）
+共 8 条 → `function_exact`，新增 8 条 Rust 测试，其余 9 行的分片计划见文末。三批均无生产语义变更，
 被探测的生产文件一律按字节回滚。
 
 ## 第一百一十七批（分片一）：facade 错误分类与校验时序（2 条）
@@ -137,12 +137,66 @@ Go 侧 3 条（同文件 17 条中的 `:173`、`:342`、`:470`）：
 - **引用唯一约束**：`:342` 原先复用的 `jftrade-trading` 域测试已被 `internal/trading/broker_test.go`
   的 `[x]` 占用，本批为它新增了引擎层端到端测试，避免同一 Rust 测试被两个 `[x]` 引用。
 
-### 后续待办（本文件剩余 12 条）
+## 第一百一十七批（分片三）：运行期 REAL 放行与隐式环境（3 条）
 
-- 下批（第 117 批·分片三）：`:367`/`:397`（断言订单确实到达 broker，而非仅风控决策）、
-  `:426`（未显式指定环境时隐式解析
-  REAL 后触发风控拒绝）。
-- 分片四：`:496`（kill switch 激活等待在途 REAL 下单的时序）、`:738`（kill switch + hard stop 重启往返）、
+### 范围与分片
+
+Go 侧 3 条（同文件 `:367`、`:397`、`:426`）：
+
+- P0 `:367`：运行期启用 REAL + `RuntimeMaxOrderNotional=500` → 1×100 的 REAL 单被放行且到达 broker。
+- P0 `:397`：REAL 关闭时 SIMULATE 单仍被创建且到达 broker。
+- P0 `:426`：默认环境 REAL + 请求省略 `tradingEnvironment` → 隐式解析 REAL → 风控拒绝且订单网关零调用。
+
+分类：3 条全部 `[x]`/`function_exact`（原均为 `partial`）。
+
+### 关键事实
+
+- `ProductionExecutionPort::place_order` 先读取 `default_trading_environment` 再调用
+  `parse_order_with_defaults(payload, default_env)`，因此省略 `tradingEnvironment` 的请求会落到
+  运行期默认环境（REAL）并进入风险协调器。
+- `ExecutionRiskCoordinator::execute_with_risk_guard` 只在 `trading_environment == Real` 时求值
+  （SIMULATE 根本不进入 `evaluate_pre_trade_risk`）；REAL 启用与限额来自控制面文件
+  `riskConfig.realTradingEnabled` / `maxOrderNotional`，每次提交前重读。
+- 风控批准后由 `execute_order_under_guard` 调用券商闭包，因此“到达 broker”可用
+  `RecordingTradeWriter.placed` 直接证明。
+
+### 新增测试（均带 `// Parity:` 锚点，均在 `product_production_ports_execution_preview_tests.rs`）
+
+- `runtime_enabled_real_trade_reaches_the_broker_after_risk_approval`（锚 `:367`）：tempdir 控制面写入
+  `realTradingEnabled=true` + `maxOrderNotional=500`，REAL 单（100×1）经风控批准后返回
+  `internalOrderId` 且 `placed` 恰好 1 条。
+- `simulate_order_reaches_the_broker_while_real_trading_is_disabled`（锚 `:397`）：默认（REAL 关闭）
+  控制面 + SIMULATE 单 → 返回 `internalOrderId` 且 `placed` 恰好 1 条。
+- `implicit_real_environment_is_risk_rejected_before_the_broker_is_called`（锚 `:426`）：默认环境 REAL +
+  payload 删除 `tradingEnvironment` → `Failed{403, REAL_TRADING_DISABLED}` 且 `placed` 为空。
+
+### 探针记录（破 → 红 → 按字节回滚）
+
+- 探针 ①（`:367`）：把 coordinator 的决策快照替换为 `Default::default()`（忽略运行期 REAL 启用）→
+  测试转红；回滚后 `product_execution_risk_coordinator.rs` shasum
+  `8576a2f2ab7457081fd2af92c9b6a6f3992f852811a679936e36a8d3132de0ab` 与探测前一致。
+- 探针 ②（`:397`）：把 `execute_order_under_guard` 的 coordinator 分支改为对所有订单返回
+  403 `REAL_TRADING_DISABLED`（“REAL 关闭时误伤 SIMULATE”）→ 测试转红；回滚后
+  `product_production_ports_execution_orders_impl.rs` shasum
+  `416220828cc78ed0ef133b4babed34b3c8ac7dbd4c95f53dd6107a2716b35bcc` 与探测前一致。
+  过程记录：先试过关闭 `jftrade-trading/src/risk.rs` 的 SIMULATE allow 分支，探针**未**转红——
+  因为引擎路径上 SIMULATE 不进入 `evaluate_pre_trade_risk`；该次探测同样按字节回滚
+  （`risk.rs` shasum `2f03d6b4b51181c4740f531208835ac9057ba7829cef286033cf48e7f34fd401` 一致），
+  并作为“SIMULATE 不经 REAL 风控求值”的实现证据记录在此。
+- 探针 ③（`:426`）：把 `parse_order_with_defaults` 的默认环境参数改为 `None`（丢失隐式 REAL 解析）→
+  测试转红（订单以 SIMULATE 到达 broker）；按字节回滚，shasum 与探测前一致（同上）。
+
+### 保留差异
+
+- **放行证据**：Go 断言 facade 的 `Accepted/InternalOrderID`；Rust 断言端口返回体 + 券商记录条数，
+  直接覆盖“批准后确实提交”这一环节。
+- **控制面来源**：Go 用 `StaticPreTradeRiskGateway` 闭包；Rust 用磁盘控制面文件（每次提交重读），
+  因此测试以 JSON 状态文件作为夹具，更接近生产路径。
+
+### 后续待办（本文件剩余 9 条）
+
+- 下批（第 117 批·分片四）：`:496`（kill switch 激活等待在途 REAL 下单的时序）、
+  `:738`（kill switch + hard stop 重启往返）、
   `:874`（持久化失败整体回滚：内存与磁盘一致）、`:939`（持久化状态读取失败 fail-closed）。
 - 分片五：`:613`（amount/quantity/notional 组合矩阵聚合断言）、`:718`（REAL 相关环境变量不得配置
   预交易风控的负例）、`:813`（校验失败/禁用事件的审计事件流文本）、`:1014`（详情最近事件数量上界）、
@@ -178,6 +232,24 @@ Go 侧 3 条（同文件 17 条中的 `:173`、`:342`、`:470`）：
 - `pnpm run check:rust` EXIT=1：`:target-health` / `:architecture` / `:production-policy` 通过，
   唯一失败阶段 `check:rust:policy`（`cargo deny`）报 RUSTSEC-2026-0285 与陈旧 advisory 告警，
   与本仓既有基线同源。**不记为通过**。
+- 分片三定向 nextest（3 条新测试）EXIT=0：`runtime_enabled_real_trade_reaches_the_broker_after_risk_approval`、
+  `simulate_order_reaches_the_broker_while_real_trading_is_disabled`、
+  `implicit_real_environment_is_risk_rejected_before_the_broker_is_called`；三次探针全部转红并按字节回滚
+  （含一次“探针不转红”的过程记录，见分片三探针小节）。
+- 分片三门禁：`cargo fmt --all --check` EXIT=0；`cargo clippy -p jftrade-engine -p jftrade-trading
+  --all-targets --locked` EXIT=0；`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine
+  -p jftrade-trading --all-targets --locked --no-fail-fast` **1849 passed / 0 failed**；
+  `pnpm run check:compatibility` EXIT=0；`node scripts/check-zero-go.mjs` EXIT=0（2931 tracked files）；
+  `pnpm run check:ai-context` EXIT=0；`git diff --check` 干净。
+- 分片三门禁续：`pnpm run check:quick` 首轮在 `check:rust:target-health` 报 `.rcgu.o ≥ 50000`
+  （多轮 nextest 编译累积），确认无 Cargo 进程后 `pnpm run clean:rust:artifacts`
+  （Removed 139409 files / 34.6GiB）并复跑 EXIT=0（含 pineworker 10 files / 98 tests）；
+  `pnpm run check:rust` 复跑后 `:target-health`/`:architecture`/`:production-policy` 通过、
+  仅 `:policy` 失败（RUSTSEC-2026-0285），**不记为通过**。
+- 分片三审计：`python3 scripts/compatibility/audit_test_parity.py` 4451 Go / **3075** Rust、
+  `[x]` 1334 → **1337**、`partial` 2539 → **2536**、`missing` 0、0 破坏引用；
+  `python3.12 scripts/compatibility/parity_anchor_reconcile.py` **1338** 唯一引用
+  （已记账 1283、unrecorded 0、unknown 55、stale 0）。
 - `cargo fmt --all --check` EXIT=0（首轮 fmt 报测试文件一处换行，`cargo fmt --all` 后复检通过）；
   `cargo clippy -p jftrade-engine --all-targets --locked` EXIT=0。
 - 全量 `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked

@@ -905,6 +905,127 @@ fn real_order_without_a_risk_gateway_fails_closed_before_the_broker_is_called() 
     );
 }
 
+/// Seed a REAL-enabled runtime risk entry so the coordinator approves orders.
+fn write_enabled_risk_config(path: &std::path::Path) {
+    std::fs::write(
+        path,
+        r#"{
+  "riskConfig": {
+    "id": "runtime-risk-fixture",
+    "tradingEnvironment": "REAL",
+    "realTradingEnabled": true,
+    "maxOrderNotional": 500,
+    "operatorId": "fixture-operator",
+    "reason": "batch 117 shard 3 fixture",
+    "activatedAt": "2026-09-22T00:00:00Z",
+    "updatedAt": "2026-09-22T00:00:00Z"
+  }
+}
+"#,
+    )
+    .expect("seed runtime risk config");
+}
+
+/// Parity: go:452dea11:internal/trading/execution_test.go:367
+/// `TestCreateExecutionOrderAllowsRuntimeEnabledRealTradeBeforeBrokerCall`. Go
+/// enables REAL trading with a runtime max notional and requires the order to
+/// be accepted *and* to reach the injected broker (`placed=true`). Rust must
+/// therefore pass the risk gate and hand the order to the write port.
+#[test]
+fn runtime_enabled_real_trade_reaches_the_broker_after_risk_approval() {
+    let directory = tempfile::tempdir().expect("risk control directory");
+    let control_path = directory.path().join("real-trade-control.json");
+    write_enabled_risk_config(&control_path);
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let mut port = cancel_contract_port(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
+    port.risk_coordinator = Some(Arc::new(crate::product::ExecutionRiskCoordinator::new(
+        control_path,
+    )));
+
+    let mut payload = cancel_contract_payload("runtime-enabled-real-order");
+    payload["tradingEnvironment"] = json!("REAL");
+    payload["price"] = json!(100.0);
+    payload["quantity"] = json!(1.0);
+    let placed = port
+        .place_order(&payload)
+        .expect("runtime-enabled REAL order");
+    assert!(
+        placed["internalOrderId"].is_string(),
+        "placed response = {placed}"
+    );
+    assert_eq!(
+        writer.placed.lock().expect("placed orders").len(),
+        1,
+        "risk-approved REAL order must reach the broker"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/execution_test.go:397
+/// `TestCreateExecutionOrderAllowsSimulateWhenRealTradingIsDisabled`. Go keeps
+/// REAL disabled but still requires a SIMULATE order to be created and reach
+/// the broker (`placed=true`).
+#[test]
+fn simulate_order_reaches_the_broker_while_real_trading_is_disabled() {
+    let directory = tempfile::tempdir().expect("risk control directory");
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let mut port = cancel_contract_port(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
+    port.risk_coordinator = Some(Arc::new(crate::product::ExecutionRiskCoordinator::new(
+        directory.path().join("real-trade-control.json"),
+    )));
+
+    let placed = port
+        .place_order(&cancel_contract_payload("simulate-with-real-disabled"))
+        .expect("simulate order");
+    assert!(
+        placed["internalOrderId"].is_string(),
+        "placed response = {placed}"
+    );
+    assert_eq!(
+        writer.placed.lock().expect("placed orders").len(),
+        1,
+        "SIMULATE order must reach the broker even when REAL trading is disabled"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/execution_test.go:426
+/// `TestPlaceExecutionOrderResolvesImplicitRealEnvironmentBeforeRisk`. Go's
+/// default environment is REAL; a request that omits `tradingEnvironment` must
+/// still resolve to REAL, hit the risk gate, and never reach the order gateway.
+#[test]
+fn implicit_real_environment_is_risk_rejected_before_the_broker_is_called() {
+    let directory = tempfile::tempdir().expect("risk control directory");
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let mut port = cancel_contract_port(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
+    port.risk_coordinator = Some(Arc::new(crate::product::ExecutionRiskCoordinator::new(
+        directory.path().join("real-trade-control.json"),
+    )));
+    port.default_trading_environment = Some(Arc::new(|| "REAL".to_owned()));
+
+    let mut payload = cancel_contract_payload("implicit-real-order");
+    payload
+        .as_object_mut()
+        .expect("payload object")
+        .remove("tradingEnvironment");
+    let error = port
+        .place_order(&payload)
+        .expect_err("implicit REAL must be risk rejected");
+    assert!(
+        matches!(
+            error,
+            ExecutionWritePortError::Failed {
+                status: 403,
+                ref code,
+                ..
+            } if code == "REAL_TRADING_DISABLED"
+        ),
+        "implicit REAL error = {error:?}"
+    );
+    assert!(
+        writer.placed.lock().expect("placed orders").is_empty(),
+        "order gateway must not run after implicit REAL risk rejection"
+    );
+}
+
 /// Parity: go:452dea11:internal/trading/execution_test.go:327
 /// `TestCreateExecutionOrderRejectsInvalidPayloadBeforeBrokerCall`. Go builds
 /// the order service with a fake `placeOrder` that fails the test when it is
