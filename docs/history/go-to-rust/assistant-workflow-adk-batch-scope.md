@@ -3006,3 +3006,37 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 - 跨批 follow-up 汇总：P0 无新增。P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与 workflow CRUD 工具族（第 62/63 批）、策略实例读写工具（第 52 批 `:122`；第 56 批确认含 `market.provider.select`/`backtest.cancel`；第 59 批补充策略实例读/摘要工具与定义摘要 wire 形状）、`portfolio.summary` 多账户聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照生产 wire 形状、工作流触发日志 active/page 过滤与 `workflow_runs.*` 过滤参数（第 62 批）、`workflow.*` 单条读路由缺口（第 62 批）、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`、**ADK 维护缺 owner-side busy/lease handoff（本批新增）**；P2 = 写期 canvas 校验比 Go 绑定更严与交互式会话守卫不迁移（第 63 批）、`watchlist.list` includeQuotes 富化与载荷字段形状（第 47/57/61 批）、第 56 批 `tradingCosts` 类型解码差异、第 57 批 `RecordWorkflowAudit` 回调无 owner、`market.depth` instrument 文本推断、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具、第 53/54 批 float 截断/query 文本推断/limit>50 钳制/capability 措辞、第 55 批禁用 503 路径差异。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（141 passed）、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1681 passed）、`node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement --all-targets --locked --no-fail-fast`（6 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2856 Rust** / **959 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第六十五批：`internal/assistant/assembly/adk_backtest_adapter_test.go`（1 条）
+
+### 范围与基线
+
+- 目标文件：`internal/assistant/assembly/adk_backtest_adapter_test.go`（`:8` `TestADKStrategyValidationAndVisualModelBoundaries`）。
+- Go 基线：`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestADKStrategyValidationAndVisualModelBoundaries' -count=1`，PASS。
+- Go 语义（`strategy_tools.go:69` / `application_strategy.go:258` / `internal/strategy/visual_model.go:16`）：①`ValidateADKStrategyScript(tool, script)` 用 `strategypine.Compile` 校验，返回 TrimSpace 后的 `NormalizedScript`、`Program`、`Requirements`、`Warnings`；②`SourceFormatPineV6() == "pine-v6"`；③`strategyVisualModelFromInput` 把对象归一（engine 缺省 `logic-flow`、version 缺省 1、nodes/edges 补空数组、node `properties` 缺省 `{}`、edge `type` 缺省 `polyline`）；④非对象 → `visualModel must be a valid object`；⑤`blockKind` 为 `codeBlock`/`technicalIndicator` → `ErrUnsupportedLegacyDefinition`。
+- Rust 侦察：`crates/jftrade-strategy/src/pinespec/mod.rs::validate_script`（`SOURCE_FORMAT`/`RUNTIME`）、`crates/jftrade-engine/src/strategy_pine_mcp.rs`（`strategy.validate_pine`/`strategy.pine_spec` 叶）、`crates/jftrade-engine/src/strategy_pine.rs`（`PINE_V6_SOURCE_FORMAT` 与 `/api/v1/strategy-pine/analyze`）、写入端口 `crates/jftrade-engine/src/product_production_ports_strategy.rs`（`visualModel`/`visualModelJson` 原样落库，无归一/拒绝）。
+
+### 本批改动（补强既有回归，不新增测试文件）
+
+- `crates/jftrade-strategy/tests/pine_mcp_contract.rs::validation_payload_matches_go_owner_field_set_and_defaults_requirements` 增加四条断言：`source_format == "pine-v6"`（字面量，对应 ②）、`normalized_script == EMA_SCRIPT.trim()`（对应 ①的归一回显）、`metadata.name == "EMA"` 与 `metadata.pyramiding == 2`（证明 program 已被编译，对应 ①的 `Program != nil`）；既有的 `requirements`/`saveHint`/payload 键集断言保留。
+- 引擎侧模型工具面引用既有证据：`production_mcp_pine_leaves_execute_native_spec_and_validation`、`production_mcp_pine_validation_maps_bad_arguments_and_rejects_unsupported_scripts`、`tests/strategy_pine_compatibility.rs::strategy_pine_applies_input_validation_and_error_precedence_before_the_port`。
+
+### `:8 [~]`（③④⑤ 为缺口，登记 P1）
+
+- Rust 无视觉模型归一/legacy 校验 owner：写入端口把 `visualModel`（任意 JSON）序列化进 `visual_model_json`，或直接透传 `visualModelJson` 字符串，不补默认值、不拒绝 `blockKind: codeBlock/technicalIndicator`、不拒绝非对象；缺省值等价物在 Vue/TS 构建器（第 47 批 `:253` 已登记 boundary）。
+- **新增 P1（公开写入契约校验缺口）**：Go 在 store 归一化层（`internal/store/strategy/normalize.go` → `NormalizeVisualModel`）对*任意*写入拒绝非对象 visual model 与 legacy blockKind（`ErrUnsupportedLegacyDefinition`/400），Rust 同等请求 200 落库。复现：POST/PUT `/api/v1/strategy-definitions` 带 `visualModel:"not-an-object"`，或 `visualModel:{nodes:[{id:"n1",type:"note",properties:{blockKind:"codeBlock"}}]}`。修复方向：在策略定义写入 owner（engine 端口或 jftrade-strategy 领域校验）补归一（engine/version/properties/edge type 缺省）+ legacy 拒绝并映射错误码，回归断言按本行 ③④⑤ 编写。
+- 另注：Go 的 `strategy.save_draft` 工具在 Rust 不发布（`product_adk_store_parity_tests.rs:496` 明确禁止研究技能发布 `strategy.save_draft`/`strategy.save_definition`），因此「工具名参数化的校验入口」无同名对象；等价能力由 `strategy.validate_pine` 叶承担，已在上节覆盖。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `validate_script` 的 `source.trim()` 改回 `source` → 该测试转红（exit 100，normalizedScript 含尾随换行）。
+2. `SOURCE_FORMAT` 常量改成 `"pine-v6-legacy"` → 该测试转红（exit 100）。
+3. `validate_script` 的 metadata 分支改成恒 `default_metadata()` → 该测试转红（exit 100，metadata.name 为空）。
+   3 处探针均在本批内执行并按字节回滚，回滚后 suite 复测全绿。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 3 条：`adk_strategy_input_validation_test.go` 1、`adk_tool_failure_contracts_test.go` 1、`product_execution_contracts_test.go` 1、`workflow_execution_injection_test.go` 1（共 4 条，见下批目标）；随后 `internal/app/apiserver`（574，按 servercore/servercoretest/datamigration 等子域分片，注意 `internal/app/apiserver/datamigration/maintenance_test.go` 8 条）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）、`internal/integration/akshare`（73）、`internal/integration/yfinance`（68）、`pkg/market`（56）。
+- 跨批 follow-up 汇总：P0 无新增。P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与 workflow CRUD 工具族（第 62/63 批）、策略实例读写工具（第 52 批 `:122`；第 56/59 批补充）、**策略定义写入缺视觉模型归一与 legacy 拒绝（本批新增）**、`portfolio.summary` 多账户聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照生产 wire 形状（含 `visualModelJson` 直出）、工作流触发日志 active/page 过滤与 `workflow_runs.*` 过滤参数（第 62 批）、`workflow.*` 单条读路由缺口（第 62 批）、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`、ADK 维护缺 owner-side busy/lease handoff（第 64 批）；P2 同前批（写期 canvas 校验更严、交互式会话守卫不迁移、`watchlist.list` includeQuotes、`tradingCosts` 类型解码、`RecordWorkflowAudit` 回调、`market.depth` 推断、`research.calendar` fail-closed、动态工具注册、`backtest.kline_sync_status` 字面量、resultView 归一、per-agent 技能过滤、模型侧 memory/artifact 工具、第 53/54/55 批各项）。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-strategy --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast`（45 passed）、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1681 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2856 Rust** / **959 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

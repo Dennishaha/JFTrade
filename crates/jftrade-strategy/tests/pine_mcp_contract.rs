@@ -234,6 +234,20 @@ fn pine_spec_examples_section_includes_examples_when_selected_or_requested() {
 fn validation_payload_matches_go_owner_field_set_and_defaults_requirements() {
     let result = validate_script(EMA_SCRIPT, true, true);
     assert!(result.ok, "errors: {:?}", result.errors);
+    assert_eq!(
+        result.source_format, "pine-v6",
+        "the validation payload reports the Go source-format constant"
+    );
+    assert_eq!(
+        result.normalized_script,
+        EMA_SCRIPT.trim(),
+        "a valid script is echoed back trimmed, like the Go save-draft validation"
+    );
+    assert_eq!(
+        result.metadata["name"], "EMA",
+        "the payload carries program metadata, not just a parse attempt"
+    );
+    assert_eq!(result.metadata["pyramiding"], 2);
     assert!(result.requirements.is_some());
     assert_eq!(result.external_engine["engine"], "pinets-shadow");
     assert_eq!(result.external_engine["status"], "disabled");
