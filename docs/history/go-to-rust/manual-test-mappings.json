@@ -6959,17 +6959,17 @@
   },
   "internal/assistant/assembly/maintenance_test.go:12:TestDatabaseMaintenanceOwnsADKBusyPurgeAndCompactPaths": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_adk_resources.rs::adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set",
+    "conclusion": "partial：新增 crates/jftrade-store-sqlite/tests/maintenance_adk_resources.rs 覆盖 ①③ 与错误分支——①候选与清除：ADK 库里软删 agent（deletedAt）、软删 workflow、软删 trigger，以及被软删 workflow 带出的 trigger（级联）共 4 条入选，active agent 与 live workflow 不入选；用候选集构造 ApprovedCleanupPreview 后 ManagedDatabaseMaintenanceStore::execute_cleanup → deletedCount=4、compacted=true，四行全部消失而 active/live 行保留；提交未知分类 \"未来类型\" 的候选 → Err(Stale)（等价 Go 的 dmsrv.ErrCleanupCandidatesChanged），且不会删除背后真实候选（agent-late 仍在）。③compact：同文件 adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease 断言 DATABASE_ADK / adk-session / adk-artifact 三个资源 compact 各自 compacted=true 且回显 databaseId。②busy 半边仍缺：Go 的 MaintenanceBusyReason 由 runtime.HasDatabaseActivity（存在活动/暂停/等待审批的 run）派生并同时挡住 preview 与 execute；Rust 生产装配不给 CleanupPreviewService 传 busy reason（product_data_management.rs::cleanup_preview_service 无 busy 端口），改为靠 writer lease：引擎持有 AdkStore（生命周期内持有 WriterLease，见 crates/jftrade-store-sqlite/src/adk.rs 的 _writer_lease 字段）时，maintenance store 以独立 owner 取同一 lock 文件必然 Conflict，新测试证明 owner 存活时 compact/execute fail-closed、owner drop 后恢复。差异：Rust preview 不因活跃 run 拒绝（Go 会），且引擎常驻的生产进程内 compact/execute 始终因 lease 冲突不可用（Go 通过 engine-owned DatabaseMaintenance 适配器在无活跃 run 时仍可维护）。登记为 P1（见批次小结），修复方向：像 Go 一样由 engine 暴露 owner-side maintenance 端口（busy reason 来自 ADK run 状态，compact/purge 走引擎自身连接与 lease），或实现 lease handoff。探针：把 (\"adk\",\"智能体\") 的删除语句改指 adk_sessions → 测试转红；删掉触发器候选 SQL 的 workflow_id IN (deleted workflows) 级联子句 → 测试转红；给 verify_candidates 直接返回 Ok(()) → 未知分类用例转红。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --locked -E 'test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) | test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/maintenance_test.go:77:TestDatabaseMaintenanceFailsClosedWithoutOwnedRuntime": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_adk_resources.rs::adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease",
+    "conclusion": "partial：Rust 无 nil handle / nil runtime 的共享对象（生产对象在装配期即建立或不存在），等价的 fail-closed 面由 maintenance_adk_resources.rs::adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease 断言：unknown database id → Err(Rejected)（等价 Go 对 \"unknown\" resource 的 compact 报错）；owner（AdkStore）存活时 compact 与 execute_cleanup → Err(Conflict)，等价「没有 owned runtime 不得维护」的失败语义（Rust 用 writer lease 冲突表达，不是 nil 指针）；owner drop 后 compact 恢复成功。Go 侧 nil handle 的三段（busy reason 返回空串、compact 报错、purge 报错）在 Rust 无同名对象：busy reason 概念本身缺失（同 :12 的 P1 登记），nil purge 对应「无 owner 时不得删除」的 Conflict 路径。探针：把 compact 的 lease 获取移到 open 之后 → 该测试转红（owner 存活时不再 Conflict）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --locked -E 'test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/market_index_constituents_tools_test.go:14:TestADKMarketIndexConstituentsToolForwardsNormalizedInputs": {
     "status": "[x]",

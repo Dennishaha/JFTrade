@@ -2966,3 +2966,43 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 - 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与 workflow CRUD 工具族（第 62 批 + 本批 `:52`）、策略实例读写工具（第 52 批 `:122`；第 56 批确认含 `market.provider.select`/`backtest.cancel`；第 59 批补充策略实例读/摘要工具与定义摘要 wire 形状）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤与 `workflow_runs.*` 过滤参数（第 62 批 ②）、`workflow.*` 单条读路由缺口（第 62 批 ①）、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 本批 ①（写期 canvas 校验比 Go 绑定更严）与本批 ③（交互式会话守卫不迁移）、`watchlist.list` 的 includeQuotes 行情富化与载荷字段形状（第 47/57/61 批）、第 56 批的 `tradingCosts` 字段级类型解码差异、第 57 批的 `RecordWorkflowAudit` 回调无 owner、`market.depth` 自由文本 instrument 推断、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具、第 53/54 批的 float 截断/query 文本推断/limit>50 钳制/capability 措辞、第 55 批禁用 503 路径差异。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1680 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2854 Rust** / **959 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第六十四批：`internal/assistant/assembly/maintenance_test.go`（2 条）
+
+### 范围与基线
+
+- 目标文件：`internal/assistant/assembly/maintenance_test.go`（`:12` `TestDatabaseMaintenanceOwnsADKBusyPurgeAndCompactPaths`、`:77` `TestDatabaseMaintenanceFailsClosedWithoutOwnedRuntime`）。
+- Go 基线：`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestDatabaseMaintenanceOwnsADKBusyPurgeAndCompactPaths|TestDatabaseMaintenanceFailsClosedWithoutOwnedRuntime' -count=1`，两条均 PASS。
+- Go 语义（读 `internal/assistant/assembly/maintenance.go`）：`DatabaseMaintenance` 是 engine `runtime` 的 owner-side 适配器——①`MaintenanceBusyReason` 由 `runtime.HasDatabaseActivity`（活动/暂停/等待审批的 run）派生，`"无法确认 ADK 运行状态"` 表示探测失败；②`PurgeMaintenanceCandidates` 只在 runtime 资源上生效，把分类 `智能体/工作流/触发器` 映射成 `DeletedConfigIDs`，未知分类不映射任何 id，`deleted != len(candidates)` 或 runtime 返回 `ErrCleanupCandidatesChanged` 都归一到 `dmsrv.ErrCleanupCandidatesChanged`；③`CompactMaintenanceResource` 对 runtime/session/artifact 分别走 `CompactDatabase`/`CompactSessionDatabase`/`CompactArtifactDatabase`，未知资源报错；④nil handle 时 busy reason 为空、compact/purge 报错。
+- Rust 对应 owner：`crates/jftrade-store-sqlite/src/maintenance.rs`（`ManagedDatabaseMaintenanceStore`，写前取 `WriterLease`）、`data_management.rs`（`maintenance_candidates`：ADK 软删 agent/workflow/trigger + 被软删 workflow 的级联 trigger 查询）、engine 装配 `crates/jftrade-engine/src/product_data_management.rs`。既有测试：`crates/jftrade-store-sqlite/tests/maintenance_cleanup_candidates.rs`（仅候选列举 + 指纹 + busy 字符串注入）。
+- 新增测试文件：`crates/jftrade-store-sqlite/tests/maintenance_adk_resources.rs`（2 条测试）。
+
+### `:12 [~]`（purge + compact 已覆盖，busy owner 缺口登记 P1）
+
+- 新增 `maintenance_adk_resources.rs::adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set`：ADK 库播种 active agent、软删 agent、软删 workflow、live workflow、软删 trigger、挂在软删 workflow 下的 trigger；候选集恰为 `agent-deleted(智能体)`、`workflow-deleted(工作流)`、`trigger-deleted(触发器)`、`trigger-cascade(触发器)`；`execute_cleanup` → `deletedCount=4`、`compacted=true`，四行消失而 active/live 行保留；未知分类 `未来类型` 的候选 → `Err(Stale)`（等价 Go 的 `ErrCleanupCandidatesChanged`）且不删除背后的真实候选 `agent-late`。
+- 新增 `maintenance_adk_resources.rs::adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease`：`DATABASE_ADK`/`adk-session`/`adk-artifact` 三个资源各自 `compact` → `compacted=true` 且 `databaseId` 回显。
+- **P1 缺口（busy owner）**：Go 在 preview 与 execute 都因活跃 run 拒绝维护；Rust 生产装配不给 `CleanupPreviewService` 传 busy reason（`product_data_management.rs::cleanup_preview_service` 无 busy 端口），preview 不感知 run 状态，靠 `ManagedDatabaseMaintenanceStore` 的 `WriterLease` 兜底——引擎常驻持有 `AdkStore`（`_writer_lease` 字段）时，maintenance store 以独立 owner 取同一 lock 文件必然 `Conflict`。复现条件：open `AdkStore` 后对同一文件 `compact`/`execute_cleanup` → `Err(Conflict)`（本批测试断言）；`drop(store)` 后可成功。影响：①preview 行为与 Go 不同（Go 拒绝）；②引擎常驻的生产进程内 compact/purge 始终不可用（Go 通过 engine-owned 适配器在无活跃 run 时仍可维护）。修复方向：由 engine 暴露 owner-side maintenance 端口（busy reason 来自 ADK run 状态；compact/purge 走引擎自身连接与 lease），或实现显式 lease handoff；属于跨 crate 设计变更，本批只立测试与证据，不改生产行为。
+
+### `:77 [~]`（nil handle 无同名对象，fail-closed 面已覆盖）
+
+- Rust 生产对象没有 nil handle/nil runtime 形态，`unknown` 资源与「无 owner 不得维护」两面由 `adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease` 断言：`compact("unknown")` → `Err(Rejected)`；owner 存活时 `compact`/`execute_cleanup` → `Err(Conflict)`；owner 释放后恢复成功。
+- Go 的 nil busy reason（空串）在 Rust 无对应物——busy reason 概念本身缺失，归入 `:12` 的 P1，不重复登记。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `("adk","智能体")` 的删除语句改指 `adk_sessions` → `adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set` 转红（exit 100）。
+2. 删掉触发器候选 SQL 的 `OR workflow_id IN (SELECT id FROM adk_workflows WHERE ... deletedAt ...)` 级联子句 → 同上测试转红（exit 100）。
+3. 把 `compact` 的 `let _lease = self.lease(descriptor)?;` 移到 `open_ready` 之后 → `adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease` 转红（exit 100）。
+4. `verify_candidates` 直接返回 `Ok(())`（跳过 `verify_execute`）→ 未知分类用例转红（exit 101）。
+   4 处探针均在本批内执行并按字节回滚，回滚后 suite 复测全绿。
+
+### 校正
+
+第六十三批小结与 `:52` 行结论里写的「1680 条 engine 测试」是当时 4 条新测试中第 4 条尚未加入时的实跑数；本批复核 engine 全量为 **1681**（无 engine 源码变更，仅为计数校正）。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 3 条：`adk_backtest_adapter_test.go` 1、`adk_strategy_input_validation_test.go` 1、`adk_tool_failure_contracts_test.go` 1；随后 `product_execution_contracts_test.go` 1、`workflow_execution_injection_test.go` 1；再进入 `internal/app/apiserver`（574，按 servercore/servercoretest/datamigration 等子域分片，注意 `internal/app/apiserver/datamigration/maintenance_test.go` 8 条）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）、`internal/integration/akshare`（73）、`internal/integration/yfinance`（68）、`pkg/market`（56）。
+- 跨批 follow-up 汇总：P0 无新增。P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与 workflow CRUD 工具族（第 62/63 批）、策略实例读写工具（第 52 批 `:122`；第 56 批确认含 `market.provider.select`/`backtest.cancel`；第 59 批补充策略实例读/摘要工具与定义摘要 wire 形状）、`portfolio.summary` 多账户聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照生产 wire 形状、工作流触发日志 active/page 过滤与 `workflow_runs.*` 过滤参数（第 62 批）、`workflow.*` 单条读路由缺口（第 62 批）、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`、**ADK 维护缺 owner-side busy/lease handoff（本批新增）**；P2 = 写期 canvas 校验比 Go 绑定更严与交互式会话守卫不迁移（第 63 批）、`watchlist.list` includeQuotes 富化与载荷字段形状（第 47/57/61 批）、第 56 批 `tradingCosts` 类型解码差异、第 57 批 `RecordWorkflowAudit` 回调无 owner、`market.depth` instrument 文本推断、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具、第 53/54 批 float 截断/query 文本推断/limit>50 钳制/capability 措辞、第 55 批禁用 503 路径差异。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（141 passed）、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1681 passed）、`node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement --all-targets --locked --no-fail-fast`（6 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2856 Rust** / **959 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
