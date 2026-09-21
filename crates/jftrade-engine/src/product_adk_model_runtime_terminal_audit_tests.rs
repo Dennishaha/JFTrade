@@ -19,8 +19,9 @@ use tempfile::tempdir;
 use jftrade_store_sqlite::{AdkSessionStore, AdkStore, CreateAdkRunParams, initialize_current};
 
 use super::{
-    ChatExecution, ModelRequest, ProductionAdkChatRuntime, RunCancellationRegistry, RunLeaseGuard,
-    lifecycle_audit_kind, terminal_audit_fields, terminal_audit_message,
+    AuditInsertOutcome, ChatExecution, ModelRequest, ProductionAdkChatRuntime, RunAuditEvent,
+    RunCancellationRegistry, RunLeaseGuard, classify_audit_insert, lifecycle_audit_kind,
+    terminal_audit_fields, terminal_audit_message,
 };
 
 fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStore>) {
@@ -1057,5 +1058,93 @@ fn a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state() {
     assert_eq!(
         denial.content,
         "已拒绝工具调用 `strategy.save_draft`。本次 run 已结束，未执行该操作。"
+    );
+}
+
+/// The previous launcher-side helper reported a non-nil error once and let the
+/// caller continue. The ADK audit boundary keeps that contract: a store fault
+/// is classified for exactly one report, the run still reaches its terminal
+/// state, and no audit row is fabricated to hide the fault.
+///
+/// Parity: go:452dea11:pkg/besteffort/besteffort_test.go:11 TestLogError
+#[test]
+fn best_effort_audit_faults_are_reported_once_and_never_fail_the_run() {
+    let (directory, store, session_store) = initialized_stores();
+    let runtime = runtime_for(&directory, &store, &session_store);
+    create_running_run(&store, "run-besteffort-fault", json!([]));
+    let chat = chat_for("run-besteffort-fault");
+    let lease = RunLeaseGuard::acquire(Arc::clone(&store), "run-besteffort-fault", "owner-fault")
+        .expect("acquire run lease");
+
+    // Fault injection: the audit table disappears, so the best-effort insert
+    // fails while the run projection must still commit.
+    Connection::open(directory.path().join("adk.db"))
+        .expect("open ADK database")
+        .execute_batch("DROP TABLE adk_audit_events;")
+        .expect("drop audit table");
+
+    let event = RunAuditEvent {
+        id: "run-besteffort-fault:audit:run.failed".to_owned(),
+        subject_id: "run-besteffort-fault".to_owned(),
+        kind: "run.failed",
+        detail: "Agent run finished with a terminal status.",
+        metadata: json!({"runId": "run-besteffort-fault"}),
+    };
+    let outcome = classify_audit_insert(store.as_ref(), &event);
+    assert!(
+        matches!(&outcome, AuditInsertOutcome::Failed(message) if !message.is_empty()),
+        "a store fault must be classified for exactly one report, got {outcome:?}"
+    );
+
+    let failure = super::AdkChatPortError::Failed {
+        status: 502,
+        code: "MODEL_CALL_FAILED".to_owned(),
+        message: "boom".to_owned(),
+    };
+    runtime
+        .persist_failure(&chat, &failure, &lease)
+        .expect("a best-effort audit fault must never fail the run");
+
+    let run = store
+        .get_run("run-besteffort-fault")
+        .expect("read run")
+        .expect("run row");
+    assert_eq!(
+        run.status, "FAILED",
+        "the terminal state must still be persisted when only the audit insert failed"
+    );
+}
+
+/// A nil error produced no output in the reference helper, and `LogResult`
+/// ignored its primary value. The audit boundary reports nothing when the
+/// insert succeeds, and nothing when a fenced retry finds the row already
+/// recorded by an earlier attempt.
+///
+/// Parity: go:452dea11:pkg/besteffort/besteffort_test.go:33 TestLogErrorNoError
+#[test]
+fn best_effort_audit_reports_nothing_when_the_insert_succeeds_or_was_already_recorded() {
+    let (_directory, store, _session_store) = initialized_stores();
+    let event = RunAuditEvent {
+        id: "run-besteffort-quiet:audit:run.completed".to_owned(),
+        subject_id: "run-besteffort-quiet".to_owned(),
+        kind: "run.completed",
+        detail: "Agent run completed.",
+        metadata: json!({"runId": "run-besteffort-quiet"}),
+    };
+
+    assert_eq!(
+        classify_audit_insert(store.as_ref(), &event),
+        AuditInsertOutcome::Recorded,
+        "a successful insert has nothing to report"
+    );
+    assert_eq!(
+        classify_audit_insert(store.as_ref(), &event),
+        AuditInsertOutcome::AlreadyAudited,
+        "a fenced retry keeps the first row without reporting"
+    );
+    assert_eq!(
+        audit_rows(&store).len(),
+        1,
+        "the retry must not insert a second audit row"
     );
 }

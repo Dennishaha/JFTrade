@@ -126,9 +126,36 @@ impl ProductionAdkChatRuntime {
     }
 }
 
+/// How one best-effort audit insert ended.
+///
+/// The previous launcher-side helper (`besteffort.LogError`) decided between
+/// "nothing to report" and "report exactly one line" and never failed its
+/// caller. The audit boundary keeps that decision explicit, so the runtime and
+/// the resume helper share one classification of "already audited" versus a
+/// real store fault.
+#[derive(Debug, Eq, PartialEq)]
+pub(super) enum AuditInsertOutcome {
+    /// The row was written by this attempt; nothing to report.
+    Recorded,
+    /// The deterministic id was already present, so an earlier fenced attempt
+    /// audited this transition; the first row is kept and nothing is reported.
+    AlreadyAudited,
+    /// A real store fault. The caller reports it once and continues.
+    Failed(String),
+}
+
 /// Shared best-effort insert so the runtime and the resume helper keep one
 /// classification of "already audited" versus a real store fault.
 fn record_audit_event(store: &jftrade_store_sqlite::AdkStore, event: &RunAuditEvent<'_>) {
+    if let AuditInsertOutcome::Failed(error) = classify_audit_insert(store, event) {
+        eprintln!("failed to record ADK audit event {}: {error}", event.id);
+    }
+}
+
+fn classify_audit_insert(
+    store: &jftrade_store_sqlite::AdkStore,
+    event: &RunAuditEvent<'_>,
+) -> AuditInsertOutcome {
     let payload = json!({
         "id": event.id,
         "kind": event.kind,
@@ -142,10 +169,12 @@ fn record_audit_event(store: &jftrade_store_sqlite::AdkStore, event: &RunAuditEv
         &event.subject_id,
         &payload.to_string(),
     ) {
-        Ok(()) => {}
+        Ok(()) => AuditInsertOutcome::Recorded,
         // A deterministic id already present means this transition was
         // audited by an earlier fenced attempt; keep the first row.
-        Err(error) if error.to_string().to_ascii_lowercase().contains("unique") => {}
-        Err(error) => eprintln!("failed to record ADK audit event {}: {error}", event.id),
+        Err(error) if error.to_string().to_ascii_lowercase().contains("unique") => {
+            AuditInsertOutcome::AlreadyAudited
+        }
+        Err(error) => AuditInsertOutcome::Failed(error.to_string()),
     }
 }

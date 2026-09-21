@@ -24003,18 +24003,18 @@
     "evidence_type": "boundary"
   },
   "pkg/besteffort/besteffort_test.go:11:TestLogError": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::best_effort_audit_faults_are_reported_once_and_never_fail_the_run",
+    "conclusion": "function_exact：Go 的 `besteffort.LogError(err)` 仅在 err!=nil 时输出恰好一行 `best-effort operation failed: <err>`，调用方继续执行（错误被有意吞掉）。Rust 无同名通用包（实测 `rg -n -i \"best-effort|besteffort|LogError\" crates` 只有注释中的 best-effort 描述，无生产符号），契约相同的最近 owner 是 ADK 审计的尽力而为插入边界：crates/jftrade-engine/src/product_adk_model_runtime_audit.rs::classify_audit_insert 把结果分成 `Recorded`（成功，无需报告）、`AlreadyAudited`（UNIQUE 冲突＝更早的 fenced 尝试已审计，保留首行、无需报告）、`Failed(<err>)`（真实仓储故障）；生产调用方 record_audit_event/record_run_audit 对 `Failed` 打印一行 `failed to record ADK audit event <id>: <error>` 后继续，模块注释即契约原文：A store fault is logged, never propagated, so an audit write can never turn a successful run into a failure。本批把原先内联的 match 抽成可测试的 `AuditInsertOutcome` 三态分类（生产行为与错误文本不变、无公开 API 变更），新增测试断言：删掉 `adk_audit_events` 表后分类必须是 `Failed(非空消息)`（恰好一个待报告项），且 `persist_failure` 仍返回 Ok、run 仍以 FAILED 落库（故障不得让调用方失败）。探针：把所有错误都归为 `AlreadyAudited`（等价于吞掉真实故障、永不报告）时本测试转红（got AlreadyAudited），按字节回滚（product_adk_model_runtime_audit.rs shasum 95feb90a…）。保留差异：报告通道是 stderr 固定前缀的单行，而非 Go 的 log.Printf（Go 用 log.SetOutput 捕获断言文本，Rust 以“分类恰好一次 + 不返回错误”的可观察契约承载，日志文本本身不出现在断言里）；报告发生在具体 owner（ADK 审计）而非通用包，因为 Rust 把“继续执行”作为每个 owner 的显式决定。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/besteffort/besteffort_test.go:33:TestLogErrorNoError": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::best_effort_audit_reports_nothing_when_the_insert_succeeds_or_was_already_recorded",
+    "conclusion": "function_exact：Go 的 TestLogErrorNoError 断言 err==nil 时零输出，且 `LogResult[T](_ T, err)` 只看错误、显式丢弃主值——即“没有错误就没有任何可报告项”。Rust 等价契约是同一边界的两个静默分支：插入成功 → `Recorded`、确定 id 已存在（更早的 fenced 尝试已写入）→ `AlreadyAudited`，两者都不触发报告；新增测试在健康库上对同一事件连续分类两次，断言依次为 Recorded/AlreadyAudited，并断言 audit 行数保持 1（重试不写第二行，也不会把“已审计”误报为故障）。探针：把 UNIQUE 冲突分支改成 `Failed(...)`（等价于把幂等重试当真实故障、产生多余报告）时本测试转红（left: Failed(\"query adk database: UNIQUE constraint failed: adk_audit_events.id\"), right: AlreadyAudited），按字节回滚（shasum 95feb90a…）。保留差异：Go 用 nil 判断，Rust 用 `AuditInsertOutcome` 三态（多出 `AlreadyAudited`，是 Rust 为 fenced 重试引入的更严格语义）；`LogResult` 丢弃主值的语义在 Rust 无同名 API，由“插入返回值被忽略、只看分类结果”承担。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "pkg/chart/chart_type_test.go:5:TestNormalizeChartType": {
     "status": "[~]",
