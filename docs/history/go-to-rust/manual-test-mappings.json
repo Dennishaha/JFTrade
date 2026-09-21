@@ -22869,25 +22869,25 @@
     "evidence_type": "partial"
   },
   "internal/security/passwordhash/passwordhash_test.go:9:TestHashAndVerify": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/password_hash.rs::tests::produced_verifier_hides_the_password_and_only_accepts_the_matching_secret",
+    "conclusion": "function_exact：Go 的 Hash 输出 RawStd base64 的 PHC `$argon2id$v=19$m=65536,t=3,p=1$<salt>$<key>`（盐 16 字节、密钥 32 字节，m=65536 KiB=64 MiB、t=3、p=1），断言密文不含明文、Valid(encoded) 为真、正确口令 Verify=true、错误口令 Verify=false。Rust 等价 owner 是 crates/jftrade-settings/src/password_hash.rs 的 hash_argon2id/verify_argon2id（同一 PHC 形状、同一参数、Encoding::B64 无填充与 Go 的 RawStdEncoding 同形），调用方为 security.rs（Web 访问口令 verify_web_access_password）、mcp_server.rs（MCP 令牌 verifier）与 engine 的认证 wire。本批新增测试断言：产出密文不含明文；解析后 algorithm=argon2id、v=19、m=65536/t=3/p=1、盐解码 16 字节、密钥 32 字节（即 Go 的 Valid(encoded)==true 的可观察等价，Rust 无独立 Valid API）；正确口令 true、错误口令 false（该断言同时排除“恒 false”的退化实现）。保留差异：Go 返回 (bool, error) 并以 ErrInvalidHash 区分“格式非法/不可用”和“口令不匹配”，Rust 收敛为 bool 的 fail-closed 语义，错误通道下沉到调用方的 API 错误码。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
+    "evidence_type": "function_exact"
   },
   "internal/security/passwordhash/passwordhash_test.go:25:TestVerifyRejectsUnsafeParametersBeforeHashing": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/password_hash.rs::tests::parameters_outside_go_bounds_are_rejected_before_argon2_runs；crates/jftrade-settings/src/password_hash.rs::tests::go_bounded_parameters_keep_verifying_after_migration",
+    "conclusion": "function_exact：Go 用 m=1048576（1 GiB）的 verifier 断言 Verify 在调用 Argon2 之前就失败（ok=false 且 err!=nil），理由注释写明“bounded before Argon2 is invoked so a corrupt settings file cannot request excessive CPU or memory”。Rust 等价保证落在 verifier_within_supported_bounds：只读 PHC 字段（algorithm/v/m/t/p、盐与密钥解码长度）判定，超出范围直接 false，绝不进入 Argon2。本批同时修复真实功能缺口：原实现要求 m/t/p 精确等于 65536/3/1，比 Go 的有界区间（m∈[19*1024,128*1024]、t∈[2,5]、p∈[1,4]、盐/密钥∈[16,64] 字节）更窄——Go 版本写出的合规 verifier（例如 m=19456,t=2）迁移到 Rust 后会被拒绝，导致 Web 访问口令失效。现改为 Go 的有界区间，写入仍固定 canonical 参数。探针一：把上限放宽到 1_048_576 后用 Go 的 1 GiB 样本，测试转红——Argon2 真实跑了 18.63s，时间上界断言（<1s，证明“未触发昂贵计算”）失败；探针二：把区间收窄回精确相等，迁移测试转红（m=19456 被拒）；两次均按字节回滚（password_hash.rs 回滚 shasum cae41d40…；其后仅按 check-zero-go 闸门改写一行文档注释，最终态 shasum 1e0e89fe…，行为不变）。保留差异：Go 在该测试里通过 error 通道报告，Rust 用 false（fail-closed）表达；Go 的拒绝理由是 decode 返回 ErrInvalidHash，Rust 由同一处 bounds 判定承担。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
+    "evidence_type": "function_exact"
   },
   "internal/security/passwordhash/passwordhash_test.go:32:TestValidRejectsMalformedHashes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/password_hash.rs::tests::malformed_verifiers_are_rejected_without_a_verification_result",
+    "conclusion": "function_exact：Go 用 12 个畸形样本（空串、argon2i、v=18、v=bad、bad-params、m=1024、t=1、p=0、盐非法 base64、盐 3 字节、密钥非法 base64、密钥 3 字节）断言 Valid==false 且 Verify 返回 errors.Is(err, ErrInvalidHash)。Rust 无 Valid API（按本批判定以“拒绝且不触发验证”的可观察行为承载），测试逐条断言 verify_argon2id 对这 12 个样本（字面照搬 Go 的样本，含同样的 RawStd base64 盐/密钥常量）一律为 false：结构非法者在 PasswordHash::new 阶段失败，结构合法但越界者（m=1024、t=1、p=0、3 字节盐/密钥）在 bounds 判定阶段失败，均在触及 Argon2 之前返回。探针：把解析失败分支改成 `return true` 后本测试转红（accepted malformed verifier \"\"），按字节回滚（回滚 shasum cae41d40…；最终态仅注释改写后为 1e0e89fe…）。保留差异：Go 用 error 类型区分原因，Rust 统一为 false；Go 的 Valid 是独立 API，Rust 只有 verify 路径，故“格式非法不可被任何口令救活”由本测试与 TestHashAndVerify 的正向断言共同钉住。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
+    "evidence_type": "function_exact"
   },
   "internal/system/service_status_defaults_test.go:10:TestStatusIncludesInjectedObservabilitySummaries": {
     "status": "[x]",
