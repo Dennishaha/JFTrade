@@ -2881,3 +2881,40 @@ Go 的助手适配器在列成员之前会先 `ListGroups`，再用 `resolveWatc
 - 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与策略实例读写工具（第 52 批 `:122`；第 56 批确认含 `market.provider.select`/`backtest.cancel`；第 59 批补充策略实例读/摘要工具与定义摘要 wire 形状）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `watchlist.list` 的 includeQuotes 行情富化与载荷字段形状（第 47/57 批 + 本批 ②）、第 56 批的 `tradingCosts` 字段级类型解码差异、第 57 批的 `RecordWorkflowAudit` 回调无 owner、`market.depth` 自由文本 instrument 推断、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具、第 53/54 批的 float 截断/query 文本推断/limit>50 钳制/capability 措辞、第 55 批禁用 503 路径差异。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1675 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2848 Rust** / **958 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第六十二批：assembly `workflow_bridge_contracts_test.go` 全量结清（1 条 `[x]` + 1 条 partial；新增 2 条回归）
+
+范围：`internal/assistant/assembly/workflow_bridge_contracts_test.go` 2 条逐条结清。本批新增 **1 条 `[x]`**（`:103`），`partial` 1 条（`:14`）；Rust 测试 2848 → **2850**，`[x]` 958 → **959**，未改生产代码。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestWorkflowManagerProjectsServiceCRUDAndRuns|TestWorkflowManagerRejectsUnavailableServicesAcrossOperations' -count=1`（checkout `/tmp/go452dea11.niwD1G`，`ok`；`:103` 的 12 个操作与 nil-service/closed-facade 子测试全部 PASS）。
+
+### 本批结论（2 条新回归）
+
+Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run 读取/缺失目标启动失败；以及服务缺失时**每个**操作都要报 unavailable。Rust 的对应 owner 不是模型工具（模型目录只有 `workflow.wait`），而是 `/api/v1/adk/workflows*` 读路由 + `AdkReadSnapshotPort`/`AdkMutationPort`。
+
+- `:14 partial`：新增 `product_adk_store_parity_tests.rs::workflow_bridge_pages_lists_and_rejects_unknown_run_targets`。补齐 Go 的 ListWorkflows 分页信封（`page.limit=5`/`offset=0`/`total=1` + 单条 items）、GetWorkflow 单条读取、`ListWorkflowRuns`/`GetWorkflowRun` 对应的 durable log 投影（`logs[0].id/workflowId/triggerId/runId`、`page.limit=10`/`total=1`）、以及 `RunWorkflow("missing-workflow")`/`RunWorkflowTrigger("missing-trigger")` 的 404 `ADK_WORKFLOW_RUN_FAILED`/`ADK_WORKFLOW_TRIGGER_RUN_FAILED`（等价 Go 的 error + `Accepted=false`）。create/update/delete 与删除后隐藏仍由既有 `workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete`、`workflow_updates_keep_omitted_fields_and_apply_explicit_clears` 覆盖。
+- `:103 [x]`：新增 `product_adk_workflow_bridge_tests.rs::workflow_bridge_operations_fail_closed_without_their_ports`（挂在 `product.rs`，因为 `product_adk_mutation_port.rs` 被集成测试 `tests/adk_mutations_compatibility.rs` 复用，挂在其下会让集成 crate 也编译该文件）。断言 4 条 workflow 读路由无端口 → 503 `ADK_READ_UNAVAILABLE`（message=`ADK read snapshot port is not configured`），8 条写路由无端口 → 503 `ADK_MUTATIONS_UNAVAILABLE`（message=`ADK mutation port is unavailable`）。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `dispatch_adk_read` 的缺失端口错误码改成 `ADK_READ_FAILED` → `:103` 测试转红（`left: "ADK_READ_FAILED"`）。
+2. `page()` 的 `"limit": limit` 改成 `"limit": default_limit` → `:14` 测试转红（`left: Number(100)` vs `5`）。
+3. `run_workflow` 的缺失 workflow 分支从 404 改成 409 → `:14` 测试转红（`left: 409`）。
+   3 处探针均在本批内执行并已回滚，`git diff` 只留两条新测试、清单与审计产物。
+
+### 结论登记（`:14 partial` 的边界与差异）
+
+- ①`GetWorkflowTrigger`/`GetWorkflowRun` 在 Rust 没有独立读路由（`ADK_READ_ROUTES` 无 `.../triggers/{triggerId}`、无 `.../runs/{runId}`）；store 级 `get_workflow_trigger`/`get_workflow_trigger_log` 存在且被既有回归直接断言。
+- ②`ListWorkflowRuns` 的 workflowId/triggerId/status 过滤与「触发日志 active/page 过滤」在 `page()`/`workflow_logs()` 未实现（第 47/57 批同一 P1，本批不重复登记）。
+- ③删除响应是 `{"deleted": true}`，Go 是带 `DeletedAt` 的实体。
+- ④Go 的 workflow CRUD 模型工具族在 Rust 不存在（第 50 批同一 P1；模型目录只有 `workflow.wait`）。
+- `:103` 的 closed-facade 半边由既有 `workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation` 覆盖（runtime 缺失 → 503 `ADK_WORKFLOW_RUNTIME_UNAVAILABLE`，调用落库 FAILED）。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 9 条：`workflow_tools_error_boundaries_test.go` 2、`maintenance_test.go` 2、`adk_backtest_adapter_test.go`/`adk_strategy_input_validation_test.go`/`adk_tool_failure_contracts_test.go`/`product_execution_contracts_test.go`/`workflow_execution_injection_test.go` 各 1；随后 `internal/app/apiserver`（574，按 servercore/servercoretest 分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）、`internal/integration/akshare`（73）、`internal/integration/yfinance`（68）、`pkg/market`（56）。
+- 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与 workflow CRUD 工具族（本批再次确认）、策略实例读写工具（第 52 批 `:122`；第 56 批确认含 `market.provider.select`/`backtest.cancel`；第 59 批补充策略实例读/摘要工具与定义摘要 wire 形状）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤与 `workflow_runs.*` 过滤参数（本批 ②）、`workflow.*` 单条读路由缺口（本批 ①）、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `watchlist.list` 的 includeQuotes 行情富化与载荷字段形状（第 47/57 批 + 第 61 批 ②）、第 56 批的 `tradingCosts` 字段级类型解码差异、第 57 批的 `RecordWorkflowAudit` 回调无 owner、`market.depth` 自由文本 instrument 推断、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具、第 53/54 批的 float 截断/query 文本推断/limit>50 钳制/capability 措辞、第 55 批禁用 503 路径差异。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1677 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2850 Rust** / **959 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

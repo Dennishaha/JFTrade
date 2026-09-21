@@ -7302,17 +7302,17 @@
   },
   "internal/assistant/assembly/workflow_bridge_contracts_test.go:14:TestWorkflowManagerProjectsServiceCRUDAndRuns": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::workflow_bridge_pages_lists_and_rejects_unknown_run_targets",
+    "conclusion": "partial：Rust owner 是 `/api/v1/adk/workflows*` 读路由 + AdkReadSnapshotPort/AdkMutationPort，而不是 Go 的 WorkflowToolManager 工具族。可达半边（既有回归 + 本批新回归）：create/update/delete workflow 与 trigger、列表投影与删除后隐藏见 `workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete`、patch 语义见 `workflow_updates_keep_omitted_fields_and_apply_explicit_clears`；本批新回归 `workflow_bridge_pages_lists_and_rejects_unknown_run_targets` 补上 Go 的 ListWorkflows 分页信封（`page.limit=5`/`offset=0`/`total=1`）、GetWorkflow 单条读取、`ListWorkflowRuns`/`GetWorkflowRun` 对应的 durable log 投影（`logs[0].id/workflowId/triggerId/runId`，`page.limit=10`/`total=1`），以及 `StartWorkflow(\"missing-workflow\")`/`StartWorkflowTrigger(\"missing-trigger\")` 的 404 `ADK_WORKFLOW_RUN_FAILED`/`ADK_WORKFLOW_TRIGGER_RUN_FAILED`（等价 Go 的 error + `Accepted=false`）。未迁移差异：①`GetWorkflowTrigger`/`GetWorkflowRun` 在 Rust 没有独立读路由（只有 store 级 `get_workflow_trigger`/`get_workflow_trigger_log`，已由既有回归直接断言），②`ListWorkflowRuns` 的 workflowId/triggerId/status 过滤与触发日志 active/page 过滤在 Rust 的 `page()` 里未实现（第 47/57 批同一 P1），③删除响应是 `{\"deleted\": true}` 而不是 Go 的 `DeletedAt` 时间戳，④Go 的 workflow CRUD 模型工具族在 Rust 不存在（第 50 批同一 P1，模型目录只有 `workflow.wait`）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/workflow_bridge_contracts_test.go:103:TestWorkflowManagerRejectsUnavailableServicesAcrossOperations": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_workflow_bridge_tests.rs::workflow_bridge_operations_fail_closed_without_their_ports",
+    "conclusion": "function_exact：Go 要求服务缺失时 12 个 workflow 操作（list/get/save/delete workflow、list/get/save/delete trigger、list/get run、start workflow、start trigger）全部报 unavailable，closed facade（`assistant.NewService(nil)`）同样失败。Rust 把该 manager 拆成两个端口，本批新回归按路由逐条断言：4 条 workflow 读路由（`/api/v1/adk/workflows`、`/workflows/{id}`、`/workflows/{id}/triggers`、`/workflow-trigger-logs`）在无 snapshot 端口时 503 `ADK_READ_UNAVAILABLE`（message=`ADK read snapshot port is not configured`）；8 条 workflow 写路由（create/update/delete workflow、create/update/delete trigger、run workflow、run trigger）在无 mutation 端口时 503 `ADK_MUTATIONS_UNAVAILABLE`（message=`ADK mutation port is unavailable`）。closed facade 半边由既有 `workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation` 覆盖（runtime 缺失 → 503 `ADK_WORKFLOW_RUNTIME_UNAVAILABLE` 且调用被落库为 FAILED）。差异说明：Go 的 `GetWorkflowTrigger`/`GetWorkflowRun` 在 Rust 没有对应读路由（无路由可 fail-closed），该路由缺口登记在 `:14` 的 partial 结论与跨批 P1，不影响本条的「有路由即必须 fail-closed」契约。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(workflow_bridge_operations_fail_closed_without_their_ports)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/assembly/workflow_execution_injection_test.go:60:TestRuntimeUsesInjectedWorkflowExecutionForLoopChat": {
     "status": "[~]",

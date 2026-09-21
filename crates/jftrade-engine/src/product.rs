@@ -643,3 +643,10 @@ include!("product_production_profile.rs");
 #[cfg(test)]
 #[path = "product_tests.rs"]
 mod tests;
+
+/// The workflow bridge contract rows pin the per-port fail-closed boundary for
+/// every workflow read and mutation route, so the coverage lives beside the
+/// product module that owns both dispatch entry points.
+#[cfg(test)]
+#[path = "product_adk_workflow_bridge_tests.rs"]
+mod adk_workflow_bridge_tests;

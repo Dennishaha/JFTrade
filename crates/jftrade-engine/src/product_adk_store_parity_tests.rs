@@ -1178,3 +1178,128 @@ fn workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocatio
         "the durable log keeps the reference failure text: {payload}"
     );
 }
+
+/// Parity: go:452dea11:internal/assistant/assembly/workflow_bridge_contracts_test.go:14
+/// `TestWorkflowManagerProjectsServiceCRUDAndRuns`. Go's workflow manager walks
+/// the whole bridge: workflow create, paged list (`Total`/`Limit`/`Offset`),
+/// get, update, trigger create/list/get/update, a durable run log that a
+/// filtered run list and a run get can read, both start operations for missing
+/// targets (error and `Accepted=false`) and finally trigger/workflow deletes
+/// that publish a `DeletedAt`.
+///
+/// The Rust owner is the `/api/v1/adk/workflows*` read and mutation surface.
+/// Create/update/delete and their list projections are covered by
+/// `workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete` and
+/// `workflow_updates_keep_omitted_fields_and_apply_explicit_clears`; this test
+/// closes the page metadata, the single-workflow read, the run-log projection
+/// and the two missing-target start failures.
+#[test]
+fn workflow_bridge_pages_lists_and_rejects_unknown_run_targets() {
+    let (port, _directory) = agent_validation_port();
+    let agent_id = mutate(
+        &port,
+        AdkMutationOperation::CreateAgent,
+        &[],
+        json!({"name": "Bridge Agent", "instruction": "bridge", "model": "gpt-4o"}),
+    )["id"]
+        .as_str()
+        .expect("agent id")
+        .to_owned();
+    let workflow_id = mutate(
+        &port,
+        AdkMutationOperation::CreateWorkflow,
+        &[],
+        json!({
+            "name": "Bridge Workflow",
+            "status": "DISABLED",
+            "agentId": agent_id,
+            "workMode": "loop",
+            "promptTemplate": "Review {{symbol}}",
+        }),
+    )["id"]
+        .as_str()
+        .expect("workflow id")
+        .to_owned();
+    let trigger_id = mutate(
+        &port,
+        AdkMutationOperation::CreateWorkflowTrigger,
+        &[("workflowId", workflow_id.as_str())],
+        json!({"type": "manual", "title": "Manual bridge", "config": {}}),
+    )["trigger"]["id"]
+        .as_str()
+        .expect("trigger id")
+        .to_owned();
+
+    // Go's `ListWorkflows(status, limit, offset)` reports the page envelope the
+    // workflow bridge forwards to the console.
+    let page = read_json(&port, "/api/v1/adk/workflows", "limit=5&offset=0");
+    assert_eq!(page["page"]["limit"], 5, "{page}");
+    assert_eq!(page["page"]["offset"], 0, "{page}");
+    assert_eq!(page["page"]["total"], 1, "{page}");
+    assert_eq!(page["workflows"].as_array().map(Vec::len), Some(1), "{page}");
+    assert_eq!(page["workflows"][0]["id"], workflow_id, "{page}");
+
+    // Go's `GetWorkflow` reads one definition by id.
+    let single = read_json(&port, &format!("/api/v1/adk/workflows/{workflow_id}"), "");
+    assert_eq!(single["id"], workflow_id, "{single}");
+
+    // Go's `ListWorkflowRuns`/`GetWorkflowRun` read the durable invocation log
+    // that the trigger run wrote.
+    port.store
+        .create_workflow_trigger_log(
+            "bridge-run",
+            &workflow_id,
+            &trigger_id,
+            "manual",
+            "SUCCEEDED",
+            "run-bridge",
+            r#"{"id":"bridge-run","status":"SUCCEEDED","runId":"run-bridge"}"#,
+        )
+        .expect("create trigger log");
+    let runs = read_json(&port, "/api/v1/adk/workflow-trigger-logs", "limit=10&offset=0");
+    assert_eq!(runs["page"]["limit"], 10, "{runs}");
+    assert_eq!(runs["page"]["offset"], 0, "{runs}");
+    assert_eq!(runs["page"]["total"], 1, "{runs}");
+    assert_eq!(runs["logs"][0]["id"], "bridge-run", "{runs}");
+    assert_eq!(runs["logs"][0]["workflowId"], workflow_id, "{runs}");
+    assert_eq!(runs["logs"][0]["triggerId"], trigger_id, "{runs}");
+    assert_eq!(runs["logs"][0]["runId"], "run-bridge", "{runs}");
+
+    // `StartWorkflow`/`StartWorkflowTrigger` for unknown targets must report the
+    // failure instead of accepting a synthetic run.
+    for (operation, identifier, code) in [
+        (
+            AdkMutationOperation::RunWorkflow,
+            ("workflowId", "missing-workflow"),
+            "ADK_WORKFLOW_RUN_FAILED",
+        ),
+        (
+            AdkMutationOperation::RunWorkflowTrigger,
+            ("triggerId", "missing-trigger"),
+            "ADK_WORKFLOW_TRIGGER_RUN_FAILED",
+        ),
+    ] {
+        let error = port
+            .mutate(&AdkMutationInput {
+                operation,
+                identifiers: BTreeMap::from([(
+                    identifier.0.to_owned(),
+                    identifier.1.to_owned(),
+                )]),
+                body: json!({"inputs": {"symbol": "US.AAPL"}}),
+                webhook_secret: None,
+            })
+            .expect_err("an unknown run target must fail closed");
+        match error {
+            AdkMutationPortError::Failed {
+                status,
+                code: actual,
+                message,
+            } => {
+                assert_eq!(status, 404, "{message}");
+                assert_eq!(actual, code);
+            }
+            other => panic!("expected 404 {code}, got {other:?}"),
+        }
+    }
+}
