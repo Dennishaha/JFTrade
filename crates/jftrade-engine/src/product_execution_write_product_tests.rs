@@ -395,6 +395,140 @@ async fn execution_sqlite_test_cutover_replays_transport_and_restart() {
     );
 }
 
+/// Read-port fixture whose failure carries an upstream code, used to prove the
+/// transport keeps the upstream classification instead of rewriting it.
+#[derive(Debug)]
+struct FailedExecutionReadPort;
+
+impl ExecutionReadSnapshotPort for FailedExecutionReadPort {
+    fn read(&self, _path: &str, _query: &str) -> Result<Value, ExecutionReadSnapshotError> {
+        Err(ExecutionReadSnapshotError::Failed {
+            code: "EXECUTION_STORAGE_UNAVAILABLE".to_owned(),
+            message: "execution storage unavailable".to_owned(),
+        })
+    }
+}
+
+/// Parity: go:452dea11:internal/trading/execution_test.go:285
+/// `TestExecutionOrderServiceFacadeReturnsBusinessErrors`. Go asserts every
+/// facade entry returns the injected upstream error unchanged (`errors.Is`)
+/// while a preview validation failure is a request error, and that a plain
+/// upstream error is not classified as one. Rust keeps the same distinction on
+/// the wire: a port `Failed { status, code, message }` is forwarded verbatim
+/// (400 BAD_REQUEST for validation, 500 for upstream), and `Unavailable`
+/// fails closed as 503 EXECUTION_WRITE_UNAVAILABLE instead of masquerading as a
+/// request error.
+#[tokio::test]
+async fn execution_error_envelopes_keep_request_errors_distinct_from_upstream_failures() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, b"{\"seed\":\"execution-errors\"}\n").expect("seed settings");
+    let port = Arc::new(SequencedExecutionWritePort::new([
+        Err(ExecutionWritePortError::Failed {
+            status: 400,
+            code: "BAD_REQUEST".to_owned(),
+            message: "quantity must be positive".to_owned(),
+        }),
+        Err(ExecutionWritePortError::Failed {
+            status: 500,
+            code: "BROKER_REJECTED".to_owned(),
+            message: "broker rejected order".to_owned(),
+        }),
+        Err(ExecutionWritePortError::Unavailable(
+            "broker session lost".to_owned(),
+        )),
+    ]));
+    let mut config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_execution_write_port(port.clone())
+            .with_execution_read_snapshot_port(Arc::new(FailedExecutionReadPort));
+    config.access = execution_browser_access_policy();
+    let handle = start_product(config)
+        .await
+        .expect("start execution product");
+    let address = handle.startup_record().address;
+    let browser_headers = [
+        ("Cookie", "jftrade_web_session=fixture-browser-session"),
+        ("Origin", "https://fixture.jftrade.local"),
+        ("Referer", "https://fixture.jftrade.local/execution"),
+        ("X-CSRF-Token", "fixture-csrf"),
+        ("X-Request-ID", "execution-error-fixture"),
+    ];
+    let order_body = r#"{"brokerId":"FUTU","accountId":"acct-1","market":"US","symbol":"US.AAPL","side":"BUY","quantity":1}"#;
+
+    let request_error = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/execution/orders",
+        Some(order_body),
+        &browser_headers,
+    )
+    .await;
+    assert_eq!(request_error.0, 400);
+    assert_eq!(request_error.1["error"]["code"], "BAD_REQUEST");
+    assert_eq!(
+        request_error.1["error"]["message"],
+        "quantity must be positive"
+    );
+
+    let upstream = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/execution/previews",
+        Some(order_body),
+        &browser_headers,
+    )
+    .await;
+    assert_eq!(upstream.0, 500);
+    assert_eq!(upstream.1["error"]["code"], "BROKER_REJECTED");
+    assert_eq!(upstream.1["error"]["message"], "broker rejected order");
+
+    let unavailable = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/execution/orders/order-1/cancel",
+        None,
+        &browser_headers,
+    )
+    .await;
+    assert_eq!(unavailable.0, 503);
+    assert_eq!(
+        unavailable.1["error"]["code"],
+        "EXECUTION_WRITE_UNAVAILABLE"
+    );
+
+    let read_failure = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/execution/orders",
+        None,
+        &browser_headers,
+    )
+    .await;
+    assert_eq!(read_failure.0, 500);
+    assert_eq!(
+        read_failure.1["error"]["code"],
+        "EXECUTION_STORAGE_UNAVAILABLE"
+    );
+    assert_eq!(
+        read_failure.1["error"]["message"],
+        "execution storage unavailable"
+    );
+
+    {
+        let inputs = port.inputs.lock().expect("execution error product inputs");
+        assert_eq!(
+            inputs
+                .iter()
+                .map(|input| input.operation.name())
+                .collect::<Vec<_>>(),
+            vec!["order-place", "order-preview", "order-cancel"]
+        );
+    }
+    handle.shutdown().await.expect("shutdown execution product");
+}
+
 fn seed_go_execution_orders_schema(path: &std::path::Path) {
     let connection = rusqlite::Connection::open(path).expect("create execution orders fixture");
     connection

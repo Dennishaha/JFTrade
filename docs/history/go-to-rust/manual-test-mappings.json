@@ -30520,18 +30520,18 @@
     "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:285:TestExecutionOrderServiceFacadeReturnsBusinessErrors": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_preserve_the_port_failure_code_and_message；crates/jftrade-engine/src/product_execution_write_product_tests.rs::execution_write_product_replays_browser_boundary_failure_recovery_and_restart",
-    "conclusion": "partial：Rust 断言读路由保留端口失败码/消息、写路由在边界失败后可恢复；差异：Go 断言 facade 对五个入口分别返回 upstream 错误且预览入口不得把普通错误误分类为 RequestError，Rust 未对错误分类（RequestError vs upstream）逐入口断言。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_write_product_tests.rs::execution_error_envelopes_keep_request_errors_distinct_from_upstream_failures",
+    "conclusion": "function_exact：Go 断言执行单 facade 的每个入口把注入的 upstream 错误原样返回（errors.Is），而 PreviewExecutionOrder 的 HOLD 非法 side 是请求错误（IsRequestError），且普通 upstream 错误不得被分类为请求错误。Rust 在 transport 层保留同一分类边界：新增测试用 SequencedExecutionWritePort + FailedExecutionReadPort 同时注入三类错误，断言 ① 端口 Failed{400,BAD_REQUEST,\"quantity must be positive\"} → HTTP 400 + BAD_REQUEST（请求错误保持 400，不被降级成 5xx）；② 端口 Failed{500,BROKER_REJECTED} → HTTP 500 + BROKER_REJECTED（upstream 码与消息逐字保留，不被改写成 400）；③ 端口 Unavailable → 503 EXECUTION_WRITE_UNAVAILABLE（fail-closed，且不冒充请求错误）；④ 读端口 Failed{500,EXECUTION_STORAGE_UNAVAILABLE} → HTTP 500 + 同码同消息（读侧同样保留 upstream 分类）。并记录三个写调用的操作序列 order-place/order-preview/order-cancel，证明错误映射没有短路或重复委派。探针：把 write dispatch 的 Failed 分支状态硬编码为 400 → 断言 ② 转红（left 400 / right 500），按字节回滚（product_execution_write_port.rs shasum d712b287… 探测前后一致）。差异：Go 在服务 facade 内用 errors.Is/IsRequestError 判定，Rust 以端口错误枚举（Failed{status,code,message}/Unavailable）与 wire envelope 表达同一边界。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:327:TestCreateExecutionOrderRejectsInvalidPayloadBeforeBrokerCall": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::event_single_rejects_negative_amount_and_invalid_prediction_side；crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::combo_intent_rejects_missing_kind_legs_and_account",
-    "conclusion": "partial：Rust 断言非法 payload 在解析/校验阶段被拒绝（事件单负金额、组合意图缺腿）；差异：Go 断言校验失败时 broker placeOrder 未被调用（调用计数为 0），Rust 路由测试未显式断言 broker 未被调用。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::invalid_order_payload_is_rejected_before_the_broker_is_called",
+    "conclusion": "function_exact：Go 用“placeOrder 被调用即 t.Fatal”的假 broker 断言非法 payload（quantity=0）在下单前被拒为请求错误。Rust 的校验发生在 ProductionExecutionPort::place_order：先 parse_order_with_defaults（错误 → Failed{400,BAD_REQUEST}），之后才解析 writer/broker，因此等价证据是“broker 侧 TradeWritePort 零调用 + 400 校验错误”。新增测试用 RecordingTradeWriter（记录 placed）构造生产端口，断言 ① quantity=0 → Failed{400,BAD_REQUEST} 且消息含 quantity must be positive；② side=HOLD → Failed{400,BAD_REQUEST}；③ 两次尝试后 writer.placed 仍为空（broker 从未收到非法单）。探针：把 parse 的 quantity 下界由 <=0 改成 <0（放行 0） → 测试转红（订单被继续处理/落库），按字节回滚（product_production_ports_execution_order_parse.rs shasum 3e1856df… 探测前后一致）。差异：Go 在服务 facade 层先校验再委派，Rust 在写入端口入口校验；对外语义一致（400 BAD_REQUEST 且不下单）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:342:TestCreateExecutionOrderRunsPreTradeRiskBeforeBrokerCall": {
     "status": "[~]",

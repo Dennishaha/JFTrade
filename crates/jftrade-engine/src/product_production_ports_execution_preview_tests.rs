@@ -773,6 +773,59 @@ fn cancel_contract_port(writer: Arc<dyn TradeWritePort>) -> ProductionExecutionP
     write_port_with_writer(writer)
 }
 
+/// Parity: go:452dea11:internal/trading/execution_test.go:327
+/// `TestCreateExecutionOrderRejectsInvalidPayloadBeforeBrokerCall`. Go builds
+/// the order service with a fake `placeOrder` that fails the test when it is
+/// invoked, then asserts a zero quantity is rejected as a request error. In
+/// Rust the payload is parsed inside `ProductionExecutionPort::place_order`
+/// before `self.writer()` is resolved, so the equivalent evidence is: the
+/// broker-facing `TradeWritePort` records no placement while the caller gets
+/// the 400 BAD_REQUEST validation envelope.
+#[test]
+fn invalid_order_payload_is_rejected_before_the_broker_is_called() {
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let port = cancel_contract_port(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
+
+    let mut zero_quantity = cancel_contract_payload("invalid-quantity-order");
+    zero_quantity["quantity"] = json!(0);
+    let error = port.place_order(&zero_quantity).expect_err("zero quantity");
+    assert!(
+        matches!(
+            error,
+            ExecutionWritePortError::Failed {
+                status: 400,
+                ref code,
+                ref message,
+            } if code == "BAD_REQUEST" && message.contains("quantity must be positive")
+        ),
+        "zero quantity error = {error:?}"
+    );
+
+    let mut invalid_side = cancel_contract_payload("invalid-side-order");
+    invalid_side["side"] = json!("HOLD");
+    let error = port.place_order(&invalid_side).expect_err("invalid side");
+    assert!(
+        matches!(
+            error,
+            ExecutionWritePortError::Failed {
+                status: 400,
+                ref code,
+                ..
+            } if code == "BAD_REQUEST"
+        ),
+        "invalid side error = {error:?}"
+    );
+
+    assert!(
+        writer
+            .placed
+            .lock()
+            .expect("placed orders")
+            .is_empty(),
+        "broker must not receive invalid payloads"
+    );
+}
+
 fn cancel_contract_payload(client_order_id: &str) -> Value {
     json!({
         "accountId": "42",
