@@ -8379,6 +8379,55 @@ async fn pine_validation_and_backtest_result_view_keep_their_owner_contracts() {
     assert_eq!(view["view"], "summary", "{view}");
 }
 
+/// Go's `TestADKStrategySummariesHideSourceDetailsAndCountLinkedInstances`
+/// (reachable half): the model catalog publishes the seeded strategy
+/// definitions together with their count. Go additionally hides the source
+/// behind `scriptPreview` and links every definition to its instances; the
+/// Rust model catalog has no owner for those fields yet (see the batch note).
+///
+/// Parity: go:452dea11:internal/assistant/assembly/adk_summary_contracts_test.go:9
+#[test]
+fn adk_strategy_definition_catalog_counts_the_seeded_definitions() {
+    use crate::product::product_adk_model_runtime::AdkToolExecutor as _;
+    use crate::product::product_strategy_definition_write_port::{
+        StrategyDefinitionWriteInput, StrategyDefinitionWriteOperation,
+    };
+
+    let (ports, executor, _directory) = setup_test_bundle_and_executor();
+    executor.attach_ports(Arc::clone(&ports));
+
+    ports
+        .strategy_definition_write
+        .mutate(&StrategyDefinitionWriteInput {
+            operation: StrategyDefinitionWriteOperation::Create,
+            definition_id: Some("definition-1".to_owned()),
+            definition: Some(json!({
+                "id": "definition-1",
+                "name": "Mean revert",
+                "version": "1.2.0",
+                "runtime": "pine-plan",
+                "sourceFormat": "pine-v6",
+                "symbol": "US.AAPL",
+                "interval": "1d",
+                "script": "//@version=6\nstrategy(\"Mean revert\", overlay=true)\nplot(close)\n",
+            })),
+            binding: None,
+            binding_error: None,
+        })
+        .expect("seed strategy definition");
+
+    let payload = executor
+        .execute("strategy.definitions", &json!({}))
+        .expect("model catalog reads the seeded definitions");
+    assert_eq!(payload["definitionCount"], 1, "{payload}");
+    let definitions = payload["definitions"]
+        .as_array()
+        .expect("definitions array");
+    assert_eq!(definitions.len(), 1, "{payload}");
+    assert_eq!(definitions[0]["id"], "definition-1", "{payload}");
+    assert_eq!(definitions[0]["name"], "Mean revert", "{payload}");
+}
+
 /// Read the backtest run ids the production store currently holds, so a test
 /// can prove a tool call did or did not create a run.
 fn backtest_run_ids(

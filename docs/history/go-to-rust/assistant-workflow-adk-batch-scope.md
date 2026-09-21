@@ -2775,3 +2775,39 @@ Go 这两条把「闭包工具」钉在两件事上：端口入参归一化后�
 - 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与策略实例写工具（第 52 批 `:122`；第 56 批确认含 `market.provider.select`/`backtest.cancel`；本批再次确认 `strategy.save_draft`/`save_definition`/`update_instance_mode`）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 第 56 批的 `tradingCosts` 字段级类型解码差异、第 57 批的 `watchlist.list includeQuotes`（第 47 批）与 `RecordWorkflowAudit` 回调无 owner、`market.depth` 自由文本 instrument 推断、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具、第 53/54 批的 float 截断/query 文本推断/limit>50 钳制/capability 措辞、第 55 批禁用 503 路径差异。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1669 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2842 Rust** / **954 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第五十九批：assembly `adk_summary_contracts_test.go` 全量结清（1 条 `[x]` + 1 条 partial；新增 2 条回归）
+
+范围：`internal/assistant/assembly/adk_summary_contracts_test.go` 2 条逐条结清。本批新增 **1 条 `[x]`**（`:33`），`partial` 1 条（`:9`）；Rust 测试 2842 → **2844**，`[x]` 954 → **955**。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestADKStrategySummariesHideSourceDetailsAndCountLinkedInstances|TestADKBacktestSummariesRetainCountsWithoutEmbeddingRawSeries' -count=1`（checkout `/tmp/go452dea11.niwD1G`，`ok`）。
+
+### 本批结论（2 条新回归）
+
+Go 这两条把 ADK 摘要契约钉在两件事上：策略定义/实例摘要必须隐藏源码并统计关联实例数；回测 run 摘要必须保留计数、丢弃原始序列，并按定义/状态/limit 过滤。
+
+- `:33 [x]`：新回归 `product_mcp_production_executor_tests.rs::adk_backtest_run_summaries_keep_counts_without_raw_series` 直接采用 Go 的 fixture（`initialBalance=100000`、`PnL=1500`、`TotalTrades=3`、1 根 candle、`logs=[started,completed]`、`runtimeErrors=[warning]`、`useExtendedHours=true`）：摘要投影产出 `tradeCount=3`/`candlesCount=1`/`latestLog=completed`/`totalReturn=0.015`、run 行带 `useExtendedHours=true`，并且 `run` 与顶层都不含 `result`、summary 不含 `candles`、`series` 为空；同一测试用 `filter_backtest_runs(definitionId=definition-1, status=queued, limit=1)` 断言 `runCount=1`/`totalMatched=1`/`truncated=false`/`runs[0].id=a`。
+- `:9 partial`：新回归 `product_production_ports_adk_tests.rs::adk_strategy_definition_catalog_counts_the_seeded_definitions` 先经生产定义写端口（`strategy_definition_write`，Create）播种 `definition-1`，再走模型目录工具 `strategy.definitions`，断言 `definitionCount=1` 且 `definitions[0].id`/`name` 命中；空目录与 `definitionCount=0` 由既有 `product_mcp_server_tests.rs::production_mcp_local_tools_use_the_real_bundle_ports` 覆盖。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `product_research_backtest_projection.rs::enrich_summary_payload` 的 `totalReturn = pnl / initial_balance` 改成常量 `0.05` → `:33` 测试转红（打印 `"totalReturn":0.05`）。
+2. 同文件 `extract_case_summary` 的 `"candlesCount": lengths.candles` 改成 `0` → 同一测试转红（`left: Number(0)` / `right: 1`）。
+3. `product_mcp_production_executor.rs::strategy_definitions` 的 `definitionCount` 改成常量 `0` → `:9` 测试转红（payload 里 `definitions` 仍有 1 条、完整 `script` 也在其中）。
+   3 处探针均在本批内执行并已回滚，`git diff` 只留两条新测试、清单与审计产物。
+
+### 结论登记（`:9 partial` 的边界与差异）
+
+- 可达半边：`strategy.definitions` 的 `definitions` + `definitionCount`（本批新回归 + 空目录既有回归）。
+- 未迁移/差异：①`scriptPreview`（Go 截断 280 字符）与 `scriptBytes`/`visualNodeCount` 在 Rust 生产响应中不存在，`strategy.definitions` 直接回传存储行，连完整 `script`、`visualModelJson` 一起给到模型面——即模型面没有隐藏源码；②`linkedInstanceCount`/`instances`/`instanceCount`/`activeSymbolCount`/`latestLog` 在 Rust 模型目录没有 owner：策略实例只有 HTTP `GET /api/v1/strategies` 读取端口（`strategy_read`）与单实例活动工具 `strategy.instance_activity`（logs/audit），没有实例列表/摘要的模型工具。
+- 已登记为 P1 差异，与第 50/51/52 批同一 follow-up（模型目录缺策略实例读写工具、定义摘要 wire 形状），非本批可结清范围。
+- `:33` 与 Go 的表面差异（已写入清单结论）：Go 的 `SummarizeADKBacktestRuns` 在列表层逐 run 补计数；Rust 的列表 owner（`backtest.runs` → 端口 `list()`）只回传不含 `result` 的 run 行加 `runCount`/`totalMatched`，逐 run 计数只在 result_view 投影上生成，两边都不把原始 `result` 交给调用方。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 15 条：`typed_product_capabilities_test.go`/`watchlist_adapter_test.go`/`workflow_bridge_contracts_test.go`/`workflow_tools_error_boundaries_test.go`/`maintenance_test.go`（各 2），`adk_backtest_adapter_test.go`/`adk_strategy_input_validation_test.go`/`adk_tool_failure_contracts_test.go`/`product_execution_contracts_test.go`/`workflow_execution_injection_test.go`（各 1）；随后 `internal/app/apiserver`（574，按 servercore/servercoretest 分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）、`internal/integration/akshare`（73）、`internal/integration/yfinance`（68）、`pkg/market`（56）。
+- 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与策略实例写工具（第 52 批 `:122`；第 56 批确认含 `market.provider.select`/`backtest.cancel`；本批补充策略实例读/摘要工具与定义摘要 wire 形状）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 第 56 批的 `tradingCosts` 字段级类型解码差异、第 57 批的 `watchlist.list includeQuotes`（第 47 批）与 `RecordWorkflowAudit` 回调无 owner、`market.depth` 自由文本 instrument 推断、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具、第 53/54 批的 float 截断/query 文本推断/limit>50 钳制/capability 措辞、第 55 批禁用 503 路径差异。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1671 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2844 Rust** / **955 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

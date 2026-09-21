@@ -215,6 +215,79 @@ fn backtest_runs_filters_match_the_go_definition_version_status_and_limit_matrix
     assert_eq!(provider_only["runs"][0]["id"], "run-newest");
 }
 
+/// Parity: go:452dea11:internal/assistant/assembly/adk_summary_contracts_test.go:33
+/// `TestADKBacktestSummariesRetainCountsWithoutEmbeddingRawSeries`. The model
+/// summary derives `tradeCount`/`candlesCount`/`latestLog`/`totalReturn` from
+/// the stored run, the raw `result` payload and its series never travel with
+/// it, and the run list still narrows by definition, status and limit.
+#[test]
+fn adk_backtest_run_summaries_keep_counts_without_raw_series() {
+    use crate::product::BacktestResultViewRequest;
+    use crate::product::product_research_backtest_projection::project_authoritative_result_view;
+
+    let run = json!({
+        "id": "run-1",
+        "status": "completed",
+        "request": {
+            "definitionId": "definition-1",
+            "symbol": "US.AAPL",
+            "interval": "1d",
+            "initialBalance": 100_000.0,
+            "useExtendedHours": true
+        },
+        "result": {
+            "candles": [{"time": "2025-01-01", "close": 10.5}],
+            "cases": [{
+                "realizedPnl": 1_500.0,
+                "finalEquity": 101_500.0,
+                "totalTrades": 3,
+                "winRate": 0.66,
+                "processedBars": 1
+            }]
+        },
+        "logs": ["started", "completed"],
+        "runtimeErrors": ["warning"]
+    });
+
+    let view = project_authoritative_result_view(
+        &run,
+        None,
+        &BacktestResultViewRequest {
+            run_id: "run-1".to_owned(),
+            view: Some("summary".to_owned()),
+            ..Default::default()
+        },
+    )
+    .expect("summary projection");
+
+    let summary = &view["summary"];
+    assert_eq!(summary["tradeCount"], 3, "{view}");
+    assert_eq!(summary["candlesCount"], 1, "{view}");
+    assert_eq!(summary["latestLog"], "completed", "{view}");
+    let total_return = summary["totalReturn"].as_f64().expect("totalReturn");
+    assert!((total_return - 0.015).abs() < 1e-12, "{view}");
+    assert_eq!(view["run"]["useExtendedHours"], true, "{view}");
+    // The counts replace the series, so neither the run nor the summary may
+    // embed the stored `result` payload or a candles array.
+    assert!(view["run"].get("result").is_none(), "{view}");
+    assert!(view.get("result").is_none(), "{view}");
+    assert!(summary.get("candles").is_none(), "{view}");
+    assert_eq!(view["series"], json!({}), "{view}");
+
+    let filtered = helpers::filter_backtest_runs(
+        json!({"runs": [
+            {"id": "a", "status": "queued", "request": {"definitionId": "definition-1"}},
+            {"id": "b", "status": "completed", "request": {"definitionId": "definition-2"}}
+        ]}),
+        &json!({"definitionId": "definition-1", "status": "queued", "limit": 1}),
+    )
+    .expect("filtered run list");
+    assert_eq!(filtered["runCount"], 1, "{filtered}");
+    assert_eq!(filtered["totalMatched"], 1, "{filtered}");
+    assert_eq!(filtered["truncated"], false, "{filtered}");
+    assert_eq!(filtered["runs"][0]["id"], "a", "{filtered}");
+}
+
 #[test]
 fn pine_external_mode_parser_accepts_only_supported_values() {
     assert_eq!(pine_external_mode_value(None), PINE_MODE_OFF);

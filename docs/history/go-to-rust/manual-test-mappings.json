@@ -6819,17 +6819,17 @@
   },
   "internal/assistant/assembly/adk_summary_contracts_test.go:9:TestADKStrategySummariesHideSourceDetailsAndCountLinkedInstances": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_strategy_definition_catalog_counts_the_seeded_definitions",
+    "conclusion": "partial：可迁移半边=策略定义目录本身。Rust 模型目录 `strategy.definitions`（product_mcp_production_executor.rs::strategy_definitions）返回 `definitions` + `definitionCount`；本批新增端到端回归先经生产定义写端口播种一条定义，再断言 `definitionCount=1` 且 `definitions[0].id`/`name` 命中（空目录 + `definitionCount=0` 由 `production_mcp_local_tools_use_the_real_bundle_ports` 覆盖）。未迁移半边与差异：①`scriptPreview`（Go 截断 280 字符）在 Rust 生产响应里不存在，`strategy.definitions` 直接回传存储行，连完整 `script`、`visualModelJson` 一起给到模型面，即模型面没有隐藏源码；②`linkedInstanceCount`/`instances`/`instanceCount`/`activeSymbolCount`/`latestLog` 在 Rust 模型目录没有 owner：策略实例只有 HTTP `GET /api/v1/strategies` 读取端口（`strategy_read`）与单实例活动工具 `strategy.instance_activity`（logs/audit），没有实例列表/摘要模型工具。已登记为 P1 差异（与第 50/51/52 批同一 follow-up：模型目录缺策略实例读写工具、定义摘要 wire 形状），非本批可结清范围。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_strategy_definition_catalog_counts_the_seeded_definitions)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/adk_summary_contracts_test.go:33:TestADKBacktestSummariesRetainCountsWithoutEmbeddingRawSeries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_production_executor_tests.rs::adk_backtest_run_summaries_keep_counts_without_raw_series",
+    "conclusion": "function_exact：Rust 的 run 摘要由结果视图投影拥有。同一 fixture（initialBalance=100000、PnL=1500、TotalTrades=3、candles=1、logs=[started,completed]、runtimeErrors=[warning]、useExtendedHours=true）断言 `summary.tradeCount=3`、`candlesCount=1`、`latestLog=completed`、`totalReturn=0.015`、`run.useExtendedHours=true`，并断言 `run` 与顶层都不含 `result`、summary 不含 `candles`、`series` 为空——计数替代了原始序列。过滤半边由同一测试的 `filter_backtest_runs(definitionId=definition-1, status=queued, limit=1)` 断言 `runCount=1`/`totalMatched=1`/`truncated=false`/`runs[0].id=a` 覆盖（更宽的矩阵见 `backtest_runs_filters_match_the_go_definition_version_status_and_limit_matrix`）。与 Go 的差异：Go 的 `SummarizeADKBacktestRuns` 在列表层为每个 run 补计数，Rust 的列表 owner（`backtest.runs` → 端口 `list()`）只回传不含 `result` 的 run 行加 `runCount`/`totalMatched`，逐 run 计数只在 result_view 投影上生成。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_backtest_run_summaries_keep_counts_without_raw_series)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/assembly/adk_tool_failure_contracts_test.go:19:TestADKToolFailuresPreserveBusinessErrorContracts": {
     "status": "[~]",
