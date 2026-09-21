@@ -45,3 +45,22 @@ test("spawnChecked retries shebang-less script under /bin/sh on POSIX when kerne
   }
 });
 
+test("spawnChecked reports the child exit code and falls back to 1 without a status", () => {
+  assert.equal(
+    spawnChecked(process.execPath, ["-e", "process.exit(42)"], { stdio: "ignore" }),
+    42,
+  );
+
+  const originalError = console.error;
+  const messages = [];
+  console.error = (message) => messages.push(message);
+  try {
+    assert.equal(
+      spawnChecked("jftrade-missing-command-for-exit-code", [], { stdio: "ignore" }),
+      1,
+    );
+  } finally {
+    console.error = originalError;
+  }
+  assert.equal(messages.length, 1, "the spawn failure must be reported once");
+});

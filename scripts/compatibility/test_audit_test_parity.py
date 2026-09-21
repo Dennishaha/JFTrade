@@ -490,5 +490,41 @@ class GoDomainClassificationTest(unittest.TestCase):
                     )
 
 
+class RustTestInventoryTest(unittest.TestCase):
+    """The workspace test total must scan every resolvable Rust root."""
+
+    def setUp(self) -> None:
+        self._original_cwd = os.getcwd()
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = pathlib.Path(self._tmp.name)
+        os.chdir(self.root)
+
+    def tearDown(self) -> None:
+        os.chdir(self._original_cwd)
+
+    def write(self, relative: str, content: str) -> None:
+        path = self.root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+    def test_desktop_shell_tests_are_counted_in_the_workspace_total(self) -> None:
+        self.write("crates/jftrade-demo/src/lib.rs", "#[test]\nfn crate_test() {}\n")
+        self.write(
+            "apps/desktop/src-tauri/src/native_tests.rs",
+            "#[test]\nfn native_shell_test() {}\n",
+        )
+
+        by_name = {test["name"]: test for test in AUDIT.extract_rust_tests()}
+        self.assertIn("crate_test", by_name)
+        self.assertIn(
+            "native_shell_test",
+            by_name,
+            "the Tauri shell crate defines resolvable #[test] functions",
+        )
+        self.assertEqual(by_name["native_shell_test"]["crate"], "apps/desktop/src-tauri")
+        self.assertEqual(by_name["native_shell_test"]["domain"], "other")
+
+
 if __name__ == "__main__":
     unittest.main()

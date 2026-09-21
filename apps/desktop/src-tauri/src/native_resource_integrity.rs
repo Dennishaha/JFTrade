@@ -92,7 +92,15 @@ fn retained_runtime_config(
 }
 
 fn development_repository_root() -> Result<PathBuf, NativeError> {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
+    repository_root_from(Path::new(env!("CARGO_MANIFEST_DIR")))
+}
+
+/// Walk upward from `start` until one directory carries the workspace markers.
+///
+/// The marker pair replaces the retired Go `go.mod` probe: the crate manifest
+/// must be a regular file and the PineTS worker directory must exist beside it.
+fn repository_root_from(start: &Path) -> Result<PathBuf, NativeError> {
+    start
         .ancestors()
         .find(|candidate| {
             candidate.join("Cargo.toml").is_file() && candidate.join("workers/pineworker").is_dir()

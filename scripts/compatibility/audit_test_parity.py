@@ -502,14 +502,34 @@ def extract_go_tests():
             })
     return tests
 
+def _rust_source_files() -> list:
+    """Every Rust file that can define a ``#[test]`` the mappings may cite.
+
+    ``_workspace_rust_files`` already resolves references in the Tauri shell
+    crate, so the headline test total must scan the same roots or the report
+    understates the workspace and disagrees with the reference set.
+    """
+    files = glob.glob('crates/**/*.rs', recursive=True)
+    files.extend(glob.glob('apps/desktop/src-tauri/**/*.rs', recursive=True))
+    return sorted(files)
+
+
+def _rust_crate_name(path: str) -> str:
+    """Crate directory for a workspace Rust file, including the Tauri shell."""
+    if path.startswith('apps/desktop/src-tauri/'):
+        return 'apps/desktop/src-tauri'
+    parts = path.split('/')
+    return parts[1] if len(parts) > 1 else 'unknown'
+
+
 def extract_rust_tests():
     tests = []
     # Count with the same regex the reference resolver uses, so the totals in
     # the report and the resolvable reference set cannot drift apart.
     test_pattern = _RUST_TEST_FN
     
-    for f in glob.glob('crates/**/*.rs', recursive=True):
-        crate_name = f.split('/')[1]
+    for f in _rust_source_files():
+        crate_name = _rust_crate_name(f)
         with open(f, 'r', encoding='utf-8', errors='ignore') as fp:
             content = fp.read()
         for m in test_pattern.finditer(content):

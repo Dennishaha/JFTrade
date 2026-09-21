@@ -185,6 +185,52 @@ mod tests {
         assert_eq!(profile.window_state_path, None);
     }
 
+    // Parity: go:452dea11:cmd/internal/protogen/repository_test.go:12 TestFindRepoRoot
+    #[test]
+    fn repository_root_walks_up_from_a_nested_directory_to_the_workspace_markers() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let root = directory.path().join("workspace");
+        fs::create_dir_all(root.join("workers/pineworker")).expect("worker marker directory");
+        fs::write(root.join("Cargo.toml"), b"[workspace]\n").expect("workspace manifest");
+        // A directory named like the marker must not qualify: the probe only
+        // accepts a regular manifest file, mirroring the retired Go stat check.
+        fs::create_dir_all(root.join("one/Cargo.toml")).expect("marker-shaped directory");
+        fs::create_dir_all(root.join("one/workers/pineworker"))
+            .expect("marker-shaped directory worker path");
+        let nested = root.join("one/two");
+        fs::create_dir_all(&nested).expect("nested directory");
+
+        assert_eq!(
+            repository_root_from(&nested).expect("nested start resolves the workspace root"),
+            root
+        );
+        assert_eq!(
+            repository_root_from(&root).expect("marker directory resolves itself"),
+            root
+        );
+    }
+
+    // Parity: go:452dea11:cmd/internal/protogen/repository_test.go:23 TestFindRepoRootRejectsMissingModule
+    #[test]
+    fn repository_root_rejects_a_tree_without_the_workspace_markers() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let nested = directory.path().join("one/two");
+        fs::create_dir_all(&nested).expect("nested directory");
+        // A manifest without the worker directory is not a repository root, so
+        // the probe keeps walking and fails closed instead of returning a
+        // partial match.
+        fs::write(directory.path().join("Cargo.toml"), b"[workspace]\n").expect("manifest");
+
+        for start in [directory.path(), nested.as_path()] {
+            let error =
+                repository_root_from(start).expect_err("missing markers must fail closed");
+            assert!(
+                matches!(error, NativeError::MissingRepositoryRoot),
+                "unexpected error: {error}"
+            );
+        }
+    }
+
     #[test]
     fn native_boundaries_reject_invalid_days_and_generate_strong_tokens() {
         for invalid in ["2026-02-30", "2026-13-01", "../2026-08-19", "20260819"] {
