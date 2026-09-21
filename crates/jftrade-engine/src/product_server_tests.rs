@@ -31,6 +31,8 @@ fn disabled_web_access_does_not_start_a_listener() {
     runtime.shutdown_blocking().expect("shutdown Web runtime");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:243 TestSeparateWebListenerStartsAlongsideLoopbackDesktopSidecar
+// Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:222 TestWebAccessListenerBindUsesIndependentConfiguredPort
 #[test]
 fn enabled_web_access_binds_and_shutdown_releases_port() {
     let runtime = ProductWebServerRuntime::new();
@@ -64,6 +66,8 @@ fn enabled_web_access_binds_and_shutdown_releases_port() {
     drop(listener);
 }
 
+// Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:378 TestWebAccessServerManagerRestoresOldBindAfterHostSwitchFailure
+// Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:275 TestSeparateWebListenerRebindsImmediatelyAndKeepsOldPortOnConflict
 #[test]
 fn port_conflict_keeps_the_previous_listener_running() {
     let runtime = ProductWebServerRuntime::new();
@@ -84,6 +88,8 @@ fn port_conflict_keeps_the_previous_listener_running() {
     runtime.shutdown_blocking().expect("shutdown Web runtime");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/server_test.go:85 TestStartDesktopDoesNotMutatePersistedWebAccessSettings
+// Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:331 TestWebAccessServerManagerCoversLiveReconfigurationLifecycle
 #[test]
 fn dynamic_origin_allowlist_tracks_the_current_web_port() {
     let runtime = ProductWebServerRuntime::new();

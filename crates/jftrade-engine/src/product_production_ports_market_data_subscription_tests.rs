@@ -266,6 +266,7 @@ fn prediction_subscription_rejects_an_ineligible_account_before_subscribing() {
     );
 }
 
+    // Parity: go:452dea11:internal/app/apiserver/strategyapp/runtime_ports_test.go:137 TestMarketDataHealthReturnsActiveProviderHealth
 #[test]
 fn prediction_subscription_rejects_invalid_types_and_unready_provider() {
     let active = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));

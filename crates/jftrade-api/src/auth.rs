@@ -299,6 +299,37 @@ fn constant_time_equal(left: &str, right: &str) -> bool {
 mod tests {
     use super::*;
 
+    // Parity: go:452dea11:internal/app/apiserver/server_test.go:280 TestStartDesktopAllowsWailsDevOrigin
+    // Parity: go:452dea11:internal/app/apiserver/server_test.go:310 TestDesktopTrustedOriginsDeriveDevelopmentPort
+    // Parity: go:452dea11:internal/app/apiserver/server_test.go:331 TestStartDesktopAllowsPackagedWailsOrigins
+    #[test]
+    fn desktop_trusted_origins_cover_development_and_packaged_wails_hosts() {
+        let origins = desktop_trusted_origins().into_iter().collect::<Vec<_>>();
+        for port in [3003, 3000, 3008, 6699] {
+            for host in ["127.0.0.1", "localhost"] {
+                let origin = format!("http://{host}:{port}");
+                assert!(
+                    origins.contains(&origin),
+                    "desktop policy must trust the development origin {origin}"
+                );
+            }
+        }
+        for scheme in [
+            "tauri://localhost",
+            "http://tauri.localhost",
+            "https://tauri.localhost",
+        ] {
+            assert!(
+                origins.contains(&scheme.to_owned()),
+                "packaged Tauri origin {scheme} must stay trusted"
+            );
+        }
+        assert!(
+            !origins.iter().any(|origin| origin.contains("3030")),
+            "unrelated local ports must not enter the desktop allowlist"
+        );
+    }
+
     #[test]
     fn origin_normalization_accepts_web_and_tauri_schemes() {
         assert_eq!(

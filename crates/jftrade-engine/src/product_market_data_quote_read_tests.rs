@@ -1089,6 +1089,7 @@ async fn live_read_routes_require_a_logical_subscription_lease() {
     assert_eq!(response["request"]["instrumentId"], "US.AAPL");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/strategyapp/runtime_ports_test.go:110 TestMarketDataCapabilitiesReadsRuntimeDescriptor
 /// Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:421 TestPollOnlyReadRoutesPrioritizeCapabilitiesAndPreserveLogicalLeases
 ///
 /// A poll-only provider has no broker-side lease to consume, so Go reports the

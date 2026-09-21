@@ -89,9 +89,17 @@ pub(crate) async fn inspect(checked_at: String, configured_path: &str) -> Runtim
     let dependency = inspect_node(configured_path).await;
     RuntimeDependencies {
         checked_at,
-        all_required_satisfied: !dependency.required || dependency.status.satisfied(),
+        all_required_satisfied: all_required_satisfied(std::slice::from_ref(&dependency)),
         dependencies: vec![dependency],
     }
+}
+
+/// Aggregate required-dependency status exactly like the Go probe loop: a
+/// single required dependency that is not `ok` makes the snapshot unsatisfied.
+fn all_required_satisfied(dependencies: &[RuntimeDependency]) -> bool {
+    dependencies
+        .iter()
+        .all(|dependency| !dependency.required || dependency.status.satisfied())
 }
 
 async fn inspect_node(configured_path: &str) -> RuntimeDependency {
@@ -129,9 +137,13 @@ async fn inspect_node(configured_path: &str) -> RuntimeDependency {
         }
         Ok(Ok(output)) if !output.status.success() => {
             dependency.status = DependencyStatus::Error;
+            // Go probes node with `CombinedOutput`, so a failing command keeps
+            // both streams for diagnostics instead of dropping stdout.
+            let mut combined = output.stdout.clone();
+            combined.extend_from_slice(&output.stderr);
             dependency.message = format!(
                 "Node.js version check failed: {}",
-                summarize_command_error(&output.stderr, output.status.to_string())
+                summarize_command_error(&combined, output.status.to_string())
             );
             return dependency;
         }
@@ -499,5 +511,195 @@ mod tests {
             assert!(parse_version(&dependency.detected_version).is_ok());
             assert!(!dependency.resolved_path.is_empty());
         }
+    }
+    // Parity: go:452dea11:internal/app/apiserver/runtime/dependencies_test.go:60 TestCheckNodeRuntimeDependencyUsesMacOSCommonPathFallback
+    #[test]
+    fn node_candidates_prefer_path_then_macos_common_installs() {
+        let candidates = node_candidates("");
+        assert_eq!(candidates[0].path, PathBuf::from("node"));
+        assert_eq!(candidates[0].source, "path");
+        let sources = candidates
+            .iter()
+            .map(|candidate| candidate.source.clone())
+            .collect::<Vec<_>>();
+        if cfg!(target_os = "macos") {
+            assert_eq!(
+                sources,
+                vec![
+                    "path",
+                    "common:/opt/homebrew/bin/node",
+                    "common:/usr/local/bin/node",
+                    "common:/opt/homebrew/opt/node/bin/node",
+                    "common:/usr/local/opt/node/bin/node",
+                ]
+            );
+        } else {
+            assert_eq!(sources, vec!["path"]);
+        }
+    }
+
+    // Parity: go:452dea11:internal/app/apiserver/runtime/dependencies_test.go:94 TestCheckNodeRuntimeDependencyMissingMessageListsMacOSAttempts
+    #[test]
+    fn missing_node_message_names_finder_attempts_and_settings_guidance() {
+        let default_message = missing_message(
+            "",
+            &["node".to_owned(), "/opt/homebrew/bin/node".to_owned()],
+            "executable not found",
+        );
+        assert!(default_message.contains("Finder"), "{default_message}");
+        assert!(
+            default_message.contains("Tried: node, /opt/homebrew/bin/node"),
+            "{default_message}"
+        );
+        assert!(default_message.contains("Settings"), "{default_message}");
+        assert_eq!(
+            missing_message("", &[], "executable not found"),
+            missing_message("", &["node".to_owned()], "executable not found")
+        );
+
+        let configured = missing_message("/missing/node", &["ignored".to_owned()], "missing");
+        assert!(
+            configured.starts_with("Configured Node.js binary was not found or is not executable"),
+            "{configured}"
+        );
+        assert!(!configured.contains("Finder"), "{configured}");
+    }
+
+    // Parity: go:452dea11:internal/app/apiserver/runtime/dependencies_test.go:39 TestCheckNodeRuntimeDependencyReportsMissing
+    #[tokio::test]
+    async fn configured_node_path_is_reported_missing_without_falling_back() {
+        let dependency = inspect_node("/definitely/missing/jftrade-node").await;
+        assert_eq!(dependency.status, DependencyStatus::Missing);
+        assert_eq!(
+            dependency.attempted_paths,
+            ["/definitely/missing/jftrade-node"]
+        );
+        assert_eq!(dependency.source, "settings");
+        assert!(dependency.resolved_path.is_empty());
+        assert!(
+            dependency.message.starts_with("Configured"),
+            "{}",
+            dependency.message
+        );
+    }
+
+    #[cfg(unix)]
+    fn write_node_probe_script(directory: &Path, name: &str, body: &str) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+
+        let path = directory.join(name);
+        std::fs::write(&path, body).expect("write node probe script");
+        let mut permissions = std::fs::metadata(&path)
+            .expect("probe script metadata")
+            .permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&path, permissions).expect("mark probe script executable");
+        path
+    }
+
+    // Parity: go:452dea11:internal/app/apiserver/runtime/dependencies_test.go:13 TestCheckNodeRuntimeDependencyOK
+    // Parity: go:452dea11:internal/app/apiserver/runtime/dependencies_test.go:115 TestCheckNodeRuntimeDependencyReportsOutdatedInvalidAndCommandError
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn node_probe_reports_ok_outdated_unrecognized_and_failed_scripts() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let cases = [
+            (
+                "ok",
+                "#!/bin/sh\necho v22.1.0\n",
+                DependencyStatus::Ok,
+                "22.1.0",
+                None,
+            ),
+            (
+                "outdated",
+                "#!/bin/sh\necho v20.11.1\n",
+                DependencyStatus::Outdated,
+                "20.11.1",
+                Some("below the required 22.0.0"),
+            ),
+            (
+                "unrecognized",
+                "#!/bin/sh\necho not-a-version\n",
+                DependencyStatus::Error,
+                "not-a-version",
+                Some("unrecognized version"),
+            ),
+        ];
+        for (name, body, status, detected, message) in cases {
+            let script = write_node_probe_script(directory.path(), name, body);
+            let dependency = inspect_node(&script.to_string_lossy()).await;
+            assert_eq!(dependency.status, status, "case {name}");
+            assert_eq!(dependency.detected_version, detected, "case {name}");
+            assert_eq!(dependency.source, "settings", "case {name}");
+            assert_eq!(
+                dependency.resolved_path,
+                script.to_string_lossy(),
+                "case {name}"
+            );
+            if let Some(fragment) = message {
+                assert!(
+                    dependency.message.contains(fragment),
+                    "case {name}: {}",
+                    dependency.message
+                );
+            }
+        }
+
+        let failing = write_node_probe_script(
+            directory.path(),
+            "failing",
+            "#!/bin/sh\necho stdout-diagnostic\necho stderr-diagnostic 1>&2\nexit 3\n",
+        );
+        let dependency = inspect_node(&failing.to_string_lossy()).await;
+        assert_eq!(dependency.status, DependencyStatus::Error);
+        assert!(
+            dependency.message.contains("stdout-diagnostic")
+                && dependency.message.contains("stderr-diagnostic"),
+            "failing probe must keep both streams: {}",
+            dependency.message
+        );
+    }
+
+    // Parity: go:452dea11:internal/app/apiserver/runtime/dependencies_test.go:141 TestRuntimeDependenciesAggregatesRequiredStatus
+    #[test]
+    fn runtime_dependencies_flag_unsatisfied_required_entries() {
+        let resolution = |path: &str| Resolution {
+            configured_path: path.to_owned(),
+            effective_path: path.to_owned(),
+            source: "settings".to_owned(),
+            resolved_path: Some(path.into()),
+            attempted_paths: vec![path.to_owned()],
+            last_error: None,
+        };
+
+        let mut outdated = base_node_dependency(&resolution("/fixture/node"));
+        apply_version_output(&mut outdated, "v21.0.0");
+        assert!(!all_required_satisfied(std::slice::from_ref(&outdated)));
+
+        let mut available = base_node_dependency(&resolution("/fixture/node"));
+        apply_version_output(&mut available, "v22.0.0");
+        assert!(!all_required_satisfied(&[
+            outdated.clone(),
+            available.clone()
+        ]));
+
+        let mut optional_outdated = outdated.clone();
+        optional_outdated.required = false;
+        assert!(all_required_satisfied(&[
+            optional_outdated,
+            available.clone()
+        ]));
+        assert!(all_required_satisfied(&[available]));
+    }
+
+    // Parity: go:452dea11:internal/app/apiserver/runtime/dependencies_test.go:156 TestNodeRuntimeDependencyMessagesHandleInvalidAndTruncatedOutput
+    #[test]
+    fn command_error_summary_keeps_output_tail_within_wire_budget() {
+        assert_eq!(summarize_command_error(b"", "boom".to_owned()), "boom");
+        let long_output = "x".repeat(600);
+        let summary = summarize_command_error(long_output.as_bytes(), "boom".to_owned());
+        assert!(summary.len() <= 506, "summary length {}", summary.len());
+        assert!(summary.ends_with(&"x".repeat(500)), "{summary}");
     }
 }

@@ -1941,6 +1941,7 @@ async fn browser_authenticated_request_cannot_change_desktop_only_security_setti
     assert!(!settings_path.exists());
 }
 
+// Parity: go:452dea11:internal/app/apiserver/server_test.go:224 TestResolvePackagedDesktopRuntimeRequiresLoopback
 #[test]
 fn product_config_rejects_public_bind_and_missing_path() {
     assert!(matches!(

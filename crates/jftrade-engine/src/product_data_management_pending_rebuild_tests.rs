@@ -83,6 +83,7 @@ fn snapshot_files(path: &Path) -> Vec<(PathBuf, Vec<u8>)> {
     files
 }
 
+    // Parity: go:452dea11:internal/app/apiserver/server_test.go:472 TestDependenciesApplyScheduledDatabaseRebuildBeforeStartup
 // Parity: go:452dea11:internal/app/apiserver/datamigration/manager_test.go:100 TestManagerApplyPendingDeletesOnlySelectedDatabaseFiles
 #[test]
 fn startup_applies_a_pending_rebuild_only_to_the_selected_databases() {
@@ -168,6 +169,7 @@ fn startup_rejects_a_tampered_pending_rebuild_without_deleting_any_source() {
     );
 }
 
+    // Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:459 TestStartForRunArgsClosesHandlerWhenDatabaseRebuildFinalizeFails
 // Parity: go:452dea11:internal/app/apiserver/datamigration/manager_test.go:190 TestManagerKeepsMarkerWhenDeleteFails
 #[test]
 fn startup_keeps_the_marker_when_a_selected_database_cannot_be_deleted() {

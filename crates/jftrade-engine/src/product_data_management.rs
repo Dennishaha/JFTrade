@@ -503,6 +503,8 @@ mod tests {
 
     use super::*;
 
+    // Parity: go:452dea11:internal/app/apiserver/runtime/research_runtime_test.go:9 TestResearchDatabasePathAndRuntimeResource
+    // Parity: go:452dea11:internal/app/apiserver/runtime/runtime_test.go:82 TestRuntimePathEnvOverrides
     #[test]
     fn paths_follow_go_environment_overrides_and_adk_artifact_lifecycle() {
         let overrides = BTreeMap::from([

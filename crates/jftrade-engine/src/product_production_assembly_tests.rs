@@ -1746,6 +1746,7 @@ mod product_production_assembly_tests {
         assert!(!plugin_dir.join("missing.so").exists());
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/runtimes/handle_lifecycle_test.go:161 TestHandlePublishesRuntimeGroupsBeforeShutdown
     #[test]
     fn production_registry_is_built_from_non_optional_adapters() {
         let (_temp_dir, _settings_path, config, security) = setup_test_env();
@@ -1934,6 +1935,8 @@ mod product_production_assembly_tests {
         ));
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/application/assistant_test.go:98 TestAssistantCompositionOpensRuntimeAndProjectsServices
+    // Parity: go:452dea11:internal/app/apiserver/application/assistant_test.go:45 TestAssistantPortsProjectSettingsAndHealth
     #[test]
     fn production_adk_and_plugin_and_alert_ports() {
         let (_temp_dir, _settings_path, config, security) = setup_test_env();
@@ -2050,6 +2053,7 @@ mod product_production_assembly_tests {
         assert!(matches!(alert_err, AlertWritePortError::Unavailable(_)));
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/runtimes/handle_lifecycle_test.go:331 TestHandleRestoresCalendarResolverOnShutdown
     #[test]
     fn production_calendar_manager_restores_settings_and_snapshots() {
         let (temp_dir, settings_path, config, security) = setup_test_env();

@@ -119,6 +119,7 @@ async fn execution_write_routes_register_only_with_explicit_test_port() {
         .expect("shutdown execution write product");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/strategyapp/runtime_ports_test.go:145 TestTradeCommandsMapPlaceCancelAndDefensiveFailures
 #[tokio::test]
 async fn execution_write_product_replays_browser_boundary_failure_recovery_and_restart() {
     let directory = tempdir().expect("temporary directory");

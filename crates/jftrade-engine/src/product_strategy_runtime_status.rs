@@ -115,6 +115,7 @@ mod tests {
         }
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/status/status_test.go:76 TestStrategyRuntimeSummaryDelegatesAndDefaults
     #[test]
     fn strategy_runtime_projection_matches_go_status_corpus() {
         let corpus: Corpus = serde_json::from_str(include_str!(

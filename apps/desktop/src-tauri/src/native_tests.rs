@@ -142,6 +142,7 @@ mod tests {
         assert!(days.is_empty());
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/runtime/runtime_test.go:155 TestDeriveDesktopLogPaths
     #[test]
     fn native_runtime_events_append_to_the_existing_daily_log_contract() {
         let directory = tempfile::tempdir().expect("temporary directory");
@@ -204,6 +205,7 @@ mod tests {
         }
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/desktop_api_startup_test.go:87 TestLoadFrontendFSPreservesUnavailableAndEmbeddedAssetSemantics
     #[test]
     fn required_asset_does_not_fallback_for_missing_static_asset() {
         let missing = std::path::PathBuf::from("/nonexistent/static/asset/path.png");
@@ -215,6 +217,8 @@ mod tests {
     }
 
 
+    // Parity: go:452dea11:internal/app/apiserver/runtimes/handle_lifecycle_test.go:417 TestHandleConcurrentCloseIsIdempotentAndAggregatesErrors
+    // Parity: go:452dea11:internal/app/apiserver/application/resources_test.go:78 TestResourcesCloseIsIdempotentAndConcurrentSafe
     #[test]
     fn stop_product_is_idempotent_across_concurrent_invocations() {
         use std::sync::{Arc, Mutex};

@@ -4840,3 +4840,62 @@ Rust 目前没有对应拒绝（Go 探针：adaptive + `sessions=regular` 只有
 > 干扰说明（客观记录，不计为通过）：本批执行期间工作树存在**非本批**的并发改动（`scripts/compatibility/audit_test_parity.py`、`scripts/compatibility/test_audit_test_parity.py` 及其重生成的 `test-parity-report.md`/`test-parity-inventory.md`，自第 69 批起一直未提交）。`check:zero-go` 对 `scripts/compatibility/*.py` 中的 Go 路径字面量（`internal/pineworkerassets`、`internal/marketdataassets`）报错，转红完全来自这些并发文件；本批未纳入提交、也未回退它们。本批 crates 侧证据（fmt/clippy/nextest 全绿、审计 0 破坏引用与 0 重复 rust_entry、架构检查、`git diff --check`）均已独立完成。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-store-sqlite -p jftrade-datamanagement -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked --no-fail-fast`（184 passed）、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1696 passed）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2908 Rust** / **997 `[x]`**，0 破坏引用、0 重复 rust_entry）、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`、`git diff --check`。**未通过**：`pnpm run check:zero-go`（以及因此转红的 `pnpm run check:quick` 的 `check:policy` 分组）——原因见下方干扰说明，与本批 crates 改动无关。
+
+## 第七十一批：API 装配与小分片对齐（`internal/app/apiserver` 小片 98 行）
+
+### 范围（98 行 = 51 `[x]` + 47 `[~]`）
+
+| 分片 | 行数 | `[x]` | `[~]` |
+|---|---:|---:|---:|
+| `application` | 14 | 7 | 7 |
+| `lifecycle` | 17 | 8 | 9 |
+| `runtime` | 21 | 12 | 9 |
+| 包根（`server_test.go` 14 + `desktop_api_startup_test.go` 4） | 18 | 6 | 12 |
+| `runtimes` | 12 | 4 | 8 |
+| `liveapp` | 4 | 0 | 4 |
+| `status` | 4 | 3 | 1 |
+| `strategyapp` | 4 | 3 | 1 |
+| `databaseguard` | 2 | 1 | 1 |
+| `stores` | 2 | 2 | 0 |
+
+Go 基线按分片逐个执行（`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/app/apiserver/<shard>/ -count=1`，包根为 `./internal/app/apiserver/`），并对照 `runtimes/handle.go`、`lifecycle/lifecycle.go`、`runtime/{runtime,resources,dependencies}.go`、`server.go` 与 `desktop_api_startup.go` 的实现阅读，而不是只读测试名。
+
+### 本批修复（3 项，均先写红/探针后改）
+
+1. **`runtimeResources` 投影补齐 Go 声明的资源描述符**（P1，公开 API 表面）。Go `runtime/resources.go` 声明 16 个描述符，Rust 只投影 11 个；本批在 `crates/jftrade-engine/src/product_runtime_resources.rs` 补齐 `strategy-catalog`、`strategy-designs`（与 `strategy-runtime-db` 同库不同 schema owner）、`adk-secrets`、`adk-skills-dir`、`exchange-calendar-dir`、`strategy-plugin-dir`，并把分组顺序改为 Go 的 critical → optional（settings → 6 个关键库/别名 → real-trade-control → adk 库 → 目录类）。Rust 保留自身扩展 `adk-artifact-db`，最终 17 项 = Go 16 + 1。`system.SystemRuntimeResources` 的 OpenAPI schema 是通用 `items[]`，`count` 由 `len(items)` 计算，所以本批无需改契约/生成物。
+2. **Node 依赖命令错误消息保留两路输出**（P1 诊断对齐）。Go 用 `CombinedOutput()`，Rust 原来只把 stderr 交给 `summarize_command_error`；现在合并 stdout+stderr 后再截断（尾部 500 字符），失败诊断与 Go 一致。
+3. **必需依赖聚合判定提取为可测函数**。`all_required_satisfied(&[RuntimeDependency])` 显式表达 Go 的“任一必需项非 ok 即 false”循环语义，取代内联表达式。
+   附带：`product_production_ports::product_production_calendar` 提升为 `pub(crate)`，让资源投影复用同一个 `JFTRADE_EXCHANGE_CALENDAR_DIR`/相对回退解析，而不是复制一份路径规则；`product_runtime_tests.rs` 与 `product_system_control_read_tests.rs` 中硬编码的 11 项断言改为 17 项并断言 `count == items.len()`。
+
+### 本批新增 Rust 测试（16 个新增 + 4 个更新）
+
+- `crates/jftrade-engine/src/product_runtime_resources_tests.rs`（新文件，4）：`runtime_resources_declare_go_owners_and_derived_paths`（Go 声明 ID 的 owner/kind/path/environmentOverride/critical + “无 `data-migration/` 前缀、critical sqlite 用 `data-management/`”不变量）、`runtime_resources_group_critical_entries_before_assistant_and_directory_entries`、`runtime_resources_keep_the_settings_directory_for_relative_paths`、`runtime_resource_summary_count_matches_projected_items`。
+- `crates/jftrade-engine/src/runtime_dependencies.rs`（6 新增）：`node_candidates_prefer_path_then_macos_common_installs`、`missing_node_message_names_finder_attempts_and_settings_guidance`、`configured_node_path_is_reported_missing_without_falling_back`、`node_probe_reports_ok_outdated_unrecognized_and_failed_scripts`（真实脚本探针：ok/outdated/unrecognized/非零退出含双流诊断）、`runtime_dependencies_flag_unsatisfied_required_entries`、`command_error_summary_keeps_output_tail_within_wire_budget`。
+- `crates/jftrade-api/src/auth.rs`（1）：`desktop_trusted_origins_cover_development_and_packaged_wails_hosts`（3003/3000/3008/6699 + `tauri://localhost`/`http(s)://tauri.localhost`）。
+- 更新：`product_runtime_tests.rs::product_runtime_without_optional_workers_starts_and_stops_cleanly`、`product_system_control_read_tests.rs::system_status_matches_go_stable_fields_without_claiming_migration_ownership`（11→17 与 count 一致性）。
+- 代码侧锚点：本批为 51 条 `[x]` 中可定位到“文件内真实 `#[test]`”的引用补了 45 条 `// Parity:` 锚点，审计的“未锚定 function_exact”告警从 229 降到 193。
+
+### 探针（改坏 → 转红 → 按字节回滚）
+
+1. 删除 `strategy-catalog`/`strategy-designs` 两个投影分支 → `runtime_resources_declare_go_owners_and_derived_paths` 转红（exit 100），回滚后文件字节还原。
+2. 把 Node 命令错误消息改回只读 stderr → `node_probe_reports_ok_outdated_unrecognized_and_failed_scripts` 转红（exit 100），回滚后文件字节还原。
+
+### 映射结论：98 条 = 51 `[x]`（function_exact）+ 47 `[~]`（27 partial + 20 boundary）
+
+- 51 条 `[x]` 集中在：应用/组合根逆序关闭与启动回滚、商店逆序关闭、数据库健康即路由可用、node 依赖探针 7 条全量、market-data/strategy 状态语料、web listener 生命周期与冲突回退 5 条、桌面 origin/loopback/资产/进程回收、pending rebuild 启动应用。
+- 47 条 `[~]` 的差异类型（每条都在 JSON 结论里写明“Rust 覆盖了什么、差异为何”）：
+  - **所有权模型差异（Rust 无可变 handle/迟到注册）**：`application` 的 errors.Join 聚合与迟到注册 3 条、`runtimes/handle_lifecycle` 的迟到注入/并发发布 6 条、`runtimes` 序列化更新 1 条。
+  - **Go/Wails 装配边界（Rust 无对应构造）**：嵌入式前端与集成 GUI 端口 3 条、Wails APIServerHelper 1 条、args 门控 noop 2 条、legacy GUI server 1 条。
+  - **Web access 安全策略差异**：Go“未配置密码仍绑 loopback”，Rust fail-closed 直接关闭 web 访问（`access_fails_closed_without_a_configured_password`）。
+  - **环境契约差异**：Go `FUTU_OPEND_ADDR`/`JFTRADE_FUTU_*`/`JFTRADE_ADK_SKILLS_DIR` vs Rust `JFTRADE_FUTU_OPEND_HOST/PORT` 与 `JFTRADE_ADK_SKILLS`；`JFTRADE_REAL_TRADE_CONTROL_PATH` 只有 ProductConfig 读取+descriptor 声明证据（工作区禁止进程级 env 写入）。
+  - **已退役 Go 运行时**：`liveapp` 的 bbgo 通知桥 3 条 + live handler 选项 1 条。
+  - **失败策略差异**：`databaseguard` 的按路由族 503 在 Rust 改成启动期 integrity+lease fail-closed。
+- 未使用 boundary 掩盖可迁移行为：所有 `[x]` 都可运行，`[~]` 中 27 条 partial 均点名 Rust 侧文件/测试作为“已覆盖部分”。
+
+### 下一批目标（第七十二批，已写入自动化 `go-rust-2`）
+
+`internal/app/apiserver/servercore` 第一片（150 条）：先 recon `data_management*`、`assistant*`、`settings_*`、`exec_*`、`portfolio_*`、`system_*` 文件族的 Go 断言与错误码表，再按 crate 归属逐文件映射；优先结清 P0（执行/资金/写入所有权）与 P1（SSE/WS 重连、分页、恢复），随后 servercoretest（103）→ marketdataapp（136）→ webaccess（31）→ tradingapp（22）→ backtestapp（14）→ futuapp（11）。
+
+> 干扰说明（客观记录，不计为通过）：本批执行期间工作树存在**非本批**的并发改动（`scripts/compatibility/audit_test_parity.py`、`scripts/compatibility/test_audit_test_parity.py` 及其重生成的 `test-parity-report.md`/`test-parity-inventory.md`，自第 69 批起一直未提交）。`check:zero-go` 报出的 6 处“active Go/Wails reference”全部来自这两个脚本文件；本批只修掉了自己新增的一处（`crates/jftrade-api/src/auth.rs` 测试消息中的 Wails 字样），未纳入也未回退并发文件。本批 crates 侧证据（fmt/clippy/nextest 全绿、审计 0 破坏引用与 0 重复 rust_entry、架构检查、`git diff --check`）均已独立完成。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-api -p jftrade-desktop --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api -p jftrade-desktop --all-targets --locked --no-fail-fast`（1781 passed）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2919 Rust** / **1048 `[x]`**，0 破坏引用、0 重复 rust_entry、未锚定告警 229→193）、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`、`git diff --check`。**未通过**：`pnpm run check:zero-go`（以及因此转红的 `pnpm run check:quick` 的 `check:policy` 分组）——原因见上方干扰说明，与本批 crates 改动无关。

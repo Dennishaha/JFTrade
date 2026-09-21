@@ -181,6 +181,7 @@ async fn storage_overview_matches_the_go_empty_projection_behind_authentication(
     handle.shutdown().await.expect("shutdown shadow");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/databaseguard/groups_test.go:35 TestGroupsKeepRoutesAvailableWhenDatabasesAreHealthy
 #[tokio::test]
 async fn production_system_status_reports_real_database_lease_and_schema_state() {
     let directory = tempdir().expect("temporary directory");
@@ -327,6 +328,8 @@ async fn runtime_dependencies_use_the_normalized_settings_node_candidate() {
     assert_eq!(fs::read(&settings_path).expect("read settings"), before);
 }
 
+// Parity: go:452dea11:internal/app/apiserver/server_test.go:85 TestStartDesktopDoesNotMutatePersistedWebAccessSettings
+// Parity: go:452dea11:internal/app/apiserver/runtime/resources_test.go:78 TestRuntimeResourceSummaryIncludesCountAndItems
 #[tokio::test]
 async fn system_status_matches_go_stable_fields_without_claiming_migration_ownership() {
     let directory = tempdir().expect("temporary directory");
@@ -436,27 +439,33 @@ async fn system_status_matches_go_stable_fields_without_claiming_migration_owner
         data["observability"]["strategyRuntime"],
         data["strategyRuntime"]
     );
-    assert_eq!(data["runtimeResources"]["count"], 11);
     let resource_ids = data["runtimeResources"]["items"]
         .as_array()
         .expect("runtime resource items")
         .iter()
         .map(|item| item["id"].as_str().expect("runtime resource id"))
         .collect::<Vec<_>>();
+    assert_eq!(data["runtimeResources"]["count"], resource_ids.len());
     assert_eq!(
         resource_ids,
         vec![
             "settings-file",
             "backtest-kline-db",
             "backtest-run-db",
+            "strategy-catalog",
+            "strategy-designs",
             "strategy-runtime-db",
             "execution-orders-db",
-            "adk-db",
-            "adk-session-db",
-            "adk-artifact-db",
             "watchlist-db",
             "research-db",
             "real-trade-control",
+            "adk-db",
+            "adk-session-db",
+            "adk-artifact-db",
+            "adk-secrets",
+            "adk-skills-dir",
+            "exchange-calendar-dir",
+            "strategy-plugin-dir",
         ]
     );
 
@@ -950,6 +959,7 @@ async fn system_status_uses_only_the_typed_strategy_runtime_port() {
     handle.shutdown().await.expect("shutdown product");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/status/status_test.go:12 TestLiveStatsSortsActiveInstruments
 #[test]
 fn system_status_live_projection_uses_shared_transport_metrics() {
     let metrics = Arc::new(LiveConnectionMetrics::new(2));

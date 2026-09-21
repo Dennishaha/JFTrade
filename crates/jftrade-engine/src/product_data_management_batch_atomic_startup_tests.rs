@@ -13,6 +13,7 @@ use super::super::{
     database_descriptors, initialize_production_databases, initialize_production_databases_inner,
 };
 
+    // Parity: go:452dea11:internal/app/apiserver/stores/handle_test.go:42 TestHandleRollsBackAndStopsAfterOpenFailure
 #[test]
 fn startup_failure_restores_previously_migrated_descriptor_files() {
     let directory = tempfile::tempdir().expect("temporary directory");
@@ -57,6 +58,7 @@ fn startup_failure_restores_previously_migrated_descriptor_files() {
     );
 }
 
+    // Parity: go:452dea11:internal/app/apiserver/stores/handle_test.go:10 TestHandleClosesStoresInReverseOpenOrder
 #[test]
 fn startup_acquires_all_writer_leases_in_stable_order_before_migrating() {
     let directory = tempfile::tempdir().expect("temporary directory");

@@ -122,6 +122,7 @@ mod tests {
         }
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/status/status_test.go:26 TestMarketDataRuntimeSummaryStates
     #[test]
     fn market_data_runtime_projection_matches_go_status_corpus() {
         let corpus: Corpus = serde_json::from_str(include_str!(

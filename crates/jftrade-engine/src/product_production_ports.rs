@@ -59,7 +59,7 @@ mod product_production_ports_unavailable;
 #[path = "product_production_ports_watchlist.rs"]
 mod product_production_ports_watchlist;
 #[path = "product_production_calendar.rs"]
-mod product_production_calendar;
+pub(crate) mod product_production_calendar;
 
 pub(crate) use crate::product::product_backtest_execution::BacktestExecutionTaskRegistry;
 pub(crate) use product_backtest_sync_registry::BacktestSyncWorkerRegistry;

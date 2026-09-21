@@ -30,6 +30,7 @@ fn assets() -> Vec<ReleaseAsset> {
     ]
 }
 
+// Parity: go:452dea11:internal/app/apiserver/server_test.go:150 TestResolveDesktopRuntimeConfigUsesProfileBindInsteadOfPersistedInterfaceBind
 #[test]
 fn build_profiles_preserve_tauri_identity_and_data_isolation() {
     let macos = PlatformPaths {
@@ -100,6 +101,7 @@ fn runtime_plan_rejects_missing_duplicate_and_unsafe_assets() {
     ));
 }
 
+// Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:110 TestStartForRunArgsConfiguresRuntimeAndFrontend
 #[test]
 fn lifecycle_starts_in_dependency_order_and_shuts_down_in_reverse() {
     let plan = RuntimePlan::new(assets()).unwrap();
@@ -128,6 +130,8 @@ fn lifecycle_starts_in_dependency_order_and_shuts_down_in_reverse() {
     );
 }
 
+// Parity: go:452dea11:internal/app/apiserver/desktop_api_startup_test.go:148 TestStartDesktopWithConfigClosesSidecarWhenReadinessTargetFails
+// Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:616 TestStartForRunArgsStopsAtFailingStartupStage
 #[test]
 fn readiness_failure_reclaims_every_started_process_without_starting_dependents() {
     let plan = RuntimePlan::new(assets()).unwrap();

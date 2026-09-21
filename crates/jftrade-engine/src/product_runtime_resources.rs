@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use jftrade_datamanagement::{
@@ -149,24 +150,183 @@ fn settings_resource(path: String) -> RuntimeResourceDescriptor {
     }
 }
 
+/// Go declares the runtime inventory as `settings` -> critical resources ->
+/// optional resources, so the projection keeps the same grouping instead of
+/// exposing raw database order.
+const CRITICAL_DATABASE_RESOURCES: [&str; 6] = [
+    "backtest-kline-db",
+    "backtest-run-db",
+    "strategy-runtime-db",
+    "execution-orders-db",
+    "watchlist-db",
+    "research-db",
+];
+
+const ASSISTANT_DATABASE_RESOURCES: [&str; 3] = ["adk-db", "adk-session-db", "adk-artifact-db"];
+
 pub(super) fn product_resources(config: &ProductConfig) -> Vec<RuntimeResourceDescriptor> {
+    let settings_path = config.settings_path();
+    let mut managed = managed_databases_by_id(settings_path);
     let mut resources = vec![settings_resource(
-        config.settings_path().to_string_lossy().into_owned(),
+        settings_path.to_string_lossy().into_owned(),
     )];
-    resources.extend(
-        crate::product_data_management::managed_database_runtime_descriptors(
-            config.settings_path(),
-        )
+
+    push_managed(&mut resources, &mut managed, "backtest-kline-db");
+    push_managed(&mut resources, &mut managed, "backtest-run-db");
+    let strategy_path = resources
         .iter()
-        .map(database_resource),
-    );
+        .find(|resource| resource.id == "strategy-runtime-db")
+        .map(|resource| resource.path.clone())
+        .or_else(|| managed.get("strategy-runtime-db").map(|r| r.path.clone()))
+        .unwrap_or_default();
+    resources.push(strategy_table_resource(
+        "strategy-catalog",
+        "strategy catalog tables",
+        &strategy_path,
+    ));
+    resources.push(strategy_table_resource(
+        "strategy-designs",
+        "strategy design tables",
+        &strategy_path,
+    ));
+    push_managed(&mut resources, &mut managed, "strategy-runtime-db");
+    for id in CRITICAL_DATABASE_RESOURCES {
+        push_managed(&mut resources, &mut managed, id);
+    }
     resources.push(real_trade_control_resource(
         config
             .real_trade_control_path()
             .to_string_lossy()
             .into_owned(),
     ));
+    for id in ASSISTANT_DATABASE_RESOURCES {
+        push_managed(&mut resources, &mut managed, id);
+    }
+    resources.extend(optional_path_resources(settings_path));
+    // A future managed database keeps its descriptor instead of vanishing
+    // from the projection when it is not in the Go-derived grouping above.
+    resources.extend(managed.into_values());
     resources
+}
+
+fn managed_databases_by_id(
+    settings_path: &std::path::Path,
+) -> BTreeMap<String, RuntimeResourceDescriptor> {
+    crate::product_data_management::managed_database_runtime_descriptors(settings_path)
+        .iter()
+        .map(database_resource)
+        .map(|descriptor| (descriptor.id.clone(), descriptor))
+        .collect()
+}
+
+fn push_managed(
+    resources: &mut Vec<RuntimeResourceDescriptor>,
+    managed: &mut BTreeMap<String, RuntimeResourceDescriptor>,
+    id: &str,
+) {
+    if let Some(descriptor) = managed.remove(id) {
+        resources.push(descriptor);
+    }
+}
+
+/// The strategy catalog and design tables share the strategy runtime database
+/// but stay separate inventory entries, matching Go's `strategy-catalog` and
+/// `strategy-designs` descriptors.
+fn strategy_table_resource(id: &str, schema_owner: &str, path: &str) -> RuntimeResourceDescriptor {
+    RuntimeResourceDescriptor {
+        id: id.to_owned(),
+        owner: "strategy".to_owned(),
+        kind: "sqlite".to_owned(),
+        path: path.to_owned(),
+        initialized_by: "jftrade-engine data-management inventory".to_owned(),
+        schema_owner: schema_owner.to_owned(),
+        close_owner: "jftrade-store-sqlite".to_owned(),
+        health_provider: "data-management/strategy".to_owned(),
+        environment_override: "JFTRADE_STRATEGY_RUNTIME_DB".to_owned(),
+        critical: true,
+    }
+}
+
+fn optional_path_resources(settings_path: &std::path::Path) -> Vec<RuntimeResourceDescriptor> {
+    let directory = settings_path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty());
+    let secrets = std::env::var("JFTRADE_ADK_SECRETS")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            directory.map_or_else(
+                || std::path::PathBuf::from("secrets/adk-secrets.json"),
+                |parent| parent.join("secrets").join("adk-secrets.json"),
+            )
+        });
+    let skills = std::env::var("JFTRADE_ADK_SKILLS")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            directory.map_or_else(
+                || std::path::PathBuf::from("skills"),
+                |parent| parent.join("skills"),
+            )
+        });
+    let calendars =
+        crate::product::product_production_ports::product_production_calendar::exchange_calendar_snapshot_root(settings_path);
+    let plugins = directory.map_or_else(
+        || std::path::PathBuf::from("plugins"),
+        |parent| parent.join("plugins"),
+    );
+    vec![
+        RuntimeResourceDescriptor {
+            id: "adk-secrets".to_owned(),
+            owner: "assistant/admin".to_owned(),
+            kind: "json-file".to_owned(),
+            path: secrets.to_string_lossy().into_owned(),
+            initialized_by: "jftrade-engine ADK projection".to_owned(),
+            schema_owner: "adk secrets store".to_owned(),
+            close_owner: "jftrade-engine".to_owned(),
+            health_provider: "system.runtime-dependencies/adk".to_owned(),
+            environment_override: "JFTRADE_ADK_SECRETS".to_owned(),
+            critical: false,
+        },
+        RuntimeResourceDescriptor {
+            id: "adk-skills-dir".to_owned(),
+            owner: "assistant/admin".to_owned(),
+            kind: "directory".to_owned(),
+            path: skills.to_string_lossy().into_owned(),
+            initialized_by: "jftrade-engine ADK mutation port".to_owned(),
+            schema_owner: "filesystem".to_owned(),
+            close_owner: "jftrade-engine".to_owned(),
+            health_provider: "system.runtime-dependencies/adk".to_owned(),
+            environment_override: "JFTRADE_ADK_SKILLS".to_owned(),
+            critical: false,
+        },
+        RuntimeResourceDescriptor {
+            id: "exchange-calendar-dir".to_owned(),
+            owner: "system/exchange-calendar".to_owned(),
+            kind: "directory".to_owned(),
+            path: calendars.to_string_lossy().into_owned(),
+            initialized_by: "jftrade-calendar snapshot store".to_owned(),
+            schema_owner: "exchange calendar store".to_owned(),
+            close_owner: "jftrade-engine".to_owned(),
+            health_provider: "system.exchange-calendars".to_owned(),
+            environment_override: "JFTRADE_EXCHANGE_CALENDAR_DIR".to_owned(),
+            critical: false,
+        },
+        RuntimeResourceDescriptor {
+            id: "strategy-plugin-dir".to_owned(),
+            owner: "strategy".to_owned(),
+            kind: "directory".to_owned(),
+            path: plugins.to_string_lossy().into_owned(),
+            initialized_by: "jftrade-engine production plugin port".to_owned(),
+            schema_owner: "filesystem".to_owned(),
+            close_owner: "jftrade-engine".to_owned(),
+            health_provider: "strategy plugin catalog".to_owned(),
+            environment_override: String::new(),
+            critical: false,
+        },
+    ]
 }
 
 fn database_resource(database: &DatabaseDescriptor) -> RuntimeResourceDescriptor {
@@ -281,3 +441,7 @@ fn real_trade_control_resource(path: String) -> RuntimeResourceDescriptor {
         critical: true,
     }
 }
+
+#[cfg(test)]
+#[path = "product_runtime_resources_tests.rs"]
+mod tests;

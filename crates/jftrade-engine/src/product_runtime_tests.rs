@@ -19,6 +19,7 @@ use super::*;
 use crate::product::product_production_ports::{self, ProductionAdapterBinding};
 use crate::product_data_management;
 
+// Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:424 TestStartForRunArgsStartsAPIOnlyAndShutsDown
 #[tokio::test]
 async fn product_runtime_without_optional_workers_starts_and_stops_cleanly() {
     let directory = tempdir().expect("temporary directory");
@@ -48,15 +49,20 @@ async fn product_runtime_without_optional_workers_starts_and_stops_cleanly() {
     let runtime = start_product_runtime(config).await.expect("start runtime");
     assert_eq!(runtime.backtest_execution_ready(), None);
     assert_eq!(runtime.startup_record().owned_routes, 26);
-    assert_eq!(snapshot.resources.len(), 11);
+    assert_eq!(snapshot.resources.len(), 17);
     assert_eq!(snapshot.resources[0].id, "settings-file");
     assert_eq!(snapshot.resources[1].id, "backtest-kline-db");
-    assert_eq!(snapshot.resources[9].id, "research-db");
-    assert_eq!(snapshot.resources[10].id, "real-trade-control");
+    assert_eq!(snapshot.resources[9].id, "real-trade-control");
+    assert_eq!(snapshot.resources[10].id, "adk-db");
     assert!(
-        snapshot.resources[1..10]
+        snapshot.resources[1..9]
             .iter()
             .all(|resource| resource.kind == "sqlite")
+    );
+    assert_eq!(
+        snapshot.resources[12].id,
+        "adk-artifact-db",
+        "Rust keeps the artifact database as an extension after the assistant databases"
     );
     runtime.shutdown().await.expect("shutdown");
 }
@@ -670,6 +676,10 @@ async fn build_test_runtime_config(
     )
 }
 
+// Parity: go:452dea11:internal/app/apiserver/runtimes/handle_lifecycle_test.go:475 TestHandleClosesConsumersBeforeProvidersAndProvidersInReverseOrder
+// Parity: go:452dea11:internal/app/apiserver/stores/handle_test.go:10 TestHandleClosesStoresInReverseOpenOrder
+// Parity: go:452dea11:internal/app/apiserver/application/resources_test.go:78 TestResourcesCloseIsIdempotentAndConcurrentSafe
+// Parity: go:452dea11:internal/app/apiserver/application/resources_test.go:12 TestResourcesClosesApplicationDependenciesInReverseStartupOrder
 #[tokio::test]
 async fn test_product_runtime_ordered_shutdown_explicit() {
     let temp_dir = tempfile::tempdir().unwrap();
@@ -715,6 +725,11 @@ async fn test_product_runtime_ordered_shutdown_explicit() {
     assert_all_9_databases_can_acquire_writer_leases(&settings_path);
 }
 
+// Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:616 TestStartForRunArgsStopsAtFailingStartupStage
+// Parity: go:452dea11:internal/app/apiserver/stores/handle_test.go:42 TestHandleRollsBackAndStopsAfterOpenFailure
+// Parity: go:452dea11:internal/app/apiserver/application/installers_test.go:49 TestInstallersRollbackPartialInitialization
+// Parity: go:452dea11:internal/app/apiserver/application/lifecycle_test.go:11 TestLifecycleClosesAdoptedResourcesInReverseOrderAndPreservesSetupError
+// Parity: go:452dea11:internal/app/apiserver/application/resources_test.go:34 TestOpenRollsBackEarlierResourcesWhenLaterStartupFails
 #[tokio::test]
 async fn test_product_runtime_startup_failure_rollback() {
     let temp_dir = tempfile::tempdir().unwrap();
