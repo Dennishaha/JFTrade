@@ -16,6 +16,15 @@ impl ProductApi {
             .find(|resource| resource.id == "settings-file")
             .map(|resource| resource.path.as_str())
             .unwrap_or_default();
+        // Go reads the projection from the persisted execution settings on every
+        // request (`defaultTradingEnvironment(s)`); the file store keeps the
+        // normalized value, and a missing document falls back to `SIMULATE`.
+        let default_trading_environment = self
+            .settings
+            .execution
+            .settings()
+            .unwrap_or_default()
+            .default_trading_environment;
         let broker = json!(jftrade_integration_futu::broker_descriptor());
         let exchange_calendars = self
             .calendar_manager
@@ -42,7 +51,7 @@ impl ProductApi {
             "name": "JFTrade",
             "apiPort": self.api_port,
             "defaultBroker": "futu",
-            "defaultTradingEnvironment": "SIMULATE",
+            "defaultTradingEnvironment": default_trading_environment,
             "realTradingEnabled": real_trade.real_trading_enabled,
             "realTradingKillSwitch": {
                 "active": real_trade.kill_switch_active,

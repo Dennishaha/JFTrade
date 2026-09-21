@@ -22890,102 +22890,102 @@
     "evidence_type": "missing"
   },
   "internal/system/service_status_defaults_test.go:10:TestStatusIncludesInjectedObservabilitySummaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_embeds_injected_live_market_data_calendar_and_request_summaries",
+    "conclusion": "function_exact（本批新增）：Go 注入 live(connected=3)/marketdata(activeCount=2,status=running)/exchangeCalendars(autoRefreshEnabled,sources[1])/请求观测(slowThresholdMs=750,1 条 recentError)，断言 Status.Observability 四段。Rust 新测试注入 MarketDataRuntimeRecorder（generation=1、stream connected、poll started 时间戳）与真实 CalendarManager（fixture source），先制造一次 503 系统读失败再读取 /api/v1/system/status，断言 observability.marketdata 全字段（status connected、lastRefreshAt 按 UTC 归一）、observability.live（connected/activeInstruments 为共享传输指标）、observability.exchangeCalendars(autoRefreshEnabled/sources 数组) 与 observability.requests(slowThresholdMs=750、minimumImportance=low、recentErrors[0].status=503)。差异：live 段无 connected=3 注入缝，请求窗口由真实 503 请求写入而非注入快照。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(system_status_embeds_injected_live_market_data_calendar_and_request_summaries)'",
+    "evidence_type": "function_exact"
   },
   "internal/system/service_status_defaults_test.go:41:TestStatusProvidesDefaultRequestObservabilitySummary": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_default_request_observability_matches_the_go_baseline",
+    "conclusion": "function_exact（本批新增）：Go 对默认服务断言 slowThresholdMs=750、minimumImportance=low、recentErrors/recentSlowRequests 为非 nil 空切片、OpenD totalCalls/failedCalls=0。Rust 新测试对全新产品 GET /api/v1/system/status，断言 requests 段完全等于 {\"recentErrors\":[],\"recentSlowRequests\":[],\"openD\":{\"totalCalls\":0,\"failedCalls\":0},\"slowThresholdMs\":750,\"minimumImportance\":\"low\"}（OpenD 空时间/文本字段按 Go omitempty 语义省略）；默认阈值来源 crates/jftrade-api/src/observability.rs 的 DEFAULT_SLOW_THRESHOLD=750ms 与默认 minimumImportance=low。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(system_status_default_request_observability_matches_the_go_baseline)'",
+    "evidence_type": "function_exact"
   },
   "internal/system/service_status_defaults_test.go:61:TestExchangeCalendarDelegatesAndFallbacks": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_tests.rs::calendar_control_plane_routes_share_the_real_manager_in_cutover_only；crates/jftrade-engine/src/product_tests.rs::calendar_control_plane_routes_fail_closed_without_a_manager",
+    "conclusion": "partial：Go 断言未配置时 CalendarStatus 为零值、sources 为 nil、refresh/probe 返回 {\"accepted\":false,\"reason\":\"exchange calendar manager not configured\"}，配置后按 market 转发并回读。Rust 没有 system.Service 注入回调：日历路由仅在存在 CalendarManager 端口时注册（owned_routes 48→54），存在时 sources/status/refresh/probe 全部落到真实 manager（测试断言 sources[].id=fixture_source、refresh accepted/updated=1、status snapshots[].checksum、probe healthy/results[].checksum），不存在时路由未注册并返回错误信封（与 system_read_routes_are_not_registered_without_snapshot_port 的 NOT_FOUND 同源），生产组合根始终装配 manager。差异：默认失败形状与文案不同（无 accepted:false + reason 的 200 响应），也没有「未配置时状态为零值对象」的投影。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only)'",
+    "evidence_type": "partial"
   },
   "internal/system/service_status_defaults_test.go:109:TestStorageAndRealTradeDefaultsExposeFrontendShape": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::storage_overview_and_control_defaults_expose_empty_frontend_slices",
+    "conclusion": "function_exact（本批新增）：Go 断言 StorageOverview 的 pendingOutbox/recentJobs/recentAuditLogs/recentExecutionCommands 都是空 []any，且 RealTradeHardStops/RealTradeHardStopEvents/RealTradeKillSwitchEvents 默认 allowsCancel=true、realTradingEnabled/killSwitchActive=false、entries 为空数组。Rust 新测试对新产品的 /api/v1/system/storage/overview 断言四个键都等于 []（与 storage_overview_matches_the_go_empty_projection_behind_authentication 的整对象断言同源），并对 real-trade-hard-stops/hard-stop-events/kill-switch-events 断言 allowsCancel=true、realTradingEnabled=false、killSwitchActive=false、entries==[]。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(storage_overview_and_control_defaults_expose_empty_frontend_slices)'",
+    "evidence_type": "function_exact"
   },
   "internal/system/service_status_defaults_test.go:137:TestFutuDefaultsExposeEmptyGuideAndSnapshot": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无「未注入回调」的服务默认分支（Rust 组合根始终装配 owner）",
+    "conclusion": "boundary（owner 退场，保留）：Go 该测试只覆盖「没有任何注入回调」时的占位分支：install guide 返回空 map、broker order snapshot 返回空 map、RuntimeDependencies 返回 {allRequiredSatisfied:true, dependencies:[]}。Rust 产品始终由组合根装配 owner：install guide 由产品渲染完整指南（system_control_reads_are_authenticated_and_do_not_create_control_state 断言 settings.host/minimumVersion 且读取不落盘），订单更新 Worker 快照需要真实 worker，未装配时 503 fail-closed（production_system_read_reports_unavailable_opend_without_fake_health），runtime dependencies 始终执行真实探测（runtime_dependencies_use_the_normalized_settings_node_candidate 断言 allRequiredSatisfied=true 与 node 依赖条目）。空 map 占位语义在 Rust 不迁移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_system_read_reports_unavailable_opend_without_fake_health)'",
+    "evidence_type": "boundary"
   },
   "internal/system/service_status_defaults_test.go:151:TestRuntimeDependenciesDelegates": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::runtime_dependencies_use_the_normalized_settings_node_candidate",
+    "conclusion": "partial：Go 断言委托回调被调用（ctx 非 nil）且回调返回体被透传（allRequiredSatisfied=false、dependencies[0].id=node）。Rust 无回调注入：/api/v1/system/runtime-dependencies 由 ProductionSystemPort 自身探测（读取 pineWorker 设置并归一 nodeBinaryPath 后 inspect），测试断言未鉴权 401、鉴权后 allRequiredSatisfied=true、dependencies[0] 的 id/status/minimumVersion=22.0.0/configuredPath/effectivePath/attemptedPaths/source/resolvedPath/detectedVersion，并断言设置文件字节不变。差异：没有「委托返回体原样透传」与 ctx 透传断言，也没有静态 satisfied 的未配置分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(runtime_dependencies_use_the_normalized_settings_node_candidate)'",
+    "evidence_type": "partial"
   },
   "internal/system/service_test.go:13:TestStatusDefaultsAndInjectedSummaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_matches_go_stable_fields_without_claiming_migration_ownership",
+    "conclusion": "function_exact（本批补锚点）：Go 注入 apiPort=3900、settingsPath、SIMULATE、broker 描述符 futu、strategy runtime idle 摘要、RuntimeResources{count 1, items[0].owner=settings}，断言 Status 的 name/apiPort/defaultTradingEnvironment/persistence.databasePath+checkedAt/broker/strategyRuntime.activeStrategies/runtimeResources.count+items。Rust 同一测试从 /api/v1/system/status 断言 name=JFTrade、apiPort=实际绑定端口、defaultBroker=futu、defaultTradingEnvironment=SIMULATE（execution 设置默认）、databasePath=settings 文件路径且 checkedAt 非空、broker=冻结描述符且与 observability.broker 同源、strategyRuntime idle/activeStrategies=0/activeInstances=[]、runtimeResources.count 等于 items 长度且 items 首项 id=settings-file，并断言响应不含 migrationOwner。差异：注入点由 ProductConfig 的端口/配置承担（端口、日历、行情 recorder、系统读），不再有 system.Option 回调表。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(system_status_matches_go_stable_fields_without_claiming_migration_ownership)'",
+    "evidence_type": "function_exact"
   },
   "internal/system/service_test.go:59:TestStatusUsesDynamicPortAndTradingEnvironmentProviders": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_reports_the_persisted_default_trading_environment",
+    "conclusion": "function_exact（本批功能修复 + 新增测试）：Go 断言 apiPort 与 defaultTradingEnvironment 每次 Status() 都重新取值（3000→38401、SIMULATE→REAL）。Rust 原先在 system_status 里把 defaultTradingEnvironment 硬编码为 \"SIMULATE\"，本批改为逐请求读取持久化 execution 设置（jftrade_settings::ExecutionService::settings() 归一化，缺失/非法回落 SIMULATE，等价 Go defaultTradingEnvironment(s) 的 store 语义：store 为 nil 才回落 SIMULATE）。新增测试：以 {\"execution\":{\"defaultTradingEnvironment\":\"REAL\"}} 启动产品，GET /api/v1/system/status 得 apiPort=实际绑定端口且 defaultTradingEnvironment=REAL；随后 PUT /api/v1/settings/execution 改成 SIMULATE，再次 GET 得 SIMULATE，证明是逐请求动态而非启动缓存。探针：把该字段改回硬编码 \"SIMULATE\" → 测试转红（left \"SIMULATE\" / right \"REAL\"）→ 按字节回滚（shasum 9935fdcb949fba39101936f8c58ecb5eb06bafe1d56211fd2f4582818273020e）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(system_status_reports_the_persisted_default_trading_environment)'",
+    "evidence_type": "function_exact"
   },
   "internal/system/service_test.go:83:TestRealTradeDefaultsMatchFrontendContract": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/real_trade_control.rs::tests::default_control_reads_match_the_frontend_contract",
+    "conclusion": "function_exact（本批新增）：Go 把默认（空控制面）响应序列化后断言键形状与值：approvals 含 realTradingEnabled/requiredConfirmationText=ENABLE_REAL_TRADING/maxApprovalAgeMs=300000/approvalWorkflowAvailable=false/approvalWorkflowStatus=not_configured/非空 approvalWorkflowMessage/approvalPolicy(approverAllowlistEnabled=false、approverCount=0、approvalMode=none、largeOrderNotional=nil)/entries 空数组，且不含 enabled/approvals/pendingCount；killSwitch 键集为 realTradingEnabled/killSwitchActive/killSwitchSource/runtimeActive/blockedOperations/allowsCancel/entry（killSwitchActive=false、allowsCancel=true、source/entry 为 null）且不含 active；riskLimits/riskEvents 的键集与默认值（riskEnabled=false、entry=null、entries 空，不含 enabled/events）。Rust 新测试对默认 RealTradeControlReader 快照（无控制面文件）做同一组断言，键集用排序后集合精确比较（多键/缺键都会失败），投影实现位于 jftrade-trading::RealTradeRiskSnapshot。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(default_control_reads_match_the_frontend_contract)'",
+    "evidence_type": "function_exact"
   },
   "internal/system/service_test.go:142:TestRealTradeStateUsesInjectedRiskGatewaySnapshot": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_and_control_reads_follow_the_configured_risk_snapshot",
+    "conclusion": "function_exact（本批新增）：Go 注入 RealTradeRiskSnapshot（realTradingEnabled=true、KillSwitchSource=RUNTIME、runtime/effective 限值 12.5/2500、一条 risk event）并断言 Status 与 kill switch/risk limits/risk events/approvals 读取。Rust 新测试把同一状态写成 real-trade-control.json（生产与切流共用的读盘 owner），启动产品后断言 /api/v1/system/status 的 realTradingEnabled=true、realTradingKillSwitch{active,runtimeActive,blockedOperations=[PLACE,MODIFY],allowsCancel=true}、realTradingRisk{enabled,maxOrderQuantity=12.5,maxOrderNotional=2500,runtimeConfigured*同值,runtimeRiskConfigured=true}，以及 real-trade-kill-switch（killSwitchSource=RUNTIME、entry.id）、real-trade-risk-limits（riskEnabled/effective 限值/entry.id）与 real-trade-risk-events（maxOrderQuantity/Notional、entries[0].id）。差异：Go 的注入回调在 Rust 换成磁盘控制面 + 唯一读取 owner（RealTradeControlReader / ExecutionRiskCoordinator）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(system_status_and_control_reads_follow_the_configured_risk_snapshot)'",
+    "evidence_type": "function_exact"
   },
   "internal/system/service_test.go:201:TestRealTradeStateNormalizesTypedNilSlices": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/real_trade_control.rs::tests::empty_control_state_serializes_empty_entry_slices",
+    "conclusion": "function_exact（本批新增）：Go 断言 typed-nil 切片在四个投影中都序列化为 []（hardStops/hardStopEvents/killSwitchEvents/riskEvents 的 entries 是空数组而非 null）。Rust 新测试用空控制态（{\"riskConfig\":null,\"killSwitch\":null} 与完全缺失的文件两种输入）断言 hard_stops/hard_stop_events/kill_switch_events/risk_events 的 entries == [] 且 hardStops allowsCancel=true；Rust 投影字段是无 Option 的 Vec，因此不存在 null 序列化路径。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(empty_control_state_serializes_empty_entry_slices)'",
+    "evidence_type": "function_exact"
   },
   "internal/system/service_test.go:212:TestRealTradeControlDelegatesAndUnavailableBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_system_write_product_tests.rs::system_write_product_replays_browser_boundary_failure_recovery_and_restart",
+    "conclusion": "function_exact（本批补锚点）：Go 断言六条控制命令（update/disable runtime risk、activate/release kill switch、activate/release hard stop）分别到达对应委托并携带 operatorId/reason/accountId/id，未配置控制面时统一返回 errRealTradeControlUnavailable。Rust 同一测试以浏览器边界（cookie/origin/referer + CSRF）驱动同一组六条命令再加 manual-retry，断言全部到达 SystemWritePort 并按 operation 名转发、CSRF 缺失 403、控制面不可用 503 SYSTEM_WRITE_UNAVAILABLE、失败后重试恢复、设置文件字节不变；命令字段解析（operatorId/reason/accountId、路径 id 去空白、null 容忍）由 product_system_write_port.rs 的 go_json_boundary_accepts_null_and_ignores_trailing_values 与 validation_precedes_port_and_path_id_is_trimmed 覆盖，未配置端口时 fail-closed 由 valid_request_fails_closed_without_test_port 覆盖。差异：Go 的六个注入回调在 Rust 合并为单一 SystemWritePort 的六种 operation（加 manual-retry 共七条）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(system_write_product_replays_browser_boundary_failure_recovery_and_restart)'",
+    "evidence_type": "function_exact"
   },
   "internal/system/service_test.go:309:TestFutuHealthAndResetDelegates": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_opend_health_diagnoses_enabled_but_unreachable_opend；crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state",
+    "conclusion": "partial：Go 用注入回调验证 health（携带 ctx）/install guide/broker order snapshot/ResetFutuRuntime 四条委托。Rust 由组合根 owner 取代：健康投影按 broker 设置 + TCP 探针实时计算（生产装配测试断言 enabled 但不可达时 offline/disconnected/OPEND_API_CONNECTIVITY/manualRetryRequired/restartOpenDRecommended），安装指南由产品渲染（系统控制读测试断言 install-guide 的 settings.host/minimumVersion 且读取不创建控制面文件），订单更新 Worker 快照需要真实 worker、未装配即 503 fail-closed（见 production_system_read_reports_unavailable_opend_without_fake_health），重置语义落在 POST /api/v1/system/futu-opend/manual-retry（写产品测试断言路由到 manual-retry operation；生产未配置 trade runtime 时 503 SYSTEM_WRITE_UNAVAILABLE）。差异：没有可注入的 health/reset 回调与 ctx 透传断言，也没有 reset 后运行时状态被清零的行为测试。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_opend_health_diagnoses_enabled_but_unreachable_opend)'",
+    "evidence_type": "partial"
   },
   "internal/system/service_test.go:345:TestFutuHealthDefaultsUnavailable": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_system_read_defaults_opend_health_to_the_unavailable_reason",
+    "conclusion": "function_exact（本批新增）：Go 断言未启用 broker integration 时健康投影为 {\"status\":\"unavailable\",\"reason\":\"broker integration not enabled\"}。Rust 新测试读取 /api/v1/system/futu-opend，断言 status=unavailable、reason 为同一文案，并断言投影对象恰为 {reason,status} 两个键（不伪造 runtime/diagnosis 段）；同一装配面的 production_system_read_reports_unavailable_opend_without_fake_health 继续覆盖「未拥有的 broker-order-updates 读取 fail-closed」。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_system_read_defaults_opend_health_to_the_unavailable_reason)'",
+    "evidence_type": "function_exact"
   },
   "pkg/bbgo/datatype/floats/funcs_test.go:9:TestPercentile": {
     "status": "[~]",

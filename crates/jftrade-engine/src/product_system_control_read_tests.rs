@@ -332,6 +332,7 @@ async fn runtime_dependencies_use_the_normalized_settings_node_candidate() {
 
 // Parity: go:452dea11:internal/app/apiserver/server_test.go:85 TestStartDesktopDoesNotMutatePersistedWebAccessSettings
 // Parity: go:452dea11:internal/app/apiserver/runtime/resources_test.go:78 TestRuntimeResourceSummaryIncludesCountAndItems
+// Parity: go:452dea11:internal/system/service_test.go:13 TestStatusDefaultsAndInjectedSummaries
 #[tokio::test]
 async fn system_status_matches_go_stable_fields_without_claiming_migration_ownership() {
     let directory = tempdir().expect("temporary directory");
@@ -999,4 +1000,404 @@ fn system_status_live_projection_uses_shared_transport_metrics() {
         json!(["CN.600000", "US.AAPL"])
     );
     drop(second);
+}
+
+/// OpenD health is owned by the production runtime in Rust; the failure this
+/// fixture forces is the same 503 the router records for the request
+/// observability window.
+#[derive(Debug)]
+struct UnavailableSystemReadPort;
+
+impl SystemReadSnapshotPort for UnavailableSystemReadPort {
+    fn read(&self, _path: &str) -> Result<serde_json::Value, SystemReadSnapshotError> {
+        Err(SystemReadSnapshotError::Unavailable(
+            "system read snapshot is unavailable".to_owned(),
+        ))
+    }
+}
+
+/// Status-only calendar source: the manager projection is the projection
+/// under test, so no schedule fetch is ever required.
+#[derive(Debug)]
+struct StatusOnlyCalendarSource;
+
+impl jftrade_calendar::CalendarSourcePort for StatusOnlyCalendarSource {
+    fn descriptor(&self) -> jftrade_calendar::CalendarSourceDescriptor {
+        jftrade_calendar::CalendarSourceDescriptor {
+            id: "fixture_source".to_owned(),
+            kind: "fixture".to_owned(),
+            authority: "tests".to_owned(),
+            markets: vec!["US".to_owned()],
+        }
+    }
+
+    fn fetch(
+        &self,
+        _market: &str,
+        _from: jftrade_kernel::WireTimestamp,
+        _to: jftrade_kernel::WireTimestamp,
+        _cancellation: &jftrade_calendar::CalendarCancellationToken,
+    ) -> Result<jftrade_calendar::CalendarSnapshot, jftrade_calendar::CalendarSourceError> {
+        Err(jftrade_calendar::CalendarSourceError::Failed(
+            "status-only fixture has no schedule source".to_owned(),
+        ))
+    }
+}
+
+fn status_only_calendar_manager() -> Arc<jftrade_calendar::CalendarManager> {
+    let mut registry = jftrade_calendar::CalendarSourceRegistry::default();
+    registry
+        .register(Arc::new(StatusOnlyCalendarSource))
+        .expect("register fixture calendar source");
+    Arc::new(
+        jftrade_calendar::CalendarManager::new(
+            registry,
+            None,
+            jftrade_calendar::CalendarManagerSettings {
+                refresh_interval_hours: 24,
+                warmup_markets: vec!["US".to_owned()],
+                source_policies: vec![jftrade_calendar::CalendarSourcePolicy {
+                    market: "US".to_owned(),
+                    preferred_source_ids: vec!["fixture_source".to_owned()],
+                    enabled_source_ids: vec!["fixture_source".to_owned()],
+                    fallback_to_builtin: true,
+                    ..jftrade_calendar::CalendarSourcePolicy::default()
+                }],
+                ..jftrade_calendar::CalendarManagerSettings::default()
+            },
+        )
+        .expect("create fixture calendar manager"),
+    )
+}
+
+// Parity: go:452dea11:internal/system/service_test.go:59 TestStatusUsesDynamicPortAndTradingEnvironmentProviders
+#[tokio::test]
+async fn system_status_reports_the_persisted_default_trading_environment() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    fs::write(
+        &settings_path,
+        br#"{"execution":{"defaultTradingEnvironment":"REAL"}}"#,
+    )
+    .expect("seed execution settings");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config");
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+
+    let (status, response) =
+        request_json_with_status(address, "GET", "/api/v1/system/status", None, &[]).await;
+    assert_eq!(status, 200, "system status response: {response}");
+    assert_eq!(response["data"]["apiPort"], address.port());
+    assert_eq!(response["data"]["defaultTradingEnvironment"], "REAL");
+
+    let (status, saved) = request_json_with_status(
+        address,
+        "PUT",
+        "/api/v1/settings/execution",
+        Some(r#"{"defaultTradingEnvironment":"SIMULATE"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200, "execution settings response: {saved}");
+    assert_eq!(saved["data"]["defaultTradingEnvironment"], "SIMULATE");
+
+    let (status, response) =
+        request_json_with_status(address, "GET", "/api/v1/system/status", None, &[]).await;
+    assert_eq!(status, 200, "second system status response: {response}");
+    assert_eq!(response["data"]["defaultTradingEnvironment"], "SIMULATE");
+    handle.shutdown().await.expect("shutdown product");
+}
+
+// Parity: go:452dea11:internal/system/service_test.go:142 TestRealTradeStateUsesInjectedRiskGatewaySnapshot
+#[tokio::test]
+async fn system_status_and_control_reads_follow_the_configured_risk_snapshot() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    fs::write(
+        directory.path().join("real-trade-control.json"),
+        br#"{
+            "riskConfig": {
+                "id": "runtime-risk-config",
+                "tradingEnvironment": "REAL",
+                "realTradingEnabled": true,
+                "maxOrderQuantity": 12.5,
+                "maxOrderNotional": 2500,
+                "operatorId": "operator",
+                "reason": "risk gateway snapshot",
+                "activatedAt": "2026-09-01T01:00:00Z",
+                "updatedAt": "2026-09-01T01:00:00Z"
+            },
+            "killSwitch": {
+                "id": "kill-switch-control-plane",
+                "tradingEnvironment": "REAL",
+                "operatorId": "operator",
+                "reason": "incident",
+                "activatedAt": "2026-09-01T01:01:00Z",
+                "updatedAt": "2026-09-01T01:01:00Z"
+            },
+            "events": [
+                {"id":"risk-event-1","eventType":"updated","action":"RISK_CONFIG_UPDATED","brokerId":"*","createdAt":"2026-09-01T01:02:00Z"}
+            ]
+        }"#,
+    )
+    .expect("seed real-trade control state");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config");
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+
+    let (status, response) =
+        request_json_with_status(address, "GET", "/api/v1/system/status", None, &[]).await;
+    assert_eq!(status, 200, "system status response: {response}");
+    assert_eq!(response["data"]["realTradingEnabled"], true);
+    assert_eq!(
+        response["data"]["realTradingKillSwitch"],
+        json!({
+            "active": true,
+            "runtimeActive": true,
+            "blockedOperations": ["PLACE", "MODIFY"],
+            "allowsCancel": true,
+        })
+    );
+    let risk = &response["data"]["realTradingRisk"];
+    assert_eq!(risk["enabled"], true);
+    assert_eq!(risk["maxOrderQuantity"].as_f64(), Some(12.5));
+    assert_eq!(risk["maxOrderNotional"].as_f64(), Some(2500.0));
+    assert_eq!(
+        risk["runtimeConfiguredMaxOrderQuantity"].as_f64(),
+        Some(12.5)
+    );
+    assert_eq!(
+        risk["runtimeConfiguredMaxOrderNotional"].as_f64(),
+        Some(2500.0)
+    );
+    assert_eq!(risk["runtimeRiskConfigured"], true);
+
+    let (status, kill_switch) = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/system/real-trade-kill-switch",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200, "kill switch response: {kill_switch}");
+    assert_eq!(kill_switch["data"]["realTradingEnabled"], true);
+    assert_eq!(kill_switch["data"]["killSwitchActive"], true);
+    assert_eq!(kill_switch["data"]["killSwitchSource"], "RUNTIME");
+    assert_eq!(kill_switch["data"]["allowsCancel"], true);
+    assert_eq!(
+        kill_switch["data"]["entry"]["id"],
+        "kill-switch-control-plane"
+    );
+
+    let (status, risk_limits) = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/system/real-trade-risk-limits",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200, "risk limits response: {risk_limits}");
+    assert_eq!(risk_limits["data"]["riskEnabled"], true);
+    assert_eq!(
+        risk_limits["data"]["effectiveMaxOrderQuantity"].as_f64(),
+        Some(12.5)
+    );
+    assert_eq!(
+        risk_limits["data"]["effectiveMaxOrderNotional"].as_f64(),
+        Some(2500.0)
+    );
+    assert_eq!(risk_limits["data"]["entry"]["id"], "runtime-risk-config");
+
+    let (status, risk_events) = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/system/real-trade-risk-events",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200, "risk events response: {risk_events}");
+    assert_eq!(risk_events["data"]["maxOrderQuantity"].as_f64(), Some(12.5));
+    assert_eq!(
+        risk_events["data"]["maxOrderNotional"].as_f64(),
+        Some(2500.0)
+    );
+    assert_eq!(risk_events["data"]["entries"][0]["id"], "risk-event-1");
+    handle.shutdown().await.expect("shutdown product");
+}
+
+// Parity: go:452dea11:internal/system/service_status_defaults_test.go:10 TestStatusIncludesInjectedObservabilitySummaries
+#[tokio::test]
+async fn system_status_embeds_injected_live_market_data_calendar_and_request_summaries() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let recorder = Arc::new(jftrade_marketdata::MarketDataRuntimeRecorder::default());
+    let generation = recorder.reconcile(["US.AAPL".to_owned()]);
+    let now = "2026-09-02T09:00:00+08:00".parse().expect("timestamp");
+    assert!(recorder.record_stream_connected(generation));
+    assert!(recorder.record_poll_started(generation, now));
+    let manager = status_only_calendar_manager();
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_market_data_runtime_status_port(recorder)
+            .with_calendar_manager(manager)
+            .with_system_read_snapshot_port(Arc::new(UnavailableSystemReadPort));
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+
+    let (status, failed) =
+        request_json_with_status(address, "GET", "/api/v1/system/futu-opend", None, &[]).await;
+    assert_eq!(status, 503, "unavailable system read response: {failed}");
+
+    let (status, response) =
+        request_json_with_status(address, "GET", "/api/v1/system/status", None, &[]).await;
+    assert_eq!(status, 200, "system status response: {response}");
+    let observability = &response["data"]["observability"];
+    assert_eq!(
+        observability["marketdata"],
+        json!({
+            "status": "connected",
+            "connected": true,
+            "closed": false,
+            "generation": 1,
+            "activeCount": 1,
+            "lastRefreshAt": "2026-09-02T01:00:00Z",
+            "quoteRetryAt": null,
+            "quoteFailures": 0,
+            "quoteLastError": null,
+            "streamRetryAt": null,
+            "streamFailures": 0,
+            "streamLastError": null,
+        })
+    );
+    assert_eq!(
+        observability["live"]["connected"], 0,
+        "live projection: {observability}"
+    );
+    assert!(
+        observability["live"]["activeInstruments"].is_array(),
+        "live projection: {observability}"
+    );
+    assert!(
+        observability["exchangeCalendars"]["autoRefreshEnabled"].is_boolean(),
+        "calendar projection: {observability}"
+    );
+    assert!(
+        observability["exchangeCalendars"]["sources"].is_array(),
+        "calendar projection: {observability}"
+    );
+    assert_eq!(observability["requests"]["slowThresholdMs"], 750);
+    assert_eq!(observability["requests"]["minimumImportance"], "low");
+    assert_eq!(
+        observability["requests"]["recentErrors"][0]["status"], 503,
+        "request observability: {observability}"
+    );
+    handle.shutdown().await.expect("shutdown product");
+}
+
+// Parity: go:452dea11:internal/system/service_status_defaults_test.go:41 TestStatusProvidesDefaultRequestObservabilitySummary
+#[tokio::test]
+async fn system_status_default_request_observability_matches_the_go_baseline() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config");
+    let handle = start_product(config).await.expect("start product");
+
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200, "system status response: {response}");
+    assert_eq!(
+        response["data"]["observability"]["requests"],
+        json!({
+            "recentErrors": [],
+            "recentSlowRequests": [],
+            "openD": {"totalCalls": 0, "failedCalls": 0},
+            "slowThresholdMs": 750,
+            "minimumImportance": "low",
+        })
+    );
+    handle.shutdown().await.expect("shutdown product");
+}
+
+// Parity: go:452dea11:internal/system/service_status_defaults_test.go:109 TestStorageAndRealTradeDefaultsExposeFrontendShape
+#[tokio::test]
+async fn storage_overview_and_control_defaults_expose_empty_frontend_slices() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config");
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+
+    let (status, storage) =
+        request_json_with_status(address, "GET", "/api/v1/system/storage/overview", None, &[])
+            .await;
+    assert_eq!(status, 200, "storage overview response: {storage}");
+    for key in [
+        "pendingOutbox",
+        "recentJobs",
+        "recentAuditLogs",
+        "recentExecutionCommands",
+    ] {
+        assert_eq!(
+            storage["data"][key],
+            json!([]),
+            "storage key {key}: {storage}"
+        );
+    }
+
+    let hard_stops = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/system/real-trade-hard-stops",
+        None,
+        &[],
+    )
+    .await
+    .1;
+    assert_eq!(hard_stops["data"]["allowsCancel"], true);
+    assert_eq!(hard_stops["data"]["entries"], json!([]));
+
+    let hard_stop_events = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/system/real-trade-hard-stop-events",
+        None,
+        &[],
+    )
+    .await
+    .1;
+    assert_eq!(hard_stop_events["data"]["realTradingEnabled"], false);
+    assert_eq!(hard_stop_events["data"]["allowsCancel"], true);
+    assert_eq!(hard_stop_events["data"]["entries"], json!([]));
+
+    let kill_switch_events = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/system/real-trade-kill-switch-events",
+        None,
+        &[],
+    )
+    .await
+    .1;
+    assert_eq!(kill_switch_events["data"]["killSwitchActive"], false);
+    assert_eq!(kill_switch_events["data"]["allowsCancel"], true);
+    assert_eq!(kill_switch_events["data"]["entries"], json!([]));
+    handle.shutdown().await.expect("shutdown product");
 }

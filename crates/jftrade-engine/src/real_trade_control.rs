@@ -118,6 +118,23 @@ mod tests {
 
     use super::{RealTradeControlReader, derive_real_trade_control_path};
 
+    fn wire_keys(value: &serde_json::Value) -> Vec<String> {
+        let mut keys = value
+            .as_object()
+            .expect("wire object")
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>();
+        keys.sort();
+        keys
+    }
+
+    fn expected_keys(keys: &[&str]) -> Vec<String> {
+        let mut keys = keys.iter().map(|key| (*key).to_owned()).collect::<Vec<_>>();
+        keys.sort();
+        keys
+    }
+
     // Parity: go:452dea11:internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go:140 TestRealTradeControlPathPrefersExplicitOverride
     #[test]
     fn path_is_sibling_of_settings_file() {
@@ -169,6 +186,142 @@ mod tests {
         name: String,
         document: Option<String>,
         expected_unavailable: bool,
+    }
+
+    // Parity: go:452dea11:internal/system/service_test.go:83 TestRealTradeDefaultsMatchFrontendContract
+    #[test]
+    fn default_control_reads_match_the_frontend_contract() {
+        let directory = tempdir().expect("temporary directory");
+        let snapshot =
+            RealTradeControlReader::new(directory.path().join("real-trade-control.json"))
+                .snapshot();
+
+        let approvals = serde_json::to_value(snapshot.approvals()).expect("approvals wire value");
+        assert_eq!(
+            wire_keys(&approvals),
+            expected_keys(&[
+                "approvalWorkflowAvailable",
+                "approvalWorkflowMessage",
+                "approvalWorkflowStatus",
+                "approvalPolicy",
+                "entries",
+                "maxApprovalAgeMs",
+                "realTradingEnabled",
+                "requiredConfirmationText",
+            ])
+        );
+        assert_eq!(approvals["realTradingEnabled"], false);
+        assert_eq!(approvals["requiredConfirmationText"], "ENABLE_REAL_TRADING");
+        assert_eq!(approvals["maxApprovalAgeMs"], 5 * 60 * 1_000);
+        assert_eq!(approvals["approvalWorkflowAvailable"], false);
+        assert_eq!(approvals["approvalWorkflowStatus"], "not_configured");
+        assert!(
+            approvals["approvalWorkflowMessage"]
+                .as_str()
+                .is_some_and(|message| !message.is_empty()),
+            "approval workflow message: {approvals}"
+        );
+        assert_eq!(approvals["entries"], json!([]));
+        assert_eq!(
+            approvals["approvalPolicy"]["approverAllowlistEnabled"],
+            false
+        );
+        assert_eq!(approvals["approvalPolicy"]["approverCount"], 0);
+        assert_eq!(
+            approvals["approvalPolicy"]["approvalWorkflowAvailable"],
+            false
+        );
+        assert_eq!(approvals["approvalPolicy"]["approvalMode"], "none");
+        assert!(approvals["approvalPolicy"]["largeOrderNotional"].is_null());
+
+        let kill_switch =
+            serde_json::to_value(snapshot.kill_switch()).expect("kill switch wire value");
+        assert_eq!(
+            wire_keys(&kill_switch),
+            expected_keys(&[
+                "allowsCancel",
+                "blockedOperations",
+                "entry",
+                "killSwitchActive",
+                "killSwitchSource",
+                "realTradingEnabled",
+                "runtimeActive",
+            ])
+        );
+        assert_eq!(kill_switch["killSwitchActive"], false);
+        assert_eq!(kill_switch["allowsCancel"], true);
+        assert!(kill_switch["killSwitchSource"].is_null());
+        assert!(kill_switch["entry"].is_null());
+
+        let risk_limits =
+            serde_json::to_value(snapshot.risk_limits()).expect("risk limits wire value");
+        assert_eq!(
+            wire_keys(&risk_limits),
+            expected_keys(&[
+                "effectiveMaxOrderQuantity",
+                "effectiveMaxOrderNotional",
+                "entry",
+                "realTradingEnabled",
+                "riskEnabled",
+                "runtimeConfiguredMaxOrderNotional",
+                "runtimeConfiguredMaxOrderQuantity",
+                "runtimeRiskConfigured",
+            ])
+        );
+        assert_eq!(risk_limits["riskEnabled"], false);
+        assert!(risk_limits["entry"].is_null());
+
+        let risk_events =
+            serde_json::to_value(snapshot.risk_events()).expect("risk events wire value");
+        assert_eq!(
+            wire_keys(&risk_events),
+            expected_keys(&[
+                "effectiveMaxOrderQuantity",
+                "effectiveMaxOrderNotional",
+                "entries",
+                "maxOrderNotional",
+                "maxOrderQuantity",
+                "realTradingEnabled",
+                "riskEnabled",
+                "runtimeConfiguredMaxOrderNotional",
+                "runtimeConfiguredMaxOrderQuantity",
+                "runtimeRiskConfigured",
+            ])
+        );
+        assert_eq!(risk_events["riskEnabled"], false);
+        assert_eq!(risk_events["entries"], json!([]));
+    }
+
+    // Parity: go:452dea11:internal/system/service_test.go:201 TestRealTradeStateNormalizesTypedNilSlices
+    #[test]
+    fn empty_control_state_serializes_empty_entry_slices() {
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("real-trade-control.json");
+        // The Go snapshot may carry typed-nil slices; every projection must
+        // still answer with a JSON array instead of `null`.
+        fs::write(&path, br#"{"riskConfig":null,"killSwitch":null}"#)
+            .expect("seed empty control state");
+        let snapshot = RealTradeControlReader::new(&path).snapshot();
+        assert!(snapshot.control_plane_available);
+
+        let hard_stops =
+            serde_json::to_value(snapshot.hard_stops()).expect("hard stops wire value");
+        assert_eq!(hard_stops["entries"], json!([]));
+        assert_eq!(hard_stops["allowsCancel"], true);
+        let hard_stop_events =
+            serde_json::to_value(snapshot.hard_stop_events()).expect("hard stop events wire value");
+        assert_eq!(hard_stop_events["entries"], json!([]));
+        let kill_switch_events = serde_json::to_value(snapshot.kill_switch_events())
+            .expect("kill switch events wire value");
+        assert_eq!(kill_switch_events["entries"], json!([]));
+        let risk_events =
+            serde_json::to_value(snapshot.risk_events()).expect("risk events wire value");
+        assert_eq!(risk_events["entries"], json!([]));
+
+        let missing_reader = RealTradeControlReader::new(directory.path().join("absent.json"));
+        let missing = missing_reader.snapshot();
+        assert_eq!(missing.hard_stop_entries, Vec::new());
+        assert_eq!(missing.risk_events, Vec::new());
     }
 
     #[test]

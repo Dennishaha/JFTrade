@@ -1402,6 +1402,32 @@ mod product_production_assembly_tests {
         ));
     }
 
+    // Parity: go:452dea11:internal/system/service_test.go:345 TestFutuHealthDefaultsUnavailable
+    #[test]
+    fn production_system_read_defaults_opend_health_to_the_unavailable_reason() {
+        let (_temp_dir, _settings_path, config, security) = setup_test_env();
+        let ports = production_ports(&config, &security).expect("production ports");
+
+        let opend = ports
+            .system_read
+            .read("/api/v1/system/futu-opend")
+            .expect("OpenD health projection");
+        assert_eq!(opend["status"], "unavailable");
+        assert_eq!(opend["reason"], "broker integration not enabled");
+        let mut keys = opend
+            .as_object()
+            .expect("OpenD health object")
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>();
+        keys.sort();
+        assert_eq!(
+            keys,
+            vec!["reason", "status"],
+            "unavailable OpenD health must not fabricate runtime or diagnosis keys"
+        );
+    }
+
     // Parity: go:452dea11:internal/app/apiserver/futuapp/coordinator_test.go:39 TestCoordinatorDisabledProjectionsAndRetryDiagnostics
     /// Parity: go:452dea11:internal/app/apiserver/servercore/settings_broker_futu_health_test.go:16 TestFutuRuntimeAndHealthDiagnoseEnabledButUnreachableOpenD
     ///
