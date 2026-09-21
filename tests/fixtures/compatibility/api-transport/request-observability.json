@@ -41,24 +41,20 @@
       {
         "level": "error",
         "importance": "high",
+        "message": "opend call failed",
+        "error": "quote permission denied",
+        "requestId": "request-2",
+        "source": "opend"
+      },
+      {
+        "level": "error",
+        "importance": "high",
         "message": "api request failed",
         "error": "HTTP 500",
         "method": "GET",
         "path": "/fast-failure",
         "status": 500,
         "requestId": "request-3",
-        "source": "api"
-      },
-      {
-        "level": "error",
-        "importance": "high",
-        "message": "api request failed",
-        "error": "HTTP 503",
-        "method": "POST",
-        "path": "/failure",
-        "status": 503,
-        "latencyMs": 15,
-        "requestId": "request-2",
         "source": "api"
       }
     ],

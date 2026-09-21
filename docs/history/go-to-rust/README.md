@@ -32,11 +32,11 @@
 - **映射源**：`manual-test-mappings.json`（key 为 `file:line:TestName`，当前 4451 条）。写回用 Python `json.load` → 改本批 key → `json.dumps(ensure_ascii=False, indent=2)` + 换行；写完复核 key 数仍为 4451、无 U+FFFD、本批净增 `[x]` 用集合差确认。
 - **证据口径**：`[x]` 必须 `evidence_type=function_exact`，`rust_entry` 能被 `audit_test_parity.py` 解析到真实 `#[test]`/`#[tokio::test]` 且全局唯一；其余用 `partial`/`boundary`/`module_only`/`missing` 并写清“Rust 已覆盖什么 + 差异为何”。新 `[x]` 顺手补 `// Parity:` 锚点；不能只按文件名或测试名相似就判等价。
 - **先红后改**：真实差异先写复现测试，再改所属领域 crate；用探针（改坏实现 → 跑测试确认转红 → 按字节回滚）证明测试是真实守卫，探针结论写进批次小结。
-- **批次小结**：追加到 `assistant-workflow-adk-batch-scope.md`（助理/ADK 领域）或 `futu-opend-batch-scope.md`（其他领域）末尾，最后一个小节是本批、末行是“验证：”。
+- **批次小结**：写入对应领域的 `*-batch-scope.md`（助理/ADK 用 `assistant-workflow-adk-batch-scope.md`，Futu/OpenD 用 `futu-opend-batch-scope.md`，其余领域按 `system-status-`、`productfeatures-`、`observability-batch-scope.md` 这类领域名新建或追加），最后一个小节是本批、末行是“验证：”。
 - **锚点例外**：退休包路径 `internal/frontendassets`、`internal/marketdataassets`、`internal/pineworkerassets` 不得出现在活动根
   （`.github/`、`apps/`、`crates/`、`scripts/`、`workers/`）的文本中（`check-zero-go` 会失败）。这类 Go 测试的 `[x]`
   只保留 `manual-test-mappings.json` 的 `rust_entry` 与批次小结证据表，代码侧不写 `// Parity:` 锚点；审计“无锚点”告警按批次登记增量。
-- **验证**：`cargo fmt --all`、`cargo clippy -p <changed-crates> --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p <changed-crates> --all-targets --locked --no-fail-fast`、`python3 scripts/compatibility/audit_test_parity.py`、`pnpm run check:compatibility`、`pnpm run check:zero-go`、`pnpm run check:rust:architecture`、`git diff --check`，最后 `pnpm run check:quick`。
+- **验证**：`cargo fmt --all`、`cargo clippy -p <changed-crates> --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p <changed-crates> --all-targets --locked --no-fail-fast`、`python3 scripts/compatibility/audit_test_parity.py`、`python3.12 scripts/compatibility/parity_anchor_reconcile.py`、`pnpm run check:compatibility`、`pnpm run check:zero-go`、`pnpm run check:rust:architecture`、`pnpm run check:ai-context`、`git diff --check`，最后 `pnpm run check:quick` 与 `pnpm run check:rust`。
   - `check:rust:target-health` 报 `target/debug/deps` 超过 5 万个 `.rcgu.o` 时：确认无 cargo/rustc 在跑，再 `pnpm run clean:rust:artifacts`（`cargo clean`）或删除该目录下的 `*.rcgu.o`。
   - `check:rust:static` 的 advisories 阶段在干净 HEAD 上同样失败（既有 RUSTSEC-2026-0285 / rustls 0.23.44）；不要改 `Cargo.lock` 规避，如实记录。
   - `check:zero-go` 会拦截源码注释里相邻出现的 `go test`/`go build` 字样与已退役资产目录名，英文注释写 “reference fixture” 之类措辞。

@@ -34,6 +34,7 @@ JFTrade 使用一组固定关联字段串联 HTTP、OpenD、行情、回测、Pi
 ## 摘要边界
 
 - 最近错误与慢请求各保留 20 条，进程重启后清空。
+- 失败的 OpenD 调用除更新 `openD.failedCalls/lastError` 外，也会按同一重要性阈值写入最近错误（`source=opend`、`message=opend call failed`）。
 - 默认慢请求阈值为 750ms。
 - 默认最低记录重要性为 `low`。API server 启动时可通过 `JFTRADE_OBSERVABILITY_MIN_IMPORTANCE=normal|high|critical` 抑制低重要性日志写入。
 - 摘要不记录请求体、查询参数、认证头、API key、模型消息或交易密码。

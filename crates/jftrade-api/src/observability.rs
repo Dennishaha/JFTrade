@@ -180,8 +180,12 @@ impl TransportMetrics {
         match error {
             Some(error) => {
                 state.open_d.failed_calls = state.open_d.failed_calls.saturating_add(1);
-                state.open_d.last_error_at = Some(now);
+                state.open_d.last_error_at = Some(now.clone());
                 state.open_d.last_error = non_empty_summary(error);
+                if importance_meets("high", self.minimum_importance) {
+                    let event = open_d_failure_event(&now, request_id, error);
+                    prepend_bounded(&mut state.recent_errors, event, self.event_limit);
+                }
             }
             None => state.open_d.last_success_at = Some(now),
         }
@@ -236,6 +240,27 @@ fn request_event(
         latency_ms: latency.as_millis() as u64,
         request_id: request_id.trim().to_owned(),
         source: "api",
+    }
+}
+
+/// Go's `Recorder.RecordOpenDCall` funnels a failed RPC through
+/// `ErrorWithImportance`, so the recorder that owns the OpenD health counters
+/// also prepends one `opend call failed` event. That event carries only the
+/// correlation fields and the sanitized error; Go's extra `operation` and
+/// `latency_ms` arguments are structured-log attributes, not recorded fields.
+fn open_d_failure_event(at: &str, request_id: &str, error: &str) -> TransportEvent {
+    TransportEvent {
+        at: at.to_owned(),
+        level: "error",
+        importance: "high",
+        message: "opend call failed",
+        error: non_empty_summary(error),
+        method: String::new(),
+        path: String::new(),
+        status: 0,
+        latency_ms: 0,
+        request_id: request_id.trim().to_owned(),
+        source: "opend",
     }
 }
 
@@ -298,11 +323,13 @@ fn importance_meets(value: &str, minimum: &str) -> bool {
 }
 
 fn importance_rank(value: &str) -> u8 {
-    match value {
-        "low" => 0,
-        "normal" => 1,
-        "high" => 2,
-        "critical" => 3,
+    // Go ranks `NormalizeImportance(value)`, so aliases rank as their canonical
+    // level and every unknown value ranks as `normal`.
+    match value.trim().to_ascii_lowercase().as_str() {
+        "low" | "debug" | "trace" => 0,
+        "normal" | "info" | "default" => 1,
+        "high" | "warn" | "warning" | "error" => 2,
+        "critical" | "fatal" | "panic" => 3,
         _ => 1,
     }
 }
@@ -311,7 +338,7 @@ fn importance_rank(value: &str) -> u8 {
 mod tests {
     use super::*;
     use serde::Deserialize;
-    use serde_json::Value;
+    use serde_json::{Value, json};
 
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
@@ -361,6 +388,243 @@ mod tests {
         assert_eq!(snapshot.slow_threshold_ms, 10);
         assert_eq!(snapshot.minimum_importance, "low");
         assert_eq!(metrics.snapshot().failures, 2);
+    }
+
+    // Parity: go:452dea11:pkg/observability/observability_test.go:45 TestRecorderSnapshotSerializesEmptyCollectionsAsArrays
+    #[test]
+    fn request_observability_snapshot_serializes_empty_collections_as_arrays() {
+        let snapshot = serde_json::to_value(
+            TransportMetrics::new(5, Duration::from_secs(1), "low")
+                .request_observability_snapshot(),
+        )
+        .expect("serialize empty request observability");
+
+        assert_eq!(snapshot["recentErrors"], json!([]));
+        assert_eq!(snapshot["recentSlowRequests"], json!([]));
+        assert_eq!(
+            snapshot["openD"],
+            json!({"totalCalls": 0, "failedCalls": 0})
+        );
+    }
+
+    // Parity: go:452dea11:pkg/observability/observability_test.go:113 TestRecorderBoundsErrorsSlowRequestsAndOpenDHealth
+    #[test]
+    fn recorder_bounds_errors_slow_requests_and_open_d_correlation_like_go() {
+        let metrics = TransportMetrics::new(2, Duration::from_millis(10), "low");
+        metrics.record_http_request("GET", "/slow", 200, Duration::from_millis(15), "request-1");
+        metrics.record_http_request(
+            "POST",
+            "/failed",
+            503,
+            Duration::from_millis(1),
+            "request-1",
+        );
+        metrics.record_open_d_call("proto_3006", "request-1", Some("quote permission denied"));
+        metrics.record_http_request(
+            "GET",
+            "/failed-again",
+            500,
+            Duration::from_millis(1),
+            "request-1",
+        );
+
+        let snapshot = metrics.request_observability_snapshot();
+        assert_eq!(snapshot.recent_errors.len(), 2);
+        assert_eq!(snapshot.recent_slow_requests.len(), 1);
+        assert_eq!(snapshot.recent_slow_requests[0].path, "/slow");
+        assert_eq!(snapshot.recent_slow_requests[0].importance, "low");
+        for event in &snapshot.recent_errors {
+            assert_eq!(event.importance, "high", "error event: {event:?}");
+        }
+        assert_eq!(snapshot.recent_errors[0].source, "api");
+        assert_eq!(snapshot.recent_errors[0].error.as_deref(), Some("HTTP 500"));
+        assert_eq!(snapshot.recent_errors[1].source, "opend");
+        assert_eq!(snapshot.recent_errors[1].message, "opend call failed");
+        assert_eq!(snapshot.recent_errors[1].request_id, "request-1");
+        assert_eq!(snapshot.open_d.total_calls, 1);
+        assert_eq!(snapshot.open_d.failed_calls, 1);
+        assert_eq!(
+            snapshot.open_d.last_operation.as_deref(),
+            Some("proto_3006")
+        );
+        assert_eq!(
+            snapshot.open_d.last_request_id.as_deref(),
+            Some("request-1")
+        );
+        assert_eq!(snapshot.minimum_importance, "low");
+    }
+
+    // Parity: go:452dea11:pkg/observability/observability_test.go:62 TestImportanceThresholdSuppressesLowerImportanceLogs
+    #[test]
+    fn importance_threshold_suppresses_slow_events_and_keeps_high_events() {
+        let metrics = TransportMetrics::new(5, Duration::from_secs(1), "high");
+        metrics.record_http_request("GET", "/slow", 200, Duration::from_secs(2), "request-1");
+        metrics.record_open_d_call("proto_3007", "request-1", Some("quote permission denied"));
+        metrics.record_http_request("GET", "/failed", 500, Duration::from_millis(1), "request-1");
+
+        let snapshot = metrics.request_observability_snapshot();
+        assert!(snapshot.recent_slow_requests.is_empty());
+        assert_eq!(snapshot.recent_errors.len(), 2);
+        assert_eq!(snapshot.recent_errors[0].source, "api");
+        assert_eq!(snapshot.recent_errors[1].source, "opend");
+        assert_eq!(snapshot.minimum_importance, "high");
+    }
+
+    // Parity: go:452dea11:pkg/observability/observability_test.go:94 TestGlobalImportanceThresholdAppliesWithoutRecorder
+    #[test]
+    fn minimum_importance_aliases_normalize_like_go() {
+        for (input, expected) in [
+            ("low", "low"),
+            ("DEBUG", "low"),
+            (" trace ", "low"),
+            ("normal", "normal"),
+            ("info", "normal"),
+            ("default", "normal"),
+            ("high", "high"),
+            ("warn", "high"),
+            ("warning", "high"),
+            ("error", "high"),
+            ("critical", "critical"),
+            ("fatal", "critical"),
+            ("panic", "critical"),
+            ("unknown", "low"),
+            ("", "low"),
+        ] {
+            assert_eq!(
+                normalize_minimum_importance(input),
+                expected,
+                "minimum importance {input}"
+            );
+        }
+    }
+
+    // Parity: go:452dea11:pkg/observability/context_detach_and_importance_test.go:10 TestObservabilityBackgroundContextsAndImportanceRanks
+    #[test]
+    fn importance_rank_orders_go_levels_and_defaults_unknown_to_normal() {
+        for (input, expected) in [
+            ("low", 0),
+            ("normal", 1),
+            ("high", 2),
+            ("critical", 3),
+            ("debug", 0),
+            ("info", 1),
+            ("warning", 2),
+            ("fatal", 3),
+            ("unknown", 1),
+            ("", 1),
+        ] {
+            assert_eq!(importance_rank(input), expected, "rank of {input}");
+        }
+        assert!(importance_meets("critical", "high"));
+        assert!(importance_meets("high", "high"));
+        assert!(!importance_meets("low", "high"));
+    }
+
+    // Parity: go:452dea11:pkg/observability/observability_test.go:163 TestObservabilityBoundaryDefaultsAndGlobalOpenDLogging
+    #[test]
+    fn recorder_defaults_fall_back_to_go_limits_and_thresholds() {
+        let metrics = TransportMetrics::new(0, Duration::ZERO, "weird");
+        for index in 0..25 {
+            metrics.record_http_request(
+                "GET",
+                &format!("/failed-{index}"),
+                500,
+                Duration::from_millis(1),
+                "request-1",
+            );
+        }
+
+        let snapshot = metrics.request_observability_snapshot();
+        assert_eq!(snapshot.slow_threshold_ms, 750);
+        assert_eq!(snapshot.minimum_importance, "low");
+        assert_eq!(snapshot.recent_errors.len(), 20);
+        assert_eq!(snapshot.recent_errors[0].path, "/failed-24");
+        assert_eq!(snapshot.recent_errors[19].path, "/failed-5");
+    }
+
+    // Parity: go:452dea11:pkg/observability/observability_test.go:163 TestObservabilityBoundaryDefaultsAndGlobalOpenDLogging
+    #[test]
+    fn summary_text_collapses_whitespace_and_truncates_at_go_limit() {
+        assert_eq!(
+            sanitize_summary_text("  quote   permission \n denied "),
+            "quote permission denied"
+        );
+        assert_eq!(sanitize_summary_text(" \t "), "");
+
+        let long = "x ".repeat(400);
+        let sanitized = sanitize_summary_text(&long);
+        assert_eq!(sanitized, format!("{}...", "x ".repeat(250)));
+        assert_eq!(sanitized.len(), 503);
+        assert_eq!(sanitize_summary_text(&"é".repeat(400)).len(), 503);
+    }
+
+    // Parity: go:452dea11:pkg/observability/observability_test.go:14 TestStructuredLogIncludesCanonicalCorrelationFields
+    #[test]
+    fn request_observability_events_trim_and_serialize_correlation_keys() {
+        let metrics = TransportMetrics::new(5, Duration::from_millis(1), "low");
+        metrics.record_http_request(" get ", " /failed ", 503, Duration::from_millis(1), " r-1 ");
+        metrics.record_open_d_call(" proto_3007 ", " request-2 ", Some(" quote   permission "));
+
+        let snapshot = serde_json::to_value(metrics.request_observability_snapshot())
+            .expect("serialize request observability");
+        let open_d_event = &snapshot["recentErrors"][0];
+        assert_eq!(open_d_event["requestId"], json!("request-2"));
+        assert_eq!(open_d_event["source"], json!("opend"));
+        assert_eq!(open_d_event["error"], json!("quote permission"));
+        let mut keys = open_d_event
+            .as_object()
+            .expect("OpenD error event")
+            .keys()
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        keys.sort_unstable();
+        assert_eq!(
+            keys,
+            [
+                "at",
+                "error",
+                "importance",
+                "level",
+                "message",
+                "requestId",
+                "source"
+            ]
+        );
+
+        let http_event = &snapshot["recentErrors"][1];
+        assert_eq!(http_event["requestId"], json!("r-1"));
+        assert_eq!(http_event["method"], json!("get"));
+        assert_eq!(http_event["path"], json!("/failed"));
+        assert_eq!(http_event["source"], json!("api"));
+    }
+
+    // Parity: go:452dea11:pkg/observability/observability_test.go:215 TestObservabilityNilContextAndOpenDSuccessBoundaries
+    #[test]
+    fn open_d_success_records_last_success_without_failure_counters() {
+        let metrics = TransportMetrics::new(3, Duration::from_secs(1), "low");
+        metrics.record_open_d_call("proto_3007", "request-success", None);
+
+        let snapshot = metrics.request_observability_snapshot();
+        assert_eq!(snapshot.open_d.total_calls, 1);
+        assert_eq!(snapshot.open_d.failed_calls, 0);
+        assert_eq!(
+            snapshot.open_d.last_operation.as_deref(),
+            Some("proto_3007")
+        );
+        assert_eq!(
+            snapshot.open_d.last_request_id.as_deref(),
+            Some("request-success")
+        );
+        assert!(snapshot.open_d.last_success_at.is_some());
+        assert!(snapshot.open_d.last_error.is_none());
+        assert!(snapshot.open_d.last_error_at.is_none());
+        assert!(snapshot.recent_errors.is_empty());
+
+        metrics.record_open_d_call("  ", " ", None);
+        let blank = metrics.request_observability_snapshot();
+        assert_eq!(blank.open_d.total_calls, 2);
+        assert!(blank.open_d.last_operation.is_none());
+        assert!(blank.open_d.last_request_id.is_none());
     }
 
     #[test]
