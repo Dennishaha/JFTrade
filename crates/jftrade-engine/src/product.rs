@@ -81,6 +81,9 @@ mod product_research_preset_port;
 use product_research_preset_port::{
     ResearchPresetReadSnapshotError, ResearchPresetReadSnapshotPort,
 };
+#[path = "product_swagger_docs.rs"]
+mod product_swagger_docs;
+use product_swagger_docs::swagger_docs;
 include!("product_execution_read_port.rs");
 include!("product_market_data_provider_read_port.rs");
 include!("product_market_data_catalog_read_port.rs");

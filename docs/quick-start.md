@@ -33,7 +33,7 @@ pnpm run dev:web
 Web 已开启后的访问入口：
 
 - 控制台：`http://127.0.0.1:3003/`
-- Swagger UI：`http://127.0.0.1:3000/swagger/`
+- 调试 API 文档：`http://127.0.0.1:3000/swagger/`（离线渲染，无外部 CDN；`/swagger/doc.json` 返回冻结的 Swagger 2.0 契约）
 
 ## 开发态：只看文档站
 

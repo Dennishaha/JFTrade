@@ -4774,11 +4774,11 @@
     "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/openapi_boundary_test.go:11:TestSwaggerRoutesRedirectToBrowsableDocumentation": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/src/route.rs",
-    "conclusion": "boundary：Rust API 不提供 /swagger 重定向 UI；契约以 openapi.json 源文件与生成物为准，Swagger UI 属 Go/Wails 时代的文档入口。",
-    "command": "",
-    "evidence_type": "boundary"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/swagger_docs_contracts.rs::swagger_roots_redirect_to_the_browsable_documentation_entry",
+    "conclusion": "function_exact：Go 用 httptest 逐条断言 GET /swagger 与 GET /swagger/ 都返回 307 且 Location=/swagger/index.html。Rust 现在对同一对路径返回 307 + Location=/swagger/index.html 且响应体为空，测试逐条回放；此前这两条路径是 JSON 404（本批修复）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/openapi_route_registration_test.go:17:TestOpenAPICoversRegisteredAPIRoutes": {
     "status": "[~]",
@@ -5887,11 +5887,11 @@
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercoretest/openapi_schema_compatibility_test.go:14:TestOpenAPIPreservesLegacySchemaNames": {
-    "status": "[~]",
-    "rust_entry": "contracts/openapi/openapi.json; scripts/quality/check-contracts.mjs",
-    "conclusion": "partial：Go 断言 /swagger/doc.json 的 definitions 保留 adk.*/servercore.* 稳定名且不泄漏 model./workflowruntime./webaccess. 内部包名。Rust 不服务 /swagger/doc.json，但把同一份 Swagger 2.0 文档冻结为 contracts/openapi/openapi.json（468 definitions；adk.Agent、servercore.WebSessionData、servercore.webLoginRequest 均在，无内部包泄漏前缀，已逐项核对），并由 check:contracts 校验文档与路由清单一致；缺口是文档端点本身（见 swagger_openapi_test.go 两行）。",
-    "command": "pnpm run check:contracts",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/swagger_docs_contracts.rs::swagger_document_preserves_legacy_schema_names",
+    "conclusion": "function_exact：Go 从 /swagger/doc.json 读取 definitions，断言 40 个稳定 schema 名（adk.Agent 等 38 个 adk.* 与 servercore.WebSessionData、servercore.webLoginRequest）存在，且不出现 model.*、workflowruntime.*、webaccess.WebSessionData、webaccess.webLoginRequest 内部包名泄漏。Rust 现在把同一份契约挂在 /swagger/doc.json，测试对服务端响应逐条断言相同的 40 个名字与 4 类泄漏检查；此前该端点 404，只能以冻结文件 + check:contracts 作为间接证据。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/openapi_snapshot_test.go:20:TestOpenAPISpecStable": {
     "status": "[~]",
@@ -6167,18 +6167,18 @@
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercoretest/swagger_openapi_test.go:14:TestSwaggerUIAvailable": {
-    "status": "[~]",
-    "rust_entry": "不适用：Rust 生产路由清单无 /swagger 调试面板；同一 Swagger 2.0 文档冻结在 contracts/openapi/openapi.json",
-    "conclusion": "Rust 功能缺失（已登记，待产品决策）：Go 提供 /swagger/（内嵌 swagger-ui，无 CDN 依赖）、/swagger/swagger-ui.css、/swagger/swagger-initializer.js、/swagger/doc.json。Rust 的 production route manifest（crates/jftrade-engine/src/product_production_route_manifest.json）不含任何 /swagger 路由，请求落到 JSON 404。复现：请求 /swagger/ 与 /swagger/doc.json 均为 404；预期（go:452dea11）为 200/HTML 或 200/JSON。候选修复位置：crates/jftrade-api 静态调试路由，或产品决策登记为“调试面板不迁移”。回归要求：若迁移，需覆盖 /swagger/ 索引、CSS/JS 资产与 doc.json 的 200 与内容类型。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/swagger_docs_contracts.rs::swagger_ui_is_available_offline_without_external_assets; crates/jftrade-api/src/swagger_docs.rs; crates/jftrade-engine/src/product_swagger_docs.rs; crates/jftrade-engine/src/product_server.rs",
+    "conclusion": "function_exact：本批修复真实缺口——此前 Rust 生产路由清单不含 /swagger 路由，请求落到 JSON 404（仓库文档却已把 http://127.0.0.1:3000/swagger/ 列为入口）。现在 /swagger/index.html 返回 200 text/html 且只引用同源资产（测试断言正文不含 cdn.jsdelivr.net、http://、https://），/swagger/docs.css 返回 200 text/css，/swagger/docs.js 返回 200 application/javascript 且包含 /swagger/doc.json，/swagger/doc.json 返回 200 application/json，HEAD 与 GET 同构。保留差异：Go 用 http-swagger 内嵌 swagger-ui 资产（index 引用 swagger-ui-bundle.js 与 swagger-ui.css，initializer 含 doc.json），Rust 用第一方离线查看器 docs.css/docs.js 渲染同一份冻结契约，URL 入口、重定向、离线保证与 doc.json 语义一致，资产名与查看器实现不同。面板与 /api/** 同受访问策略约束（见 swagger_surface_requires_access_and_keeps_the_json_envelope）。探针：把重定向目标改为 /swagger/doc.json（swagger_docs.rs 1f12c919…）、把 /swagger 移出 should_authenticate（router.rs 8a26898d…）、把 index 的脚本改回 CDN（同 1f12c919…）分别转红，均按字节回滚。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
-    "evidence_type": "missing"
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/swagger_openapi_test.go:72:TestOpenAPISpecExposesCorePaths": {
-    "status": "[~]",
-    "rust_entry": "contracts/openapi/openapi.json; scripts/quality/check-contracts.mjs",
-    "conclusion": "partial：Go 断言 /swagger/doc.json 为 Swagger 2.0、title=JFTrade Debug API、paths 含 /api/v1/system/status 等核心路径。Rust 的冻结契约即为同一文档（swagger 2.0、title 一致、222 条 paths 含核心路径），并由 check:contracts 校验路由清单与文档一致；缺口是 Rust 不提供该端点的 HTTP 服务（与 swagger_openapi_test.go:14 同一缺口）。",
-    "command": "pnpm run check:contracts",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/swagger_docs_contracts.rs::swagger_document_exposes_the_frozen_core_paths; crates/jftrade-engine/src/product_swagger_docs.rs::tests::swagger_docs_embed_the_frozen_debug_api_contract",
+    "conclusion": "function_exact：Go 断言 /swagger/doc.json 为 200 application/json、swagger=2.0、title=JFTrade Debug API、paths 含 /api/v1/system/status、/api/v1/market-data/candles/{market}/{symbol}、/api/v1/ws/live。Rust 现在把同一份文档逐字节挂在 /swagger/doc.json：transport 测试解析服务端响应断言一致的版本、标题与三条核心路径；engine 测试断言组成根注入的契约来源（contracts/openapi/openapi.json，即 check:contracts 校验 278 条路由清单所用的同一份文档）具备同样的版本、标题与核心路径，并断言 product_swagger_docs::swagger_docs() 与内嵌文档等价。保留差异：文档服务由 engine 注入而非 Go 的 docs/swagger 生成包。探针：把 SWAGGER_DOCUMENT 换为 \"{}\"（product_swagger_docs.rs 8890b5eb…）后 engine 测试转红，按字节回滚。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/system_routes_test.go:12:TestSystemStatusEndpointReturnsStatus": {
     "status": "[~]",

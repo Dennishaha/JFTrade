@@ -28,8 +28,8 @@ use crate::websocket::{
 };
 use crate::{
     AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, AssetBundle, BufferedSseSink, Clock,
-    LiveConnectionMetrics, RouteCatalog, SseEvent, SseWriter, SystemClock, TransportMetrics,
-    websocket_origin_allowed,
+    LiveConnectionMetrics, RouteCatalog, SseEvent, SseWriter, SwaggerDocs, SystemClock,
+    TransportMetrics, websocket_origin_allowed,
 };
 
 const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
@@ -65,6 +65,7 @@ pub struct ApiState {
     pub routes: RouteCatalog,
     pub access: AccessPolicy,
     pub assets: AssetBundle,
+    pub swagger_docs: Option<SwaggerDocs>,
     pub port: Arc<dyn ApiPort>,
     pub clock: Arc<dyn Clock>,
     pub metrics: Arc<TransportMetrics>,
@@ -80,6 +81,7 @@ impl ApiState {
             routes,
             access,
             assets: AssetBundle::default(),
+            swagger_docs: None,
             port,
             clock: Arc::new(SystemClock),
             metrics: Arc::new(TransportMetrics::default()),
@@ -92,6 +94,12 @@ impl ApiState {
 
     pub fn with_assets(mut self, assets: AssetBundle) -> Self {
         self.assets = assets;
+        self
+    }
+
+    /// Serve the offline `/swagger` documentation panel for this state.
+    pub fn with_swagger_docs(mut self, docs: SwaggerDocs) -> Self {
+        self.swagger_docs = Some(docs);
         self
     }
 
@@ -337,6 +345,11 @@ fn apply_cors_headers(headers: &mut HeaderMap, origin: Option<&str>, policy: &Ac
 async fn dispatch(State(state): State<ApiState>, request: Request) -> Response<Body> {
     let method = request.method().clone();
     let uri = request.uri().clone();
+    if let Some(docs) = state.swagger_docs.as_ref()
+        && let Some(response) = docs.response(&method, &uri)
+    {
+        return response;
+    }
     if !uri.path().starts_with("/api/") && !uri.path().starts_with("/swagger") {
         return static_response(&state.assets, &method, &uri);
     }

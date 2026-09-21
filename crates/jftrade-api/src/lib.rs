@@ -7,6 +7,7 @@ mod ports;
 mod route;
 mod router;
 mod sse;
+mod swagger_docs;
 mod websocket;
 
 pub use auth::{
@@ -31,6 +32,7 @@ pub use sse::{
     SseStreamLoopOptions, SseWriter, encode_comment, encode_event, encode_retry,
     run_sse_stream_loop,
 };
+pub use swagger_docs::SwaggerDocs;
 pub use websocket::{
     DEFAULT_WEBSOCKET_LIMIT, LiveConnectionMetrics, LiveConnectionPermit, LiveConnectionSnapshot,
     LiveDemandListener, LiveDepthSubscription, LiveHub, LiveHubConnection, LiveHubLifecycle,
