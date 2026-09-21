@@ -1,9 +1,10 @@
 # Trading 执行域第三批（第 117 批·分片一）
 
 本文件记录 `internal/trading/execution_test.go` 剩余 `partial` 行的逐条收口。该文件共 17 条
-`partial`，按“错误分类 / 校验时序 / 委派参数 / 风控时序 / 详情边界”分片推进；本批完成**前两行**
-（`:285`、`:327`），新增 2 条 Rust 测试，其余 15 行的分片计划见文末。本批无生产语义变更，
-两个被探测的生产文件按字节回滚。
+`partial`，按“错误分类 / 校验时序 / 委派参数 / 风控时序 / 详情边界”分片推进；已完成**前两片**
+（分片一 `:285`、`:327`；分片二 `:173`、`:342`、`:470`）共 5 条 → `function_exact`，
+新增 5 条 Rust 测试，其余 12 行的分片计划见文末。两批均无生产语义变更，
+被探测的生产文件一律按字节回滚。
 
 ## 第一百一十七批（分片一）：facade 错误分类与校验时序（2 条）
 
@@ -74,12 +75,72 @@ Go 侧 2 条（同文件 17 条中的前两行）：
 - **错误对象同一性**：Go 断言的是同一个 error 值（`errors.Is`）；Rust 断言的等价物是 status/code/
   message 三元组逐字一致（错误类型在跨端口时已被序列化为 envelope）。
 
-### 后续待办（本文件剩余 15 条）
+## 第一百一十七批（分片二）：风控前置与读端口过滤归一（3 条）
 
-- 下批（第 117 批·分片二）：`:173`（facade 委派参数：过滤条件归一与订单 ID 传递，需要在读端口记录
-  `(path, query)`、写端口断言 payload）、`:342` 与 `:470`（Rust 证据已被 `internal/trading/broker_test.go`
-  的 `[x]` 占用，受“`[x]` 引用唯一”约束，需新增独立测试或明确记为不重复占用）。
-- 分片三：`:367`/`:397`（断言订单确实到达 broker，而非仅风控决策）、`:426`（未显式指定环境时隐式解析
+### 范围与分片
+
+Go 侧 3 条（同文件 17 条中的 `:173`、`:342`、`:470`）：
+
+- P0 `:173`：`TestExecutionOrderServiceFacadeUsesInjectedStoresAndBrokerCommands`
+  （过滤条件归一 REAL/acc-1/US 后委派 store；cancel/events 传订单 ID）。
+- P0 `:342`：`TestCreateExecutionOrderRunsPreTradeRiskBeforeBrokerCall`
+  （REAL 关闭时风控先拒绝，错误含 `real trading is disabled`，broker 零调用）。
+- P0 `:470`：`TestPlaceExecutionOrderFailsClosedWithoutRealRiskGateway`
+  （默认 REAL + 无风控网关 → `PRE_TRADE_RISK_UNAVAILABLE` 失败关闭，broker 零调用）。
+
+分类：3 条全部 `[x]`/`function_exact`（原均为 `partial`）。
+
+### 关键事实
+
+- **过滤归一的 owner**：`ProductionExecutionPort::read`（`product_production_ports_execution_orders.rs:355`）
+  用 `QueryMap::parse` 解析 `scope/brokerId/tradingEnvironment/accountId/market`，逐字段 `str::trim()`
+  后按大小写不敏感（`account_id` 用 `trim() ==`）匹配存储订单，再按 `updated_at/created_at/internal_order_id`
+  倒序输出；`/orders/{id}/events` 与 `/orders/{id}` 用 `decode_order_id` 解析 ID。
+- **风控前置的 owner**：`ExecutionRiskCoordinator::execute_with_risk_guard`
+  （`product_execution_risk_coordinator.rs:166`）持有 `submission_gate`，REAL 单逐次重读控制面文件
+  （读取失败 → 500 `CONTROL_PLANE_UNAVAILABLE`），再用 `evaluate_pre_trade_risk` 决策；
+  REAL 交易关闭时返回 403 `REAL_TRADING_DISABLED`（消息 `real trading is disabled; enable runtime
+  real-trade risk config before placing REAL orders`）。`ProductionExecutionPort::execute_order_under_guard`
+  在 `risk_coordinator = None` 且环境为 REAL 时返回 403 `PRE_TRADE_RISK_UNAVAILABLE`
+  （`pre-trade risk gateway is unavailable; REAL orders are blocked`）——两者都在券商闭包之前发生。
+
+### 新增测试（均带 `// Parity:` 锚点，均在 `product_production_ports_execution_preview_tests.rs`）
+
+- `execution_read_port_normalizes_filters_and_routes_order_identifiers`（锚 `:173`）：生产端口落两笔
+  订单，把其中一笔改写成 REAL/acc-1/US，用带空格与大小写混排的查询串过滤 → 只返回该笔；
+  再用该 `internalOrderId` 读 `/orders/{id}/events` → 事件归属同一 ID 且非空。
+- `pre_trade_risk_rejection_stops_the_real_order_before_the_broker_is_called`（锚 `:342`）：
+  tempdir 控制面（REAL 默认关闭）挂到生产端口，REAL 单 → `Failed{403, REAL_TRADING_DISABLED}`
+  且消息含 `real trading is disabled`，`RecordingTradeWriter.placed` 为空。
+- `real_order_without_a_risk_gateway_fails_closed_before_the_broker_is_called`（锚 `:470`）：
+  未挂风控的端口提交 REAL 单 → `Failed{403, PRE_TRADE_RISK_UNAVAILABLE}`，券商记录为空。
+
+### 探针记录（破 → 红 → 按字节回滚）
+
+- 探针 ①（`:173`）：去掉 `market` 字段的 `str::trim()` → 过滤结果为空、测试转红
+  （`filtered orders = {"orders":[]}`）；回滚后 `product_production_ports_execution_orders.rs`
+  shasum `eae79748cbde15eeba184fc09026010a2b65e3971cb35b5f0d5b5d5c75d0f01c` 与探测前一致。
+- 探针 ②（`:342`）：把 `execute_order_under_guard` 的 `Some(coordinator)` 分支改成直接
+  `submit_fn()` → 测试转红（订单越过风控到达 broker）；回滚后
+  `product_production_ports_execution_orders_impl.rs` shasum
+  `416220828cc78ed0ef133b4babed34b3c8ac7dbd4c95f53dd6107a2716b35bcc` 与探测前一致。
+- 探针 ③（`:470`）：删除 `None + Real` 的守卫分支（改为 `None => submit_fn()`）→ 测试转红；
+  同一文件按字节回滚，shasum 与探测前一致（同上）。
+
+### 保留差异
+
+- **过滤断言的落点**：Go 断言注入 store 收到的 `listedFilter` 参数；Rust 的 store 查询由读端口
+  内部构造，无法从外部观察，故断言改为「归一后的查询命中正确集合 + ID 往返」。
+- **风控错误载体**：Go 用 `RiskRejectedError.Decision.ReasonCode`；Rust 用
+  `Failed{status,code,message}` 三元组，REAL 关闭与网关缺失分别由 `REAL_TRADING_DISABLED`
+  与 `PRE_TRADE_RISK_UNAVAILABLE` 表达。
+- **引用唯一约束**：`:342` 原先复用的 `jftrade-trading` 域测试已被 `internal/trading/broker_test.go`
+  的 `[x]` 占用，本批为它新增了引擎层端到端测试，避免同一 Rust 测试被两个 `[x]` 引用。
+
+### 后续待办（本文件剩余 12 条）
+
+- 下批（第 117 批·分片三）：`:367`/`:397`（断言订单确实到达 broker，而非仅风控决策）、
+  `:426`（未显式指定环境时隐式解析
   REAL 后触发风控拒绝）。
 - 分片四：`:496`（kill switch 激活等待在途 REAL 下单的时序）、`:738`（kill switch + hard stop 重启往返）、
   `:874`（持久化失败整体回滚：内存与磁盘一致）、`:939`（持久化状态读取失败 fail-closed）。
@@ -94,14 +155,29 @@ Go 侧 2 条（同文件 17 条中的前两行）：
   （`startDesktopUpdateChecks` 24h 节奏）。
 
 验证：
-- 定向 nextest（2 条新测试）EXIT=0：`invalid_order_payload_is_rejected_before_the_broker_is_called`
+- 分片一定向 nextest（2 条新测试）EXIT=0：`invalid_order_payload_is_rejected_before_the_broker_is_called`
   与 `execution_error_envelopes_keep_request_errors_distinct_from_upstream_failures`。
-- 两次探针均转红并按字节回滚，回滚后 shasum 与探测前一致（见上）。
-- `python3 scripts/compatibility/audit_test_parity.py`：4451 Go / 3069 Rust、`[x]` 1329 → 1331、
-  `partial` 2544 → 2542、`missing` 0、0 破坏引用；未锚定 function_exact 202、partial 无解析引用 7、
+- 分片二定向 nextest（3 条新测试）EXIT=0：`execution_read_port_normalizes_filters_and_routes_order_identifiers`、
+  `pre_trade_risk_rejection_stops_the_real_order_before_the_broker_is_called`、
+  `real_order_without_a_risk_gateway_fails_closed_before_the_broker_is_called`。
+- 两次探针（分片一）与三次探针（分片二）全部转红并按字节回滚，回滚后 shasum 与探测前一致（见上）。
+- `python3 scripts/compatibility/audit_test_parity.py`：4451 Go / 3072 Rust、`[x]` 1329 → 1334、
+  `partial` 2544 → 2539、`missing` 0、0 破坏引用；未锚定 function_exact 202、partial 无解析引用 7、
   无断言 2（均既有基线）。
-- `python3.12 scripts/compatibility/parity_anchor_reconcile.py`：1332 唯一引用（已记账 1277、
+- `python3.12 scripts/compatibility/parity_anchor_reconcile.py`：1335 唯一引用（已记账 1280、
   unrecorded 0、unknown 55、stale 0）。
+- `cargo fmt --all --check` EXIT=0；`cargo clippy -p jftrade-engine --all-targets --locked` EXIT=0。
+- 全量 `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked
+  --no-fail-fast`：1766 passed / 0 failed / 0 skipped，EXIT=0（含分片一、分片二共 5 条新测试）。
+- `pnpm run check:compatibility` EXIT=0；`node scripts/check-zero-go.mjs` EXIT=0（2931 tracked
+  files）；`pnpm run check:ai-context` EXIT=0；`git diff --check` 干净。
+- `pnpm run check:quick`：首轮在 `check:rust:test` 阶段因**与本批无关的既有抖动**失败——
+  `product::product_production_ports_adk::tests::adk_session_detail_omits_resolved_approval_groups`
+  （ADK 会话详情，本批未触碰）；隔离重跑 2/2 通过、同轮全量 nextest 亦通过，随后完整重跑
+  `check:quick` EXIT=0（含 pineworker 10 files / 98 tests）。
+- `pnpm run check:rust` EXIT=1：`:target-health` / `:architecture` / `:production-policy` 通过，
+  唯一失败阶段 `check:rust:policy`（`cargo deny`）报 RUSTSEC-2026-0285 与陈旧 advisory 告警，
+  与本仓既有基线同源。**不记为通过**。
 - `cargo fmt --all --check` EXIT=0（首轮 fmt 报测试文件一处换行，`cargo fmt --all` 后复检通过）；
   `cargo clippy -p jftrade-engine --all-targets --locked` EXIT=0。
 - 全量 `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked

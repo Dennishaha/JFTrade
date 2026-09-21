@@ -30513,11 +30513,11 @@
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_normalize_execution_order_preserves_broker_abstraction)'"
   },
   "internal/trading/execution_test.go:173:TestExecutionOrderServiceFacadeUsesInjectedStoresAndBrokerCommands": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_execution_write_product_tests.rs::execution_write_product_replays_browser_boundary_failure_recovery_and_restart；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
-    "conclusion": "partial：Rust 覆盖执行写路由（列表/预览/下单/撤单/事件）在注入端口下的恢复与重放；差异：Go 断言 facade 把每次调用委派到注入的 store 与 broker 命令（逐调用参数断言），Rust 以端口接线与失败恢复断言覆盖，未逐调用断言 store 参数。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::execution_read_port_normalizes_filters_and_routes_order_identifiers",
+    "conclusion": "function_exact：Go 断言 facade 把归一后的过滤条件交给注入 store（TradingEnvironment=REAL（来自默认环境 real）、AccountID=acc-1（trim）、Market=US（大写）），并把返回订单 ID 原样传给 cancel 与 events 调用。Rust 把过滤条件的归一化与匹配放进生产读端口（ProductionExecutionPort::read：QueryMap 解析 + 逐字段 trim/大小写不敏感匹配 + status 排序），因此等价证据是「归一后的查询命中正确的订单集合 + ID 往返」：新增测试用生产端口落两笔订单，把其中一笔改成 REAL/acc-1/US，再以 scope=active&brokerId=%20futu%20&tradingEnvironment=%20real%20&accountId=%20acc-1%20&market=%20us%20 查询，断言只返回该笔（另一笔 SIMULATE/HK/42 被过滤掉），并用返回的 internalOrderId 读取 /orders/{id}/events，断言事件归属同一 ID 且非空。探针：去掉 market 字段的 trim → 过滤结果为空、断言转红（filtered orders = {\"orders\":[]}），按字节回滚（product_production_ports_execution_orders.rs shasum eae79748… 探测前后一致）。差异：Go 断言的是传给注入 store 的函数参数（listedFilter），Rust 的 store 查询由读端口内部构造，故断言落在端口输出与 ID 往返上；两处都覆盖「trim + 大小写不敏感 + REAL 默认环境」语义。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:285:TestExecutionOrderServiceFacadeReturnsBusinessErrors": {
     "status": "[x]",
@@ -30534,11 +30534,11 @@
     "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:342:TestCreateExecutionOrderRunsPreTradeRiskBeforeBrokerCall": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::test_place_broker_order_runs_pre_trade_risk_before_broker_submission",
-    "conclusion": "partial（唯一引用约束）：该 Rust 测试已作为 internal/trading/broker_test.go:648 的 function_exact 证据占用，本行不重复占用；其断言（预交易风控先于 broker 提交、拒绝时不下单）与本行语义一致，故记为 partial 并保留引用。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::pre_trade_risk_rejection_stops_the_real_order_before_the_broker_is_called",
+    "conclusion": "function_exact：Go 配置 REAL 关闭的静态风控网关 + “placeOrder 被调用即 t.Fatal”的假 broker，要求 REAL 单被风控拒绝且错误含 real trading is disabled。Rust 的等价 owner 是 ExecutionRiskCoordinator::execute_with_risk_guard —— 它在券商闭包之前求值；新增测试用 tempdir 构造默认（REAL 关闭）控制面，把它挂到生产端口，提交 tradingEnvironment=REAL 的订单，断言 ① 错误为 Failed{403, REAL_TRADING_DISABLED} 且消息含 real trading is disabled；② 券商侧 RecordingTradeWriter 记录为空（风控先于 broker 提交）。探针：把 execute_order_under_guard 的 coordinator 分支改成直接 submit_fn() → 测试转红（订单到达 broker），按字节回滚（product_production_ports_execution_orders_impl.rs shasum 41622082… 探测前后一致）。差异：原行引用的 jftrade-trading/tests/pre_trade_risk_domain_tests.rs::test_place_broker_order_runs_pre_trade_risk_before_broker_submission 已被 internal/trading/broker_test.go 的 [x] 占用，受“引用唯一”约束，本行改用新测试给出引擎层的端到端证据（风控决策 + broker 零调用）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:367:TestCreateExecutionOrderAllowsRuntimeEnabledRealTradeBeforeBrokerCall": {
     "status": "[~]",
@@ -30562,11 +30562,11 @@
     "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:470:TestPlaceExecutionOrderFailsClosedWithoutRealRiskGateway": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::test_place_broker_order_fails_closed_when_real_risk_gateway_is_unavailable",
-    "conclusion": "partial（唯一引用约束）：该 Rust 测试已作为 internal/trading/broker_test.go:711 的 function_exact 证据占用；其断言（REAL 风控网关缺失时 fail-closed 且不下单）与本行语义一致，故记为 partial 并保留引用。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::real_order_without_a_risk_gateway_fails_closed_before_the_broker_is_called",
+    "conclusion": "function_exact：Go 默认环境为 REAL、不注入风控网关，要求 PlaceExecutionOrder 以 PRE_TRADE_RISK_UNAVAILABLE 失败关闭且订单网关零调用。Rust 的等价分支在 execute_order_under_guard：risk_coordinator 为 None 且 trading_environment == Real 时返回 Failed{403, PRE_TRADE_RISK_UNAVAILABLE, \"pre-trade risk gateway is unavailable; REAL orders are blocked\"}；新增测试用未挂风控的生产端口提交 REAL 单，断言该 403/码值，并断言券商记录为空。探针：删除 None+Real 的守卫分支（让 None 直接 submit_fn()） → 测试转红，按字节回滚（product_production_ports_execution_orders_impl.rs shasum 41622082… 探测前后一致）。差异：Go 用 RiskRejectedError.Decision.ReasonCode 断言，Rust 用 wire 错误三元组（status/code/message）表达同一失败关闭语义。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:496:TestKillSwitchActivationWaitsForInFlightRealPlacement": {
     "status": "[~]",

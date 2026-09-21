@@ -773,6 +773,138 @@ fn cancel_contract_port(writer: Arc<dyn TradeWritePort>) -> ProductionExecutionP
     write_port_with_writer(writer)
 }
 
+/// Parity: go:452dea11:internal/trading/execution_test.go:173
+/// `TestExecutionOrderServiceFacadeUsesInjectedStoresAndBrokerCommands`. Go
+/// normalizes the requested scope (`" futu "`, `" acc-1 "`, `" us "` and the
+/// default REAL environment) and asserts the normalized filter reaches the
+/// injected store, then checks the cancel and event calls carry the returned
+/// order id. Rust owns that normalization inside the production read port, so
+/// the equivalent evidence is the filtered result set plus the identifier
+/// round-trip through the events route.
+#[test]
+fn execution_read_port_normalizes_filters_and_routes_order_identifiers() {
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let port = cancel_contract_port(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
+
+    let simulate = port
+        .place_order(&cancel_contract_payload("filter-simulate-order"))
+        .expect("place simulate order");
+    let simulate_id = simulate["internalOrderId"]
+        .as_str()
+        .expect("simulate order id")
+        .to_owned();
+
+    let real = port
+        .place_order(&cancel_contract_payload("filter-real-order"))
+        .expect("place real order");
+    let real_id = real["internalOrderId"]
+        .as_str()
+        .expect("real order id")
+        .to_owned();
+    let mut stored = port
+        .store
+        .get_order(&real_id)
+        .expect("read stored order")
+        .expect("stored order");
+    stored.trading_environment = "REAL".to_owned();
+    stored.account_id = "acc-1".to_owned();
+    stored.market = "US".to_owned();
+    port.store
+        .save_order(stored, "2026-09-22T00:00:00Z")
+        .expect("persist real order fixture");
+
+    let filtered = port
+        .read(
+            "/api/v1/execution/orders",
+            "scope=active&brokerId=%20futu%20&tradingEnvironment=%20real%20&accountId=%20acc-1%20&market=%20us%20",
+        )
+        .expect("filtered execution orders");
+    let orders = filtered["orders"].as_array().expect("orders array");
+    assert_eq!(orders.len(), 1, "filtered orders = {filtered}");
+    assert_eq!(orders[0]["internalOrderId"], json!(real_id.clone()));
+    assert_ne!(orders[0]["internalOrderId"], json!(simulate_id));
+
+    let events = port
+        .read(&format!("/api/v1/execution/orders/{real_id}/events"), "")
+        .expect("order events");
+    assert_eq!(events["internalOrderId"], json!(real_id));
+    assert!(
+        events["events"]
+            .as_array()
+            .is_some_and(|events| !events.is_empty()),
+        "events = {events}"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/execution_test.go:342
+/// `TestCreateExecutionOrderRunsPreTradeRiskBeforeBrokerCall`. Go configures a
+/// risk gateway with REAL trading disabled and a `placeOrder` stub that fails
+/// the test when invoked, then requires the "real trading is disabled"
+/// rejection. Rust evaluates the same decision in
+/// `ExecutionRiskCoordinator::execute_with_risk_guard` before the broker
+/// closure runs, so the broker-facing writer must stay untouched.
+#[test]
+fn pre_trade_risk_rejection_stops_the_real_order_before_the_broker_is_called() {
+    let directory = tempfile::tempdir().expect("risk control directory");
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let mut port = cancel_contract_port(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
+    port.risk_coordinator = Some(Arc::new(crate::product::ExecutionRiskCoordinator::new(
+        directory.path().join("real-trade-control.json"),
+    )));
+
+    let mut payload = cancel_contract_payload("risk-rejects-real-order");
+    payload["tradingEnvironment"] = json!("REAL");
+    let error = port
+        .place_order(&payload)
+        .expect_err("risk rejection must stop the order");
+    assert!(
+        matches!(
+            error,
+            ExecutionWritePortError::Failed {
+                status: 403,
+                ref code,
+                ref message,
+            } if code == "REAL_TRADING_DISABLED" && message.contains("real trading is disabled")
+        ),
+        "risk rejection error = {error:?}"
+    );
+    assert!(
+        writer.placed.lock().expect("placed orders").is_empty(),
+        "broker must not receive risk-rejected orders"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/execution_test.go:470
+/// `TestPlaceExecutionOrderFailsClosedWithoutRealRiskGateway`. Go defaults the
+/// environment to REAL, injects no risk gateway, and requires the fail-closed
+/// `PRE_TRADE_RISK_UNAVAILABLE` rejection with no order-gateway call.
+#[test]
+fn real_order_without_a_risk_gateway_fails_closed_before_the_broker_is_called() {
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let port = cancel_contract_port(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
+
+    let mut payload = cancel_contract_payload("missing-risk-gateway");
+    payload["tradingEnvironment"] = json!("REAL");
+    let error = port
+        .place_order(&payload)
+        .expect_err("missing gateway must fail closed");
+    assert!(
+        matches!(
+            error,
+            ExecutionWritePortError::Failed {
+                status: 403,
+                ref code,
+                ..
+            } if code == "PRE_TRADE_RISK_UNAVAILABLE"
+        ),
+        "fail-closed error = {error:?}"
+    );
+    assert!(
+        writer.placed.lock().expect("placed orders").is_empty(),
+        "broker must not receive REAL orders without a risk gateway"
+    );
+}
+
 /// Parity: go:452dea11:internal/trading/execution_test.go:327
 /// `TestCreateExecutionOrderRejectsInvalidPayloadBeforeBrokerCall`. Go builds
 /// the order service with a fake `placeOrder` that fails the test when it is
