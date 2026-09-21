@@ -769,6 +769,235 @@ fn cancel_order_uses_modify_order_cancel_operation() {
     assert_eq!(modified[0].operation, 2);
 }
 
+fn cancel_contract_port(writer: Arc<dyn TradeWritePort>) -> ProductionExecutionPort {
+    write_port_with_writer(writer)
+}
+
+fn cancel_contract_payload(client_order_id: &str) -> Value {
+    json!({
+        "accountId": "42",
+        "brokerId": "futu",
+        "market": "HK",
+        "tradingEnvironment": "SIMULATE",
+        "clientOrderId": client_order_id,
+        "symbol": "HK.00700",
+        "orderKind": "single",
+        "productClass": "equity",
+        "instrument": {"instrumentId": "HK.00700", "tradeMarket": "HK"},
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "quantity": 100.0,
+        "price": 320.5
+    })
+}
+
+// Parity: go:452dea11:internal/app/apiserver/servercore/trading_order_cancellation_contracts_test.go:98 TestTradingOrderCancellationRejectsInvalidPersistedOrders
+#[test]
+fn cancel_rejects_missing_terminal_and_unidentified_persisted_orders() {
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let port = cancel_contract_port(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
+
+    let missing = port.cancel_order("missing-order").expect_err("missing order");
+    assert!(
+        matches!(
+            missing,
+            ExecutionWritePortError::Failed { status: 404, ref code, .. }
+                if code == "EXECUTION_ORDER_NOT_FOUND"
+        ),
+        "missing order error = {missing:?}"
+    );
+
+    let placed = port
+        .place_order(&cancel_contract_payload("cancel-contract-terminal"))
+        .expect("place terminal order");
+    let terminal_id = placed["internalOrderId"]
+        .as_str()
+        .expect("internal order id")
+        .to_owned();
+    let mut terminal = port
+        .store
+        .get_order(&terminal_id)
+        .expect("read order")
+        .expect("stored order");
+    terminal.status = "FILLED".to_owned();
+    port.store
+        .save_order(terminal, "2026-09-08T00:00:00Z")
+        .expect("persist terminal order");
+    let terminal_error = port
+        .cancel_order(&terminal_id)
+        .expect_err("terminal order cancel");
+    assert!(
+        matches!(
+            terminal_error,
+            ExecutionWritePortError::Failed { status: 400, ref code, .. }
+                if code == "EXECUTION_ORDER_TERMINAL"
+        ),
+        "terminal order error = {terminal_error:?}"
+    );
+
+    let placed = port
+        .place_order(&cancel_contract_payload("cancel-contract-no-broker-id"))
+        .expect("place unidentified order");
+    let unidentified_id = placed["internalOrderId"]
+        .as_str()
+        .expect("internal order id")
+        .to_owned();
+    let mut unidentified = port
+        .store
+        .get_order(&unidentified_id)
+        .expect("read order")
+        .expect("stored order");
+    unidentified.broker_order_id = None;
+    unidentified.broker_order_id_ex = None;
+    port.store
+        .save_order(unidentified, "2026-09-08T00:00:01Z")
+        .expect("persist unidentified order");
+    let unidentified_error = port
+        .cancel_order(&unidentified_id)
+        .expect_err("unidentified order cancel");
+    assert!(
+        matches!(
+            unidentified_error,
+            ExecutionWritePortError::Failed { status: 400, ref code, .. }
+                if code == "BROKER_ORDER_ID_MISSING"
+        ),
+        "unidentified order error = {unidentified_error:?}"
+    );
+
+    assert!(
+        writer.modified.lock().expect("modified orders").is_empty(),
+        "rejected cancellations must not reach the broker"
+    );
+}
+
+/// Write fixture whose placement succeeds but whose cancel acknowledgement
+/// fails at the broker boundary.
+#[derive(Debug, Default)]
+struct CancelFailingWriter {
+    modified: Mutex<usize>,
+}
+
+impl CancelFailingWriter {
+    fn modified_calls(&self) -> usize {
+        *self.modified.lock().expect("modified calls")
+    }
+}
+
+impl TradeWritePort for CancelFailingWriter {
+    fn place_order(
+        &self,
+        request: TradePlaceOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+        Ok(TradePlaceOrderResult {
+            header: request.header,
+            order_id: Some(9001),
+            order_id_ex: Some("EXT-9001".to_owned()),
+        })
+    }
+
+    fn place_combo_order(
+        &self,
+        _: TradePlaceComboOrderRequest,
+    ) -> Result<TradePlaceComboOrderResult, TradeSessionError> {
+        unsupported()
+    }
+
+    fn modify_order(
+        &self,
+        _: TradeModifyOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+        *self.modified.lock().expect("modified calls") += 1;
+        Err(disconnecting_error())
+    }
+
+    fn unlock_trade(&self, _: TradeUnlockRequest) -> Result<(), TradeSessionError> {
+        unsupported()
+    }
+
+    fn subscribe_trade_accounts(
+        &self,
+        _: TradeSubscribeAccountsRequest,
+    ) -> Result<(), TradeSessionError> {
+        unsupported()
+    }
+}
+
+// Parity: go:452dea11:internal/app/apiserver/servercore/trading_order_cancellation_contracts_test.go:134 TestTradingOrderCancellationPropagatesBrokerFailuresAndPersistsAcceptedCancel
+#[test]
+fn accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel() {
+    let accepted_writer = Arc::new(RecordingTradeWriter::default());
+    let accepted_port =
+        cancel_contract_port(Arc::clone(&accepted_writer) as Arc<dyn TradeWritePort>);
+    let placed = accepted_port
+        .place_order(&cancel_contract_payload("cancel-contract-accepted"))
+        .expect("place order");
+    let accepted_id = placed["internalOrderId"]
+        .as_str()
+        .expect("internal order id")
+        .to_owned();
+    let accepted = accepted_port
+        .cancel_order(&accepted_id)
+        .expect("accepted cancel");
+    assert_eq!(accepted["status"], "CANCEL_SUBMITTED");
+    assert_eq!(
+        accepted_port
+            .store
+            .get_order(&accepted_id)
+            .expect("read order")
+            .expect("stored order")
+            .status,
+        "CANCEL_SUBMITTED"
+    );
+    assert_eq!(
+        accepted_writer.modified.lock().expect("modified orders").len(),
+        1
+    );
+
+    let failing_writer = Arc::new(CancelFailingWriter::default());
+    let failing_port =
+        cancel_contract_port(Arc::clone(&failing_writer) as Arc<dyn TradeWritePort>);
+    let placed = failing_port
+        .place_order(&cancel_contract_payload("cancel-contract-broker-failure"))
+        .expect("place order");
+    let rejected_id = placed["internalOrderId"]
+        .as_str()
+        .expect("internal order id")
+        .to_owned();
+    let failure = failing_port
+        .cancel_order(&rejected_id)
+        .expect_err("broker cancel failure");
+    assert!(
+        matches!(
+            failure,
+            ExecutionWritePortError::Failed { status: 502, ref code, .. }
+                if code == "BROKER_UNAVAILABLE"
+        ),
+        "broker cancel failure = {failure:?}"
+    );
+    assert_eq!(failing_writer.modified_calls(), 1);
+    let stored = failing_port
+        .store
+        .get_order(&rejected_id)
+        .expect("read order")
+        .expect("stored order");
+    // Rust commits the CANCEL_SUBMITTED fence before the broker call and
+    // fails closed to UNKNOWN when the acknowledgement is lost, so a later
+    // cancel can never silently reuse the same identity.
+    assert_eq!(stored.status, "UNKNOWN");
+    assert!(stored.last_error.is_some(), "unknown order error = {stored:?}");
+    let repeat = failing_port
+        .cancel_order(&rejected_id)
+        .expect_err("repeat cancel on unknown order");
+    assert!(
+        matches!(
+            repeat,
+            ExecutionWritePortError::Failed { status: 400, ref code, .. }
+                if code == "EXECUTION_ORDER_TERMINAL"
+        ),
+        "repeat cancel error = {repeat:?}"
+    );
+}
+
 #[test]
 fn broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend() {
     // Parity: go:452dea11:pkg/futu/adapter_bridge_test.go:709

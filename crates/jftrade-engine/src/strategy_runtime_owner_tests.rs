@@ -64,6 +64,38 @@ fn bar(minute: u32, closed: bool) -> Value {
 fn binding() -> Value {
     json!({"script":"//@version=5\nindicator('owner')\nplot(close)","symbols":["US.AAPL"],"interval":"1m","executeOrders":false})
 }
+
+#[derive(Debug, Default)]
+struct Notifications {
+    delivered: Mutex<Vec<ProductNotificationRequest>>,
+}
+
+impl ProductNotificationPort for Notifications {
+    fn deliver(
+        &self,
+        request: ProductNotificationRequest,
+    ) -> crate::product::ProductNotificationDelivery {
+        self.delivered.lock().unwrap().push(request);
+        crate::product::ProductNotificationDelivery {
+            delivered: true,
+            status: "sent".to_owned(),
+            message: String::new(),
+        }
+    }
+}
+
+/// Pine worker that fails the session-open request: the reference "runtime
+/// died before it could trade" path that must reconcile to STOPPED.
+#[derive(Debug, Default)]
+struct FailingOpenWorker;
+
+impl PineExecutionPort for FailingOpenWorker {
+    fn run<'a>(&'a self, _request: PineRunRequest) -> PineExecutionFuture<'a> {
+        Box::pin(std::future::ready(Err(PineExecutionError::Remote(
+            "pine worker crashed".to_owned(),
+        ))))
+    }
+}
 fn store() -> (tempfile::TempDir, Arc<StrategyRuntimeStore>) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("strategy.db");
@@ -215,4 +247,122 @@ fn timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io() {
     }
     wait_for(|| manager.cancel("one"));
     assert!(!manager.is_task_alive("one"));
+}
+
+// Parity: go:452dea11:internal/app/apiserver/servercore/runtime_observation_test.go:176 TestStrategyRuntimePanicAutoReconcilesToStopped
+// Parity: go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:52 TestCatalogRuntimeFailureReconcilesOnlyRunningInstance
+#[test]
+fn runtime_exit_converges_to_stopped_with_audit_notification_and_error_log() {
+    let (_dir, store) = store();
+    let quotes = Arc::new(Quotes {
+        rows: Mutex::new(json!({"candles":[bar(0,true),bar(1,false)]})),
+    });
+    let notifications = Arc::new(Notifications::default());
+    let router = Arc::new(Mutex::new(ProviderRouter::new(32)));
+    router
+        .lock()
+        .unwrap()
+        .acquire_demand(
+            "one",
+            [InstrumentRef {
+                channel: "KLINE".to_owned(),
+                market: "US".to_owned(),
+                symbol: "AAPL".to_owned(),
+                interval: Some("1m".to_owned()),
+            }],
+            false,
+            1_700_000_000_000,
+        )
+        .expect("seed runtime demand");
+    assert_eq!(router.lock().unwrap().demand().logical_count, 1);
+    let mut manager = StrategyRuntimeManager::new(
+        Some(Arc::clone(&router)),
+        None,
+        Some(quotes),
+        None,
+        Arc::new(ActiveProviderState::default()),
+    );
+    manager.worker = Some(Arc::new(FailingOpenWorker));
+    manager.notification = Some(notifications.clone());
+    manager
+        .spawn_task("one".into(), binding(), store.clone())
+        .unwrap();
+
+    wait_for(|| {
+        store
+            .get_instance("one")
+            .unwrap()
+            .is_some_and(|instance| instance.status == "STOPPED")
+    });
+
+    let observation = store
+        .get_observation("one")
+        .unwrap()
+        .expect("observation after runtime exit");
+    assert_eq!(observation.actual_status, "STOPPED");
+    assert!(
+        observation
+            .last_error
+            .as_deref()
+            .is_some_and(|error| error.contains("pine worker crashed")),
+        "observation last error = {:?}",
+        observation.last_error
+    );
+
+    let audits = store.list_audit_events("one").unwrap();
+    let exit = audits
+        .iter()
+        .find(|event| event.kind == "RUNTIME_EXITED")
+        .expect("runtime exit audit entry");
+    assert!(
+        exit.detail.contains("pine worker crashed"),
+        "runtime exit detail = {:?}",
+        exit.detail
+    );
+    let logs = store.list_log_events("one").unwrap();
+    assert!(
+        logs.iter().any(|event| {
+            event.level.eq_ignore_ascii_case("error")
+                && event.raw.contains("strategy runtime exited unexpectedly: ")
+                && event.raw.contains("pine worker crashed")
+        }),
+        "runtime exit logs = {logs:?}"
+    );
+
+    let delivered = notifications.delivered.lock().unwrap();
+    assert_eq!(
+        delivered.len(),
+        1,
+        "runtime exit notifications = {delivered:?}"
+    );
+    assert_eq!(delivered[0].title, "策略运行异常退出");
+    assert!(
+        delivered[0].body.contains("pine worker crashed"),
+        "notification body = {:?}",
+        delivered[0].body
+    );
+    drop(delivered);
+    assert_eq!(
+        router.lock().unwrap().demand().logical_count,
+        0,
+        "a dead runtime must not keep the instance's market-data demand"
+    );
+
+    // A second convergence attempt must not rewrite a non-RUNNING instance:
+    // the reference `ReconcileRuntimeFailure` returns without saving or
+    // appending another audit entry.
+    fail_strategy_task(&store, &None, None, "one", &[], "late duplicate".to_owned());
+    let audits = store.list_audit_events("one").unwrap();
+    assert_eq!(
+        audits
+            .iter()
+            .filter(|event| event.kind == "RUNTIME_EXITED")
+            .count(),
+        1,
+        "runtime exit audits = {audits:?}"
+    );
+    assert_eq!(
+        store.get_instance("one").unwrap().unwrap().status,
+        "STOPPED"
+    );
 }

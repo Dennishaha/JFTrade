@@ -93,11 +93,14 @@ impl ProductionStrategyRuntimePort {
         instance: &jftrade_store_sqlite::StoredRuntimeInstance,
         message: String,
     ) -> Result<(), String> {
+        // The reference catalog has no FAILED strategy status: a runtime
+        // failure reconciles the instance to STOPPED, appends a `runtime_exited`
+        // audit entry and writes an error log (`ReconcileRuntimeFailure`).
         let now = now_millis();
         self.store
             .update_observation_with_events(
                 &instance.id,
-                "FAILED",
+                "STOPPED",
                 &binding_symbols(&instance.binding).unwrap_or_default(),
                 Some(&message),
                 None,
@@ -107,12 +110,19 @@ impl ProductionStrategyRuntimePort {
             )
             .map_err(|error| error.to_string())?;
         self.store
-            .append_log_event(&instance.id, &message, "error", now)
+            .append_log_event(
+                &instance.id,
+                &format!("strategy runtime exited unexpectedly: {message}"),
+                "error",
+                now,
+            )
             .map_err(|error| error.to_string())?;
         let timestamp = now_rfc3339()?;
         self.store
-            .update_status(&instance.id, "FAILED", &timestamp)
-            .map(|_| ())
+            .update_status(&instance.id, "STOPPED", &timestamp)
+            .map_err(|error| error.to_string())?;
+        self.store
+            .append_audit_event(&instance.id, "RUNTIME_EXITED", &message, now)
             .map_err(|error| error.to_string())
     }
 
@@ -393,7 +403,7 @@ mod tests {
 
     #[test]
     // Parity: go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:52 TestCatalogRuntimeFailureReconcilesOnlyRunningInstance
-    fn restore_invalid_running_binding_marks_instance_failed() {
+    fn recovery_failure_converges_the_running_instance_to_stopped() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let path = directory.path().join("strategy.db");
         let connection = rusqlite::Connection::open(&path).expect("database");
@@ -429,9 +439,25 @@ mod tests {
             .get_instance("stale")
             .expect("read")
             .expect("instance");
-        assert_eq!(instance.status, "FAILED");
+        assert_eq!(instance.status, "STOPPED");
         assert!(!instance.runtime_active);
-        assert!(!store.list_log_events("stale").expect("logs").is_empty());
+        let logs = store.list_log_events("stale").expect("logs");
+        assert!(
+            logs.iter().any(|event| {
+                event.level.eq_ignore_ascii_case("error")
+                    && event.raw.contains("strategy runtime exited unexpectedly: ")
+            }),
+            "recovery failure logs = {logs:?}"
+        );
+        let audits = store.list_audit_events("stale").expect("audit");
+        let exit = audits
+            .iter()
+            .find(|event| event.kind == "RUNTIME_EXITED")
+            .expect("runtime exit audit entry");
+        assert!(
+            !exit.detail.trim().is_empty(),
+            "runtime exit detail must carry the failure reason"
+        );
     }
 
     // Parity: go:452dea11:internal/app/apiserver/servercore/system_reconcile_strategy_states_test.go:11 TestNewServerReconcilesPersistedActiveStrategyStates

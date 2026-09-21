@@ -4928,3 +4928,38 @@ servercore 第二片：继续消化剩余 servercore 文件（`servercoretest` �
 > 干扰说明（客观记录，不计为通过）：工作树仍有自第 69 批起未提交的并发改动（`scripts/compatibility/audit_test_parity.py`、`scripts/compatibility/test_audit_test_parity.py` 及其重生成的 `test-parity-report.md`/`test-parity-inventory.md`）。`check:zero-go` 报出的 6 处 “active Go/Wails reference” 全部来自这两个脚本；本批未纳入也未回退这些文件。本批自己的证据（fmt/clippy/nextest 全绿、审计 0 破坏引用与 0 重复、架构检查、`git diff --check`）均独立完成。
 
 验证：`cargo fmt --all -- --check`（修正批次 71 遗留后通过）、`cargo clippy -p jftrade-engine -p jftrade-api -p jftrade-desktop --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api -p jftrade-desktop --all-targets --locked --no-fail-fast`（1781 passed）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / 2919 Rust / **1094 `[x]`**，0 破坏引用、0 重复 rust_entry、未锚定告警 239→193）、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`、`git diff --check`。**未通过**：`pnpm run check:zero-go`（以及因此转红的 `pnpm run check:quick` 的 `check:policy` 分组）——原因见上方干扰说明，与本批改动无关。
+
+## 第七十三批：首批“先红后改”功能修复（策略运行崩溃收敛 + 撤单契约测试）
+
+本批不再只做映射，按第七十二批登记的缺口实施修复，共 2 处 P1 生产修正、4 个新增 Rust 测试、1 处映射纠错。
+
+### 生产修正（均先写复现测试再改实现）
+
+1. **策略运行崩溃收敛到 STOPPED（P1，运行/交易安全）**。参考行为（`internal/strategy/liveruntime/observation.go::handleRuntimePanic` + `internal/strategy/catalog/lifecycle.go::ReconcileRuntimeFailure`）：runtime 崩溃后写错误观察、移除运行时所有权、把仍为 RUNNING 的实例收敛为 STOPPED 并写 `runtime_exited` 审计与 error 日志，再发“策略运行异常退出”实时通知。Rust 原实现 `crates/jftrade-engine/src/strategy_runtime.rs::fail_strategy_task` 只写 `FAILED` 观察 + 裸错误日志，既不写 STOPPED 也不产生 runtime_exited 审计与通知。现在该函数改为：观察写 STOPPED（保留 lastError）、实例状态 STOPPED（仅在仍为 RUNNING 时，等价 Go 的 no-op 分支）、`RUNTIME_EXITED` 审计 + `strategy runtime exited unexpectedly: <原因>` 错误日志、通知端口投递同名通知（标题“策略运行异常退出”、正文为失败原因）、释放该实例的行情 demand；通知端口经 `strategy_runtime_task.rs` 的三个失败调用点传入。
+2. **启动恢复失败不再发明 FAILED 状态（P1，状态契约）**。Go 的策略状态只有 RUNNING/PAUSED/STOPPED（`internal/strategy/catalog/types.go`），不存在 FAILED；Rust 的 `ProductionStrategyRuntimePort::mark_recovery_failed` 原来写 `FAILED`。现改为与参考失败契约一致：观察 STOPPED + `RUNTIME_EXITED` 审计 + `strategy runtime exited unexpectedly: ` 错误日志 + 实例 STOPPED。
+
+### 新增/更新的 Rust 测试
+
+- `crates/jftrade-engine/src/strategy_runtime_owner_tests.rs::runtime_exit_converges_to_stopped_with_audit_notification_and_error_log`（新）：用“open 阶段即崩溃”的 Pine 替身驱动真实任务循环，断言实例 STOPPED、观察 STOPPED 且保留 lastError、`RUNTIME_EXITED` 审计携带原因、error 日志带前缀、通知标题/正文正确、router 的 demand 归零（等价 Go 的 activeInstrumentIDs=0），并断言对非 RUNNING 实例再次收敛不追加第二条审计。
+- `crates/jftrade-engine/src/strategy_runtime_port.rs::recovery_failure_converges_the_running_instance_to_stopped`（由 `restore_invalid_running_binding_marks_instance_failed` 改名并扩展）：断言启动恢复失败后状态为 STOPPED、runtime_active=false、错误日志带前缀、`RUNTIME_EXITED` 审计存在且 detail 非空。
+- `crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::cancel_rejects_missing_terminal_and_unidentified_persisted_orders`（新）：撤销不存在订单 → 404 `EXECUTION_ORDER_NOT_FOUND`、已终结订单 → 400 `EXECUTION_ORDER_TERMINAL`、缺券商订单标识 → 400 `BROKER_ORDER_ID_MISSING`，并断言被拒撤单一次都不触达券商。
+- `...::accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel`（新）：成功撤单持久化 `CANCEL_SUBMITTED`；券商失败以 502 `BROKER_UNAVAILABLE` 上抛并按 fail-closed 落 `UNKNOWN`（再次撤单即 400 终结），断言改单只尝试一次。
+
+### 探针（改坏 → 转红 → 按字节回滚）
+
+1. 删除 `fail_strategy_task` 的 `RUNTIME_EXITED` 审计写入 → 新测试 exit 100 转红，恢复后文件字节一致。
+2. 把实例状态写回 `FAILED` → 新测试 exit 100 转红（等待 STOPPED 超时），恢复后文件字节一致。
+
+### 映射纠错与升级（清单口径）
+
+- **纠错**：第七十二批把 `internal/app/apiserver/servercore/system_reconcile_strategy_states_test.go:11` 标成 `[x]` 属误判——Go 启动时把持久化 RUNNING/PAUSED 一律重置为 STOPPED（`reconciled` 审计、runtime 保持 idle），而 Rust 的产品策略是**启动即按 checkpoint 恢复** RUNNING（成功写 `RECOVERED` 审计，见 `docs/architecture/runtime-execution-ownership.md`），PAUSED/STOPPED 不动。本批降级为 `[~] partial` 并如实写明两侧可观测差异；是否改回 Go 的“重启即停”属产品策略决策，未擅自翻转。
+- **升级**：`servercore/runtime_observation_test.go:176`（panic 收敛）与 `internal/strategy/catalog/runtime_reconciliation_business_test.go:52`（失败只收敛 RUNNING）由 `[~]`/partial 升为 `[x]` function_exact，引用本批新增测试并补 `// Parity:` 锚点。
+- 撤单两行保持 `[~] partial`：Go 的“非数字 broker 号/缺 symbol/exchange 不可用”在 Rust 归并到其他错误码；Go 失败撤单保持原状态而 Rust 写前栅栏 + UNKNOWN，差异已逐条记录。
+
+### 验证
+
+`cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine -p jftrade-api -p jftrade-desktop --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api -p jftrade-desktop --all-targets --locked --no-fail-fast`（1785 passed）、**全工作区** nextest（3039 passed / 2 skipped）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2922 Rust** / **1095 `[x]`**，0 破坏引用、0 重复 rust_entry、未锚定告警 193）、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`、`git diff --check` 全绿。为清除 `check:rust` 的 target 健康门（`target/debug/deps` 超过 5 万个 `.rcgu.o`）执行了 `cargo clean`（释放 48.7 GiB 构建产物，非用户数据）。`pnpm run check:rust` 仍在 `cargo deny` 阶段因**既有** RUSTSEC-2026-0285（rustls，与本批无关，Cargo.lock 未改）失败，其前置的 target-health、format、clippy 均已通过；`check:zero-go` 与由此转红的 `check:quick`（`check:policy`）仍仅命中工作树中自第 69 批起未提交的并发脚本改动。
+
+> 干扰说明（客观记录，不计为通过）：`scripts/compatibility/audit_test_parity.py`、`scripts/compatibility/test_audit_test_parity.py` 及其重生成的 `test-parity-report.md`/`test-parity-inventory.md` 仍为本线程之外的并发改动，本批未纳入也未回退。
+
+验证：见上（fmt/clippy/两次 nextest/审计/兼容回放/架构检查全绿；check:rust 仅卡在既有 rustls 安全公告，check:zero-go 与 check:quick 仅卡在并发脚本文件）。

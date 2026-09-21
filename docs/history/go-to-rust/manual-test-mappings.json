@@ -4907,11 +4907,11 @@
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/runtime_observation_test.go:176:TestStrategyRuntimePanicAutoReconcilesToStopped": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/strategy_runtime.rs::fail_strategy_task",
-    "conclusion": "Rust 功能缺失（已定位差距）：Go 在策略运行 panic 后把实例收敛为 STOPPED、清空活动订阅、发“策略运行异常退出”通知并写 runtime_exited 审计。Rust 的失败路径 fail_strategy_task 只写 FAILED 观察状态 + 错误日志并释放 demand consumer（crates/jftrade-engine/src/strategy_runtime.rs:721），既不改写为 STOPPED，也不产生 runtime_exited 审计与通知。修复位置：strategy_runtime.rs 失败收敛 + 通知/审计所有者；回归测试要求：panic/失败后断言状态、活动标的清空、审计与通知各一条。",
-    "command": "",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_owner_tests.rs::runtime_exit_converges_to_stopped_with_audit_notification_and_error_log",
+    "conclusion": "function_exact：Go 断言策略运行崩溃后实例收敛为 STOPPED、活动标的清空、发“策略运行异常退出”通知并写 runtime_exited 审计（detail 含崩溃消息）。Rust 同路径现在写 STOPPED 观察（保留 lastError）+ STOPPED 实例状态 + RUNTIME_EXITED 审计 + `strategy runtime exited unexpectedly: ` 错误日志 + 同名通知，并释放该实例的行情需求（引用测试逐项断言 logical_count 归零）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/runtime_polling_test.go:14:TestStrategyRuntimePollsClosedKLinesWhenTradePushStalls": {
     "status": "[x]",
@@ -5411,23 +5411,23 @@
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/system_reconcile_strategy_states_test.go:11:TestNewServerReconcilesPersistedActiveStrategyStates": {
-    "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_port.rs::restore_running_instances_ignores_paused_and_stopped_instances",
-    "conclusion": "function_exact：Go 断言新服务器启动会校正持久化的活动状态（RUNNING/PAUSED 陈旧状态被处理）。Rust 启动校正遍历实例、只恢复 RUNNING 并忽略 PAUSED/STOPPED（引用测试断言选择与状态改写）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(restore_running_instances_ignores_paused_and_stopped_instances)'",
-    "evidence_type": "function_exact"
+    "status": "[~]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_port.rs::restore_running_instances_ignores_paused_and_stopped_instances; crates/jftrade-engine/src/strategy_runtime_port.rs::recovery_failure_converges_the_running_instance_to_stopped",
+    "conclusion": "partial（已修正此前的错误 [x]）：Go 在新服务器启动时把持久化的 RUNNING/PAUSED 一律重置为 STOPPED，写 `reconciled` 审计与“reconciled strategy state … stale running state”日志，且 runtime 保持 idle（activeStrategies=0）。Rust 的产品策略是**启动即恢复**：RUNNING 实例重新获取 demand 并重启任务、成功时写 RECOVERED 审计（docs/architecture/runtime-execution-ownership.md 明确记录该 checkpoint 恢复设计），失败时按 Go 的失败契约收敛为 STOPPED + RUNTIME_EXITED；PAUSED/STOPPED 不动。两侧可观测结果不同（Rust 重启后策略继续运行、Go 停止），属产品策略差异，不是断言等价，故保留 partial 而不标 [x]。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/trading_order_cancellation_contracts_test.go:98:TestTradingOrderCancellationRejectsInvalidPersistedOrders": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_orders_impl.rs",
-    "conclusion": "partial：Go 断言撤销不存在订单返回 not found、撤销已终结订单返回 already terminal。Rust 同一 owner 返回对应错误（product 实现 execution order not found / already terminal），但工程内没有针对这两条拒绝路径的 Rust 测试，列入待补测试。",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::cancel_rejects_missing_terminal_and_unidentified_persisted_orders",
+    "conclusion": "partial：Go 断言 6 条拒绝分支（not found / already terminal / 缺 broker 订单号 / 非数字 broker 号 / 缺 symbol / exchange 不可用）。Rust 新测试覆盖前三条等价码（404 EXECUTION_ORDER_NOT_FOUND、400 EXECUTION_ORDER_TERMINAL、400 BROKER_ORDER_ID_MISSING）并断言被拒撤单不触达 broker；Go 的“非数字 broker 号”“缺 symbol”“exchange 不可用”在 Rust 分别归并到 BROKER_ORDER_ID_MISSING / 头部构造 / OPD 依赖不可用（错误码与文案不同），未逐条等价，故保留 partial。",
     "command": "",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/trading_order_cancellation_contracts_test.go:134:TestTradingOrderCancellationPropagatesBrokerFailuresAndPersistsAcceptedCancel": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::cancel_order_uses_modify_order_cancel_operation; crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::trade_writes_are_not_replayed_when_the_response_is_lost",
-    "conclusion": "partial：Go 断言券商失败上抛且成功撤单状态被持久化。Rust 撤单经 Trd_ModifyOrder（引用测试断言操作码）并对丢失响应 fail-closed，持久化由 execution order store 承接；券商失败上抛缺少专门断言。",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel",
+    "conclusion": "partial：Go 断言券商失败错误上抛、成功撤单持久化为 CancelRequested，且失败撤单**不改写**原状态。Rust 新测试断言成功撤单持久化 CANCEL_SUBMITTED、券商失败以 502 BROKER_UNAVAILABLE 上抛；差异在失败语义：Rust 在调用券商前先提交 CANCEL_SUBMITTED 幂等栅栏，失败时按 fail-closed 落 UNKNOWN（再次撤单即 400 EXECUTION_ORDER_TERMINAL），而 Go 保持撤单前状态。该写前栅栏是 Rust 的崩溃安全设计，已在结论中如实记录，不标 function_exact。",
     "command": "",
     "evidence_type": "partial"
   },
@@ -26558,11 +26558,11 @@
     "evidence_type": "missing"
   },
   "internal/strategy/catalog/runtime_reconciliation_business_test.go:52:TestCatalogRuntimeFailureReconcilesOnlyRunningInstance": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_port.rs::restore_invalid_running_binding_marks_instance_failed",
-    "conclusion": "部分覆盖：Rust 验证 RUNNING 且 binding 无法恢复时标记 FAILED、关闭 runtime 并写日志；Go 还验证 stopped 实例完全不变、running 实例状态/审计详情及错误日志内容",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(restore_invalid_running_binding_marks_instance_failed)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_port.rs::recovery_failure_converges_the_running_instance_to_stopped; crates/jftrade-engine/src/strategy_runtime_owner_tests.rs::runtime_exit_converges_to_stopped_with_audit_notification_and_error_log",
+    "conclusion": "function_exact：Go 断言只有 RUNNING 实例被收敛（STOPPED 实例 saveCount=0）、状态变 STOPPED、runtime_exited 审计 detail=失败消息、error 日志含该消息。Rust 两条测试分别覆盖：恢复失败把 RUNNING 行收敛为 STOPPED + RUNTIME_EXITED 审计 + `strategy runtime exited unexpectedly: ` 错误日志；对已非 RUNNING 的实例再次收敛不追加第二条 RUNTIME_EXITED（等价于 Go 的 no-op 分支）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(recovery_failure_converges_the_running_instance_to_stopped)'",
+    "evidence_type": "function_exact"
   },
   "internal/strategy/catalog/runtime_reconciliation_business_test.go:80:TestCatalogStartupReconcileResetsStaleRunningAndPausedState": {
     "status": "[~]",

@@ -105,6 +105,7 @@ impl StrategyRuntimeManager {
                         fail_strategy_task(
                             &store,
                             &router,
+                            notification.as_deref(),
                             &id_for_thread,
                             &active_symbols,
                             format!("create strategy runtime executor: {error}"),
@@ -116,7 +117,14 @@ impl StrategyRuntimeManager {
                     match restore_pine_runtime_state(&store, &id_for_thread, &active_symbols) {
                         Ok(state) => state,
                         Err(error) => {
-                            fail_strategy_task(&store, &router, &id_for_thread, &active_symbols, error);
+                            fail_strategy_task(
+                                &store,
+                                &router,
+                                notification.as_deref(),
+                                &id_for_thread,
+                                &active_symbols,
+                                error,
+                            );
                             return;
                         }
                     };
@@ -483,6 +491,7 @@ impl StrategyRuntimeManager {
                         fail_strategy_task(
                             &store,
                             &router,
+                            notification.as_deref(),
                             &id_for_thread,
                             &active_symbols,
                             error,

@@ -7,8 +7,9 @@ use crate::product::product_strategy_runtime_write_port::{
     StrategyRuntimeWritePortError,
 };
 use crate::product::{
-    MarketDataQuoteReadSnapshotPort, ProductNotificationPort, StrategyReadSnapshotError,
-    StrategyReadSnapshotPort, StrategyRuntimeStatusPort, StrategyRuntimeSummary,
+    MarketDataQuoteReadSnapshotPort, ProductNotificationPort, ProductNotificationRequest,
+    StrategyReadSnapshotError, StrategyReadSnapshotPort, StrategyRuntimeStatusPort,
+    StrategyRuntimeSummary,
 };
 use jftrade_integration_futu::{TradeFilter, TradeHeader};
 use jftrade_integration_pine::{GrpcPineExecutionPort, PineExecutionError, PineRunRequest};
@@ -718,9 +719,18 @@ fn strategy_write_error_message(error: StrategyRuntimeWritePortError) -> String 
     }
 }
 
+/// Converge a dead strategy task the way the reference runtime does.
+///
+/// Reference behaviour (`internal/strategy/liveruntime/observation.go`
+/// `handleRuntimePanic` plus `internal/strategy/catalog/lifecycle.go`
+/// `ReconcileRuntimeFailure`): record the error on the observation, release the
+/// runtime ownership, reconcile a still-RUNNING instance to STOPPED with a
+/// `runtime_exited` audit entry and an error log, then notify the operator with
+/// the `策略运行异常退出` live notification.
 fn fail_strategy_task(
     store: &StrategyRuntimeStore,
     router: &Option<Arc<Mutex<ProviderRouter>>>,
+    notification: Option<&dyn ProductNotificationPort>,
     instance_id: &str,
     active_symbols: &[String],
     message: String,
@@ -728,7 +738,7 @@ fn fail_strategy_task(
     let now = now_millis();
     let _ = store.update_observation_with_events(
         instance_id,
-        "FAILED",
+        "STOPPED",
         active_symbols,
         Some(&message),
         None,
@@ -736,14 +746,30 @@ fn fail_strategy_task(
         None,
         now,
     );
-    let _ = store.append_log_event(instance_id, &message, "error", now);
-    match now_rfc3339() {
-        Ok(timestamp) => {
-            let _ = store.update_status(instance_id, "FAILED", &timestamp);
+    let detail = format!("strategy runtime exited unexpectedly: {message}");
+    let _ = store.append_log_event(instance_id, &detail, "error", now);
+    let still_running = store
+        .get_instance(instance_id)
+        .ok()
+        .flatten()
+        .is_some_and(|instance| instance.status.eq_ignore_ascii_case("RUNNING"));
+    if still_running {
+        match now_rfc3339() {
+            Ok(timestamp) => {
+                let _ = store.update_status(instance_id, "STOPPED", &timestamp);
+                let _ = store.append_audit_event(instance_id, "RUNTIME_EXITED", &message, now);
+            }
+            Err(error) => {
+                let _ = store.append_log_event(instance_id, &error, "error", now);
+            }
         }
-        Err(error) => {
-            let _ = store.append_log_event(instance_id, &error, "error", now);
-        }
+    }
+    if let Some(notifier) = notification {
+        let _ = notifier.deliver(ProductNotificationRequest {
+            title: "策略运行异常退出".to_owned(),
+            body: message.clone(),
+            sound_enabled: true,
+        });
     }
     if let Some(router) = router.as_ref() {
         let _ = router
