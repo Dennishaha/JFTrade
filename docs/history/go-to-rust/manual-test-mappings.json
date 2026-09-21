@@ -18979,254 +18979,254 @@
   "internal/marketdataassets/asset_selection_boundaries_test.go:15:TestBinaryNameForUsesGoPlatformNames": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "partial：Rust 的平台命名由 apps/desktop/src-tauri/src/native_resource_integrity.rs::release_marketdata_helper_path（runtime/marketdata/marketdata-sidecar-<platform>-<arch>[.exe]）与 scripts/lib/desktop-release-inputs.mjs::currentMarketDataSidecarAssetPath（runtime-assets/marketdata/marketdata-sidecar-<goos>-<goarch>）承担，后者由 scripts/lib/desktop-release-inputs.test.mjs 断言 darwin/arm64 与 windows/amd64 命名；差异：Go 暴露可传 goos/goarch 的 BinaryNameFor（darwin-arm64/linux-amd64/windows-amd64.exe 三组），Rust 用 cfg! 编译期推导且只覆盖当前目标三元组，命名逻辑不属于 crates/**，审计无法建立函数级 rust_entry。",
+    "command": "pnpm run check:quick",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/asset_selection_boundaries_test.go:30:TestSelectFromFSReturnsPlatformOnedirAssetMetadata": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::verifies_and_materializes_content_addressed_asset",
+    "conclusion": "partial：Rust 以内容寻址的 AssetBundle（名称+字节+SHA256）表达 sidecar 资产并校验落盘字节；差异：Go 从 embed FS 选出整个 PyInstaller onedir 包（可执行 + lib/* 多文件）并按排序路径+字节计算 SHA256，Rust 没有 onedir 资产模型与多文件遍历，release 包直接作为 Tauri resources 目录分发。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/asset_selection_boundaries_test.go:58:TestSelectFromFSTreatsMissingAndEmptyAssetsAsUnavailable": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::rejects_checksum_mismatch_before_writing",
+    "conclusion": "partial：Rust 在可执行文件缺失或摘要不匹配时拒绝发布侧车（marketdata_helper_command/required_asset 返回 MissingAsset，HelperProcess::new 的 validate 返回 MissingExecutable，空 bundle 无法通过校验和）；差异：Go 用 (Asset{}, false, nil) 表达“本构建未嵌入 release 资产”，Rust 用 Option/Err 表达，且 dev 构建走 JFTRADE_MARKETDATA_DEV_PYTHON/venv 源而不是空 embed FS。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/asset_selection_boundaries_test.go:80:TestSelectFromFSReturnsUnexpectedReadError": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::verifies_and_materializes_content_addressed_asset",
+    "conclusion": "partial：Rust 在资产读取/写入失败时以 AssetError::Io 透传底层 io 错误（fail-closed，不降级为“不可用”）；差异：Go 断言 selectFromFS 把底层 fs 错误原样返回并把 asset 置空，Rust 没有 selectFromFS 入口，等价路径是 materialize/清单校验时的读取失败。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/asset_selection_boundaries_test.go:91:TestSelectFromFSRejectsInvalidPlatformBundleShapes": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::rejects_escaping_asset_names_before_writing",
+    "conclusion": "partial：Rust 对非法资产形状 fail-closed：非裸文件名（含越界路径）在写盘前以 AssetError::InvalidName 拒绝，release 资源清单里的绝对路径/逃逸分量由 Component::Normal 白名单拒绝；差异：Go 断言 bundle 根是文件、可执行缺失、可执行不可读三种形状都返回不可用，Rust 单文件模型没有“bundle 根/子文件”结构可供逐形状校验。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/asset_selection_boundaries_test.go:126:TestReadAssetFilesRejectsUnsafeOrUnreadableEntries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::rejects_escaping_asset_names_before_writing",
+    "conclusion": "partial：Rust 拒绝 ../x、a/b 这类非裸资产名且不落盘；差异：Go 遍历 onedir 树并拒绝符号链接条目、不可读条目与越界相对路径，Rust 单文件模型没有 symlink 条目概念，release 包内的符号链接在打包阶段由 scripts/lib/materialize-directory-symlinks.mjs（测试：materializes internal file and directory symlinks as regular bundle entries、rejects bundle symlinks that escape the output directory）实体化/拒绝。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/asset_selection_boundaries_test.go:151:TestMaterializeAssetUsesPrivateDirectoryAndCleansUp": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::verifies_and_materializes_content_addressed_asset",
+    "conclusion": "partial：Rust 把校验后的资产原子写入调用方指定的目录并返回可执行路径（临时文件 + rename，失败清理临时文件）；差异：Go 自带 MkdirTemp 私有目录、0700 目录/文件模式与 Cleanup/Close 删除语义，Rust 没有删除路径——release 资源留在打包目录中，所有权归资源目录而非本次调用。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/asset_selection_boundaries_test.go:192:TestMaterializeAssetRejectsEmptyAsset": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::rejects_checksum_mismatch_before_writing",
+    "conclusion": "partial：空字节或缺失记录摘要的 bundle 在 Rust 无法通过 verify（InvalidName/ChecksumMismatch），不会写盘；差异：Go 以 (nil, false, nil) 表达“空资产=不可用”，Rust 以错误表达而非可用性三元组。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/asset_selection_boundaries_test.go:204:TestMaterializeAssetRejectsDigestChanges": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::rejects_a_bundle_whose_bytes_no_longer_match_the_digest",
+    "conclusion": "[x]：字节与记录摘要不一致时拒绝物化且不落盘，对应 Go 三条断言（err 非空、available=false、materialized=nil）；差异仅在错误表达：Rust 返回 AssetError::ChecksumMismatch{expected,actual}，Go 返回含 “SHA256 changed” 文案的 error。本批新增回归测试；因 check-zero-go 禁止活动根出现该退休包的内部路径字样，代码侧不写 `// Parity:` 锚点，证据保留在 docs/history/go-to-rust/marketdata-assets-batch-scope.md 与审计清单。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/marketdataassets/asset_selection_boundaries_test.go:218:TestMaterializeAssetRejectsInvalidBundlePath": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::rejects_escaping_asset_names_before_writing",
+    "conclusion": "[x]：越界 bundle 路径（../sidecar）与非裸名（nested/sidecar）在物化前被拒绝且不写盘，与 Go 断言一致；差异仅在错误类型/文案：Rust AssetError::InvalidName（market-data helper asset name is invalid），Go 为含 “invalid market-data sidecar bundle file path” 的 error。本批新增回归测试；因 check-zero-go 禁止活动根出现该退休包的内部路径字样，代码侧不写 `// Parity:` 锚点，证据保留在 docs/history/go-to-rust/marketdata-assets-batch-scope.md 与审计清单。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/marketdataassets/asset_selection_boundaries_test.go:231:TestMaterializeAssetRequiresUsableExecutableAndWritableTempRoot": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::verifies_and_materializes_content_addressed_asset",
+    "conclusion": "partial：Rust 先校验名称与摘要，再 create_dir_all/写临时文件/rename，任何目录或权限失败都以 AssetError::Io 失败且不留半成品；差异：Go 通过 TMPDIR 注入不可写临时根并断言 MkdirTemp 失败，Rust 物化目录由调用方提供（无 TMPDIR 语义），失败路径是目录创建/写入/改名错误。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/asset_selection_boundaries_test.go:271:TestAssetPathAndDigestHelpersRejectDuplicateOrEscapingPaths": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::rejects_escaping_asset_names_before_writing",
+    "conclusion": "partial：Rust 以裸文件名约束替代路径列表校验（../runtime 等越界名被拒），重复角色/越界相对路径在资产计划层拒绝（apps/desktop/src-tauri/src/lifecycle.rs::RuntimePlan::new，测试：apps/desktop/src-tauri/tests/desktop_contracts.rs::runtime_plan_rejects_missing_duplicate_and_unsafe_assets），release 清单路径逃逸由 Component::Normal 白名单拒绝；差异：Go 的 normalizeAssetFiles/digestAssetFiles 报重复路径错误，Rust 单文件模型没有多文件列表，重复项不存在。",
+    "command": "pnpm run check:quick",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/asset_selection_boundaries_test.go:287:TestCleanupHandlesNilAndAlreadyCleanedAssets": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "boundary：Rust 不返回可清理句柄——AssetBundle::materialize 只返回路径，没有 Cleanup/Close，也没有 tempDir 字段，因此 nil/重复清理不可达；release 资源目录由打包流程管理，故意保留该边界差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/marketdataassets/asset_selection_boundaries_test.go:298:TestDigestMaterializedFilesReportsOpenError": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::verifies_and_materializes_content_addressed_asset",
+    "conclusion": "partial：Rust 物化后通过重新读取目标文件做复用判定，读取失败不会静默通过而是走重写路径，写失败以 AssetError::Io 报错；差异：Go 有独立的 digestMaterializedFiles(root, files) 对账函数并对缺失文件报错，Rust 没有落盘后的二次摘要对账步骤（复用判定按字节相等）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/asset_selection_boundaries_test.go:315:TestIsMissingAssetRecognizesOnlyNotFoundErrors": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "partial：Rust 用 std::fs 的 ErrorKind/Path::is_file 判定缺失（required_asset、marketdata_helper_command、HelperProcess 的 executable 校验），不复制字符串匹配；差异：Go isMissingAsset 额外匹配 “file does not exist”/“no such file” 平台文案，Rust 依赖 ErrorKind::NotFound，因此“只有 NotFound 才算缺失”这一意图等价、实现与错误来源不同，且判定点在 apps/desktop 与 crate 内 process 校验，无 crates 内独立函数可供引用。",
+    "command": "pnpm run check:quick",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/assets_dev_test.go:14:TestSelectReturnsUnavailableWithoutReleaseAssets": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "partial：Rust dev 运行通过 JFTRADE_MARKETDATA_DEV_PYTHON/workers/marketdata-sidecar/.venv 解析侧车（crates/jftrade-engine/src/product_runtime_workers.rs::desktop_marketdata_helper），解析不到时不注册 marketdata-sidecar 运行时资源（product_resources 中 marketdata_helper 为 None）；差异：Go 用 build tag 区分 dev/release 并以 DevelopmentOverridesAllowed()=true + Select/Materialize 不可用表达，Rust 无嵌入资产开关，dev/release 差异由打包与 env 覆盖决定。",
+    "command": "pnpm run check:quick",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/assets_dev_test.go:34:TestReleaseReturnsUnavailableWithoutReleaseAssets": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "partial：Rust 只有一条侧车解析路径（JFTRADE_MARKETDATA_SIDECAR → dev venv → release 资源目录），不存在 Go 的 Release/Materialize 双 API，可用性以“是否注册 marketdata-sidecar 资源/是否返回 MissingAsset”表达；差异：Go 断言 Release() 在未嵌入资产时可用性为 false。",
+    "command": "pnpm run check:quick",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/assets_dev_test.go:44:TestDevelopmentCacheWrappersRemainSafeWithoutEmbeddedAssets": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "boundary：Rust 没有 MaterializeCached/PruneCached 开发包装器与缓存目录，开发运行直接使用 venv python + PYTHONPATH 源目录，因此“无嵌入资产时缓存包装器仍安全”没有对应实现点。",
+    "command": "pnpm run check:quick",
+    "evidence_type": "boundary"
   },
   "internal/marketdataassets/assets_release_test.go:14:TestSelectReturnsStagedPlatformAssetWhenPresent": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "partial：Rust release 从 runtime/marketdata/marketdata-sidecar-<platform>-<arch>/<name> 资源路径启动侧车，资源字节一致性由 apps/desktop/src-tauri/src/resource_integrity.rs::verify_release_resources 的清单 SHA256 校验保证（apps/desktop/src-tauri/src/native_resource_integrity.rs::release_marketdata_helper_path 负责命名），打包侧由 scripts/build-marketdata-sidecar.mjs（测试：build stages one host-specific PyInstaller onedir asset）产出同名目录；差异：Go 从 embed FS 读出可执行字节并与 Select 结果逐字节比较，Rust 不在运行期嵌入/解包资产。",
+    "command": "pnpm run check:quick",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/assets_release_test.go:49:TestStagedDarwinBundleEmbedsPythonLoaderAsRegularFile": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "partial：Rust 不在运行期重新物化 PyInstaller 包，macOS loader 布局由打包阶段保证——scripts/lib/materialize-directory-symlinks.mjs 把 bundle 内的文件/目录符号链接实体化为常规条目（测试：materializes internal file and directory symlinks as regular bundle entries、rejects bundle symlinks that escape the output directory）；差异：Go 断言嵌入后的 _internal/Python 等路径是非空常规文件，Rust 没有运行期“嵌入资产”断言。",
+    "command": "pnpm run check:quick",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/assets_release_test.go:72:TestMaterializeCachedReleaseAssetReusesBundleAndFallsBack": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "partial：Rust release 直接复用资源目录中的可执行文件（不复制、不缓存），缓存根不可用时不存在回退路径——解析失败即 MissingAsset 失败；差异：Go 断言缓存命中原样复用、不安全 cache root 报错、再用 Materialize 临时目录回退。",
+    "command": "pnpm run check:quick",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/assets_test.go:8:TestBinaryNameUsesCurrentRuntime": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "partial：Rust 以 cfg!(target_os/target_arch) 推导当前平台名（apps/desktop/src-tauri/src/native_resource_integrity.rs::release_marketdata_helper_path）并与 PyInstaller 产物目录名一致；差异：Go 断言 BinaryName() == BinaryNameFor(runtime.GOOS, runtime.GOARCH)，Rust 没有可传入平台参数的 BinaryNameFor（编译期单目标），且该逻辑不在 crates/**，无法建立函数级 rust_entry。",
+    "command": "pnpm run check:quick",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/cache_test.go:15:TestMaterializeCachedAssetReusesVerifiedContent": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::reuses_a_published_asset_without_rewriting_it",
+    "conclusion": "[x]：二次物化复用已发布文件——同一路径、内容仍为已发布字节、文件身份（inode）与 mtime 不变，对应 Go 的“第二次返回同一 Path 且 mtime 未被重写”；Go 末条断言（持久资产的 Cleanup 是 no-op、缓存不被删除）在 Rust 结构上成立：materialize 没有删除路径，测试同样断言复用后文件仍存在。本批新增回归测试；因 check-zero-go 禁止活动根出现该退休包的内部路径字样，代码侧不写 `// Parity:` 锚点，证据保留在 docs/history/go-to-rust/marketdata-assets-batch-scope.md 与审计清单。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/marketdataassets/cache_test.go:45:TestMaterializeCachedAssetRepairsTamperAndSymlink": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::reuses_a_published_asset_without_rewriting_it",
+    "conclusion": "partial：Rust 复用判定按字节比对，内容被篡改后会重新写入（临时文件 + 原子 rename 覆盖），因此篡改可自愈；差异：Go 断言 onedir 依赖文件被篡改以及被替换成符号链接后都修复，Rust 单文件模型没有 lib/ 目录与 symlink 条目，也不校验 POSIX 权限位（依赖打包目录权限）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/cache_test.go:83:TestMaterializeCachedAssetPublishesConcurrently": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::reuses_a_published_asset_without_rewriting_it",
+    "conclusion": "partial：Rust 通过临时文件 + rename 原子发布，并发重复发布最终收敛到同一目标路径，复用分支保证赢家字节不被覆盖；差异：Go 显式用 6 个 goroutine 断言并发调用返回同一路径，Rust 无并发回归测试，也没有内容寻址目录（目标名固定为资产文件名）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/cache_test.go:118:TestPublishCachedAssetAcceptsOnlyAValidConcurrentWinner": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::reuses_a_published_asset_without_rewriting_it",
+    "conclusion": "partial：Rust 在 rename 失败时删除临时文件并把错误返回调用方（不覆盖已存在的合法目标，后续调用走复用分支）；差异：Go 的 publishCachedAsset 在 rename 失败后重新校验目标是否为合法并发赢家，合法则接受、非法则回滚 staging，Rust 没有“接受并发赢家”的显式分支与 staging 目录。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/cache_test.go:159:TestMaterializeCachedAssetPrunesOnlyExpiredDigests": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "boundary：Rust 没有内容寻址缓存目录、7 天保留期与 prune 机制（cachedAssetRetention/pruneCachedAssets/PruneCached 均无对应实现）；release 侧边车直接从 Tauri 资源目录启动，不存在需要清理的历史摘要目录，保留该边界差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/marketdataassets/cache_test.go:185:TestPruneCachedAssetsIgnoresMissingCacheRoot": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "boundary：Rust 无 PruneCached 接口与缓存根目录概念，缺失缓存根不会被创建这一断言没有对应行为，保留为边界差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/marketdataassets/cache_test.go:193:TestMaterializeCachedAssetRejectsUnsafeCacheRoot": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "boundary：Rust 不使用缓存根参数——物化目录由调用方（打包资源目录/临时目录）提供且不区分“缓存根”，因此“缓存根是普通文件时拒绝”没有对应实现点；差异保留为部署模型边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/marketdataassets/cache_test.go:207:TestEnsurePrivateCacheRootReportsUninspectablePath": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "boundary：Rust 无 ensurePrivateCacheRoot（私有目录创建与 Lstat/chmod 校验），目录创建失败以 create_dir_all 的 io 错误直接上抛，错误分类与文案不同；保留为边界差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/marketdataassets/cache_test.go:218:TestRemoveInvalidCacheTargetReportsInspectionFailure": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "boundary：Rust 没有 removeInvalidCacheTarget——无效缓存目标不会被删除重建，AssetBundle::materialize 通过覆盖写修复目标，因此“检查失败时报 inspect 错误”没有对应分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/marketdataassets/cache_test.go:229:TestRemoveInvalidCacheTargetReportsRemovalFailure": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "boundary：同上，Rust 无缓存目标删除路径（无可保留/可删除的缓存目录），POSIX 目录权限导致的删除失败不可复现。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/marketdataassets/cache_test.go:249:TestMaterializeCachedAssetRejectsInvalidAssetAndRootInputs": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::rejects_a_bundle_whose_bytes_no_longer_match_the_digest",
+    "conclusion": "partial：Rust 覆盖其中的无效输入面——空资产/缺失可执行/摘要不匹配/越界名在 verify 阶段拒绝且不写盘；差异：Go 还断言重复路径、相对缓存根、文件阻塞子目录等 onedir/缓存专属输入，Rust 单文件模型没有这些输入（目录冲突会以 IOException 失败而非参数校验错误）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/cache_test.go:310:TestWriteAssetFilesReportsInvalidPathsAndFilesystemConflicts": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::rejects_escaping_asset_names_before_writing",
+    "conclusion": "partial：Rust 的越界路径写盘前即被拒绝（不创建目录），文件/目录冲突由 create_dir_all 与 rename 的 io 错误 fail-closed 上抛；差异：Go 的 writeAssetFiles 在写入阶段区分“逃逸路径”与“文件阻塞目录/目录阻塞文件”两类错误文案，Rust 只有名称校验 + io 错误两种结果。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/cache_test.go:336:TestValidateCachedAssetRejectsUnsafeShapes": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::reuses_a_published_asset_without_rewriting_it",
+    "conclusion": "partial：Rust 复用前按字节比对已发布内容（等价于摘要校验的最小形式），内容不符即重写，因而篡改/缺文件不会通过；差异：Go 对 onedir 目录树校验根权限、目录/文件权限、多余文件、不完整打包与摘要不一致五类形状，Rust 无目录树校验（release 资源完整性由 apps/desktop/src-tauri/src/resource_integrity.rs::verify_release_resources 的清单摘要覆盖）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/marketdataassets/cache_test.go:407:TestValidateCachedAssetRejectsSocket": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "conclusion": "boundary：Rust 没有缓存目录树校验，也没有“非常规文件”判定；单文件物化在遇到 socket/FIFO 时会以读写 io 错误失败而不是形状校验错误，保留该边界差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "pkg/market/calendar/builtin_test.go:8:TestBuiltinResolverUSHolidayAndEarlyClose": {
     "status": "[~]",

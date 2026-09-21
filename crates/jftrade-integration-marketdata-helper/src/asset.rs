@@ -85,6 +85,29 @@ fn encode_hex(bytes: &[u8]) -> String {
 mod tests {
     use super::*;
 
+    fn scratch_root(name: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "jftrade-marketdata-helper-{}-{}-{name}",
+            std::process::id(),
+            std::thread::current().name().unwrap_or("test")
+        ));
+        let _ = fs::remove_dir_all(&root);
+        root
+    }
+
+    fn file_identity(metadata: &fs::Metadata) -> Option<u64> {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            Some(metadata.ino())
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = metadata;
+            None
+        }
+    }
+
     #[test]
     fn verifies_and_materializes_content_addressed_asset() {
         let root = std::env::temp_dir().join(format!(
@@ -114,5 +137,81 @@ mod tests {
             bundle.verify(),
             Err(AssetError::ChecksumMismatch { .. })
         ));
+    }
+
+    #[test]
+    fn rejects_a_bundle_whose_bytes_no_longer_match_the_digest() {
+        let root = scratch_root("digest-change");
+        let bundle = AssetBundle {
+            file_name: "marketdata-sidecar-linux-amd64",
+            bytes: b"sidecar",
+            sha256: "0000000000000000000000000000000000000000000000000000000000000000",
+        };
+        assert!(matches!(
+            bundle.materialize(&root),
+            Err(AssetError::ChecksumMismatch { .. })
+        ));
+        assert!(
+            !root.join(bundle.file_name).exists(),
+            "a bundle whose bytes changed must not be published"
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn reuses_a_published_asset_without_rewriting_it() {
+        let root = scratch_root("reuse");
+        let bundle = AssetBundle {
+            file_name: "helper.bin",
+            bytes: b"fixture",
+            sha256: "f16d05ec6b29248d2c61adb1e9263f78e4f7bace1b955014a2d17872cfe4064d",
+        };
+        let published = bundle.materialize(&root).expect("publish asset");
+        let published_metadata = fs::metadata(&published).expect("published metadata");
+        let reused = bundle.materialize(&root).expect("reuse published asset");
+        let reused_metadata = fs::metadata(&reused).expect("reused metadata");
+        assert_eq!(published, reused);
+        assert_eq!(fs::read(&reused).expect("read reused"), b"fixture");
+        assert_eq!(
+            file_identity(&published_metadata),
+            file_identity(&reused_metadata),
+            "a reused asset keeps the published file instead of republishing it"
+        );
+        assert_eq!(
+            published_metadata.modified().expect("published mtime"),
+            reused_metadata.modified().expect("reused mtime")
+        );
+        assert!(reused.exists(), "a reused asset is not cleaned up by reuse");
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn rejects_escaping_asset_names_before_writing() {
+        let parent = scratch_root("escaping-name");
+        let root = parent.join("bundle");
+        fs::create_dir_all(&root).expect("create bundle root");
+        for name in ["../sidecar", "nested/sidecar"] {
+            let bundle = AssetBundle {
+                file_name: name,
+                bytes: b"payload",
+                sha256: "239f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9b852d5a935e5",
+            };
+            assert!(
+                matches!(bundle.materialize(&root), Err(AssetError::InvalidName)),
+                "{name} must not materialize"
+            );
+        }
+        assert!(
+            !parent.join("sidecar").exists(),
+            "an escaping bundle name must not write outside the bundle root"
+        );
+        assert!(
+            fs::read_dir(&root)
+                .expect("read bundle root")
+                .next()
+                .is_none(),
+            "a rejected bundle name must not publish any file"
+        );
+        let _ = fs::remove_dir_all(parent);
     }
 }
