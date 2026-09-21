@@ -20315,17 +20315,17 @@
   },
   "cmd/jftrade-desktop/desktop_updates_test.go:9:TestDesktopUpdateServiceSelectsLatestStableDesktopRelease": {
     "status": "[~]",
-    "rust_entry": "待补 Rust updater HTTP fixture：当前无稳定 release 选择的 headless 测试",
-    "conclusion": "待补 Rust 测试：现有 updater 仅验证 HTTPS endpoint/public key 配置，未验证 GitHub release 列表的 stable/prerelease/draft 过滤和版本选择。",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop --all-targets --locked`",
-    "evidence_type": "missing"
+    "rust_entry": "apps/desktop/src-tauri/src/native_notification_updater.rs; apps/desktop/src-tauri/src/native_lifecycle.rs; apps/desktop/src-tauri/src/profile.rs; scripts/check-desktop-release-policy.mjs; scripts/release/check-signed-updater-artifact.mjs; scripts/verify-tauri-release-artifacts.mjs",
+    "conclusion": "不适用/边界保留（不迁移客户端 release 列表选择）：Go 在该测试里要求 DesktopUpdateService 抓取 GitHub releases API（User-Agent: JFTrade-Desktop/<current>、Accept: application/vnd.github+json），过滤 draft、prerelease、非 v 前缀与非 semver tag，取最大稳定版本，并把 Available/LatestVersion/ReleaseURL/PublishedAt/Notes 交给前端横幅，且只对 release 构建生效（dev 渠道 UpdateChecksEnabled=false）。Rust 把“选择最新稳定版”的所有权移到发布侧 + 签名 feed：桌面端 NativeUpdaterConfig 要求 HTTPS endpoint 与公钥成对配置（native_notification_updater.rs），release 构建启动时用签名 updater 拉取 feed（native_lifecycle.rs:148-166），有更新时 emit jftrade:desktop-update:available，前端 DesktopUpdateBanner 复用同一事件并以签名安装收口；发布策略保证该路径必然配置（scripts/check-desktop-release-policy.mjs 的 updater 必需项 + .github/workflows/desktop-release.yml 注入端点/公钥），feed 版本被 scripts/release/check-signed-updater-artifact.mjs（numeric semver 正则）与 scripts/verify-tauri-release-artifacts.mjs:43 强制为稳定数值 x.y.z，因此“只提供稳定版”由发布侧保证，Rust 客户端不存在可断言的 release 列表过滤代码。已核对：apps/desktop/src-tauri 内除 Update.raw_json 的 html_url 兜底外，没有任何 tag_name/prerelease/draft 解析。复现：给未配置签名 feed 的构建调用 desktop_update_check 会返回 DESKTOP_UPDATE_NOT_CONFIGURED，而不是像 Go 那样降级去读公开 release 列表。若产品决定恢复“未配置签名 feed 也提示公开 release”的能力，修复位置为 apps/desktop/src-tauri（新增 feed 客户端）；回归要求：headless fixture/mock server 覆盖 draft/prerelease/非 v tag 过滤、最大稳定 semver、User-Agent: JFTrade-Desktop/<current>，且不得引入未签名的下载/安装路径。在完成该产品决策前，本条保持“不适用/边界保留”，不冒充 function_exact。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "cmd/jftrade-desktop/desktop_updates_test.go:33:TestDesktopUpdateServiceDisabledForDevelopment": {
-    "status": "[~]",
-    "rust_entry": "`jftrade-desktop::native::tests::updater_requires_complete_https_release_configuration`",
-    "conclusion": "部分覆盖：Rust 验证 disabled development config 不构造 updater；Go 还调用 Check 并断言返回 current=dev、Available=false，缺少同形状结果断言。",
-    "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(updater_requires_complete_https_release_configuration)' --locked`",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "apps/desktop/src-tauri/src/native_tests.rs::tests::development_channel_skips_release_checks_while_the_release_channel_runs_them; apps/desktop/src-tauri/src/profile.rs; apps/desktop/src-tauri/src/native_notification_updater.rs",
+    "conclusion": "function_exact：Go 的 TestDesktopUpdateServiceDisabledForDevelopment 断言 enabled=false（开发态）时 Check 不报错、Available=false、CurrentVersion 原样回显。Rust 按层等价：profile 层 development 渠道 update_checks_enabled=false、release 渠道为 true（本批新增测试逐条断言，探针把 development 改成 true 即转红）；配置层 NativeUpdaterConfig::from_values(false, None, None) == Disabled（既有 updater_requires_complete_https_release_configuration 断言）；生命周期层只在该渠道开关为真时才 spawn 启动检查任务，facade 被显式调用时 Disabled 分支返回 no_update(current)（available=false、无错误）。保留差异：Rust 的 currentVersion 取 Tauri package_info 的真实包版本（例如 0.1.0），不复制 Go 构建信息里的 \"dev\" 占位字符串；本测试断言的是“开发渠道不轮询 + 配置为 Disabled + 无可用更新”这一可观察契约。探针：development 渠道 update_checks_enabled 改 true → 新测试转红，按字节回滚（profile.rs 457b009b…、native_tests.rs 76cf4793…）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "cmd/jftrade-desktop/desktop_window_state_test.go:12:TestDesktopWindowStatePathIsReleaseOnly": {
     "status": "[~]",

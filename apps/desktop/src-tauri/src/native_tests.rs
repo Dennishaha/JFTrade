@@ -59,6 +59,35 @@ mod tests {
         ));
     }
 
+    // Parity: go:452dea11:cmd/jftrade-desktop/desktop_updates_test.go:33 TestDesktopUpdateServiceDisabledForDevelopment
+    #[test]
+    fn development_channel_skips_release_checks_while_the_release_channel_runs_them() {
+        let paths = PlatformPaths {
+            platform: DesktopPlatform::Darwin,
+            home_dir: "/fixture/home".to_owned(),
+            config_dir: String::new(),
+            local_app_data: String::new(),
+            xdg_data_home: String::new(),
+        };
+        let development =
+            DesktopProfile::resolve(DesktopChannel::Dev, &paths).expect("development profile");
+        assert!(
+            !development.update_checks_enabled,
+            "development builds never poll for desktop releases"
+        );
+        assert_eq!(
+            NativeUpdaterConfig::from_values(development.update_checks_enabled, None, None)
+                .expect("development updater"),
+            NativeUpdaterConfig::Disabled
+        );
+        let release =
+            DesktopProfile::resolve(DesktopChannel::Release, &paths).expect("release profile");
+        assert!(
+            release.update_checks_enabled,
+            "release builds own desktop update checks"
+        );
+    }
+
     #[test]
     fn log_reader_matches_go_filter_paging_and_day_order() {
         // Parity: cmd/jftrade-desktop/main_test.go:395 TestListDesktopLogDaysAndReadsFilteredPage
