@@ -22043,39 +22043,39 @@
     "evidence_type": "partial"
   },
   "internal/jftsettings/exchange_calendar_settings_validation_test.go:8:TestExchangeCalendarSettingsUnmarshalExplicitEnabledField": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/exchange_calendar.rs::explicit_error_notifications_true_keeps_calendar_defaults",
+    "conclusion": "function_exact：Go 断言显式 true 被接受，enabled 与“已设置”标记都为真。Rust 测试解码 `{\"errorNotificationsEnabled\":true}` 断言 error_notifications_enabled=true，并断言 auto_refresh_enabled=true、refresh_interval_hours=24（解码显式字段时不得把其余日历默认值清零，对应 Go 的 alias 解码路径），同时断言序列化输出 `errorNotificationsEnabled:true`。结构保留差异：Rust 无 set 标记；显式 true 与缺省 true 的可观察结果一致（默认即开启），且 Go 标记在该分支不参与任何决策（守卫条件 `!set && !enabled` 在 enabled=true 时为假），故按可达契约判定等价。锚点：go:452dea11:internal/jftsettings/exchange_calendar_settings_validation_test.go:8。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "evidence_type": "function_exact"
   },
   "internal/jftsettings/exchange_calendar_settings_validation_test.go:18:TestExchangeCalendarSettingsRejectsInvalidFieldValueInsideObject": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::non_boolean_error_notifications_value_is_rejected_at_open",
+    "conclusion": "function_exact：Go 断言 `{\"errorNotificationsEnabled\":\"enabled\"}` 这类对象内非法字段值解码失败。Rust 测试断言 SettingsFileStore::open 与 open_read_only 以 `decode exchangeCalendars` 错误拒绝该文档，不把字符串强制转成 bool。机制差异：Go 由 encoding/json 类型校验拒绝；Rust 由 `validate_supported_fields` → `validate_field::<StoredExchangeCalendarSettings>` 的严格 serde 解码拒绝。锚点：go:452dea11:internal/jftsettings/exchange_calendar_settings_validation_test.go:18。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file",
+    "evidence_type": "function_exact"
   },
   "internal/jftsettings/types_test.go:8:TestExchangeCalendarSettingsDefaultsLegacyErrorNotifications": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/exchange_calendar.rs::legacy_settings_without_error_notifications_field_default_to_enabled",
+    "conclusion": "function_exact：Go 断言缺 errorNotificationsEnabled 的旧配置解码后仍开启通知、且不被标记为“显式设置”。Rust 测试解码 `{\"autoRefreshEnabled\":true,\"refreshIntervalHours\":12}` 断言 error_notifications_enabled=true、auto_refresh_enabled=true、refresh_interval_hours=12，并断言序列化后该字段仍写出 true（写盘不丢字段）。结构保留差异：Go 的未导出 errorNotificationsEnabledSet 标记在 Rust 无对应物——serde 容器 `default` 直接从 `ExchangeCalendarSettings::default()`（error_notifications_enabled=true）取缺失字段，store 侧 `crates/jftrade-store-settings-file/src/lib.rs::load_exchange_calendars` 另用 `Option<bool>::unwrap_or(true)` 表达同一缺省决策；冻结基线中该标记的唯一生产消费者正是 internal/store/settingsfile/calendar.go:70 的归一化守卫，按 Go 实现逐形态推演缺字段/true/false/null 与 Rust 结果一致，类型错误与畸形 JSON 由本批另两条 Rust 测试锁定，故判定无行为缺口。锚点：go:452dea11:internal/jftsettings/types_test.go:8。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "evidence_type": "function_exact"
   },
   "internal/jftsettings/types_test.go:21:TestExchangeCalendarSettingsPreservesExplicitErrorNotifications": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/exchange_calendar.rs::explicit_error_notifications_false_survives_normalization",
+    "conclusion": "function_exact：Go 断言显式 false 被保留、被标记为显式设置，且 WithErrorNotificationsEnabledSet(false) 会清除标记。Rust 测试解码 `{\"errorNotificationsEnabled\":false}` 断言 false 保留，随后断言 normalize_exchange_calendar_settings 不会把显式 false 重新打开（这正是 Go 标记守卫要防的行为），并断言序列化仍写出 `errorNotificationsEnabled:false`。结构保留差异：Rust 没有 ErrorNotificationsEnabledSet()/WithErrorNotificationsEnabledSet() 这两个 Go 辅助 API，显式性改由 store 边界 `StoredExchangeCalendarSettings.error_notifications_enabled: Option<bool>` 表示、默认化在读取时一次完成，因此“清标记”在 Rust 无可断言对象；Go 对程序化构造零值 false（标记未置位）会强制回 true，而 Rust 无零值构造路径（`..Default::default()` 即 true），只有显式写出 false 才保存 false，与 Go 的“显式来源才保留 false”语义一致。锚点：go:452dea11:internal/jftsettings/types_test.go:21。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "evidence_type": "function_exact"
   },
   "internal/jftsettings/types_test.go:39:TestExchangeCalendarSettingsRejectsMalformedJSON": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::truncated_exchange_calendar_document_is_rejected_at_open",
+    "conclusion": "function_exact：Go 断言 `{\"manualOverrides\":` 这类截断 JSON 解码失败。Rust 测试写入截断的交易所日历文档 `{\"exchangeCalendars\":{\"manualOverrides\":`，断言 SettingsFileStore::open 与 open_read_only 都以 decode 错误失败，不把畸形文档降级为空设置。机制差异：Go 在 encoding/json 解析处即失败；Rust 在 `load_document` 的 serde_json 解析处对同一文档 fail-closed，并由 `validate_supported_fields` 对 exchangeCalendars 做类型校验兜底。锚点：go:452dea11:internal/jftsettings/types_test.go:39。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file",
+    "evidence_type": "function_exact"
   },
   "internal/live/client_test.go:8:TestNormalizeSubscriptions": {
     "status": "[x]",

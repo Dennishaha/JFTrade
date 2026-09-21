@@ -281,4 +281,59 @@ mod tests {
             vec!["nyse_official".to_owned(), "builtin_rules".to_owned()]
         );
     }
+
+    #[test]
+    // Parity: go:452dea11:internal/jftsettings/types_test.go:8 TestExchangeCalendarSettingsDefaultsLegacyErrorNotifications
+    // Legacy documents that predate errorNotificationsEnabled keep notifications on; the
+    // in-memory presence marker Go keeps is unnecessary because serde resolves the missing
+    // field from Default before any normalization runs.
+    fn legacy_settings_without_error_notifications_field_default_to_enabled() {
+        let settings: ExchangeCalendarSettings =
+            serde_json::from_str(r#"{"autoRefreshEnabled":true,"refreshIntervalHours":12}"#)
+                .expect("decode legacy exchange calendar settings");
+        assert!(settings.error_notifications_enabled);
+        assert!(settings.auto_refresh_enabled);
+        assert_eq!(settings.refresh_interval_hours, 12);
+        let encoded = serde_json::to_value(&settings).expect("encode legacy settings");
+        assert_eq!(
+            encoded["errorNotificationsEnabled"],
+            serde_json::json!(true)
+        );
+    }
+
+    #[test]
+    // Parity: go:452dea11:internal/jftsettings/types_test.go:21 TestExchangeCalendarSettingsPreservesExplicitErrorNotifications
+    // An explicit false stays false: decoding records it and normalization never re-enables it,
+    // which is the observable job of Go's errorNotificationsEnabledSet marker.
+    fn explicit_error_notifications_false_survives_normalization() {
+        let decoded: ExchangeCalendarSettings =
+            serde_json::from_str(r#"{"errorNotificationsEnabled":false}"#)
+                .expect("decode explicit error notification settings");
+        assert!(!decoded.error_notifications_enabled);
+        let normalized = normalize_exchange_calendar_settings(decoded);
+        assert!(!normalized.error_notifications_enabled);
+        let encoded = serde_json::to_value(&normalized).expect("encode explicit settings");
+        assert_eq!(
+            encoded["errorNotificationsEnabled"],
+            serde_json::json!(false)
+        );
+    }
+
+    #[test]
+    // Parity: go:452dea11:internal/jftsettings/exchange_calendar_settings_validation_test.go:8 TestExchangeCalendarSettingsUnmarshalExplicitEnabledField
+    // An explicit true is accepted, stays enabled, and still inherits the remaining calendar
+    // defaults instead of zeroing them.
+    fn explicit_error_notifications_true_keeps_calendar_defaults() {
+        let decoded: ExchangeCalendarSettings =
+            serde_json::from_str(r#"{"errorNotificationsEnabled":true}"#)
+                .expect("decode explicit enabled setting");
+        assert!(decoded.error_notifications_enabled);
+        assert!(decoded.auto_refresh_enabled);
+        assert_eq!(decoded.refresh_interval_hours, 24);
+        let encoded = serde_json::to_value(&decoded).expect("encode explicit enabled settings");
+        assert_eq!(
+            encoded["errorNotificationsEnabled"],
+            serde_json::json!(true)
+        );
+    }
 }

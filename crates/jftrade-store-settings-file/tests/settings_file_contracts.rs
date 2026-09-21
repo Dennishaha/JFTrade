@@ -561,6 +561,48 @@ fn missing_empty_and_corrupted_documents_have_distinct_behavior() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/jftsettings/types_test.go:39 TestExchangeCalendarSettingsRejectsMalformedJSON
+// A truncated exchangeCalendars object fails the whole document instead of loading an empty
+// calendar section, in both the writable and the read-only open path.
+fn truncated_exchange_calendar_document_is_rejected_at_open() {
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("settings.json");
+    fs::write(&path, r##"{"exchangeCalendars":{"manualOverrides":"##).expect("truncated settings");
+
+    let Err(error) = SettingsFileStore::open(&path) else {
+        panic!("truncated document is rejected");
+    };
+    assert!(
+        error.to_string().contains("decode"),
+        "unexpected error: {error}"
+    );
+    assert!(SettingsFileStore::open_read_only(&path).is_err());
+}
+
+#[test]
+// Parity: go:452dea11:internal/jftsettings/exchange_calendar_settings_validation_test.go:18 TestExchangeCalendarSettingsRejectsInvalidFieldValueInsideObject
+// A non-boolean errorNotificationsEnabled value inside the object is rejected rather than
+// coerced, so the typed field never falls back to a silently wrong boolean.
+fn non_boolean_error_notifications_value_is_rejected_at_open() {
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("settings.json");
+    fs::write(
+        &path,
+        r##"{"exchangeCalendars":{"errorNotificationsEnabled":"enabled"}}"##,
+    )
+    .expect("settings with non-boolean flag");
+
+    let Err(error) = SettingsFileStore::open(&path) else {
+        panic!("non-boolean flag is rejected");
+    };
+    assert!(
+        error.to_string().contains("decode exchangeCalendars"),
+        "unexpected error: {error}"
+    );
+    assert!(SettingsFileStore::open_read_only(&path).is_err());
+}
+
+#[test]
 fn null_appearance_is_treated_as_an_absent_optional_setting() {
     let directory = tempdir().expect("temporary directory");
     let path = directory.path().join("settings.json");
