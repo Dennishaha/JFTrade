@@ -9,11 +9,17 @@
 
 use serde_json::{Value, json};
 
+use crate::product::StrategyDefinitionPreview;
 use crate::product::product_backtests_write_port::{
     BacktestsWriteInput, BacktestsWritePortError, BacktestsWritePortResult,
 };
 use crate::product::product_production_ports::ProductionPortBundle;
-use crate::product::product_research_backtest_execution::validate_trading_costs;
+use crate::product::product_research_backtest_execution::{
+    prepare_derived_start_payload, validate_trading_costs,
+};
+use crate::product::product_research_backtest_readiness::{
+    EnsureDataOutcome, ensure_definitions_data_readiness,
+};
 
 /// The reference caps one optimization call at twelve candidates.
 pub(crate) const MAX_OPTIMIZATION_CANDIDATES: usize = 12;
@@ -49,6 +55,17 @@ pub(crate) fn execute_strategy_optimize(
     // concurrent default-provider change cannot split one optimization across
     // two data sources.
     let frozen_provider = frozen_market_data_provider(ports, arguments);
+    // Go's `strategy.optimize` runs `EnsureBacktestData` before it queues any
+    // candidate (`tool_catalog.go`: `deps.EnsureBacktestData(definitionIDs,
+    // startInput)`), so a candidate set whose shared window is not covered yet
+    // answers the sync/readiness payload instead of starting runs.
+    let warmup_bars = optimization_candidate_warmup_bars(ports, arguments, &definition_ids)?;
+    let start_payload = optimization_start_payload(arguments);
+    if let EnsureDataOutcome::Syncing(response) =
+        ensure_definitions_data_readiness(ports, arguments, &start_payload, warmup_bars)?
+    {
+        return Ok(response);
+    }
     let mut runs = Vec::with_capacity(definition_ids.len());
     let mut run_refs = Vec::with_capacity(definition_ids.len());
     for definition_id in &definition_ids {
@@ -182,6 +199,74 @@ fn frozen_market_data_provider(_ports: &ProductionPortBundle, arguments: &Value)
         .map(str::trim)
         .map(str::to_ascii_lowercase)
         .filter(|value| !value.is_empty())
+}
+
+/// Go resolves every candidate definition before checking coverage, and the
+/// shared window has to cover the largest derived warmup of the candidate set
+/// (`internal/backtest/data.go`: `combinePreparedBacktests` keeps the base
+/// request while each candidate's `deriveWarmupQueryStart` widens the query
+/// start).  The production definition projection already carries the derived
+/// warmup for the requested symbol/interval, so the gate only has to keep the
+/// maximum.
+fn optimization_candidate_warmup_bars(
+    ports: &ProductionPortBundle,
+    arguments: &Value,
+    definition_ids: &[String],
+) -> Result<usize, String> {
+    let preview = StrategyDefinitionPreview {
+        symbol: arguments
+            .get("symbol")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        interval: arguments
+            .get("interval")
+            .or_else(|| arguments.get("period"))
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        use_extended_hours: arguments
+            .get("useExtendedHours")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+    };
+    let mut warmup_bars = arguments
+        .get("warmupBars")
+        .or_else(|| arguments.get("warmup_bars"))
+        .and_then(Value::as_u64)
+        .map(|value| value as usize)
+        .unwrap_or(0);
+    for definition_id in definition_ids {
+        let definition = ports
+            .strategy_definition
+            .get(definition_id, &preview)
+            .map_err(|error| format!("resolve strategy definition {definition_id:?}: {error}"))?
+            .ok_or_else(|| format!("strategy definition not found: {definition_id}"))?;
+        let derived = definition
+            .get("derivedWarmupBars")
+            .and_then(Value::as_u64)
+            .unwrap_or(0) as usize;
+        warmup_bars = warmup_bars.max(derived);
+    }
+    Ok(warmup_bars)
+}
+
+/// The optimize tool shares one instrument and window across candidates, so
+/// the readiness gate reads the same projected start request the queue would
+/// receive, including the Go session scope derived from `useExtendedHours`.
+fn optimization_start_payload(arguments: &Value) -> Value {
+    let mut start_payload = prepare_derived_start_payload(arguments);
+    if start_payload.get("sessionScope").is_none()
+        && let Some(object) = start_payload.as_object_mut()
+    {
+        let extended = arguments
+            .get("useExtendedHours")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        object.insert(
+            "sessionScope".to_owned(),
+            Value::String(if extended { "extended" } else { "regular" }.to_owned()),
+        );
+    }
+    start_payload
 }
 
 /// Go's `runs[]` entry: the candidate identity plus the frozen execution

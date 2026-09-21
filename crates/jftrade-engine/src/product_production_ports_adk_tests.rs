@@ -8232,6 +8232,73 @@ impl crate::product::product_backtests_write_port::BacktestsWritePort
     }
 }
 
+/// Go's optimize contract tests wire `EnsureBacktestData` to answer "ready"
+/// for every candidate, so the Rust fixture installs the same two
+/// collaborators: a coverage reader that reports the shared window as covered
+/// and a definition projection that resolves every requested candidate id.
+#[derive(Debug)]
+struct OptimizeCoverageReady;
+
+impl crate::product::BacktestSyncReadSnapshotPort for OptimizeCoverageReady {
+    fn progress(
+        &self,
+        _task_id: &str,
+    ) -> Result<Option<Value>, crate::product::BacktestSyncReadSnapshotError> {
+        Ok(None)
+    }
+
+    fn active_tasks(&self) -> Result<Vec<Value>, crate::product::BacktestSyncReadSnapshotError> {
+        Ok(Vec::new())
+    }
+
+    fn check_coverage(
+        &self,
+        _request: &crate::product::BacktestDataCoverageRequest,
+    ) -> Result<bool, crate::product::BacktestSyncReadSnapshotError> {
+        Ok(true)
+    }
+}
+
+#[derive(Debug)]
+struct OptimizeDefinitionSnapshot;
+
+impl crate::product::StrategyDefinitionSnapshotPort for OptimizeDefinitionSnapshot {
+    fn list(&self) -> Result<Vec<Value>, crate::product::StrategyDefinitionSnapshotError> {
+        Ok(Vec::new())
+    }
+
+    fn get(
+        &self,
+        definition_id: &str,
+        preview: &crate::product::StrategyDefinitionPreview,
+    ) -> Result<Option<Value>, crate::product::StrategyDefinitionSnapshotError> {
+        Ok(Some(json!({
+            "id": definition_id,
+            "sourceFormat": "pine-v6",
+            "derivedWarmupBars": 0,
+            "derivedWarmupInterval": preview
+                .interval
+                .clone()
+                .unwrap_or_else(|| "1m".to_owned()),
+        })))
+    }
+
+    fn versions(
+        &self,
+        _definition_id: &str,
+    ) -> Result<Option<Vec<Value>>, crate::product::StrategyDefinitionSnapshotError> {
+        Ok(None)
+    }
+
+    fn version(
+        &self,
+        _definition_id: &str,
+        _version: &str,
+    ) -> Result<Option<Value>, crate::product::StrategyDefinitionSnapshotError> {
+        Ok(None)
+    }
+}
+
 fn optimize_bundle(
     writer: Arc<OptimizeBacktestsWriter>,
 ) -> (
@@ -8242,6 +8309,8 @@ fn optimize_bundle(
     let (ports, executor, directory) = setup_test_bundle_and_executor();
     let mut bundle = (*ports).clone();
     bundle.backtests_write = writer;
+    bundle.backtest_sync = Arc::new(OptimizeCoverageReady);
+    bundle.strategy_definition = Arc::new(OptimizeDefinitionSnapshot);
     let bundle = Arc::new(bundle);
     executor.attach_ports(Arc::clone(&bundle));
     (bundle, executor, directory)

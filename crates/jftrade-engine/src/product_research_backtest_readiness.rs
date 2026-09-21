@@ -208,6 +208,94 @@ pub(crate) fn format_syncing_response(
     })
 }
 
+/// Present the readiness state for a call without a single research script.
+/// Go answers `strategy.optimize` with `backtestDataReadinessPayload`, so the
+/// payload keeps the sync identity, the follow-up tool, and the retry
+/// instruction while omitting the research-only `scriptHash`/`validation`.
+#[allow(clippy::too_many_arguments)]
+fn format_definitions_syncing_response(
+    sync_data: &Value,
+    task_id: &str,
+    status: &str,
+    progress: f64,
+    ctx: &ReadinessContext<'_>,
+    since: &str,
+    arguments: &Value,
+) -> Value {
+    let (_, chart_type, inst_type, extended, exec_model, fees) =
+        extract_run_metadata(None, arguments);
+    json!({
+        "ok": true,
+        "status": "syncing_data",
+        "dataSync": {
+            "taskId": task_id,
+            "status": status,
+            "progress": progress,
+            "symbol": ctx.symbol,
+            "intervals": sync_data.get("intervals").cloned().unwrap_or_else(|| json!([ctx.interval])),
+            "marketDataProvider": ctx.provider,
+            "since": since,
+            "until": ctx.end_time_str,
+            "sessionScope": ctx.session_scope,
+            "rehabType": ctx.rehab_type,
+        },
+        "nextTool": {
+            "name": "backtest.kline_sync_status",
+            "input": {
+                "taskId": task_id,
+                "waitForCompletionMs": 25000,
+            }
+        },
+        "nextAction": "wait_kline_sync",
+        "suggestedArguments": {
+            "taskId": task_id,
+        },
+        "message": format!(
+            "K-line data is being synchronized (task {task_id}). Please check status via backtest.kline_sync_status before retrying strategy.optimize."
+        ),
+        "marketDataProvider": ctx.provider,
+        "chartType": chart_type,
+        "instrumentType": inst_type,
+        "useExtendedHours": extended,
+        "executionModel": exec_model,
+        "tradingCosts": fees,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn syncing_payload(
+    ctx: &ReadinessContext<'_>,
+    validation: Option<&jftrade_strategy::pinespec::ValidationPayload>,
+    arguments: &Value,
+    sync_data: &Value,
+    task_id: &str,
+    status: &str,
+    progress: f64,
+    since: &str,
+) -> Value {
+    match validation {
+        Some(validation) => format_syncing_response(
+            sync_data,
+            task_id,
+            status,
+            progress,
+            ctx.symbol,
+            ctx.interval,
+            &ctx.provider,
+            since,
+            ctx.end_time_str,
+            ctx.session_scope,
+            ctx.rehab_type,
+            ctx.script,
+            validation,
+            arguments,
+        ),
+        None => format_definitions_syncing_response(
+            sync_data, task_id, status, progress, ctx, since, arguments,
+        ),
+    }
+}
+
 fn parse_timestamp_ms_helper(s: &str, is_end: bool) -> i64 {
     if let Ok(dt) = time::OffsetDateTime::parse(s, &time::format_description::well_known::Rfc3339) {
         (dt.unix_timestamp_nanos() / 1_000_000) as i64
@@ -242,6 +330,38 @@ impl<'a> ReadinessContext<'a> {
         validation: &jftrade_strategy::pinespec::ValidationPayload,
         script: &'a str,
     ) -> Result<Self, String> {
+        Self::build(
+            start_payload,
+            arguments,
+            script,
+            |symbol, interval, extended| {
+                resolve_warmup_bars(arguments, validation, symbol, interval, extended)
+            },
+        )
+    }
+
+    /// Build the same readiness context for a call that carries no single
+    /// script.  Go's `EnsureDefinitionsData` resolves every optimization
+    /// candidate definition and keeps the largest derived warmup, so the
+    /// caller supplies that already-combined bar count here.
+    fn assemble(
+        start_payload: &'a Value,
+        arguments: &'a Value,
+        script: &'a str,
+        warmup_bars: usize,
+    ) -> Result<Self, String> {
+        Self::build(start_payload, arguments, script, |_, _, _| Ok(warmup_bars))
+    }
+
+    fn build<F>(
+        start_payload: &'a Value,
+        arguments: &'a Value,
+        script: &'a str,
+        warmup: F,
+    ) -> Result<Self, String>
+    where
+        F: FnOnce(&str, &str, bool) -> Result<usize, String>,
+    {
         let symbol = start_payload
             .get("symbol")
             .and_then(Value::as_str)
@@ -255,13 +375,25 @@ impl<'a> ReadinessContext<'a> {
             .get("market")
             .and_then(Value::as_str)
             .unwrap_or("HK");
+        // Go derives both the coverage and the sync scope from
+        // `StartRequest.UseExtendedHours` (`backtestReadSessionScope`), so a
+        // caller that only sets the conventional flag still reads the extended
+        // session.  An explicit `sessionScope` stays authoritative.
         let session_scope = match start_payload
             .get("sessionScope")
             .and_then(Value::as_str)
-            .unwrap_or("regular")
+            .unwrap_or("")
         {
             "extended" => "extended",
-            _ => "regular",
+            "regular" => "regular",
+            _ => {
+                let extended = start_payload
+                    .get("useExtendedHours")
+                    .or_else(|| arguments.get("useExtendedHours"))
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                if extended { "extended" } else { "regular" }
+            }
         };
         let rehab_type = match start_payload
             .get("rehabType")
@@ -273,13 +405,7 @@ impl<'a> ReadinessContext<'a> {
             _ => "forward",
         };
         let provider = extract_run_metadata(None, arguments).0;
-        let warmup_bars = resolve_warmup_bars(
-            arguments,
-            validation,
-            symbol,
-            interval,
-            session_scope == "extended",
-        )?;
+        let warmup_bars = warmup(symbol, interval, session_scope == "extended")?;
 
         let start_time_str = start_payload
             .get("startTime")
@@ -343,7 +469,7 @@ fn poll_active_sync_task(
     coverage_req: &BacktestDataCoverageRequest,
     ctx: &ReadinessContext<'_>,
     since_str: &str,
-    validation: &jftrade_strategy::pinespec::ValidationPayload,
+    validation: Option<&jftrade_strategy::pinespec::ValidationPayload>,
     arguments: &Value,
 ) -> Result<Option<EnsureDataOutcome>, String> {
     let Some(task) = ports.backtest_sync.progress(task_id).ok().flatten() else {
@@ -395,21 +521,8 @@ fn poll_active_sync_task(
     } else {
         0.0
     };
-    Ok(Some(EnsureDataOutcome::Syncing(format_syncing_response(
-        &task,
-        task_id,
-        st,
-        progress,
-        ctx.symbol,
-        ctx.interval,
-        &ctx.provider,
-        since_str,
-        ctx.end_time_str,
-        ctx.session_scope,
-        ctx.rehab_type,
-        ctx.script,
-        validation,
-        arguments,
+    Ok(Some(EnsureDataOutcome::Syncing(syncing_payload(
+        ctx, validation, arguments, &task, task_id, st, progress, since_str,
     ))))
 }
 
@@ -419,7 +532,7 @@ fn find_reusable_active_sync_task(
     sync_key: &str,
     ctx: &ReadinessContext<'_>,
     since_str: &str,
-    validation: &jftrade_strategy::pinespec::ValidationPayload,
+    validation: Option<&jftrade_strategy::pinespec::ValidationPayload>,
     arguments: &Value,
 ) -> Option<EnsureDataOutcome> {
     let active_tasks = ports.backtest_sync.active_tasks().ok()?;
@@ -440,21 +553,8 @@ fn find_reusable_active_sync_task(
                 .unwrap_or_default()
                 .to_owned();
             tracker.set_syncing(sync_key.to_owned(), task_id.clone());
-            return Some(EnsureDataOutcome::Syncing(format_syncing_response(
-                &task,
-                &task_id,
-                st,
-                0.0,
-                ctx.symbol,
-                ctx.interval,
-                &ctx.provider,
-                since_str,
-                ctx.end_time_str,
-                ctx.session_scope,
-                ctx.rehab_type,
-                ctx.script,
-                validation,
-                arguments,
+            return Some(EnsureDataOutcome::Syncing(syncing_payload(
+                ctx, validation, arguments, &task, &task_id, st, 0.0, since_str,
             )));
         }
     }
@@ -467,7 +567,7 @@ fn trigger_new_kline_sync(
     sync_key: &str,
     ctx: &ReadinessContext<'_>,
     since_str: &str,
-    validation: &jftrade_strategy::pinespec::ValidationPayload,
+    validation: Option<&jftrade_strategy::pinespec::ValidationPayload>,
     arguments: &Value,
 ) -> Result<EnsureDataOutcome, String> {
     let sync_payload = json!({
@@ -495,21 +595,8 @@ fn trigger_new_kline_sync(
                 .unwrap_or("unknown")
                 .to_owned();
             tracker.set_syncing(sync_key.to_owned(), task_id.clone());
-            Ok(EnsureDataOutcome::Syncing(format_syncing_response(
-                &sync_data,
-                &task_id,
-                "queued",
-                0.0,
-                ctx.symbol,
-                ctx.interval,
-                &ctx.provider,
-                since_str,
-                ctx.end_time_str,
-                ctx.session_scope,
-                ctx.rehab_type,
-                ctx.script,
-                validation,
-                arguments,
+            Ok(EnsureDataOutcome::Syncing(syncing_payload(
+                ctx, validation, arguments, &sync_data, &task_id, "queued", 0.0, since_str,
             )))
         }
         other => Err(format!("unexpected sync task start result: {other:?}")),
@@ -524,7 +611,29 @@ pub(crate) fn ensure_research_data_readiness(
     script: &str,
 ) -> Result<EnsureDataOutcome, String> {
     let ctx = ReadinessContext::from_payload(start_payload, arguments, validation, script)?;
+    ensure_context_data_readiness(ports, arguments, &ctx, Some(validation))
+}
 
+/// Go's `EnsureDefinitionsData` gate for `strategy.optimize`: the call has no
+/// single script, so every candidate definition is resolved for the call's
+/// instrument, the largest derived warmup wins, and the candidate queue only
+/// starts once the shared window is covered.
+pub(crate) fn ensure_definitions_data_readiness(
+    ports: &ProductionPortBundle,
+    arguments: &Value,
+    start_payload: &Value,
+    warmup_bars: usize,
+) -> Result<EnsureDataOutcome, String> {
+    let ctx = ReadinessContext::assemble(start_payload, arguments, "", warmup_bars)?;
+    ensure_context_data_readiness(ports, arguments, &ctx, None)
+}
+
+fn ensure_context_data_readiness(
+    ports: &ProductionPortBundle,
+    arguments: &Value,
+    ctx: &ReadinessContext<'_>,
+    validation: Option<&jftrade_strategy::pinespec::ValidationPayload>,
+) -> Result<EnsureDataOutcome, String> {
     let coverage_req = BacktestDataCoverageRequest {
         provider: ctx.provider.clone(),
         symbol: ctx.symbol.to_owned(),
@@ -577,7 +686,7 @@ pub(crate) fn ensure_research_data_readiness(
                         &sync_key,
                         &task_id,
                         &coverage_req,
-                        &ctx,
+                        ctx,
                         &since_str,
                         validation,
                         arguments,
@@ -593,12 +702,12 @@ pub(crate) fn ensure_research_data_readiness(
     }
 
     if let Some(outcome) = find_reusable_active_sync_task(
-        ports, tracker, &sync_key, &ctx, &since_str, validation, arguments,
+        ports, tracker, &sync_key, ctx, &since_str, validation, arguments,
     ) {
         return Ok(outcome);
     }
 
     trigger_new_kline_sync(
-        ports, tracker, &sync_key, &ctx, &since_str, validation, arguments,
+        ports, tracker, &sync_key, ctx, &since_str, validation, arguments,
     )
 }

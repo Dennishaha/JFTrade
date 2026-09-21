@@ -62,6 +62,22 @@ pub(crate) fn prepare_start_payload(arguments: &Value, script: &str) -> Value {
             "strategyScript".to_owned(),
             Value::String(script.to_owned()),
         );
+    }
+    apply_instrument_defaults(&mut start_payload);
+    start_payload
+}
+
+/// The instrument defaults Go applies while decoding a start request.  The
+/// definition-based tools pass their arguments through this projection so the
+/// readiness gate reads the same symbol/market the queue would use.
+pub(crate) fn prepare_derived_start_payload(arguments: &Value) -> Value {
+    let mut start_payload = arguments.clone();
+    apply_instrument_defaults(&mut start_payload);
+    start_payload
+}
+
+fn apply_instrument_defaults(start_payload: &mut Value) {
+    if let Some(obj) = start_payload.as_object_mut() {
         if !obj.contains_key("symbol")
             && let Some(code_val) = obj.get("code").and_then(Value::as_str)
         {
@@ -77,7 +93,6 @@ pub(crate) fn prepare_start_payload(arguments: &Value, script: &str) -> Value {
             obj.insert("market".to_owned(), Value::String("HK".to_owned()));
         }
     }
-    start_payload
 }
 
 pub(crate) fn poll_backtest_completion(

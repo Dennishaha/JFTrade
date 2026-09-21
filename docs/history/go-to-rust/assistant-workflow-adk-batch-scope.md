@@ -3109,3 +3109,39 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 - 跨批 follow-up 汇总：P0 无新增。P1 = 前批清单 + **`strategy.optimize` 缺 definition 级数据 readiness 门（本批新增）**；P2 = 前批清单 + 本批 `market.candles` 缺键文案与无端口 watchlist 报文措辞。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1684 passed）、`pnpm run check:zero-go`（2880 tracked files / 0 release artifact）、`pnpm run check:compatibility`（desktop runtime 3 profiles / 6 link cases / 10 facade commands / 4 events）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2859 Rust** / **959 `[x]`**，0 破坏引用，5 条已登记 partial 引用缺失 + 2 条既有空断言告警）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`（含 `check:rust:target-health`，先按既有流程清理 `target/debug/deps/*.rcgu.o` 后通过）。
+
+## 第六十八批：P1 修复——`strategy.optimize` 的 definition 级数据 readiness 门（驱动行 `adk_tool_failure_contracts_test.go:19` 子测试②）
+
+### 范围与基线
+
+- 目标：闭环第六十七批登记的 P1——Go `strategy.optimize` 在入队前跑 `EnsureBacktestData`，Rust 直接入队。
+- Go 语义：`internal/assistant/assembly/tool_catalog.go:585-596`（`EnsureBacktestData(definitionIDs, startInput)`；错误 → 直接失败；`!Ready` → 返回 `backtestDataReadinessPayload` 且不建 run）→ `application_backtest.go:13 ensureBacktestData` → `internal/backtest/data.go:38 EnsureDefinitionsData`（逐候选取定义，缺失 → `ErrStrategyDefinitionNotFound`；`prepareResolvedBacktest` + `combinePreparedBacktests` 要求同 symbol/interval 并取 min queryStart/max endTime 与最大 warmup；覆盖齐 → Ready，缺失 → `ensureMissingCoverage` 以 `providerDataSyncKey` 去重起同步并回 `syncing_data`）；`data.go:267 backtestReadSessionScope` 由 `UseExtendedHours` 推出会话范围。
+- Go 基线：`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/backtest/ -run 'TestEnsureDefinitionsData' -count=1`（`service_test.go:406` 最大 warmup 语义）。
+
+### 生产修正
+
+- `crates/jftrade-engine/src/product_research_backtest_readiness.rs`：
+  - `ReadinessContext` 拆出 `build`/`from_payload`/`assemble`，新增 `ensure_definitions_data_readiness`（无单一脚本的 readiness：候选最大 warmup + 复用 coverage/`SyncStateTracker`/去重同步）；
+  - 既有 `format_syncing_response` 保留，新增 `format_definitions_syncing_response` 与 `syncing_payload` 调度（定义路径不带 research 专属 `scriptHash`/`validation`，保留 `marketDataProvider`/`dataSync`/`nextTool`/`nextAction`/`suggestedArguments`/`message` 与运行元数据）；
+  - 会话范围改为 Go 语义：显式 `sessionScope` 优先，否则由 `useExtendedHours`（start payload 或 arguments）推出 `extended`/`regular`。
+- `crates/jftrade-engine/src/product_research_backtest_execution.rs`：抽出 `apply_instrument_defaults`，新增 `prepare_derived_start_payload`（定义类工具复用 Go 的 symbol/market 缺省投影，原 `prepare_start_payload` 行为不变）。
+- `crates/jftrade-engine/src/product_strategy_optimize_execution.rs`：`execute_strategy_optimize` 在候选循环前解析候选定义（`optimization_candidate_warmup_bars`：向 `StrategyDefinitionSnapshotPort::get` 传 `StrategyDefinitionPreview{symbol, interval, use_extended_hours}`，取 `derivedWarmupBars` 最大值，缺定义 → `strategy definition not found`）并调用 `ensure_definitions_data_readiness`；`Syncing` 时直接返回 readiness 载荷、不建任何 run。`optimization_start_payload` 补 `sessionScope`。
+
+### 回归与既有用例
+
+- 新增（`crates/jftrade-engine/src/product_adk_tool_failure_boundary_tests.rs`）：`strategy_optimize_stops_at_readiness_with_the_widest_candidate_warmup`（缺覆盖 → `status=syncing_data`/`nextAction=wait_kline_sync`、覆盖请求 warmup=600、`dataSync.since` 与同步请求 `since` 都等于 600 bar 推导值、Start 0 次、Cancel 0 次）、`strategy_optimize_queues_every_candidate_when_the_window_is_covered`（覆盖齐 → 2 个 run、无额外 Sync）、`strategy_optimize_reports_an_unresolved_candidate_before_queueing`（未知定义 → 报错且 0 入队/0 同步）。
+- 既有用例适配：`product_production_ports_adk_tests.rs::optimize_bundle` 补装 `OptimizeCoverageReady`（覆盖恒 true）与 `OptimizeDefinitionSnapshot`（解析任意候选定义）——对齐 Go 测试里 `EnsureBacktestData` 由测试注入并回答 Ready 的接线；`strategy_optimize_enqueues_every_candidate_and_persists_the_task` / `strategy_optimize_rolls_back_candidates_and_validates_the_request` 语义不变。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `ensure_context_data_readiness` 的覆盖短路改成恒 Ready → readiness/syncing 两测试转红（exit 100）。
+2. `optimization_candidate_warmup_bars` 的 `max` 改成「首个非零生效」→ 最大 warmup 测试转红（exit 100）。
+3. 缺定义的 `ok_or_else` 改成 `unwrap_or_else(默认 0)` → 未解析候选测试转红（exit 100）。
+   3 处探针均在本批内执行并按字节回滚，回滚后 engine 1687 全量复测全绿。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 2 条：`product_execution_contracts_test.go` 1、`workflow_execution_injection_test.go` 1；随后进入 `internal/app/apiserver`（574，按 servercore/servercoretest/datamigration 等子域分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）、`internal/integration/akshare`（73）、`internal/integration/yfinance`（68）、`pkg/market`（56）。
+- 跨批 follow-up 汇总：P0 无新增。P1 = 前批清单去除本批已闭环的 `strategy.optimize` readiness 门，其余（模型目录缺 9 个外部写/交易工具、workflow CRUD 工具族、策略实例/定义工具族、`portfolio.summary` 多账户聚合、`portfolio.*` broker runtime `lastError`、策略定义版本/快照 wire 形状、工作流触发日志与 `workflow_runs.*` 过滤、`workflow.*` 单条读路由、Go `SaveRun` 终态谓词、审批续跑 `resumeState`、ADK 维护 busy/lease handoff）不变；P2 = 前批清单 + 本批 `market.candles` 缺键文案、无端口 watchlist 报文措辞、就绪终态载荷形状（Go `backtestDataReadinessPayload` 含 error/nextAction 中文指令 vs Rust `nextAction=wait_kline_sync` 且终态直接报错）。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1687 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2862 Rust** / **959 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

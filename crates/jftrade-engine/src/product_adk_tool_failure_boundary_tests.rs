@@ -44,7 +44,8 @@ use crate::product::product_production_ports::{
 };
 use crate::product::{
     ActiveProviderState, BacktestDataCoverageRequest, BacktestSyncReadSnapshotError,
-    BacktestSyncReadSnapshotPort,
+    BacktestSyncReadSnapshotPort, StrategyDefinitionPreview, StrategyDefinitionSnapshotError,
+    StrategyDefinitionSnapshotPort,
 };
 
 use super::tests::production_bundle;
@@ -246,5 +247,350 @@ fn research_backtest_surfaces_queue_failure_without_answering_a_run() {
         queue.cancels.load(Ordering::SeqCst),
         0,
         "a queue that never accepted the run has nothing to roll back"
+    );
+}
+
+/// Answers the coverage question from a switch and records every coverage
+/// request, so the readiness gate can be proven to use the candidate warmup.
+#[derive(Debug)]
+struct CoverageSwitch {
+    covered: bool,
+    requests: Mutex<Vec<Value>>,
+}
+
+impl CoverageSwitch {
+    fn new(covered: bool) -> Self {
+        Self {
+            covered,
+            requests: Mutex::new(Vec::new()),
+        }
+    }
+}
+
+impl BacktestSyncReadSnapshotPort for CoverageSwitch {
+    fn progress(&self, _task_id: &str) -> Result<Option<Value>, BacktestSyncReadSnapshotError> {
+        Ok(None)
+    }
+
+    fn active_tasks(&self) -> Result<Vec<Value>, BacktestSyncReadSnapshotError> {
+        Ok(Vec::new())
+    }
+
+    fn check_coverage(
+        &self,
+        request: &BacktestDataCoverageRequest,
+    ) -> Result<bool, BacktestSyncReadSnapshotError> {
+        self.requests
+            .lock()
+            .expect("coverage requests")
+            .push(json!({
+                "provider": request.provider,
+                "symbol": request.symbol,
+                "interval": request.interval,
+                "rehabType": request.rehab_type,
+                "sessionScope": request.session_scope,
+                "warmupBars": request.warmup_bars,
+            }));
+        Ok(self.covered)
+    }
+}
+
+/// Serves the definition projections the optimization gate resolves, and
+/// records the preview the gate asked for.
+#[derive(Debug)]
+struct StubDefinitionSnapshot {
+    warmups: Mutex<Vec<(String, i64)>>,
+    previews: Mutex<Vec<(String, String, String, bool)>>,
+}
+
+impl StubDefinitionSnapshot {
+    fn new(warmups: &[(&str, i64)]) -> Self {
+        Self {
+            warmups: Mutex::new(
+                warmups
+                    .iter()
+                    .map(|(id, warmup)| ((*id).to_owned(), *warmup))
+                    .collect(),
+            ),
+            previews: Mutex::new(Vec::new()),
+        }
+    }
+}
+
+impl StrategyDefinitionSnapshotPort for StubDefinitionSnapshot {
+    fn list(&self) -> Result<Vec<Value>, StrategyDefinitionSnapshotError> {
+        Ok(Vec::new())
+    }
+
+    fn get(
+        &self,
+        definition_id: &str,
+        preview: &StrategyDefinitionPreview,
+    ) -> Result<Option<Value>, StrategyDefinitionSnapshotError> {
+        self.previews.lock().expect("definition previews").push((
+            definition_id.to_owned(),
+            preview.symbol.clone().unwrap_or_default(),
+            preview.interval.clone().unwrap_or_default(),
+            preview.use_extended_hours,
+        ));
+        let warmup = self
+            .warmups
+            .lock()
+            .expect("definition warmups")
+            .iter()
+            .find(|(id, _)| id == definition_id)
+            .map(|(_, warmup)| *warmup);
+        Ok(warmup.map(|warmup| {
+            json!({
+                "id": definition_id,
+                "runtime": "pinescript",
+                "sourceFormat": "pine-v6",
+                "derivedWarmupBars": warmup,
+                "derivedWarmupInterval": preview.interval.clone().unwrap_or_else(|| "1m".to_owned()),
+            })
+        }))
+    }
+
+    fn versions(
+        &self,
+        _definition_id: &str,
+    ) -> Result<Option<Vec<Value>>, StrategyDefinitionSnapshotError> {
+        Ok(None)
+    }
+
+    fn version(
+        &self,
+        _definition_id: &str,
+        _version: &str,
+    ) -> Result<Option<Value>, StrategyDefinitionSnapshotError> {
+        Ok(None)
+    }
+}
+
+#[derive(Debug, Default)]
+struct RecordingBacktestMutations {
+    starts: Mutex<Vec<Value>>,
+    syncs: Mutex<Vec<Value>>,
+    cancels: AtomicUsize,
+}
+
+impl BacktestsWritePort for RecordingBacktestMutations {
+    fn mutate(
+        &self,
+        input: &BacktestsWriteInput,
+    ) -> Result<BacktestsWritePortResult, BacktestsWritePortError> {
+        match input {
+            BacktestsWriteInput::Start { payload } => {
+                let mut starts = self.starts.lock().expect("queued starts");
+                starts.push(payload.clone());
+                Ok(BacktestsWritePortResult::Data(json!({
+                    "id": format!("run-{}", starts.len()),
+                    "status": "queued",
+                })))
+            }
+            BacktestsWriteInput::Sync { payload } => {
+                self.syncs
+                    .lock()
+                    .expect("sync starts")
+                    .push(payload.clone());
+                Ok(BacktestsWritePortResult::Data(json!({
+                    "taskId": "sync-task-optimize",
+                    "intervals": payload.get("intervals").cloned().unwrap_or_else(|| json!(["1m"])),
+                })))
+            }
+            BacktestsWriteInput::Cancel { .. } => {
+                self.cancels.fetch_add(1, Ordering::SeqCst);
+                Ok(BacktestsWritePortResult::Data(json!({"cancelled": true})))
+            }
+            other => {
+                let operation = other.operation();
+                Err(BacktestsWritePortError::Failed(format!(
+                    "unexpected backtest mutation {operation:?}"
+                )))
+            }
+        }
+    }
+}
+
+fn optimize_arguments(definition_ids: &[&str]) -> Value {
+    json!({
+        "definitionIds": definition_ids,
+        "market": "HK",
+        "symbol": "HK.00700",
+        "interval": "1m",
+        "startTime": "2026-03-01T00:00:00Z",
+        "endTime": "2026-03-02T00:00:00Z",
+        "waitForCompletionMs": 0,
+    })
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/adk_tool_failure_contracts_test.go:60
+/// (optimization half) and `internal/backtest/service_test.go:406`
+/// `TestEnsureDefinitionsDataUsesMaximumCandidateWarmup`.  Go runs
+/// `EnsureBacktestData` before it queues a single candidate: a missing window
+/// answers the sync/readiness payload, the sync request carries the widest
+/// candidate warmup, and no run is created.
+#[test]
+fn strategy_optimize_stops_at_readiness_with_the_widest_candidate_warmup() {
+    let (_directory, mut ports) = production_bundle();
+    let coverage = Arc::new(CoverageSwitch::new(false));
+    ports.backtest_sync = coverage.clone();
+    ports.strategy_definition = Arc::new(StubDefinitionSnapshot::new(&[
+        ("def-fast", 60),
+        ("def-slow", 600),
+    ]));
+    let queue = Arc::new(RecordingBacktestMutations::default());
+    let queue_port: Arc<dyn BacktestsWritePort> = queue.clone();
+    ports.backtests_write = queue_port;
+    let ports = Arc::new(ports);
+    let executor = ProductionAdkToolExecutor::with_ports(
+        Arc::clone(&ports.mcp_catalog),
+        Arc::clone(&ports.mcp_store),
+        Arc::clone(&ports),
+    );
+
+    let response = executor
+        .execute(
+            "strategy.optimize",
+            &optimize_arguments(&["def-fast", "def-slow"]),
+        )
+        .expect("a missing window must answer the readiness payload");
+
+    assert_eq!(response["ok"], true, "{response}");
+    assert_eq!(response["status"], "syncing_data", "{response}");
+    assert_eq!(response["nextAction"], "wait_kline_sync", "{response}");
+    assert_eq!(
+        response["nextTool"]["name"], "backtest.kline_sync_status",
+        "{response}"
+    );
+    assert_eq!(
+        response["dataSync"]["taskId"], "sync-task-optimize",
+        "{response}"
+    );
+    assert_eq!(response["dataSync"]["symbol"], "HK.00700", "{response}");
+    assert_eq!(
+        response["dataSync"]["intervals"],
+        json!(["1m"]),
+        "{response}"
+    );
+
+    let requests = coverage.requests.lock().expect("coverage requests");
+    assert_eq!(
+        requests.len(),
+        1,
+        "exactly one coverage question: {requests:?}"
+    );
+    assert_eq!(
+        requests[0]["warmupBars"], 600,
+        "the widest candidate warmup must drive the query window: {requests:?}"
+    );
+    drop(requests);
+
+    let expected_since =
+        crate::product::product_research_backtest_execution::derive_effective_since_time(
+            "2026-03-01T00:00:00Z",
+            "1m",
+            600,
+        );
+    assert_eq!(response["dataSync"]["since"], expected_since, "{response}");
+
+    let syncs = queue.syncs.lock().expect("sync starts");
+    assert_eq!(syncs.len(), 1, "exactly one sync start: {syncs:?}");
+    assert_eq!(syncs[0]["symbol"], "HK.00700", "{syncs:?}");
+    assert_eq!(syncs[0]["intervals"], json!(["1m"]), "{syncs:?}");
+    assert_eq!(
+        syncs[0]["since"], expected_since,
+        "the sync request must use the combined warmup window: {syncs:?}"
+    );
+    assert_eq!(syncs[0]["sessionScope"], "regular", "{syncs:?}");
+    drop(syncs);
+
+    assert!(
+        queue.starts.lock().expect("queued starts").is_empty(),
+        "an uncovered window must never queue an optimization candidate"
+    );
+    assert_eq!(
+        queue.cancels.load(Ordering::SeqCst),
+        0,
+        "nothing was queued, so nothing can be rolled back"
+    );
+}
+
+/// Guard for the covered case: once the shared window is covered the tool
+/// queues every candidate exactly like it did before the readiness gate.
+#[test]
+fn strategy_optimize_queues_every_candidate_when_the_window_is_covered() {
+    let (_directory, mut ports) = production_bundle();
+    let coverage = Arc::new(CoverageSwitch::new(true));
+    ports.backtest_sync = coverage.clone();
+    ports.strategy_definition =
+        Arc::new(StubDefinitionSnapshot::new(&[("def-a", 60), ("def-b", 0)]));
+    let queue = Arc::new(RecordingBacktestMutations::default());
+    let queue_port: Arc<dyn BacktestsWritePort> = queue.clone();
+    ports.backtests_write = queue_port;
+    let ports = Arc::new(ports);
+    let executor = ProductionAdkToolExecutor::with_ports(
+        Arc::clone(&ports.mcp_catalog),
+        Arc::clone(&ports.mcp_store),
+        Arc::clone(&ports),
+    );
+
+    let response = executor
+        .execute(
+            "strategy.optimize",
+            &optimize_arguments(&["def-a", "def-b"]),
+        )
+        .expect("a covered window must queue the candidates");
+    assert_eq!(response["status"], "queued", "{response}");
+    let runs = response["runs"].as_array().expect("runs array");
+    assert_eq!(runs.len(), 2, "{response}");
+    assert_eq!(runs[0]["definitionId"], "def-a", "{response}");
+    assert_eq!(runs[1]["definitionId"], "def-b", "{response}");
+    assert_eq!(
+        queue.starts.lock().expect("queued starts").len(),
+        2,
+        "both candidates must reach the queue"
+    );
+    assert!(
+        queue.syncs.lock().expect("sync starts").is_empty(),
+        "a covered window must not start another sync"
+    );
+}
+
+/// Go's `EnsureDefinitionsData` fails the call when a candidate definition
+/// cannot be resolved (`ErrStrategyDefinitionNotFound`), so the tool must not
+/// queue anything for an unknown id.
+#[test]
+fn strategy_optimize_reports_an_unresolved_candidate_before_queueing() {
+    let (_directory, mut ports) = production_bundle();
+    ports.backtest_sync = Arc::new(CoverageSwitch::new(true));
+    ports.strategy_definition = Arc::new(StubDefinitionSnapshot::new(&[("def-known", 0)]));
+    let queue = Arc::new(RecordingBacktestMutations::default());
+    let queue_port: Arc<dyn BacktestsWritePort> = queue.clone();
+    ports.backtests_write = queue_port;
+    let ports = Arc::new(ports);
+    let executor = ProductionAdkToolExecutor::with_ports(
+        Arc::clone(&ports.mcp_catalog),
+        Arc::clone(&ports.mcp_store),
+        Arc::clone(&ports),
+    );
+
+    let error = executor
+        .execute(
+            "strategy.optimize",
+            &optimize_arguments(&["def-known", "def-missing"]),
+        )
+        .expect_err("an unresolved candidate must fail the call");
+    assert!(
+        error.contains("strategy definition not found"),
+        "the unresolved definition must be surfaced: {error}"
+    );
+    assert!(
+        queue.starts.lock().expect("queued starts").is_empty(),
+        "an unresolved candidate set must never queue a run"
+    );
+    assert!(
+        queue.syncs.lock().expect("sync starts").is_empty(),
+        "an unresolved candidate set must not start a sync"
     );
 }
