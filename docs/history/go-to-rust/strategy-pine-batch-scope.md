@@ -232,3 +232,86 @@ node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --l
   不得按 `function_exact` 计入。
 - Go UDF 参数数量校验、递归 UDF、循环变量只读、循环内调用结果 history
   四条诊断仍缺 Rust 实现，保留在清单中。
+
+## 第七十九批：`pkg/strategy` 全域收尾（333 条，策略/Pine 域归零）
+
+### 范围与结果
+
+- 范围：`pkg/strategy` 剩余 333 条 `missing`（76 个文件），按 P0（pineworker 进程/客户端生命周期）→ P1（
+  Pine 解析/语义/校验、`ir/planner`、`indicatorbinding`、`indicatorwarmup`、`pineengine`/`pinespec`）→ P2（
+  Pine 助手与解析器恢复边界、`request.security` 降级、策略调用边界）顺序分 10 片逐条核对。
+- 结果：`missing` 2085 → **1752**（本批结清 333 条）、`partial` 846 → **1147**、`boundary` 320 → **352**、
+  `[x]` 保持 **1196**。本批 333 条 = **0 `[x]` + 301 partial + 32 boundary**：本批没有新的批准项，
+  因此没有新增 `// Parity:` 锚点，未锚定告警保持 193 的前批基线。
+- **`pkg/strategy/**` 全域归零**：域内 364 条 = **22 `[x]` + 309 partial + 33 boundary，0 `missing`**。
+
+### 分片执行
+
+- **P0-1（37 条）**：pineworker 客户端/管理器/类型/gRPC 与硬切、就绪恢复。证据面为
+  `crates/jftrade-integration-pine/src/{asset,process,pool,readiness,execution/tests,mock_worker}.rs`、
+  `crates/jftrade-integration-pine/tests/real_worker_smoke.rs` 与
+  `crates/jftrade-settings/src/pine_worker.rs::worker_limits_and_nested_quotes_match_go_settings_owner`。
+- **P0-2（30 条）**：`process_launcher*`、`proto_mapping`、`payload_size`、`process_smoke`、
+  `runtime_boundaries`。同上进程/池证据面；Go 的性能门（延迟/吞吐）、繁忙队列开关与 NODE_OPTIONS 规则
+  没有 Rust 对应实现，按边界保留。
+- **P1-1（41 条）**：`pine/parse_collection*`、`parse_object*`、`parse_semantic*`。证据面为
+  `crates/jftrade-strategy/src/pine/mod.rs`（compile/validate/analyze 用例）与
+  `crates/jftrade-strategy/tests/pine_mcp_contract.rs`（原生管线、语义拒绝、spec/validation 负载）。
+- **P1-2（30 条）**：`pine/language_execution_boundaries`、`validation_semantics_boundaries`、
+  `parse_request`、`parser_and_lowering_recovery`。
+- **P1-3（31 条）**：`indicatorbinding/parse_test`、`parse_semantics` 与 `definition/source_format`（后者引用
+  `crates/jftrade-store-sqlite/tests/strategy_definition_store_contracts.rs::strategy_definition_lifecycle_versioning_and_restart_durability`）。
+- **P1-4（29 条）**：`ir/planner*` 全部。证据面为 `crates/jftrade-strategy/src/pine/planner.rs::test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks`
+  与 compile/validate 用例；Go 的分支/内部边界用例在 Rust 由规划需求断言覆盖。
+- **P1-5（28 条）**：`indicatorwarmup/**`。Rust 没有指标配置排序与周期标签格式化层（周期以分钟/枚举表达），
+  全部按 partial 或边界记录。
+- **P1-6（26 条）**：`pineengine` 16 + `pinespec` 10。证据面为 `pine_mcp_contract.rs` 的 spec 章节冻结、
+  validation 负载与保存提示契约用例。
+- **P2-1（41 条）**：`pine` 集合/对象/编译器/控制流/表达式等助手文件。
+- **P2-2（40 条）**：`pine` 解析器恢复、语义助手、`request.security` 降级与策略调用边界收尾。证据面为
+  `crates/jftrade-strategy/src/pine/mod.rs` 的 `udf_and_loop_boundary_tests`、`history_reference_boundary_tests`、
+  `framework_language_feature_tests`、`advanced_order_diagnostic_tests`、`request_security_tests`、
+  `advanced_indicator_requirement_tests`、`risk_declaration_metadata_tests`、`order_subset_compile_tests`
+  与 `crates/jftrade-backtest/{src/indicators.rs,tests/pine_indicator_compatibility.rs}`。
+
+### 新增缺口登记（功能缺失，保留，均为 P2）
+
+- **兼容性评分注册表**：Go `CompatibilityScore()` + `SupportedFeatureIDs()` 返回 v4.0 分模型、5 个维度与
+  feature id 注册表；Rust 只在 MCP 负载冻结 `compatibilityScore=98.30`、`scoreModelVersion`、
+  `compatibilityDimensions` 与 `supportMatrix`（证据
+  `crates/jftrade-engine/tests/strategy_pine_mcp_contract.rs::spec_leaf_preserves_frozen_sections_and_rejects_unknown_section`），
+  没有 feature id 注册表。驱动行 `pkg/strategy/pine/parse_test.go:763`。
+- **v33 高级语言边界诊断**：递归 UDF、嵌套 UDF、UDF 签名不匹配、循环变量只读四条在 Rust 无实现
+  （Rust 已实现循环迭代上限与 step=0 两条）。驱动行 `pkg/strategy/pine/parse_test.go:903`。
+- **switch 表达式重写与多语句 UDF 内联**：Rust 编译入口不产出 ifelse/内联 IR，该形态由 PineTS 运行时承担。
+  驱动行 `pkg/strategy/pine/parse_test.go:977`。
+- **Pine MA 别名表**：Go 映射 `ema/SMA/rma/wma/HMA/vwma → EMA/SMA/SMMA/LWMA/HMA/VWMA`；Rust 侧没有
+  SMMA/LWMA/VWMA 标识（别名解析在 worker/需求键层），只有 `ma:EMA:*`/`ma:SMA:*` 需求键断言。
+  驱动行 `pkg/strategy/pine/public_lowering_test.go:64`。
+- **对象/UDT 解析层**：Go 的构造器/方法参数越界与默认值恢复、重复类型/方法/字段拒绝矩阵在 Rust 编译入口
+  没有对应解析器。驱动行 `parser_recovery_boundaries_test.go:104`、`request_security_object_contracts_test.go:86`。
+- **request.security 逐表达式纯度助手**：Go 的 `requestSecurityLoweredASTIsPure`、TA mask 与逐指标缺参断言；
+  Rust 只有静态日内白名单降级与稳定诊断码。驱动行 `request_security_ast_contracts_test.go:5/26`、
+  `security_lowering_test.go:9/92/168`、`request_security_diagnostics_test.go:8/52`。
+- **解析器恢复状态与结构化 AST 回退**：Go 的 `parsedLinesFromStructuredAST` 回退、集合/while 循环体无效时
+  的 parseState 状态恢复与嵌套深度上限；Rust 没有可变解析状态层。驱动行
+  `runtime_and_parser_boundaries_test.go:9/134`。
+- **Go 语义助手**：声明签名、导入路径/版本解析、集合类型注解与参数计数、对象/可视化回退分支；Rust 语义
+  检查只产出“不支持声明/非法条件”诊断。驱动行 `semantic_helper_boundaries_test.go:8/58/99/128`。
+- **pineworker 运维/许可策略**：性能门、繁忙队列、NODE_OPTIONS、AGPL 许可门与 `pinespec` 的 v 版本语言门、
+  生成支持快照属于 Go-only 策略，Rust 不迁移，逐条已写入清单结论。
+
+### 跨批 follow-up 汇总
+
+- P0 无新增；P1 = 前批清单不变（本批未发现 P0/P1 级行为差异）。P2 = 前批清单 + 本批登记项：
+  兼容评分 feature id 注册表、v33 UDF/循环只读诊断、switch 与 UDF 内联、MA 别名表、UDT 解析层、
+  request.security 纯度助手、解析器恢复状态、Go 语义助手。
+
+### 仍未结清（下一批）
+
+- 下一批（第八十批）范围：按域余量排序的下一块 **`pkg/backtest` 237 条**，先按文件分组 recon 再按
+  P0 → P1 → P2 分片；其后：`internal/store` 206、`internal/api` 180、`internal/strategy` 169、
+  `pkg/bbgo` 145、`internal/integration` 141、`internal/marketdata` 112、`pkg/futu` 86、
+  `internal/trading` 80，直至 4451 条清单全部完成。
+
+验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-strategy -p jftrade-integration-pine -p jftrade-backtest -p jftrade-settings --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -p jftrade-integration-pine -p jftrade-backtest -p jftrade-settings --all-targets --locked --no-fail-fast`（**174 passed / 1 skipped，17 binaries**）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2925 Rust** / **1196 `[x]`**；missing 1752、partial 1147、boundary 352、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线，7 条 partial 无解析引用与 2 条无断言为前批已登记缺口）、`pnpm run check:compatibility`、`node scripts/check-zero-go.mjs`（2888 tracked files / 0 release artifact）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`、`pnpm run check:ai-context`。
