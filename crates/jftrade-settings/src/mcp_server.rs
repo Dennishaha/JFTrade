@@ -407,7 +407,7 @@ fn stopped_status(port: i32) -> McpServerStatus {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::RwLock;
+    use std::sync::{Mutex, RwLock};
 
     use argon2::password_hash::PasswordHash;
 
@@ -443,6 +443,20 @@ mod tests {
     impl McpServerSecretPort for FixedSecrets {
         fn issue(&self) -> Result<(String, String), String> {
             Ok(("one-time-secret".to_owned(), "stored-verifier".to_owned()))
+        }
+    }
+
+    struct RotatingSecrets {
+        issued: Mutex<Vec<(String, String)>>,
+    }
+
+    impl McpServerSecretPort for RotatingSecrets {
+        fn issue(&self) -> Result<(String, String), String> {
+            let mut issued = self.issued.lock().expect("issued secrets");
+            if issued.is_empty() {
+                return Err("secret generator exhausted".to_owned());
+            }
+            Ok(issued.remove(0))
         }
     }
 
@@ -486,6 +500,7 @@ mod tests {
         }
     }
 
+    // Parity: go:452dea11:internal/settings/service_managed_accounts_test.go:84 TestServiceDefaultMCPStatusAndTokenGeneration
     #[test]
     fn snapshot_normalizes_public_settings_and_reports_unowned_listener_stopped() {
         let service = McpServerSettingsService::new(Arc::new(Store(RwLock::new(Some(
@@ -504,6 +519,7 @@ mod tests {
         assert_eq!(snapshot.status.endpoint, "http://127.0.0.1:6697/mcp");
     }
 
+    // Parity: go:452dea11:internal/settings/service_test.go:344 TestSaveMCPServerSettingsValidatesTokenAndPort
     #[test]
     fn writes_validate_like_go_and_never_accept_a_caller_supplied_token() {
         let store = Arc::new(Store::default());
@@ -533,25 +549,74 @@ mod tests {
         );
     }
 
+    // Parity: go:452dea11:internal/settings/service_test.go:268 TestMCPServerTokenResetDoesNotLeakAndInvalidatesPreviousToken
     #[test]
     fn token_reset_returns_secret_once_and_persists_only_its_verifier() {
-        let store = Arc::new(Store::default());
-        let service =
-            McpServerSettingsService::with_ports(store.clone(), None, Arc::new(FixedSecrets));
-        let result = service.reset_token().expect("reset token");
-        assert_eq!(result.token, "one-time-secret");
-        assert!(result.settings.token_configured);
-        let encoded = serde_json::to_string(&result.settings).expect("encode settings");
-        assert!(!encoded.contains("one-time-secret"));
-        assert!(!encoded.contains("stored-verifier"));
-        let stored = store.0.read().expect("read store").clone().expect("record");
-        assert_eq!(stored.token_hash(), "stored-verifier");
+        let store = Arc::new(Store(RwLock::new(Some(McpServerSettingsRecord::new(
+            true,
+            DEFAULT_MCP_SERVER_PORT,
+            "token",
+            "old-verifier",
+        )))));
+        let service = McpServerSettingsService::with_ports(
+            store.clone(),
+            None,
+            Arc::new(RotatingSecrets {
+                issued: Mutex::new(vec![
+                    ("first-secret".to_owned(), "hash:first-secret".to_owned()),
+                    ("second-secret".to_owned(), "hash:second-secret".to_owned()),
+                ]),
+            }),
+        );
+
+        let first = service.reset_token().expect("first reset");
+        assert_eq!(first.token, "first-secret");
+        assert!(first.settings.token_configured);
+        assert_eq!(
+            store
+                .0
+                .read()
+                .expect("read store")
+                .clone()
+                .expect("record")
+                .token_hash(),
+            "hash:first-secret"
+        );
+
+        let second = service.reset_token().expect("second reset");
+        assert_eq!(second.token, "second-secret");
+        assert!(second.settings.token_configured);
+        assert_eq!(
+            store
+                .0
+                .read()
+                .expect("read store")
+                .clone()
+                .expect("record")
+                .token_hash(),
+            "hash:second-secret"
+        );
+
+        // The public projection never carries a bearer token or its verifier,
+        // so a rotated token cannot be recovered from the settings response.
+        let encoded = serde_json::to_string(&service.settings().expect("public settings"))
+            .expect("encode settings");
+        for secret in [
+            "first-secret",
+            "second-secret",
+            "hash:first-secret",
+            "hash:second-secret",
+        ] {
+            assert!(
+                !encoded.contains(secret),
+                "settings leaked {secret}: {encoded}"
+            );
+        }
     }
 
     #[test]
     fn listener_failure_rolls_back_the_persisted_settings() {
         // Parity: go:452dea11:internal/settings/service_test.go:318 TestSaveMCPServerSettingsRollsBackWhenListenerUpdateFails
-        // Parity: go:452dea11:internal/settings/service_test.go:344 TestSaveMCPServerSettingsValidatesTokenAndPort
         let original = McpServerSettingsRecord::new(false, 6697, "none", "old-verifier");
         let store = Arc::new(Store(RwLock::new(Some(original.clone()))));
         let service = McpServerSettingsService::with_ports(
@@ -657,8 +722,8 @@ mod tests {
         assert!(snapshot.status.last_error.is_empty());
     }
 
+    // Parity: go:452dea11:internal/settings/service_managed_accounts_test.go:84 TestServiceDefaultMCPStatusAndTokenGeneration
     #[test]
-    // Parity: internal/settings/persistence_and_mcp_failures_test.go:90 TestServiceRollsBackMCPOnSaveFailure
     // Verifies argon2id verifier compatibility, token format (jft_mcp_) and secret issuance
     fn system_secret_uses_go_compatible_token_and_argon2id_verifier() {
         let (token, verifier) = SystemMcpServerSecrets.issue().expect("issue secret");

@@ -1,5 +1,5 @@
 use super::execution_order_hash::preview_request_hash;
-use super::execution_order_parse::{parse_combo, parse_order};
+use super::execution_order_parse::{parse_combo, parse_order, parse_order_with_defaults};
 use serde_json::{Value, json};
 
 /// Go hands the normalized order type to the Futu adapter, which resolves it
@@ -377,6 +377,29 @@ fn test_normalize_execution_order_defaults_us_limit_order() {
     assert_eq!(order.time_in_force, Some(0)); // DAY
     assert_eq!(order.session, Some(1)); // RTH
     assert_eq!(order.fill_outside_rth, Some(false));
+}
+
+// Parity: go:452dea11:internal/settings/service_managed_accounts_test.go:120 TestServiceOptionsCaptureBrokerDescriptorAndDefaultTradingEnvironment
+#[test]
+fn configured_default_trading_environment_fills_orders_that_omit_it() {
+    let payload = json!({
+        "accountId": "1001",
+        "market": "US",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "quantity": 1,
+        "price": 100,
+    });
+    let defaulted =
+        parse_order_with_defaults(&payload, Some("REAL")).expect("configured default environment");
+    assert_eq!(defaulted.header.trd_env, 1); // REAL
+
+    let mut explicit_payload = payload.clone();
+    explicit_payload["tradingEnvironment"] = json!("SIMULATE");
+    let explicit = parse_order_with_defaults(&explicit_payload, Some("REAL"))
+        .expect("explicit environment order");
+    assert_eq!(explicit.header.trd_env, 0); // SIMULATE wins over the default
 }
 
 #[test]

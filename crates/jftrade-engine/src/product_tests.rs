@@ -1764,6 +1764,30 @@ async fn watchlist_memberships_route_fails_closed_when_snapshot_port_is_unavaila
     handle.shutdown().await.expect("shutdown product");
 }
 
+// Parity: go:452dea11:internal/settings/service_managed_accounts_test.go:58 TestServiceSystemNotificationTestUsesNarrowPublisherAndFailsClosed
+#[tokio::test]
+async fn system_notification_test_route_fails_closed_without_a_publisher() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config");
+    let handle = start_product(config).await.expect("start product");
+
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "POST",
+        "/api/v1/settings/system-notifications/test",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 503);
+    assert_eq!(response["ok"], false);
+    assert_eq!(response["error"]["code"], "SYSTEM_NOTIFICATION_UNAVAILABLE");
+    handle.shutdown().await.expect("shutdown product");
+}
+
 #[tokio::test]
 async fn plugin_uninstall_guidance_route_matches_go_fixture_in_cutover_only() {
     let fixture: Value = serde_json::from_str(include_str!(

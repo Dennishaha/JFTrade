@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -52,12 +52,18 @@ pub enum MarketDataProviderSettingsError {
 pub struct MarketDataProviderSettingsService {
     store: Arc<dyn MarketDataProviderSettingsStorePort>,
     runtime: Option<Arc<dyn MarketDataProviderRuntimePort>>,
+    /// Serializes provider transitions and keeps reads out of the window
+    /// between a durable write and the runtime rollback that may undo it.
+    provider_lock: Arc<RwLock<()>>,
 }
 
 #[derive(Clone)]
 pub struct BacktestMarketDataProviderSettingsService {
     store: Arc<dyn BacktestMarketDataProviderSettingsStorePort>,
     runtime: Option<Arc<dyn MarketDataProviderRuntimePort>>,
+    /// Same fencing contract as the active-provider service: the owner of the
+    /// write holds the lock until the runtime agrees with the durable value.
+    backtest_provider_lock: Arc<RwLock<()>>,
 }
 
 impl BacktestMarketDataProviderSettingsService {
@@ -65,6 +71,7 @@ impl BacktestMarketDataProviderSettingsService {
         Self {
             store,
             runtime: None,
+            backtest_provider_lock: Arc::new(RwLock::new(())),
         }
     }
 
@@ -74,6 +81,14 @@ impl BacktestMarketDataProviderSettingsService {
     }
 
     pub fn active_provider(&self) -> Result<MarketDataProvider, SettingsStoreError> {
+        let _guard = self
+            .backtest_provider_lock
+            .read()
+            .unwrap_or_else(|error| error.into_inner());
+        self.stored_provider()
+    }
+
+    fn stored_provider(&self) -> Result<MarketDataProvider, SettingsStoreError> {
         Ok(self
             .store
             .load_backtest_market_data_provider()?
@@ -83,26 +98,25 @@ impl BacktestMarketDataProviderSettingsService {
     }
 
     pub fn save(&self, input: &str) -> Result<MarketDataProvider, MarketDataProviderSettingsError> {
-        let current = self.active_provider()?;
+        let _guard = self
+            .backtest_provider_lock
+            .write()
+            .unwrap_or_else(|error| error.into_inner());
+        let current = self.stored_provider()?;
         let next = parse_market_data_provider(input)?;
         if next == current {
             return Ok(next);
         }
-        // Persist first so a failed settings write can never leave the
-        // process-local runtime pointing at a provider that will be lost on
-        // restart.  If runtime preparation fails, restore the old durable
-        // value before returning the error.
-        self.store.save_backtest_market_data_provider(next)?;
+        // Prepare the backtest runtime before the atomic persistence step.
+        // Preparation can probe provider health, so it must not run against a
+        // durable selection the runtime has not accepted: a failed preparation
+        // leaves the stored provider untouched instead of needing an undo.
         if let Some(runtime) = &self.runtime
             && let Err(error) = runtime.prepare_backtest(next)
         {
-            if let Err(rollback_error) = self.store.save_backtest_market_data_provider(current) {
-                return Err(MarketDataProviderSettingsError::Runtime(format!(
-                    "{error}; settings rollback failed: {rollback_error}"
-                )));
-            }
             return Err(MarketDataProviderSettingsError::Runtime(error));
         }
+        self.store.save_backtest_market_data_provider(next)?;
         Ok(next)
     }
 }
@@ -112,6 +126,7 @@ impl MarketDataProviderSettingsService {
         Self {
             store,
             runtime: None,
+            provider_lock: Arc::new(RwLock::new(())),
         }
     }
 
@@ -121,6 +136,14 @@ impl MarketDataProviderSettingsService {
     }
 
     pub fn active_provider(&self) -> Result<MarketDataProvider, SettingsStoreError> {
+        let _guard = self
+            .provider_lock
+            .read()
+            .unwrap_or_else(|error| error.into_inner());
+        self.stored_provider()
+    }
+
+    fn stored_provider(&self) -> Result<MarketDataProvider, SettingsStoreError> {
         Ok(self
             .store
             .load_active_market_data_provider()?
@@ -130,7 +153,11 @@ impl MarketDataProviderSettingsService {
     }
 
     pub fn save(&self, input: &str) -> Result<MarketDataProvider, MarketDataProviderSettingsError> {
-        let current = self.active_provider()?;
+        let _guard = self
+            .provider_lock
+            .write()
+            .unwrap_or_else(|error| error.into_inner());
+        let current = self.stored_provider()?;
         let next = parse_market_data_provider(input)?;
         self.store.save_active_market_data_provider(next)?;
         let Some(runtime) = &self.runtime else {
@@ -183,7 +210,10 @@ pub const fn provider_id(provider: MarketDataProvider) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::mpsc::{Receiver, Sender, channel};
     use std::sync::{Mutex, RwLock};
+    use std::time::Duration;
 
     use super::*;
 
@@ -194,6 +224,151 @@ mod tests {
     struct Runtime {
         calls: Mutex<Vec<(String, MarketDataProvider)>>,
         fail: bool,
+    }
+
+    #[derive(Default)]
+    struct DegradedRuntime {
+        activations: Mutex<Vec<MarketDataProvider>>,
+        degraded: AtomicBool,
+        fail: AtomicBool,
+    }
+
+    impl DegradedRuntime {
+        fn activations(&self) -> Vec<MarketDataProvider> {
+            self.activations
+                .lock()
+                .expect("recorded activations")
+                .clone()
+        }
+
+        fn mark_degraded(&self) {
+            self.degraded.store(true, Ordering::SeqCst);
+        }
+
+        fn mark_healthy(&self) {
+            self.degraded.store(false, Ordering::SeqCst);
+        }
+
+        fn start_failing(&self) {
+            self.fail.store(true, Ordering::SeqCst);
+        }
+    }
+
+    impl MarketDataProviderRuntimePort for DegradedRuntime {
+        fn needs_activation(&self, provider: MarketDataProvider) -> bool {
+            self.degraded.load(Ordering::SeqCst) && provider == MarketDataProvider::Akshare
+        }
+
+        fn activate(&self, provider: MarketDataProvider) -> Result<(), String> {
+            self.activations
+                .lock()
+                .expect("recorded activations")
+                .push(provider);
+            if self.fail.load(Ordering::SeqCst) {
+                Err("retry failed".to_owned())
+            } else {
+                Ok(())
+            }
+        }
+
+        fn prepare_backtest(&self, _provider: MarketDataProvider) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    struct RecordingPreparation {
+        store: Arc<BacktestStore>,
+        observed: Mutex<Vec<Option<String>>>,
+        fail: bool,
+    }
+
+    impl MarketDataProviderRuntimePort for RecordingPreparation {
+        fn needs_activation(&self, _provider: MarketDataProvider) -> bool {
+            true
+        }
+
+        fn activate(&self, _provider: MarketDataProvider) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn prepare_backtest(&self, _provider: MarketDataProvider) -> Result<(), String> {
+            self.observed
+                .lock()
+                .expect("observed")
+                .push(self.store.0.read().expect("observed provider").clone());
+            if self.fail {
+                Err("provider health failed".to_owned())
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    struct ScriptedActiveStore {
+        provider: RwLock<Option<String>>,
+        save_results: Mutex<Vec<Result<(), SettingsStoreError>>>,
+    }
+
+    impl ScriptedActiveStore {
+        fn new(provider: Option<&str>) -> Self {
+            Self {
+                provider: RwLock::new(provider.map(ToOwned::to_owned)),
+                save_results: Mutex::new(Vec::new()),
+            }
+        }
+
+        fn script(&self, results: Vec<Result<(), SettingsStoreError>>) {
+            *self.save_results.lock().expect("save script") = results;
+        }
+
+        fn provider(&self) -> Option<String> {
+            self.provider.read().expect("stored provider").clone()
+        }
+    }
+
+    impl MarketDataProviderSettingsStorePort for ScriptedActiveStore {
+        fn load_active_market_data_provider(&self) -> Result<Option<String>, SettingsStoreError> {
+            Ok(self.provider())
+        }
+
+        fn save_active_market_data_provider(
+            &self,
+            provider: MarketDataProvider,
+        ) -> Result<(), SettingsStoreError> {
+            let mut results = self.save_results.lock().expect("save script");
+            if !results.is_empty() {
+                results.remove(0)?;
+            }
+            *self.provider.write().expect("stored provider") =
+                Some(provider_id(provider).to_owned());
+            Ok(())
+        }
+    }
+
+    struct BlockingRuntime {
+        started: Sender<()>,
+        release: Mutex<Receiver<()>>,
+    }
+
+    impl MarketDataProviderRuntimePort for BlockingRuntime {
+        fn needs_activation(&self, _provider: MarketDataProvider) -> bool {
+            true
+        }
+
+        fn activate(&self, provider: MarketDataProvider) -> Result<(), String> {
+            assert_eq!(provider, MarketDataProvider::Futu);
+            self.started.send(()).expect("signal side effect");
+            self.release
+                .lock()
+                .expect("release receiver")
+                .recv()
+                .expect("release side effect");
+            Err("provider switch failed".to_owned())
+        }
+
+        fn prepare_backtest(&self, _provider: MarketDataProvider) -> Result<(), String> {
+            Ok(())
+        }
     }
 
     impl MarketDataProviderSettingsStorePort for Store {
@@ -322,6 +497,190 @@ mod tests {
         assert_eq!(
             backtest_store.0.read().expect("backtest store").as_deref(),
             Some("akshare")
+        );
+    }
+
+    // Parity: go:452dea11:internal/settings/market_data_test.go:99 TestMarketDataProviderRetriesDegradedCurrentSelection
+    #[test]
+    fn degraded_current_selection_is_reactivated_only_while_degraded() {
+        let store = Arc::new(Store(RwLock::new(Some("akshare".to_owned()))));
+        let runtime = Arc::new(DegradedRuntime::default());
+        runtime.mark_degraded();
+        let service =
+            MarketDataProviderSettingsService::new(store.clone()).with_runtime(runtime.clone());
+
+        assert_eq!(
+            service.save("akshare").expect("retry current provider"),
+            MarketDataProvider::Akshare
+        );
+        assert_eq!(runtime.activations(), vec![MarketDataProvider::Akshare]);
+
+        // A healthy current selection is idempotent and never restarts the
+        // runtime again.
+        runtime.mark_healthy();
+        assert_eq!(
+            service.save("akshare").expect("healthy provider save"),
+            MarketDataProvider::Akshare
+        );
+        assert_eq!(runtime.activations(), vec![MarketDataProvider::Akshare]);
+
+        runtime.mark_degraded();
+        runtime.start_failing();
+        let error = service.save("akshare").expect_err("failed provider retry");
+        assert!(error.to_string().contains("retry failed"));
+        assert_eq!(
+            store.0.read().expect("active store").as_deref(),
+            Some("akshare")
+        );
+    }
+
+    // Parity: go:452dea11:internal/settings/market_data_test.go:143 TestMarketDataProviderSettingsAcceptAKShare
+    #[test]
+    fn akshare_selection_is_accepted_and_applied() {
+        let store = Arc::new(Store(RwLock::new(Some("yfinance".to_owned()))));
+        let runtime = Arc::new(Runtime {
+            calls: Mutex::new(Vec::new()),
+            fail: false,
+        });
+        let service =
+            MarketDataProviderSettingsService::new(store.clone()).with_runtime(runtime.clone());
+
+        assert_eq!(
+            service.save(" AKSHARE ").expect("AKShare provider save"),
+            MarketDataProvider::Akshare
+        );
+        assert_eq!(
+            store.0.read().expect("active store").as_deref(),
+            Some("akshare")
+        );
+        assert_eq!(
+            runtime.calls.lock().expect("runtime calls").clone(),
+            vec![("activate".to_owned(), MarketDataProvider::Akshare)]
+        );
+    }
+
+    // Parity: go:452dea11:internal/settings/market_data_test.go:161 TestBacktestProviderIsPreparedBeforeAtomicPersistence
+    #[test]
+    fn backtest_provider_is_prepared_before_atomic_persistence() {
+        let store = Arc::new(BacktestStore(RwLock::new(Some("yfinance".to_owned()))));
+        let failing = Arc::new(RecordingPreparation {
+            store: Arc::clone(&store),
+            observed: Mutex::new(Vec::new()),
+            fail: true,
+        });
+        let service = BacktestMarketDataProviderSettingsService::new(store.clone())
+            .with_runtime(failing.clone());
+
+        let error = service.save("akshare").expect_err("failed preparation");
+        assert!(error.to_string().contains("provider health failed"));
+        assert_eq!(
+            store.0.read().expect("backtest store").as_deref(),
+            Some("yfinance")
+        );
+        assert_eq!(
+            failing.observed.lock().expect("observed").clone(),
+            vec![Some("yfinance".to_owned())]
+        );
+
+        let succeeding = Arc::new(RecordingPreparation {
+            store: Arc::clone(&store),
+            observed: Mutex::new(Vec::new()),
+            fail: false,
+        });
+        let service = BacktestMarketDataProviderSettingsService::new(store.clone())
+            .with_runtime(succeeding.clone());
+        assert_eq!(
+            service.save("akshare").expect("prepared provider save"),
+            MarketDataProvider::Akshare
+        );
+        assert_eq!(
+            store.0.read().expect("backtest store").as_deref(),
+            Some("akshare")
+        );
+        assert_eq!(
+            succeeding.observed.lock().expect("observed").clone(),
+            vec![Some("yfinance".to_owned())]
+        );
+    }
+
+    // Parity: go:452dea11:internal/settings/market_data_test.go:224 TestMarketDataProviderReportsPersistenceAndRollbackFailures
+    #[test]
+    fn persistence_and_rollback_failures_are_reported() {
+        let store = Arc::new(ScriptedActiveStore::new(Some("yfinance")));
+        store.script(vec![Err(SettingsStoreError::new("persist failed"))]);
+        let service = MarketDataProviderSettingsService::new(store.clone());
+        let error = service.save("futu").expect_err("persistence failure");
+        assert!(error.to_string().contains("persist failed"));
+        assert_eq!(store.provider(), Some("yfinance".to_owned()));
+
+        let store = Arc::new(ScriptedActiveStore::new(Some("yfinance")));
+        store.script(vec![
+            Ok(()),
+            Err(SettingsStoreError::new("rollback failed")),
+        ]);
+        let service =
+            MarketDataProviderSettingsService::new(store.clone()).with_runtime(Arc::new(Runtime {
+                calls: Mutex::new(Vec::new()),
+                fail: true,
+            }));
+        let error = service.save("futu").expect_err("rollback failure");
+        let message = error.to_string();
+        assert!(message.contains("activation failed"), "{message}");
+        assert!(message.contains("settings rollback failed"), "{message}");
+        assert!(message.contains("rollback failed"), "{message}");
+        assert_eq!(store.provider(), Some("futu".to_owned()));
+    }
+
+    // Parity: go:452dea11:internal/settings/market_data_test.go:252 TestMarketDataProviderReadsWaitForRuntimeRollback
+    #[test]
+    fn reads_wait_for_the_runtime_rollback_window() {
+        let store = Arc::new(Store(RwLock::new(Some("yfinance".to_owned()))));
+        let (started_tx, started_rx) = channel();
+        let (release_tx, release_rx) = channel();
+        let service = Arc::new(
+            MarketDataProviderSettingsService::new(store.clone()).with_runtime(Arc::new(
+                BlockingRuntime {
+                    started: started_tx,
+                    release: Mutex::new(release_rx),
+                },
+            )),
+        );
+
+        let saving = {
+            let service = Arc::clone(&service);
+            std::thread::spawn(move || service.save("futu"))
+        };
+        started_rx.recv().expect("side effect started");
+
+        let (read_tx, read_rx) = channel();
+        let reading = {
+            let service = Arc::clone(&service);
+            std::thread::spawn(move || {
+                let provider = service.active_provider();
+                let _ = read_tx.send(provider.as_ref().ok().copied());
+                provider
+            })
+        };
+        assert!(
+            read_rx.recv_timeout(Duration::from_millis(50)).is_err(),
+            "provider read completed while the runtime rollback was in flight"
+        );
+
+        release_tx.send(()).expect("release side effect");
+        let save_error = saving
+            .join()
+            .expect("save thread")
+            .expect_err("runtime failure");
+        assert!(save_error.to_string().contains("provider switch failed"));
+        assert_eq!(
+            read_rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("provider read after rollback"),
+            Some(MarketDataProvider::Yfinance)
+        );
+        assert_eq!(
+            reading.join().expect("read thread").expect("read provider"),
+            MarketDataProvider::Yfinance
         );
     }
 }

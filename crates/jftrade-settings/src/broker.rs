@@ -309,6 +309,54 @@ mod tests {
         assert_eq!(service.inputs().expect("broker inputs"), expected);
     }
 
+    // Parity: go:452dea11:internal/settings/service_test.go:435 TestDefaultCallbacksReturnEmptyMaps
+    #[test]
+    fn empty_store_projects_an_empty_broker_surface() {
+        let service = BrokerSettingsService::new(Arc::new(Store(RwLock::new(
+            BrokerSettingsInputs::default(),
+        ))));
+        let inputs = service.inputs().expect("default broker inputs");
+        assert!(inputs.saved_integration.is_none());
+        assert!(inputs.accounts.is_empty());
+        assert_eq!(inputs.effective_config, FutuIntegrationConfig::default());
+    }
+
+    // Parity: go:452dea11:internal/settings/service_test.go:446 TestSaveIntegrationPassesStructuredConfigWithoutChangingRuntimeEnv
+    #[test]
+    fn structured_integration_save_leaves_the_process_environment_untouched() {
+        let environment = ["FUTU_OPEND_ADDR", "JFTRADE_FUTU_WEBSOCKET_PORT"]
+            .map(|name| (name, std::env::var(name).ok()));
+        let service = BrokerSettingsService::new(Arc::new(Store(RwLock::new(
+            BrokerSettingsInputs::default(),
+        ))));
+
+        let integration = service
+            .save_integration(
+                &BrokerIntegration {
+                    config: FutuIntegrationConfig {
+                        host: "127.0.0.3".to_owned(),
+                        api_port: 23_333,
+                        websocket_port: 23_334,
+                        ..FutuIntegrationConfig::default()
+                    },
+                    ..BrokerIntegration::default()
+                },
+                "2026-08-20T00:00:00Z",
+            )
+            .expect("save structured integration");
+        assert_eq!(integration.config.host, "127.0.0.3");
+        assert_eq!(integration.config.api_port, 23_333);
+        assert_eq!(integration.config.websocket_port, 23_334);
+
+        for (name, before) in environment {
+            assert_eq!(
+                std::env::var(name).ok(),
+                before,
+                "{name} changed during the settings write"
+            );
+        }
+    }
+
     // Parity: go:452dea11:internal/app/apiserver/servercoretest/settings_normalization_test.go:10 TestNormalizeManagedBrokerAccountAppliesDefaults
     #[test]
     fn write_normalization_matches_current_go_owner() {

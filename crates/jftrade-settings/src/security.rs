@@ -353,7 +353,8 @@ fn validate_web_access_password(password: &str) -> Result<(), SecuritySettingsEr
 
 #[cfg(test)]
 mod tests {
-    use std::sync::RwLock;
+    use std::sync::mpsc::{Receiver, Sender, channel};
+    use std::sync::{Mutex, RwLock};
 
     use super::*;
 
@@ -398,6 +399,41 @@ mod tests {
         }
     }
 
+    struct CountingBlockingPasswords {
+        store: Arc<Store>,
+        started: Mutex<Option<Sender<()>>>,
+        gate: Mutex<Receiver<()>>,
+        observed: Mutex<Vec<Option<String>>>,
+        issued: Mutex<u32>,
+    }
+
+    impl SecurityPasswordPort for CountingBlockingPasswords {
+        fn hash(&self, _password: &str) -> Result<String, String> {
+            self.observed.lock().expect("observed").push(
+                self.store
+                    .0
+                    .read()
+                    .expect("observed store")
+                    .as_ref()
+                    .map(|record| record.password_hash().to_owned()),
+            );
+            let verifier = {
+                let mut issued = self.issued.lock().expect("issued verifiers");
+                *issued += 1;
+                format!("verifier-{issued}")
+            };
+            if let Some(started) = self.started.lock().expect("started").take() {
+                started.send(()).expect("signal password hashing");
+                self.gate
+                    .lock()
+                    .expect("gate receiver")
+                    .recv()
+                    .expect("release password hashing");
+            }
+            Ok(verifier)
+        }
+    }
+
     #[test]
     fn access_fails_closed_without_a_configured_password() {
         let service = SecuritySettingsService::new(Arc::new(Store(RwLock::new(Some(
@@ -414,6 +450,7 @@ mod tests {
         );
     }
 
+    // Parity: go:452dea11:internal/settings/service_test.go:232 TestSaveSecuritySettingsRejectsInvalidWebPort
     #[test]
     fn writes_validate_password_port_and_public_access_like_go() {
         let service = SecuritySettingsService::with_ports(
@@ -454,6 +491,7 @@ mod tests {
         assert!(disabled.password_configured);
     }
 
+    // Parity: go:452dea11:internal/settings/service_managed_accounts_test.go:99 TestValidateWebAccessPasswordBoundaries
     #[test]
     fn web_access_password_boundaries_match_go() {
         assert_eq!(
@@ -469,7 +507,6 @@ mod tests {
 
     #[test]
     fn listener_failure_rolls_back_password_and_port_together() {
-        // Parity: go:452dea11:internal/settings/service_test.go:232 TestSaveSecuritySettingsRejectsInvalidWebPort
         // Parity: go:452dea11:internal/settings/service_test.go:242 TestSaveSecuritySettingsRollsBackWhenRuntimeListenerUpdateFails
         let original = SecuritySettingsRecord::new(true, false, 6688, "stored-verifier");
         let store = Arc::new(Store(RwLock::new(Some(original.clone()))));
@@ -490,6 +527,86 @@ mod tests {
             store.0.read().expect("read store").as_ref(),
             Some(&original)
         );
+    }
+
+    // Parity: go:452dea11:internal/settings/service_test.go:361 TestConcurrentSecuritySavesPreserveNewestPasswordAndCallbackOrder
+    #[test]
+    fn concurrent_writes_serialize_and_keep_the_newest_password() {
+        let store = Arc::new(Store(RwLock::new(Some(SecuritySettingsRecord::new(
+            true,
+            false,
+            6688,
+            "old-verifier",
+        )))));
+        let (started_tx, started_rx) = channel();
+        let (release_tx, release_rx) = channel();
+        let passwords = Arc::new(CountingBlockingPasswords {
+            store: Arc::clone(&store),
+            started: Mutex::new(Some(started_tx)),
+            gate: Mutex::new(release_rx),
+            observed: Mutex::new(Vec::new()),
+            issued: Mutex::new(0),
+        });
+        let service = Arc::new(SecuritySettingsService::with_ports(
+            store.clone(),
+            None,
+            passwords.clone(),
+        ));
+
+        let first = {
+            let service = Arc::clone(&service);
+            std::thread::spawn(move || {
+                service.save(&SecuritySettingsUpdate {
+                    web_access_enabled: true,
+                    new_password: "first replacement password".to_owned(),
+                    ..SecuritySettingsUpdate::default()
+                })
+            })
+        };
+        started_rx.recv().expect("password hashing started");
+        let second = {
+            let service = Arc::clone(&service);
+            std::thread::spawn(move || {
+                service.save(&SecuritySettingsUpdate {
+                    web_access_enabled: true,
+                    public_access_enabled: true,
+                    new_password: "second replacement password".to_owned(),
+                    ..SecuritySettingsUpdate::default()
+                })
+            })
+        };
+        release_tx.send(()).expect("release password hashing");
+
+        let first_settings = first
+            .join()
+            .expect("first save thread")
+            .expect("first save");
+        let second_settings = second
+            .join()
+            .expect("second save thread")
+            .expect("second save");
+        assert!(first_settings.password_configured);
+        assert!(!first_settings.public_access_enabled);
+        assert!(second_settings.public_access_enabled);
+
+        // The second write read the verifier the first write had already
+        // persisted, so two saves cannot interleave their read/hash/write steps.
+        assert_eq!(
+            passwords.observed.lock().expect("observed").clone(),
+            vec![
+                Some("old-verifier".to_owned()),
+                Some("verifier-1".to_owned())
+            ]
+        );
+        let stored = store
+            .0
+            .read()
+            .expect("stored record")
+            .clone()
+            .expect("record");
+        assert_eq!(stored.password_hash(), "verifier-2");
+        assert!(stored.public_access_enabled());
+        assert_eq!(stored.web_port(), 6688);
     }
 
     #[test]
