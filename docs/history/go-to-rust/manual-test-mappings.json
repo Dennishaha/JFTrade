@@ -19993,129 +19993,129 @@
   },
   "cmd/generate-futu-proto/generator_test.go:18:TestGenerateFutuProtoReplacesOutputsAfterSuccess": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无 Rust protoc/注册流水线",
+    "conclusion": "boundary（owner 退场，保留）：Go 断言成功后替换暂存产物、写 register_all.go、重写 go_package 并删除旧 .pb.go，且 protoc 参数为 --proto_path/--go_opt=paths=source_relative。Rust 无 protoc 调用、无 pkg/futu/pb 与注册文件：绑定由 crates/jftrade-integration-futu/build.rs 用 prost 在构建期从冻结 proto 生成到 OUT_DIR，可对应的只有「生成输入 = 冻结 proto 树」这一事实，产物替换/注册语义不迁移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "cmd/generate-futu-proto/generator_test.go:46:TestGenerateFutuProtoPreservesOutputsOnProtocFailure": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无暂存目录原子替换",
+    "conclusion": "boundary（owner 退场，保留）：Go 断言 protoc 失败时不改动既有暂存/产物且不残留 .generate-futu-proto-* 目录。Rust 的生成是构建期 prost 编译，没有暂存目录与既有产物；失败表现为 cargo build 错误并保持冻结 proto 树不变，没有等价的「保留旧产物」断言点。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "cmd/generate-futu-proto/generator_test.go:60:TestGenerateFutuProtoRejectsChecksumBeforeCommands": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_proto_frozen_inputs.rs::frozen_proto_tree_matches_the_recorded_repository_digest",
+    "conclusion": "partial：Go 断言校验和不匹配时在运行任何命令前失败（protoc runner 未被调用）。Rust 无命令 runner 与暂存目录，等价约束是「使用前先校验」：守卫在任何消费前重算 proto 树摘要并与冻结 digest 比对，漂移即失败（探针：追加注释 → 转红 → shasum 回滚），且 build.rs 的 prost 编译对缺失/非法 proto 直接失败。差异：没有可断言「命令未执行」的 runner。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(frozen_proto_tree_matches_the_recorded_repository_digest)'",
+    "evidence_type": "partial"
   },
   "cmd/generate-futu-proto/main_test.go:14:TestParseCLIConfig": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无 Rust futu proto CLI 入口",
+    "conclusion": "boundary（owner 退场，保留）：Go 断言 parseCLIConfig 解析默认 source、-source 与 -verify-repository 开关。Rust 仓库零 Go、生成器已删除，build.rs 的 proto 列表是编译期常量，没有 CLI 参数解析入口，语义不迁移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "cmd/generate-futu-proto/main_test.go:29:TestParseCLIConfigRejectsInvalidArguments": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无 Rust CLI 参数校验",
+    "conclusion": "boundary（owner 退场，保留）：Go 断言 `-source=` 与位置参数被拒绝。Rust 无 CLI 参数入口；路径类错误只在 build.rs 编译期常量失配时表现为编译失败，错误分类与文案不同。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "cmd/generate-futu-proto/main_test.go:37:TestParseCLIConfigHelp": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无 Rust CLI 帮助输出",
+    "conclusion": "boundary（owner 退场，保留）：Go 断言 `-help` 返回 flag.ErrHelp 且 stderr 含 -source。Rust 无 CLI 与帮助文本，该用户可见契约随生成器退场。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "cmd/generate-futu-proto/main_test.go:44:TestRunCLIReturnsParameterExitCode": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无 Rust CLI 退出码",
+    "conclusion": "boundary（owner 退场，保留）：Go 断言参数错误返回退出码 2。Rust 无该 CLI 进程，退出码语义不适用（构建期失败由 cargo 报告）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "cmd/generate-futu-proto/manifest_test.go:15:TestParseChecksumManifest": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_proto_frozen_inputs.rs::frozen_manifest_parser_rejects_invalid_entries",
+    "conclusion": "partial：Go 断言 parseChecksumManifest 跳过注释/空行并返回 digest→文件名映射。Rust 新测试用相同 grammar（字段数 2、64 位小写 hex、文件名必须裸名且唯一）解析真实 manifest（184 条），并断言「注释 + 空行 + 条目」fixture 解析为 {\"Common.proto\": aaa…}。差异：Go 的错误分类文本与文件打开失败分支属 Go 语言层，Rust 以 Result<BTreeMap<String,String>, String> 复现同一拒绝语义，无逐字错误文本。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(frozen_manifest_parser_rejects_invalid_entries)'",
+    "evidence_type": "partial"
   },
   "cmd/generate-futu-proto/manifest_test.go:25:TestManifestFileNamesReturnsSortedInputs": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_proto_frozen_inputs.rs::frozen_manifest_names_match_the_checked_in_proto_tree",
+    "conclusion": "partial：Go 断言 manifestFileNames 返回排序后的输入名、空 manifest 报错。Rust 新测试断言 manifest 名字（有序映射键）与 proto/futu 平铺列表逐项相等且严格递增（184），空 manifest fixture 报 \"contains no inputs\"。差异：Go 返回 []string 供生成器循环消费，Rust 无生成器循环，只把该列表与冻结树对照。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(frozen_manifest_names_match_the_checked_in_proto_tree)'",
+    "evidence_type": "partial"
   },
   "cmd/generate-futu-proto/manifest_test.go:38:TestParseChecksumManifestRejectsInvalidEntries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_proto_frozen_inputs.rs::frozen_manifest_parser_rejects_invalid_entries",
+    "conclusion": "partial：Go 的四个子例分别断言非法摘要（\"invalid checksum manifest entry\"）、含 `/` 与含 `\\` 的路径名、重复文件名（\"invalid checksum manifest filename\"）。Rust 新测试对同样四类 fixture 内容断言拒绝并校验错误文案含 entry/filename 分类。开发期红→修：最初仅用 Path::file_name 判定裸名，`nested\\Common.proto` 子例转红（Unix 下反斜杠不是分隔符），改为显式拒绝 `/` 与 `\\` 后转绿。差异仅在错误文本与 path:line 组装细节。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(frozen_manifest_parser_rejects_invalid_entries)'",
+    "evidence_type": "partial"
   },
   "cmd/generate-futu-proto/manifest_test.go:60:TestValidateManifestFilesReportsAllDifferences": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_proto_frozen_inputs.rs::frozen_manifest_names_match_the_checked_in_proto_tree",
+    "conclusion": "partial：Go 断言 validateManifestFiles 同时报告 missing 与 unexpected（各自排序）并聚合为一条错误。Rust 新测试用 manifest_file_differences 复现聚合文案（\"missing: Missing.proto\"、\"unexpected: …\"），并对真实 manifest 与冻结树断言无差异（返回 None）。差异：Go 入参是 map+slice 且在生成器流水线内调用，Rust 无该流水线，聚合函数只服务守卫测试。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(frozen_manifest_names_match_the_checked_in_proto_tree)'",
+    "evidence_type": "partial"
   },
   "cmd/generate-futu-proto/manifest_test.go:70:TestVerifyFutuInputsRejectsMissingAndMismatchedFiles": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无 Rust 上游 proto 源目录校验入口",
+    "conclusion": "boundary（owner 退场，保留）：Go 的 verifyFutuInputs 校验上游下载目录中每个 proto 的 sha256 与清单一致，缺失或不匹配即失败。Rust 没有上游下载步骤——proto/futu 就是仅存事实源，而 manifest 记录的是上游（重写前）摘要：本批实测 184/184 与树内容不同（差异来自 go_package 注入与行尾归一化），因此把 manifest 当树校验必然失败。树侧完整性改由 digest 守卫承担（见 repository_verify_test.go:12），上游输入缺失/不匹配这条路径不再适用。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(frozen_proto_tree_matches_the_recorded_repository_digest)'",
+    "evidence_type": "boundary"
   },
   "cmd/generate-futu-proto/repository_verify_test.go:12:TestRepositoryDigestDetectsGeneratedOutputDrift": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_proto_frozen_inputs.rs::frozen_proto_tree_matches_the_recorded_repository_digest",
+    "conclusion": "function_exact（本批新增冻结产物守卫，proto 半边）：Go 断言 inspectFutuRepository 统计树内文件、write/verify 往返通过，篡改生成物后 verifyFutuRepository 报 \"checked-in OpenD generated outputs do not match\"。Rust 新测试用同一算法（相对文件名 + 0x00 + 内容 + 0x00，按名字排序累计 sha256）重算 proto/futu 摘要，断言等于 scripts/futu-proto-generated-10.9.6908.digest 记录的 proto a7b3cc04…/184 且 verify 通过，再在临时目录构造漂移树断言同一错误文案。差异：pb 半边随 Go 生成物退场（Rust 无 checked-in Go 输出），已在结论中显式标注。探针：给 Common.proto 追加注释 → 守卫转红 → shasum 字节回滚（bdbd02a8…）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(frozen_proto_tree_matches_the_recorded_repository_digest)'",
+    "evidence_type": "function_exact"
   },
   "cmd/generate-futu-proto/repository_verify_test.go:41:TestRepositoryDigestRejectsUnexpectedFilesAndProtoNames": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_proto_frozen_inputs.rs::frozen_proto_names_and_extensions_match_the_checksum_manifest",
+    "conclusion": "function_exact（proto 半边）：Go 断言 pb 树出现非 .go 文件报 \"unexpected file\"、proto 文件名与 manifest 不一致报 \"filenames do not match\"。Rust 新测试断言 proto/futu 平铺、全部 .proto、名字集合（排序）与 scripts/futu-proto-10.9.6908.sha256 完全一致（184），并在临时目录复现三类失败：非 .proto 扩展名（\"unexpected file in generated tree\"）、子目录（\"must remain flat\"）、名字不匹配（\"filenames do not match\"）。探针：新建 ZZProbe.proto → 本守卫与 manifest 名字守卫同时转红 → 删除探针文件复原。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(frozen_proto_names_and_extensions_match_the_checksum_manifest)'",
+    "evidence_type": "function_exact"
   },
   "cmd/generate-futu-proto/repository_verify_test.go:59:TestParseRepositoryDigestValidation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_proto_frozen_inputs.rs::frozen_digest_parser_rejects_malformed_entries",
+    "conclusion": "function_exact：Go 断言 digest 解析拒绝 `proto <NUL×64> 1`。Rust 新测试解析真实 digest（proto 184 / pb 185，小写 64 位 hex、计数 > 0），并对四类坏输入断言拒绝：NUL 摘要、缺 pb 条目（\"must contain proto and pb entries\"）、重复条目（\"duplicate generated repository digest entry\"）、计数为 0（\"invalid generated repository file count\"）；解析器逐条复刻 Go 的 grammar（3 字段、proto/pb 前缀、小写 hex、去重、跳过注释与空行）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(frozen_digest_parser_rejects_malformed_entries)'",
+    "evidence_type": "function_exact"
   },
   "cmd/generate-futu-proto/rewrite_test.go:12:TestRewriteGoPackageReplacesOrInsertsOption": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-futu/tests/futu_proto_frozen_inputs.rs::frozen_proto_tree_keeps_the_generator_rewrite_postconditions",
+    "conclusion": "partial：Go 的 replace/insert 子例断言重写后含 canonical `option go_package = \"github.com/jftrade/jftrade-main/pkg/futu/pb/<pkg>;<pkg>\";`、不含旧值、无 `\\r`、无 `\" \\t\\n\"`。Rust 新测试对冻结树全部 184 个 proto 断言同一组后置条件：唯一 go_package 选项且取值由 package 名推导（小写、去下划线）、无 CRLF、无行尾空白。差异：Rust 无重写代码，无法区分 replace/insert 分支；\"no package\" 错误分支在冻结产物中不可达。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(frozen_proto_tree_keeps_the_generator_rewrite_postconditions)'",
+    "evidence_type": "partial"
   },
   "cmd/generate-futu-proto/rewrite_test.go:35:TestRewriteGoPackageRejectsMissingPackage": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无 Rust go_package 重写器",
+    "conclusion": "boundary（owner 退场，保留）：Go 断言缺少 package 声明的 proto 报 \"no package\"。Rust 无重写器，冻结树 184 个 proto 全部带 package 声明（守卫逐文件断言），该失败分支没有运行入口。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "cmd/generate-futu-proto/rewrite_test.go:42:TestOrganizeGeneratedFilesUsesPackageDirectories": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:generated",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：无 Go 生成物归档逻辑",
+    "conclusion": "boundary（owner 退场，保留）：Go 断言把 .pb.go 按 package 目录归档、跳过无 package 文件。Rust 无 .pb.go 产物（prost 直接映射为 Rust 模块），目录归档逻辑不迁移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "cmd/generate-pineworker-proto/generator_test.go:17:TestGeneratePineworkerProtoReplacesOutputAfterSuccess": {
     "status": "[~]",
