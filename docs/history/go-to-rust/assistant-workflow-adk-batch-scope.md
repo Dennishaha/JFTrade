@@ -3145,3 +3145,37 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 - 跨批 follow-up 汇总：P0 无新增。P1 = 前批清单去除本批已闭环的 `strategy.optimize` readiness 门，其余（模型目录缺 9 个外部写/交易工具、workflow CRUD 工具族、策略实例/定义工具族、`portfolio.summary` 多账户聚合、`portfolio.*` broker runtime `lastError`、策略定义版本/快照 wire 形状、工作流触发日志与 `workflow_runs.*` 过滤、`workflow.*` 单条读路由、Go `SaveRun` 终态谓词、审批续跑 `resumeState`、ADK 维护 busy/lease handoff）不变；P2 = 前批清单 + 本批 `market.candles` 缺键文案、无端口 watchlist 报文措辞、就绪终态载荷形状（Go `backtestDataReadinessPayload` 含 error/nextAction 中文指令 vs Rust `nextAction=wait_kline_sync` 且终态直接报错）。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1687 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2862 Rust** / **959 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第六十九批：`internal/assistant/assembly` 收尾 2 条（`product_execution_contracts_test.go:84`、`workflow_execution_injection_test.go:60`）
+
+### 范围与基线
+
+- Go 基线：`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestProductExecutionAdapterPreservesProductAndExecutionBoundaries|TestRuntimeUsesInjectedWorkflowExecutionForLoopChat' -count=1`，PASS。
+- Go 语义：①`ProductExecutionAdapter` 的产品/执行边界——`market.capabilities` 用大写 market 查 capability；`research.news` 的旧路由字段 `tradingEnvironment` 不得进 provider params；`market.search` 读 schema 的 `pageSize`（默认 20、钳 1..100）并把 `query` 映射为 `keyword`；`market.snapshots` 保留符号原始大小写；`alerts.price.set` → customization `set` + payload；`execution.order_*/combo_*/buying_power` 走执行服务且 buying power 用 `FeatureExecutionBuyingPower`。②注入的 workflow executor 必须被 loop 模式 ChatStream 使用，其 sentinel 错误原样上抛。
+
+### 生产修正（本批 2 处真实缺口）
+
+- `crates/jftrade-engine/src/product_mcp_production_executor.rs::market_search`：原先只读 `limit`，而评审 schema 与 `normalize_legacy_mcp_arguments` 使用 `pageSize`（服务器把 `limit` 改写成 `pageSize`），导致调用方页大小被丢弃、回落默认 20；现优先 `pageSize`、缺省兼容 `limit`、默认 20、范围 1..100。
+- `crates/jftrade-engine/src/product_mcp_production_executor_research.rs::research_news`：Go 把路由字段放在 typed query、provider params 只带业务参数；Rust 原先把全部剩余参数拼进 provider query，现排除 `tradingEnvironment`/`accountId`/`featureId`/`cursor`（brokerId/market/instrumentId/limit/pageSize 仍由 Rust 新闻路由消费）。
+
+### 回归
+
+- `product_tool_catalog_parity_tests.rs::market_search_honors_the_schema_page_size_and_keeps_the_limit_alias`：pageSize=25 → `limit=25`、limit=7 → `limit=7`、缺省 → `limit=20`，且路径固定 `/api/v1/market-data/instruments`、`query=apple` 保留、不出现 `pageSize=`。
+- `product_mcp_market_news_tool_tests.rs::research_news_never_forwards_the_legacy_routing_field`：`instrumentId=US.AAPL` 与 `limit=10` 保留，`tradingEnvironment` 不得出现。
+- `product_adk_model_runtime_chat_turn_tests.rs::a_failed_workflow_execution_surfaces_on_the_loop_chat_path`：loop 模式脚本化模型调用 `workflow.wait`，注入失败执行器返回 sentinel → 执行器恰被调用一次，`toolCalls[0].status=FAILED`、`error` 等于 sentinel、`errorCode=TOOL_EXECUTION_FAILED`；同文件 `runtime_with_production_catalog` 参数改为 `Arc<dyn AdkToolExecutor>`（5 处调用点改 `executor.clone()`），语义不变。
+- `[~]` 结论：`product_execution_contracts_test.go:84` 的 `market.capabilities` 在 Rust 是 provider readiness 投影（端口忽略 query），broker 能力矩阵另有 owner（`product_broker_capabilities_projection.rs` + `/api/v1/broker-capabilities`）→ 结构差异（P2）；`market.snapshots` 归一位置不同（Rust 在执行器归一大写、Go 交服务）→ 终态等价（P2）。`workflow_execution_injection_test.go:60` 的注入缝在 Rust 不适用（组合根启动接线，无运行期 `SetWorkflowExecutor`；`workflow.run` 不在模型工具目录，P1 已登记），行为面按上条 loop 路径固定。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `market_search` 改回只读 `limit` → 页大小测试转红（exit 100）。
+2. `research_news` 的排除表清空 → 路由字段测试转红（exit 100）。
+   2 处探针均在本批内执行并按字节回滚，回滚后 engine 1690 全量复测全绿。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 已全部结清（0 条余量）；下一批进入 `internal/app/apiserver`（574 条），先 recon 分片（servercore/servercoretest/datamigration 等，`internal/app/apiserver/datamigration/maintenance_test.go` 8 条），再按 P0/P1 顺序推进；其后 `pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）、`internal/integration/akshare`（73）、`internal/integration/yfinance`（68）、`pkg/market`（56）。
+- 跨批 follow-up 汇总：P0 无新增。P1 = 前批清单（模型目录缺 9 个外部写/交易工具、workflow CRUD 工具族、策略实例/定义工具族、`portfolio.summary` 多账户聚合、`portfolio.*` broker runtime `lastError`、策略定义版本/快照 wire 形状、工作流触发日志与 `workflow_runs.*` 过滤、`workflow.*` 单条读路由、Go `SaveRun` 终态谓词、审批续跑 `resumeState`、ADK 维护 busy/lease handoff）；P2 = 前批清单 + 本批 `market.capabilities` 结构差异、`market.snapshots` 归一位置、`strategy.optimize` readiness 终态载荷形状（第 68 批）。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1690 passed）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2865 Rust** / **959 `[x]`**，0 破坏引用、0 重复 rust_entry）、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+> 干扰说明（客观记录，不计为通过）：本批执行期间工作树出现了**非本批**的并发改动——`scripts/compatibility/audit_test_parity.py` 与 `scripts/compatibility/test_audit_test_parity.py`（11:47 落盘，域矩阵重分类 + 自测）以及随之重生成的 `docs/history/go-to-rust/test-parity-report.md`/`test-parity-inventory.md`。这些改动属于其他进行中的工作，本批**未纳入提交**、也未回退。因此 `pnpm run check:zero-go` 在本批末尾转红，且 `pnpm run check:quick` 未复跑至绿；转红原因经核对完全来自上述脚本中新引入的字面量（`internal/pineworkerassets`、`internal/marketdataassets`，命中 zero-go 的资产目录规则），与本批 crates 改动无关。本批 crates 侧证据（fmt/clippy/nextest 1690 全绿、审计 0 破坏引用、架构检查、diff --check）在上述并发改动出现前完成；`check:zero-go`/`check:quick` 需在并发工作落地后复跑确认。

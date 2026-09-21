@@ -179,7 +179,14 @@ impl ProductionMcpToolExecutor {
         object.insert("instrumentId".to_owned(), Value::String(instrument_id));
         object.remove("market");
         object.remove("symbol");
-        let query = arguments_query(&arguments, &[], &[])?;
+        // Go's product adapter keeps routing fields on the typed feature query
+        // and never copies them into the provider params, so the legacy
+        // `tradingEnvironment` selector must not leak into the news search.
+        let query = arguments_query(
+            &arguments,
+            &["tradingEnvironment", "accountId", "featureId", "cursor"],
+            &[],
+        )?;
         self.ports()?
             .market_data_news_search
             .read("/api/v1/market-data/news", &query)

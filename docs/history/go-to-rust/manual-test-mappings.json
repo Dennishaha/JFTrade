@@ -7183,10 +7183,10 @@
   },
   "internal/assistant/assembly/product_execution_contracts_test.go:84:TestProductExecutionAdapterPreservesProductAndExecutionBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_tool_catalog_parity_tests.rs::market_search_honors_the_schema_page_size_and_keeps_the_limit_alias",
+    "conclusion": "partial（Go 的跨域 adapter 在 Rust 拆成 MCP 生产执行器 + 能力矩阵 + 执行写端口）：market.search **本批修正**：Rust 执行器原先只读 `limit`，而评审 schema 与 MCP 服务器 legacy 归一都使用 `pageSize`（`normalize_legacy_mcp_arguments` 把 `limit` 改写成 `pageSize`），导致调用方给的页大小被丢弃并回落到默认 20；现改为优先 `pageSize`、缺省兼容 `limit`、默认 20、范围 1..100（`crates/jftrade-engine/src/product_mcp_production_executor.rs::market_search`）。回归 `product_tool_catalog_parity_tests.rs::market_search_honors_the_schema_page_size_and_keeps_the_limit_alias`（pageSize=25 → limit=25；limit=7 → limit=7；缺省 → limit=20；路径与 query 均断言）。research.news **本批修正**：Go 的通用适配器把 brokerId/accountId/market/instrumentId/cursor/pageSize/tradingEnvironment/featureId 当 typed query 字段，provider params 只带业务参数，Rust 的新闻搜索工具却把全部剩余参数拼进 provider query；现排除 `tradingEnvironment`/`accountId`/`featureId`/`cursor`（brokerId/market/instrumentId/limit/pageSize 由 Rust 路由消费，保留）。回归 `product_mcp_market_news_tool_tests.rs::research_news_never_forwards_the_legacy_routing_field`（instrumentId 与 limit 保留、tradingEnvironment 不得出现）。market.capabilities：Go 用归一后的 market（大写）与 brokerId/featureId 查 product feature capability；Rust 的 `market.capabilities` 是 active provider readiness 投影（`/api/v1/market-data/provider`，端口忽略 query），broker 能力矩阵另有 owner（`product_broker_capabilities_projection.rs` 的 FeatureSpec 与 `/api/v1/broker-capabilities` 投影）→ 结构差异（P2，已登记）。market.snapshots：Rust 执行器把 symbols 归一大写成 `MARKET.SYMBOL` 再进 provider action，Go 适配器把原始大小写交给服务归一 → 归一位置不同、终态等价（P2）。alerts.price.set：`product_alerts_write_port.rs` 的 `AlertWriteAction{feature_id:\"alerts.price.set\", action:\"set\", payload}` 与 Go 的 CustomizationAction Action/Payload 对齐（既有 `product_alerts_write_product_tests.rs` 覆盖路由/回放/失败映射）。execution.*：Rust 以能力矩阵 + 执行写端口为 owner——`execution.order_preview/order_place/order_cancel/combo_*` 由 `product_broker_capabilities_operations.rs` 的 OpenD 操作与 `ExecutionWriteOperation` 覆盖，`execution.buying_power` 走 `ExecutionWriteOperation::BuyingPower`（既有 `product_execution_write_*`、`product_broker_capabilities_projection_tests.rs`、`product_production_ports_execution_preview_tests.rs::buying_power_*`）；Go 的 `FeatureExecutionBuyingPower` 在 Rust 是 feature id 字符串。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(market_search_honors_the_schema_page_size_and_keeps_the_limit_alias) | test(research_news_never_forwards_the_legacy_routing_field)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/runtime_test.go:14:TestOpenBuildsToolsServiceAndIdempotentLifecycle": {
     "status": "[~]",
@@ -7316,10 +7316,10 @@
   },
   "internal/assistant/assembly/workflow_execution_injection_test.go:60:TestRuntimeUsesInjectedWorkflowExecutionForLoopChat": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_chat_turn_tests.rs::a_failed_workflow_execution_surfaces_on_the_loop_chat_path",
+    "conclusion": "partial/boundary：Go 的 `SetWorkflowExecutor` 注入缝在 Rust 不适用——组合根在启动时接线 workflow 端口（`product_workflow_queue_dispatch.rs` 用 `try_claim_workflow_execution` 领权），没有运行期替换 workflow 执行器的入口，且 `workflow.run` 不在 Rust 模型工具目录（workflow CRUD 工具族缺口已按第 62/63 批 P1 登记，第 50 批 P1 同源）。行为面（注入的执行器失败必须上抛、不得吞成成功）本批用同一 loop 路径固定：新增 `product_adk_model_runtime_chat_turn_tests.rs::a_failed_workflow_execution_surfaces_on_the_loop_chat_path`——脚本化模型在 loop 模式调用 workflow 能力 `workflow.wait`，注入的失败执行器返回 sentinel（`injected workflow executor ran`），断言执行器被调用一次且 run 的 `toolCalls[0]` 持久化为 `FAILED`、`error` 等于 sentinel、`errorCode=TOOL_EXECUTION_FAILED`（run 不谎报成功）。owner 侧另有既有证据：`product_adk_workflow_tool_error_tests.rs`（第 63 批：typed manager 失败原样跨 read/mutation 端口，502/422 + 原码原文）、`product_adk_workflow_bridge_tests.rs::workflow_bridge_operations_fail_closed_without_their_ports`、`product_adk_model_runtime_tool_failure_tests.rs::a_failed_tool_result_is_persisted_on_the_call_not_the_run`。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/workflow_tools_error_boundaries_test.go:52:TestWorkflowToolsRemainingManagerErrorPropagation": {
     "status": "[~]",

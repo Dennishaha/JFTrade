@@ -81,12 +81,50 @@ impl AdkToolExecutor for RecordingToolExecutor {
     }
 }
 
+/// Answers every supported capability with the injected workflow failure, so
+/// the loop chat path can be pinned to surface it instead of reporting a
+/// fabricated success.
+#[derive(Debug)]
+struct FailingToolExecutor {
+    supported: Vec<&'static str>,
+    failure: &'static str,
+    executed: Arc<std::sync::Mutex<Vec<String>>>,
+}
+
+impl FailingToolExecutor {
+    fn new(supported: Vec<&'static str>, failure: &'static str) -> Self {
+        Self {
+            supported,
+            failure,
+            executed: Arc::new(std::sync::Mutex::new(Vec::new())),
+        }
+    }
+
+    fn executed(&self) -> Vec<String> {
+        self.executed.lock().expect("failing executor lock").clone()
+    }
+}
+
+impl AdkToolExecutor for FailingToolExecutor {
+    fn supports(&self, name: &str) -> bool {
+        self.supported.contains(&name)
+    }
+
+    fn execute(&self, name: &str, _arguments: &Value) -> Result<Value, String> {
+        self.executed
+            .lock()
+            .expect("failing executor lock")
+            .push(name.to_owned());
+        Err(self.failure.to_owned())
+    }
+}
+
 /// The production catalog, so a tool id resolves to its real approval policy.
 fn runtime_with_production_catalog(
     directory: &tempfile::TempDir,
     store: &Arc<AdkStore>,
     session_store: &Arc<AdkSessionStore>,
-    executor: Arc<RecordingToolExecutor>,
+    executor: Arc<dyn AdkToolExecutor>,
 ) -> ProductionAdkChatRuntime {
     use std::collections::BTreeMap;
 
@@ -365,7 +403,7 @@ fn a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool() {
         .expect("persist agent");
     let executor = Arc::new(RecordingToolExecutor::new(vec!["system.status"]));
     let runtime =
-        runtime_with_production_catalog(&directory, &store, &session_store, Arc::clone(&executor));
+        runtime_with_production_catalog(&directory, &store, &session_store, executor.clone());
 
     let output = runtime
         .dispatch(
@@ -457,7 +495,7 @@ fn a_released_optimizer_call_reaches_the_production_executor() {
         .expect("persist agent");
     let executor = Arc::new(RecordingToolExecutor::new(vec!["strategy.optimize"]));
     let runtime =
-        runtime_with_production_catalog(&directory, &store, &session_store, Arc::clone(&executor));
+        runtime_with_production_catalog(&directory, &store, &session_store, executor.clone());
 
     let output = runtime
         .dispatch(
@@ -527,7 +565,7 @@ fn the_optimizer_is_gated_in_approval_mode() {
         .expect("persist agent");
     let executor = Arc::new(RecordingToolExecutor::new(vec!["strategy.optimize"]));
     let runtime =
-        runtime_with_production_catalog(&directory, &store, &session_store, Arc::clone(&executor));
+        runtime_with_production_catalog(&directory, &store, &session_store, executor.clone());
 
     let output = runtime
         .dispatch(
@@ -604,7 +642,7 @@ fn a_gated_tool_call_parks_the_run_with_only_pending_approvals() {
         .expect("persist agent");
     let executor = Arc::new(RecordingToolExecutor::new(vec!["http.fetch"]));
     let runtime =
-        runtime_with_production_catalog(&directory, &store, &session_store, Arc::clone(&executor));
+        runtime_with_production_catalog(&directory, &store, &session_store, executor.clone());
 
     let output = runtime
         .dispatch(
@@ -715,7 +753,7 @@ fn an_invalid_request_user_call_returns_correctable_feedback_before_parking() {
         .expect("persist agent");
     let executor = Arc::new(RecordingToolExecutor::new(Vec::new()));
     let runtime =
-        runtime_with_production_catalog(&directory, &store, &session_store, Arc::clone(&executor));
+        runtime_with_production_catalog(&directory, &store, &session_store, executor.clone());
 
     let output = runtime
         .dispatch(
@@ -770,5 +808,97 @@ fn an_invalid_request_user_call_returns_correctable_feedback_before_parking() {
     assert!(
         executor.executed().is_empty(),
         "a malformed interaction call never reaches the tool executor"
+    );
+}
+
+/// Go's `TestRuntimeUsesInjectedWorkflowExecutionForLoopChat` installs a
+/// workflow executor on the runtime and requires its failure to surface on the
+/// loop-mode chat path.  Rust has no `SetWorkflowExecutor` seam - the
+/// composition root wires the workflow ports at startup - so the pin is the
+/// workflow-family tool boundary on the same loop path: the owner's failure is
+/// persisted on the call and the run never claims the workflow executed.
+#[test]
+fn a_failed_workflow_execution_surfaces_on_the_loop_chat_path() {
+    const INJECTED_FAILURE: &str = "injected workflow executor ran";
+
+    let (directory, store, session_store) = initialized_stores();
+    let (endpoint, provider) = spawn_scripted_model_provider(vec![
+        scripted_tool_call(
+            "call-workflow-wait",
+            "workflow.wait",
+            json!({"workflowId": "workflow-injected"}),
+        ),
+        scripted_text("已完成 ADK 分析：workflow.wait"),
+    ]);
+    store
+        .upsert_provider(
+            "provider-workflow",
+            &json!({
+                "id": "provider-workflow",
+                "displayName": "Workflow Provider",
+                "baseUrl": endpoint,
+                "model": "fixture-model",
+                "apiKey": "sk-fixture",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    store
+        .upsert_agent(
+            "agent-workflow",
+            &json!({
+                "id": "agent-workflow",
+                "name": "Workflow Agent",
+                "providerId": "provider-workflow",
+                "status": "ENABLED",
+                "tools": ["workflow.wait"],
+            })
+            .to_string(),
+        )
+        .expect("persist agent");
+    let executor = Arc::new(FailingToolExecutor::new(
+        vec!["workflow.wait"],
+        INJECTED_FAILURE,
+    ));
+    let runtime =
+        runtime_with_production_catalog(&directory, &store, &session_store, executor.clone());
+
+    let output = runtime
+        .dispatch(
+            AdkChatRoute::Chat,
+            &chat_input(
+                "11111111-1111-4111-8111-111111111108",
+                json!({
+                    "agentId": "agent-workflow",
+                    "message": "@workflow.wait 等待工作流",
+                    "workModeOverride": "loop",
+                }),
+            ),
+        )
+        .expect("the loop chat must answer the run envelope");
+    let _ = provider.join().expect("scripted provider thread");
+
+    assert_eq!(
+        executor.executed(),
+        vec!["workflow.wait".to_owned()],
+        "the loop chat must reach the workflow capability"
+    );
+    let AdkChatPortOutput::Json(response) = output else {
+        panic!("chat must answer with the projected JSON envelope");
+    };
+    let call = &response["run"]["toolCalls"][0];
+    assert_eq!(call["name"], "workflow.wait", "{response}");
+    assert_eq!(
+        call["status"], "FAILED",
+        "the workflow failure must be visible on the call: {response}"
+    );
+    assert_eq!(
+        call["error"], INJECTED_FAILURE,
+        "the owner failure text must survive: {response}"
+    );
+    assert_eq!(
+        call["errorCode"], "TOOL_EXECUTION_FAILED",
+        "the failure classification must survive: {response}"
     );
 }

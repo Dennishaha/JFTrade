@@ -222,7 +222,16 @@ impl ProductionMcpToolExecutor {
 
     fn market_search(&self, arguments: &Value) -> Result<Value, McpToolFailure> {
         let query_text = required_string(arguments, "query")?;
-        let limit = bounded_integer(arguments, "limit", 20, 1, 100)?;
+        // Go's `market.search` reads the reviewed schema's `pageSize` (default
+        // 20, bounded 1..100) and the MCP server rewrites the legacy `limit`
+        // alias onto it, so both spellings have to reach the catalog read
+        // instead of silently falling back to the default page size.
+        let page_key = if arguments.get("pageSize").is_some() {
+            "pageSize"
+        } else {
+            "limit"
+        };
+        let limit = bounded_integer(arguments, page_key, 20, 1, 100)?;
         let query = query_string([
             ("query", Some(query_text)),
             ("limit", Some(limit.to_string())),

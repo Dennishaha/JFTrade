@@ -11,8 +11,9 @@ use crate::product::product_production_ports::ProductionPortBundle;
 use crate::product::{
     BacktestSyncReadSnapshotError, BacktestSyncReadSnapshotPort, BrokerReadSnapshotError,
     BrokerReadSnapshotPort, ExecutionReadSnapshotError, ExecutionReadSnapshotPort,
-    PluginSnapshotError, PluginSnapshotPort, SystemReadSnapshotError, SystemReadSnapshotPort,
-    WatchlistReadSnapshotError, WatchlistReadSnapshotPort,
+    MarketDataCatalogReadSnapshotPort, PluginSnapshotError, PluginSnapshotPort,
+    SystemReadSnapshotError, SystemReadSnapshotPort, WatchlistReadSnapshotError,
+    WatchlistReadSnapshotPort,
 };
 use serde_json::{Value, json};
 use std::sync::{Arc, Mutex};
@@ -25,6 +26,27 @@ fn bundle_with<F: FnOnce(&mut ProductionPortBundle)>(
     let (directory, mut ports) = production_bundle();
     configure(&mut ports);
     (directory, Arc::new(ports))
+}
+
+/// Records the catalog reads the search tool reaches so the forwarded page
+/// size can be asserted without a provider.
+#[derive(Debug, Default)]
+struct RecordingCatalogRead {
+    reads: Mutex<Vec<(String, String)>>,
+}
+
+impl MarketDataCatalogReadSnapshotPort for RecordingCatalogRead {
+    fn read<'a>(
+        &'a self,
+        path: &'a str,
+        query: &'a str,
+    ) -> crate::product::MarketDataCatalogReadFuture<'a> {
+        self.reads
+            .lock()
+            .expect("catalog reads")
+            .push((path.to_owned(), query.to_owned()));
+        Box::pin(std::future::ready(Ok(json!({"entries": []}))))
+    }
 }
 
 #[derive(Debug, Default)]
@@ -584,4 +606,56 @@ fn kline_sync_status_waits_for_a_terminal_status_within_the_requested_window() {
         )
         .expect_err("a task that disappears mid-wait fails closed");
     assert_eq!(missing.code, "BACKTEST_SYNC_TASK_NOT_FOUND");
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/product_execution_contracts_test.go:84
+/// (search half). Go reads the schema's `pageSize` (default 20, bounded
+/// 1..100) for `market.search` and the MCP server rewrites the legacy `limit`
+/// alias onto that field, so a caller-supplied page size must reach the
+/// catalog read instead of the default.
+#[test]
+fn market_search_honors_the_schema_page_size_and_keeps_the_limit_alias() {
+    let recorder: Arc<RecordingCatalogRead> = Arc::new(RecordingCatalogRead::default());
+    let recorder_handle = Arc::clone(&recorder);
+    let (_directory, ports) = bundle_with(|ports| {
+        let port: Arc<dyn MarketDataCatalogReadSnapshotPort> = recorder_handle;
+        ports.catalog = port;
+    });
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::clone(&ports));
+
+    executor
+        .execute_production("market.search", &json!({"query": "apple", "pageSize": 25}))
+        .expect("page size search");
+    executor
+        .execute_production("market.search", &json!({"query": "apple", "limit": 7}))
+        .expect("legacy limit search");
+    executor
+        .execute_production("market.search", &json!({"query": "apple"}))
+        .expect("default search");
+
+    let reads = recorder.reads.lock().expect("catalog reads");
+    assert_eq!(reads.len(), 3, "one catalog read per call: {reads:?}");
+    for (path, _) in reads.iter() {
+        assert_eq!(path, "/api/v1/market-data/instruments", "{reads:?}");
+    }
+    assert!(
+        reads[0].1.contains("limit=25"),
+        "the requested page size must be forwarded: {reads:?}"
+    );
+    assert!(
+        !reads[0].1.contains("pageSize="),
+        "the catalog read keeps its own limit field: {reads:?}"
+    );
+    assert!(
+        reads[1].1.contains("limit=7"),
+        "the legacy limit alias must keep working: {reads:?}"
+    );
+    assert!(
+        reads[2].1.contains("limit=20"),
+        "the default page size must stay 20: {reads:?}"
+    );
+    assert!(
+        reads[0].1.contains("query=apple"),
+        "the search keyword must survive: {reads:?}"
+    );
 }

@@ -61,6 +61,44 @@ fn bundle_with_news_search(
     (directory, Arc::new(ports))
 }
 
+/// Parity: go:452dea11:internal/assistant/assembly/product_execution_contracts_test.go:84
+/// (news half). Go keeps routing selectors on the typed feature query and
+/// copies only the provider params into the news request, so the legacy
+/// `tradingEnvironment` field must never reach the news search port.
+#[test]
+fn research_news_never_forwards_the_legacy_routing_field() {
+    let recorder = Arc::new(RecordingNewsSearch::default());
+    let (_directory, ports) = bundle_with_news_search(recorder.clone());
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::clone(&ports));
+
+    executor
+        .execute_production(
+            "research.news",
+            &json!({
+                "instrumentId": "US.AAPL",
+                "tradingEnvironment": "REAL",
+                "limit": 10,
+            }),
+        )
+        .expect("the legacy routing field must not fail the call");
+
+    let reads = recorder.recorded();
+    assert_eq!(reads.len(), 1, "exactly one news read: {reads:?}");
+    assert_eq!(reads[0].0, "/api/v1/market-data/news", "{reads:?}");
+    assert!(
+        reads[0].1.contains("instrumentId=US%2EAAPL"),
+        "the instrument must survive: {reads:?}"
+    );
+    assert!(
+        reads[0].1.contains("limit=10"),
+        "the provider params must survive: {reads:?}"
+    );
+    assert!(
+        !reads[0].1.contains("tradingEnvironment"),
+        "the legacy routing field must not leak into provider params: {reads:?}"
+    );
+}
+
 /// Parity: go:452dea11:internal/assistant/assembly/market_news_tools_test.go:15
 /// `TestADKMarketNewsAndCorporateActionsToolsForwardNormalizedInputs`: both
 /// tools keep the reviewed `read_internal`/low policy with no per-mode
