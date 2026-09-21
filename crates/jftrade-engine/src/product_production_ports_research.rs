@@ -63,7 +63,20 @@ impl ResearchPresetReadSnapshotPort for ProductionResearchPresetPort {
             if id.is_empty() || id.contains('/') {
                 return Err(ResearchPresetReadSnapshotError::NotFound);
             }
-            let preset = self.store.get(id).map_err(|e| match e {
+            let preset_id = percent_encoding::percent_decode_str(id)
+                .decode_utf8()
+                .map_err(|_| {
+                    ResearchPresetReadSnapshotError::Invalid(
+                        "invalid research screen preset id".to_owned(),
+                    )
+                })?;
+            let preset_id = preset_id.trim();
+            if preset_id.is_empty() {
+                return Err(ResearchPresetReadSnapshotError::Invalid(
+                    "invalid research screen preset: preset id is required".to_owned(),
+                ));
+            }
+            let preset = self.store.get(preset_id).map_err(|e| match e {
                 ResearchPresetStoreError::NotFound => ResearchPresetReadSnapshotError::NotFound,
                 other => ResearchPresetReadSnapshotError::Unavailable(other.to_string()),
             })?;
@@ -114,7 +127,8 @@ impl ResearchPresetWritePort for ProductionResearchPresetPort {
                 })
             }
             ResearchPresetWriteMutation::Update { preset_id, payload } => {
-                if preset_id.trim().is_empty() {
+                let preset_id = preset_id.trim();
+                if preset_id.is_empty() {
                     return Err(invalid_preset("preset id is required"));
                 }
                 let object = payload

@@ -180,3 +180,287 @@ async fn research_preset_read_routes_are_not_registered_without_snapshot_port() 
     assert_eq!(response["error"]["code"], "NOT_FOUND");
     handle.shutdown().await.expect("shutdown product");
 }
+
+use crate::product::product_production_ports::ProductionResearchPresetPort;
+use crate::product::product_research_preset_write_port::{
+    ResearchPresetWriteMutation, ResearchPresetWritePort, ResearchPresetWritePortError,
+};
+use jftrade_store_sqlite::ResearchPresetStore;
+
+fn seed_research_preset_schema(path: &std::path::Path) {
+    let connection = rusqlite::Connection::open(path).expect("open fixture database");
+    connection
+        .execute_batch(
+            "CREATE TABLE research_screen_presets (
+                preset_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                name_key TEXT NOT NULL UNIQUE,
+                query_schema_version INTEGER NOT NULL,
+                query_json TEXT NOT NULL,
+                revision INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX research_screen_presets_updated_at
+                ON research_screen_presets(updated_at DESC, preset_id);
+            CREATE TABLE jftrade_schema_meta (
+                component_id TEXT PRIMARY KEY,
+                version INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            INSERT INTO jftrade_schema_meta (component_id, version, created_at)
+                VALUES ('research', 1, '2026-08-24T04:00:00Z');",
+        )
+        .expect("seed research schema");
+}
+
+fn production_preset_port(path: &std::path::Path) -> ProductionResearchPresetPort {
+    ProductionResearchPresetPort {
+        store: Arc::new(ResearchPresetStore::open(path).expect("open research preset store")),
+    }
+}
+
+fn preset_definition(market: &str) -> Value {
+    serde_json::json!({
+        "brokerId": "futu",
+        "market": market,
+        "pool": {},
+        "columns": [{
+            "columnId": "price",
+            "factor": {"instanceId": "price", "factorKey": "simple.price", "params": {}}
+        }],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+    })
+}
+
+#[test]
+// Parity: go:452dea11:internal/research/presets_test.go:85 TestServiceCreateListGetAndDeletePreset
+fn preset_ports_round_trip_create_list_get_and_delete_with_trimmed_ids() {
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("research.db");
+    seed_research_preset_schema(&path);
+    let port = production_preset_port(&path);
+
+    let created = port
+        .mutate(&ResearchPresetWriteMutation::Create {
+            payload: serde_json::json!({
+                "name": "  美股价值  ",
+                "definition": preset_definition("US"),
+            }),
+        })
+        .expect("create preset");
+    assert_eq!(created["name"], "美股价值");
+    assert_eq!(created["querySchemaVersion"], 2);
+    assert_eq!(created["revision"], 1);
+    let preset_id = created["presetId"].as_str().expect("preset id").to_owned();
+
+    let listed = port
+        .read("/api/v1/research/screens/presets", "")
+        .expect("list presets");
+    assert_eq!(listed["presets"][0]["presetId"], preset_id);
+
+    let fetched = port
+        .read(
+            &format!("/api/v1/research/screens/presets/%20{preset_id}%20"),
+            "",
+        )
+        .expect("get preset by percent-encoded padded id");
+    assert_eq!(fetched["presetId"], preset_id);
+
+    port.mutate(&ResearchPresetWriteMutation::Delete {
+        preset_id: format!(" {preset_id} "),
+    })
+    .expect("delete preset");
+    assert!(matches!(
+        port.read(&format!("/api/v1/research/screens/presets/{preset_id}"), ""),
+        Err(ResearchPresetReadSnapshotError::NotFound)
+    ));
+}
+
+#[test]
+// Parity: go:452dea11:internal/research/presets_test.go:111 TestServiceUpdatePresetMergesFieldsAndEnforcesRevision
+fn definition_only_updates_keep_the_stored_name_and_enforce_revision() {
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("research.db");
+    seed_research_preset_schema(&path);
+    let port = production_preset_port(&path);
+
+    let created = port
+        .mutate(&ResearchPresetWriteMutation::Create {
+            payload: serde_json::json!({
+                "name": "旧名称",
+                "definition": preset_definition("US"),
+            }),
+        })
+        .expect("create preset");
+    let preset_id = created["presetId"].as_str().expect("preset id").to_owned();
+
+    let definition_only = port
+        .mutate(&ResearchPresetWriteMutation::Update {
+            preset_id: preset_id.clone(),
+            payload: serde_json::json!({
+                "definition": preset_definition("HK"),
+                "expectedRevision": 1,
+            }),
+        })
+        .expect("definition-only update");
+    assert_eq!(definition_only["name"], "旧名称");
+    assert_eq!(definition_only["definition"]["market"], "HK");
+    assert_eq!(definition_only["querySchemaVersion"], 2);
+    assert_eq!(definition_only["revision"], 2);
+
+    assert!(matches!(
+        port.mutate(&ResearchPresetWriteMutation::Update {
+            preset_id: preset_id.clone(),
+            payload: serde_json::json!({"name": "Stale", "expectedRevision": 1}),
+        }),
+        Err(ResearchPresetWritePortError::Conflict(_))
+    ));
+
+    let merged = port
+        .mutate(&ResearchPresetWriteMutation::Update {
+            preset_id,
+            payload: serde_json::json!({
+                "name": "  新名称 ",
+                "definition": preset_definition("SH"),
+                "expectedRevision": 2,
+            }),
+        })
+        .expect("merged update");
+    assert_eq!(merged["name"], "新名称");
+    assert_eq!(merged["definition"]["market"], "SH");
+    assert_eq!(merged["revision"], 3);
+}
+
+#[test]
+// Parity: go:452dea11:internal/research/presets_test.go:146 TestServiceRejectsUnavailableAndInvalidPresetOperations
+fn invalid_preset_operations_fail_closed_before_the_store_is_touched() {
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("research.db");
+    seed_research_preset_schema(&path);
+    let port = production_preset_port(&path);
+    let invalid_definition = {
+        let mut definition = preset_definition("US");
+        definition["querySchemaVersion"] = serde_json::json!(1);
+        definition
+    };
+
+    for (mutation, needle) in [
+        (
+            ResearchPresetWriteMutation::Create {
+                payload: serde_json::json!({"name": "   ", "definition": preset_definition("US")}),
+            },
+            "name is required",
+        ),
+        (
+            ResearchPresetWriteMutation::Create {
+                payload: serde_json::json!({
+                    "name": "界".repeat(81),
+                    "definition": preset_definition("US"),
+                }),
+            },
+            "name must not exceed 80 characters",
+        ),
+        (
+            ResearchPresetWriteMutation::Create {
+                payload: serde_json::json!({"name": "invalid", "definition": invalid_definition}),
+            },
+            "querySchemaVersion",
+        ),
+        (
+            ResearchPresetWriteMutation::Update {
+                preset_id: "preset".to_owned(),
+                payload: serde_json::json!({"expectedRevision": 1}),
+            },
+            "name or definition is required",
+        ),
+        (
+            ResearchPresetWriteMutation::Update {
+                preset_id: "preset".to_owned(),
+                payload: serde_json::json!({"name": "name", "expectedRevision": 0}),
+            },
+            "expectedRevision must be positive",
+        ),
+        (
+            ResearchPresetWriteMutation::Update {
+                preset_id: "   ".to_owned(),
+                payload: serde_json::json!({"name": "name", "expectedRevision": 1}),
+            },
+            "preset id is required",
+        ),
+        (
+            ResearchPresetWriteMutation::Delete {
+                preset_id: "   ".to_owned(),
+            },
+            "preset id is required",
+        ),
+    ] {
+        match port.mutate(&mutation) {
+            Err(ResearchPresetWritePortError::Invalid(message)) => assert!(
+                message.contains(needle),
+                "unexpected message for {needle:?}: {message}"
+            ),
+            other => panic!("expected invalid preset rejection for {needle:?}, got {other:?}"),
+        }
+    }
+
+    let listed = port
+        .read("/api/v1/research/screens/presets", "")
+        .expect("list presets");
+    assert!(listed["presets"].as_array().expect("presets").is_empty());
+}
+
+#[test]
+// Parity: go:452dea11:internal/research/presets_test.go:202 TestServicePropagatesRepositoryFailures
+fn store_failures_surface_as_unavailable_instead_of_silent_success() {
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("research.db");
+    seed_research_preset_schema(&path);
+    let port = production_preset_port(&path);
+    let created = port
+        .mutate(&ResearchPresetWriteMutation::Create {
+            payload: serde_json::json!({
+                "name": "Value",
+                "definition": preset_definition("US"),
+            }),
+        })
+        .expect("create preset");
+    let preset_id = created["presetId"].as_str().expect("preset id").to_owned();
+
+    rusqlite::Connection::open(&path)
+        .expect("open corrupting connection")
+        .execute_batch("DROP TABLE research_screen_presets;")
+        .expect("drop preset table");
+
+    assert!(matches!(
+        port.read("/api/v1/research/screens/presets", ""),
+        Err(ResearchPresetReadSnapshotError::Unavailable(message)) if !message.is_empty()
+    ));
+    assert!(matches!(
+        port.read(&format!("/api/v1/research/screens/presets/{preset_id}"), ""),
+        Err(ResearchPresetReadSnapshotError::Unavailable(message)) if !message.is_empty()
+    ));
+    assert!(matches!(
+        port.mutate(&ResearchPresetWriteMutation::Create {
+            payload: serde_json::json!({
+                "name": "Value",
+                "definition": preset_definition("US"),
+            }),
+        }),
+        Err(ResearchPresetWritePortError::Unavailable)
+    ));
+    assert!(matches!(
+        port.mutate(&ResearchPresetWriteMutation::Update {
+            preset_id: preset_id.clone(),
+            payload: serde_json::json!({"name": "Value", "expectedRevision": 1}),
+        }),
+        Err(ResearchPresetWritePortError::Unavailable)
+    ));
+    assert!(matches!(
+        port.mutate(&ResearchPresetWriteMutation::Delete {
+            preset_id: preset_id.clone(),
+        }),
+        Err(ResearchPresetWritePortError::Unavailable)
+    ));
+}

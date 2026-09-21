@@ -11,10 +11,6 @@ pub trait ResearchPresetReadSnapshotPort: Send + Sync + std::fmt::Debug {
     ) -> Result<serde_json::Value, ResearchPresetReadSnapshotError>;
 }
 
-#[expect(
-    dead_code,
-    reason = "error variants are constructed by injected snapshot ports"
-)]
 #[derive(Clone, Debug, Error)]
 pub enum ResearchPresetReadSnapshotError {
     #[error("research preset read snapshot is unavailable: {0}")]

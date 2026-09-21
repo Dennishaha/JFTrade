@@ -22799,32 +22799,32 @@
     "evidence_type": "function_exact"
   },
   "internal/research/presets_test.go:85:TestServiceCreateListGetAndDeletePreset": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_research_preset_tests.rs::preset_ports_round_trip_create_list_get_and_delete_with_trimmed_ids",
+    "conclusion": "function_exact：Go 的 Service.CreateScreenPreset/ListScreenPresets/GetScreenPreset/DeleteScreenPreset 走同一个仓储接口；Rust 无 Go Service 对象，等价 owner 是 jftrade-engine 生产组合根里的 ProductionResearchPresetPort（读经 ResearchPresetReadSnapshotPort::read 覆盖 list/get 两条路由，写经 ResearchPresetWritePort::mutate 覆盖 Create/Delete），底层为 jftrade-store-sqlite::ResearchPresetStore（WriterLease 唯一写者），API 层只做 wire 映射。新增测试在临时 SQLite 上先建 research_screen_presets schema，再跑完整往返：create 名 \"  美股价值  \" 归一化为 \"美股价值\"、querySchemaVersion=2、revision=1；list 返回该条；get 用百分号编码 + 空白包裹的 id（\"%20<id>%20\"）仍命中；delete 用 \" <id> \" 后原 id 读取转为 NotFound。本批同时修复真实分歧：读路径原先直接把 URL 段当 id 查库，空白/编码 id 会 404，现改为 percent-decode 后 trim，空 id 走 Invalid(\"preset id is required\") 而非落到仓储。探针：把读路径改回 `let preset_id = id;` 时本测试转红（get preset by percent-encoded padded id: NotFound），按字节回滚（product_production_ports_research.rs shasum 3ef832494c8d5b274c1accbe2656eeae7b2ee79e6f036c57db00f6e64d89996e）。保留差异：Go 用 nil Service/Repository 表达不可用，Rust 端口持有 Arc<Store> 无 nil 态；Go 的 id 归一化在 Service，Rust 在端口（读含 URL 解码，写与 Store 各自 trim）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
+    "evidence_type": "function_exact"
   },
   "internal/research/presets_test.go:111:TestServiceUpdatePresetMergesFieldsAndEnforcesRevision": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_research_preset_tests.rs::definition_only_updates_keep_the_stored_name_and_enforce_revision",
+    "conclusion": "function_exact：Go 的 Service.UpdateScreenPreset 只替换请求里给出的字段（name/definition 可空指针语义），读过 current 后做 revision 比较，冲突返回 ErrConflict，成功 revision+1 且 QuerySchemaVersion=2。Rust 等价行为在生产端口 ProductionResearchPresetPort::mutate(ResearchPresetWriteMutation::Update) 与 ResearchPresetStore::replace_revision 的 revision fence：新增测试先用 name=\"旧名称\" 建预设，再做 definition-only 更新，断言返回 revision=2、querySchemaVersion=2 且 name 仍为 \"旧名称\"（未被清空/覆盖）。探针：把合并分支 `else { current.preset.name.clone() }` 换成 `String::new()` 时本测试转红（definition-only update 报 \"preset is not normalized for the expected revision\"），按字节回滚（shasum 3ef83249…）。保留差异：Go 用 *string 区分“未提供”与“提供空值”，Rust 端口按 JSON null/缺键判定 has_name/has_definition；Go 冲突来自仓储错误原样返回，Rust 映射为 ResearchPresetWritePortError::Conflict（\"research screen preset conflict\"）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
+    "evidence_type": "function_exact"
   },
   "internal/research/presets_test.go:146:TestServiceRejectsUnavailableAndInvalidPresetOperations": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_research_preset_tests.rs::invalid_preset_operations_fail_closed_before_the_store_is_touched",
+    "conclusion": "function_exact：Go 断言 nil service/nil repository → ErrUnavailable，以及空 id、空/超长（81 rune）name、definition.QuerySchemaVersion=1、update 无字段、ExpectedRevision<1 等 → ErrValidation，且这些校验发生在不触碰仓储之前。Rust 无 nil 端口形态（生产端口恒持有 Arc<Store>），等价保证落在“非法输入必须先于任何写库失败关闭”上：新增测试对 create（空名、81 字符名、querySchemaVersion=1 的 definition）、get/delete/update（空白 id）、update（无字段、expectedRevision=0）逐项断言稳定错误码/前缀，并在最后断言库内预设列表仍为空（这些非法调用没有写入任何条目）。探针：删掉 update 的 `if !has_name && !has_definition` 守卫时本测试转红（no-field update 落到仓储报 NotFound 而非 validation），按字节回滚（shasum 3ef83249…）。保留差异：Go 的 ErrUnavailable 对应 Rust ResearchPresetReadSnapshotError::Unavailable/ResearchPresetWritePortError::Unavailable（依赖缺失），而 Go ErrValidation 对应 Invalid 系列；Rust 侧无 nil 对象分支，故以 per-op invalid 断言替代 nil-service 断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
+    "evidence_type": "function_exact"
   },
   "internal/research/presets_test.go:202:TestServicePropagatesRepositoryFailures": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_research_preset_tests.rs::store_failures_surface_as_unavailable_instead_of_silent_success",
+    "conclusion": "function_exact：Go 用注入 errors.New(\"database unavailable\") 的仓储，断言 list/get/delete/update 读取路径把仓储错误原样向上传播（不吞、不伪装成空结果/NotFound）。Rust 等价测试不注入 mock 仓储，而是把真实 SQLite 的 research_screen_presets 表删掉制造基础设施故障，然后断言 list、get、create、update、delete 五条操作全部失败关闭（读路径为 Unavailable 且 message 非空，写路径为错误），任何一条静默成功（例如列表退化成 []）都会转红。探针：把 list 分支改成 `self.store.list().unwrap_or_default()` 时本测试转红（list 静默返回空列表），按字节回滚（shasum 3ef83249…）。保留差异：Go 直接把仓储 error 原样返回给调用方；Rust 按端口契约归类为 Unavailable(<store error>) 并经 product_wire_research.rs::research_preset_read_snapshot_failure 映射为 API 失败，错误文本不逐字等同 Go 的 \"database unavailable\"，但“失败必须可见、不得退化为空成功”的行为一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
+    "evidence_type": "function_exact"
   },
   "internal/retry/do_attempts_test.go:8:TestDoUsesDefaultsAndReturnsEventualSuccess": {
     "status": "[~]",
