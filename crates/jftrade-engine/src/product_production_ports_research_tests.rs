@@ -97,6 +97,54 @@ fn futu_earnings_calendar_route_defaults_to_earnings_and_projects_event_identity
     assert_eq!(value["metadata"]["rangeChunks"], 1);
 }
 
+/// Parity: go:452dea11:internal/productfeatures/earnings_calendar_query_test.go:72
+/// TestValidateResearchCalendarQueryIgnoresOtherOperations
+///
+/// Go runs the earnings-calendar validator only when `operation` is empty or
+/// `earnings`; `operation=dividends` skips it entirely, so an option-only sort
+/// and an option-only filter on an SH symbol are not earnings-calendar
+/// failures. The Rust route owner keeps the same gate: a non-earnings
+/// operation never reaches the OpenD earnings reader, while `operation=earnings`
+/// still validates the same parameters.
+#[test]
+fn futu_calendar_route_skips_earnings_validation_for_other_operations() {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, true);
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_earnings_calendar_reader(Some(Arc::new(FutuEarningsCalendarFixture {
+        items: Vec::new(),
+    })));
+    let port = ProductionResearchPort {
+        active_provider_state: state,
+        helper: None,
+        trade_runtime: Some(runtime),
+    };
+
+    let other = port
+        .read(
+            "/api/v1/research/calendars",
+            "brokerId=futu&market=SH&operation=dividends&sort=iv&stockScope=mine&ivRankMin=1",
+        )
+        .expect_err("Futu serves dividends through the helper path");
+    assert!(
+        !other.to_string().contains("earnings calendar"),
+        "operation=dividends must skip the earnings validator, got {other}"
+    );
+
+    let earnings = port
+        .read(
+            "/api/v1/research/calendars",
+            "brokerId=futu&market=SH&operation=earnings&sort=iv",
+        )
+        .expect_err("SH does not support the option sort");
+    assert!(
+        earnings.to_string().contains("HK/US"),
+        "operation=earnings must still validate the sort, got {earnings}"
+    );
+}
+
 impl jftrade_integration_futu::StockScreenReadPort for FutuScreenFixture {
     fn query(
         &self,

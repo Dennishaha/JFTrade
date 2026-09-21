@@ -312,3 +312,69 @@ fn deduplicate_earnings_calendar_entries_falls_back_for_anonymous_rows() {
     assert_eq!(result[0].name.as_deref(), Some("anonymous"));
     assert_eq!(result[1].name.as_deref(), Some("other"));
 }
+
+/// Parity: go:452dea11:internal/productfeatures/earnings_calendar_query_test.go:11
+/// TestValidateResearchCalendarQueryAcceptsSupportedBusinessParameters
+///
+/// The Rust owner splits the Go validator across
+/// `translate_earnings_calendar_params` (sort/scope/range rules) and
+/// `earnings_calendar_date_chunks` (window rules), so the accepted business
+/// table must clear both halves: sort `iv_percentile` on a US listing, the
+/// watchlist scope, every range key and a 39-day window inside the 42-day cap.
+#[test]
+fn earnings_calendar_accepts_the_go_business_parameter_table() {
+    let map = query_map(
+        "operation=earnings&sort=iv_percentile&stockScope=watchlist\
+         &marketCapMin=1000000000&optionVolumeMax=20000&ivMin=10&ivMax=80\
+         &ivRankMin=5&ivPercentileMax=100&beginDate=2026-07-01&endDate=2026-08-08",
+    );
+    let params =
+        translate_earnings_calendar_params(&map, "US").expect("business parameters");
+    assert_eq!(params.sort_type, Some(6));
+    assert_eq!(params.filters.len(), 6);
+    assert_eq!(params.filters[0].indicator_type, 4);
+    assert_eq!(params.filters[0].value_list, vec![1]);
+
+    let chunks = earnings_calendar_date_chunks(&map).expect("39-day window");
+    assert_eq!(
+        chunks.first().map(|chunk| chunk.begin.as_str()),
+        Some("2026-07-01")
+    );
+    assert_eq!(
+        chunks.last().map(|chunk| chunk.end.as_str()),
+        Some("2026-08-08")
+    );
+}
+
+/// Parity: go:452dea11:internal/productfeatures/earnings_calendar_query_test.go:35
+/// TestValidateResearchCalendarQueryRejectsInvalidParameters
+///
+/// The Go table mixes sort, scope, window, range-shape and market-capability
+/// rejections in one validator. Each row must be rejected by whichever Rust
+/// owner handles it instead of being accepted by the route.
+#[test]
+fn earnings_calendar_rejects_the_go_invalid_parameter_table() {
+    let cases = [
+        ("US", "sort=unknown"),
+        ("US", "stockScope=mine"),
+        ("US", "endDate=2026-07-01"),
+        ("US", "beginDate=2026/07/01"),
+        ("US", "beginDate=2026-07-02&endDate=2026-07-01"),
+        ("US", "beginDate=2026-07-01&endDate=2026-08-12"),
+        ("US", "marketCapMin=-1"),
+        ("US", "ivMin=not-a-number"),
+        ("US", "ivMax=101"),
+        ("US", "optionVolumeMin=20&optionVolumeMax=10"),
+        ("SH", "sort=iv"),
+        ("SZ", "ivRankMin=1"),
+    ];
+    for (market, query) in cases {
+        let map = query_map(query);
+        let rejected = translate_earnings_calendar_params(&map, market).is_err()
+            || earnings_calendar_date_chunks(&map).is_err();
+        assert!(
+            rejected,
+            "market {market} query {query:?} must be rejected like the Go validator"
+        );
+    }
+}

@@ -1902,3 +1902,350 @@ fn cached_security_snapshot_reader_batches_hk_and_serves_repeats_from_cache() {
     assert_eq!(inner.batches().len(), 3, "cache hit must not re-read");
     assert_eq!(reader.coordinator().admitted_calls(), 3);
 }
+
+/// Answers one helper request per queued `(status, body)` entry and records
+/// every request line so a test can assert which leaf path the read owner
+/// resolved. The listener drops after the queue is drained, so an unexpected
+/// extra provider call fails instead of being silently absorbed.
+async fn spawn_market_data_helper_fixture(
+    responses: Vec<(u16, &'static str)>,
+) -> (HelperClient, Arc<Mutex<Vec<String>>>) {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind market-data helper fixture");
+    let helper_address = listener.local_addr().expect("helper address");
+    let requests = Arc::new(Mutex::new(Vec::new()));
+    let recorded = Arc::clone(&requests);
+    tokio::spawn(async move {
+        for (status, body) in responses {
+            let Ok((mut stream, _)) = listener.accept().await else {
+                return;
+            };
+            let mut request = Vec::new();
+            loop {
+                let mut chunk = [0_u8; 1024];
+                let read = stream.read(&mut chunk).await.unwrap_or(0);
+                if read == 0 {
+                    break;
+                }
+                request.extend_from_slice(&chunk[..read]);
+                if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                    break;
+                }
+            }
+            recorded.lock().expect("helper requests").push(
+                String::from_utf8_lossy(&request)
+                    .lines()
+                    .next()
+                    .unwrap_or_default()
+                    .to_owned(),
+            );
+            let reason = if status == 200 { "OK" } else { "Bad Gateway" };
+            let response = format!(
+                "HTTP/1.1 {status} {reason}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            let _ = stream.write_all(response.as_bytes()).await;
+        }
+    });
+    let helper = HelperClient::new(HelperClientConfig {
+        base_url: format!("http://{helper_address}"),
+        bearer_token: None,
+        request_timeout: Duration::from_secs(2),
+        max_attempts: 1,
+        retry_delay: Duration::ZERO,
+    })
+    .expect("helper client");
+    (helper, requests)
+}
+
+/// Parity: go:452dea11:internal/productfeatures/market_data_reads_test.go:12
+/// TestWorkspaceMarketDataReadsPreserveExplicitProviderAndResponseShape
+///
+/// Go reads a snapshot, a security profile and a candle page from one explicit
+/// provider and asserts the workspace envelope: provider meta, request
+/// identity, candle `period`/`at`, the `before` cursor and the pagination
+/// cursor. The Rust helper-backed owner preserves that envelope; the
+/// order-book depth part of the Go fixture is the recorded boundary because
+/// Rust serves depth from the OpenD order-book reader (Futu) and rejects
+/// non-Futu depth with 409 capability.
+#[tokio::test]
+async fn workspace_read_envelopes_preserve_provider_and_response_shape() {
+    let (helper, requests) = spawn_market_data_helper_fixture(vec![
+        (
+            200,
+            r#"{"market":"US","symbol":"AAPL","instrument_id":"US.AAPL","price":"215.5","observed_at":"2026-07-18T13:36:00Z","source":"yfinance"}"#,
+        ),
+        (
+            200,
+            r#"{"market":"US","symbol":"AAPL","instrument_id":"US.AAPL","name":"Apple Inc.","source":"yfinance"}"#,
+        ),
+        (
+            200,
+            r#"{"market":"US","symbol":"AAPL","instrument_id":"US.AAPL","period":"1d","extended_hours":false,"candles":[{"at":"2026-07-18T13:35:00Z","open":"100.0","high":"102.0","low":"99.0","close":"101.5","volume":"1234.0"}],"total_returned":1,"has_more":true,"next_before":"2026-07-18T13:35:00Z","source":"yfinance","adjustment":"none"}"#,
+        ),
+    ])
+    .await;
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Yfinance)));
+    let port = ProductionMarketDataQuotePort::new(state, None, Some(helper), None);
+
+    let snapshot = port
+        .read("/api/v1/market-data/snapshots/US/AAPL", "")
+        .await
+        .expect("snapshot envelope");
+    assert_eq!(snapshot["meta"]["brokerId"], "yfinance");
+    assert_eq!(snapshot["meta"]["instrumentId"], "US.AAPL");
+    assert_eq!(snapshot["request"]["market"], "US");
+    assert_eq!(snapshot["request"]["symbol"], "AAPL");
+    assert_eq!(snapshot["request"]["instrumentId"], "US.AAPL");
+    assert_eq!(snapshot["snapshot"]["price"], "215.5");
+
+    let security = port
+        .read("/api/v1/market-data/securities/US/AAPL", "")
+        .await
+        .expect("security envelope");
+    assert_eq!(security["meta"]["instrumentId"], "US.AAPL");
+    assert_eq!(security["request"]["instrumentId"], "US.AAPL");
+    assert_eq!(security["security"]["name"], "Apple Inc.");
+
+    let candles = port
+        .read(
+            "/api/v1/market-data/candles/US/AAPL",
+            "period=1d&limit=20&before=2026-07-18T13:40:00Z",
+        )
+        .await
+        .expect("candle envelope");
+    assert_eq!(candles["candles"][0]["period"], "1d");
+    assert_eq!(candles["candles"][0]["at"], "2026-07-18T13:35:00Z");
+    assert_eq!(candles["pagination"]["hasMore"], true);
+    assert_eq!(candles["pagination"]["nextBefore"], "2026-07-18T13:35:00Z");
+    assert_eq!(candles["meta"]["instrumentId"], "US.AAPL");
+    assert_eq!(candles["request"]["instrument"]["instrumentId"], "US.AAPL");
+
+    let paths = requests.lock().expect("helper requests").clone();
+    assert_eq!(paths.len(), 3, "{paths:?}");
+    assert!(
+        paths[0].contains("/providers/yfinance/snapshot/US/AAPL"),
+        "{paths:?}"
+    );
+    assert!(
+        paths[1].contains("/providers/yfinance/security/US/AAPL"),
+        "{paths:?}"
+    );
+    assert!(
+        paths[2].contains("/providers/yfinance/candles/US/AAPL"),
+        "{paths:?}"
+    );
+    assert!(
+        paths[2].contains("before=2026-07-18T13%3A40%3A00Z"),
+        "{paths:?}"
+    );
+}
+
+/// Parity: go:452dea11:internal/productfeatures/market_data_reads_test.go:116
+/// TestWorkspaceMarketDataReadsRejectInvalidInstrument
+///
+/// Go rejects an empty market/symbol on every workspace read with
+/// `ErrInvalidQuery`. Rust keeps the same contract at the path owner: a missing
+/// URI segment fails with 400 BAD_REQUEST `invalid instrument` before any
+/// provider is resolved.
+#[tokio::test]
+async fn workspace_reads_reject_missing_market_and_symbol() {
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    let port = ProductionMarketDataQuotePort::new(state, None, None, None);
+    for path in [
+        "/api/v1/market-data/snapshots/",
+        "/api/v1/market-data/securities/",
+        "/api/v1/market-data/candles/",
+        "/api/v1/market-data/depth/",
+        "/api/v1/market-data/snapshots/US/",
+        "/api/v1/market-data/securities/US/",
+        "/api/v1/market-data/candles/US/",
+        "/api/v1/market-data/depth/US/",
+    ] {
+        let error = port
+            .read(path, "")
+            .await
+            .expect_err("missing instrument must be rejected");
+        assert!(
+            matches!(
+                &error,
+                MarketDataQuoteReadSnapshotError::Failed {
+                    status: 400,
+                    code,
+                    ..
+                } if code == "BAD_REQUEST"
+            ),
+            "path {path} produced {error:?}"
+        );
+    }
+}
+
+/// Parity: go:452dea11:internal/productfeatures/market_data_reads_test.go:245
+/// TestWorkspaceMarketDataReadsResolveChinaAggregateToExchangeLeaf
+///
+/// `CN` is the UI aggregate for the SH/SZ leaves: a qualified symbol resolves
+/// onto its exchange leaf on every read, and a bare CN ticker is rejected
+/// before the provider is reached. Depth resolves the same leaf for the OpenD
+/// order-book reader.
+#[tokio::test]
+async fn workspace_reads_resolve_cn_aggregate_to_exchange_leaf() {
+    let (helper, requests) = spawn_market_data_helper_fixture(vec![
+        (
+            200,
+            r#"{"market":"SH","symbol":"600519","instrument_id":"SH.600519","price":"1680.5","observed_at":"2026-08-20T09:30:00Z","source":"akshare"}"#,
+        ),
+        (
+            200,
+            r#"{"market":"SZ","symbol":"000001","instrument_id":"SZ.000001","name":"Ping An Bank","source":"akshare"}"#,
+        ),
+        (
+            200,
+            r#"{"market":"SH","symbol":"600519","instrument_id":"SH.600519","period":"1d","extended_hours":false,"candles":[{"at":"2026-08-20T07:00:00Z","open":"1680.0","high":"1700.0","low":"1670.0","close":"1690.0","volume":"1000.0"}],"total_returned":1,"has_more":false,"source":"akshare","adjustment":"none"}"#,
+        ),
+    ])
+    .await;
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Akshare)));
+    let port = ProductionMarketDataQuotePort::new(state, None, Some(helper), None);
+
+    let snapshot = port
+        .read("/api/v1/market-data/snapshots/CN/SH.600519", "")
+        .await
+        .expect("CN aggregate snapshot");
+    assert_eq!(snapshot["request"]["market"], "SH");
+    assert_eq!(snapshot["request"]["symbol"], "600519");
+    assert_eq!(snapshot["request"]["instrumentId"], "SH.600519");
+
+    let security = port
+        .read("/api/v1/market-data/securities/CN/SZ.000001", "")
+        .await
+        .expect("CN aggregate security");
+    assert_eq!(security["request"]["market"], "SZ");
+    assert_eq!(security["request"]["symbol"], "000001");
+    assert_eq!(security["request"]["instrumentId"], "SZ.000001");
+    assert_eq!(security["security"]["instrumentId"], "SZ.000001");
+
+    let candles = port
+        .read(
+            "/api/v1/market-data/candles/CN/SH.600519",
+            "period=1d&limit=20",
+        )
+        .await
+        .expect("CN aggregate candles");
+    assert_eq!(candles["request"]["instrument"]["market"], "SH");
+    assert_eq!(candles["request"]["instrument"]["symbol"], "600519");
+    assert_eq!(
+        candles["request"]["instrument"]["instrumentId"],
+        "SH.600519"
+    );
+
+    let paths = requests.lock().expect("helper requests").clone();
+    assert_eq!(paths.len(), 3, "{paths:?}");
+    assert!(paths[0].contains("/snapshot/SH/600519"), "{paths:?}");
+    assert!(paths[1].contains("/security/SZ/000001"), "{paths:?}");
+    assert!(paths[2].contains("/candles/SH/600519"), "{paths:?}");
+
+    // A bare CN ticker cannot be routed unambiguously and must fail closed
+    // before any provider call: the drained helper fixture proves no fourth
+    // request was issued.
+    let error = port
+        .read("/api/v1/market-data/snapshots/CN/600519", "")
+        .await
+        .expect_err("bare CN ticker must be rejected");
+    assert!(
+        matches!(
+            &error,
+            MarketDataQuoteReadSnapshotError::Failed { status: 400, code, .. }
+                if code == "BAD_REQUEST"
+        ),
+        "bare CN ticker produced {error:?}"
+    );
+    assert_eq!(
+        requests.lock().expect("helper requests").len(),
+        3,
+        "the bare CN ticker must not reach the helper"
+    );
+
+    // Depth resolves the same leaf for the Futu order-book reader.
+    let reader = Arc::new(MicrostructureReaderFixture::success());
+    let mut router = ProviderRouter::new(8);
+    router
+        .acquire_demand(
+            "cn-leaf-depth",
+            [InstrumentRef {
+                channel: "ORDER_BOOK".to_owned(),
+                market: "SZ".to_owned(),
+                symbol: "000001".to_owned(),
+                interval: None,
+            }],
+            false,
+            0,
+        )
+        .expect("order-book demand");
+    let futu_state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    let futu_port = ProductionMarketDataQuotePort::new(
+        futu_state,
+        Some(Arc::new(Mutex::new(router))),
+        None,
+        None,
+    )
+    .with_microstructure(Some(reader.clone()));
+    futu_port
+        .read("/api/v1/market-data/depth/CN/SZ.000001", "num=10")
+        .await
+        .expect("CN aggregate depth");
+    let depth_requests = reader.requests.lock().expect("microstructure requests");
+    assert_eq!(depth_requests[0].1, "SZ.000001");
+    assert_eq!(depth_requests[0].2["num"], 10);
+}
+
+/// Parity: go:452dea11:internal/productfeatures/market_data_reads_test.go:307
+/// TestWorkspaceMarketDataReadsSurfaceProviderFailuresAndNormalizeFallbacks
+///
+/// The provider failure half of the Go fixture: a failing helper must surface
+/// as a provider failure envelope instead of a fabricated snapshot. The
+/// `workspaceSnapshot` normalization half is asserted next to the projection
+/// owner in
+/// crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs.
+#[tokio::test]
+async fn workspace_reads_surface_provider_failures_before_normalizing() {
+    let (helper, requests) = spawn_market_data_helper_fixture(vec![
+        (
+            502,
+            r#"{"error":{"code":"UPSTREAM_DOWN","message":"provider unavailable"}}"#,
+        ),
+        (
+            502,
+            r#"{"error":{"code":"UPSTREAM_DOWN","message":"provider unavailable"}}"#,
+        ),
+    ])
+    .await;
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Yfinance)));
+    let port = ProductionMarketDataQuotePort::new(state, None, Some(helper), None);
+
+    let error = port
+        .read("/api/v1/market-data/snapshots/US/AAPL", "")
+        .await
+        .expect_err("snapshot provider failure");
+    assert!(
+        matches!(
+            &error,
+            MarketDataQuoteReadSnapshotError::Failed { status: 502, code, message, .. }
+                if code == "UPSTREAM_DOWN" && message.contains("provider unavailable")
+        ),
+        "snapshot failure produced {error:?}"
+    );
+
+    let error = port
+        .read("/api/v1/market-data/securities/US/AAPL", "")
+        .await
+        .expect_err("security provider failure");
+    assert!(
+        matches!(
+            &error,
+            MarketDataQuoteReadSnapshotError::Failed { status: 502, .. }
+        ),
+        "security failure produced {error:?}"
+    );
+    assert_eq!(requests.lock().expect("helper requests").len(), 2);
+}

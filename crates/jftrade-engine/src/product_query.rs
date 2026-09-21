@@ -333,6 +333,26 @@ mod tests {
         assert!(parse_candle_sessions(None).unwrap().is_none());
     }
 
+    /// Parity: go:452dea11:internal/productfeatures/market_data_reads_test.go:226
+    /// TestNormalizeCoreCandleQueryAcceptsSessionParameterShapes
+    ///
+    /// Go accepts both a `[]any` session list and a comma-joined string and
+    /// requires the two normalized sessions to stay distinct. On the Rust wire
+    /// both shapes are the repeated `sessions` query parameter, and every
+    /// element is trimmed and lowercased before deduplication.
+    #[test]
+    fn candle_sessions_accept_padded_and_csv_query_shapes() {
+        let array_shape = vec![" regular ".to_owned(), "extended".to_owned()];
+        let parsed = parse_candle_sessions(Some(&array_shape)).unwrap().unwrap();
+        assert_eq!(parsed, vec!["regular", "extended"]);
+        assert_ne!(parsed[0], parsed[1], "the two sessions must stay distinct");
+
+        let string_shape = vec!["regular, overnight".to_owned()];
+        let parsed = parse_candle_sessions(Some(&string_shape)).unwrap().unwrap();
+        assert_eq!(parsed, vec!["regular", "overnight"]);
+        assert_ne!(parsed[0], parsed[1], "the two sessions must stay distinct");
+    }
+
     /// Parity: go:452dea11:internal/productfeatures/candle_query_options_test.go:9
     /// TestNormalizeCandleOptionsAcceptsSessionsAndAdjustments and :17
     /// TestNormalizeCandleOptionsRejectsUnsupportedValues.

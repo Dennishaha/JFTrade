@@ -1034,11 +1034,11 @@ async fn test_go_compatible_candle_conversion_and_session_classification() {
                             }
                         ]
                     })
-                } else if req_str.contains("/providers/akshare/candles/CN/600519") {
+                } else if req_str.contains("/providers/akshare/candles/SH/600519") {
                     json!({
-                        "market": "CN",
+                        "market": "SH",
                         "symbol": "600519",
-                        "instrumentId": "CN.600519",
+                        "instrumentId": "SH.600519",
                         "period": "1d",
                         "extendedHours": false,
                         "totalReturned": 1,
@@ -1133,7 +1133,11 @@ async fn test_go_compatible_candle_conversion_and_session_classification() {
     assert_eq!(candle_resp.body["data"]["meta"]["extendedHours"], true);
     assert_eq!(candle_resp.body["data"]["meta"]["session"], "all");
 
-    // 2. AKShare candles -> session is null
+    // 2. AKShare candles -> session is null. The request uses the SH leaf:
+    // `CN` is an aggregate for the SH/SZ leaves, so a bare CN ticker is
+    // rejected at the read owner and a qualified CN symbol resolves to its
+    // exchange leaf (see the CN aggregate test in
+    // product_market_data_quote_read_tests.rs).
     let switch_response = request_api(
         addr,
         "PUT",
@@ -1146,7 +1150,7 @@ async fn test_go_compatible_candle_conversion_and_session_classification() {
     let ak_resp = request_api(
         addr,
         "GET",
-        "/api/v1/market-data/candles/CN/600519?period=1d",
+        "/api/v1/market-data/candles/SH/600519?period=1d",
         None,
     )
     .await;

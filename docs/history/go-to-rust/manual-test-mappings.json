@@ -22204,88 +22204,88 @@
     "evidence_type": "function_exact"
   },
   "internal/productfeatures/earnings_calendar_query_test.go:11:TestValidateResearchCalendarQueryAcceptsSupportedBusinessParameters": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/research_earnings_calendar_query_tests.rs::earnings_calendar_accepts_the_go_business_parameter_table",
+    "conclusion": "function_exact：Go 的业务参数表（US + operation=earnings + sort=iv_percentile + stockScope=watchlist + marketCapMin/optionVolumeMax/ivMin/ivMax/ivRankMin/ivPercentileMax + 2026-07-01..2026-08-08）必须被接受。Rust 把该 validator 拆到 translate_earnings_calendar_params（sort/stockScope/区间规则）与 earnings_calendar_date_chunks（42 天上限与 7 天分片）两个 owner，新增测试用同一张表断言两半都通过，并核对 scope filter（indicator 4 / value [1]）、6 个 filter 与首尾分片日期。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/earnings_calendar_query_test.go:35:TestValidateResearchCalendarQueryRejectsInvalidParameters": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/research_earnings_calendar_query_tests.rs::earnings_calendar_rejects_the_go_invalid_parameter_table",
+    "conclusion": "function_exact：Go 的 12 行非法参数表（未知 sort、未知 stockScope、endDate 无 beginDate、日期格式、end<begin、超过 42 天、负值、非数字、百分比>100、min>max、SH 市场 option-only sort、SZ 市场 option-only 区间）逐行必须被拒。Rust 按 owner 拆分断言：任一行在 translate_earnings_calendar_params 或 earnings_calendar_date_chunks 报错即视为被拒，与 Go 单一 validator 的接受/拒绝边界一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/earnings_calendar_query_test.go:72:TestValidateResearchCalendarQueryIgnoresOtherOperations": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_tests.rs::futu_calendar_route_skips_earnings_validation_for_other_operations",
+    "conclusion": "function_exact：Go 只在 operation 为空或 \"earnings\" 时运行 earnings 校验，operation=dividends + SH + sort=iv + stockScope=mine + ivRankMin=1 不得报 earnings 校验错误。Rust 的同一 gate 位于 ProductionResearchPort::read（仅空/earnings 进入 OpenD earnings reader），新增测试断言 dividends 请求走 helper/calendar 路径（错误信息不含 \"earnings calendar\"），而 operation=earnings 的同参数请求仍被 option-only sort 校验拒绝（错误含 \"HK/US\"）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/market_data_reads_test.go:12:TestWorkspaceMarketDataReadsPreserveExplicitProviderAndResponseShape": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::workspace_read_envelopes_preserve_provider_and_response_shape；crates/jftrade-engine/src/product_production_ports_market_data_quote.rs::read_depth",
+    "conclusion": "partial：Go 用单个 broker adapter 覆盖 snapshot/security/candles/depth 四个 workspace 读取与 provider meta。Rust 的 owner 是 active-provider 网关门而非 broker registry：新增测试用显式 yfinance provider 断言 snapshot/security 的 meta.brokerId/instrumentId 与 request 身份、candle 的 period/at/before 游标、pagination.hasMore/nextBefore 与 meta.instrumentId，并核对 helper 收到的叶路径与 before 参数（对应 Go 的 reader.query.BeforeTime 断言）。depth 保留差异：Rust 的 workspace 读不产出 request/depth/meta 信封（Futu 走 OrderBook 微结构 reader，非 Futu 以 409 MARKET_DATA_CAPABILITY_UNSUPPORTED 拒绝，已由 market_microstructure_depth_route_clamps_num_to_the_go_window 等测试锚定），对应 Go broker FeatureMarketDepth 投影，按结构边界记录。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/productfeatures/market_data_reads_test.go:116:TestWorkspaceMarketDataReadsRejectInvalidInstrument": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::workspace_reads_reject_missing_market_and_symbol",
+    "conclusion": "function_exact：Go 对四个 workspace 读取在 market/symbol 为空时返回 ErrInvalidQuery。Rust 的 parse_market_symbol_path 在同样的空段先以 400 BAD_REQUEST invalid instrument 失败；新增测试覆盖 \"/snapshots/\" 与 \"/snapshots/US/\" 两种形态 × snapshot/securities/candles/depth 共 8 条路径，等价于 ErrInvalidQuery 的传输边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/market_data_reads_test.go:134:TestWorkspaceCandlePaginationRejectsInvalidMetadata": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::workspace_candle_pagination_rejects_the_go_metadata_table",
+    "conclusion": "function_exact：Go 的分页元数据表在 Rust 由 product_candle_converter::validate_pagination 与 validate_timestamp_order 承担；新增测试逐行断言 terminal cursor、continued page 缺游标、游标与最早 K 线不一致、时间戳非严格有序、超 limit、bounded 页 hasMore、bounded 页游标各报对应错误，并断言合法页产出 hasMore=true/nextBefore=最早 K 线的 canonical 值。Go 的 \"missing hasMore\" 行在 Rust 由 typed HelperCandlesResponse 承接：has_more 为非可选字段，缺失即反序列化失败（测试内断言），不会退化成终页。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/market_data_reads_test.go:226:TestNormalizeCoreCandleQueryAcceptsSessionParameterShapes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_query.rs::tests::candle_sessions_accept_padded_and_csv_query_shapes",
+    "conclusion": "function_exact（按 Rust 边界等价重写）：Go 的 normalizeCoreCandleQuery 同时接受 []any{\" regular \",\"extended\"} 与 \"regular, overnight\" 两种 sessions 形状，并要求两个 session 互不相同。Rust 的 typed FeatureQuery 只有 query string 形态，两种形状都编码为重复的 sessions 参数；新增测试断言去空格与大小写归一后分别得到 regular+extended、regular+overnight 且两项互异，与既有 candle_sessions_parse_dedup_order_and_reject_invalid 的 CSV/重复值覆盖互补。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/market_data_reads_test.go:245:TestWorkspaceMarketDataReadsResolveChinaAggregateToExchangeLeaf": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::workspace_reads_resolve_cn_aggregate_to_exchange_leaf",
+    "conclusion": "function_exact（含真实功能修复）：Go 把 CN 作为 SH/SZ 的 UI 聚合：带交易所前缀的 symbol 解析到叶市场，裸 CN 代码报 ErrInvalidQuery。Rust 原先 parse_market_symbol_path 原样透传 CN，CN+SH.600519 会以 CN/SH.600519 直达 provider（OpenD 市场码 21 + 代码 \"SH.600519\"）。本轮在 owner（product_production_ports_market_data_projection.rs::parse_market_symbol_path → resolve_market_aggregate_leaf）新增叶解析：CN+SH./SZ. 前缀解析为 SH/SZ+code，其余市场保持路由原值（legacy 小写路径 candle_route_preserves_legacy_query_parsing 仍绿），裸 CN 以 400 BAD_REQUEST 在 provider 之前失败。新增测试覆盖 snapshot/security/candles 的 request 身份与 helper 叶路径、depth 走 OpenD reader 时的 SZ.000001 目标，以及裸 CN 不产生第四次 provider 调用。探针：修复前该测试转红（request.market=CN），修复后转绿，未修改其他文件。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/market_data_reads_test.go:307:TestWorkspaceMarketDataReadsSurfaceProviderFailuresAndNormalizeFallbacks": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::workspace_reads_surface_provider_failures_before_normalizing；crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::fallback_projection_preserves_observation_fallbacks",
+    "conclusion": "function_exact：Go 断言 provider 错误原样上抛（snapshot/security/candles/depth）以及 workspaceSnapshot 的归一化回退。Rust 在 helper 读 owner 把 provider 错误映射为 502 信封并保留 provider 的 code/message（新增测试用 502 UPSTREAM_DOWN 断言 snapshot/security 都上抛且不伪造快照）；归一化半由 project_fallback_snapshot 承担：空 entry / 非正价格返回 None（等价 Go 的 nil snapshot），observedAt 依次取 observedAt/quoteAt/updateTime，缺失时回落调用方时间（新增测试断言 updateTime 与 fallback 两种取值）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/market_data_reads_test.go:371:TestWorkspaceSnapshotRestoresRegularCloseComparisonSemantics": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::workspace_snapshot_restores_regular_close_comparison_semantics",
+    "conclusion": "function_exact：Go 的三行表（US regular 保留 previousClose；US after 用最近常规收盘价 lastPrice 作为 previousClosePrice 且 lastClosePrice 保留原值；SZ unknown 两者都保留原值）在 Rust 的 project_cached_snapshot 上逐行断言 previousClosePrice/lastClosePrice，覆盖 uses_regular_close_as_previous_close 的市场与会话分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/market_data_reads_test.go:418:TestWorkspaceSnapshotUsesActiveExtendedSessionFields": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::workspace_snapshot_uses_active_extended_session_fields",
+    "conclusion": "function_exact：Go 的 pre/after/overnight 三行表（活动扩展时段块覆盖 price/highPrice/lowPrice/volume/turnover，previousClosePrice=lastPrice，lastClosePrice=previousClose，extendedHours=true）。Rust 的 project_cached_snapshot 用 active_extended 与正价格门控实现同一语义，新增测试逐行断言 7 个字段，含数值标度 121.20/115.50/567216/67722995.69 与收盘对比 114.97/117.49。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/market_data_reads_test.go:470:TestWorkspaceSnapshotExtendedSessionFallbacksRemainStable": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::workspace_snapshot_extended_session_fallbacks_remain_stable",
+    "conclusion": "function_exact：Go 的五种回退场景（regular/closed 忽略陈旧 overnight；overnight 缺块或块价格为零时回落常规字段但 extendedHours=true；部分块保留 price 且 volume 显式为 0，high/low/turnover 维持回退值）在 project_cached_snapshot 上逐行断言 price/volume/extendedHours，并在活动块命中时断言 high/low/turnover 保持回退值，覆盖 use_active 门控与非负 volume 分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/productfeatures/prediction_quote_candle_bridge_test.go:13:TestQuotePredictionComboValidatesPersistsAndPublishesServerExpiry": {
     "status": "[x]",

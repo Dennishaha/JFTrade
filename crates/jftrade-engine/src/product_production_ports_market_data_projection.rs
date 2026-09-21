@@ -209,7 +209,43 @@ pub(crate) fn parse_market_symbol_path(
             retry_after_seconds: None,
         });
     }
-    Ok((market.to_owned(), symbol.to_owned()))
+    resolve_market_aggregate_leaf(market.to_owned(), symbol.to_owned())
+}
+
+/// Resolves the `CN` aggregate market onto its exchange leaf.
+///
+/// Go's `normalizeWorkspaceInstrument` accepts `CN` only together with an
+/// exchange-qualified symbol (`SH.600519` / `SZ.000001`) and rejects a bare CN
+/// ticker before any provider call, because `CN` is the UI aggregate for the
+/// SH/SZ leaves. Every other market keeps the route-provided market and symbol
+/// verbatim, which is also what the legacy `/api/v1/market-data/candles`
+/// contract requires for lower-case segments.
+pub(crate) fn resolve_market_aggregate_leaf(
+    market: String,
+    symbol: String,
+) -> Result<(String, String), MarketDataQuoteReadSnapshotError> {
+    if !market.eq_ignore_ascii_case("CN") {
+        return Ok((market, symbol));
+    }
+    let trimmed = symbol.trim();
+    for prefix in ["SH", "SZ"] {
+        let Some(rest) = trimmed.get(..prefix.len()) else {
+            continue;
+        };
+        if !rest.eq_ignore_ascii_case(prefix) || !trimmed[prefix.len()..].starts_with('.') {
+            continue;
+        }
+        let code = trimmed[prefix.len() + 1..].trim();
+        if !code.is_empty() {
+            return Ok((prefix.to_owned(), code.to_owned()));
+        }
+    }
+    Err(MarketDataQuoteReadSnapshotError::Failed {
+        status: 400,
+        code: "BAD_REQUEST".to_owned(),
+        message: "CN requires an SH. or SZ. qualified symbol".to_owned(),
+        retry_after_seconds: None,
+    })
 }
 
 /// Go's `ErrProviderChanged` projection: a read that raced a provider switch

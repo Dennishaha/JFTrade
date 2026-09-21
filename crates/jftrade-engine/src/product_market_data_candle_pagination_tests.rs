@@ -1959,3 +1959,177 @@ async fn candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type() 
         "Go defaults a missing adjustment to none, saw {seen:?}"
     );
 }
+
+/// Parity: go:452dea11:internal/productfeatures/market_data_reads_test.go:134
+/// TestWorkspaceCandlePaginationRejectsInvalidMetadata
+///
+/// The Go table rejects a candle page whose pagination metadata disagrees with
+/// the candles (terminal cursor, continued page without a cursor, a cursor that
+/// does not name the earliest candle, unordered timestamps, an oversized page
+/// and a continued bounded page) and accepts only a page whose cursor equals
+/// the earliest candle. The typed Rust helper response always carries
+/// `has_more`, so Go's missing-`hasMore` case is the recorded boundary; every
+/// other row is enforced by the converter.
+#[test]
+fn workspace_candle_pagination_rejects_the_go_metadata_table() {
+    use crate::product::product_candle_converter::{
+        HelperCandleConversionParams, convert_helper_candles_response,
+    };
+    use jftrade_integration_marketdata_helper::{
+        HelperCandle, HelperCandlesResponse, HelperPriceValue,
+    };
+
+    fn candle(at: &str) -> HelperCandle {
+        HelperCandle {
+            at: at.to_owned(),
+            open: HelperPriceValue("100.0".to_owned()),
+            high: HelperPriceValue("102.0".to_owned()),
+            low: HelperPriceValue("99.0".to_owned()),
+            close: HelperPriceValue("101.5".to_owned()),
+            volume: Some(HelperPriceValue("1234.0".to_owned())),
+            session: None,
+        }
+    }
+
+    fn page(
+        candles: Vec<HelperCandle>,
+        has_more: bool,
+        next_before: Option<&str>,
+    ) -> HelperCandlesResponse {
+        HelperCandlesResponse {
+            market: "HK".to_owned(),
+            symbol: "00700".to_owned(),
+            instrument_id: "HK.00700".to_owned(),
+            period: "1d".to_owned(),
+            extended_hours: false,
+            total_returned: candles.len(),
+            candles,
+            has_more,
+            next_before: next_before.map(str::to_owned),
+            source: "fixture".to_owned(),
+            adjustment: "none".to_owned(),
+        }
+    }
+
+    let oldest = "2026-07-18T13:35:00Z";
+    let latest = "2026-07-18T13:40:00Z";
+    let mismatch = "2026-07-18T13:34:00Z";
+    let cases = [
+        (
+            "terminal cursor",
+            page(vec![candle(oldest)], false, Some(oldest)),
+            1,
+            None,
+            None,
+            "terminal candle page has next_before",
+        ),
+        (
+            "continued page missing cursor",
+            page(vec![candle(oldest)], true, None),
+            1,
+            None,
+            None,
+            "next_before is required",
+        ),
+        (
+            "continued page cursor mismatch",
+            page(vec![candle(oldest)], true, Some(mismatch)),
+            1,
+            None,
+            None,
+            "next_before must equal earliest candle",
+        ),
+        (
+            "timestamps are not strictly ordered",
+            page(vec![candle(latest), candle(oldest)], false, None),
+            2,
+            None,
+            None,
+            "out-of-order",
+        ),
+        (
+            "page exceeds limit",
+            page(vec![candle(oldest), candle(latest)], false, None),
+            1,
+            None,
+            None,
+            "exceeds the requested limit",
+        ),
+        (
+            "bounded page has more",
+            page(vec![candle(oldest)], true, Some(oldest)),
+            1,
+            Some("2026-07-01T00:00:00Z"),
+            None,
+            "bounded candle response cannot continue pagination",
+        ),
+        (
+            "bounded page cursor",
+            page(vec![candle(oldest)], false, Some(oldest)),
+            1,
+            None,
+            Some("2026-07-19T00:00:00Z"),
+            "bounded candle response cannot continue pagination",
+        ),
+    ];
+    for (name, response, limit, from_time, to_time, needle) in cases {
+        let error = convert_helper_candles_response(
+            response,
+            HelperCandleConversionParams {
+                market: "HK",
+                symbol: "00700",
+                period: "1d",
+                limit,
+                from_time,
+                to_time,
+                before: None,
+                sessions: &["regular"],
+                is_yfinance: false,
+                is_akshare: false,
+                calendar: None,
+            },
+        )
+        .expect_err(name);
+        assert!(
+            error.to_string().contains(needle),
+            "case {name:?} must report {needle:?}, got {error:?}"
+        );
+    }
+
+    let accepted = convert_helper_candles_response(
+        page(vec![candle(oldest)], true, Some(oldest)),
+        HelperCandleConversionParams {
+            market: "HK",
+            symbol: "00700",
+            period: "1d",
+            limit: 1,
+            from_time: None,
+            to_time: None,
+            before: None,
+            sessions: &["regular"],
+            is_yfinance: false,
+            is_akshare: false,
+            calendar: None,
+        },
+    )
+    .expect("valid paged candle response");
+    assert_eq!(accepted["pagination"]["hasMore"], true);
+    assert_eq!(accepted["pagination"]["nextBefore"], oldest);
+
+    // Go's "missing hasMore" row cannot reach the converter: the typed helper
+    // response requires `has_more`, so a page without it is rejected as an
+    // invalid helper response instead of being read as a terminal page.
+    assert!(
+        serde_json::from_value::<HelperCandlesResponse>(json!({
+            "market": "HK",
+            "symbol": "00700",
+            "instrumentId": "HK.00700",
+            "period": "1d",
+            "totalReturned": 1,
+            "candles": [],
+            "source": "fixture",
+        }))
+        .is_err(),
+        "a candle page without hasMore must be rejected by the typed response"
+    );
+}
