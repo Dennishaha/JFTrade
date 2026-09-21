@@ -129,6 +129,26 @@ fn single_preview_hash_binds_client_order_id() {
     assert_ne!(first_hash, second_hash);
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/exec_validate_test.go:153 TestExecutionOrderRoutesAcceptExplicitCodeWithMarket
+#[test]
+fn single_order_accepts_explicit_market_and_code_without_symbol() {
+    let order = parse_order(&json!({
+        "accountId": "1001",
+        "market": " us ",
+        "code": " aapl ",
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "quantity": 1,
+        "price": 100,
+        "clientOrderId": "client-code"
+    }))
+    .expect("explicit market and code");
+    assert_eq!(order.market, "US");
+    assert_eq!(order.code, "AAPL");
+    assert_eq!(order.symbol, "US.AAPL");
+    assert_eq!(order.header.trd_market, 2);
+}
+
 fn option_combo_payload(client_order_id: &str) -> Value {
     json!({
         "accountId": "1001",

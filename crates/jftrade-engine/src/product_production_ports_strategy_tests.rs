@@ -193,6 +193,7 @@ fn strategy_definition_versions_report_unknown_ids_and_keep_deleted_history() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/strategy_preview_test.go:99 TestStrategyDefinitionPreviewUsesRequestedSymbolAndExtendedHours
 fn strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters() {
     let dir = tempdir().expect("tempdir");
     let db_path = dir.path().join("strategy.db");
@@ -264,6 +265,7 @@ log.info("close")"#;
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/strategy_preview_test.go:99 TestStrategyDefinitionPreviewUsesRequestedSymbolAndExtendedHours
 fn test_strategy_preview_symbol_session_aware_warmup_scaling() {
     let dir = tempdir().expect("tempdir");
     let db_path = dir.path().join("strategy_session.db");

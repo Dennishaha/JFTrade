@@ -124,8 +124,8 @@ def _rust_test_index() -> tuple:
     return tests_by_file, redirects
 
 
-def _resolve_rust_test_reference(tests_by_file, redirects, path, module_path) -> bool:
-    """Return True when a reference names a real ``#[test]`` function.
+def _rust_reference_candidates(tests_by_file, redirects, path, module_path) -> list:
+    """Return the files that may define the ``#[test]`` a reference names.
 
     ``path`` is the file named in the mapping and ``module_path`` is the
     ``mod::submod::case`` suffix. The module chain is followed through
@@ -135,10 +135,9 @@ def _resolve_rust_test_reference(tests_by_file, redirects, path, module_path) ->
     """
     path = os.path.normpath(path)
     if path not in tests_by_file:
-        return False
+        return []
 
     parts = module_path.split("::")
-    function = parts[-1]
     modules = parts[:-1]
 
     candidates = [path]
@@ -155,8 +154,16 @@ def _resolve_rust_test_reference(tests_by_file, redirects, path, module_path) ->
         candidate = os.path.normpath(sibling)
         if candidate in tests_by_file:
             candidates.append(candidate)
+    return candidates
 
-    return any(function in tests_by_file.get(candidate, ()) for candidate in candidates)
+
+def _resolve_rust_test_reference(tests_by_file, redirects, path, module_path) -> bool:
+    """Return True when a reference names a real ``#[test]`` function."""
+    function = module_path.split("::")[-1]
+    return any(
+        function in tests_by_file.get(candidate, ())
+        for candidate in _rust_reference_candidates(tests_by_file, redirects, path, module_path)
+    )
 
 
 def unresolved_parity_references(manual_details: dict) -> tuple:
@@ -221,6 +228,87 @@ def unresolved_parity_references(manual_details: dict) -> tuple:
     return broken_approvals, stale_references
 
 
+def _parity_anchor_index() -> dict:
+    """Return ``(go_file, go_line) -> [anchor, ...]`` from the reconcile tool.
+
+    A ``// Parity:`` anchor written next to a Rust test is the code-side half
+    of a mapping claim, and the inventory is the other half. Reusing the
+    reconcile implementation keeps a single definition of the anchor grammar
+    instead of letting a second copy drift from it.
+    """
+    directory = os.path.dirname(os.path.abspath(__file__))
+    added = directory not in sys.path
+    if added:
+        sys.path.insert(0, directory)
+    try:
+        import parity_anchor_reconcile
+
+        return dict(parity_anchor_reconcile.collect_anchors())
+    finally:
+        if added:
+            try:
+                sys.path.remove(directory)
+            except ValueError:
+                pass
+
+
+def unanchored_approvals(manual_details: dict, anchors: dict = None) -> list:
+    """Find ``function_exact`` rows whose code anchor does not point back.
+
+    A row claims one reference test is proved by a named Rust test. When that
+    Rust test carries a ``// Parity:`` anchor for the same Go file and line, the
+    claim is written in code as well as in the inventory, so a reviewer can
+    find it next to the assertions. This reports the rows where only the
+    inventory makes the claim.
+
+    It is deliberately advisory: an unanchored row can still be correct, it
+    just has no code-side evidence to trace. The check exists because
+    reference *existence* alone cannot tell a genuine approval from an anchor
+    that drifted onto the wrong test.
+
+    Returns a list of ``(mapping_key, detail)`` tuples.
+    """
+    if anchors is None:
+        anchors = _parity_anchor_index()
+    tests_by_file, redirects = _rust_test_index()
+
+    unanchored = []
+    for key, item in manual_details.items():
+        if item.get("evidence_type") != "function_exact":
+            continue
+        parts = key.rsplit(":", 2)
+        if len(parts) != 3 or not parts[1].isdigit():
+            continue
+        go_file, go_line = parts[0], int(parts[1])
+
+        references = _RUST_REF.findall(item.get("rust_entry", ""))
+        if not references:
+            # unresolvable_parity_references already fails an approval that
+            # names no test at all; this check only judges anchored claims.
+            continue
+
+        anchored_files = {
+            anchor["rust_file"] for anchor in anchors.get((go_file, go_line), ())
+        }
+        cited_files = set()
+        for path, module in references:
+            cited_files.update(
+                _rust_reference_candidates(tests_by_file, redirects, path, module)
+            )
+        if cited_files & anchored_files:
+            continue
+
+        detail = "引用 " + "; ".join(
+            f"{path}::{module}" for path, module in references
+        )
+        if anchored_files:
+            detail += "；但该 Go 测试的锚点位于 " + "; ".join(sorted(anchored_files))
+        else:
+            detail += "；该 Go 测试没有任何 // Parity: 锚点"
+        unanchored.append((key, detail))
+    return unanchored
+
+
 def _rust_test_bodies() -> dict:
     """Map ``(path, fn_name)`` to the source slice following the fn signature.
 
@@ -280,43 +368,51 @@ DOMAIN_MAPPING = [
     (
         "marketdata_quotes",
         "MarketData / Quotes & Providers",
-        ["internal/marketdata", "pkg/market", "internal/productfeatures/marketdata"],
+        # ``internal/productfeatures`` is the provider facade and typed-query
+        # layer over market data; its recorded evidence lives in the engine and
+        # marketdata crates. The earlier ``internal/productfeatures/marketdata``
+        # entry named a path that never existed in the Go tree, so those rows
+        # silently fell through to "other" and understated this domain.
+        ["internal/marketdata", "pkg/market", "internal/productfeatures"],
         ["crates/jftrade-marketdata", "crates/jftrade-integration-marketdata-helper"]
     ),
     (
         "trading_broker",
         "Trading & Broker Execution",
-        ["pkg/broker", "pkg/trading", "internal/trading", "internal/app/trading"],
+        ["pkg/broker", "internal/trading"],
         ["crates/jftrade-trading", "crates/jftrade-broker"]
     ),
     (
         "strategy_pine",
         "Strategy & Pine Runtime",
-        ["pkg/strategy", "pkg/pine", "internal/strategy", "internal/pine"],
+        ["pkg/strategy", "internal/strategy"],
         ["crates/jftrade-strategy", "crates/jftrade-integration-pine"]
     ),
     (
         "backtest_calendar",
         "Backtest & Exchange Calendar",
-        ["pkg/backtest", "pkg/market/calendar", "internal/backtest"],
-        ["crates/jftrade-backtest", "crates/jftrade-calendar"]
+        # ``internal/exchangecalendar`` carries the exchange trading-calendar
+        # behaviour this domain is named for; it was previously unmapped and
+        # its fully-migrated rows were counted under "other".
+        ["pkg/backtest", "pkg/market/calendar", "internal/backtest", "internal/exchangecalendar"],
+        ["crates/jftrade-backtest", "crates/jftrade-calendar", "crates/jftrade-integration-calendar"]
     ),
     (
         "assistant_workflow",
         "Assistant & Workflow ADK",
-        ["internal/assistant", "pkg/adk", "internal/adk", "internal/workflow"],
+        ["internal/assistant"],
         ["crates/jftrade-assistant"]
     ),
     (
         "storage_sqlite",
         "Storage & SQLite Persistence",
-        ["pkg/database", "pkg/storage", "internal/store", "internal/database", "internal/storage"],
+        ["internal/store"],
         ["crates/jftrade-store-sqlite", "crates/jftrade-store-settings-file", "crates/jftrade-owner-lock"]
     ),
     (
         "settings_watchlist",
         "Settings & Watchlist",
-        ["pkg/settings", "internal/settings", "internal/watchlist", "pkg/watchlist"],
+        ["internal/settings", "internal/watchlist"],
         ["crates/jftrade-settings", "crates/jftrade-watchlist"]
     ),
     (
@@ -355,6 +451,33 @@ HIGH_RISK_KEYWORDS = [
     "deadlock", "race", "recovery", "disconnect", "reconnect", "null", "empty"
 ]
 
+def classify_go_domain(file_path: str) -> str:
+    """Route a Go source path to the migration domain that owns it.
+
+    The **longest** matching prefix wins, so a nested family such as
+    ``pkg/market/calendar`` lands in ``backtest_calendar`` even though the
+    broader ``pkg/market`` belongs to ``marketdata_quotes``. Choosing by length
+    rather than by declaration order keeps the result independent of where a
+    domain sits in ``DOMAIN_MAPPING``; ties keep the earlier declaration. A
+    path with no match is reported as ``other`` so that an unmapped family
+    stays visible instead of being silently folded into a domain it does not
+    belong to.
+
+    A prefix matches only paths *inside* that directory. A bare ``startswith``
+    would also swallow sibling packages whose directory names merely begin with
+    the same text — ``internal/pine`` would claim the sibling asset package —
+    and those asset-packaging families belong to tooling, not to the business
+    domain that owns the shorter name.
+    """
+    domain = "other"
+    matched_length = -1
+    for d_key, _, prefixes, _ in DOMAIN_MAPPING:
+        for prefix in prefixes:
+            if (file_path.startswith(prefix + "/")) and len(prefix) > matched_length:
+                domain, matched_length = d_key, len(prefix)
+    return domain
+
+
 def extract_go_tests():
     out = subprocess.run(['git', 'grep', '-n', '^func Test', 'go'], capture_output=True, text=True).stdout
     tests = []
@@ -365,13 +488,8 @@ def extract_go_tests():
             line_num = int(parts[2])
             func_sig = parts[3]
             test_name = func_sig.replace('func ', '').split('(')[0].strip()
-            
-            # assign domain
-            domain = "other"
-            for d_key, _, prefixes, _ in DOMAIN_MAPPING:
-                if any(file_path.startswith(p) for p in prefixes):
-                    domain = d_key
-                    break
+
+            domain = classify_go_domain(file_path)
             
             is_high_risk = any(kw in test_name.lower() or kw in file_path.lower() for kw in HIGH_RISK_KEYWORDS)
             
@@ -572,6 +690,24 @@ def main():
             f"WARNING: {len(stale_references)} partial mappings cite no resolvable Rust test "
             "(acknowledged gaps, not failures)"
         )
+    # Cross-check the two halves of a mapping claim: the inventory says which
+    # Rust test proves a reference test, and that Rust test's own
+    # `// Parity:` anchor says the same thing from the code side. Only the
+    # existence check above is load-bearing; this one is advisory until the
+    # anchoring convention is universal.
+    anchors = _parity_anchor_index()
+    if not anchors:
+        print(
+            "WARNING: no // Parity: anchors were found, so the anchor cross-check was "
+            "skipped (run the audit from the repository root)"
+        )
+    else:
+        unanchored = unanchored_approvals(manual_details, anchors)
+        if unanchored:
+            print(
+                f"WARNING: {len(unanchored)} function_exact mappings cite a Rust test with no "
+                "// Parity: anchor for that baseline test (code and inventory claims differ)"
+            )
     if broken_approvals:
         listing = "\n".join(f"  - {key}\n      {detail}" for key, detail in broken_approvals)
         raise ValueError(

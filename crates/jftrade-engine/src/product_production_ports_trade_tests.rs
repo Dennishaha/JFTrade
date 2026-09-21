@@ -1603,6 +1603,7 @@ fn margin_ratios_returns_empty_in_simulated_environment() {
     assert_eq!(value["marginRatios"].as_array().map(|a| a.len()), Some(0));
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/portfolio_routes_test.go:12 TestPortfolioCashBalancesEndpointReturnsEmptyBalances
 #[test]
 fn portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty() {
     // Parity: internal/trading/broker_test.go:453 TestServicePortfolioAndFallbackResponses

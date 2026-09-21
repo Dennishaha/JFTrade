@@ -479,6 +479,7 @@ async fn auth_treats_patch_as_session_write_requiring_csrf() {
     );
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/portfolio_routes_test.go:43 TestPortfolioReconciliationEndpointsAreRemoved
 #[tokio::test]
 async fn unknown_portfolio_reconciliation_route_returns_json_not_found() {
     // Parity: internal/app/apiserver/servercoretest/portfolio_routes_test.go:42 TestPortfolioCashReconciliationRouteNotFoundReturnsJSON
@@ -501,6 +502,7 @@ async fn unknown_portfolio_reconciliation_route_returns_json_not_found() {
     );
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/frontend_test.go:25 TestServerServesFrontendAssetsAndSPAFallback
 #[tokio::test]
 async fn unknown_api_is_json_but_frontend_uses_spa_fallback() {
     let (router, _) = fixture();

@@ -10,6 +10,8 @@ fn action_request(body: &[u8]) -> MarketDataProviderActionsRequest {
 }
 
 
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/market_profiles_test.go:79 TestNormalizeMarketInstrumentEndpoint (partial: Rust infers the CN exchange prefix where the
+// reference rejects a qualifier-less CN request, recorded in the parity inventory)
 #[tokio::test]
 async fn normalize_instrument_resolves_cn_market_with_prefix_inference() {
     let port = ProductionMarketDataProviderActionsPort::new(None);

@@ -6,9 +6,9 @@
 
 - **Go 分支（`go:452dea11`）测试总数**：4451
 - **Go 高风险测试用例数**（涉及分页、缓存、时区、对账、断连重连等）：952
-- **Rust 当前测试总数**：2862
-- **总体测试数量比（非覆盖率）**：64.3%
-- **Rust 基线（`71bcd068`）**：当前工作树
+- **Rust 当前测试总数**：2924
+- **总体测试数量比（非覆盖率）**：65.7%
+- **Rust 基线（`2a41fd99`）**：当前工作树
 
 - **同名 Go 测试组**：32（映射必须使用文件路径与行号，不能仅按测试名）
 ## 2. 分领域对齐矩阵
@@ -16,15 +16,15 @@
 | 业务领域 | Go 测试数 | Go 高风险数 | Rust 测试数 | 测试数量比（非覆盖率） |
 | :--- | :--- | :--- | :--- | :--- |
 | Futu / OpenD Protocol & Integration | 524 | 152 | 558 | 106.5% |
-| MarketData / Quotes & Providers | 214 | 86 | 343 | 160.3% |
-| Trading & Broker Execution | 138 | 36 | 364 | 263.8% |
-| Strategy & Pine Runtime | 545 | 83 | 172 | 31.6% |
-| Backtest & Exchange Calendar | 304 | 80 | 205 | 67.4% |
-| Assistant & Workflow ADK | 810 | 213 | 423 | 52.2% |
-| Storage & SQLite Persistence | 228 | 39 | 160 | 70.2% |
+| MarketData / Quotes & Providers | 256 | 74 | 344 | 134.4% |
+| Trading & Broker Execution | 138 | 36 | 367 | 265.9% |
+| Strategy & Pine Runtime | 538 | 82 | 174 | 32.3% |
+| Backtest & Exchange Calendar | 376 | 101 | 228 | 60.6% |
+| Assistant & Workflow ADK | 810 | 213 | 424 | 52.3% |
+| Storage & SQLite Persistence | 228 | 39 | 196 | 86.0% |
 | Settings & Watchlist | 63 | 18 | 77 | 122.2% |
-| API Server & Transport Wire | 951 | 163 | 62 | 6.5% |
-| Other / Tooling / Core | 674 | 82 | 498 | 73.9% |
+| API Server & Transport Wire | 951 | 163 | 63 | 6.6% |
+| Other / Tooling / Core | 567 | 74 | 493 | 86.9% |
 
 > 注意：测试数量比只表示数量关系，不证明行为等价；行为证据以逐项清单中的 `evidence_type` 为准。
 
@@ -71,7 +71,6 @@
 
 ### Strategy & Pine Runtime
 
-- `internal/pineworkerassets/asset_selection_boundaries_test.go:30 TestSelectFromFSTreatsMissingAndEmptyBundlesAsUnavailable`
 - `internal/strategy/catalog/activity_degraded_test.go:65 TestCatalogActivityReturnsEmptyPagesWhenActivityStoreIsUnavailable`
 - `internal/strategy/catalog/catalog_boundary_behavior_test.go:34 TestCatalogActivityQueryFailureReturnsKnownEmptyPage`
 - `internal/strategy/catalog/catalog_boundary_behavior_test.go:192 TestCatalogPrivateBusinessHelpersHandleEmptyAndUnknownInputs`
@@ -81,6 +80,7 @@
 - `internal/strategy/catalog/runtime_reconciliation_business_test.go:113 TestCatalogActivitySupportsPagingFilteringAndRuntimeObservationEnrichment`
 - `internal/strategy/errors_test.go:8 TestClassifiedStrategyErrorsMatchSentinelKinds`
 - `internal/strategy/instancebinding/binding_test.go:137 TestNormalizeBrokerAccountDropsEmptyInput`
+- `internal/strategy/live_command_business_boundaries_test.go:468 TestIgnoredOrderWarningsRetainFallbackIdentityAndSymbol`
 
 ### Backtest & Exchange Calendar
 

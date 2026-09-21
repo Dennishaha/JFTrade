@@ -451,7 +451,13 @@ fn normalize_start_instrument(
         }
         return Ok((parsed_market, format!("{parsed_prefix}.{value}")));
     }
-    if !normalized_code.is_empty() && normalized_code != normalized_symbol {
+    // A request may carry only `code` plus an explicit `market`; the reference
+    // accepts that shape and derives PREFIX.CODE from the pair, so the
+    // mismatch guard only applies when both spellings are present.
+    if !normalized_symbol.is_empty()
+        && !normalized_code.is_empty()
+        && normalized_code != normalized_symbol
+    {
         return Err(BacktestsWritePortError::BadRequest(
             "code does not match symbol".to_owned(),
         ));
@@ -617,6 +623,38 @@ mod execution_model_tests {
             request["executionModel"] = value;
         }
         request
+    }
+
+    // Parity: go:452dea11:internal/app/apiserver/servercore/server_backtest_test.go:19 TestBacktestRouteAcceptsExplicitMarketAndCode
+    #[test]
+    fn start_request_accepts_explicit_market_and_code_without_symbol() {
+        // The reference route test posts definitionId + market + code and
+        // expects the run to keep `US.AAPL`; the parser must accept that shape.
+        let definition_shaped = parse_start_request(&json!({
+            "definitionId": "strategy-1",
+            "market": "US",
+            "code": "AAPL",
+            "interval": "1m",
+            "startTime": "2026-03-08T00:00:00Z",
+            "endTime": "2026-03-09T00:00:00Z"
+        }))
+        .expect("definition-shaped market and code");
+        assert_eq!(definition_shaped.symbol, "US.AAPL");
+
+        // Script requests never pass through definition resolution, so the
+        // parser itself must derive PREFIX.CODE from an explicit market+code.
+        let parsed = parse_start_request(&json!({
+            "definitionId": "strategy-1",
+            "market": "US",
+            "code": "msft",
+            "interval": "1m",
+            "startTime": "2026-03-08T00:00:00Z",
+            "endTime": "2026-03-09T00:00:00Z"
+        }))
+        .expect("explicit market and code");
+        assert_eq!(parsed.symbol, "US.MSFT");
+        assert_eq!(parsed.interval, "1m");
+        assert_eq!(parsed.session_scope, "regular");
     }
 
     #[test]

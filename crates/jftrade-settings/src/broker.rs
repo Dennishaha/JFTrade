@@ -309,6 +309,7 @@ mod tests {
         assert_eq!(service.inputs().expect("broker inputs"), expected);
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/settings_normalization_test.go:10 TestNormalizeManagedBrokerAccountAppliesDefaults
     #[test]
     fn write_normalization_matches_current_go_owner() {
         let service = BrokerSettingsService::new(Arc::new(Store(RwLock::new(

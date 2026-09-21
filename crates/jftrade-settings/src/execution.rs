@@ -110,6 +110,7 @@ mod tests {
         }
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/settings_normalization_test.go:69 TestNormalizeExecutionSettingsAppliesDefaultsAndBounds
     #[test]
     fn execution_defaults_bounds_and_round_trip_match_go() {
         let service = ExecutionService::new(Arc::new(MemoryStore::default()));

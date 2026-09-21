@@ -313,5 +313,182 @@ class AssertionlessApprovalTest(unittest.TestCase):
         self.assertEqual([], warnings)
 
 
+class UnanchoredApprovalTest(unittest.TestCase):
+    """A claim must be written in code too, not only in the inventory.
+
+    Reference existence alone cannot tell a genuine approval from an anchor
+    that drifted onto the wrong test, so the two halves of the claim are
+    cross-checked and the disagreement is reported for review.
+    """
+
+    def setUp(self) -> None:
+        self._original_cwd = os.getcwd()
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = pathlib.Path(self._tmp.name)
+        self.write(
+            "crates/jftrade-demo/src/lib.rs",
+            "#[test]\nfn proven_case() {}\n",
+        )
+        os.chdir(self.root)
+
+    def tearDown(self) -> None:
+        os.chdir(self._original_cwd)
+
+    def write(self, relative: str, content: str) -> None:
+        path = self.root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+    def mapping(self, rust_entry: str, evidence: str = "function_exact") -> dict:
+        return {
+            "internal/api/routes_test.go:42:TestBehaviour": {
+                "status": "[x]" if evidence == "function_exact" else "[~]",
+                "rust_entry": rust_entry,
+                "conclusion": "conclusion",
+                "command": "command",
+                "evidence_type": evidence,
+            }
+        }
+
+    def anchors(self, *files: str) -> dict:
+        return {
+            ("internal/api/routes_test.go", 42): [
+                {"rust_file": path, "rust_line": 1, "go_test": "TestBehaviour"}
+                for path in files
+            ]
+        }
+
+    def test_anchor_in_the_cited_file_is_not_reported(self) -> None:
+        unanchored = AUDIT.unanchored_approvals(
+            self.mapping("crates/jftrade-demo/src/lib.rs::proven_case"),
+            self.anchors("crates/jftrade-demo/src/lib.rs"),
+        )
+        self.assertEqual([], unanchored)
+
+    def test_missing_anchor_anywhere_is_reported(self) -> None:
+        unanchored = AUDIT.unanchored_approvals(
+            self.mapping("crates/jftrade-demo/src/lib.rs::proven_case"),
+            {},
+        )
+        self.assertEqual(1, len(unanchored))
+        self.assertIn("没有任何", unanchored[0][1])
+
+    def test_anchor_on_a_different_file_is_reported_with_both_sides(self) -> None:
+        unanchored = AUDIT.unanchored_approvals(
+            self.mapping("crates/jftrade-demo/src/lib.rs::proven_case"),
+            self.anchors("crates/elsewhere/src/lib.rs"),
+        )
+        self.assertEqual(1, len(unanchored))
+        detail = unanchored[0][1]
+        self.assertIn("crates/jftrade-demo/src/lib.rs::proven_case", detail)
+        self.assertIn("crates/elsewhere/src/lib.rs", detail)
+
+    def test_sibling_test_module_is_resolved_before_reporting(self) -> None:
+        # The inventory may name the owner file while the test — and its
+        # anchor — lives in the sibling `<stem>_tests.rs` module.
+        self.write(
+            "crates/jftrade-demo/src/sibling.rs",
+            "#[cfg(test)]\n#[path = \"sibling_tests.rs\"]\nmod tests;\n",
+        )
+        self.write(
+            "crates/jftrade-demo/src/sibling_tests.rs",
+            "#[test]\nfn proven_case() {}\n",
+        )
+        unanchored = AUDIT.unanchored_approvals(
+            self.mapping("crates/jftrade-demo/src/sibling.rs::tests::proven_case"),
+            self.anchors("crates/jftrade-demo/src/sibling_tests.rs"),
+        )
+        self.assertEqual([], unanchored)
+
+    def test_partial_and_boundary_rows_are_not_checked(self) -> None:
+        for evidence in ("partial", "boundary", "missing"):
+            with self.subTest(evidence=evidence):
+                unanchored = AUDIT.unanchored_approvals(
+                    self.mapping("crates/jftrade-demo/src/lib.rs::proven_case", evidence),
+                    {},
+                )
+                self.assertEqual([], unanchored)
+
+    def test_approval_without_a_reference_is_left_to_the_existence_check(self) -> None:
+        unanchored = AUDIT.unanchored_approvals(
+            self.mapping("未引用任何 Rust 测试"),
+            {},
+        )
+        self.assertEqual([], unanchored)
+
+
+class GoDomainClassificationTest(unittest.TestCase):
+    """Migrated families must be counted in their own domain, never in "other".
+
+    A domain matrix that files finished work under ``other`` understates the
+    domains that actually did it, so each of these routes is pinned by name.
+    """
+
+    def test_exchange_calendar_belongs_to_backtest_calendar(self) -> None:
+        self.assertEqual(
+            "backtest_calendar",
+            AUDIT.classify_go_domain("internal/exchangecalendar/builtin_test.go"),
+        )
+
+    def test_product_features_belong_to_marketdata_quotes(self) -> None:
+        self.assertEqual(
+            "marketdata_quotes",
+            AUDIT.classify_go_domain("internal/productfeatures/service_test.go"),
+        )
+
+    def test_nested_calendar_prefix_beats_the_broader_market_prefix(self) -> None:
+        # ``pkg/market`` is marketdata_quotes, but the calendar sub-package is
+        # the exchange-calendar family and must win on prefix specificity.
+        self.assertEqual(
+            "marketdata_quotes",
+            AUDIT.classify_go_domain("pkg/market/market_test.go"),
+        )
+        self.assertEqual(
+            "backtest_calendar",
+            AUDIT.classify_go_domain("pkg/market/calendar/builtin_test.go"),
+        )
+
+    def test_asset_packages_do_not_leak_into_business_domains(self) -> None:
+        # These sibling directories only share a name prefix with a business
+        # package; their bundle-selection tests are release tooling.
+        marketdata_assets = os.path.join(
+            "internal", "marketdataassets", "assets_test.go"
+        )
+        pineworker_assets = os.path.join(
+            "internal", "pineworkerassets", "assets_test.go"
+        )
+        self.assertEqual(
+            "other",
+            AUDIT.classify_go_domain(marketdata_assets),
+        )
+        self.assertEqual(
+            "other",
+            AUDIT.classify_go_domain(pineworker_assets),
+        )
+
+    def test_unmapped_family_is_reported_as_other(self) -> None:
+        self.assertEqual("other", AUDIT.classify_go_domain("pkg/bbgo/strategy_test.go"))
+
+    def test_every_declared_prefix_matches_the_go_tree(self) -> None:
+        # A prefix that names no real path can never route anything, which is
+        # how completed ``internal/productfeatures`` rows silently fell through
+        # to "other" for so long.
+        result = subprocess.run(
+            ["git", "ls-tree", "-r", "--name-only", "go"],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            self.skipTest("the frozen 'go' baseline branch is not available here")
+        paths = result.stdout.splitlines()
+        for domain, _, prefixes, _ in AUDIT.DOMAIN_MAPPING:
+            for prefix in prefixes:
+                with self.subTest(domain=domain, prefix=prefix):
+                    self.assertTrue(
+                        any(path.startswith(prefix + "/") for path in paths),
+                        f"{domain} declares {prefix!r}, which matches no Go path",
+                    )
+
+
 if __name__ == "__main__":
     unittest.main()
