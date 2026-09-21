@@ -264,6 +264,7 @@ mod tests {
         }
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/servercore/settings_market_data_test.go:11 TestServerSettingsStoreDefaultsAndPersistsMarketDataSelection
     #[test]
     fn provider_normalization_matches_current_go_defaults() {
         assert_eq!(

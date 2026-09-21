@@ -6,6 +6,10 @@ use product_ws_live::{WS_LIVE_ROUTE, WsLiveFixture, replay_fixture_case};
 const FIXTURE: &str =
     include_str!("../../../tests/fixtures/compatibility/api-transport/ws-live.json");
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/notifications_lifecycle_test.go:58 TestLiveNotificationEventMapContract
+// Parity: go:452dea11:internal/app/apiserver/servercore/server_market_test.go:11 TestMarketDataSubscriptionHeartbeat
+// Parity: go:452dea11:internal/app/apiserver/servercore/ws_events_test.go:20 TestLiveWebSocketSendsHeartbeat
+// Parity: go:452dea11:internal/app/apiserver/servercore/ws_events_test.go:45 TestLiveWebSocketSendsSystemNotification
 #[test]
 fn ws_live_replays_complete_go_corpus() {
     let fixture: WsLiveFixture = serde_json::from_str(FIXTURE).expect("ws-live fixture");

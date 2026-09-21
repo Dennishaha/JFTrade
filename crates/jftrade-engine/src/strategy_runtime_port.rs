@@ -434,6 +434,7 @@ mod tests {
         assert!(!store.list_log_events("stale").expect("logs").is_empty());
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/servercore/system_reconcile_strategy_states_test.go:11 TestNewServerReconcilesPersistedActiveStrategyStates
     #[test]
     // Parity: go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:80 TestCatalogStartupReconcileResetsStaleRunningAndPausedState
     fn restore_running_instances_ignores_paused_and_stopped_instances() {

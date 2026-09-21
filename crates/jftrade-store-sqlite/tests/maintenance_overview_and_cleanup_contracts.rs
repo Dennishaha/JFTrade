@@ -251,6 +251,7 @@ fn overview_summary_only_skips_storage_and_a_single_filter_keeps_its_totals() {
     assert!(matches!(unknown, OverviewError::UnknownDatabase(id) if id == "missing"));
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/adk_data_management_test.go:15 TestDataManagementADKCleanupAndCompactionPaths
 // Parity: go:452dea11:internal/app/apiserver/datamigration/maintenance_test.go:255 TestOverviewCleanableCategoriesADKPreviewAndCompact
 #[test]
 fn overview_lists_cleanable_categories_for_soft_deleted_and_history_rows() {
@@ -615,6 +616,7 @@ fn managed_descriptors_match_the_pinned_schema_catalog() {
     );
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/data_management_test.go:59 TestDataManagementServerCleanupAndCompactionPaths
 // Parity: go:452dea11:internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:552 TestMaintenanceCleanupAndCompactionReportActualReclaimedStorage
 #[test]
 fn cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk() {

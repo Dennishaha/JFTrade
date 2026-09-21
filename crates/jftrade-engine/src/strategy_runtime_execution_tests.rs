@@ -76,6 +76,7 @@ fn test_intent(qty: f64, limit_price: f64) -> PineOrderIntent {
     }
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/runtime_test.go:16 TestStrategyRuntimeNotifyOnlyEmitsSignalNotification
 #[test]
 fn test_notify_strategy_intents_delivers_and_records_audit() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -109,6 +110,7 @@ fn test_notify_strategy_intents_delivers_and_records_audit() {
     assert!(audit[0].detail.contains("(仅通知模式)"));
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/runtime_trading_test.go:18 TestStrategyRuntimeOrderUsesSharedPreTradeRiskGateway
 #[test]
 fn test_execute_strategy_intents_risk_rejection_blocks_broker_order() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -173,6 +175,7 @@ fn test_execute_strategy_intents_risk_rejection_blocks_broker_order() {
     assert_eq!(inst.status, "PAUSED");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/runtime_trading_test.go:49 TestStrategyRuntimeLiveModeRecordsExecutionOrder
 #[test]
 fn test_execute_strategy_intents_success_calls_execution_and_audits() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -279,6 +282,8 @@ fn test_execute_strategy_intents_unknown_risk_mode_fails_closed() {
     );
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/runtime_trading_test.go:181 TestStrategyRuntimeLiveSizesEntryQuantityPctFromEquity
+// Parity: go:452dea11:internal/app/apiserver/servercore/runtime_trading_test.go:334 TestStrategyRuntimeLiveDefaultsCloseToFullPosition
 #[test]
 fn test_execute_strategy_intents_resolves_quantity_pct_and_close_intent() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -460,6 +465,7 @@ fn test_execute_strategy_intents_close_short_maps_to_buy() {
     assert_eq!(mutations[0].payload["reduceOnly"], true);
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/runtime_trading_test.go:443 TestStrategyRuntimeLiveCancelsTrackedOrderFromWorkerCommand
 #[test]
 fn test_execute_strategy_intents_cancel_dispatches_order_cancel() {
     let dir = tempfile::tempdir().expect("tempdir");

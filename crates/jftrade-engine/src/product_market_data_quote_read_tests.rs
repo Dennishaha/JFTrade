@@ -1571,6 +1571,7 @@ impl jftrade_integration_futu::SecuritySnapshotReadPort for CountingSecurityDeta
     }
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/market_details_ws_test.go:11 TestMarketSecurityDetailsWebSocketSendsInitialPayload
 #[tokio::test]
 async fn securities_route_queries_the_security_snapshot_once() {
     let state = Arc::new(ActiveProviderState::new(Some(

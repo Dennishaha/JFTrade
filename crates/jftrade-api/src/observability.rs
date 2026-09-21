@@ -342,6 +342,7 @@ mod tests {
         error: Option<String>,
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/servercore/request_observability_test.go:14 TestRequestObservabilityInjectsStableContextAndRecordsSummary
     #[test]
     fn request_observability_matches_go_shape_and_bounded_order() {
         let metrics = TransportMetrics::new(2, Duration::from_millis(10), "low");

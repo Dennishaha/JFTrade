@@ -73,6 +73,7 @@ async fn ws_live_subscription_registry_drives_status_and_releases_on_disconnect(
     handle.shutdown().await.expect("shutdown product");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/live_runtime_test.go:13 TestLiveStreamDiagnosticsUseConfiguredLimit
 #[tokio::test]
 async fn ws_live_transport_rejects_origin_and_limit_without_leaking_permits() {
     let directory = tempdir().expect("temporary directory");

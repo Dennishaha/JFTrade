@@ -113,6 +113,7 @@ async fn next_event(connection: &mut LiveHubConnection) -> Option<serde_json::Va
         .flatten()
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/market_depth_test.go:33 TestMarketDepthWebSocketSendsInitialPayload
 // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:188
 // TestStreamMarketTradeCarriesDeltaAndCumulativeVolume
 #[tokio::test]
@@ -277,6 +278,8 @@ async fn one_live_subscription_publishes_both_trade_and_depth_pushes() {
     assert_eq!(book["payload"]["depth"]["asks"][0]["price"], 700.0);
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/live_adapter_volume_test.go:11 TestMarketTradeFromTickUsesExplicitVolumeDelta
+// Parity: go:452dea11:internal/app/apiserver/servercore/ws_events_test.go:152 TestLiveWebSocketInitialMarketTickRefreshesObservedAt
 #[tokio::test]
 async fn basic_quote_pushes_publish_delta_and_cumulative_volume() {
     let (_hub, listener, mut connection) = subscribed(&["HK.00700"]);
@@ -306,6 +309,7 @@ async fn basic_quote_pushes_publish_delta_and_cumulative_volume() {
     assert_eq!(second["payload"]["volumeDelta"], "15");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/live_adapter_volume_test.go:29 TestMarketTradeFromTickKeepsDecimalVolumeWhenLegacyQuantityOverflows
 // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:215
 // TestStreamMarketTradePreservesVolumeBeyondLegacyFixedpointRange
 #[tokio::test]
@@ -330,6 +334,7 @@ async fn basic_quote_pushes_keep_exact_volume_beyond_fixedpoint_range() {
     );
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/live_adapter_volume_test.go:49 TestMarketTradeFromTickRejectsAmbiguousOrInvalidDelta
 #[tokio::test]
 async fn basic_quote_pushes_without_a_volume_counter_report_zero_delta() {
     let (_hub, listener, mut connection) = subscribed(&["HK.00700"]);
@@ -415,6 +420,7 @@ async fn basic_quote_pushes_drop_rows_without_a_usable_security_or_price() {
     );
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/ws_events_test.go:215 TestLiveWebSocketSendsConsoleRefresh
 // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:317
 // TestStreamReconnectAndClientWatcherExitPaths.
 //

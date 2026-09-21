@@ -53,6 +53,7 @@ async fn normalize_instrument_resolves_cn_market_with_prefix_inference() {
     assert_eq!(val["resolvedMarket"], "CN");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/market_instrument_resolver_test.go:65 TestMarketInstrumentResolverQualifiedInputOnlyQueriesSelectedLeaf
 #[tokio::test]
 async fn normalize_instrument_resolves_qualified_sh_and_sz_prefixes() {
     let port = ProductionMarketDataProviderActionsPort::new(None);
@@ -115,6 +116,7 @@ async fn normalize_instrument_handles_us_and_hk() {
     assert_eq!(val["resolvedMarket"], "HK");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/instrument_ref_test.go:8 TestNormalizeInstrumentInput
 #[tokio::test]
 async fn normalize_instrument_error_cases_match_go_fixture_semantics() {
     let port = ProductionMarketDataProviderActionsPort::new(None);

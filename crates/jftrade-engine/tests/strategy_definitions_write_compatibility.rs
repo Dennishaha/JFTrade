@@ -257,6 +257,7 @@ fn strategy_definition_write_leaf_fails_closed_without_test_port() {
     );
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/strategy_definition_delete_guard_test.go:16 TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst
 #[test]
 fn sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart() {
     let directory = tempfile::tempdir().expect("temporary directory");

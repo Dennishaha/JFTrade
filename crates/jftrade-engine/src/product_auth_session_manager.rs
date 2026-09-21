@@ -706,6 +706,7 @@ mod tests {
         ));
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/servercore/settings_security_test.go:116 TestDisablingWebImmediatelyInvalidatesBrowserButNotDesktop
     #[test]
     fn auth_sessions_are_cookie_bound_hashed_and_restart_durable() {
         let directory = tempfile::tempdir().expect("temporary directory");

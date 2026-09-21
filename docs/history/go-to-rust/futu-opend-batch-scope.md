@@ -4899,3 +4899,32 @@ Go 基线按分片逐个执行（`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./i
 > 干扰说明（客观记录，不计为通过）：本批执行期间工作树存在**非本批**的并发改动（`scripts/compatibility/audit_test_parity.py`、`scripts/compatibility/test_audit_test_parity.py` 及其重生成的 `test-parity-report.md`/`test-parity-inventory.md`，自第 69 批起一直未提交）。`check:zero-go` 报出的 6 处“active Go/Wails reference”全部来自这两个脚本文件；本批只修掉了自己新增的一处（`crates/jftrade-api/src/auth.rs` 测试消息中的 Wails 字样），未纳入也未回退并发文件。本批 crates 侧证据（fmt/clippy/nextest 全绿、审计 0 破坏引用与 0 重复 rust_entry、架构检查、`git diff --check`）均已独立完成。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine -p jftrade-api -p jftrade-desktop --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api -p jftrade-desktop --all-targets --locked --no-fail-fast`（1781 passed）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2919 Rust** / **1048 `[x]`**，0 破坏引用、0 重复 rust_entry、未锚定告警 229→193）、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`、`git diff --check`。**未通过**：`pnpm run check:zero-go`（以及因此转红的 `pnpm run check:quick` 的 `check:policy` 分组）——原因见上方干扰说明，与本批 crates 改动无关。
+
+## 第七十二批：`internal/app/apiserver/servercore` 第一片（150 条）
+
+本批把 servercore 的 150 条 Go 测试全量逐条落到 `manual-test-mappings.json`：48 `[x]`（function_exact）+ 102 `[~]`（82 partial + 19 boundary + 1 missing）。文件族覆盖 `data_management*`、`runtime*`、`settings_*`、`desktop_token`、`security`/`request_observability`、`openapi*`、`notification*`、`ws_events`、`live_*`、`market_*`、`exec_writeback`、`portfolio`/`product_*`、`server*`、`strategy_*`、`system_reconcile_*`、`trading_*`、`watchlist_*`。
+
+### 本批发现的功能缺口（1 项，记录为 `missing`，未在本批改代码）
+
+- **策略运行 panic 后的收敛契约不完整**（P1）。Go `runtime_observation_test.go:176` 断言：策略任务崩溃后实例收敛为 `STOPPED`、活动标的清空、发出“策略运行异常退出”通知并写 `runtime_exited` 审计。Rust 的失败路径 `crates/jftrade-engine/src/strategy_runtime.rs::fail_strategy_task` 只写 `FAILED` 观察状态 + 错误日志并释放 demand consumer，**既不改成 STOPPED，也不产生 runtime_exited 审计与通知**（`rg "runtime_exited"` 在工作区为零命中）。修复位置与回归测试要求已写进该行结论，留作后续批次按“先红后改”实施。
+
+### 本批登记的可迁移测试缺口（`partial` 中已点名，不掩盖）
+
+- 撤单拒绝路径：`execution order not found` / `already terminal`（`product_production_ports_execution_orders_impl.rs` 有实现，无测试）。
+- 回测运行路由的显式 `market`/`code` 形状（Rust 运行请求用 `symbol`；`market/code` 只出现在数据同步解析）。
+- 设置副作用到 Pine worker 禁用、helper 不可达时保留 yfinance 的启动断言。
+- Go 的 `startupIntegrationSettingsStore` 包装、`AvailabilitySnapshot` 原因持久化、`nil *Server` setter 族等属 Wails 时代形状，按 boundary 保留。
+
+### 代码侧锚点与清单一致性
+
+- 为本批 46 条 `[x]` 中可定位到文件内真实 `#[test]`/`#[tokio::test]` 的引用补了 46 条 `// Parity:` 锚点，审计“未锚定 function_exact”告警 239 → 193。
+- 修正 9 组重复 `rust_entry`（同一 Rust 测试被两条 `[x]` 引用），改为“首个引用 + 同主题第二引用”，保持每条 `[x]` 唯一且可解析；审计 0 重复、0 破坏引用。
+- 同时修掉第七十一批遗留在 `crates/jftrade-engine/src/product_runtime_tests.rs` 的 rustfmt 偏差（1 行折行），使 `cargo fmt --all -- --check` 重新全绿。
+
+### 下一批目标（第七十三批，已写入自动化 `go-rust-2`）
+
+servercore 第二片：继续消化剩余 servercore 文件（`servercoretest` 等尚未映射的文件族），并按已登记的缺口优先级开始“先红后改”的修复批次——首选**策略运行崩溃收敛**（STOPPED + runtime_exited 审计 + 通知）与**撤单拒绝路径测试**。
+
+> 干扰说明（客观记录，不计为通过）：工作树仍有自第 69 批起未提交的并发改动（`scripts/compatibility/audit_test_parity.py`、`scripts/compatibility/test_audit_test_parity.py` 及其重生成的 `test-parity-report.md`/`test-parity-inventory.md`）。`check:zero-go` 报出的 6 处 “active Go/Wails reference” 全部来自这两个脚本；本批未纳入也未回退这些文件。本批自己的证据（fmt/clippy/nextest 全绿、审计 0 破坏引用与 0 重复、架构检查、`git diff --check`）均独立完成。
+
+验证：`cargo fmt --all -- --check`（修正批次 71 遗留后通过）、`cargo clippy -p jftrade-engine -p jftrade-api -p jftrade-desktop --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api -p jftrade-desktop --all-targets --locked --no-fail-fast`（1781 passed）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / 2919 Rust / **1094 `[x]`**，0 破坏引用、0 重复 rust_entry、未锚定告警 239→193）、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`、`git diff --check`。**未通过**：`pnpm run check:zero-go`（以及因此转红的 `pnpm run check:quick` 的 `check:policy` 分组）——原因见上方干扰说明，与本批改动无关。

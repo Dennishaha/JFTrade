@@ -640,6 +640,8 @@ impl AlertSnapshotPort for FixtureAlertSnapshotPort {
     }
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/settings_security_test.go:37 TestDesktopCanEnablePasswordProtectedWebWithoutExposingPassword
+// Parity: go:452dea11:internal/app/apiserver/servercore/settings_security_test.go:86 TestWebAccessCannotBeEnabledWithoutPassword
 #[tokio::test]
 async fn product_server_persists_ui_settings_and_reports_actual_port() {
     let directory = tempdir().expect("temporary directory");
@@ -1206,6 +1208,7 @@ async fn product_server_persists_ui_settings_and_reports_actual_port() {
     );
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/data_management_test.go:191 TestTranslateDataManagementErrors
 #[tokio::test]
 async fn cleanup_preview_route_returns_candidates_and_rejects_bad_payloads() {
     let directory = tempdir().expect("temporary directory");
@@ -1903,6 +1906,7 @@ async fn alerts_read_routes_fail_closed_without_snapshot_port() {
     handle.shutdown().await.expect("shutdown product");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/settings_security_test.go:95 TestBrowserSessionCannotChangeWebExposure
 #[tokio::test]
 async fn browser_authenticated_request_cannot_change_desktop_only_security_settings() {
     let directory = tempdir().expect("temporary directory");

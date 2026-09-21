@@ -1839,6 +1839,7 @@ mod product_production_assembly_tests {
         );
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/servercore/openapi_route_registration_test.go:85 TestCapabilityCatalogAPISurfacesAreRegistered
     /// Parity: go:452dea11:pkg/futu/adapter_option_fix_test.go:31
     /// TestFutuDeclaredCapabilitiesHaveExecutableAdapterInterfaces
     ///

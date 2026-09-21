@@ -4445,844 +4445,844 @@
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/adk_data_management_test.go:15:TestDataManagementADKCleanupAndCompactionPaths": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::overview_lists_cleanable_categories_for_soft_deleted_and_history_rows; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk",
+    "conclusion": "function_exact：Go 断言 ADK（agent/run/workflow/trigger/技能）软删除与历史行可清理并压缩；Rust 断言 ADK 类候选表逐类列出，执行清理与压缩后报告磁盘实测回收字节。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(overview_lists_cleanable_categories_for_soft_deleted_and_history_rows)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/adk_data_management_test.go:60:TestDatabaseMaintenanceADKBusyAndPurgeBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-datamanagement/src/lib.rs::busy_owner_blocks_preview_and_execute_without_mutation",
+    "conclusion": "partial：Go 断言存在 running ADK run 时 ADK 库 busy；Rust 需要调用方把 busy reason 传入维护服务（测试证明传入即阻断且零改写），但没有内置“ADK 运行中”探测。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/assistant_transport_lifecycle_test.go:11:TestServerCloseClosesAssistantHTTPTransport": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_tests.rs::test_product_runtime_ordered_shutdown_explicit; crates/jftrade-engine/src/product_production_ports_adk_stream.rs",
+    "conclusion": "partial：Go 断言 Server.Close() 会关闭 assistant HTTP transport。Rust 的 assistant/ADK HTTP 客户端由 ADK port 持有，连接池随 runtime 有序关闭释放（test_product_runtime_ordered_shutdown_explicit 覆盖关闭顺序），但没有单独断言“关闭后 transport 不可再复用”。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/broker_read_query_default_test.go:11:TestBrokerReadQueryDefaultMarket": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_requests.rs; crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_query_normalization_and_account_priority_match_go",
+    "conclusion": "partial：Go 断言 tradingSvc.ReadQuery 在 market 为空时用集成配置的 TradeMarket 填充、environment 为 REAL、accountId 透传。Rust 由 TradeRequest::parse + 账户市场授权解析决定市场（trim/大小写归一、授权回退由 broker_read_query_normalization_and_account_priority_match_go 覆盖），settings 侧 trade_market 归一（默认 HK）在 jftrade-settings 测试中；没有同形的服务层 ReadQuery 方法，故不标 function_exact。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/data_management_failure_boundaries_test.go:19:TestDataManagementBackendRemainingOperations": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-datamanagement/src/cleanup.rs; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk",
+    "conclusion": "partial：Go 的 datamigration.Backend 是包住 manager 的薄封装（Overview/Preview/Execute/Purge/Compact）；Rust 由 typed 服务（CleanupPreviewService/MaintenanceService/OverviewService）直接承担，没有同名 backend 转发层，覆盖行为一致但入口形状不同。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/data_management_failure_boundaries_test.go:61:TestDatabaseMaintenanceRemainingBusyReasons": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-datamanagement/src/lib.rs::busy_owner_blocks_preview_and_execute_without_mutation",
+    "conclusion": "partial：Rust 的 busy reason 由调用方传入并在预览/执行前阻断（测试断言零改写），但没有 Go 的“行情同步/策略运行实例”逐库 busy reason 注册表与中文文案。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/data_management_failure_boundaries_test.go:93:TestDataManagementRemainingPurgeAndCompactBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/src/maintenance.rs; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::cleanup_preview_requires_a_ready_database_with_the_purgeable_table",
+    "conclusion": "partial：Rust 以 DatabaseId + 维护操作错误表达未知库/不可清理库（cleanup 拒绝非 ready 库），没有 Go 的 nil store 注入分支；不可达路径由类型化手柄消除，属所有权模型差异。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/data_management_failure_boundaries_test.go:141:TestDataManagementRemainingStorePurgeFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::overview_counts_main_wal_and_shm_and_keeps_an_unreadable_database_local",
+    "conclusion": "partial：Go 断言 nil store / 已关闭 store 的 purge 失败；Rust store 句柄由所有权持有，关闭后不可再调 purge，等价失败面是“文件不可读时错误局部化”（测试断言其他库统计不受影响）。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/data_management_failure_boundaries_test.go:178:TestCompactBacktestRejectsInvalidDatabasePath": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/src/maintenance.rs; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::database_inspection_classifies_filesystem_and_schema_states",
+    "conclusion": "partial：Go 断言数据库路径指向目录时压缩报错；Rust compact_connection 对目录路径在 SQLite 打开阶段即失败并上抛，路径形态分类由 inspection 测试覆盖，但没有专门的“目录即库文件”压缩用例。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/data_management_failure_boundaries_test.go:191:TestDataManagementStatusErrorIsIgnoredByPathLookup": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::overview_normalizes_rebuild_marker_ids_and_fails_closed_when_it_is_unreadable",
+    "conclusion": "boundary：Go 在损坏重建标记时让 DatabaseStatuses 直接失败且路径查找忽略该错误；Rust 选择 fail-closed：标记不可读时总览显式报错而不是静默忽略，属更严格的失败策略差异。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/data_management_test.go:17:TestBacktestRunMaintenanceKeepsMemoryAndDatabaseInSync": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/src/backtest_run.rs",
+    "conclusion": "partial：Rust 的回测运行状态只存 SQLite（list_runs/purge 均由同一连接读写），不存在 Go 的“内存 map + DB 双写后清理保持一致”结构；清理一致性由维护服务在单库事务内完成。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/data_management_test.go:59:TestDataManagementServerCleanupAndCompactionPaths": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::cleanup_preview_requires_a_ready_database_with_the_purgeable_table",
+    "conclusion": "function_exact：Go 走服务器清理/压缩路径并断言回收字节与状态；Rust 断言清理与压缩都报告磁盘实测回收字节（main/WAL/SHM 统计一致）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/data_management_test.go:124:TestDataManagementAdaptersRejectBusyRuntimeAndMapStalePreview": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-datamanagement/src/lib.rs::busy_owner_blocks_preview_and_execute_without_mutation; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::cleanup_preview_requires_a_ready_database_with_the_purgeable_table",
+    "conclusion": "function_exact：Go 断言忙运行时拒绝清理且过期预览映射为 stale；Rust 断言 busy owner 阻断预览与执行且零改写，另断言预览要求数据库 ready 且含可清理表（过期预览由十分钟 TTL 测试覆盖）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement -E 'test(busy_owner_blocks_preview_and_execute_without_mutation)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/data_management_test.go:191:TestTranslateDataManagementErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_tests.rs::cleanup_preview_route_returns_candidates_and_rejects_bad_payloads",
+    "conclusion": "function_exact：Go 断言 datamigration 错误翻译到 datamanagement 错误（冲突/预览缺失/过期/限流/配额）；Rust 路由测试断言 CLEANUP_PREVIEW_STALE 与 DATABASE_CLEANUP_PREVIEW_REJECTED 等 wire 错误码，维护冲突映射为 409 DATABASE_MAINTENANCE_CONFLICT（product_wire）。Go 的 ErrBackupRateLimited 限流在 Rust 仍缺失（P2，批次 70 已登记）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(cleanup_preview_route_returns_candidates_and_rejects_bad_payloads)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/desktop_token_test.go:14:TestDesktopTokenMiddlewareProtectsHTTPAndWebSocket": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state; crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_rejects_origin_and_limit_without_leaking_permits",
+    "conclusion": "function_exact：Go 断言桌面 token 同时保护 HTTP 与 WebSocket；Rust 断言无 token 的 HTTP 读取返回 401 且不产生控制面副作用，WS 升级在来源/许可校验失败时拒绝且不泄漏租约。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(system_control_reads_are_authenticated_and_do_not_create_control_state)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/desktop_token_test.go:46:TestDesktopSidecarDoesNotDoubleAsBrowserListener": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_server_runtime.rs; crates/jftrade-engine/src/product_server_tests.rs::enabled_web_access_binds_and_shutdown_releases_port",
+    "conclusion": "boundary：Rust 的桌面 API（loopback 固定端口）与浏览器 Web listener 是两个独立监听器，启用 web 访问才会开通第二个端口并独立校验来源/密码，不存在“sidecar 兼作浏览器监听”的路径。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/desktop_token_test.go:77:TestDesktopDevelopmentWithoutInjectedTokenRemainsTrusted": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_profile.rs",
+    "conclusion": "partial：Rust 开发 profile 不注入 token 时 AccessPolicy::desktop(None) 仍信任 loopback 来源（发行 profile 要求注入 32 字节 token），但没有专门的“无 token 开发仍受信”断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/desktop_token_test.go:101:TestDesktopDevelopmentWebListenerStillRequiresPasswordSession": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_auth_session_tests.rs::auth_session_route_matches_go_fixture_in_cutover_only",
+    "conclusion": "function_exact：Go 断言开发模式下 Web listener 仍要求密码会话；Rust 认证会话 fixture 覆盖 browser_authenticated=false/true 与 cookie 绑定判定（桌面受信不替代浏览器会话）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(auth_session_route_matches_go_fixture_in_cutover_only)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/desktop_token_test.go:127:TestStandaloneServerWithoutDesktopTokenIsNotTrusted": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_auth_session_tests.rs::auth_session_route_is_not_registered_without_snapshot_port",
+    "conclusion": "function_exact：Go 断言未注入 token 的独立服务器不被信任；Rust 断言缺少会话端口时认证路由不注册（fail-closed），无凭据请求无法获得受信上下文。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(auth_session_route_is_not_registered_without_snapshot_port)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/exec_writeback_test.go:11:TestExecutionPushHandlersWriteBackAndNotify": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_write_product_tests.rs::execution_write_product_replays_browser_boundary_failure_recovery_and_restart; crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent",
+    "conclusion": "function_exact：Go 断言执行推送回写订单/成交并触发通知；Rust 断言执行写路由回写状态、写后读一致、失败恢复与重启重放。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/exec_writeback_test.go:127:TestRecordPlacedOrderReusesExistingBrokerDiscoveredOrder": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution.rs; crates/jftrade-engine/src/execution_reconciliation_discovery.rs",
+    "conclusion": "partial：Rust 对账发现券商订单时按券商订单号幂等复用（不重复建单），但没有“下单回写复用已发现订单”的专门用例。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/instrument_ref_test.go:8:TestNormalizeInstrumentInput": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_actions_tests.rs::normalize_instrument_error_cases_match_go_fixture_semantics; crates/jftrade-engine/src/product_production_ports_market_data_actions_tests.rs::normalize_instrument_handles_us_and_hk",
+    "conclusion": "function_exact：Go 断言仪器输入归一化（含错误输入）；Rust 断言 US/HK/CN 前缀推断与错误用例语义与 Go fixture 一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(normalize_instrument_error_cases_match_go_fixture_semantics)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/live_adapter_volume_test.go:11:TestMarketTradeFromTickUsesExplicitVolumeDelta": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::basic_quote_pushes_publish_delta_and_cumulative_volume; crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::one_live_subscription_publishes_both_trade_and_depth_pushes",
+    "conclusion": "function_exact：Go 断言 tick 的显式 volumeDelta 成为成交事件成交量；Rust 断言基本报价推送同时发布 delta 与累计量，事件 payload 的 volumeDelta 取显式增量。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(basic_quote_pushes_publish_delta_and_cumulative_volume)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/live_adapter_volume_test.go:29:TestMarketTradeFromTickKeepsDecimalVolumeWhenLegacyQuantityOverflows": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::basic_quote_pushes_keep_exact_volume_beyond_fixedpoint_range; crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::one_live_subscription_publishes_both_trade_and_depth_pushes",
+    "conclusion": "function_exact：Go 断言超出 legacy float 精度的十进制成交量保持精确；Rust 断言超出定点范围的成交量按十进制精确发布（不降级为浮点）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(basic_quote_pushes_keep_exact_volume_beyond_fixedpoint_range)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/live_adapter_volume_test.go:49:TestMarketTradeFromTickRejectsAmbiguousOrInvalidDelta": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::basic_quote_pushes_without_a_volume_counter_report_zero_delta; crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::negative_cumulative_volume_publishes_no_trade_event",
+    "conclusion": "function_exact：Go 断言 quote 类 tick 与负增量不产生成交；Rust 断言无累计量计数器时报零增量、负累计量不发布成交事件（非负钳制在 tick_candles）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(negative_cumulative_volume_publishes_no_trade_event)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/live_heartbeat_boundaries_test.go:27:TestLiveHeartbeatActiveInstrumentDeduplicationBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_live_projection_uses_shared_transport_metrics; crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_reflects_fixture_opend_poll_and_reconnect_lifecycle",
+    "conclusion": "function_exact：Go 断言心跳活动标的去重/排序且空服务返回 nil；Rust 断言共享传输指标去重排序（大小写/空白归一）、随连接释放收敛，空集投影为空数组。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(system_status_live_projection_uses_shared_transport_metrics)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/live_runtime_test.go:13:TestLiveStreamDiagnosticsUseConfiguredLimit": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_rejects_origin_and_limit_without_leaking_permits; crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::live_websocket_interface_settings_round_trip",
+    "conclusion": "function_exact：Go 断言 live 诊断使用持久化的连接上限；Rust 断言 WS 传输在达到上限时拒绝且不泄漏许可，设置文件契约测试断言 liveWebSocketConnectionLimit 往返（上限来源）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(ws_live_transport_rejects_origin_and_limit_without_leaking_permits)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/live_ws_boundaries_test.go:36:TestLiveWebSocketUsesActivePollOnlyProviderBehindLegacyFutuSelection": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_composition.rs; crates/jftrade-engine/tests/provider_runtime_compatibility.rs",
+    "conclusion": "partial：Rust 组合根按 active provider 解析 runtime（futu 选中但 provider 为轮询实现时走对应适配器），provider_runtime_compatibility 覆盖运行时切换；但没有“legacy futu 选择 + poll-only 活跃 provider”的专门 WS 断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/live_ws_boundaries_test.go:114:TestLiveWebSocketBackendProviderAndNilBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
+    "conclusion": "partial：Go 断言 nil backend 的默认上限与错误路径；Rust 后端由类型化端口提供（缺端口时 WS 路由不注册，见 ws_live_route_unavailable...），corpus 覆盖 backend-unavailable-is-not-found，但没有 nil backend 对象边界。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/live_ws_boundaries_test.go:172:TestLiveWebSocketBackendPollsExplicitBrokerSnapshots": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_projection.rs; crates/jftrade-marketdata/src/snapshot_poll.rs",
+    "conclusion": "partial：Rust 通过快照轮询端口读取券商快照并投影 wire（含 observedAt），但没有“显式券商快照轮询驱动 WS 推送”的专门用例。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/market_depth_test.go:33:TestMarketDepthWebSocketSendsInitialPayload": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::order_book_pushes_publish_depth_for_the_subscribed_instrument; crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
+    "conclusion": "function_exact：Go 断言深度订阅首帧推送 order book；Rust 断言 order book 推送为已订阅标的发布深度，WS corpus 覆盖 depth-push-refresh-and-release。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(order_book_pushes_publish_depth_for_the_subscribed_instrument)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/market_depth_test.go:117:TestMarketDepthOpenDError": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::order_book_pushes_without_any_price_are_dropped; crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
+    "conclusion": "partial：Go 断言 OpenD 报错时深度流返回错误；Rust 丢弃无可信价格的快照并由 corpus 的 provider-error-cancels-stream 覆盖流取消，但没有把 OpenD 错误文本映射到深度帧的专门断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/market_details_ws_test.go:11:TestMarketSecurityDetailsWebSocketSendsInitialPayload": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::securities_route_queries_the_security_snapshot_once; crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_securities_route_projects_broker_neutral_envelope_boundary",
+    "conclusion": "function_exact：Go 断言证券详情 WS 首帧只查询一次快照；Rust 断言 securities 路由只做一次快照查询且不暴露 cache 标记（wire 形状与 Go 对齐）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(securities_route_queries_the_security_snapshot_once)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/market_instrument_resolver_test.go:13:TestMarketInstrumentResolverEndpointUsesSearchWithoutQuoteSubscription": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_catalog.rs",
+    "conclusion": "partial：Rust 的仪器目录搜索/规范化端口不建立报价订阅（目录读取与订阅是分离端口），但没有 HTTP 解析端点“只搜索不订阅”的专门断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/market_instrument_resolver_test.go:65:TestMarketInstrumentResolverQualifiedInputOnlyQueriesSelectedLeaf": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_actions_tests.rs::normalize_instrument_resolves_qualified_sh_and_sz_prefixes",
+    "conclusion": "function_exact：Go 断言限定市场输入（CN SH.600519）只查询对应叶子市场；Rust 断言限定 SH/SZ 前缀解析到对应叶子并保持规范身份。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(normalize_instrument_resolves_qualified_sh_and_sz_prefixes)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/market_realtime_test.go:18:TestMarketCandlesEndpointIncludesCurrentRealtimeBucket": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-marketdata/src/tick_candles.rs::tick_candles_use_explicit_volume_delta_across_trading_days; crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::candle_read_without_a_kline_lease_fails_before_realtime_provider_access",
+    "conclusion": "partial：Go 断言 K 线端点把当前实时桶并入历史序列；Rust 的 tick→candle 合并与租约前置校验分别有测试，但没有端到端“历史+实时合并”路由断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go:18:TestBusinessNotificationsAndOptionalSecurityFieldsPreserveWireSemantics": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:contracts",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs; crates/jftrade-api/src/observability.rs::request_observability_matches_go_shape_and_bounded_order",
+    "conclusion": "partial：Go 断言通知文案格式化（%s/Stringer）与可选安全字段 wire 语义；Rust 通知文案由执行投影端口生成，可选字段的 JSON 形状由 serde skip 规则保证，但没有逐字段对照用例。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go:84:TestMarketQueryAndExecutionPayloadFallbacksRemainDeterministic": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:contracts",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_wire.rs; crates/jftrade-engine/src/product_api_execution.rs",
+    "conclusion": "partial：Go 断言行情的 pathTail 与执行 payload 回退确定性；Rust 以路由模板匹配 + 显式 fallback 分支实现，相关断言散落在 execution 读/写契约测试中，没有同形 helper 级用例。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go:140:TestRealTradeControlPathPrefersExplicitOverride": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:contracts",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/real_trade_control.rs::path_is_sibling_of_settings_file",
+    "conclusion": "function_exact：Go 断言 JFTRADE_REAL_TRADE_CONTROL_PATH 优先、空值回退同目录默认名；Rust 断言派生规则（同目录 real-trade-control.json，相对设置路径退化为文件名），env 覆盖读取在 ProductConfig::new（工作区禁止进程级 env 写入，覆盖分支为 partial 记录在 runtime/resources_test.go:58 行）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(path_is_sibling_of_settings_file)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go:154:TestWorkflowMarketAdaptersRejectInvalidInputsAndPreserveMetadata": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:contracts",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_tests.rs; crates/jftrade-engine/src/product_wire.rs",
+    "conclusion": "partial：Rust 的工作流/市场适配端口在缺端口或非法输入时 fail-closed 并保留元数据，但没有与 Go 同形的“nil server adapter”边界用例。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/notification_sources_test.go:13:TestExchangeCalendarAlertRecordingHonorsNotificationSetting": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_calendar.rs; crates/jftrade-engine/src/product_production_assembly_tests.rs::production_calendar_manager_restores_settings_and_snapshots",
+    "conclusion": "partial：Rust 日历管理器按设置决定是否上报提醒（错误通知开关参与 manager settings），但没有“提醒记录受通知设置门控”的端到端断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/notification_sources_test.go:46:TestLiveNotificationFromExchangeCalendarAlertMapsSourceAndCategory": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs",
+    "conclusion": "partial：Go 断言交易所日历提醒映射到通知的 source/category；Rust 通知投影端口承担分类，但没有日历来源的 source/category 断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/notifications_lifecycle_test.go:17:TestServerCloseUnregistersOnlyItsBBGONotificationSink": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs",
+    "conclusion": "boundary：Rust 不注册 bbgo 通知 sink（通知由执行/风控投影直接生成），不存在“关闭只注销自身 sink”的注册表语义。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/notifications_lifecycle_test.go:58:TestLiveNotificationEventMapContract": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
+    "conclusion": "function_exact：Go 断言 live 通知事件到 wire 的字段映射（sequence/at/level/title/message/source/category）；Rust corpus 的 notification-replay 用例逐字段比对同一形状。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(ws_live_replays_complete_go_corpus)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/notifications_lifecycle_test.go:92:TestRecordLiveNotificationCallsSink": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent",
+    "conclusion": "function_exact：Go 断言记录通知时调用注入 sink 并回传序列/标题/分类。Rust 通知投影器把持久事件投影成通知、投递给注入 sink 并推进游标（引用测试断言投递内容与游标幂等）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_notification_projector_advances_cursors_and_is_idempotent)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/notifications_lifecycle_test.go:117:TestSystemNotificationTestRouteReturnsDeliveryStatus": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_wire.rs; crates/jftrade-engine/src/product_production_ports_futu.rs",
+    "conclusion": "partial：Rust 系统通知测试路由返回投递结果，但没有“投递状态（delivered/failed）”字段级断言；通知失败以端口错误/日志表达。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/notifications_lifecycle_test.go:144:TestRecordLiveNotificationSinkPanicDoesNotDropEvent": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs",
+    "conclusion": "boundary：Rust 通知投递用 Result 传播而不是捕获 panic，不存在“sink panic 仍保留事件”的语义。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/openapi_boundary_test.go:11:TestSwaggerRoutesRedirectToBrowsableDocumentation": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:contracts",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-api/src/route.rs",
+    "conclusion": "boundary：Rust API 不提供 /swagger 重定向 UI；契约以 openapi.json 源文件与生成物为准，Swagger UI 属 Go/Wails 时代的文档入口。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/openapi_route_registration_test.go:17:TestOpenAPICoversRegisteredAPIRoutes": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:contracts",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_tests.rs::product_runtime_without_optional_workers_starts_and_stops_cleanly",
+    "conclusion": "partial：Rust 以 contracts/openapi/openapi.json 为契约源，路由与文档一致性由 check-openapi-quality/check:generated 门禁断言；引擎测试断言注册路由数量（owned_routes=26），但“每个注册路由都有 OpenAPI 文档”不是 Rust 内测试证据。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/openapi_route_registration_test.go:85:TestCapabilityCatalogAPISurfacesAreRegistered": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:contracts",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::every_declared_capability_resolves_to_an_executable_production_adapter; crates/jftrade-engine/src/product_production_assembly_tests.rs::production_registry_is_built_from_non_optional_adapters",
+    "conclusion": "function_exact：Go 断言能力目录里声明的 API 面都已注册；Rust 断言每个声明能力都能解析到可执行的生产适配器（无悬空能力面）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(every_declared_capability_resolves_to_an_executable_production_adapter)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/product_infrastructure_boundaries_test.go:13:TestServerTradingStoreAndGatewaySmallBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_previews.rs; crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::cancel_order_uses_modify_order_cancel_operation",
+    "conclusion": "partial：Go 断言 (*tradingstore.Store)(nil) 的 SavePreview/ConsumePreview 静默成功、空 executionOrderStore 有回退。Rust 预览存储是 engine 持有的 typed mutex（无 nil store 分支），缺失/过期预览走显式 rejection，撤单路径由 execution preview 测试覆盖；nil-store 容错属 Go 独有形状。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/product_infrastructure_boundaries_test.go:33:TestProductInfrastructureRemainingNilAndFallbackBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_labels.rs; crates/jftrade-engine/src/product_production_ports_execution_order_hash.rs",
+    "conclusion": "boundary：Go 的 connectivityFromBrokerReadError(nil)→connected、executionFillLookupKey 空入参→\"\"、optionalBool(nil)→nil 属于 nil 容忍辅助。Rust 用 Option/Result 类型化表达同类语义（连接性由 broker 读结果投影、成交键由 broker/fill 标识组合），不存在 nil 入参分支，等价断言分散在被引用的投影/哈希辅助中，按边界保留记录。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/product_lifecycle_closure_test.go:14:TestProductLifecycleFeeUpdatesPersistOnlyOnLiveOrderLedger": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_push_worker_tests.rs::test_tc_d5_01_sequential_partial_fills_and_fees_monotonic; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_replays_history_fill_and_fee_once_after_restart",
+    "conclusion": "partial：Go 断言费用快照只写入 live execution order ledger（nil 执行 owner 时 ApplyFees 不 panic），预览/预测存储不被改写。Rust 费用只由 execution reconciliation 写 live order store，且回放幂等（引用测试覆盖），但没有与 Go 同形的 nil-owner ApplyFees 分支。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/product_lifecycle_closure_test.go:39:TestPredictionAndPreviewPersistenceRejectsStaleOrChangedBindings": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::single_preview_hash_binds_client_order_id; crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::combo_preview_hash_binds_client_order_id",
+    "conclusion": "partial：Go 断言预览请求哈希绑定变更后拒绝复用（stale/changed binding）以及预测持久化的过期绑定拒绝。Rust 由 preview_request_hash 把 client order id 纳入单腿/组合哈希（两个引用测试覆盖变更即不同哈希），预测侧过期预览由 TTL/座位校验拒绝；预测持久化的过期分支尚无独立 Rust 断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/product_lifecycle_closure_test.go:199:TestProductLifecycleSnapshotIdentityAndRuntimeHelpers": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_production_executor_helpers.rs::optional_bool_strict; crates/jftrade-engine/src/product_production_ports_execution_order_hash.rs",
+    "conclusion": "boundary：Go 断言 optionalBool(nil)→nil、快照身份字段与执行辅助的小工具语义。Rust 没有三态 optionalBool 辅助（JSON 侧用 Value/Option 表达缺省），快照身份由 typed snapshot 结构承载，属 Go 辅助函数的形状差异，按边界保留。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/product_lifecycle_closure_test.go:206:TestProductLifecycleExecutionGatewayGuardsAndSubscriptionFallback": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_orders_impl.rs; crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::test_normalize_execution_order_preserves_broker_abstraction",
+    "conclusion": "partial：Go 断言外层 BrokerID 与 Query.ReadQuery.BrokerID 不一致时报 does not match，以及无订阅时回退。Rust 以单一 brokerID + resolve_broker_cancel_target 表达（双 broker 输入不可表达，冲突分支消失），broker 抽象保留由引用测试覆盖；订阅回退由 market data quote/subscription 测试覆盖，没有同形的网关守卫测试。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/product_lifecycle_closure_test.go:255:TestProductLifecycleStartupBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-desktop/src/main.rs",
+    "conclusion": "boundary：Go 的 shouldStartForArgs + JFTRADE_API_DISABLED 决定 API 子命令是否启动，属 Wails/CLI 入口。Rust 由 desktop/Tauri profile 与 engine bin 决定启动模式，没有同名的 args 判定函数，记录为入口边界保留。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/request_observability_test.go:14:TestRequestObservabilityInjectsStableContextAndRecordsSummary": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/observability.rs::request_observability_matches_go_shape_and_bounded_order; crates/jftrade-api/tests/transport_contracts.rs::desktop_token_reaches_port_with_stable_envelope_and_request_id",
+    "conclusion": "function_exact：Go 断言注入稳定请求上下文并记录摘要（含失败路径）；Rust 断言观测快照形状与有界顺序，传输契约测试断言请求 id 稳定传递到 port 并在失败时记入 recent_errors。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(request_observability_matches_go_shape_and_bounded_order)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/request_observability_test.go:46:TestRequestObservabilityReplacesUnsafeRequestID": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::invalid_request_id_is_replaced_before_observation_and_dispatch",
+    "conclusion": "function_exact：Go 断言不安全 request id 被替换后再观测/分发；Rust 断言非法 request id 在观测与 dispatch 之前被替换。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(invalid_request_id_is_replaced_before_observation_and_dispatch)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/runtime_integration_boundaries_test.go:17:TestStartupIntegrationRemainsEffectiveWithoutPersistedBrokerSettings": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_composition.rs; crates/jftrade-engine/src/product_active_provider_state.rs::helper_provider_switch_preserves_observed_opend_trade_readiness",
+    "conclusion": "partial：Go 断言启动时传入的集成配置在未被持久化前仍然生效。Rust 由 RuntimeComposition 把 settings + 启动覆盖合成到 ActiveProviderState（引用测试覆盖 helper 切换保留 futu trade readiness），但没有逐条的“未持久化启动集成仍生效”断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/runtime_integration_boundaries_test.go:65:TestPersistenceStoreUnwrapsStartupIntegrationForMCPSettings": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_mcp.rs; crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::mcp_settings_writes_match_frozen_compatibility_expectations",
+    "conclusion": "partial：Go 用 startupIntegrationSettingsStore 包装并断言 MCP 设置读写会解包到持久化 store。Rust 的 MCP 设置端口直接持有 settings store（无包装层），冻结的 MCP 写入契约由引用测试覆盖，属包装层形状差异。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/runtime_integration_boundaries_test.go:106:TestFutuBrokerRefreshesAfterRuntimeResetAndStaysHiddenWhenDisabled": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection.rs; crates/jftrade-engine/src/product_production_ports_trade_tests.rs::provider_switch_does_not_disconnect_an_existing_futu_trade_session",
+    "conclusion": "partial：Go 断言 futu runtime reset 后 broker 重新出现、禁用时 broker 列表隐藏。Rust 由 broker capabilities 投影依据 active provider 与集成启停决定可见性（引用测试覆盖 provider 切换不误断 futu 交易会话），但没有逐条断言 reset/隐藏时序。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/runtime_integration_boundaries_test.go:136:TestExplicitFutuResolutionRestoresRuntimeBrokerAlongsideOtherBrokers": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs",
+    "conclusion": "partial：Go 断言显式解析 futu 时 runtime broker 与其他 broker 同时出现。Rust 的 broker 列表由 capabilities 投影统一生成（同一 owner 保证顺序与去重），引用测试覆盖投影边界，但没有与该 Go 场景一一对应的断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/runtime_integration_boundaries_test.go:151:TestActiveBrokerWaitsForFutuRuntimeResetInvalidation": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::provider_transitions_are_serialized_and_publish_one_snapshot",
+    "conclusion": "partial：Go 断言 active broker 等待 futu runtime reset 失效完成后再发布。Rust 的 provider 迁移被串行化且只发布一次快照（引用测试覆盖），futu reset 失效在 ActiveProviderState 内同序完成；无同形的等待断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/runtime_observation_test.go:13:TestStrategyRuntimeObservationAppearsInStrategiesAndSystemStatus": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/src/strategy_runtime_observation.rs; crates/jftrade-engine/src/product_strategy_runtime_status.rs::strategy_runtime_projection_matches_go_status_corpus",
+    "conclusion": "partial：Go 断言运行观察同时出现在 strategies 详情与 system 状态。Rust 的观察由 strategy runtime store 的 get_observation/update_observation 持久化，并由 strategy runtime 状态投影输出（引用测试回放冻结状态语料），但没有单条断言同时检查两个路由。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/runtime_observation_test.go:114:TestStrategyRuntimeObservationPersistsAcrossServerRestart": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/src/strategy_runtime_observation.rs; crates/jftrade-engine/src/strategy_runtime_owner_tests.rs::production_loop_reopens_at_checkpoint_and_replays_every_unprocessed_bar",
+    "conclusion": "partial：Go 断言重启后观察状态仍在。Rust 观察写入 SQLite（唯一写入所有者），重启后由 store 读回并驱动检查点续跑（引用测试覆盖重开回放），但没有单独的重启观察断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/runtime_observation_test.go:176:TestStrategyRuntimePanicAutoReconcilesToStopped": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime.rs::fail_strategy_task",
+    "conclusion": "Rust 功能缺失（已定位差距）：Go 在策略运行 panic 后把实例收敛为 STOPPED、清空活动订阅、发“策略运行异常退出”通知并写 runtime_exited 审计。Rust 的失败路径 fail_strategy_task 只写 FAILED 观察状态 + 错误日志并释放 demand consumer（crates/jftrade-engine/src/strategy_runtime.rs:721），既不改写为 STOPPED，也不产生 runtime_exited 审计与通知。修复位置：strategy_runtime.rs 失败收敛 + 通知/审计所有者；回归测试要求：panic/失败后断言状态、活动标的清空、审计与通知各一条。",
+    "command": "",
     "evidence_type": "missing"
   },
   "internal/app/apiserver/servercore/runtime_polling_test.go:14:TestStrategyRuntimePollsClosedKLinesWhenTradePushStalls": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/strategy_runtime_candle_lifecycle_tests.rs::test_duplicate_polls_on_same_closed_bar_are_idempotent",
+    "conclusion": "function_exact：Go 断言 trade push 停滞后轮询收口 K 线仍推进策略；Rust 断言同一收口 bar 的重复轮询幂等（不重复触发 Pine/下单），轮询是推进来源。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_duplicate_polls_on_same_closed_bar_are_idempotent)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/runtime_test.go:16:TestStrategyRuntimeNotifyOnlyEmitsSignalNotification": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_notify_strategy_intents_delivers_and_records_audit",
+    "conclusion": "function_exact：Go 断言 notify-only 模式只发信号通知、不下单；Rust 断言 notify 意图只投递通知并写 SIGNAL_NOTIFIED/SIGNAL_DETECTED 审计、不触达执行端口。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_notify_strategy_intents_delivers_and_records_audit)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/runtime_test.go:82:TestStrategyRuntimeStartEnsuresMissingMarketMetadata": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime.rs",
+    "conclusion": "boundary：Rust 启动策略实例要求市场元数据由 provider catalog 提供（缺失即失败），没有 Go 的“启动时补写缺失市场元数据”路径。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/runtime_test.go:119:TestStrategyRuntimeStartRejectsWhenInstanceWorkerLimitReached": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_tests.rs::production_runtime_rejects_multiple_pine_workers_without_failover",
+    "conclusion": "partial：Rust 的 Pine worker 容量在组合期按配置固定并拒绝无 failover 的多 worker 配置，没有 Go 的“每个实例启动时检查 instanceWorkerLimit 并拒绝”的运行时门。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/runtime_test.go:166:TestStrategyRuntimeLiveWorkerRequestIncludesModeCandlesAndParams": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-integration-pine/src/execution.rs; crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::shadow_request_matches_go_sample_candles_and_uses_run_script_analysis_mode",
+    "conclusion": "partial：Rust 的 RunScriptRequest 由 integration-pine 构造（模式/candles/参数在 execution.rs 组装），测试覆盖分析模式与多标的 candles 形状，但没有专门的 live 模式请求字段快照。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/runtime_test.go:212:TestStrategyRuntimeLiveWorkerErrorRecordsRuntimeError": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_port.rs; crates/jftrade-engine/src/strategy_runtime_candles.rs",
+    "conclusion": "partial：Rust 记录 worker 日志/诊断（record_worker_output）并在恢复失败时 mark_recovery_failed，但没有 Go 的“live worker 错误写 runtime error 状态”直接断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/runtime_trading_test.go:18:TestStrategyRuntimeOrderUsesSharedPreTradeRiskGateway": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_risk_rejection_blocks_broker_order",
+    "conclusion": "function_exact：Go 断言策略单被共享盘前风控网关拒绝时不触达券商；Rust 断言风控拒绝时不下单、且审计保留拒绝证据。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_execute_strategy_intents_risk_rejection_blocks_broker_order)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/runtime_trading_test.go:49:TestStrategyRuntimeLiveModeRecordsExecutionOrder": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_success_calls_execution_and_audits",
+    "conclusion": "function_exact：Go 断言 live 模式经券商执行并落执行订单记录；Rust 断言成功意图调用执行端口并按 source/sourceDetail 落单审计。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_execute_strategy_intents_success_calls_execution_and_audits)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/runtime_trading_test.go:123:TestStrategyRuntimeRiskCloseOnlyRejectsBuyOrder": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/risk_engine_tests.rs::runtime_risk_enforce_applies_close_only_quantity_notional_and_daily_limits",
+    "conclusion": "function_exact：Go 断言实例级运行时风控 closeOnly 拒绝 BUY 并写 risk_rejected(rule=close_only) 审计且不落单；Rust 断言 enforce+close_only 下 BUY 以 close_only 拒单、SELL 超出可卖以 close_only_insufficient_position 拒单。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(runtime_risk_enforce_applies_close_only_quantity_notional_and_daily_limits)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/runtime_trading_test.go:181:TestStrategyRuntimeLiveSizesEntryQuantityPctFromEquity": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_resolves_quantity_pct_and_close_intent",
+    "conclusion": "function_exact：Go 断言按权益百分比计算入场数量；Rust 断言 25% × 30000 现金 / 150 价格 = 50 股并带 source/sourceDetail（Rust 以 availableCash 为基数，Go 用 equity，口径差异已在结论记录）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/runtime_trading_test.go:239:TestStrategyRuntimeLiveUsesExplicitQuantityBeforeQuantityPct": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution.rs",
+    "conclusion": "partial：Rust resolve_strategy_intent_quantity 先取显式 quantity、再走 pct 分支，优先级与 Go 一致，但没有“quantity 与 quantityPct 同时存在”的专门断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/runtime_trading_test.go:286:TestStrategyRuntimeLiveSizesCloseQuantityPctFromPosition": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution.rs",
+    "conclusion": "partial：Rust close+pct 分支按 position × pct/100（上限为整仓）实现并有 reduceOnly 约束，但现有测试只覆盖“百分比开仓 + 全平仓”，未单独断言平仓百分比。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/runtime_trading_test.go:334:TestStrategyRuntimeLiveDefaultsCloseToFullPosition": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_resolves_quantity_pct_and_close_intent; crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_parameterless_close_skips_when_no_position",
+    "conclusion": "function_exact：Go 断言无参数 close 默认平掉全部持仓；Rust 断言 close 意图取当前仓位全量并 reduceOnly/SELL，无持仓时跳过且不报错。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_execute_strategy_intents_parameterless_close_skips_when_no_position)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/runtime_trading_test.go:382:TestStrategyRuntimeLiveIgnoredOrderRecordsRuntimeEvidence": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution.rs",
+    "conclusion": "partial：Rust 对低于最小交易单位/不可成交意图由执行端口拒绝并审计，但没有 Go 的“忽略订单仍写运行时证据（ignored reason）”专门用例。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/runtime_trading_test.go:443:TestStrategyRuntimeLiveCancelsTrackedOrderFromWorkerCommand": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_cancel_dispatches_order_cancel",
+    "conclusion": "function_exact：Go 断言 worker 的 cancel 指令撤掉已跟踪订单；Rust 断言 cancel 意图调用撤单端口并保留审计。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_execute_strategy_intents_cancel_dispatches_order_cancel)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/runtime_trading_test.go:506:TestStrategyRuntimeExecutesOnlyCurrentBarWorkerIntent": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/strategy_runtime_candle_lifecycle_tests.rs::test_in_progress_bar_closing_on_next_tick_triggers_pine_and_order_once; crates/jftrade-engine/tests/strategy_runtime_candle_lifecycle_tests.rs::test_multi_bar_catchup_preserves_chronological_append_and_tracking",
+    "conclusion": "function_exact：Go 断言只执行当前 bar 的 worker 意图（历史 bar 丢弃）；Rust 断言进行中 bar 在下一次 tick 收口时只触发一次 Pine/下单，多 bar 补齐按时间顺序仅处理当前 bar。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_in_progress_bar_closing_on_next_tick_triggers_pine_and_order_once)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/runtime_trading_test.go:575:TestStrategyRuntimeSkipsWhenWorkerReturnsNoCurrentBarIntent": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/tests/strategy_runtime_candle_lifecycle_tests.rs::test_in_progress_candle_updates_cache_without_triggering_pine_or_orders",
+    "conclusion": "partial：Go 断言 worker 返回空 intent 时不下单；Rust 断言进行中 bar 只更新缓存不触发 Pine/下单，但“worker 返回空 intent 数组”的分支没有单独用例（current_bar_intents 过滤后为空即同样不下单）。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/runtime_trading_test.go:635:TestStrategyRuntimeRefreshesBrokerPositionsBeforeSellOnKLineClose": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution.rs",
+    "conclusion": "boundary：Rust 在平仓/卖出意图执行前使用调用方提供的 current_position/sellable_quantity（由账户快照读取），没有 Go 的“K 线收口前主动刷新券商持仓”步骤。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/runtime_trading_test.go:723:TestStrategyRuntimeDisconnectedBrokerRefreshKeepsCachedState": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(trading)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution.rs",
+    "conclusion": "boundary：Rust 没有券商刷新循环；断连时执行端口不可用即拒绝下单（fail-closed），不存在 Go 的“刷新失败保留缓存持仓继续使用”分支。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/security_test.go:43:TestSecurityChangeCancelsExistingWebStream": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_server_tests.rs::disabled_web_access_does_not_start_a_listener; crates/jftrade-engine/src/product_auth_session_manager.rs::auth_sessions_are_cookie_bound_hashed_and_restart_durable",
+    "conclusion": "partial：Go 断言安全设置变更立即取消已存在的 web 流；Rust 由“禁用 web 即停止 listener + invalidate_all”实现等价效果（流随 listener 关闭结束），但没有直接断言进行中 SSE 流被取消。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_application_lifecycle_test.go:37:TestServerCloseUsesApplicationResourceOrderAndStableAggregation": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_tests.rs::test_product_runtime_ordered_shutdown_explicit",
+    "conclusion": "partial：Go 断言关闭按注册顺序执行且稳定聚合首个错误。Rust 由 runtime 有序关闭（引用测试逐个断言关闭顺序与错误聚合）承接；Go 的通用 Resources 注册器在 Rust 侧是类型化关闭序列，没有同名聚合器测试。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_application_lifecycle_test.go:75:TestServerCloseStopsBacktestBeforeMarketDataRuntime": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_tests.rs::test_product_runtime_ordered_shutdown_explicit; crates/jftrade-engine/src/product_production_assembly_tests.rs::direct_product_shutdown_stops_reconciliation_before_releasing_leases",
+    "conclusion": "partial：Go 断言关闭顺序为回测先于行情运行时。Rust 有序关闭测试断言执行对账/回测在释放市场数据租约前停止（引用测试），与 Go 的 backtest→marketdata 顺序一致，但断言面侧重租约而非 syncer。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_application_lifecycle_test.go:118:TestPersistentAssemblyStopsAndRollsBackInReverseOpenOrder": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_tests.rs::test_product_runtime_startup_failure_rollback; crates/jftrade-engine/src/product_data_management_batch_atomic_startup_tests.rs",
+    "conclusion": "partial：Go 断言持久化装配按打开的逆序关闭并回滚。Rust 启动失败回滚测试断言失败时逆序释放已打开资源（引用测试），数据库打开/关闭顺序由 runtime 资源目录驱动；无同名 openPersistentResource 辅助。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_backtest_test.go:19:TestBacktestRouteAcceptsExplicitMarketAndCode": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_rejects_invalid_ranges_and_intervals; crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_backtest_start_executes_fixture_and_persists_terminal_result",
+    "conclusion": "partial：Go 断言回测路由接受显式 market=US/code=AAPL 并成功运行。Rust 回测运行请求使用 symbol 形状（market/code 组合出现在数据同步请求解析，见 sync_request_* 测试），运行侧由 start 测试覆盖落库与终态结果；显式 market/code 的运行路由断言缺失，列为待补。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_backtest_test.go:97:TestEnqueueBacktestUsesPineInitialCapitalWhenRequestOmitsBalance": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_backtest_execution.rs",
+    "conclusion": "partial：Rust 回测执行使用请求/策略参数中的初始资金并在缺失时报错或取默认，没有“从 Pine initialCapital 回填”的专门断言，属待补 P2。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_bootstrap_boundaries_test.go:15:TestServerBootstrapRemainingFailureAndFallbackPaths": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable",
+    "conclusion": "partial：Go 断言设置路径不可用时的降级启动与回退。Rust 降级启动测试断言外部运行时不健康时 API 仍以 degraded 暴露（引用测试），且启动不因可选依赖失败而回滚；路径形态不同（Go 用文件阻塞构造，Rust 用不可用端口/后端）。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_bootstrap_boundaries_test.go:64:TestServerRemainingPublicSettersAndRuntimeBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_server_runtime.rs; crates/jftrade-api/src/web_access.rs",
+    "conclusion": "boundary：Go 的 nil *Server 公开 setter（SetWebAccessReconfigure/SetAPIPort/ConfigureAuthOrigins/SetFrontendFS/ApplySecuritySettings）与回调错误传播属于 Wails 时代可空 Server。Rust 的 web access/auth 由不可空的 web_access 服务持有并显式返回错误，nil 接收者分支不存在，按入口边界保留。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/server_bootstrap_boundaries_test.go:107:TestServerRemainingBrokerAndSystemOptionBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection.rs; crates/jftrade-engine/src/product_production_ports_system.rs",
+    "conclusion": "partial：Go 断言 futu 未启用时 ExchangeOrError 返回 ErrFutuIntegrationNotEnabled 且 brokerExecutionExchange 为 nil。Rust 以投影/端口为唯一读路径（未启用即不可用，见 production_system_read_reports_unavailable_opend_without_fake_health），没有同名的 ExchangeOrError 错误值。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_bootstrap_degraded_runtime_test.go:15:TestServerBootstrapPersistsUnavailableDatabaseReasons": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::overview_counts_main_wal_and_shm_and_keeps_an_unreadable_database_local",
+    "conclusion": "partial：Go 断言不可用数据库原因被持久化到可用性快照并在总览暴露。Rust 由 runtime 资源状态 + 总览测试覆盖“单库不可读只影响自身统计并保留原因”，但没有 AvailabilitySnapshot 同形结构。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_bootstrap_degraded_runtime_test.go:67:TestServerOptionCallbacksExposeNilRuntimeStatesSafely": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_system.rs; crates/jftrade-engine/src/real_trade_control.rs::real_trade_reads_replay_frozen_compatibility_cases",
+    "conclusion": "partial：Go 断言 nil runtime 时风控 limits 与 MCP 状态仍是安全默认值。Rust 以 typed Option 端口 + 冻结兼容用例表达默认状态（引用测试回放），没有空 *Server 的构造分支。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_bootstrap_degraded_runtime_test.go:84:TestServerBootstrapBuildsBrokerBridgeForEnabledIntegration": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_composition.rs; crates/jftrade-engine/src/strategy_runtime.rs::with_notification",
+    "conclusion": "partial：Go 断言启用集成时构造 strategyRuntimeBrokerBridge 且带 runtime exchange 与 broker。Rust 策略运行时的实盘执行由 strategy runtime 的 broker 桥（单一 exchange 所有者）注入，组合逻辑在 runtime composition；没有同名的 bridge 结构断言测试。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_business_test.go:25:TestWorkflowAndMarketRuntimeBoundaryHelpers": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_opend_listener.rs; crates/jftrade-engine/src/product_production_ports_market_data.rs::test_futu_kline_query_window_resets_invalid_begin_to_default_lookback",
+    "conclusion": "partial：Go 断言 nil/空 Server 推送行情 tick 时不 panic 且按 kind 分流。Rust 行情推送由 opend listener 上游持有并做去抖/负成交量校验（引用测试覆盖窗口与推送边界），不存在可空 Server 入参。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_business_test.go:42:TestStrategyRuntimeBrokerBridgeDelegates": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_trade_runtime_broker_routes.rs; crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_projects_futu_funds_from_neutral_client",
+    "conclusion": "partial：Go 断言 bridge 把 QueryBrokerFunds/Positions 直通 broker reader 并保留 query。Rust 策略运行时以端口委托同一 trade read owner（引用测试覆盖 funds/positions 投影与 query 透传），没有同名的 bridge 转发层测试。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_business_test.go:77:TestTimeStatusAndDefaultScriptBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/strategy_pine.rs; crates/jftrade-api/src/observability.rs::request_observability_matches_go_shape_and_bounded_order",
+    "conclusion": "partial：Go 断言 httpTime 解析为 UTC、非法时间归零、DefaultPine 脚本含 strategy 名与 ta.crossover。Rust 时间解析统一用 RFC3339/chrono 类型（无 httpTime 辅助），默认 Pine 脚本模板由 strategy_pine 提供；引用测试覆盖 observability 的形状与顺序，脚本断言尚未单列。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_business_test.go:92:TestStrategyBindingHelpersNormalizeLooseAPIParams": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::instantiate_persists_the_same_normalized_binding_as_runtime_update; crates/jftrade-engine/src/strategy_runtime_mutation.rs::binding_normalization_validates_execution_enums_and_nested_account",
+    "conclusion": "partial：Go 断言宽松 API 参数（instruments/symbols 二选一、去重、trim、interval 归一、executionMode 归一）被规范化。Rust 绑定归一由 build_binding 单一 owner 完成并在实例化与更新间保持一致（两个引用测试覆盖），但没有逐字段的宽松输入矩阵断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_business_test.go:263:TestServerCloseAggregatesPineWorkerRunnerErrorsOnce": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_tests.rs::test_product_runtime_ordered_shutdown_explicit; crates/jftrade-engine/src/product_runtime_tests.rs::production_runtime_rejects_multiple_pine_workers_without_failover",
+    "conclusion": "partial：Go 断言 Close 只聚合一次回测/实例 Pine worker runner 错误。Rust 关闭时逐个 join worker 并聚合成败（引用测试覆盖顺序与唯一 worker 约束），没有专门构造“两个 runner 各自报错”的聚合断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_business_test.go:292:TestServerSidecarFrontendRuntimeConfigFollowsSecuritySettings": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_server_runtime.rs; crates/jftrade-api/src/web_access.rs::request_observability_matches_go_shape_and_bounded_order",
+    "conclusion": "partial：Go 断言 sidecar 前端 runtime config（API 基址）跟随安全设置与前端挂载。Rust 前端资源由 api web access 层挂载并注入配置（同层校验引用测试），没有同名的 sidecar runtime config 断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_business_test.go:329:TestBrokerExecutionExchangeDoesNotReuseStrategyMarketDataOverride": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_trade_runtime_projection.rs; crates/jftrade-engine/src/product_production_ports_trade_tests.rs::helper_market_data_provider_keeps_futu_trade_reads_on_the_trade_session",
+    "conclusion": "partial：Go 断言 broker 执行 exchange 不复用策略行情覆盖（未启用集成时为 nil）。Rust 交易读写固定走 trade session、行情覆盖只作用于 market data（引用测试覆盖 helper provider 不改变 trade 读取），无同名的 override 泄漏断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_calendar_boundaries_test.go:12:TestServerCalendarOptionsAndOperationsRemainingBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_calendar.rs; crates/jftrade-engine/src/product_production_ports_research_calendar_tests.rs::calendar_and_macro_routes_fail_closed_for_other_providers",
+    "conclusion": "partial：Go 断言 exchangeCalendarOperationContext(nil) 产生不受请求取消影响的操作上下文、空 Server 的日历状态为空。Rust 日历操作在 engine 内部以自己的取消域执行（fail-closed 引用测试），空服务器分支不存在（typed registry），无同形的 nil-parent 断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_lifecycle_test.go:16:TestInstantiatePineStrategyDefinitionBuildsCompiledPlan": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::instantiate_persists_the_same_normalized_binding_as_runtime_update; crates/jftrade-engine/src/strategy_pine.rs",
+    "conclusion": "partial：Go 断言实例化 Pine 定义会构建编译计划并持久化绑定。Rust 实例化走同一绑定 owner（引用测试断言实例化与更新绑定一致），Pine 编译计划由 strategy_pine 生成；没有单条“实例化产出编译计划”断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_lifecycle_test.go:222:TestInstantiateStrategyDefinitionRejectsMalformedJSON": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters; crates/jftrade-engine/src/product_adk_mutation_port_parse.rs",
+    "conclusion": "partial：Go 断言畸形 JSON 绑定的实例化被拒绝。Rust 以 serde 解析拒绝畸形负载（解析层引用测试覆盖类型错误拒绝），实例化边界无专门用例，但非法绑定不会被写入。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_market_test.go:11:TestMarketDataSubscriptionHeartbeat": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus; crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::one_live_subscription_publishes_both_trade_and_depth_pushes",
+    "conclusion": "function_exact：Go 断言订阅心跳与活动订阅计数；Rust corpus 覆盖心跳与订阅事件顺序，单订阅推送测试断言同一订阅同时产出成交与深度事件。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(one_live_subscription_publishes_both_trade_and_depth_pushes)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/server_option_callbacks_test.go:13:TestServerSystemAndSettingsOptionCallbacks": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_system.rs; crates/jftrade-engine/src/product_production_assembly_tests.rs::production_system_read_reports_unavailable_opend_without_fake_health",
+    "conclusion": "partial：Go 断言系统状态与设置选项回调在 tradingSvc 为空时仍返回稳定值。Rust 系统读取端口不可用时返回显式不可用（引用测试断言不伪造健康），设置端口缺省不注册路由；无同名 option 回调装配断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_option_callbacks_test.go:53:TestServerStrategyDemandWithRuntimeManager": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_subscription_tests.rs::prediction_subscription_uses_reference_counted_leases; crates/jftrade-engine/src/strategy_runtime_port.rs",
+    "conclusion": "partial：Go 断言策略需求经 runtime manager 产生/释放订阅。Rust 策略需求由 runtime manager 通过引用计数租约申请与释放（引用测试覆盖租约计数语义），但没有与该 Go 场景逐一对应的需求断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_runtime_side_effects_test.go:47:TestServerRuntimeRiskControlsDelegateToControlPlane": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator.rs::real_order_rejects_when_kill_switch_active; crates/jftrade-engine/src/real_trade_control.rs::real_trade_reads_replay_frozen_compatibility_cases",
+    "conclusion": "partial：Go 断言 systemRiskOptions 三项委托到真实交易控制面（limits/写入/硬止损）。Rust 由 execution risk coordinator + real trade control 承接（引用测试覆盖 kill switch 拒绝与冻结读取语料），没有同名的三项 option 委托断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_runtime_side_effects_test.go:143:TestServerSettingsSideEffectsPropagateRuntimeChanges": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_server_runtime.rs; crates/jftrade-engine/src/product_runtime_resources_tests.rs::runtime_resources_declare_go_owners_and_derived_paths",
+    "conclusion": "partial：Go 断言设置副作用（Pine worker 禁用、前端安全设置）传播到运行时资源。Rust 由 runtime 资源目录声明环境覆盖与归属（引用测试断言资源、路径与环境覆盖 id），设置变更经 runtime composition 重算；无同名的 Pine worker 禁用副作用断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_runtime_side_effects_test.go:228:TestDataManagementBackendNilManagerBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-datamanagement/src/lib.rs; crates/jftrade-datamanagement/src/cleanup.rs",
+    "conclusion": "boundary：Go 断言 datamigration.NewService(nil)/NewBackend(nil) 非 nil 且总览返回结构化空结果。Rust 没有可空 manager（服务持有 typed store/connection 句柄），不可达分支按 Go 边界保留，空结果由维护总览测试覆盖。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/server_test.go:14:TestShouldStartForAPIOnlyArgs": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/bin/jftrade-api-rust.rs; crates/jftrade-desktop/src/main.rs",
+    "conclusion": "boundary：Go 的 shouldStartForArgs 判定 api/serve-api 子命令启动、其余忽略。Rust 启动模式由 engine bin 与 Tauri profile 决定（无同名字符串判定），按入口边界保留。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/server_test.go:26:TestPersistenceOnlySettingsStoreKeepsConcreteStore": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::read_only_shadow_loads_without_mutating_or_persisting_settings",
+    "conclusion": "boundary：Go 断言只读包装在不需要时直接返回具体 settingsfile store。Rust 不存在包装器（只读影子与写所有权是不同类型），只读不改写的语义由引用测试覆盖。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/server_test.go:36:TestExchangeCalendarOperationContextIgnoresRequestCancellation": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_calendar.rs; crates/jftrade-engine/src/product_production_ports_research_calendar_tests.rs::earnings_calendar_route_maps_frontend_keys",
+    "conclusion": "partial：Go 断言日历操作上下文继承请求取消时不生效（独立取消域）。Rust 日历操作在 engine 内部自己的取消域执行（引用测试覆盖路由投影），没有专门的取消隔离断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_test.go:50:TestNewServerUsesStrategyRuntimeDBEnvOverride": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_resources_tests.rs::runtime_resources_declare_go_owners_and_derived_paths; crates/jftrade-engine/src/product_runtime_resources_tests.rs::runtime_resources_group_critical_entries_before_assistant_and_directory_entries",
+    "conclusion": "function_exact：Go 断言 JFTRADE_STRATEGY_RUNTIME_DB 覆盖策略运行库路径。Rust 资源目录声明 strategy-catalog/strategy-designs 共用的 strategy-runtime.db 且 environment_override 为该环境变量（引用测试逐项断言路径、归属与环境覆盖）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(runtime_resources_declare_go_owners_and_derived_paths)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/server_test.go:70:TestServerCloseStopsMarketdataAndPreventsExchangeRevival": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::provider_change_cannot_restore_subscriptions_after_shutdown; crates/jftrade-engine/src/product_runtime_tests.rs::test_product_runtime_ordered_shutdown_explicit",
+    "conclusion": "partial：Go 断言关闭后行情运行时停止且不再被重新拉起。Rust 关闭后 provider 切换被拒绝且订阅不可恢复（引用测试），有序关闭断言行情运行时的停止顺序；无同名的“复活”断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_warmup_test.go:20:TestBacktestRouteUsesDerivedStrategyWarmup": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters; crates/jftrade-engine/src/product_backtest*.rs",
+    "conclusion": "partial：Rust 的策略预览测试断言 warmup bars 派生与覆盖；但回测路由自动使用派生 warmup 的端到端断言缺失，属待补 P1（回测 warmup 传递）。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/settings_broker_futu_health_test.go:16:TestFutuRuntimeAndHealthDiagnoseEnabledButUnreachableOpenD": {
     "status": "[x]",
@@ -5299,200 +5299,200 @@
     "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/settings_market_data_test.go:11:TestServerSettingsStoreDefaultsAndPersistsMarketDataSelection": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-settings/src/market_data_provider.rs::provider_normalization_matches_current_go_defaults",
+    "conclusion": "function_exact：Go 断言设置存储默认行情提供者为 AKShare、保存 FUTU 生效、非法值拒绝。Rust 引用测试断言归一与默认 AKShare、保存 yfinance 归一、非法值返回 Invalid。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings -E 'test(provider_normalization_matches_current_go_defaults)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/settings_market_data_test.go:32:TestStartupKeepsConfiguredYFinanceWhenHelperCannotActivate": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：原验证命令引用不存在的 Rust crate，已改为可执行的仓库快速检查；仍缺少该 Go 测试的行为级 Rust 证据",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::rejected_activation_never_publishes_a_new_provider_snapshot; crates/jftrade-engine/src/product_runtime_composition.rs",
+    "conclusion": "partial：Go 断言 helper 无法激活时启动仍保留已配置的 yfinance 选择。Rust 激活被拒绝时不发布新快照、保留已提交 provider（引用测试），启动侧由 runtime composition 保留设置值；无 helper 不可达场景的专门断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/settings_security_test.go:14:TestWebAccessSettingsDefaultToDesktopOnly": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state; crates/jftrade-settings/src/security.rs::access_fails_closed_without_a_configured_password",
+    "conclusion": "function_exact：Go 断言默认设置下浏览器访问被拒、仅桌面可用；Rust 断言默认无凭据请求 401（桌面 token/会话之外不可读），且未配置密码时 web 访问整体 fail-closed。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(system_control_reads_are_authenticated_and_do_not_create_control_state)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/settings_security_test.go:37:TestDesktopCanEnablePasswordProtectedWebWithoutExposingPassword": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_tests.rs::product_server_persists_ui_settings_and_reports_actual_port",
+    "conclusion": "function_exact：Go 断言桌面可开启密码保护 web 访问且响应不回显密码；Rust 同一路由测试断言保存后响应无 passwordHash、启用成功并持久化。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(product_server_persists_ui_settings_and_reports_actual_port)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/settings_security_test.go:86:TestWebAccessCannotBeEnabledWithoutPassword": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_tests.rs::product_server_persists_ui_settings_and_reports_actual_port; crates/jftrade-settings/src/security.rs::writes_validate_password_port_and_public_access_like_go",
+    "conclusion": "function_exact：Go 断言无密码开启返回 400 INVALID_WEB_ACCESS_PASSWORD；Rust 断言短密码返回同一错误码、保存写入校验端口与公开访问规则，未配置密码时记录被归一化为禁用。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(product_server_persists_ui_settings_and_reports_actual_port)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/settings_security_test.go:95:TestBrowserSessionCannotChangeWebExposure": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_tests.rs::browser_authenticated_request_cannot_change_desktop_only_security_settings",
+    "conclusion": "function_exact：Go 断言浏览器会话不能修改 web 暴露设置；Rust 断言浏览器认证请求修改 security 设置返回 WEB_ACCESS_SETTINGS_DESKTOP_ONLY（403）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(browser_authenticated_request_cannot_change_desktop_only_security_settings)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/settings_security_test.go:116:TestDisablingWebImmediatelyInvalidatesBrowserButNotDesktop": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:quick",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_auth_session_manager.rs::auth_sessions_are_cookie_bound_hashed_and_restart_durable; crates/jftrade-engine/src/product_server_tests.rs::disabled_web_access_does_not_start_a_listener",
+    "conclusion": "function_exact：Go 断言关闭 web 后浏览器会话立即失效而桌面不受影响；Rust 断言安全设置保存即 invalidate_all（旧会话 authenticated=false 且不可验证），禁用 web 后不启动 listener（浏览器通道关闭），桌面 token 通道不受影响。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(auth_sessions_are_cookie_bound_hashed_and_restart_durable)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/strategy_definition_delete_guard_test.go:16:TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/strategy_definitions_write_compatibility.rs::sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart",
+    "conclusion": "function_exact：Go 断言存在关联实例时删除策略定义被拒绝且需先删实例。Rust 兼容测试断言版本回滚、关联删除守卫与重启后状态一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/strategy_runtime_dependency_boundaries_test.go:14:TestStrategyRuntimeRemainingDependencyBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_port.rs",
+    "conclusion": "boundary：Go 断言 nil strategy store 下 CurrentInstance/AppendRuntimeEvent/TransitionInstance/ReconcileRuntimeFailure 都是安全 no-op。Rust 的依赖以不可空端口注入（store 缺失即 fail-closed），不存在 nil store 分支，按边界保留。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/strategy_runtime_dependency_boundaries_test.go:47:TestNewStrategyRuntimeManagerDisabledExchange": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime.rs; crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders",
+    "conclusion": "partial：Go 断言未启用集成时 manager.CurrentExchange() 为 nil。Rust manager 持有 Option<exchange>，未注入即不可用（执行路径 fail-closed，引用测试覆盖撤单/下单意图分发），无同名的 CurrentExchange 断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/strategy_runtime_dependency_boundaries_test.go:59:TestStrategyRuntimeRejectsPollOnlyMarketDataProvider": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_subscription.rs::require_basic_subscription_lease; crates/jftrade-engine/src/product_production_ports_market_data_subscription_tests.rs::prediction_subscription_rejects_invalid_types_and_unready_provider",
+    "conclusion": "partial：Go 断言只支持轮询的行情提供者（yfinance）无法满足策略运行租约。Rust 订阅租约要求流式能力/就绪 provider（引用测试断言未就绪与非法类型被拒），但没有专门针对 yfinance 轮询模式的策略运行断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/strategy_runtime_live_semantics_test.go:12:TestStrategyRuntimeAdapterAllowsBrokerExecutedLiveSemantics": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_resolves_quantity_pct_and_close_intent; crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_notify_strategy_intents_delivers_and_records_audit",
+    "conclusion": "partial：Go 断言 live 语义（broker 执行）在适配器层被接受并分发下单意图。Rust live 执行由 strategy runtime 意图执行器承接（引用测试覆盖数量解析、close 意图与通知审计），但缺少与该 Go 用例逐一对应的“live 语义允许”断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/strategy_runtime_nil_boundaries_test.go:11:TestStrategyRuntimeNilBoundariesIgnoreMarketTicks": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime.rs; crates/jftrade-engine/src/strategy_runtime_activity.rs",
+    "conclusion": "boundary：Go 断言空 Server + 空依赖 manager 收到负成交量 tick 时忽略而不 panic。Rust runtime manager 依赖 typed 端口且订阅推送经过成交量追踪与去抖（见 TradeVolumeTracker 校验），不存在可空 manager/tick 静默路径，按类型化边界保留。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/strategy_runtime_workflow_replay_test.go:13:TestWorkflowSnapshotAndLiveTradeReplayReachBusinessConsumers": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_workflow_checkpoint.rs; crates/jftrade-engine/src/product_production_ports_research_tests.rs",
+    "conclusion": "partial：Go 断言工作流快照 + live 成交回放到达业务消费者（通知/审计）。Rust 工作流快照与回放由 workflow checkpoint/queue 承接（引用模块），成交到达消费者由执行通知投影覆盖，但没有单条端到端回放断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/strategy_runtime_workflow_replay_test.go:55:TestWorkflowSnapshotReturnsProviderFailureAfterStaleCache": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::cached_projection_does_not_promote_stale_overnight_during_regular_hours; crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
+    "conclusion": "partial：Go 断言缓存过期后工作流快照返回 provider 失败而不是陈旧数据。Rust 行情快照对过期缓存 fail-closed（引用测试断言陈旧跨段不升级），工作流快照路径由 quote read 端口承接；无同名工作流断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/strategy_subscription_lifecycle_test.go:12:TestStrategyRuntimeHoldsExactKLineLeasesUntilStopAndClose": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_subscription_tests.rs::subscription_routes_preserve_instrument_request_contract_through_acquire_release_and_clear; crates/jftrade-engine/src/strategy_runtime_port.rs::restore_running_instances_ignores_paused_and_stopped_instances",
+    "conclusion": "partial：Go 断言策略运行期间持有精确的 K 线租约，直到停止与关闭才释放。Rust 订阅路由的申请/释放/清空契约由引用测试覆盖（保留标的与周期请求），策略停止时按实例释放；缺少“运行中跨多标的精确租约集合”的专门断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/system_reconcile_strategy_states_test.go:11:TestNewServerReconcilesPersistedActiveStrategyStates": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(strategy)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_port.rs::restore_running_instances_ignores_paused_and_stopped_instances",
+    "conclusion": "function_exact：Go 断言新服务器启动会校正持久化的活动状态（RUNNING/PAUSED 陈旧状态被处理）。Rust 启动校正遍历实例、只恢复 RUNNING 并忽略 PAUSED/STOPPED（引用测试断言选择与状态改写）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(restore_running_instances_ignores_paused_and_stopped_instances)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/trading_order_cancellation_contracts_test.go:98:TestTradingOrderCancellationRejectsInvalidPersistedOrders": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:contracts",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_orders_impl.rs",
+    "conclusion": "partial：Go 断言撤销不存在订单返回 not found、撤销已终结订单返回 already terminal。Rust 同一 owner 返回对应错误（product 实现 execution order not found / already terminal），但工程内没有针对这两条拒绝路径的 Rust 测试，列入待补测试。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/trading_order_cancellation_contracts_test.go:134:TestTradingOrderCancellationPropagatesBrokerFailuresAndPersistsAcceptedCancel": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "pnpm run check:contracts",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::cancel_order_uses_modify_order_cancel_operation; crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::trade_writes_are_not_replayed_when_the_response_is_lost",
+    "conclusion": "partial：Go 断言券商失败上抛且成功撤单状态被持久化。Rust 撤单经 Trd_ModifyOrder（引用测试断言操作码）并对丢失响应 fail-closed，持久化由 execution order store 承接；券商失败上抛缺少专门断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/watchlist_runtime_boundaries_test.go:52:TestFutuWatchlistProbeErrorRemainingStates": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_watchlist_tests.rs::watchlist_read_routes_fail_closed_when_snapshot_port_is_unavailable; crates/jftrade-integration-futu/src/health.rs",
+    "conclusion": "partial：Go 断言 futu 自选股探针在断连/未登录时给出对应错误详情。Rust 自选股读取在远端快照不可用时 fail-closed（引用测试），OpenD 探针错误由 futu health 表达；没有逐状态的探针详情断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/watchlist_runtime_boundaries_test.go:72:TestFutuWatchlistBrokerRemainingAvailabilityAndCapabilities": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-watchlist/src/lib.rs; crates/jftrade-engine/src/product_production_ports_watchlist.rs",
+    "conclusion": "partial：Go 断言 nil broker 返回 ErrUnavailable，未启用集成时 broker 不可用且能力为空。Rust 自选股远端能力由 watchlist 端口/能力矩阵表达（不可用即未注册或 fail-closed），没有同名的 nil-server 断言。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/watchlist_runtime_boundaries_test.go:127:TestInitializeWatchlistServiceNilBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_watchlist_write_port.rs; crates/jftrade-engine/src/product_watchlist_tests.rs::watchlist_read_routes_are_not_registered_without_snapshot_port",
+    "conclusion": "boundary：Go 断言没有 watchlistStore 时 initializeWatchlistService 不创建服务。Rust 自选股端口由 composition 显式注册（缺端口不注册路由，引用测试），不存在可空初始化辅助，按边界保留。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/ws_events_test.go:20:TestLiveWebSocketSendsHeartbeat": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus; crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replay_rejects_unknown_route_shape",
+    "conclusion": "function_exact：Go 断言 WS 心跳帧；Rust corpus 回放 Go 的 heartbeat case（含无 Origin + desktop 协议）并逐字段比对。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(ws_live_replays_complete_go_corpus)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/ws_events_test.go:45:TestLiveWebSocketSendsSystemNotification": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus; crates/jftrade-engine/src/product_execution_notification_projector.rs",
+    "conclusion": "function_exact：Go 断言系统通知经 WS 推送；Rust corpus 的 notification-replay 用例断言通知帧顺序与去重，投递内容由执行通知投影端口生成。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(ws_live_replays_complete_go_corpus)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/ws_events_test.go:80:TestLiveWebSocketSendsBBGONotification": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs",
+    "conclusion": "boundary：Rust 不消费 bbgo 通知源；WS 通知帧来自执行/风控投影端口，bbgo.upload 语义属已退役 Go 运行时。",
+    "command": "",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/ws_events_test.go:112:TestLiveWebSocketHeartbeatReportsStaleMarketData": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_runtime_status.rs::market_data_runtime_projection_matches_go_status_corpus",
+    "conclusion": "partial：Go 在心跳帧里报告行情停滞；Rust 把 quoteRetryAt/streamLastError/quoteFailures 暴露在系统状态投影（语料断言），WS 心跳帧保持固定字段，属载体差异。",
+    "command": "",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/ws_events_test.go:152:TestLiveWebSocketInitialMarketTickRefreshesObservedAt": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::basic_quote_pushes_publish_delta_and_cumulative_volume; crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
+    "conclusion": "function_exact：Go 断言首个行情 tick 刷新 observedAt；Rust 断言报价推送按快照时间发布事件（observedAt 来自推送），corpus 回放订阅事件顺序与归一化。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(basic_quote_pushes_publish_delta_and_cumulative_volume)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/ws_events_test.go:215:TestLiveWebSocketSendsConsoleRefresh": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::provider_reconnect_publishes_resync_events_and_wakes_reconciliation",
+    "conclusion": "function_exact：Go 断言 WS 发送 console.refresh；Rust 断言 provider 重连只对已订阅标的重放并发布 console.refresh 唤醒控制台重建。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/backtest_provider_runtime_test.go:27:TestBacktestSyncUsesAssembledMarketDataRuntime": {
     "status": "[~]",

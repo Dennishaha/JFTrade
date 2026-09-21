@@ -130,6 +130,7 @@ mod tests {
         );
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/servercore/data_management_test.go:124 TestDataManagementAdaptersRejectBusyRuntimeAndMapStalePreview
     #[test]
     fn busy_owner_blocks_preview_and_execute_without_mutation() {
         assert_eq!(

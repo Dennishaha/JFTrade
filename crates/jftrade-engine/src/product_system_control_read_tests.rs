@@ -91,6 +91,8 @@ fn fixture_tick(
     }
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/desktop_token_test.go:14 TestDesktopTokenMiddlewareProtectsHTTPAndWebSocket
+// Parity: go:452dea11:internal/app/apiserver/servercore/settings_security_test.go:14 TestWebAccessSettingsDefaultToDesktopOnly
 #[tokio::test]
 async fn system_control_reads_are_authenticated_and_do_not_create_control_state() {
     let directory = tempdir().expect("temporary directory");
@@ -959,6 +961,7 @@ async fn system_status_uses_only_the_typed_strategy_runtime_port() {
     handle.shutdown().await.expect("shutdown product");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/live_heartbeat_boundaries_test.go:27 TestLiveHeartbeatActiveInstrumentDeduplicationBoundaries
 // Parity: go:452dea11:internal/app/apiserver/status/status_test.go:12 TestLiveStatsSortsActiveInstruments
 #[test]
 fn system_status_live_projection_uses_shared_transport_metrics() {

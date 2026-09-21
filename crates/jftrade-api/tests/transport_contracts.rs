@@ -300,6 +300,7 @@ async fn desktop_token_reaches_port_with_stable_envelope_and_request_id() {
     assert!(port.requests.lock().expect("requests")[0].desktop_trusted);
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/request_observability_test.go:46 TestRequestObservabilityReplacesUnsafeRequestID
 #[tokio::test]
 async fn invalid_request_id_is_replaced_before_observation_and_dispatch() {
     let (router, port) = fixture();

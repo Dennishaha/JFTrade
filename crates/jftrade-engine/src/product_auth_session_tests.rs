@@ -152,6 +152,7 @@ fn auth_session_fixture() -> AuthSessionFixture {
     fixture
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/desktop_token_test.go:101 TestDesktopDevelopmentWebListenerStillRequiresPasswordSession
 #[tokio::test]
 async fn auth_session_route_matches_go_fixture_in_cutover_only() {
     let fixture = auth_session_fixture();
@@ -252,6 +253,7 @@ async fn auth_session_route_fails_closed_when_snapshot_is_unavailable() {
     handle.shutdown().await.expect("shutdown product");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/desktop_token_test.go:127 TestStandaloneServerWithoutDesktopTokenIsNotTrusted
 #[tokio::test]
 async fn auth_session_route_is_not_registered_without_snapshot_port() {
     let directory = tempdir().expect("temporary directory");

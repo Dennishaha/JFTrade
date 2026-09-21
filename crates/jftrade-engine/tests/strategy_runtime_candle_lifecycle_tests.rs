@@ -291,6 +291,7 @@ fn test_in_progress_candle_updates_cache_without_triggering_pine_or_orders() {
 // Test 3: In-Progress Bar Closing on Next Tick Triggers Execution Exactly Once
 // =========================================================================
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/runtime_trading_test.go:506 TestStrategyRuntimeExecutesOnlyCurrentBarWorkerIntent
 #[test]
 fn test_in_progress_bar_closing_on_next_tick_triggers_pine_and_order_once() {
     let mut quote_cache_by_symbol: BTreeMap<String, f64> = BTreeMap::new();
@@ -382,6 +383,7 @@ fn test_in_progress_bar_closing_on_next_tick_triggers_pine_and_order_once() {
 // Test 4: Duplicate Polls on Closed Bar Do Not Re-Execute (Strict Monotonicity)
 // =========================================================================
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/runtime_polling_test.go:14 TestStrategyRuntimePollsClosedKLinesWhenTradePushStalls
 #[test]
 fn test_duplicate_polls_on_same_closed_bar_are_idempotent() {
     let mut quote_cache_by_symbol: BTreeMap<String, f64> = BTreeMap::new();

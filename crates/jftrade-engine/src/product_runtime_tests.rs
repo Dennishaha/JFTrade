@@ -60,8 +60,7 @@ async fn product_runtime_without_optional_workers_starts_and_stops_cleanly() {
             .all(|resource| resource.kind == "sqlite")
     );
     assert_eq!(
-        snapshot.resources[12].id,
-        "adk-artifact-db",
+        snapshot.resources[12].id, "adk-artifact-db",
         "Rust keeps the artifact database as an extension after the assistant databases"
     );
     runtime.shutdown().await.expect("shutdown");

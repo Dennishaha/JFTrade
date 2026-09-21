@@ -124,6 +124,7 @@ fn runtime_risk_off_ignores_configured_limits() {
     assert_eq!(decision, jftrade_trading::RuntimeRiskDecision::default());
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/runtime_trading_test.go:123 TestStrategyRuntimeRiskCloseOnlyRejectsBuyOrder
 #[test]
 fn runtime_risk_enforce_applies_close_only_quantity_notional_and_daily_limits() {
     let settings = RuntimeRiskSettings {

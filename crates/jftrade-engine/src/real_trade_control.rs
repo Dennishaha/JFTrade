@@ -118,6 +118,7 @@ mod tests {
 
     use super::{RealTradeControlReader, derive_real_trade_control_path};
 
+    // Parity: go:452dea11:internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go:140 TestRealTradeControlPathPrefersExplicitOverride
     #[test]
     fn path_is_sibling_of_settings_file() {
         assert_eq!(
