@@ -41,51 +41,94 @@ impl StrategyReadSnapshotPort for ProductionStrategyRuntimePort {
 }
 
 impl ProductionStrategyRuntimePort {
-    /// Reconcile persisted RUNNING rows before the API listener is exposed.
-    /// A process restart either re-acquires the demand and starts a real
-    /// worker task, or durably marks the row FAILED with an actionable error;
-    /// stale RUNNING state is never advertised as healthy.
+    /// Reconcile persisted RUNNING and PAUSED rows before the API listener is
+    /// exposed. A process restart either re-acquires the demand and starts a
+    /// real worker task, or durably converges the row to STOPPED with an
+    /// actionable error. A PAUSED row has no live worker to resume, so
+    /// `ReconcileOnStartup` resets it to STOPPED and records why; stale run
+    /// state is never advertised as healthy.
     pub(crate) fn restore_running_instances(&self) -> Result<(), String> {
         let instances = self
             .store
             .list_instances()
             .map_err(|error| error.to_string())?;
-        for instance in instances.into_iter().filter(|instance| {
-            instance.runtime_active || instance.status.eq_ignore_ascii_case("RUNNING")
-        }) {
-            let binding = match self.effective_binding(&instance) {
-                Ok(binding) => binding,
-                Err(error) => {
-                    self.mark_recovery_failed(&instance, strategy_write_error_message(error))?;
-                    continue;
-                }
-            };
-            if let Some(error) = self.manager.dependency_error() {
-                self.mark_recovery_failed(&instance, strategy_write_error_message(error))?;
-                continue;
+        for instance in instances {
+            if instance.runtime_active || instance.status.eq_ignore_ascii_case("RUNNING") {
+                self.resume_persisted_running_instance(&instance)?;
+            } else if instance.status.eq_ignore_ascii_case("PAUSED") {
+                self.reset_stale_paused_instance(&instance)?;
             }
-            if let Err(error) = self.manager.acquire_demand(&instance.id, &binding) {
-                self.mark_recovery_failed(&instance, strategy_write_error_message(error))?;
-                continue;
-            }
-            if let Err(error) =
-                self.manager
-                    .spawn_task(instance.id.clone(), binding, Arc::clone(&self.store))
-            {
-                self.manager.release_demand(&instance.id);
-                self.mark_recovery_failed(&instance, strategy_write_error_message(error))?;
-                continue;
-            }
-            self.store
-                .append_audit_event(
-                    &instance.id,
-                    "RECOVERED",
-                    "strategy runtime resumed after product restart",
-                    now_millis(),
-                )
-                .map_err(|error| error.to_string())?;
         }
         Ok(())
+    }
+
+    /// Re-acquire the demand for a persisted RUNNING row and start a real
+    /// worker task, or durably converge the row to STOPPED when recovery
+    /// cannot be proven.
+    fn resume_persisted_running_instance(
+        &self,
+        instance: &jftrade_store_sqlite::StoredRuntimeInstance,
+    ) -> Result<(), String> {
+        let binding = match self.effective_binding(instance) {
+            Ok(binding) => binding,
+            Err(error) => {
+                self.mark_recovery_failed(instance, strategy_write_error_message(error))?;
+                return Ok(());
+            }
+        };
+        if let Some(error) = self.manager.dependency_error() {
+            self.mark_recovery_failed(instance, strategy_write_error_message(error))?;
+            return Ok(());
+        }
+        if let Err(error) = self.manager.acquire_demand(&instance.id, &binding) {
+            self.mark_recovery_failed(instance, strategy_write_error_message(error))?;
+            return Ok(());
+        }
+        if let Err(error) =
+            self.manager
+                .spawn_task(instance.id.clone(), binding, Arc::clone(&self.store))
+        {
+            self.manager.release_demand(&instance.id);
+            self.mark_recovery_failed(instance, strategy_write_error_message(error))?;
+            return Ok(());
+        }
+        self.store
+            .append_audit_event(
+                &instance.id,
+                "RECOVERED",
+                "strategy runtime resumed after product restart",
+                now_millis(),
+            )
+            .map_err(|error| error.to_string())
+    }
+
+    /// A paused row cannot be resumed across a restart: the reference
+    /// `ReconcileOnStartup` resets RUNNING and PAUSED rows to STOPPED, so the
+    /// API never advertises a paused worker that has no live task behind it.
+    fn reset_stale_paused_instance(
+        &self,
+        instance: &jftrade_store_sqlite::StoredRuntimeInstance,
+    ) -> Result<(), String> {
+        let now = now_millis();
+        self.store
+            .update_status(&instance.id, "STOPPED", &now_rfc3339()?)
+            .map_err(|error| error.to_string())?;
+        self.store
+            .append_log_event(
+                &instance.id,
+                "reconciled strategy state from PAUSED to STOPPED after server startup",
+                "warning",
+                now,
+            )
+            .map_err(|error| error.to_string())?;
+        self.store
+            .append_audit_event(
+                &instance.id,
+                "RECONCILED",
+                "server startup reset stale paused state to STOPPED",
+                now,
+            )
+            .map_err(|error| error.to_string())
     }
 
     fn mark_recovery_failed(
@@ -463,7 +506,7 @@ mod tests {
     // Parity: go:452dea11:internal/app/apiserver/servercore/system_reconcile_strategy_states_test.go:11 TestNewServerReconcilesPersistedActiveStrategyStates
     #[test]
     // Parity: go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:80 TestCatalogStartupReconcileResetsStaleRunningAndPausedState
-    fn restore_running_instances_ignores_paused_and_stopped_instances() {
+    fn startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("test.db");
         let connection = rusqlite::Connection::open(&path).expect("open");
@@ -503,13 +546,31 @@ mod tests {
             manager,
         };
         port.restore_running_instances().expect("reconcile");
-        assert_eq!(
-            store.get_instance("paused-1").unwrap().unwrap().status,
-            "PAUSED"
+        let paused = store.get_instance("paused-1").unwrap().unwrap();
+        assert_eq!(paused.status, "STOPPED");
+        assert!(!paused.runtime_active);
+        let audits = store.list_audit_events("paused-1").unwrap();
+        assert!(
+            audits.iter().any(|event| {
+                event.kind == "RECONCILED"
+                    && event.detail == "server startup reset stale paused state to STOPPED"
+            }),
+            "paused startup reconcile audit = {audits:?}"
+        );
+        let logs = store.list_log_events("paused-1").unwrap();
+        assert!(
+            logs.iter().any(|event| {
+                event.level == "warning"
+                    && event.raw
+                        == "reconciled strategy state from PAUSED to STOPPED after server startup"
+            }),
+            "paused startup reconcile logs = {logs:?}"
         );
         assert_eq!(
             store.get_instance("stopped-1").unwrap().unwrap().status,
             "STOPPED"
         );
+        assert!(store.list_audit_events("stopped-1").unwrap().is_empty());
+        assert!(store.list_log_events("stopped-1").unwrap().is_empty());
     }
 }

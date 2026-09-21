@@ -81,6 +81,7 @@ fn runtime_context(sellable: &str, current_price: Option<&str>, count: i64) -> R
     }
 }
 
+// Parity: go:452dea11:internal/strategy/runtimecontrol/policy_test.go:68 TestNormalizeRiskSettingsClearsOffModeLimits
 #[test]
 fn runtime_risk_normalizes_modes_and_clears_off_limits() {
     let normalized = RuntimeRiskSettings {
@@ -110,6 +111,7 @@ fn runtime_risk_normalizes_modes_and_clears_off_limits() {
     );
 }
 
+// Parity: go:452dea11:internal/strategy/runtimecontrol/optional_values_risk_off_test.go:33 TestEvaluateRiskOffModeIgnoresConfiguredLimits
 #[test]
 fn runtime_risk_off_ignores_configured_limits() {
     let decision = evaluate_runtime_risk(

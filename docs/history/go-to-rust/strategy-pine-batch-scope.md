@@ -315,3 +315,89 @@ node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --l
   `internal/trading` 80，直至 4451 条清单全部完成。
 
 验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-strategy -p jftrade-integration-pine -p jftrade-backtest -p jftrade-settings --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -p jftrade-integration-pine -p jftrade-backtest -p jftrade-settings --all-targets --locked --no-fail-fast`（**174 passed / 1 skipped，17 binaries**）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2925 Rust** / **1196 `[x]`**；missing 1752、partial 1147、boundary 352、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线，7 条 partial 无解析引用与 2 条无断言为前批已登记缺口）、`pnpm run check:compatibility`、`node scripts/check-zero-go.mjs`（2888 tracked files / 0 release artifact）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`、`pnpm run check:ai-context`。
+
+## 第八十三批：`internal/strategy` 全域收尾（169 条，策略域归零）
+
+### 范围与结果
+
+- 范围：`internal/strategy` 剩余 169 条 `missing`（30 个文件），按 P0（策略实例唯一写入所有权、
+  `runtimecontrol` 运行控制策略、`instancebinding` 绑定归一化、下单/风险链路与幂等）→ P1（PineTS 运行时
+  生命周期、Pine 实时执行器断线重连与取消、`instanceview` 投影）→ P2（`catalog` 归一化/边界、`service`
+  只读与 wire DTO）顺序分 5 片逐条核对。
+- 结果：`missing` 1129 → **960**（本批结清 169 条）、`partial` 1682 → **1837**、`boundary` 436 → **448**、
+  `[x]` 1200 → **1202**。本批 169 条 = **2 `[x]` + 155 partial + 12 boundary**。
+- **`internal/strategy/**` 全域归零**：域内 174 条 = **6 `[x]` + 156 partial + 12 boundary，0 `missing`**。
+
+### 分片执行
+
+- **P0-1（38 条）**：`runtimecontrol/*`、`instancebinding/binding_test.go`、`liveruntime/*`。本片把两条运行风险
+  用例升级为 `[x]`（`crates/jftrade-trading/tests/risk_engine_tests.rs::runtime_risk_normalizes_modes_and_clears_off_limits`、
+  `runtime_risk_off_ignores_configured_limits`，新增 `// Parity:` 锚点），其余按 partial 记录
+  Rust 以规范化/白名单表达 Go 的多态可选值。
+- **P1-1（35 条）**：`pine_live_executor_test.go`（24）+ `pine_live_command_test.go`（11）。证据面为
+  `crates/jftrade-integration-pine/src/{pool,process,execution/tests}.rs` 与
+  `crates/jftrade-engine/src/strategy_runtime_owner_tests.rs`（断线重连、取消、有界停止、检查点重放）。
+- **P1-2（36 条）**：`pineruntime/*`（24）+ `live_command_business_boundaries_test.go`（12）。Go 的默认 Pine
+  模板生成与 worker 启动脚本形态在 Rust 由 embedded bundle/worker 端口承担。
+- **P1-3（29 条）**：`liveruntime/manager_boundaries_test.go`、`pineworker_live_business_test.go`、
+  `runtime_boundaries_test.go`、`instanceview/*`。Rust 无 manager 维护态字符串与
+  `closedKLineSyncInterval` 配置，按部分覆盖记录。
+- **P2-1（31 条）**：`catalog/*`（19）+ `service_test.go`（10）+ `types_test.go`（2）。证据面为
+  `strategy_runtime_port.rs`、`strategy_runtime_activity.rs`、
+  `crates/jftrade-engine/tests/{strategies_write_compatibility,strategy_definitions_write_compatibility}.rs`、
+  `crates/jftrade-store-sqlite/tests/{strategy_runtime_store_contracts,strategy_definition_store_contracts}.rs`
+  与 `product_*` wire/plugin 用例。本片同时修复 P0 启动对账缺口（见下）并重写两条受影响的映射。
+
+### 发现并修复的真实功能缺失（P0：启动对账漏掉 stale PAUSED）
+
+- 复现条件：策略实例以 `PAUSED` 状态持久化后重启引擎（`restore_running_instances` 只筛选
+  `runtime_active || RUNNING`），实例继续以 PAUSED 对外提供服务，而参考实现的
+  `ReconcileOnStartup`（`internal/strategy/catalog/lifecycle.go:92`）把 RUNNING 与 PAUSED 一律重置为
+  STOPPED 并写审计 `server startup reset stale <status> state to STOPPED`。
+- 先红：先把
+  `crates/jftrade-engine/src/strategy_runtime_port.rs::startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances`
+  改为断言 PAUSED → STOPPED、`RECONCILED` 审计与 warning 日志、STOPPED 不变且不追加事件，运行
+  `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances)'`
+  得到 2 个 target 各 1 例失败（`left: "PAUSED" right: "STOPPED"`）。
+- 修复：
+  `crates/jftrade-engine/src/strategy_runtime_port.rs` 把 `restore_running_instances` 拆为
+  `resume_persisted_running_instance`（RUNNING 恢复路径保持不变：重新获取 demand、启动 worker，失败则收敛
+  STOPPED）与新增 `reset_stale_paused_instance`（`update_status(STOPPED)` + warning 日志
+  `reconciled strategy state from PAUSED to STOPPED after server startup` + `RECONCILED` 审计），
+  调用点 `crates/jftrade-engine/src/product_production_ports.rs:640` 不变。
+- 探针：把 PAUSED 分支改成永不匹配后同一命令复现红灯（2 失败），按字节回滚（`cmp` 通过）后复绿
+  （2 passed）。
+- 回归要求：任何改动 `restore_running_instances`/启动对账的提交必须保持该用例通过，并保持运行中实例的
+  恢复语义（重新获取 demand 或收敛 STOPPED），锚点为
+  `runtime_reconciliation_business_test.go:80 TestCatalogStartupReconcileResetsStaleRunningAndPausedState`。
+
+### 保留的差异（均为 P2，逐条写在清单结论）
+
+- **`definitionSync` 缺 `blockedReason`**：Rust 投影 `definitionId/appliedVersion/latestVersion/isLatest/canApplyLatest`，
+  运行中实例的阻断原因未投影。驱动行 `catalog_boundary_behavior_test.go:84`。
+- **活动流读失败 fail-closed**：Go 的 activity store 查询失败降级为空页（found=true），Rust 返回
+  `StrategyReadSnapshotError::Unavailable` 由 API 层 fail-closed。驱动行 `catalog_boundary_behavior_test.go:34`。
+- **活动流写失败整笔回滚**：Go 允许活动流写入失败而控制状态前进；Rust 与实例状态同库同事务。驱动行
+  `catalog_boundary_behavior_test.go:58`。
+- **RUNNING 启动语义**：Rust 走恢复路径且不返回 `changed`/`saveCount`，Go 的 servercore 用例断言重启后
+  `activeStrategies=0`；差异已在 `runtime_reconciliation_business_test.go:80` 与
+  `system_reconcile_strategy_states_test.go:11` 两行登记。
+- **无对应模型**：插件 `saveCount`/operation 列表、manager maintenance-busy 原因字符串、
+  `closedKLineSyncInterval`、`AppendRuntimeEvent` 通用入口、`ActiveInstrumentIDs` 聚合。
+- 本批 12 条 boundary 为 Go-only 默认 Pine 模板与 worker 启动脚本形态，不迁移实现。
+
+### 跨批 follow-up 汇总
+
+- P0：本批 1 项（启动对账漏 stale PAUSED）已修复并留回归测试，关闭前批挂账。
+- P1：无新增；P1 分片均以现有 runtime/store 证据 partial 结清。
+- P2：前批清单 + 本批登记项（`definitionSync.blockedReason`、活动流降级语义、插件 operation 计数、
+  manager 维护态与轮询配置）。
+
+### 仍未结清（下一批）
+
+- 下一批（第八十四批）范围：按域余量排序的下一块 **`pkg/bbgo` 145 条**，先按文件分组 recon 再按
+  P0 → P1 → P2 分片；其后：`internal/integration` 141、`internal/marketdata` 112、`pkg/futu` 86、
+  `internal/trading` 80、`internal/backtest` 63、`pkg/market` 56、`internal/marketdataassets` 36、
+  `internal/watchlist` 31、`pkg/broker` 29，直至 4451 条清单全部完成。
+
+验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine -p jftrade-trading -p jftrade-strategy --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-trading -p jftrade-strategy --all-targets --locked --no-fail-fast`（**1838 passed / 0 skipped**）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2925 Rust** / **1202 `[x]`**；missing 960、partial 1837、boundary 448、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线，7 条 partial 无解析引用与 2 条无断言为前批已登记缺口）、`pnpm run check:compatibility`、`node scripts/check-zero-go.mjs`（2888 tracked files / 0 release artifact）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`（先按 target 健康门执行 `cargo clean`）、`pnpm run check:ai-context`。
