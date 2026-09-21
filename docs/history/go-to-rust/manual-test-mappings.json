@@ -2571,345 +2571,345 @@
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:16:TestMaintenanceExecutionRejectsConcurrentStaleAndPartialCleanup": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "conclusion": "部分覆盖：候选集变化/部分删除由 jftrade-datamanagement lib.rs::cleanup_requires_the_exact_approved_candidate_set 与 maintenance_cleanup_candidates.rs::soft_deleted_adk_rows_are_the_only_candidates_and_changes_reject_execute 覆盖（fingerprint 不符 → Stale，且回滚不删行）；并发由写者租约冲突覆盖（a_held_writer_lease_rejects_maintenance_before_any_snapshot_is_written）。边界：Go 用 SetMaintenanceHooks 注入“purge 返回 len-1”与“delete transaction failed”来制造部分/失败路径，Rust 的删除在单事务内按候选逐条执行并校验 deleted != len → 同一 fail-closed 语义，但注入缝不存在，故不伪造等价测试。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:70:TestMaintenanceCompactAndBackupProtectUnavailableAndBusyDatabases": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "conclusion": "部分覆盖：锁冲突（Go lock.Lock / backupLock.Lock → ErrMaintenanceConflict）由 a_held_writer_lease_rejects_maintenance_before_any_snapshot_is_written（backup+rebuild）与 a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks 覆盖；不可用库由 backup_and_compact_fail_closed_when_the_source_database_is_missing 覆盖（compact/backup 均拒绝且不落盘）。差异：Go 的 BusyReason hook 与 vacuum failed 注入在 Rust 无对应注入点（压缩为内部 VACUUM，失败即 Failed 且清理部分快照）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:109:TestMaintenanceDatabaseInspectionAndBackupRetentionFailuresStayLocal": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "conclusion": "部分覆盖：备份目录缺失/文件名时间戳非法由 managed_backup_discovery_parses_only_canonical_filenames 覆盖（缺失目录 Err、非规范文件名一律忽略）；库级错误隔离由 overview_counts_main_wal_and_shm_and_keeps_an_unreadable_database_local 覆盖。边界：Go 的 `context.WithCancel` 取消 inspection 后 stats.Error 非空依赖 context；Rust 维护 API 不接收 context，取消由调用方在 goroutine/任务边界处理，无对应断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:142:TestMaintenanceCandidateQueriesFailSafelyWhenSchemaDoesNotMatch": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::cleanup_candidates_fail_closed_when_the_maintenance_tables_are_missing",
+    "conclusion": "function_exact：strategy 缺表 → 候选查询报 no such table；手工建表 + NULL id → decode backtest cleanup id 失败；ADK 缺 adk_workflow_triggers → 候选查询失败；未能读取候选时 overview.cleanable 保持 None；不支持的库/类别返回 unsupported 错误。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:167:TestMaintenancePreviewDefaultsAndConcurrentStateChangesFailClosed": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "conclusion": "部分覆盖：默认保留参数（30 天/保留 20）与 summary 归一由 jftrade-datamanagement cleanup.rs::preview_normalizes_defaults_summarizes_and_expires_after_ten_minutes 覆盖；缺失库/缺表拒绝对应 cleanup_preview_requires_a_ready_database_with_the_purgeable_table；已撤销预览由 take_approved_preview 的空结果 → PreviewNotFound 兜底（maintenance.rs::maintenance_service_confirmation_validation_and_rejection_parity 只覆盖 confirmation）。差异：Go 在 execute 期间再次读 markdown（BusyReason hook 写坏 marker）触发 “decode database rebuild marker”；Rust 的 cleanup 执行不读重建标记（保留策略只在备份/重建路径读），该组合不存在。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:225:TestMaintenanceBackupAndRebuildSurfacePersistentStateErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::a_corrupt_rebuild_marker_blocks_backup_and_rebuild_without_deleting_data",
+    "conclusion": "function_exact：marker 写坏后 backup 与 rebuild 均以 “decode database rebuild marker” 失败、不产生新快照、不改动源库字节（read_marker 现在回填与 Go 一致的 decode 前缀）；空路径/越界快照由 rebuild_safety_tests::marker_snapshots_must_live_in_the_managed_directory_with_a_managed_name 拒绝。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:245:TestBackupRetentionReportsRemovalPermissionFailures": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs::tests::backup_capacity_surfaces_a_removal_failure_without_reporting_success",
+    "conclusion": "function_exact：备份目录置为 0o500 时 prepare_backup_capacity 要么删除成功并释放 reserve，要么把 “remove expired database backup” 错误上报且保留文件；不允许“报成功但未腾出空间”。（root 下删除成功时断言成功分支不变量。）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:270:TestMaintenanceStorageAndCandidateBoundaryErrorsAreContained": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "conclusion": "部分覆盖：空 descriptor/非法类别的存储与候选边界由 cleanup_candidates_fail_closed_when_the_maintenance_tables_are_missing（unsupported、NULL id、缺表）与 database_inspection_classifies_filesystem_and_schema_states（缺失/目录/不兼容/就绪）覆盖。边界：Go inspectStorage 对空 path 依赖 os.Stat 错误写入 stats.Error，Rust 的 OverviewPort::inspect 对空路径直接判 Unavailable（无 StorageStats.error 断言），且无 context 取消分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:341:TestBackupSnapshotRejectsBlockedDirectoryAndEmptySource": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path",
+    "conclusion": "function_exact：settings 父路径是普通文件时备份目录无法创建 → backup 报错；descriptor.path=\"\" 时 backup 报错；两种失败都不留任何备份文件。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:358:TestBackupRetentionEvictsQuotaPressureAcrossDatabaseFiles": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs::tests::backup_retention_keeps_three_snapshots_and_reports_an_over_quota_snapshot",
+    "conclusion": "function_exact：enforce_backup_retention(quota=8) 先按每库 3 份清理，再为 quota-reserve 跨库淘汰无保护快照（adk 旧快照被删、current 保留、总量 ≤8）；current 自身大于 quota 时报 “backup is N bytes but quota is M bytes”；非 hex token 文件名由 managed_backup_discovery_parses_only_canonical_filenames 拒绝。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:394:TestBackupRetentionNeverEvictsRebuildMarkerSnapshots": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::rebuild_marker_snapshots_survive_later_retention_pressure",
+    "conclusion": "function_exact：重建调度写入 marker 后连续 3 次 ad-hoc backup，同库快照数受保留策略约束但 marker 引用快照始终存在，且再次 rebuild 仍能通过校验（protected_backup_paths 从 marker 读取保护集）；单元层保护集语义另由 maintenance_backup_retention.rs::backup_retention_never_evicts_snapshots_a_rebuild_marker_references 固定。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:455:TestBackupSnapshotDoesNotMutateIncompatibleSource": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::backup_snapshot_leaves_an_incompatible_source_byte_identical",
+    "conclusion": "function_exact：对不兼容（无 schema 元数据）源库执行 backup 成功，源库字节完全不变，且不产生 -wal/-shm 边车文件。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:502:TestMaintenanceCompactionAndBackupFailClosedWhenPersistentStateBreaks": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::compaction_fails_closed_when_the_rebuild_marker_is_corrupt",
+    "conclusion": "function_exact：marker 损坏时 compact 以 “decode database rebuild marker” 失败、不创建快照、源库字节不变（compact 内部先取快照，快照路径同样受保护集校验，故与 backup 同源 fail-closed）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:529:TestNewPreviewIDSurfacesSecureRandomnessFailure": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-datamanagement/src/cleanup.rs::tests::preview_surfaces_a_preview_id_failure_without_storing_the_preview",
+    "conclusion": "function_exact：CleanupPreviewIdPort 返回 “secure random unavailable” 时预览以同文本错误失败，且 previews 表为空（失败预览不可执行）；生产实现 SystemCleanupPreviewIds 用 getrandom::fill 并在失败时上抛同语义错误。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:538:TestMaintenancePreviewRejectsAConfiguredCleanupTargetWithoutDescriptor": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "conclusion": "部分覆盖：Rust 的 CleanupPreviewService 以 descriptor map 解析目标，未配置的 id 直接返回 Rejected(\"unknown database id ...\")；相邻边界由 cleanup_preview_requires_a_ready_database_with_the_purgeable_table（缺失库/缺表）与 overview_summary_only_skips_storage_and_a_single_filter_keeps_its_totals（读路径未知 id）覆盖。差异：Go 通过从 manager.descriptors 移除 strategy 来构造“已配置清理目标但无 descriptor”，Rust 组合根按 settings 路径一次性生成 9 个 descriptor，没有等价的可变描述符注入点，因此没有单独测试该刻意构造。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:552:TestMaintenanceCleanupAndCompactionReportActualReclaimedStorage": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk",
+    "conclusion": "function_exact：strategy 插入 2MiB 软删脚本后执行清理 → deletedCount=1、compacted=true、reclaimedBytes>0、afterBytes<beforeBytes；watchlist 插入 2MiB 后删除再 compact → reclaimedBytes>0、afterBytes<beforeBytes，均为磁盘实测值。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/maintenance_test.go:17:TestOverviewCountsMainWALSHMAndKeepsDatabaseErrorsLocal": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::overview_counts_main_wal_and_shm_and_keeps_an_unreadable_database_local",
+    "conclusion": "function_exact：临时目录写入 100B 主库 + 40B -wal + 20B -shm，Rust OverviewService 逐项统计 mainBytes/walBytes/shmBytes 且 totalBytes 等于三者之和；非 SQLite 文件使该库 status=unavailable、错误仅留在该条目，全局 totals.totalBytes 仍等于该库 totalBytes，其余 8 个描述符照常投影。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/maintenance_test.go:49:TestOverviewSupportsSummaryOnlyAndSingleDatabase": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::overview_summary_only_skips_storage_and_a_single_filter_keeps_its_totals",
+    "conclusion": "function_exact：summaryOnly 请求返回 9 个库、totals 全 0 且 cleanable 不采集；databaseId=\" strategy \"（含空白）被 trim 后只返回 1 个库，totals 等于该库 storage，soft-deleted 策略定义使 cleanable 长度为 1；未知 id 返回 OverviewError::UnknownDatabase。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/maintenance_test.go:82:TestDatabaseBackupCreatesVerifiedPrivateSnapshot": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "conclusion": "部分覆盖：Rust 快照契约（backups 目录、0600 权限、内容可读、未知库拒绝、写入后 quick_check 校验、写者租约冲突、失败清理）由 maintenance_backup_and_contracts.rs::backup_snapshot_is_private_verified_and_limited_to_managed_databases、a_held_writer_lease_rejects_maintenance_before_any_snapshot_is_written、a_failed_rebuild_batch_removes_every_snapshot_it_created 覆盖；confirmation 校验在 jftrade-datamanagement 服务层（maintenance_service_confirmation_validation_and_rejection_parity）。差异：Go 的 30 秒 backupMinimumInterval 内存限流（ErrBackupRateLimited → 429）在 Rust 无对应实现，连续两次 backup 均会成功；Rust 以 WriterLease 串行 + 保留策略限制磁盘增长。已登记为 P2 缺口。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/datamigration/maintenance_test.go:147:TestBackupCapacityPrunesManagedFilesOnlyAndEnforcesQuota": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs::tests::backup_capacity_prunes_only_managed_snapshots_and_enforces_quota",
+    "conclusion": "function_exact：prepare_backup_capacity 只清理受管命名快照（unmanaged 文件保留），同库文件压到保留数以下并满足 quota-reserve，reserve>quota 时返回 MaintenanceOperationError::QuotaExceeded（引擎映射 507 DATABASE_BACKUP_QUOTA_EXCEEDED）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/maintenance_test.go:185:TestBacktestCleanupPreviewUsesAgeAndLatestProtection": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::backtest_history_preview_prefers_age_and_latest_protection",
+    "conclusion": "function_exact：25 条已完成回测（时间跨 2026-01-01 起）+1 条 running，olderThanDays=30/keepLatest=20 预览得到 5 个候选、confirmationText=\"CLEANUP backtest-runs 5\"；批准后执行删除 5 行并压缩，剩余 21 行（最新 20 + running），与 Go 的年龄+最新保护语义一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/maintenance_test.go:227:TestCleanupPreviewExpiresAndMaintenanceConflictIsTyped": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-datamanagement/src/cleanup.rs::tests::preview_normalizes_defaults_summarizes_and_expires_after_ten_minutes",
+    "conclusion": "function_exact：预览在 now+9min 可取回、now+10min 过期（PREVIEW_LIFETIME=10min），并归一化 kind/databaseId 空白与默认保留参数；BusyReason 冲突路径由 jftrade-datamanagement lib.rs::busy_owner_blocks_preview_and_execute_without_mutation 覆盖（预览/执行均无副作用）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/maintenance_test.go:255:TestOverviewCleanableCategoriesADKPreviewAndCompact": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::overview_lists_cleanable_categories_for_soft_deleted_and_history_rows",
+    "conclusion": "function_exact：strategy 1 条 soft-deleted、backtest-runs 25 条已结束回测、adk 3 个 cleanable 分类（agent/workflow=1，trigger 仅按 payload deletedAt 计数为 0，与 Go inspectCleanable 同源）；ADK soft-deleted 预览 candidateCount=3（触发器按已删工作流级联进入候选），confirmationText=\"CLEANUP adk 3\"。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/maintenance_test.go:315:TestCleanupAndCompactRejectInvalidOrUnavailableOperations": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "conclusion": "部分覆盖：非法保留参数与未就绪库由 cleanup.rs::preview_rejects_invalid_retention_and_non_ready_databases、store 的 cleanup_candidates_fail_closed_when_the_maintenance_tables_are_missing 覆盖；未知 compact/错误 confirmation 由 maintenance_service_confirmation_validation_and_rejection_parity 覆盖；缺失源库由 backup_and_compact_fail_closed_when_the_source_database_is_missing 覆盖。边界：Go 的 hooks.Purge/hooks.Compact == nil → \"unavailable\" 是 Wails 适配器的注入缝，Rust 组合根固定注入 MaintenanceService+ManagedDatabaseMaintenanceStore，不存在“未装配 hook”的运行态。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/datamigration/managed_backup_retention_test.go:12:TestManagedBackupRetentionKeepsCurrentSnapshotAndPrunesOldFiles": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs::tests::backup_retention_keeps_three_snapshots_and_prunes_the_oldest_of_one_database",
+    "conclusion": "function_exact：同库 4 份快照 + 高 quota 下 enforce_backup_retention 只淘汰最旧一份、保留 current 与其余 3 份（BACKUP_RETENTION_PER_DATABASE=3），总字节数同步下降；current 大于 quota 时返回 QuotaExceeded。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/managed_backup_retention_test.go:61:TestManagedBackupFileDiscoveryAndFilenameBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs::tests::managed_backup_discovery_parses_only_canonical_filenames",
+    "conclusion": "function_exact：缺失备份目录 → 列举失败；合法名 {id}-{YYYYMMDDThhmmss.fffffffffZ}-{8hex}.db 解析出库 id；非法 token/未知 id/时间戳畸形/非 .db 名称一律不作为受管快照；目录形状的“快照”被跳过（非普通文件）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/managed_backup_retention_test.go:105:TestBackupSnapshotFailureCleansUpPartialFilesAndVerificationRejectsInvalidSQLite": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/src/maintenance.rs::rebuild_safety_tests::snapshot_verification_rejects_invalid_sqlite_and_failed_backups_leave_no_partial_file",
+    "conclusion": "function_exact：verify_backup 拒绝非 SQLite 文件、缺失文件与空文件；源路径不是普通文件时 backup 失败且 backups 目录为空（无残留部分快照）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/manager_boundaries_test.go:14:TestManagerStatusesReflectRuntimeFailuresAndScheduledRebuilds": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Go 的 SetUnavailable 是启动期把已捕获错误注入状态表的接缝（并区分 incompatible），Rust 的 OverviewPort::inspect 每次直接打开文件判定 status/currentVersion/error，没有可变 unavailable 表。rebuildScheduled/restartRequired/confirmationText 投影由 jftrade-datamanagement overview.rs::overview_preserves_go_order_filter_and_rebuild_projection 与 store 的 overview_normalizes_rebuild_marker_ids_and_fails_closed_when_it_is_unreadable 覆盖。",
+    "conclusion": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/datamigration/manager_boundaries_test.go:50:TestManagerScheduleRebuildValidatesModesAndSelection": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::rebuild_selection_rejects_ambiguous_ids_and_an_empty_incompatible_batch",
+    "conclusion": "function_exact：single 模式 0/1/2 个 id 的错误文本为 “exactly one database id is required”；incompatible 模式 confirmation 不符被拒；无不可兼容库时返回 “no databases require rebuild”；所有拒绝路径都不写 marker、不写快照。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/manager_boundaries_test.go:74:TestManagerPendingLifecycleHandlesMissingCorruptAndUnknownMarkers": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_data_management_pending_rebuild_tests.rs::startup_reports_pending_markers_that_are_corrupt_or_unknown",
+    "conclusion": "function_exact：无 marker 时 apply_pending_rebuild 返回空集合（启动为 no-op）；marker 为 “{” 时以 “decode database rebuild marker” 失败；含未知库 id 时以 “unknown database id” 失败；两种情况 marker 都保留、源库不被删除。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/manager_boundaries_test.go:108:TestInspectDatabaseClassifiesFilesystemAndSchemaStates": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::database_inspection_classifies_filesystem_and_schema_states",
+    "conclusion": "function_exact：缺失文件 → missing 且 currentVersion=None；路径是目录 → unavailable 且 error 含 “not a regular file”；只有 legacy 表 → incompatible 且 error 含 “schema metadata is missing”；正常库 → ready 且 currentVersion=descriptor.expectedVersion。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/manager_boundaries_test.go:163:TestInspectDatabaseRejectsManifestDrift": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::database_inspection_rejects_manifest_drift",
+    "conclusion": "function_exact：在已初始化 ADK 库中新增 known_application_table → status=incompatible、error 含 “unknown application table”、currentVersion 仍为 pinned 版本，说明漂移被 manifest 校验拒绝而非被静默接受。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/manager_boundaries_test.go:187:TestManagerMarkerPersistenceNormalizesAndSurfacesFilesystemErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::overview_normalizes_rebuild_marker_ids_and_fails_closed_when_it_is_unreadable",
+    "conclusion": "function_exact：marker {\"databaseIds\":[\" strategy \",\"\",\"adk\",\"strategy\"]} 被 trim/去重/排序后只标记 strategy、adk（restartRequired 同步为 true）；marker 变成目录后 scheduled_rebuilds 失败使整次 overview 以 OverviewError::RebuildMarker 失败（fail-closed）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/manager_boundaries_test.go:280:TestManagerPropagatesUnreadableMarkerAndDatabaseStatErrors": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "conclusion": "部分覆盖：不可读 marker 的传播由 overview_normalizes_rebuild_marker_ids_and_fails_closed_when_it_is_unreadable（overview/scheduled_rebuilds 失败）与 a_corrupt_rebuild_marker_blocks_backup_and_rebuild_without_deleting_data（维护路径失败）覆盖。差异：Go 用 NUL 字节路径构造 Stat 失败；Rust 的 Path 不允许含 NUL、且 inspect 对非普通文件/缺失路径已有显式分类（database_inspection_classifies_filesystem_and_schema_states），故没有等价断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/datamigration/manager_test.go:14:TestManagerSchedulesSingleAndBatchRebuilds": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::batch_rebuild_schedules_every_incompatible_database",
+    "conclusion": "function_exact：两个 legacy 库在 mode=incompatible + 批确认文本下被同时调度，databaseIds 排序为 [adk, watchlist]，restartRequired/scheduled=true，marker 为每个被调度库保留一份已校验快照；single 模式的确认/白名单校验由 rebuild_selection_rejects_ambiguous_ids_and_an_empty_incompatible_batch 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/manager_test.go:49:TestManagerScheduleRebuildSharesMaintenanceLocks": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::a_held_writer_lease_rejects_maintenance_before_any_snapshot_is_written",
+    "conclusion": "function_exact：持有某库 WriterLease 时 backup 与 rebuild 均失败（租约错误），且不写快照、不写 marker、不改动源库；批量为多库时先拿到的锁在后续失败后回滚（a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/manager_test.go:75:TestManagerDescriptorsMatchSchemaCatalog": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::managed_descriptors_match_the_pinned_schema_catalog",
+    "conclusion": "function_exact：9 个受管 descriptor 均有非空路径，逐个 initialize_current 后 current_version 等于 descriptor.expectedVersion（即与 pinned schema catalog 一致）；adk-artifact 名为 adk-artifact.db 且与 adk-session 同目录，等价于 Go 的 artifact 路径断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/manager_test.go:100:TestManagerApplyPendingDeletesOnlySelectedDatabaseFiles": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_data_management_pending_rebuild_tests.rs::startup_applies_a_pending_rebuild_only_to_the_selected_databases",
+    "conclusion": "function_exact：调度 adk 重建后启动：adk 被删除并按新库重建（行数归零）、strategy 行保留、非选中文件不受影响、初始化成功后 marker 被清除；被删除库按“新文件”路径重建（existed 判定在 apply 后重算）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/manager_test.go:145:TestManagerApplyPendingRejectsTamperedBackupBeforeDeletingAnySource": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_data_management_pending_rebuild_tests.rs::startup_rejects_a_tampered_pending_rebuild_without_deleting_any_source",
+    "conclusion": "function_exact：为 adk+strategy 调度后篡改其中一份快照 → 启动以 “verify rebuild backup” 失败，两库主文件与 -wal/-shm 全部字节不变，marker 保留。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/manager_test.go:190:TestManagerKeepsMarkerWhenDeleteFails": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_data_management_pending_rebuild_tests.rs::startup_keeps_the_marker_when_a_selected_database_cannot_be_deleted",
+    "conclusion": "function_exact：把选中库替换为非空目录 → apply_pending_rebuild 报 “remove watchlist database file …” 并保留 marker 与阻塞目录内容；完整启动路径进一步拒绝非普通文件的受管库（“is not a regular file”）且不消费 marker。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/rebuild_safety_test.go:12:TestVerifyMarkerBackupRejectsEveryUntrustedMarkerField": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/src/maintenance.rs::rebuild_safety_tests::marker_snapshots_must_live_in_the_managed_directory_with_a_managed_name",
+    "conclusion": "function_exact：verify_managed_rebuild_backup 逐字段拒绝：备份目录本身/目录外路径 → “outside the managed backup directory”；未受管文件名或库 id 不符 → “filename is not managed for …”；大小不符 → “size or file type”；sha256 不符 → “SHA-256”；缺失/非 SQLite（即使 digest 正确）→ 快速校验失败；符号链接被当作非普通文件拒绝。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/rebuild_safety_test.go:77:TestApplyPendingRejectsDuplicateAndMissingBackups": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_data_management_pending_rebuild_tests.rs::startup_reports_pending_markers_without_a_verified_backup",
+    "conclusion": "function_exact：marker 中同一库重复快照 → “duplicate backup”；已调度库缺快照 → “has no verified backup”；为未调度库带快照 → “unscheduled database”；三种情况启动失败且 marker 保留。（Rust marker 读取对缺省字段容错，与 Go struct 零值一致。）",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/rebuild_safety_test.go:106:TestScheduleRebuildLockedRemovesSnapshotsAfterBatchFailure": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::a_failed_rebuild_batch_removes_every_snapshot_it_created",
+    "conclusion": "function_exact：第一批 adk 快照成功后，第二批把源库置为只读使 backup 打不开 → 调度失败并删除本批新建快照，backups 目录回到第一批内容、marker 只保留 adk、两库文件仍在（root/特权环境自动跳过构造）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/rebuild_safety_test.go:128:TestScheduleRebuildLockedRequiresBackupForExistingMarkerIDs": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::a_marker_with_an_unbacked_database_id_blocks_scheduling",
+    "conclusion": "function_exact：marker 只含 {\"databaseIds\":[\"adk\"]}（无快照）时再次调度 watchlist → 新建快照被回收、返回 “rebuild marker is missing a verified backup”、marker 字节保持不变。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/rebuild_safety_test.go:150:TestScheduleRebuildIsIdempotentForAnExistingVerifiedBackup": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::rebuild_scheduling_is_idempotent_and_reverifies_marker_snapshots",
+    "conclusion": "function_exact：同一单库重建调度两次都成功且 marker 内 backups 仍为 1 份；篡改该快照后再次调度以 “rebuild backup size or digest does not match marker” 拒绝，源库 quick_check 仍为 ok、marker 保留。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/rebuild_safety_test.go:177:TestRebuildSelectionAndLockRollbackBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks",
+    "conclusion": "function_exact：批量（incompatible）重建时，第二个库的租约被占用 → 整批失败、先前库的锁被回滚（随后对第一个库 backup 成功）、不写 marker、不写快照；选择和不可用边界由 rebuild_selection_rejects_ambiguous_ids_and_an_empty_incompatible_batch 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/rebuild_safety_test.go:211:TestScheduleRebuildLockedPropagatesUnreadableMarker": {
     "status": "[~]",
     "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "conclusion": "部分覆盖：损坏 marker 阻断调度并由 a_corrupt_rebuild_marker_blocks_backup_and_rebuild_without_deleting_data 断言（“decode database rebuild marker”、无新快照、源库字节不变）；scheduleRebuildLocked 与 ScheduleRebuild 在 Rust 合并为同一 rebuild 入口，没有再包一层函数级断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/app/apiserver/datamigration/rebuild_safety_test.go:221:TestProtectedBackupAndDigestFailureBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/src/maintenance.rs::rebuild_safety_tests::unreadable_marker_and_digest_errors_surface_without_evicting_snapshots",
+    "conclusion": "function_exact：marker 损坏时 protected_backup_paths 返回错误（不把保护集当空集继续清理），且 backup 直接失败；marker 变成目录同样报错；file_sha256 对缺失路径与目录均返回错误。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/datamigration/research_lifecycle_test.go:13:TestResearchDatabaseParticipatesInStatusBackupAndRebuild": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --lib",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::research_database_participates_in_status_backup_and_rebuild",
+    "conclusion": "function_exact：research 是第 9 个受管库；初始化后 current_version=1（status ready 由 managed_descriptors_match_the_pinned_schema_catalog/overview 用例覆盖）；backup 返回 research 快照且文件存在；单库重建调度返回 [research] 且 marker 记录该库快照（启动阶段删除/重建由 pending_rebuild 用例覆盖）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/desktop_api_startup_test.go:40:TestAPIServerHelperBoundaries": {
     "status": "[~]",

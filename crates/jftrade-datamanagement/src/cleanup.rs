@@ -387,6 +387,15 @@ mod tests {
         }
     }
 
+    #[derive(Debug)]
+    struct FailingId;
+
+    impl CleanupPreviewIdPort for FailingId {
+        fn new_preview_id(&self) -> Result<String, String> {
+            Err("secure random unavailable".to_owned())
+        }
+    }
+
     fn service(status: DatabaseStatus, scheduled: &[&str]) -> CleanupPreviewService {
         CleanupPreviewService::new(
             vec![DatabaseDescriptor {
@@ -417,6 +426,7 @@ mod tests {
         )
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/datamigration/maintenance_test.go:227 TestCleanupPreviewExpiresAndMaintenanceConflictIsTyped
     #[test]
     fn preview_normalizes_defaults_summarizes_and_expires_after_ten_minutes() {
         let service = service(DatabaseStatus::Ready, &[]);
@@ -481,6 +491,47 @@ mod tests {
         assert_eq!(
             scheduled.to_string(),
             "database backtest-runs is not ready for cleanup"
+        );
+    }
+
+    // Parity: go:452dea11:internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:529 TestNewPreviewIDSurfacesSecureRandomnessFailure
+    #[test]
+    fn preview_surfaces_a_preview_id_failure_without_storing_the_preview() {
+        let now = OffsetDateTime::parse("2026-08-20T00:00:00Z", &Rfc3339).expect("time");
+        let service = CleanupPreviewService::new(
+            vec![DatabaseDescriptor {
+                id: crate::DATABASE_BACKTEST_RUNS.to_owned(),
+                name: "runs".to_owned(),
+                path: "/tmp/runs.db".to_owned(),
+                description: String::new(),
+                features: Vec::new(),
+                expected_version: 1,
+            }],
+            Arc::new(FixedOverview {
+                status: DatabaseStatus::Ready,
+                scheduled: BTreeSet::new(),
+            }),
+            Arc::new(FixedCandidates(vec![CleanupCandidateRecord {
+                id: "run-1".to_owned(),
+                category: "回测结果".to_owned(),
+                estimated_bytes: 4,
+            }])),
+            Arc::new(FailingId),
+        );
+        let error = service
+            .preview_at(
+                CleanupPreviewRequest {
+                    kind: CLEANUP_BACKTEST_HISTORY.to_owned(),
+                    database_id: crate::DATABASE_BACKTEST_RUNS.to_owned(),
+                    ..CleanupPreviewRequest::default()
+                },
+                now,
+            )
+            .expect_err("a failing preview id generator is surfaced");
+        assert_eq!(error.to_string(), "secure random unavailable");
+        assert!(
+            service.previews.lock().expect("previews").is_empty(),
+            "a failed preview is never stored for execution"
         );
     }
 }

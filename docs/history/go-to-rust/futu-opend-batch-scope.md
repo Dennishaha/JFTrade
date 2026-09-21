@@ -4786,3 +4786,57 @@ python3 scripts/compatibility/audit_test_parity.py
 标注出的 session 分组不属于请求集合时会报 `k-line session "after" was not requested`，
 Rust 目前没有对应拒绝（Go 探针：adaptive + `sessions=regular` 只有 after-hours bar →
 该错误）。这属于 `internal/marketdata` 批次范围，已记入下一批目标。
+
+## 第七十批：`internal/app/apiserver/datamigration` 分片（49 条）
+
+### 范围与基线
+
+- Go 基线：`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/app/apiserver/datamigration/ -count=1`，PASS；测试分布 `maintenance_failure_paths_test.go` 16、`maintenance_test.go` 8、`rebuild_safety_test.go` 8、`manager_boundaries_test.go` 7、`manager_test.go` 6、`managed_backup_retention_test.go` 3、`research_lifecycle_test.go` 1。
+- Rust 归属：`crates/jftrade-datamanagement`（overview/cleanup/maintenance 服务与端口）、`crates/jftrade-store-sqlite`（`maintenance.rs` 备份/压缩/重建 + `data_management.rs` 巡检/候选）、`crates/jftrade-engine/src/product_data_management*.rs`（启动初始化、待应用重建、路由）。
+
+### 生产修正（4 处真实缺口 + 3 处契约对齐）
+
+1. **受管备份保留/配额此前完全缺失**（P1，磁盘安全）：新增 `crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs`，按 Go `backup_retention.go` 实现 `parse_managed_backup_filename` / `list_managed_backup_files` / `backup_quota_bytes` / `prepare_backup_capacity` / `enforce_backup_retention`：每库保留 3 份、quota = max(5 GiB, 2×受管库字节)、marker 引用快照与当前快照受保护、跨库淘汰仅在配额压力下发生、失败即 `QuotaExceeded`。
+2. **重建标记在启动时无人应用**（P1，恢复闭环）：新增 `crates/jftrade-engine/src/product_data_management_pending_rebuild.rs` 并在 `initialize_production_databases_inner` 接入：先按 marker 逐份校验快照（路径必须在 `<root>/backups`、文件名受管、大小、SHA-256、quick_check、外键检查），全部通过后才删除选中库及其 `-wal/-shm`，随后按“新文件”重建（apply 后重算 existed），初始化成功后校验版本并清除 marker；任何失败都保留 marker，且删除前已对全批文件做快照，失败时按字节回滚。重复/缺失/未调度快照条目、未知库 id、损坏 marker 一律 fail-closed。
+3. 新增 `MaintenanceOperationError::QuotaExceeded` 并在 `product_wire.rs` 映射为 507 `DATABASE_BACKUP_QUOTA_EXCEEDED`（对齐 Go `writeDataManagementError`）。
+4. 备份文件名时间戳改为保留 `.`（`managed_backup_stamp`），使 Rust 产物符合受管名语法 `{id}-{YYYYMMDDThhmmss[.fffffffff]Z}-{8hex}.db`，从而可被保留策略与 marker 校验复解析（原有单测只断言文件存在，不受影响）。
+5. `ManagedDatabaseMaintenanceStore::read_marker` 的错误补回 `decode database rebuild marker:` 前缀（对齐 Go 文案），`RebuildMarker` 字段加 `#[serde(default)]`（Go struct 零值语义：缺 `backups` 时走 “has no verified backup”，而不是解码失败）。
+6. `verify_marker_backup` 增加受管文件名校验，并把大小/摘要校验提到 quick_check 之前（对齐 Go 字段校验顺序）；新增公开 `verify_managed_rebuild_backup` 供启动路径在已持锁时复用同一套字段校验。
+
+### 回归（本批新增 43 个 Rust 测试）
+
+- `crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs`（7）：容量剪枝与配额、跨库配额淘汰、保留 3 份并淘汰最旧、marker 保护集、删除失败上抛、文件名发现边界、quota 下限。
+- `crates/jftrade-store-sqlite/src/maintenance_rebuild_safety_tests.rs`（3）：marker 快照逐字段拒绝（目录外/未受管名/大小/摘要/非 SQLite/符号链接）、不可读 marker 与摘要失败边界、无效 SQLite 与非普通源不残留部分快照。
+- `crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs`（15）：私有快照与未知库、非兼容源零改写、缺失源 fail-closed、不可用备份目录与空源路径、marker 损坏阻断 backup/rebuild/compact、marker 快照在保留压力下存活、单库/批量调度与确认文本、批失败回收本批快照、marker 缺快照阻断、租约冲突与批锁回滚、research 库参与状态/备份/重建。
+- `crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs`（11）：main/WAL/SHM 统计与错误局部化、summaryOnly/单库过滤、cleanable 分类与 ADK 预览、marker 归一化与不可读 marker、候选表缺失/NULL id/缺触发器表、backtest 年龄+最新保护、巡检状态分类、manifest 漂移、descriptor 与 pinned schema catalog 一致、清理/压缩实测回收字节。
+- `crates/jftrade-datamanagement/src/cleanup.rs`（1）：预览 id 生成失败时上抛且不落库；`crates/jftrade-engine/src/product_data_management_pending_rebuild_tests.rs`（6）：待应用重建的删除范围、篡改快照零删除、删除失败保 marker、损坏/未知 marker、缺快照/重复/未调度条目、空 marker 保留。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `enforce_backup_retention` 的每库保留分支短路（`|| true`）→ 保留策略单测转红（exit 101）。
+2. `apply_pending_rebuild` 的删除循环改为空操作 → pending 重建用例转红（exit 101）。
+   两处探针均在本批内执行并按字节回滚，回滚后 store+datamanagement 184、engine 1696 全量复测全绿。
+
+### 映射结论：49 条 = 38 `[x]`（function_exact）+ 11 `[~]`
+
+- 11 条 `[~]` 及其原因：`maintenance_test.go:82`（缺 Go 的 30 秒备份限流，已登记 P2）、`maintenance_test.go:315`（`hooks.Purge/Compact==nil → unavailable` 是 Wails 注入缝）、`maintenance_failure_paths_test.go:16`（hook 注入的部分删除/事务失败）、`:70`（BusyReason/vacuum 注入缝）、`:109`（Go `context` 取消后 stats.Error）、`:167`（execute 期间读 marker 的组合不存在）、`:270`（空路径 storage error/取消分支）、`:538`（刻意移除 descriptor 的构造在 Rust 无可变描述符注入点）、`manager_boundaries_test.go:14`（`SetUnavailable` 运行时错误表在 Rust 不存在，改为每次直读文件判定）、`:280`（NUL 字节路径的 Stat 失败在 Rust 不可表示）、`rebuild_safety_test.go:211`（`scheduleRebuildLocked` 与 `ScheduleRebuild` 在 Rust 合并为同一入口）。
+- 本批新增/更新的 `[~]` 结论都写明“Rust 已覆盖什么、差异为何”，未用 boundary 掩盖可迁移行为。
+
+### apiserver 后续分片计划（`internal/app/apiserver` 余量 565）
+
+1. **application / lifecycle / runtime / package 根 / 小片**（`application` 14、`lifecycle` 17、`runtime` 21、包根 18、`runtimes` 12、`databaseguard`/`stores` 各 2、`liveapp`/`status`/`strategyapp` 各 4）：体量小、多为装配与生命周期封装，先结清可验证 startup/关停顺序与错误映射。
+2. **servercore（150）**：路由与错误映射主战场，先按 `data_management*`/`assistant*` 子文件 recon，再逐文件映射（与已完成的 read 路由 ledger 对齐）。
+3. **servercoretest（103）**：以 wire/差分回放为主，需先确认 fixture 与 `tests/fixtures/rust-migration` 的引用关系，避免重复造断言。
+4. **marketdataapp（136）**：行情 API 聚合，风险集中在分页/缓存/会话边界，与 `pkg/market` 分片一起做可复用 fixture。
+5. **webaccess（31）**、**tradingapp（22）**、**backtestapp（14）**、**futuapp（11）**：按 owner 归属逐个映射到 marketdata/trading/backtest/integration 域 crate。
+6. 其余小片（`status`、`liveapp`、`strategyapp`、`databaseguard`、`stores`）并入第 1 步同批收尾。
+
+### 仍未结清
+
+- 下一批目标：`internal/app/apiserver` 的 application + lifecycle + runtime + 包根 + 小片（合计约 92 条），随后 servercore → servercoretest → marketdataapp → webaccess → 其余。
+- 跨批 follow-up：P0 无新增。P1 = 前批清单（模型目录缺 9 个外部写/交易工具、workflow CRUD 工具族、策略实例/定义工具族、`portfolio.summary` 多账户聚合、`portfolio.*` broker runtime `lastError`、策略定义版本/快照 wire 形状、工作流触发日志与 `workflow_runs.*` 过滤、`workflow.*` 单条读路由、Go `SaveRun` 终态谓词、审批续跑 `resumeState`、ADK 维护 busy/lease handoff）。P2 = 前批清单 + 本批新增：备份 30 秒限流缺失（`DATABASE_BACKUP_RATE_LIMITED`/429 不可达）、`MarketData` 巡检空路径不写 `storage.error`、清理执行不读重建标记（Go 会因 marker 损坏中断 execute）。
+
+
+> 干扰说明（客观记录，不计为通过）：本批执行期间工作树存在**非本批**的并发改动（`scripts/compatibility/audit_test_parity.py`、`scripts/compatibility/test_audit_test_parity.py` 及其重生成的 `test-parity-report.md`/`test-parity-inventory.md`，自第 69 批起一直未提交）。`check:zero-go` 对 `scripts/compatibility/*.py` 中的 Go 路径字面量（`internal/pineworkerassets`、`internal/marketdataassets`）报错，转红完全来自这些并发文件；本批未纳入提交、也未回退它们。本批 crates 侧证据（fmt/clippy/nextest 全绿、审计 0 破坏引用与 0 重复 rust_entry、架构检查、`git diff --check`）均已独立完成。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-store-sqlite -p jftrade-datamanagement -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked --no-fail-fast`（184 passed）、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1696 passed）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2908 Rust** / **997 `[x]`**，0 破坏引用、0 重复 rust_entry）、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`、`git diff --check`。**未通过**：`pnpm run check:zero-go`（以及因此转红的 `pnpm run check:quick` 的 `check:policy` 分组）——原因见下方干扰说明，与本批 crates 改动无关。

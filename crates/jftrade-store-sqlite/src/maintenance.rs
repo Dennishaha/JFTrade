@@ -17,6 +17,10 @@ use sha2::{Digest, Sha256};
 use tempfile::Builder;
 
 use crate::data_management::maintenance_candidates;
+use crate::maintenance_backup_retention::{
+    backup_quota_bytes, enforce_backup_retention, managed_backup_stamp,
+    parse_managed_backup_filename, prepare_backup_capacity,
+};
 use crate::schema_manifest::validate_current;
 
 const BATCH_REBUILD_CONFIRMATION: &str = "REBUILD INCOMPATIBLE DATABASES";
@@ -31,8 +35,11 @@ pub struct ManagedDatabaseMaintenanceStore {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct RebuildMarker {
+    #[serde(default)]
     database_ids: Vec<String>,
+    #[serde(default)]
     backups: Vec<VerifiedBackup>,
+    #[serde(default)]
     created_at: String,
 }
 
@@ -84,6 +91,26 @@ impl ManagedDatabaseMaintenanceStore {
         .map_err(map_lease_error)
     }
 
+    fn database_ids(&self) -> BTreeSet<String> {
+        self.descriptors.keys().cloned().collect()
+    }
+
+    /// Snapshots referenced by a pending rebuild marker must never be evicted.
+    fn protected_backup_paths(
+        &self,
+        extra: &BTreeSet<PathBuf>,
+    ) -> Result<BTreeSet<PathBuf>, MaintenanceOperationError> {
+        let mut protected = extra.clone();
+        if let Some(marker) = self.read_marker()? {
+            for backup in marker.backups {
+                if !backup.path.trim().is_empty() {
+                    protected.insert(PathBuf::from(backup.path));
+                }
+            }
+        }
+        Ok(protected)
+    }
+
     fn open_ready(
         &self,
         descriptor: &DatabaseDescriptor,
@@ -103,6 +130,7 @@ impl ManagedDatabaseMaintenanceStore {
         &self,
         descriptor: &DatabaseDescriptor,
         created_at: &str,
+        extra_protected: &BTreeSet<PathBuf>,
     ) -> Result<(BackupResult, VerifiedBackup), MaintenanceOperationError> {
         let backup_directory = self
             .marker_path
@@ -111,12 +139,19 @@ impl ManagedDatabaseMaintenanceStore {
             .join("backups");
         fs::create_dir_all(&backup_directory).map_err(failed)?;
         harden_directory(&backup_directory)?;
+        let database_ids = self.database_ids();
+        let protected = self.protected_backup_paths(extra_protected)?;
+        let quota_bytes = backup_quota_bytes(&self.descriptors);
+        prepare_backup_capacity(
+            &backup_directory,
+            &database_ids,
+            &descriptor.id,
+            database_bytes(Path::new(&descriptor.path)).max(1),
+            quota_bytes,
+            &protected,
+        )?;
         let sequence = BACKUP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-        let timestamp = created_at
-            .bytes()
-            .filter(u8::is_ascii_alphanumeric)
-            .map(char::from)
-            .collect::<String>();
+        let timestamp = managed_backup_stamp(created_at);
         let backup_path = backup_directory.join(format!(
             "{}-{}-{:08x}.db",
             descriptor.id, timestamp, sequence
@@ -133,6 +168,16 @@ impl ManagedDatabaseMaintenanceStore {
         }
         harden_path(&backup_path)?;
         if let Err(error) = verify_backup(&backup_path) {
+            let _ = fs::remove_file(&backup_path);
+            return Err(error);
+        }
+        if let Err(error) = enforce_backup_retention(
+            &backup_directory,
+            &database_ids,
+            &backup_path,
+            quota_bytes,
+            &protected,
+        ) {
             let _ = fs::remove_file(&backup_path);
             return Err(error);
         }
@@ -193,7 +238,9 @@ impl ManagedDatabaseMaintenanceStore {
 
     fn read_marker(&self) -> Result<Option<RebuildMarker>, MaintenanceOperationError> {
         match fs::read(&self.marker_path) {
-            Ok(bytes) => serde_json::from_slice(&bytes).map(Some).map_err(failed),
+            Ok(bytes) => serde_json::from_slice(&bytes)
+                .map(Some)
+                .map_err(|error| failed(format!("decode database rebuild marker: {error}"))),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(error) => Err(failed(error)),
         }
@@ -260,7 +307,7 @@ impl DatabaseMaintenancePort for ManagedDatabaseMaintenanceStore {
         let _lease = self.lease(descriptor)?;
         let connection = self.open_ready(descriptor)?;
         let before_bytes = database_bytes(Path::new(&descriptor.path));
-        self.create_backup_locked(descriptor, created_at)?;
+        self.create_backup_locked(descriptor, created_at, &BTreeSet::new())?;
         compact_connection(&connection)?;
         drop(connection);
         let after_bytes = database_bytes(Path::new(&descriptor.path));
@@ -280,7 +327,7 @@ impl DatabaseMaintenancePort for ManagedDatabaseMaintenanceStore {
     ) -> Result<BackupResult, MaintenanceOperationError> {
         let descriptor = self.descriptor(database_id)?;
         let _lease = self.lease(descriptor)?;
-        self.create_backup_locked(descriptor, created_at)
+        self.create_backup_locked(descriptor, created_at, &BTreeSet::new())
             .map(|(result, _)| result)
     }
 
@@ -307,7 +354,7 @@ impl DatabaseMaintenancePort for ManagedDatabaseMaintenanceStore {
             created_at: created_at.to_owned(),
         });
         for backup in &existing.backups {
-            verify_marker_backup(&self.marker_path, backup)?;
+            verify_marker_backup(&self.marker_path, &self.database_ids(), backup)?;
         }
         let mut backups = existing
             .backups
@@ -315,18 +362,21 @@ impl DatabaseMaintenancePort for ManagedDatabaseMaintenanceStore {
             .map(|backup| (backup.database_id.clone(), backup))
             .collect::<BTreeMap<_, _>>();
         let mut created_paths = Vec::new();
+        let mut created_protected = BTreeSet::new();
         for descriptor in &descriptors {
             if backups.contains_key(&descriptor.id) {
                 continue;
             }
-            let (_, backup) = match self.create_backup_locked(descriptor, created_at) {
-                Ok(result) => result,
-                Err(error) => {
-                    remove_files(&created_paths);
-                    return Err(error);
-                }
-            };
+            let (_, backup) =
+                match self.create_backup_locked(descriptor, created_at, &created_protected) {
+                    Ok(result) => result,
+                    Err(error) => {
+                        remove_files(&created_paths);
+                        return Err(error);
+                    }
+                };
             created_paths.push(PathBuf::from(&backup.path));
+            created_protected.insert(PathBuf::from(&backup.path));
             backups.insert(descriptor.id.clone(), backup);
         }
         let database_ids = existing
@@ -518,6 +568,7 @@ fn verify_backup(path: &Path) -> Result<(), MaintenanceOperationError> {
 
 fn verify_marker_backup(
     marker_path: &Path,
+    database_ids: &BTreeSet<String>,
     backup: &VerifiedBackup,
 ) -> Result<(), MaintenanceOperationError> {
     let backup_path = Path::new(&backup.path);
@@ -530,13 +581,70 @@ fn verify_marker_backup(
             "rebuild backup is outside the managed backup directory",
         ));
     }
-    verify_backup(backup_path)?;
+    let filename = backup_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
+    match parse_managed_backup_filename(database_ids, filename) {
+        Some((database_id, _)) if database_id == backup.database_id => {}
+        _ => {
+            return Err(failed(format!(
+                "rebuild backup filename is not managed for {}",
+                backup.database_id
+            )));
+        }
+    }
     if file_bytes(backup_path) != backup.size_bytes || file_sha256(backup_path)? != backup.sha256 {
         return Err(failed(
             "rebuild backup size or digest does not match marker",
         ));
     }
-    Ok(())
+    verify_backup(backup_path)
+}
+
+/// Verify one snapshot referenced by a pending rebuild marker.
+///
+/// The startup path already holds the writer leases for every managed
+/// database, so this helper performs the same checks as the scheduled rebuild
+/// without acquiring another lease.
+pub fn verify_managed_rebuild_backup(
+    backup_directory: &Path,
+    database_id: &str,
+    path: &str,
+    size_bytes: i64,
+    sha256: &str,
+) -> Result<(), String> {
+    let backup_path = Path::new(path);
+    if backup_path == backup_directory || !backup_path.starts_with(backup_directory) {
+        return Err("rebuild backup is outside the managed backup directory".to_owned());
+    }
+    let database_ids = BTreeSet::from([database_id.to_owned()]);
+    let filename = backup_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
+    match parse_managed_backup_filename(&database_ids, filename) {
+        Some((parsed_id, _)) if parsed_id == database_id => {}
+        _ => {
+            return Err(format!(
+                "rebuild backup filename is not managed for {database_id}"
+            ));
+        }
+    }
+    let metadata = backup_path
+        .symlink_metadata()
+        .map_err(|error| error.to_string())?;
+    if !metadata.file_type().is_file() {
+        return Err("rebuild backup size or file type does not match marker".to_owned());
+    }
+    if size_bytes <= 0 || u64::try_from(size_bytes).ok() != Some(metadata.len()) {
+        return Err("rebuild backup size or file type does not match marker".to_owned());
+    }
+    let digest = file_sha256(backup_path).map_err(|error| error.to_string())?;
+    if !digest.eq_ignore_ascii_case(sha256.trim()) {
+        return Err("rebuild backup SHA-256 does not match marker".to_owned());
+    }
+    verify_backup(backup_path).map_err(|error| error.to_string())
 }
 
 fn file_sha256(path: &Path) -> Result<String, MaintenanceOperationError> {
@@ -560,7 +668,7 @@ fn file_sha256(path: &Path) -> Result<String, MaintenanceOperationError> {
     Ok(encoded)
 }
 
-fn database_bytes(path: &Path) -> i64 {
+pub(crate) fn database_bytes(path: &Path) -> i64 {
     file_bytes(path)
         .saturating_add(file_bytes(&PathBuf::from(format!(
             "{}-wal",
@@ -645,3 +753,7 @@ fn sync_directory(path: &Path) -> Result<(), MaintenanceOperationError> {
 fn sync_directory(_path: &Path) -> Result<(), MaintenanceOperationError> {
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "maintenance_rebuild_safety_tests.rs"]
+mod rebuild_safety_tests;

@@ -86,6 +86,8 @@ pub enum MaintenanceOperationError {
     Conflict(String),
     #[error("cleanup preview is stale")]
     Stale,
+    #[error("database backup storage quota exceeded: {0}")]
+    QuotaExceeded(String),
     #[error("database maintenance failed: {0}")]
     Failed(String),
 }

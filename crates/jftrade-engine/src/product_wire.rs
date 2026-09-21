@@ -534,6 +534,9 @@ fn maintenance_failure(error: MaintenanceOperationError, fallback_code: &'static
         MaintenanceOperationError::Stale => {
             ApiFailure::new(409, "CLEANUP_PREVIEW_STALE", message)
         }
+        MaintenanceOperationError::QuotaExceeded(_) => {
+            ApiFailure::new(507, "DATABASE_BACKUP_QUOTA_EXCEEDED", message)
+        }
         MaintenanceOperationError::Rejected(_) | MaintenanceOperationError::Failed(_) => {
             ApiFailure::new(400, fallback_code, message)
         }

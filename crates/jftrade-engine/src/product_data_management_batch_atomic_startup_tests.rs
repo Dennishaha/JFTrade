@@ -28,8 +28,11 @@ fn startup_failure_restores_previously_migrated_descriptor_files() {
 
     let backtest_before = snapshot_files(Path::new(&backtest.path));
     let strategy_before = snapshot_files(Path::new(&strategy.path));
-    let error = initialize_production_databases_inner(&[backtest.clone(), strategy.clone()])
-        .expect_err("later descriptor failure must roll back the batch");
+    let error = initialize_production_databases_inner(
+        &[backtest.clone(), strategy.clone()],
+        &directory.path().join("database-rebuild.json"),
+    )
+    .expect_err("later descriptor failure must roll back the batch");
 
     assert!(error.contains("migration failed"), "migration error: {error}");
     assert_eq!(
@@ -73,8 +76,11 @@ fn startup_acquires_all_writer_leases_in_stable_order_before_migrating() {
     let _strategy_lease = WriterLease::acquire(Path::new(&strategy.path), &diagnostic)
         .expect("hold second lease");
 
-    let error = initialize_production_databases_inner(&[strategy.clone(), backtest.clone()])
-        .expect_err("held lease must prevent the whole startup batch");
+    let error = initialize_production_databases_inner(
+        &[strategy.clone(), backtest.clone()],
+        &directory.path().join("database-rebuild.json"),
+    )
+    .expect_err("held lease must prevent the whole startup batch");
     assert!(
         error.contains(&backtest.path),
         "the path-sorted first lease should fail first: {error}"
@@ -164,7 +170,11 @@ fn database_probes_use_the_provided_layout() {
         _ => None,
     })
     .0;
-    initialize_production_databases_inner(&descriptors).expect("initialize provided layout");
+    initialize_production_databases_inner(
+        &descriptors,
+        &directory.path().join("database-rebuild.json"),
+    )
+    .expect("initialize provided layout");
 
     let adk = descriptor(&descriptors, DATABASE_ADK);
     let session = descriptor(&descriptors, DATABASE_ADK_SESSION);

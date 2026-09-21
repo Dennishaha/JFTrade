@@ -16,9 +16,12 @@ use jftrade_store_sqlite::{
 };
 use rusqlite::{Connection, MAIN_DB, OpenFlags, Transaction, TransactionBehavior};
 
+#[path = "product_data_management_pending_rebuild.rs"]
+mod product_data_management_pending_rebuild;
 #[path = "product_data_management_snapshot.rs"]
 mod product_data_management_snapshot;
 
+use product_data_management_pending_rebuild::{apply_pending_rebuild, complete_pending_rebuild};
 use product_data_management_snapshot::{restore_all_database_files, snapshot_all_database_files};
 
 const REBUILD_MARKER_FILENAME: &str = "database-rebuild.json";
@@ -72,14 +75,16 @@ pub fn maintenance_service_with_profile(
 /// existing file.  Existing schemas are validated against the pinned
 /// manifest; incompatibilities fail startup and leave the original untouched.
 pub fn initialize_production_databases(settings_path: &Path) -> Result<(), String> {
-    let (descriptors, _) = database_descriptors(settings_path, |name| env::var(name).ok());
-    initialize_production_databases_inner(&descriptors)
+    let (descriptors, marker_path) =
+        database_descriptors(settings_path, |name| env::var(name).ok());
+    initialize_production_databases_inner(&descriptors, &marker_path)
 }
 
 fn initialize_production_databases_inner(
     descriptors: &[jftrade_datamanagement::DatabaseDescriptor],
+    marker_path: &Path,
 ) -> Result<(), String> {
-    let existed = inspect_database_paths(descriptors)?;
+    let mut existed = inspect_database_paths(descriptors)?;
     let lease_order = startup_lease_order(descriptors);
     let mut leases = acquire_startup_writer_leases(descriptors, &lease_order)?;
 
@@ -94,6 +99,28 @@ fn initialize_production_databases_inner(
         }
     };
 
+    // A pending rebuild is only applied after its verified snapshots exist,
+    // and every file it deletes can be restored from `snapshots` if the
+    // re-initialization fails.
+    let applied = match apply_pending_rebuild(descriptors, marker_path) {
+        Ok(applied) => applied,
+        Err(error) => {
+            let restore_result = restore_all_database_files(&snapshots, &lease_order);
+            release_writer_leases_reverse(&mut leases);
+            return match restore_result {
+                Ok(()) => Err(error),
+                Err(restore_error) => Err(format!(
+                    "{error}; failed to restore database files after the pending rebuild was rejected: {restore_error}"
+                )),
+            };
+        }
+    };
+    if !applied.is_empty() {
+        // The applied databases were deleted on purpose: they must be
+        // re-initialized as new files instead of being validated.
+        existed = inspect_database_paths(descriptors)?;
+    }
+
     for (index, descriptor) in descriptors.iter().enumerate() {
         let path = Path::new(&descriptor.path);
         if let Err(error) = initialize_database_descriptor(descriptor, path, existed[index]) {
@@ -106,6 +133,11 @@ fn initialize_production_databases_inner(
                 )),
             };
         }
+    }
+
+    if let Err(error) = complete_pending_rebuild(descriptors, marker_path, &applied) {
+        release_writer_leases_reverse(&mut leases);
+        return Err(error);
     }
 
     release_writer_leases_reverse(&mut leases);
@@ -459,6 +491,10 @@ mod tests {
 
     mod legacy_nine_database_tests {
         include!("product_data_management_legacy_nine_database_tests.rs");
+    }
+
+    mod pending_rebuild_tests {
+        include!("product_data_management_pending_rebuild_tests.rs");
     }
 
     use jftrade_datamanagement::OverviewRequest;
