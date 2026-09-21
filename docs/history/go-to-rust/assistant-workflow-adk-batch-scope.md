@@ -3262,3 +3262,35 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 - 跨批 follow-up 汇总：P0 无新增。P1 = 前批清单 + 本批 provider 工具探测回写。P2 = 前批清单 + 本批 artifact 物化、task runner 有界扇出、planner runtime、continuation-only 信号、内置目录启动刷新。
 
 验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（**1930 passed / 0 skipped**）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2925 Rust** / **1196 `[x]`**；missing 2164、partial 768、boundary 319、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线）、`pnpm run check:compatibility`（278 OpenAPI operations / 18 route groups / 19 probes；desktop runtime 3 profiles / 6 link cases / 10 facade commands / 4 events）、`node scripts/check-zero-go.mjs`（2888 tracked files / 0 release artifact）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`（含 compatibility 全套与 pineworker 10 files / 98 tests）。
+
+## 第七十八批：`internal/assistant` 全域收尾（79 条，助理域归零）
+
+### 范围与结果
+
+- 范围：`internal/assistant` 除已结清的 `engine/`、`assembly/`、`workflowexec/` 之外全部余量 **79 条**——根目录 64（`workflow_crud` 10、`workflows` 7、`workflows_extended` 6、`service_business_helpers`/`service_business`/`service_contract_boundaries`/`service_lifecycle_boundaries`/`service_test` 各 4、`service_skill_state_recovery`/`workflow_async_tools`/`workflow_lifecycle`/`workflows_resource_recovery` 各 3、`service_audit_pagination`/`service_builtin_agent_edit`/`service_recovery`/`workflow_store_failures` 各 1）、`model/` 10、`workflow/` 5。
+- 结果：`missing` 2164 → **2085**（本批结清 79 条）、`partial` 768 → **846**、`boundary` 319 → **320**、`[x]` 保持 **1196**。本批 79 条 = **0 `[x]` + 78 partial + 1 boundary**（无新批准项，因此本批没有新增 `// Parity:` 锚点，未锚定告警保持 193 的前批基线）。
+- **`internal/assistant/**` 全域归零**：域内 810 条 = **250 `[x]` + 447 partial + 113 boundary，0 `missing`**。至此助理/ADK 域（assembly、engine、workflowexec、service、workflow、model）全部完成逐项核对。
+
+### 分片执行
+
+- **A1（14 条）**：`service_test` 4、`service_audit_pagination` 1、`service_builtin_agent_edit` 1、`service_business_helpers` 4、`service_business` 4。证据面为 `product_production_ports_adk_tests.rs`（时间线错误码、未就绪运行时拒绝、agent 写入重校验、技能安装码）、`product_production_assembly_tests.rs`（内置目录投影、指标聚合）、`product_adk_read_tests.rs`（审计/运行过滤、快照 fail-closed）。
+- **A2（17 条）**：`service_contract_boundaries` 4、`service_lifecycle_boundaries` 4、`service_persistence_runtime_boundaries` 5、`service_recovery` 1、`service_skill_state_recovery` 3。证据面为 `jftrade-settings::assistant_runtime`（设置缺省/边界）、`product_adk_store_parity_tests.rs`、`adk_workflow_canvas_contracts.rs`、`product_adk_model_runtime_tool_failure_tests.rs`（终态流终帧恢复）、`product_adk_mutation_product_tests.rs`（优化任务取消/负路由）。
+- **B（35 条）**：`workflow_crud` 10、`workflows` 7、`workflows_extended` 6、`workflow_async_tools` 3、`workflow_lifecycle` 3、`workflow_store_failures` 1、`workflow/rules` 5。证据面为 `adk_workflow_canvas_contracts.rs`、`adk_workflow_canvas_adversarial.rs`、`adk_workflow_scheduler_contracts.rs`（worker 启停、计划创建与 tick、阈值上/下穿与冷却、行情错误韧性）、`product_workflow_cron.rs`、`product_workflow_threshold.rs`、`product_workflow_jobs.rs`、`workflow_cron_go_semantics.rs`、`product_adk_workflow_tool_error_tests.rs`、`product_adk_store_parity_tests.rs`、`product_production_ports_adk_mutation_workflow_runtime.rs`、`workflow_queue_atomicity.rs`、`crates/jftrade-assistant/src/workflow_canvas.rs`。
+- **C（13 条）**：`model/` 10（provider 推理配置 3、时间线助手 1、时间线回复顺序 1、工作流图指纹 1、工作流计划 3、目标决策与工具契约 1）+ `workflows_resource_recovery` 3。证据面为 `product_production_ports_adk_mutation_provider.rs`、`product_adk_model_runtime_run_projection_tests.rs`、`adk_workflow_canvas_contracts.rs`、`product_production_ports_adk_mutation_workflow_runtime.rs` 与 `jftrade-assistant` 的 `workflow.rs`/`workflow_canvas.rs`/`model.rs`。
+
+### 新增缺口登记（功能缺失，保留，均为 P2）
+
+- **provider 推理配置解析层缺失**：Go 的 `provider_reasoning_config` 有三层行为——responses 预设只写 `reasoning.effort` 且不假设映射、显式空映射视为"不支持"、自定义映射按大小写保真校验并拒绝未知档位；另要求可选档位不得取 `default`。Rust 的 provider 写入只做超时/凭据归一化（`saved_provider_normalizes_the_request_timeout_on_write`、`saved_provider_hides_the_credential_from_the_row_and_projection`），运行期直接透传 `reasoningEffortOverride`，没有配置解析与校验层。驱动行 `model/provider_reasoning_config_test.go:8/27/65`。修复位置建议：`crates/jftrade-engine/src/product_production_ports_adk_mutation_provider.rs` 写入校验 + 运行时映射解析；回归要求：新增断言拒绝 `default`、未知档位报错、空映射解析为不支持。
+- **目标决策工具层**（承接第 76 批 P1 登记）：`model/workflow_task_tools_test.go` 的目标决策状态机（nil 决策惰性、复位/阶段进入、目标提示保真）与 Go workflowexec 的 goal decision 工具族同源，Rust 无对应实现，本批以 partial 记录。
+- 其余 76 条均为 service/workflow 服务层包装与 Go 内部助手函数：Rust 以端口 + 编译期目录表达同一职责，逐条差异已写入清单结论。
+
+### 跨批 follow-up 汇总
+
+- P0 无新增。P1 = 前批清单 + 第 77 批登记项（provider 工具探测回写 `capabilities.tools`）不变。
+- P2 = 前批清单 + 本批 provider 推理配置解析层、可选推理档位 `default` 拒绝；工作流 cron/阈值/调度面的逐条边界断言已由 `adk_workflow_scheduler_contracts.rs`、`product_workflow_cron.rs`、`product_workflow_threshold.rs` 覆盖，无需新增修复项。
+
+### 仍未结清（下一批）
+
+- 下一批（第七十九批）范围：按域余量排序的下一块 **`pkg/strategy` 333 条**——先按文件分组 recon（`pkg/strategy/*` 与 `pkg/strategy/pine*` 等），再按 P0（策略实例/定义写入所有权、运行期状态与取消）→ P1（Pine 编译/校验、回测分页与超时）→ P2 顺序分片。其后：`pkg/backtest` 237、`internal/store` 206、`internal/api` 180、`internal/strategy` 169、`pkg/bbgo` 145、`internal/integration` 141、`internal/marketdata` 112、`pkg/futu` 86、`internal/trading` 80，直至 4451 条清单全部完成。
+
+验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（**1930 passed / 0 skipped**）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2925 Rust** / **1196 `[x]`**；missing 2085、partial 846、boundary 320、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线，7 条 partial 无解析引用为前批已登记缺口）、`pnpm run check:compatibility`、`node scripts/check-zero-go.mjs`（2888 tracked files / 0 release artifact）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
