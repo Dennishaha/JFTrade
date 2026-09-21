@@ -68,6 +68,7 @@ fn reload(store: &AdkStore, id: &str) -> jftrade_store_sqlite::StoredAdkRun {
         .expect("run must still exist")
 }
 
+// Parity: go:452dea11:internal/assistant/engine/workflow_goal_test.go:342 TestGoalWorkflowActivitySnapshotDoesNotDowngradeUserPausedParent
 #[test]
 fn run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot() {
     let (store, _directory) = open_store();
@@ -182,6 +183,7 @@ fn run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot() {
     );
 }
 
+// Parity: go:452dea11:internal/assistant/engine/workflow_reconcile_test.go:73 TestPendingChildCanReopenCompletedRunningParentWorkflow
 #[test]
 fn completed_run_reopens_only_for_a_fresh_durable_approval() {
     let (store, _directory) = open_store();
@@ -272,6 +274,7 @@ fn completed_run_reopens_only_for_a_fresh_durable_approval() {
     );
 }
 
+// Parity: go:452dea11:internal/assistant/engine/persistence_failure_boundaries_test.go:111 TestNativeTaskGraphPersistsCompletedAndPendingInputOutcomes
 #[test]
 fn paused_workflow_run_keeps_accepting_progress_and_terminal_updates() {
     let (store, _directory) = open_store();
@@ -360,6 +363,7 @@ fn paused_workflow_run_keeps_accepting_progress_and_terminal_updates() {
     );
 }
 
+// Parity: go:452dea11:internal/assistant/engine/workflow_goal_test.go:222 TestGoalWorkflowPauseRequestedBeforeCompleteDecisionPausesInsteadOfCompleting
 #[test]
 fn user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume() {
     let (store, _directory) = open_store();

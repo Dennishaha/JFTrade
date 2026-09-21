@@ -505,6 +505,7 @@ fn adk_store_workflow_scheduler_due_and_threshold_triggers() {
     assert!(updated_thresh.payload_json.contains("185.5"));
 }
 
+// Parity: go:452dea11:internal/assistant/engine/workflow_reconcile_test.go:8 TestTaskWorkflowApprovalContinuesParentWorkflow
 #[test]
 fn adk_approval_resolution_stages_continuation_and_denial_cas() {
     // Parity: go:452dea11:internal/assistant/engine/approval_retry_sibling_cancellation_test.go:8 TestSynchronousApprovalDenialCancelsSiblingActions
@@ -566,6 +567,7 @@ fn adk_approval_resolution_stages_continuation_and_denial_cas() {
     assert_eq!(second.approval.status, "DENIED");
 }
 
+// Parity: go:452dea11:internal/assistant/engine/store_recover_test.go:9 TestStoreListProvidersRepairsPersistedDefaultSelection
 /// Parity: go:452dea11:internal/assistant/engine/persistence/provider_selection_test.go:8
 /// TestNormalizeDefaultProviderSelection and
 /// go:452dea11:internal/assistant/engine/persistence/provider_selection_test.go:29

@@ -3043,6 +3043,7 @@ mod product_production_assembly_tests {
         handle.shutdown().await.expect("shutdown cleanly");
     }
 
+    // Parity: go:452dea11:internal/assistant/engine/workflow_goal_test.go:119 TestGoalWorkflowPauseAfterContinueAndResume
     #[tokio::test]
     async fn production_adk_goal_pause_and_resume_are_persisted_atomically() {
         let (_temp_dir, settings_path, config, _security) = setup_test_env();

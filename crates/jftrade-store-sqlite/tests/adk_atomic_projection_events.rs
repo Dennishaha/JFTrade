@@ -26,6 +26,7 @@ fn create_running_run(store: &AdkStore, id: &str, session_id: &str) -> StoredAdk
         .expect("create run")
 }
 
+// Parity: go:452dea11:internal/assistant/engine/persistence_failure_boundaries_test.go:12 TestCanvasWorkflowPersistenceFailuresDoNotReportSuccess
 #[test]
 fn payload_and_session_event_commit_or_rollback_together() {
     let directory = tempdir().expect("temp dir");
@@ -74,6 +75,7 @@ fn payload_and_session_event_commit_or_rollback_together() {
     assert_eq!(current.updated_at, run.updated_at);
 }
 
+// Parity: go:452dea11:internal/assistant/engine/persistence_failure_boundaries_test.go:381 TestCanvasWorkflowSetupFailuresRemainPreRunErrors
 #[test]
 fn missing_session_database_is_not_created_and_run_is_unchanged() {
     let directory = tempdir().expect("temp dir");
@@ -226,6 +228,7 @@ fn duplicate_event_key_with_different_content_rolls_back_projection() {
     assert_eq!(event_content, "original");
 }
 
+// Parity: go:452dea11:internal/assistant/engine/session_context_stale_test.go:106 TestAppendADKEventWithStaleRetrySerializesConcurrentStaleSession
 #[test]
 fn event_must_match_the_run_and_session_before_projection_changes() {
     let directory = tempdir().expect("temp dir");

@@ -130,6 +130,7 @@ fn a_panicking_tool_becomes_a_visible_tool_panic_failure() {
     );
 }
 
+// Parity: go:452dea11:internal/assistant/engine/exec_bounds_test.go:148 TestExecuteRegisteredToolCancellationJoinsHandler
 /// Go re-reads `toolCtx.Err()` after the handler returns, so a cancelled run
 /// wins over a result that raced the cancellation.
 #[test]

@@ -370,6 +370,7 @@ mod tests {
         }
     }
 
+    // Parity: go:452dea11:internal/assistant/engine/workflow_compiler_test.go:51 TestWorkflowCompilerKeepsDefaultSequentialDependencies
     #[test]
     fn test_canvas_linear_chain() {
         let graph = WorkflowCanvasGraph {
@@ -393,6 +394,8 @@ mod tests {
         assert_eq!(compiler.outgoing_edges("agent-node"), &["monitor-node"]);
     }
 
+    // Parity: go:452dea11:internal/assistant/engine/workflow_compiler_test.go:25 TestWorkflowCompilerBuildsJoinForFanIn
+    // Parity: go:452dea11:internal/assistant/engine/workflow_canvas_test.go:133 TestRunCanvasWorkflowExecutesAReachableAgentGraph
     #[test]
     fn test_canvas_diamond_graph_deterministic_tie_breaking() {
         // Start -> Agent B, Agent A -> Monitor
@@ -491,6 +494,7 @@ mod tests {
         assert_eq!(err, CanvasCompilerError::NoExecutableNodes);
     }
 
+    // Parity: go:452dea11:internal/assistant/engine/workflow_compiler_test.go:77 TestWorkflowCompilerDeduplicatesAndIgnoresBlankDependencies
     #[test]
     fn test_canvas_invalid_node_and_edge_inputs() {
         let empty_node = WorkflowCanvasGraph {

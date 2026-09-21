@@ -369,6 +369,7 @@ mod tests {
         }
     }
 
+    // Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:265 TestRuntimeReconciliationDoesNotStealFreshForeignLease
     #[test]
     fn stale_replay_safe_claim_takes_over_with_fencing() {
         let mut store = ClaimStore::default();
@@ -390,6 +391,7 @@ mod tests {
         );
     }
 
+    // Parity: go:452dea11:internal/assistant/engine/persistence/execution_claims_test.go:229 TestToolInvocationCrashPolicyFailsClosedOrFencedTakeover
     #[test]
     fn fail_closed_stale_claim_becomes_indeterminate() {
         let mut store = ClaimStore::default();

@@ -1772,6 +1772,11 @@ Go 的期望：`reply` = 整轮 assistant 文本合并（`先说明一下。优�
 2. 成功分支不更新为 final → 手动压缩用例转红（status `streaming` vs `final`）。
 3. gate 恒成功（跳过重复插入检查）→ 持锁用例转红（第二次压缩被执行，返回快照而非 500）。
 
+### 新增锚点
+
+- 为新 `[x]` 引用的 36 个 Rust 测试函数补 `// Parity: go:452dea11:<go 文件>:<行> <TestName>` 锚点（14 个文件：`crates/jftrade-assistant` 3 个源文件 + 1 个集成测试、`crates/jftrade-engine` 6 个、`crates/jftrade-store-sqlite` 3 个、`crates/jftrade-engine/tests` 1 个）。
+- 未锚定 `function_exact` 告警从 229 回到 **193**（本批新增 36 条批准全部有代码侧锚点，未增加历史欠账）。
+
 ### 仍未结清（下一批）
 
 - `:341`、`:446`、`:506`、`:569`、`:703`：Rust 仍缺 `maybeAutoCompactSession(DuringWorkflow)` 与 `AutoCompactForModelContext`——阈值（0.85 auto / 0.93 aggressive）、pending user text 投影、streaming→final 通知 delta 与 context delta、活跃 RUNNING run 跳过（workflow 入口允许）、模型上下文读取前自动压缩。gate 与通知基础设施本批已就绪，下一批可直接接线；`:446`、`:506` 的结论已同步更新为“gate 已实现、自动压缩入口待补”。
@@ -3179,3 +3184,37 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1690 passed）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2865 Rust** / **959 `[x]`**，0 破坏引用、0 重复 rust_entry）、`pnpm run check:compatibility`、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
 
 > 干扰说明（客观记录，不计为通过）：本批执行期间工作树出现了**非本批**的并发改动——`scripts/compatibility/audit_test_parity.py` 与 `scripts/compatibility/test_audit_test_parity.py`（11:47 落盘，域矩阵重分类 + 自测）以及随之重生成的 `docs/history/go-to-rust/test-parity-report.md`/`test-parity-inventory.md`。这些改动属于其他进行中的工作，本批**未纳入提交**、也未回退。因此 `pnpm run check:zero-go` 在本批末尾转红，且 `pnpm run check:quick` 未复跑至绿；转红原因经核对完全来自上述脚本中新引入的字面量（`internal/pineworkerassets`、`internal/marketdataassets`，命中 zero-go 的资产目录规则），与本批 crates 改动无关。本批 crates 侧证据（fmt/clippy/nextest 1690 全绿、审计 0 破坏引用、架构检查、diff --check）在上述并发改动出现前完成；`check:zero-go`/`check:quick` 需在并发工作落地后复跑确认。
+
+## 第七十六批：`internal/assistant/engine` 执行声明/租约/恢复族与 `workflowexec/**` 全量收口（165 条）
+
+### 范围与结果
+
+- 范围：`internal/assistant/engine` 剩余 165 条 `missing`——执行声明/租约/恢复族（`exec_bounds` 8、`execution_claims` 7、`execution_claim_failure_boundaries` 4、`execution_state_projection_contracts` 4、`persistence/execution_claims` 4、`persistence_failure_boundaries` 7、`runtime_execution_lease_boundaries` 7、`store_recover` 4、`runner_approval_concurrency` 4、`runner_continuation_boundaries` 4、`runner_lifecycle_reconciliation` 4、`session_context_stale` 7）与工作流/目标族（`workflow_agent` 9、`workflow_goal` 9、`workflow_compiler` 4、`workflow_reconcile` 4、`workflow_canvas` 5、`workflow_agent_native_integration` 4、`workflowexec/**` 66）。
+- 结果：`[x]` 1154 → **1190**、`missing` 2597 → **2432**、`partial` 470 → **568**、`boundary` 226 → **257**。本批 165 条 = **36 `[x]`（全部 function_exact）+ 98 partial + 31 boundary**；`internal/assistant/engine` 的未核对余量从 433 条降到 **268 条**（119 个文件）。
+- 本批**未改任何 crate 实现或断言**，只在 14 个 Rust 文件里为新 `[x]` 补 36 行 `// Parity:` 注释锚点（见下），因此没有"先红后改"探针；差异以结论形式登记在清单与本节。
+
+### 执行声明/租约/恢复族（99 条：36 `[x]` + 59 partial + 4 boundary）
+
+- 主要证据面：`crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs`（run/tool 租约的过期、围栏、接管、心跳与重放；输入/审批结清的幂等与冲突语义）、`crates/jftrade-assistant/src/claims.rs` 与 `src/runtime.rs` 的模块内用例（fail-closed 陈旧声明、sibling 审批续跑一次、终态不可恢复）、`crates/jftrade-engine/src/product_adk_model_runtime_*`（工具取消 join、失败工具调用持久化、会话上下文/压缩、终态审计、租约接管围栏、continuation supervisor 的 claim/shutdown 语义）、`crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs` 与 `adk_atomic_projection_events.rs`（终态单调、暂停字段经陈旧写者存活、投影与会话事件原子提交）。
+- `[x]` 代表性锚点：`run_lease_expiry_fencing_and_stale_release_are_rejected`、`completed_tool_output_replays_after_checkpoint_restore`、`stale_tool_completion_is_rejected_after_keyed_takeover`、`input_resolution_is_idempotent_and_conflict_safe`、`approval_resolution_is_idempotent_and_conflict_safe`、`sibling_approvals_resume_once_after_every_decision`、`terminal_run_cannot_be_resumed`、`a_cancelled_tool_call_reports_the_context_cancellation`、`challenge_continuation_supervisor_concurrent_spawn_shutdown_race`、`a_cancelled_run_audits_run_cancelled_and_terminates_once`、`paused_workflow_run_keeps_accepting_progress_and_terminal_updates`、`user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume`、`production_adk_goal_pause_and_resume_are_persisted_atomically`、`workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation`。
+- 记 `partial`/`boundary` 的共同原因：Go 的这些用例驱动的是 engine 内部函数粒度（`persistRunTerminalState`、`startRun` 的租约声明失败、reconcile 子运行、`sessionContextProjection` 的小响应阈值等），Rust 把同一不变量分散到"运行生命周期 CAS + 端口错误分类 + ADK 路由错误矩阵"三个 owner 上，无法逐条一一映射；差异已在每行结论中写明 Rust 已覆盖什么、为何不同。
+
+### 工作流/目标编排族（66 条 workflowexec，全部 `[~]`：39 partial + 27 boundary）
+
+- Go 的 `WorkflowExecutor` 是一层**Go 专属编排**：goal 决策（`goal.complete`/`goal.continue`）、子运行启动/收口（`StartWorkflowChildRuns`/`RunChild`/`EnsureWorkflowChildrenFinalReplies`）、workflow plan 持久化与最终广播（`PrepareWorkflowParent`/`FinalizePlannedWorkflow`）、workflow task toolset（`claim`/`complete`/`delegate`/`merge`、runtime task 上限 `maxRuntimeWorkflowTasks`）、`reconcileWorkflowChildren` 与审批阻塞聚合 `workflowCompletionBlockers`。
+- Rust 没有同形 owner：loop/goal 运行由 ADK 模型运行时执行，运行状态由生命周期 CAS 拥有，暂停/恢复由 pause/resume mutation 拥有，任务由 ADK 任务 CRUD 拥有，画布子运行由 `adk_workflow_*` 端口拥有。因此 66 条按"Rust 已覆盖的运行/审批/画布语义 + 缺失的编排语义"逐条记为 partial（39）或 boundary（27），没有一条被强行批准为等价。
+- 代表性 Rust 证据面：`product_adk_mutation_product_tests.rs::goal_pause_rejects_child_runs_and_resume_reports_missing_runs`、`product_adk_store_parity_tests.rs::goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields`、`product_adk_model_runtime_catalog_policy_tests.rs::gated_call_persists_the_go_approval_projection`、`product_production_ports_adk_tests.rs::adk_routes_surface_durable_store_failures_instead_of_empty_success` / `resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window`、`adk_workflow_canvas_contracts.rs::approval_and_running_nodes_suspend_then_resume_the_same_durable_request`、`crates/jftrade-assistant/src/workflow.rs::TaskGraph`（依赖/环/ready-claim-complete）。
+- 明确保留的 Go-only 语义（已在清单逐行写明）：`iteration_limit` 暂停与持久化、中断内部工具调用剪枝（Rust 以 FAILED 标记替代）、runtime task 上限、goal decision 工具族、workflow completion blockers、task.delegate/merge 与父运行暂停投影、native task graph 的 prepare/compile/runner 装配层。
+
+### 清单定义修正（审计驱动，本批内完成）
+
+- 本批前段曾把同一 Rust 测试同时批准给两条 Go 行，触发审计 `[x] mappings must use unique Rust test entries; duplicate references=18`，违反"[x] 必须引用真实且唯一的 Rust 测试"这一清单定义。修正方式：16 个重复组各保留 1 条 `[x]`，其余改为 `[~] partial` 并在结论中写明"共享哪条证据、差异在哪"。
+- 其中两条**第七十五批已批准**的行（`internal/assistant/engine/runner_chat_test.go:490`、`runner_continuation_boundaries_test.go:11`）在本批被误改到冲突锚点，已按 HEAD 字节恢复原结论与锚点；对应的两条本批行改记 partial（`execution_state_projection_contracts_test.go:44`、`runner_approval_concurrency_test.go:154`）。
+- 修正后审计：`OK: 1190 function_exact mappings cite existing workspace tests`、0 破坏引用、0 重复 rust_entry；`partial` 中 8 条无解析引用全部是前批已登记的缺口（本批新增 0 条）。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/engine` 余量 **268 条 / 119 文件**：根目录 211（`runtime_store` 10、`adk_store_edges` 8、`adk_tool_edges` 7、`completion_review` 7、`skill_reg*` 13、`runner_*` 15、`session_context_projection` 5、`sqlite_tools`/`store_business` 8 …），`persistence/` 22、`providers/` 15、`skillsruntime/` 8、`completionreview/` 4、`adk22regression/` 3、`usageprojection/` 3、`workflowruntime/` 2。下一批按 `providers`+`skillsruntime`+`persistence`（45 条）先分片，再收根目录余量。
+- 跨批 follow-up 汇总：P0 无新增。P1 = 前批清单 + 本批新增 **Go workflow executor 编排层整体未迁移**（goal decision 工具、子运行计划/收口、workflow task toolset、runtime task 上限、审批 reconcile 与 completion blockers）——需要产品决策是否在 Rust 重建该层，或在清单中永久保留为边界；同时登记 `iteration_limit` 暂停、中断内部工具调用剪枝、`RUN_LEASE_CLAIM_FAILED` 错误码、跨连接声明级并发用例四项缺口。P2 = 前批清单 + workflowexec 内部 helper（plan/描述裁剪、任务排序、modelsList 包装层、`resultSummary` 回退文案）与"部分结果 + 错误并存"的任务工具返回形态。
+
+验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked --no-fail-fast`（**3042 passed / 2 skipped**，锚点插入前）、补锚点后复跑 `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（**1930 passed / 0 skipped**）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2925 Rust** / **1190 `[x]`**，missing 2432、partial 568、boundary 257；0 破坏引用、0 重复 rust_entry、未锚定告警 193）、`pnpm run check:compatibility`（278 OpenAPI operations / 18 route groups / 19 probes；desktop runtime 3 profiles / 6 link cases / 10 facade commands / 4 events）、`node scripts/check-zero-go.mjs`（2888 tracked files / 0 release artifact）、`pnpm run check:rust:architecture`、`git diff --check`，最后 `pnpm run check:quick`。

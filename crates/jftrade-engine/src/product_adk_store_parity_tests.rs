@@ -1106,6 +1106,7 @@ fn workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete() {
     );
 }
 
+// Parity: go:452dea11:internal/assistant/engine/workflow_canvas_test.go:223 TestRunCanvasWorkflowFailsClosedWhenTheChildProviderIsUnavailable
 /// Parity: go:452dea11:internal/assistant/assembly/workflow_tools_test.go:285
 /// `TestUnavailableWorkflowToolManagerFailsClosed`.
 ///

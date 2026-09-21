@@ -728,6 +728,7 @@ fn session_context_read_reports_pressure_without_compacting() {
     );
 }
 
+// Parity: go:452dea11:internal/assistant/engine/session_context_stale_test.go:315 TestSessionContextProjectionTrimsOversizedToolResponses
 #[test]
 fn context_compaction_shrinks_the_projected_session_view() {
     let (_directory, port) = context_port();

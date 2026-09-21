@@ -706,6 +706,7 @@ mod tests {
         );
     }
 
+    // Parity: go:452dea11:internal/assistant/engine/runner_continuation_boundaries_test.go:275 TestGoalResumeFailsClosedWhenExecutionLeaseCannotBeClaimed
     #[test]
     fn terminal_run_cannot_be_resumed() {
         let now = timestamp();
@@ -722,6 +723,7 @@ mod tests {
         );
     }
 
+    // Parity: go:452dea11:internal/assistant/engine/runner_approval_concurrency_test.go:92 TestConcurrentSiblingApprovalsAreMergedBeforeContinuation
     #[test]
     fn sibling_approvals_resume_once_after_every_decision() {
         let now = timestamp();

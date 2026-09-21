@@ -183,6 +183,7 @@ impl EngineTestCluster {
     }
 }
 
+// Parity: go:452dea11:internal/assistant/engine/workflow_canvas_test.go:11 TestWorkflowCanvasCompilerSequentialFanOutAndJoin
 #[test]
 fn test_canvas_workflow_multi_node_execution_and_context_propagation() {
     let cluster = EngineTestCluster::new();
@@ -312,6 +313,7 @@ fn test_canvas_workflow_multi_node_execution_and_context_propagation() {
     assert_eq!(node_runs[3]["status"], "SUCCEEDED");
 }
 
+// Parity: go:452dea11:internal/assistant/engine/workflow_canvas_test.go:167 TestRunCanvasWorkflowPausesForAChildInputRequest
 #[test]
 fn approval_and_running_nodes_suspend_then_resume_the_same_durable_request() {
     for pending in ["PENDING_APPROVAL", "PENDING_INPUT", "RUNNING"] {
@@ -417,6 +419,7 @@ fn restart_keeps_completed_nodes_and_the_inflight_request_identity() {
     assert_eq!(ids[1], ids[2]);
 }
 
+// Parity: go:452dea11:internal/assistant/engine/workflow_canvas_test.go:60 TestWorkflowCanvasCompilerRejectsInvalidGraphs
 #[test]
 fn test_canvas_workflow_cycle_detection_rejects_with_400() {
     let cluster = EngineTestCluster::new();
@@ -472,6 +475,7 @@ fn test_canvas_workflow_cycle_detection_rejects_with_400() {
     }
 }
 
+// Parity: go:452dea11:internal/assistant/engine/workflow_compiler_test.go:97 TestWorkflowCompilerRejectsUnknownDependencies
 #[test]
 fn test_canvas_workflow_self_loop_and_invalid_edges_rejected() {
     let cluster = EngineTestCluster::new();

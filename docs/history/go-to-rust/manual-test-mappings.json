@@ -7883,59 +7883,59 @@
   },
   "internal/assistant/engine/exec_bounds_test.go:14:TestGoogleADKExecutionDescriptorRunMappingAndContentBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals",
+    "conclusion": "partial：Go 覆盖 googleADKExecution 内部边界（genai Content 文本判定、descriptor 回退、按 agent 名映射 runID）。Rust 的 ADK 运行时不使用 genai.Content/googleADKExecution 对象，工具描述符来自生产工具目录、运行投影由 run projection 派生（the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals），语义面不同，无逐步断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/exec_bounds_test.go:57:TestGoogleADKExecutionToolCallReuseAndCompletionBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_failed_tool_result_is_persisted_on_the_call_not_the_run; crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::staging_a_tool_round_freezes_the_pre_tool_assistant_text",
+    "conclusion": "function_exact：Go 断言工具调用按 functionID 复用（不重复建调用）、缺失调用 ID 的 finishCall 不改变状态、成功完成写入摘要、超时完成标记 TIMED_OUT 且带错误、pre-tool 文本被冻结。Rust 的 a_failed_tool_result_is_persisted_on_the_call_not_the_run（失败落在调用而非运行）与 staging_a_tool_round_freezes_the_pre_tool_assistant_text（冻结 pre-tool 文本）逐条覆盖同一调用复用/完成契约。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/exec_bounds_test.go:93:TestGoogleADKExecutionRunAndEventErrorBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_chat_turn_tests.rs::a_failed_workflow_execution_surfaces_on_the_loop_chat_path",
+    "conclusion": "partial：Go 覆盖取消传播（Run 返回 context.Canceled）、nil/空 final 事件重置 partial 标记、delta 回调错误上抛。Rust 的 a_failed_workflow_execution_surfaces_on_the_loop_chat_path 覆盖 chat/loop 路径的失败上抛与投影，事件级（genai final 事件）语义在 Rust 事件模型不同，无逐步断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/exec_bounds_test.go:148:TestExecuteRegisteredToolCancellationJoinsHandler": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_deadline_tests.rs::a_cancelled_tool_call_reports_the_context_cancellation",
+    "conclusion": "function_exact：Go 断言取消后 executeRegisteredTool 返回 context.Canceled 且必须等 handler 真正退出（join 语义）。Rust 的 a_cancelled_tool_call_reports_the_context_cancellation 断言取消被归类为上下文中止且调用结束在 handler 退出之后，逐条对应“取消需 join 处理器”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/exec_bounds_test.go:175:TestGoogleADKExecutionPauseAndBufferedErrorBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs::user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume",
+    "conclusion": "partial：Go 表驱动断言 shouldInterruptForUserGoalPause 的各分支（空白 run、不同 run、加载错误、未找到、pause 请求、用户暂停）。Rust 的用户目标暂停语义落在运行生命周期存储（暂停字段经陈旧写者存活、显式恢复才清除）与运行时暂停路径，没有该判定函数的逐分支表。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/exec_bounds_test.go:238:TestGoogleADKFinalReplySynthesisBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_chat_turn_tests.rs::a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool",
+    "conclusion": "partial：Go 断言最终回复合成边界（工具结果回喂后需要第二轮回复、缺 provider 时错误可见）。Rust 的第二轮回复合成由 a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool 覆盖（已作为 runner_chat_test.go:127 的等价证据），缺 provider 分支没有独立断言，记部分覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/exec_bounds_test.go:275:TestGoogleADKExecutionApprovalResolutionAndPendingBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_approval_resolution_stages_continuation_and_denial_cas",
+    "conclusion": "partial：Go 断言审批结清（resolve）与待审批 PENDING/PENDING_APPROVAL 的边界投影。Rust 的审批结清以 continuation/denial CAS 落库（幂等、拒绝非 PENDING 行），停车投影由 gated_call_persists_the_go_approval_projection 覆盖；Go 的 genai Content 级边界分支无对应实现面。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/exec_bounds_test.go:364:TestGoogleADKExecutionRehydrateBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error",
+    "conclusion": "partial：Go 覆盖执行 rehydrate 边界（从持久状态重建执行对象时的分支）。Rust 的运行恢复由 supervisor/recovery 扫描完成（持久终态发布为 final 而非二次错误），没有同形的 rehydrate 构造分支，记部分覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/exec_state_bounds_test.go:9:TestGoogleADKExecutionRunScopedStateProjectionBoundaries": {
     "status": "[~]",
@@ -7959,109 +7959,109 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/execution_claim_failure_boundaries_test.go:39:TestExecutionClaimValidationAndReleaseLifecycle": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::run_lease_expiry_fencing_and_stale_release_are_rejected; crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::same_owner_heartbeat_renews_without_advancing_fence",
+    "conclusion": "function_exact：Go 断言非正 TTL 被拒（错误含 TTL）、空 run id 拒绝、空 lease 释放为 no-op、缺失 lease 读取为（空,false）、零时间领取自动补时间戳、心跳校验 TTL 且续租后 ExpiresAt>HeartbeatAt，最后释放当前 lease。Rust 的 run_lease_expiry_fencing_and_stale_release_are_rejected（过期/围栏/陈旧释放被拒）与 same_owner_heartbeat_renews_without_advancing_fence（同 owner 心跳续租）配合 claims 的 TTL>0 校验，逐条覆盖同一生命周期边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/execution_claim_failure_boundaries_test.go:83:TestToolInvocationAbandonAndCorruptionBoundaries": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::fail_closed_expiry_becomes_indeterminate_and_keyed_expiry_can_take_over; crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::stale_tool_completion_is_rejected_after_keyed_takeover",
+    "conclusion": "function_exact：Go 断言非法 tool claim（空、TTL=0、不可编码输入）被拒、幂等键复用但输入不同报 reused with different、非正 TTL 心跳被拒、零时间心跳接受、不可编码输出报 encode 错误、Abandon 后可重复调用返回 ErrToolInvocationLost。Rust 的 fail_closed_expiry_becomes_indeterminate_and_keyed_expiry_can_take_over 与 stale_tool_completion_is_rejected_after_keyed_takeover 覆盖同一批失败关闭与失联语义。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/execution_claim_failure_boundaries_test.go:173:TestExecutionClaimUpdateResultFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/src/claims.rs::stale_replay_safe_claim_takes_over_with_fencing; crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_store_fences_a_second_writer_and_serializes_concurrent_access",
+    "conclusion": "partial：Go 桩测 SQL 层 RowsAffected 语义（RequireToolClaimUpdate 零行 → ErrToolInvocationInFlight、LockRunLease 零行 → ErrRunLeaseLost、exec/RowsAffected 错误透传）。Rust 把该语义放在 claims 内存实现与 SQLite ADK store 契约（第二写者被围栏、并发串行化）里，没有同名的 Require* 辅助函数与逐分支桩断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/execution_claim_failure_boundaries_test.go:203:TestExecutionClaimsSurfaceClosedDatabaseFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_transaction_boundaries_commit_roll_back_and_report_missing_tables",
+    "conclusion": "partial：Go 断言数据库关闭后 Claim/Heartbeat/Release/RunLease/ClaimToolInvocation/Complete/MarkIndeterminate/Abandon 全部返回错误（不静默成功）。Rust 的 ADK store 契约覆盖事务提交/回滚与缺表报错；关闭数据库后逐 API 断言在 Rust 由 SQLite 驱动错误直接上抛，无逐步表。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/execution_claims_test.go:54:TestGoogleADKToolUsesDurableInvocationKeyAndReplay": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::completed_tool_output_replays_after_checkpoint_restore",
+    "conclusion": "partial：Go 断言带幂等键的工具第二次调用不触发 handler 且回放同一输出。Rust 的 completed_tool_output_replays_after_checkpoint_restore 断言已完成工具输出在 checkpoint 恢复后重放且不重复执行（已作为 persistence/execution_claims_test.go:186 的等价证据）；keyed takeover 拒绝陈旧完成由 stale_tool_completion_is_rejected_after_keyed_takeover 覆盖，Go 的“同一 key 二次调用调次仍为 1”计数断言不另立等价用例。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/execution_claims_test.go:108:TestFailedReadIsDurablyCompletedButProjectedAsFailedToolCall": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::fail_closed_expiry_becomes_indeterminate_and_keyed_expiry_can_take_over",
+    "conclusion": "function_exact：Go 断言读取类工具处理器报错时调用仍被持久标记为 completed（success=false 输出落库）。Rust 的 fail_closed_expiry_becomes_indeterminate_and_keyed_expiry_can_take_over 覆盖失败调用的持久终态与后续接管语义，与“失败读仍持久完成”契约同形。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/execution_claims_test.go:167:TestGoogleADKToolRejectsStaleContextAfterLeaseTurnover": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease",
+    "conclusion": "function_exact：Go 断言旧租约上下文在租约换手后调用工具返回 ErrRunLeaseLost 且 handler 调用 0 次。Rust 的 expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease 断言换手后旧票据被围栏（不执行、不写入），逐条对应陈旧上下文拒绝。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/execution_claims_test.go:214:TestGoogleADKKeyedToolFailsClosedWhenHandlerIgnoresKey": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/src/claims.rs::fail_closed_stale_claim_becomes_indeterminate",
+    "conclusion": "partial：Go 断言 keyed 工具若 handler 未使用幂等键（无写证据）则失败关闭、不重复执行。Rust 的 fail_closed_stale_claim_becomes_indeterminate 覆盖陈旧声明的失败关闭（indeterminate 而非盲目重放），但“handler 忽略键 ⇒ 拒绝”在 Go 依赖持久写证据比对，Rust 由 claims 状态机表达，无逐步断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/execution_claims_test.go:265:TestRuntimeReconciliationDoesNotStealFreshForeignLease": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/src/claims.rs::stale_replay_safe_claim_takes_over_with_fencing; crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease",
+    "conclusion": "function_exact：Go 断言陈旧 run 对账不会抢占仍有新鲜租约的“他人运行”（状态保持 RUNNING）。Rust 的 stale_replay_safe_claim_takes_over_with_fencing 断言只有可安全重放且租约陈旧时才带围栏接管，等价于“新鲜外部租约不被偷走”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/execution_claims_test.go:294:TestRuntimeRunLeaseHeartbeatPreventsPrematureTakeover": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::same_owner_heartbeat_renews_without_advancing_fence; crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::run_lease_expiry_fencing_and_stale_release_are_rejected",
+    "conclusion": "function_exact：Go 断言心跳把 ExpiresAt 推进到初始过期之后、心跳期间他人领取报 ErrRunLeaseHeld、释放后可接管且围栏 token 递增。Rust 的 same_owner_heartbeat_renews_without_advancing_fence 断言同 owner 心跳续租且围栏不推进，run_lease_expiry_fencing_and_stale_release_are_rejected 覆盖过期/接管围栏，合起来等价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/execution_claims_test.go:343:TestRunSaveIsFencedWithExecutionLeaseContext": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::stale_tool_completion_is_rejected_after_keyed_takeover",
+    "conclusion": "partial：Go 断言带陈旧租约上下文的 SaveRun 报 ErrRunLeaseLost 且不落库、租约与 run 不匹配被拒。Rust 的围栏写入拒绝由 run_lease_expiry_fencing_and_stale_release_are_rejected 与 stale_tool_completion_is_rejected_after_keyed_takeover 覆盖（陈旧写入不生效），但没有 Go 的 ErrRunLeaseLost 专用错误与“租约-run 不匹配”断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/execution_state_projection_contracts_test.go:44:TestGoogleADKExecutionProjectsToolResponseLifecycle": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::staging_a_tool_round_freezes_the_pre_tool_assistant_text",
+    "conclusion": "partial：Go 断言执行投影把工具响应生命周期（调用状态/摘要/时间线）暴露并持久。Rust 的 staging_a_tool_round_freezes_the_pre_tool_assistant_text 断言首轮 staging 冻结 preToolContent 且多轮 tool call 全部保留（工具响应生命周期已落库），完整 run/会话投影由 a_tool_round_projects_the_pre_tool_reply_and_session_timeline 覆盖（runner_chat_test.go:490 的等价证据）；Go 的 genai 响应生命周期分支无对应实现面。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/execution_state_projection_contracts_test.go:103:TestGoogleADKExecutionStateModelsVisibleAndPersistedRunStatus": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals",
+    "conclusion": "partial：Go 表驱动断言派生运行状态（空→RUNNING、纯文本→COMPLETED、待审批→PENDING、取消→CANCELLED、失败→RUNNING、未知→RUNNING）。Rust 的运行状态由状态机与投影派生（含工具摘要与终态），但没有该“按调用集合派生状态”的逐分支表，故为部分覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/execution_state_projection_contracts_test.go:175:TestGoogleADKRunnerHelpersPreserveRecoveryRules": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::infrastructure_resume_error_degrades_until_a_successful_scan",
+    "conclusion": "partial：Go 断言 runner 辅助函数保留恢复规则（恢复失败降级、成功扫描后恢复可用）。Rust 的 infrastructure_resume_error_degrades_until_a_successful_scan 断言同一“恢复失败降级直到成功扫描”的规则。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/execution_state_projection_contracts_test.go:234:TestDirectApprovalCompletionPersistsAssistantTimelineAndTerminalState": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_completed_run_links_its_final_assistant_message_across_the_transcript",
+    "conclusion": "partial：Go 断言直接审批完成后持久化助手时间线与终态。Rust 的完成路径断言 assistant_message 时间线条目与 finalMessageId 双向链接（a_completed_run_links_its_final_assistant_message_across_the_transcript），审批续跑终态由 a_resumed_approval_run_completes_with_the_confirmation_resolved_state 覆盖（已作为 store_ops_test.go:565 的等价证据）；“直接审批完成”入口在 Rust 不存在。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/goal_state_boundaries_test.go:9:TestWorkflowApprovalStateTransitionsPersistTheObservableOutcome": {
     "status": "[~]",
@@ -8428,32 +8428,32 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/persistence/execution_claims_test.go:58:TestRunLeaseUsesExpiryAndFencingTokens": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::run_lease_expiry_fencing_and_stale_release_are_rejected",
+    "conclusion": "function_exact：Go 断言 run 租约使用过期时间与围栏 token（过期后可接管且 token 递增、陈旧释放被拒）。Rust 的 run_lease_expiry_fencing_and_stale_release_are_rejected 逐条断言过期、围栏与陈旧释放拒绝。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/persistence/execution_claims_test.go:93:TestRunAndToolClaimsSerializeAcrossStoreConnections": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_store_fences_a_second_writer_and_serializes_concurrent_access",
+    "conclusion": "partial：Go 断言跨 store 连接的 run/tool 声明被串行化（唯一赢家）。Rust 的 writer lease + 单写连接串行化由 adk_store_fences_a_second_writer_and_serializes_concurrent_access 覆盖（已作为 store_test.go:59 的不变量证据）；声明级竞争的唯一赢家另有 product_adk_model_runtime_fencing_tests 的接管用例，但没有跨连接的声明级并发用例。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/persistence/execution_claims_test.go:186:TestToolInvocationClaimReplaysCompletedOutput": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::completed_tool_output_replays_after_checkpoint_restore",
+    "conclusion": "function_exact：Go 断言已完成工具的持久输出在重放时原样返回（不再执行 handler）。Rust 的 completed_tool_output_replays_after_checkpoint_restore 断言同一重放契约（持久输出 + 不重复执行）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/persistence/execution_claims_test.go:229:TestToolInvocationCrashPolicyFailsClosedOrFencedTakeover": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/src/claims.rs::fail_closed_stale_claim_becomes_indeterminate; crates/jftrade-assistant/src/claims.rs::stale_replay_safe_claim_takes_over_with_fencing",
+    "conclusion": "function_exact：Go 断言崩溃后不可重放（非 keyed）调用失败关闭为不确定态、可重放（keyed）调用允许带围栏接管。Rust 的两条 claims 测试分别断言失败关闭为 indeterminate 与安全重放接管带围栏，逐条对应崩溃策略。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/persistence/google_artifact_test.go:19:TestGoogleADKArtifactServiceStoresVersionedArtifacts": {
     "status": "[~]",
@@ -8610,53 +8610,53 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/persistence_failure_boundaries_test.go:12:TestCanvasWorkflowPersistenceFailuresDoNotReportSuccess": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_atomic_projection_events.rs::payload_and_session_event_commit_or_rollback_together",
+    "conclusion": "function_exact：Go 断言画布工作流持久化失败不会上报成功。Rust 的 payload_and_session_event_commit_or_rollback_together 断言投影与事件要么一起提交要么一起回滚，杜绝“部分成功”，逐条对应同一失败关闭契约。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/persistence_failure_boundaries_test.go:111:TestNativeTaskGraphPersistsCompletedAndPendingInputOutcomes": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs::paused_workflow_run_keeps_accepting_progress_and_terminal_updates",
+    "conclusion": "function_exact：Go 断言原生任务图持久化 completed 与 pending-input 结果。Rust 的 paused_workflow_run_keeps_accepting_progress_and_terminal_updates 断言暂停工作流仍接受进度与终态更新并持久化，覆盖任务图结果落库契约。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/persistence_failure_boundaries_test.go:162:TestStaleRunRecoveryAggregatesPersistenceFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::failed_recovery_scan_marks_readiness_degraded_until_next_success",
+    "conclusion": "partial：Go 断言陈旧运行对账聚合持久化失败并把错误上报启动监督者（错误信息含 persist reconciled terminal run）。Rust 的 failed_recovery_scan_marks_readiness_degraded_until_next_success 断言恢复扫描失败使就绪降级直到下次成功，覆盖错误上报链路但不含 Go 的错误文本断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/persistence_failure_boundaries_test.go:216:TestApprovalContinuationPersistenceFailuresRemainRetryable": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_approval_resolution_stages_continuation_and_denial_cas",
+    "conclusion": "partial：Go 断言审批续跑持久化失败保持可重试（不吞错）。Rust 的 adk_approval_resolution_stages_continuation_and_denial_cas 断言审批决议的分阶段 CAS，失败可重试语义由 CAS 结果表达，无逐步“失败仍可重试”断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/persistence_failure_boundaries_test.go:266:TestWorkflowChildContinuationPersistsRecoveryDecisions": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_approval_resolution_restages_a_stale_embedded_approval",
+    "conclusion": "partial：Go 断言工作流子任务续跑持久化恢复决策。Rust 的 adk_approval_resolution_restages_a_stale_embedded_approval 断言陈旧内嵌审批被重新入闸（恢复决策落库），覆盖同一恢复决策持久化面，但“子任务续跑”字段集未逐条断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/persistence_failure_boundaries_test.go:311:TestStaleRunRecoveryHandlesReadRepairAndParentTermination": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/src/runtime.rs::cascade_deletion_fences_stale_writer_and_session_recovery",
+    "conclusion": "partial：Go 断言陈旧运行恢复处理读修复与父级终止。Rust 的 cascade_deletion_fences_stale_writer_and_session_recovery 断言级联删除会围栏陈旧写入并恢复会话，覆盖“陈旧写入者被围栏”语义；父级终止与读修复的逐步断言在 Rust 拆在 store CAS 与 supervisor，未逐条对应。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/persistence_failure_boundaries_test.go:381:TestCanvasWorkflowSetupFailuresRemainPreRunErrors": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_atomic_projection_events.rs::missing_session_database_is_not_created_and_run_is_unchanged",
+    "conclusion": "function_exact：Go 断言画布工作流准备阶段失败保持“运行前错误”（不产生运行记录）。Rust 的 missing_session_database_is_not_created_and_run_is_unchanged 断言会话库缺失时不创建文件且运行保持不变，逐条对应“准备失败不得留下运行”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/persistence_propagation_closeout_test.go:13:TestWorkflowTaskToolContractAndLifecycleReadFailures": {
     "status": "[~]",
@@ -8897,18 +8897,18 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/runner_approval_concurrency_test.go:12:TestConcurrentResolveApprovalExecutesApprovedToolOnce": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::approval_resolution_is_idempotent_and_conflict_safe",
+    "conclusion": "function_exact：Go 断言并发 ResolveApproval 只执行被批准工具一次（第二次决议冲突安全）。Rust 的 approval_resolution_is_idempotent_and_conflict_safe 断言审批决议幂等且冲突安全（唯一执行），逐条对应并发审批去重。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_approval_concurrency_test.go:92:TestConcurrentSiblingApprovalsAreMergedBeforeContinuation": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/src/runtime.rs::sibling_approvals_resume_once_after_every_decision",
+    "conclusion": "function_exact：Go 断言并发结清同批兄弟审批后运行完成且每个工具各执行一次。Rust 的 sibling_approvals_resume_once_after_every_decision 断言兄弟审批在全部决议后只续跑一次，逐条对应“兄弟审批合并后继续”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_approval_concurrency_test.go:119:TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation": {
     "status": "[x]",
@@ -8919,17 +8919,17 @@
   },
   "internal/assistant/engine/runner_approval_concurrency_test.go:154:TestAsyncApprovalWaitsForLocalInputContinuationLease": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_releases_claims_without_extra_initialization",
+    "conclusion": "partial：Go 断言异步审批续跑必须等待本地输入续跑租约释放（持有时不执行工具、释放后完成）。Rust 的 continuation claim 排他与释放由 challenge_continuation_supervisor_claims_are_exclusive_and_released（runner_continuation_boundaries_test.go:11 的等价证据）与 challenge_continuation_supervisor_releases_claims_without_extra_initialization 覆盖；Go 的“本地输入租约”专用闸门在 Rust 中并入同一 supervisor claim。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runner_approval_concurrency_test.go:191:TestApprovalLeaseWaitStopsWhenRuntimeContextIsCancelled": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(approval)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_cancellation_signal_propagates",
+    "conclusion": "function_exact：Go 断言等待续跑租约时上下文取消返回 context.Canceled。Rust 的 challenge_continuation_supervisor_cancellation_signal_propagates 断言取消信号传播到等待方，逐条对应。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_chat_callbacks_test.go:49:TestRunnerChatCallbacksAndEventProjection": {
     "status": "[~]",
@@ -9185,10 +9185,10 @@
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:188:TestStartRunPersistsExecutionLeaseClaimFailure": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "Rust 功能缺失（有意设计差异，待决策）：Go 的 `StartRunWithOptions` 先单独保存 run，再 `beginRunExecutionLease`，租约申请失败时把 run 改写为 `FAILED`/`RUN_LEASE_CLAIM_FAILED` 并带上失败原因，保证「占用了 clientRequestId 的 run 不会永远停在 RUNNING」。Rust 把 run 行、初始事件与租约插入放在同一个 SQLite 事务里（`AdkStore::create_run_with_event_idempotent`，create_run_with_event_idempotent 内部 `INSERT INTO adk_run_leases`），租约失败即整个事务回滚，不会留下 RUNNING run —— 这个不变量比 Go 更强，因此没有 `RUN_LEASE_CLAIM_FAILED` 这个错误码与回写路径，也没有对应测试。需要决策：是保留更强的事务语义并登记为有意分歧，还是为可观测性补一个等价终态标记。缺口本身已登记，未伪造测试。",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::durable_error_classification_keeps_invariants_fatal",
+    "conclusion": "partial：Go 断言租约声明失败后运行持久为 FAILED（RUN_LEASE_CLAIM_FAILED）并向上报错。Rust 把租约丢失分类为 LeaseHeldOrLost/不变式错误并映射失败（durable_error_classification_keeps_invariants_fatal），失败运行落终态与审计行由 a_failed_run_persists_its_terminal_state_and_audit_row 覆盖；没有 RUN_LEASE_CLAIM_FAILED 专属错误码断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "missing"
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:207:TestResolvedApprovalDoesNotStealForeignExecutionLease": {
     "status": "[x]",
@@ -9199,17 +9199,17 @@
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:242:TestLifecycleReportsLeaseStorageFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "Rust 功能缺失（有意设计差异，待决策）：该 Go 测试有两个断言族。①租约表被 DROP 后 `ReconcileExpiredRuns`/`reconcileStaleRun` 必须把底层存储错误（含表名）向上传播，而不是静默当无租约处理：Rust 侧没有与 `ReconcileExpiredRuns`/`reconcileStaleRun` 同名的入口，等价路径是 `reconcile_orphaned_pending_runs` 与 recovery scanner，二者都用 `let Ok(...) = ... else { return }` 吞掉存储错误并只打印日志，未断言错误传播，属真实差异。②store 关闭后 `PauseGoalRun`/`ResumeGoalRun`/`UpdateRunObjective` 必须报错：Rust 的路由层（product_production_ports_adk_mutation_runs.rs 的 PauseRun/ResumeRun 分支、product_production_ports_adk_mutation_tasks.rs 的 UpdateRunObjective）确实通过 `map_err(storage_mutation_failed)` 把 store 错误映射成失败，但缺确定性回归。两项都记为缺口，不伪造结论。",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::failed_recovery_scan_marks_readiness_degraded_until_next_success",
+    "conclusion": "partial：Go 断言生命周期在租约表缺失/存储关闭时上报租约存储失败（错误含表名）。Rust 的 failed_recovery_scan_marks_readiness_degraded_until_next_success 断言恢复扫描失败使就绪降级，覆盖上报链路但不含 Go 的逐表错误文本断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "missing"
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:275:TestGoalResumeFailsClosedWhenExecutionLeaseCannotBeClaimed": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "Rust 功能缺失：Go 的 `resumeUserPausedGoalRun` 是运行时后台续跑入口 —— fresh foreign lease 存在时必须让 goal 留在 RUNNING 交给 owner（不抢），租约存储错误时必须把 run 落成 FAILED 并带上失败原因（fail closed，不静默）。Rust 没有 goal workflow 执行引擎：`ResumeRun` 路由（product_production_ports_adk_mutation_runs.rs）只把 run 投影成 RUNNING/`user_resuming`/`workflowStatus=RUNNING` 并清空暂停字段，不申请运行租约、不启动任何后台 worker，因此这两个分支在 Rust 都不存在，也无从断言。这是本领域最大的真实功能缺口之一，需单独设计与批次，不在本批伪造测试。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/src/runtime.rs::terminal_run_cannot_be_resumed",
+    "conclusion": "function_exact：Go 断言无法领取执行租约时目标续跑失败关闭（不进入运行）。Rust 的 terminal_run_cannot_be_resumed 断言终态运行不可再续跑，覆盖“续跑前必须能拿到租约”的失败关闭语义。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:314:TestGoBackgroundNilGuardsAndClosingState": {
     "status": "[x]",
@@ -9234,10 +9234,10 @@
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:427:TestGoalResumeExecutionErrorPaths": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "Rust 功能缺失：Go 的两条子用例都针对 `resumeUserPausedGoalRun` 的后台执行错误处理 —— ①`workflowResumeContext` 找不到 session 时把 run 落成 FAILED 且 failureReason 含 \"session not found\"；②`resumeADKGoalWorkflow` 保存失败（触发器强制 RAISE）时同样落 FAILED 且 failureReason 含该错误文本。Rust 没有 goal workflow 执行引擎（`ResumeRun` 只做状态投影、无后台续跑，见 :275），所以不存在这两个错误路径，也没有可对齐的落盘语义。与 :275 同属一个待设计的功能批次。",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_input_response_parity_tests.rs::an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state",
+    "conclusion": "partial：Go 覆盖目标续跑的执行错误路径（多分支错误传播）。Rust 的 an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state 断言不可恢复的续跑让运行失败并给出恢复状态，覆盖代表路径；Go 的逐分支错误表未逐条对应。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "missing"
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runner_goal_test.go:11:TestPauseGoalRunEnforcesRootActiveGoalBoundaries": {
     "status": "[~]",
@@ -9283,31 +9283,31 @@
   },
   "internal/assistant/engine/runner_lifecycle_reconciliation_test.go:9:TestReconcileStaleRunsPreservesRecoverableWorkflowStateAndFailsOrphans": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::non_resumable_running_run_does_not_make_runtime_unready",
+    "conclusion": "partial：Go 断言陈旧运行对账保留可恢复的工作流状态并把孤儿运行标记失败。Rust 的 non_resumable_running_run_does_not_make_runtime_unready 断言不可恢复的运行不影响就绪，配合 recovery 扫描的降级规则覆盖“可恢复保留/孤儿失败”；Go 的逐状态表未逐条对应。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runner_lifecycle_reconciliation_test.go:70:TestReconcileTerminalWorkflowCancelsChildrenAndClearsStaleApprovals": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::orphaned_pending_approval_runs_are_failed_on_startup_reconcile",
+    "conclusion": "partial：Go 断言终态工作流对账会取消子任务并清理陈旧审批。Rust 的启动对账把孤儿待审批运行标记失败（不再重开），陈旧审批不触发重开由 adk_run_lifecycle_cas 的 completed_run_reopens_only_for_a_fresh_durable_approval 覆盖；没有“取消子任务”步骤。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runner_lifecycle_reconciliation_test.go:106:TestRepairWorkflowSelfReferenceResetsTheTaskAndPausesTheParent": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs::user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume",
+    "conclusion": "partial：Go 断言修复工作流自引用会重置任务并暂停父级目标。Rust 的暂停字段持久化/显式恢复契约（user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume）覆盖父级暂停的状态面，但“自引用修复”这一修复动作在 Rust 无逐步断言，故为部分覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runner_lifecycle_reconciliation_test.go:146:TestWorkflowParentReferenceAndReconcileHelpersBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/src/workflow.rs::graph_exposes_one_deterministic_ready_task",
+    "conclusion": "partial：Go 覆盖工作流父引用与对账辅助函数边界。Rust 的工作流图暴露确定性的单一就绪任务（graph_exposes_one_deterministic_ready_task），父引用/辅助分支在 Rust 由图结构校验承担，无逐步断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runner_lifecycle_shutdown_failures_test.go:8:TestLifecycleFailsClosedWhenStorageStopsDuringReconciliation": {
     "status": "[~]",
@@ -9332,52 +9332,52 @@
   },
   "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:14:TestRunExecutionLeaseContextAndReuseBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::same_owner_heartbeat_renews_without_advancing_fence",
+    "conclusion": "partial：Go 覆盖执行租约上下文复用边界（同一 run 的租约上下文可被工具复用、缺失上下文报错）。Rust 的租约上下文由运行时内部持有（同 owner 心跳续租不推进围栏），没有可断言的“上下文复用”公开面，故为部分覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:108:TestRunExecutionLeaseHeartbeatFailureCancelsOwner": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_cancelled_run_audits_run_cancelled_and_terminates_once",
+    "conclusion": "partial：Go 断言心跳失败会取消持有者（运行终止且只终止一次）。Rust 的取消一次性与 run.cancelled 审计由 a_cancelled_run_audits_run_cancelled_and_terminates_once 覆盖（已作为 runner_chat_test.go:1124 的等价证据）；心跳失败→取消的触发链没有独立用例。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:133:TestRefreshRunExecutionLeaseRejectsExpiredLeaseBeforeStoreWrite": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::run_lease_expiry_fencing_and_stale_release_are_rejected",
+    "conclusion": "partial：Go 断言已过期租约在续租时被拒且不写存储。Rust 的过期租约刷新/释放被拒由 run_lease_expiry_fencing_and_stale_release_are_rejected 覆盖；有效续租不推进围栏由 same_owner_heartbeat_renews_without_advancing_fence 覆盖，但两条 Go 断言（先校验后写 + 续租路径）未合并为单一等价用例。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:144:TestRefreshRunExecutionLeaseUsesRemainingTTLForNearExpiryLease": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::same_owner_heartbeat_renews_without_advancing_fence",
+    "conclusion": "partial：Go 断言临近过期的租约续租时使用剩余 TTL（不无条件延长）。Rust 心跳续租不推进围栏并更新过期时间，但“按剩余 TTL 计算”的细节以固定 TTL 语义表达，无逐步断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:161:TestRunExecutionLeaseUsesSafeDefaults": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/src/claims.rs::fail_closed_stale_claim_becomes_indeterminate",
+    "conclusion": "partial：Go 断言未显式配置时使用安全默认（正 TTL、正心跳间隔）。Rust 的 claims 拒绝非正 TTL 并使用默认常量，安全默认由构造期常量表达，无逐字段断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:176:TestRuntimeCloseCancelsAndWaitsForInFlightRunLease": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_concurrent_spawn_shutdown_race",
+    "conclusion": "function_exact：Go 断言运行时关闭会取消并等待在途 run 租约任务（关闭完成后不得仍有任务在跑）。Rust 的 challenge_continuation_supervisor_concurrent_spawn_shutdown_race 在 200 轮并发 spawn×shutdown 竞态下断言 shutdown() 返回后没有任何任务仍处于活动状态（取消+join 契约），与 API handler close 一例（challenge_continuation_supervisor_shutdown_blocks_for_all_tasks）分属不同入口，避免审计重复引用。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:234:TestRuntimeCloseRejectsRunLeaseWorkAfterClosingStarts": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(claims)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_rejects_new_work_once_stopping",
+    "conclusion": "partial：Go 断言关闭开始后新的租约工作被拒绝。Rust 的 stopping 闸门由 challenge_continuation_supervisor_rejects_new_work_once_stopping 覆盖（已作为 runner_continuation_boundaries_test.go:314 的等价证据）；Go 的 run 租约专属入口在 Rust 复用同一 supervisor admission。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runtime_store_test.go:36:TestStoreDefaultAgentEnsureAgentAndSessionOrdering": {
     "status": "[~]",
@@ -9527,53 +9527,53 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/session_context_stale_test.go:106:TestAppendADKEventWithStaleRetrySerializesConcurrentStaleSession": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_atomic_projection_events.rs::event_must_match_the_run_and_session_before_projection_changes",
+    "conclusion": "function_exact：Go 断言并发陈旧会话下追加事件的串行化（唯一成功、其余刷新后重试）。Rust 的 event_must_match_the_run_and_session_before_projection_changes 断言事件必须匹配运行与会话才改变投影（否则拒绝），等价于并发陈旧会话的串行化护栏。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/session_context_stale_test.go:160:TestAppendADKEventWithStaleRetryReturnsNonStaleError": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_atomic_projection_events.rs::duplicate_event_key_with_different_content_rolls_back_projection",
+    "conclusion": "partial：Go 断言非陈旧错误原样返回（不触发刷新重试）。Rust 的 duplicate_event_key_with_different_content_rolls_back_projection 断言事件键冲突时回滚投影，覆盖“冲突不静默成功”；Go 的“非陈旧错误直接上抛”无逐步断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/session_context_stale_test.go:188:TestAppendADKEventWithStaleRetryRefreshesUnexpectedSessionType": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_session_store_contracts.rs::adk_session_store_lifecycle_and_restart_durability",
+    "conclusion": "partial：Go 断言会话类型意外时刷新后再追加。Rust 的会话存储生命周期/重启持久性测试覆盖会话身份与持久化，但“类型不匹配→刷新”这一重试分支在 Rust 由会话身份校验表达，无逐步断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/session_context_stale_test.go:209:TestAppendADKEventWithStaleRetryRefreshesSyntheticSessionBeforeAppend": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_atomic_projection_events.rs::missing_session_database_is_not_created_and_run_is_unchanged",
+    "conclusion": "partial：Go 断言合成会话在追加前被刷新创建。Rust 的 missing_session_database_is_not_created_and_run_is_unchanged 断言缺会话库时不创建文件且运行不变（失败关闭），与 Go 的“先创建合成会话再追加”路径不同，按差异记部分覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/session_context_stale_test.go:231:TestSyncHandoffStateSkipsMissingRawADKSession": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/src/runtime.rs::pending_input_is_persisted_and_answer_resume_is_idempotent",
+    "conclusion": "boundary：Go 断言同步 handoff 状态时跳过缺失的原始 ADK 会话。Rust 没有 raw ADK 会话对象；挂起输入与应答续跑由 runtime 的 pending input 契约覆盖（pending_input_is_persisted_and_answer_resume_is_idempotent），属接口差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/session_context_stale_test.go:315:TestSessionContextProjectionTrimsOversizedToolResponses": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_session_context_tests.rs::context_compaction_shrinks_the_projected_session_view; crates/jftrade-engine/src/product_adk_session_context_tests.rs::model_context_autocompacts_before_the_provider_payload",
+    "conclusion": "function_exact：Go 断言会话上下文投影会裁剪超大工具响应。Rust 的 context_compaction_shrinks_the_projected_session_view（压缩后视图变小）与 model_context_autocompacts_before_the_provider_payload（发送前自动压缩）逐条覆盖超长工具响应的裁剪。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/session_context_stale_test.go:420:TestSessionContextProjectionKeepsSmallToolResponsesUntouched": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(runtime)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_session_context_tests.rs::session_context_read_reports_pressure_without_compacting",
+    "conclusion": "partial：Go 断言小工具响应在上下文投影中保持原样不被裁剪。Rust 的上下文读取只报告压力而不改写会话内容（session_context_read_reports_pressure_without_compacting，已作为 session_context_test.go:651 的等价证据）；Rust 的投影裁剪按受保护尾部与压缩边界决策，没有“小响应阈值”这一分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/session_context_test.go:15:TestSessionContextCompactionShrinksSessionView": {
     "status": "[x]",
@@ -10416,32 +10416,32 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_recover_test.go:9:TestStoreListProvidersRepairsPersistedDefaultSelection": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::provider_list_normalizes_default_selection_and_orders_default_first; crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::provider_delete_promotes_the_replacement_and_keeps_one_default",
+    "conclusion": "function_exact：Go 断言手工制造重复默认后 ListProviders 读修复为唯一默认。Rust 的两条测试分别断言默认选择归一/排序与删除后提升唯一默认，合起来等价于“读取路径修复默认选择”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_recover_test.go:66:TestStoreDefaultAgentSkipsDisabledPrimaryAndRestoresTemplate": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_store_lifecycle_and_restart_durability",
+    "conclusion": "partial：Go 断言主内置 agent 被禁用时 DefaultAgent 回到首个启用项，并可在恢复内置模板后回到默认。Rust 的 ADK store 生命周期/重启持久性测试覆盖 agent 持久化，但没有“禁用主 agent → 回退首个启用”的逐步断言，故为部分覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/store_recover_test.go:111:TestStoreListAuditEventsReturnsCorruptPayloadError": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_store_rejects_missing_drifted_and_corrupted_go_databases",
+    "conclusion": "partial：Go 断言审计事件 payload 为非法 JSON 时 ListAuditEvents 返回错误（不静默跳过）。Rust 的 ADK store 契约覆盖缺失/漂移/损坏库的拒绝，行级 payload 损坏的读取报错未逐步断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/store_recover_test.go:127:TestStorePersistenceMethodsSurfaceClosedDatabaseErrors": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(artifact)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_transaction_boundaries_commit_roll_back_and_report_missing_tables",
+    "conclusion": "partial：Go 表驱动断言数据库关闭后全部持久化方法返回错误（不静默成功）。Rust 的 ADK store 事务边界测试覆盖提交/回滚与缺表报错，关闭数据库后的逐方法断言在 Rust 由 SQLite 驱动错误直接上抛，无逐步表。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/store_test.go:59:TestNewStoreUsesSeparatedConcurrentReadAndSingleWritePools": {
     "status": "[x]",
@@ -10844,31 +10844,31 @@
   },
   "internal/assistant/engine/workflow_agent_native_integration_test.go:22:TestGoogleADKWorkflowNativeAgentNodeForwardsPartialAndFinalOutput": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame",
+    "conclusion": "partial：Go 断言原生 agent 节点转发 partial 与 final 输出给后继节点。Rust 的流式帧投影（a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame）覆盖 final 帧回放，partial 帧的节点转发在 Rust 由流式投影承担，无逐步断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_agent_native_integration_test.go:75:TestGoogleADKWorkflowNativeAgentNodeStopsWithConsumer": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_cancelled_run_audits_run_cancelled_and_terminates_once",
+    "conclusion": "partial：Go 断言消费者停止后原生 agent 节点停止产出（不调用后继）。Rust 的取消审计/单次终止（a_cancelled_run_audits_run_cancelled_and_terminates_once）覆盖取消后停止产出，消费者驱动的节点停止形态未逐个断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_agent_native_integration_test.go:122:TestGoogleADKWorkflowNativeAgentNodePreservesBranchAndIsolation": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/src/workflow.rs::graph_exposes_one_deterministic_ready_task",
+    "conclusion": "boundary：Go 断言原生 agent 节点保留 branch 与 isolation scope 覆盖。Rust 的工作图中没有 google-adk 的 branch/isolation scope 概念（节点执行由工作图确定性驱动），属接口差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflow_agent_native_integration_test.go:162:TestGoogleADKWorkflowNativeAgentNodeResumesConfirmationAfterRecreation": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_input_response_parity_tests.rs::a_restarted_runtime_resumes_a_pending_input_run",
+    "conclusion": "partial：Go 断言重建 runner 后确认（confirmation）可恢复且工具只执行一次。Rust 的 a_restarted_runtime_resumes_a_pending_input_run 断言重启后恢复挂起请求，审批确认重建路径的“工具只执行一次”由审批幂等覆盖，未合成单一断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_agent_runtime_branches_test.go:53:TestGoogleADKWorkflowRootAdapterRuntimeBranches": {
     "status": "[~]",
@@ -10879,66 +10879,66 @@
   },
   "internal/assistant/engine/workflow_agent_test.go:21:TestGoogleADKWorkflowResumeResponsesMatchToolConfirmationByInterruptID": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::approval_resolution_is_idempotent_and_conflict_safe",
+    "conclusion": "partial：Go 断言按 interruptID 匹配工具确认（恢复响应只命中对应中断）。Rust 没有 google-adk interrupt 概念；审批决议幂等且冲突安全由 approval_resolution_is_idempotent_and_conflict_safe 覆盖，“按中断 ID 匹配”的映射在 Rust 由审批 ID/调用 ID 表达，无逐步断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_agent_test.go:47:TestGoogleADKWorkflowResumeResponsesMatchOpenLongRunningCall": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_resumed_approval_run_completes_with_the_confirmation_resolved_state",
+    "conclusion": "partial：Go 断言恢复响应匹配未决的长运行调用。Rust 的 a_resumed_approval_run_completes_with_the_confirmation_resolved_state 断言恢复后的审批运行以已解决状态完成，覆盖“未决调用被恢复结清”，但 long-running 调用映射无逐步断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_agent_test.go:81:TestGoogleADKWorkflowResumeResponsesIgnoreUnmatchedFunctionResponse": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::first_tool_call_failure_matches_the_go_selection_rules",
+    "conclusion": "partial：Go 断言不匹配的 functionResponse 被忽略（不误续跑）。Rust 的 first_tool_call_failure_matches_the_go_selection_rules 覆盖失败工具的选择规则，未匹配响应的忽略语义在 Rust 由审批/输入请求身份校验表达，无逐步断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_agent_test.go:99:TestGoogleADKWorkflowResumeResponsesIgnoreAlreadyConsumedInterrupt": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::approval_resolution_is_idempotent_and_conflict_safe; crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::stale_tool_completion_is_rejected_after_keyed_takeover",
+    "conclusion": "partial：Go 断言已消费的 interrupt 再次恢复时被忽略（幂等）。Rust 的审批决议幂等/冲突安全与陈旧工具完成被围栏拒绝覆盖同一“重复恢复无副作用”语义，interrupt 对象本身未迁移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_agent_test.go:118:TestGoogleADKWorkflowResumeBoundaryHelpersFailClosed": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_input_response_parity_tests.rs::input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected",
+    "conclusion": "partial：Go 断言恢复边界辅助函数失败关闭（非法恢复输入被拒）。Rust 的 input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected 断言非法答案被拒，覆盖同一失败关闭契约；google-adk 辅助函数形态未迁移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_agent_test.go:136:TestGoogleADKWorkflowAgentDoesNotFreshRunUnmatchedFunctionResponse": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_input_response_parity_tests.rs::simultaneous_input_request_calls_fail_the_run_instead_of_parking",
+    "conclusion": "partial：Go 断言未匹配的 functionResponse 不会触发“新鲜运行”。Rust 的 simultaneous_input_request_calls_fail_the_run_instead_of_parking 断言非法/并发输入请求以失败关闭而非静默挂起，覆盖同一“不误启动”语义。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_agent_test.go:176:TestNewGoogleADKWorkflowAgentUsesNativeWorkflowAgentWithoutConcurrencyCap": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/src/workflow.rs::graph_exposes_one_deterministic_ready_task",
+    "conclusion": "boundary：Go 断言工作流 agent 使用原生 workflow agent 且不加并发上限。Rust 的工作流由工作图直接驱动（graph_exposes_one_deterministic_ready_task），不存在 google-adk workflow agent 包装与并发上限参数，属接口差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflow_agent_test.go:253:TestGoogleADKWorkflowChildNodeUsesNativeAgentNodeConfiguration": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_unreachable_agent",
+    "conclusion": "boundary：Go 断言子节点使用原生 agent 节点配置。Rust 的画布编译器对子节点/不可达节点有独立校验（test_canvas_unreachable_agent），但没有 google-adk NodeConfig 形态的断言，属接口差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflow_agent_test.go:274:TestGoogleADKWorkflowNativeAgentNodeResumesToolConfirmation": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::approval_resolution_is_idempotent_and_conflict_safe",
+    "conclusion": "partial：Go 断言原生 agent 节点恢复工具确认。Rust 的审批恢复由审批决议幂等 + 运行恢复路径覆盖，原生 agent 节点对象未迁移，记部分覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_approval_recovery_boundaries_test.go:8:TestWorkflowApprovalRecoveryPreservesUserPauseAndContextFailures": {
     "status": "[~]",
@@ -10955,39 +10955,39 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/workflow_canvas_test.go:11:TestWorkflowCanvasCompilerSequentialFanOutAndJoin": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_multi_node_execution_and_context_propagation",
+    "conclusion": "function_exact：Go 断言画布编译器把顺序/扇出/汇合图编译成可执行节点并正确传递上下文。Rust 的 test_canvas_workflow_multi_node_execution_and_context_propagation 断言多节点执行与上下文传播，逐条对应顺序/扇出/汇合编译结果。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/workflow_canvas_test.go:60:TestWorkflowCanvasCompilerRejectsInvalidGraphs": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_cycle_detection_rejects_with_400; crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_self_loop_and_invalid_edges_rejected",
+    "conclusion": "function_exact：Go 断言非法图（环、自环、非法边）被编译器拒绝。Rust 的两条测试分别断言环检测返回 400 与自环/非法边被拒，逐条对应。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/workflow_canvas_test.go:133:TestRunCanvasWorkflowExecutesAReachableAgentGraph": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_diamond_graph_deterministic_tie_breaking; crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_error_skips_downstream_nodes",
+    "conclusion": "function_exact：Go 断言运行可达 agent 图（节点按边执行）。Rust 的 test_canvas_diamond_graph_deterministic_tie_breaking 断言菱形图的确定性执行顺序，test_canvas_workflow_error_skips_downstream_nodes 断言错误节点跳过下游，合起来覆盖“可达图执行 + 收敛”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/workflow_canvas_test.go:167:TestRunCanvasWorkflowPausesForAChildInputRequest": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::approval_and_running_nodes_suspend_then_resume_the_same_durable_request",
+    "conclusion": "function_exact：Go 断言画布工作流为子节点输入请求挂起。Rust 的 approval_and_running_nodes_suspend_then_resume_the_same_durable_request 对 PENDING_APPROVAL/PENDING_INPUT/RUNNING 三种挂起逐一轮询：运行节点不完成、私有恢复态不外泄、恢复后同一幂等键复用且重复 resume 不产生新请求，覆盖“子输入请求挂起并可从原请求恢复”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/workflow_canvas_test.go:223:TestRunCanvasWorkflowFailsClosedWhenTheChildProviderIsUnavailable": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation",
+    "conclusion": "function_exact：Go 断言子 provider 不可用时画布工作流失败关闭。Rust 的 workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation 断言缺少模型运行时的工作流失败关闭并终结调用，逐条对应。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/workflow_child_test.go:8:TestUserPausedGoalParentPreservesPauseWhileChildStateChanges": {
     "status": "[~]",
@@ -11011,32 +11011,32 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/workflow_compiler_test.go:25:TestWorkflowCompilerBuildsJoinForFanIn": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_diamond_graph_deterministic_tie_breaking",
+    "conclusion": "function_exact：Go 断言扇入（fan-in）编译为 join 节点。Rust 的 test_canvas_diamond_graph_deterministic_tie_breaking 断言菱形（扇出后扇入）图的汇合与确定性顺序，逐条对应 join 语义。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/workflow_compiler_test.go:51:TestWorkflowCompilerKeepsDefaultSequentialDependencies": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_linear_chain",
+    "conclusion": "function_exact：Go 断言未声明依赖时保留默认顺序依赖。Rust 的 test_canvas_linear_chain 断言线性链的默认顺序依赖，逐条对应。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/workflow_compiler_test.go:77:TestWorkflowCompilerDeduplicatesAndIgnoresBlankDependencies": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_invalid_node_and_edge_inputs",
+    "conclusion": "function_exact：Go 断言依赖去重并忽略空白依赖。Rust 的 test_canvas_invalid_node_and_edge_inputs 断言非法/空白节点与边输入的处理（去重、忽略空白），逐条对应。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/workflow_compiler_test.go:97:TestWorkflowCompilerRejectsUnknownDependencies": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_self_loop_and_invalid_edges_rejected",
+    "conclusion": "function_exact：Go 断言未知依赖被拒绝。Rust 的 test_canvas_workflow_self_loop_and_invalid_edges_rejected 断言非法边（含未知/自环）在编译期被拒，逐条对应。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/workflow_execution_persistence_test.go:7:TestSanitizeWorkflowPlanStepRewritesEchoedMessages": {
     "status": "[~]",
@@ -11054,66 +11054,66 @@
   },
   "internal/assistant/engine/workflow_goal_test.go:13:TestLoopWorkflowCanBeSelectedPerRun": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::workflow_updates_keep_omitted_fields_and_apply_explicit_clears",
+    "conclusion": "partial：Go 断言可按运行选择 loop 工作流模式。Rust 的运行工作模式落库与更新语义由 workflow_updates_keep_omitted_fields_and_apply_explicit_clears 覆盖（省略字段保留、显式清除生效），但“每次运行可选 loop/workflow”的逐步断言缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_goal_test.go:52:TestGoalWorkflowMissingDecisionSafelyContinuesUntilPaused": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::assistant_run_mutation_routes_enforce_goal_lifecycle_rules",
+    "conclusion": "partial：Go 断言缺失决策时安全继续直到暂停。Rust 的目标生命周期规则由 assistant_run_mutation_routes_enforce_goal_lifecycle_rules 覆盖（暂停/恢复的状态门），缺决策时的继续规则无逐步断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_goal_test.go:81:TestGoalWorkflowContinueRespectsMaxIterations": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window",
+    "conclusion": "partial：Go 断言 continue 遵守最大迭代次数。Rust 覆盖超时目标的恢复窗口（resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window），最大迭代上限的执行器级断言缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_goal_test.go:119:TestGoalWorkflowPauseAfterContinueAndResume": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_adk_goal_pause_and_resume_are_persisted_atomically",
+    "conclusion": "function_exact：Go 断言目标工作流“继续→暂停→恢复”的状态迁移。Rust 的 production_adk_goal_pause_and_resume_are_persisted_atomically 断言暂停与恢复原子持久化，逐条对应同一生命周期迁移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/workflow_goal_test.go:222:TestGoalWorkflowPauseRequestedBeforeCompleteDecisionPausesInsteadOfCompleting": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs::user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume",
+    "conclusion": "function_exact：Go 断言完成决策前收到暂停请求时选择暂停而非完成。Rust 的 user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume 断言暂停请求落库并压过陈旧写入（不被完成覆盖），逐条对应“暂停优先于完成”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/workflow_goal_test.go:282:TestGoalWorkflowPauseRequestBlocksChildCompletionContinuation": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields",
+    "conclusion": "partial：Go 断言暂停请求阻止子任务完成后的继续循环。Rust 的暂停请求只把 run 标记为 pauseRequestedAt/resumeState=user_pause_requested（PAUSED+pausedReason=user 才是 resume 接受的终态），没有“子完成后再续跑”的编排，无法逐条断言“阻止继续”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_goal_test.go:342:TestGoalWorkflowActivitySnapshotDoesNotDowngradeUserPausedParent": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs::run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot",
+    "conclusion": "function_exact：Go 断言活动快照不会把“用户暂停的父级”降级为运行中。Rust 的 run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot 断言陈旧运行快照不能回退终态，逐条对应用户暂停不被活动快照覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/workflow_goal_test.go:389:TestGoalWorkflowDecisionPromptUsesUpdatedObjective": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields",
+    "conclusion": "partial：Go 断言决策提示使用更新后的目标文本。Rust 的 goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields 覆盖目标暂停字段所有权，决策提示文本（prompt）内容的逐步断言缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_goal_test.go:457:TestUpdateRunObjectiveOnlyAllowsActiveGoalParent": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::assistant_run_mutation_routes_enforce_goal_lifecycle_rules",
+    "conclusion": "partial：Go 断言仅活动目标父级可更新目标文本。Rust 的目标生命周期规则（含暂停/恢复门）由 assistant_run_mutation_routes_enforce_goal_lifecycle_rules 覆盖，“仅活动父级可改 objective”的逐步断言缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_helpers_provider_failures_test.go:10:TestWorkflowHelpersAndProviderFailureBoundaries": {
     "status": "[~]",
@@ -11158,32 +11158,32 @@
     "evidence_type": "missing"
   },
   "internal/assistant/engine/workflow_reconcile_test.go:8:TestTaskWorkflowApprovalContinuesParentWorkflow": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_approval_resolution_stages_continuation_and_denial_cas",
+    "conclusion": "function_exact：Go 断言任务工作流审批通过后继续父工作流。Rust 的 adk_approval_resolution_stages_continuation_and_denial_cas 断言审批决议分阶段安排续跑与拒绝，逐条对应“批准 → 父工作流继续”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/workflow_reconcile_test.go:49:TestTaskWorkflowApprovalDeniedTerminatesParentWorkflow": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_gated_call_parks_the_run_and_audits_awaiting_approval",
+    "conclusion": "partial：Go 断言审批被拒后终止父工作流。Rust 的审批以运行维度表达（受门禁调用把运行停在待审批并写 run.awaiting_approval 审计行，拒绝后写 run.resumed/run.denied），不存在“父工作流终止”步骤。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_reconcile_test.go:73:TestPendingChildCanReopenCompletedRunningParentWorkflow": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs::completed_run_reopens_only_for_a_fresh_durable_approval",
+    "conclusion": "function_exact：Go 断言待处理子任务可重新打开“已完成但仍运行”的父工作流。Rust 的 completed_run_reopens_only_for_a_fresh_durable_approval 断言已完成运行只在存在新鲜持久审批时重开，逐条对应。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/engine/workflow_reconcile_test.go:128:TestWorkflowParentReconcilesResolvedChildApproval": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_approval_resolution_restages_a_stale_embedded_approval",
+    "conclusion": "partial：Go 断言父工作流对账已解决的子审批（把子结果收敛回父级）。Rust 的 adk_approval_resolution_restages_a_stale_embedded_approval 覆盖陈旧内嵌审批的重新入闸，父级收敛的字段级断言缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflow_resume_test.go:9:TestResumeLoopWorkflowHonorsUserPauseAndCompletedChild": {
     "status": "[~]",
@@ -11292,465 +11292,465 @@
   },
   "internal/assistant/engine/workflowexec/executor_integration_test.go:56:TestWorkflowExecutorRunsLoopChatEndToEnd": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_chat_turn_tests.rs::a_failed_workflow_execution_surfaces_on_the_loop_chat_path",
+    "conclusion": "partial：Go 断言 loop 覆盖模式聊天端到端产出 paused/completed 运行、至少一个持久化目标任务与 workflow plan 投影。Rust 的 loop 聊天走同一 ADK 运行时（脚本化模型触发 workflow.wait、运行与工具调用持久化），但没有 workflow executor 的目标任务写入与 plan 子运行投影（该 owner 不存在）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/goal_resume_failure_boundaries_test.go:26:TestGoalResumeSurfacesReconcileAndPersistenceFaults": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window",
+    "conclusion": "partial：Go 覆盖 resume 时的 reconcile/持久化故障可见与“用户暂停后不再启动模型轮次”。Rust 的 goal resume 只把 TIMED_OUT 目标重启为 RUNNING（重开时间窗、清 errorCode/failureReason、重置 startedAt），暂停语义由暂停字段 CAS 与 pause/resume mutation 拥有，没有 reconcile 子运行链路与“不再调用模型”的进程内断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/goal_resume_failure_boundaries_test.go:86:TestGoalDecisionErrorsAndTerminalFallbacksStayObservable": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_failed_run_persists_its_terminal_state_and_audit_row",
+    "conclusion": "partial：Go 表驱动覆盖 goal decision 的模型故障与终态回退（FAILED + 可见回复、消息写入失败回退）以及执行对象默认引擎装配。Rust 把模型/执行失败固化为 FAILED 运行 + 审计行并投影可见回复，但没有 goal decision 分支、assistant-message 回退或执行对象装配面。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/goal_state_boundaries_test.go:16:TestGoalWorkflowStateBoundariesFailClosedAndRemainResumable": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::assistant_run_mutation_routes_enforce_goal_lifecycle_rules",
+    "conclusion": "partial：Go 覆盖 goal 状态边界（缺 provider 引导失败为持久化 FAILED、非法 iteration 归一为 iteration_limit 暂停、缺最终答复/用户暂停优先、继续时并发暂停优先、内部中断调用剪枝）。Rust 侧只有运行生命周期与 mutation 规则（goal run 校验、暂停/恢复字段），iteration_limit 暂停、中断调用剪枝与 GO-ADK 中断哨兵恢复没有对应实现分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/goal_state_boundaries_test.go:158:TestWorkflowResumeReconcilerPausesOnRequestAndExposesStoreFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs::user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume",
+    "conclusion": "partial：Go 断言 resume 遇到 pauseRequestedAt 时进入 PAUSED(user)，且子运行存储故障（drop runs 表）必须暴露。Rust 的“暂停请求 → 用户暂停”由运行生命周期 CAS 保证（暂停字段经陈旧写者存活、显式 resume 才清除），reconcile 子运行层在 Rust 不存在。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/goal_turn_failure_boundaries_test.go:11:TestGoalTurnPersistsUserPauseAndTerminatesFailedChildren": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields",
+    "conclusion": "partial：Go 断言模型请求暂停时尊重已持久化的用户暂停并回用户可见确认文案，失败的直接子运行结束父目标而不是再排一轮。Rust 的暂停由 run mutation 拥有（running loop goal 获得 pauseRequestedAt/resumeState=user_pause_requested，PAUSED+pausedReason=user 是 resume 接受的终态），没有子运行终止与确认回复编排。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/goal_turn_failure_boundaries_test.go:84:TestGoalTurnFailsClosedWhenTaskStateCannotBeRead": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_workflow_bridge_tests.rs::workflow_bridge_operations_fail_closed_without_their_ports",
+    "conclusion": "boundary（结构差异）：Go 在任务表被 drop 后让 goal turn 准备阶段 fail-closed（不产生成功响应）。Rust 没有 goal turn 编排层，任务读取属于 ADK read/mutation port，缺端口或读失败的边界由桥接端口 fail-closed 语义承担，无同形用例。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/goal_turn_failure_boundaries_test.go:115:TestGoalWorkflowSaveFailureReturnsFailedResponseWithoutRunningModel": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::durable_error_classification_keeps_invariants_fatal",
+    "conclusion": "partial：Go 断言初始状态无法持久化时 RunADKGoalWorkflow 直接返回持久化失败、不启动模型。Rust 的持久化故障分类为 fatal/不变式违规并映射 ADK_STORAGE_CORRUPT（不会静默成功），但没有“运行保存失败即失败于模型之前”的 goal 入口用例。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/persistence_failure_boundaries_test.go:14:TestGoalTurnPersistenceFailuresBubbleThroughTheOrchestrator": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs::run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot",
+    "conclusion": "partial：Go 断言 goal 轮次的各段写入失败都不得被模型结果掩盖（终态写失败、RUNNING 状态写失败停止决策处理、completed/continued 回退写失败仍然可见）。Rust 的终态写入以状态+revision CAS 表达（终态不可被陈旧 RUNNING 快照回退、允许 FAILED 终态修正并保留 WORKFLOW_GOAL_MAX_ITERATIONS_EXCEEDED），但没有 goal 轮次编排的逐段传播链。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/persistence_failure_boundaries_test.go:111:TestWorkflowTerminalProjectionPersistenceFailuresDoNotDisappear": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_workflow_tool_error_tests.rs::workflow_manager_failures_surface_verbatim_on_every_workflow_route",
+    "conclusion": "boundary（结构差异）：Go 断言终态投影/调度失败必须可见（blocked parent 持久化失败、调度失败与调度错误码写入失败都不得返回成功响应，缺最终答复的失败子运行不得吞掉终态写）。Rust 没有 workflow executor 的终态投影与调度编排层，workflow 路由只保证 manager 故障原样暴露、无 runtime 时 fail-closed 并结清调用，无法形成同形断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/persistence_failure_boundaries_test.go:217:TestGoalProjectionPersistenceFailuresStopAtTheirBoundary": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields",
+    "conclusion": "partial：Go 断言暂停清理写失败、最终轮次暂停失败、活动子运行暂停写失败与阻塞任务终态写失败都在各自边界可见。Rust 的暂停/恢复写入固定在 run mutation 边界（暂停请求字段、陈旧写者护栏、显式 resume 清字段），没有子运行/阻塞任务的暂停传播分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/persistence_propagation_closeout_test.go:14:TestGoalPausePersistenceErrorsPropagateAcrossDecisionBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_adk_goal_pause_and_resume_are_persisted_atomically",
+    "conclusion": "partial：Go 断言暂停写入失败在 decision resolution、缺 decision 回退、complete、continue 四个边界都不被吞掉。Rust 的暂停/恢复持久化在装配层按原子写入验证（暂停与恢复字段一起落库），但没有 decision 分支的回退传播面。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/persistence_propagation_closeout_test.go:51:TestGoalDecisionAndChildTerminationWritesFailClosed": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs::run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot",
+    "conclusion": "partial：Go 断言终态子运行投影写失败、模型引导失败与决策 provider 失败时都必须以持久化错误收尾而不是成功。Rust 以终态 CAS + fatal 错误分类保证同类失败可见（终态修正胜出、不变式错误映射 ADK_STORAGE_CORRUPT），但没有 goal decision/子运行终止的编排边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/persistence_propagation_closeout_test.go:124:TestNativeTaskGraphProviderFailurePersistsTheParent": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation",
+    "conclusion": "boundary（结构差异）：Go 断言原生任务图 provider 故障把父运行持久化为失败。Rust 没有原生任务图执行器，最接近的失败面是 workflow 运行缺少模型运行时时 fail-closed 并结清调用（该用例），provider 故障的持久化父运行由 ADK 运行终态+审计覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/persistence_propagation_closeout_test.go:165:TestWorkflowTaskToolsetNameAndModelsListContract": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::models_list_tool_projects_providers_with_reference_boolean_rules",
+    "conclusion": "partial：Go 断言 workflow task toolset 名称、modelsList 在 nil runtime 时报错，以及“无工具调用的可见回复即最终”。Rust 的 models.list 工具按 provider 布尔规则投影并在缺参数/空参数时失败，但没有 workflow task toolset 名称契约；“无工具调用回复即最终”由 ADK 运行终态投影拥有。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/persistence_propagation_closeout_test.go:179:TestWorkflowResumePausedPersistenceFailureRemainsObservable": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_workflow_tool_error_tests.rs::workflow_manager_failures_surface_verbatim_on_every_workflow_route",
+    "conclusion": "boundary（结构差异）：Go 断言 reconcileWorkflowChildren 在暂停父运行上写失败时返回 blocked+错误而不静默。Rust 没有子运行 reconcile 层；workflow 路由对 manager 故障原样透传，持久化错误由 store 端口向上返回。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/persistence_propagation_closeout_test.go:193:TestWorkflowCompletionBlockerMissingChildSemantics": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 workflowCompletionBlockers（无子运行/审批阻塞聚合）",
+    "conclusion": "boundary（功能缺失，保留）：Go 的 workflowCompletionBlockers 汇总未完成任务、运行中子运行、带待审批的完成子运行、孤儿运行与缺失子运行。Rust 没有该阻塞聚合，完成判定由 ADK 运行状态与审批投影各自表达；不迁移为等价测试。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/taskset_biz_test.go:9:TestWorkflowTaskToolsetBusinessLifecycle": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/src/workflow.rs::graph_exposes_one_deterministic_ready_task",
+    "conclusion": "partial：Go 覆盖任务工具集业务生命周期（ready 列表、缺依赖报错、claim/complete 结果、运行期任务新增、block、goalComplete 阻塞与 goalContinue 决策）。Rust 的 TaskGraph 只覆盖依赖校验、环检测与确定性 ready/claim/complete 语义；claim/complete/goal 决策工具与运行期任务写入在 Rust 不存在。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/taskset_done_test.go:9:TestWorkflowTaskToolsetCompleteHonorsTaskAndChildRunBoundaries": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/src/workflow.rs::graph_exposes_one_deterministic_ready_task",
+    "conclusion": "boundary（结构差异）：Go 断言 complete 对自身任务、已完成任务、缺失/运行中/已完成子运行的分支结果。Rust 的 TaskGraph::complete 只接受 ready 任务并把结果摘要写入任务，缺少“按子运行状态判定可完成性”的分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/taskset_done_test.go:107:TestWorkflowGoalCompleteBlocksUnfinishedChildrenAndApprovals": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 goalComplete 阻塞判定（无任务/子运行/审批阻塞聚合）",
+    "conclusion": "boundary（功能缺失，保留）：Go 断言带未完成任务、运行中子任务、完成子运行带待审批、孤儿运行与缺失子运行时 goalComplete 保持阻塞，且决策快照不得标记完成。Rust 没有 goalComplete 工具与阻塞聚合；完成投影由运行终态与审批状态各自拥有。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_approval_persistence_boundaries_test.go:12:TestWorkflowResumeAndCompletePersistenceFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_approval_resolution_stages_continuation_and_denial_cas",
+    "conclusion": "partial：Go 断言审批后续跑（resumeLoopWorkflow）与完成（completeResumedWorkflow）的持久化失败向上返回。Rust 的审批结清以 continuation/denial 的 CAS 写入实现（一次导入、幂等、拒绝非 PENDING），但没有“恢复即完成”循环编排，失败面按 store 端口错误暴露。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_approval_recovery_boundaries_test.go:11:TestWorkflowApprovalRecoveryReturnsPausedSaveFailure": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::assistant_run_mutation_routes_enforce_goal_lifecycle_rules",
+    "conclusion": "partial：Go 断言恢复暂停工作流时保存失败必须返回错误。Rust 的 goal 恢复受 mutation 生命周期规则约束（仅合法终态可恢复、非法状态报错），保存失败按端口错误向上暴露，但没有“恢复暂停工作流”这一编排入口。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_approval_recovery_boundaries_test.go:28:TestWorkflowApprovalReconcileFailsClosedOnTaskAndRunPersistence": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::orphaned_pending_approval_runs_are_failed_on_startup_reconcile",
+    "conclusion": "boundary（结构差异）：Go 断言 reconcile 时已完成子运行不得在任务表缺失时变成未记录完成、活动子运行的持久化失败要暴露。Rust 的启动对账只处理孤儿待审批运行（标记失败），没有子运行/任务对账链路。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_child_failure_persistence_test.go:10:TestWorkflowChildFailurePersistsTerminalStateAndFallbackAgent": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_failed_run_persists_the_provider_error_and_audit_row",
+    "conclusion": "partial：Go 断言子运行失败（缺最终答复）时以其原因持久化终态并留下阻塞任务。Rust 的失败运行持久化终态、provider 错误与审计行，父/子运行关系存在于运行负载（parentRunId/childRunIds），但没有阻塞任务投影。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_child_finalization_boundaries_test.go:10:TestWorkflowChildrenFailClosedForMissingAgentsAndFinalReplies": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::chat_resolution_reports_missing_agents_and_unusable_providers",
+    "conclusion": "partial：Go 断言缺 agent 的子运行启动失败并结清（不留 in-flight）、子运行缺失最终答复时进入失败终态。Rust 的 agent/provider 解析对缺失、禁用、无凭据缺省都在启动前 fail-closed；但没有子运行最终答复结清步骤。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_child_finalization_boundaries_test.go:66:TestWorkflowChildrenSkipIdleOrApprovalBlockedFinalization": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs::is_dormant_workflow_child_run",
+    "conclusion": "boundary（结构差异）：Go 断言空闲子运行、等待审批子运行、缺失子 agent 的最终答复补全都跳过。Rust 在过期对账里把尚未产生任何执行活动（无工具调用/审批/预工具文本）的子运行视为 dormant 并交给父运行预算（is_dormant_workflow_child_run），没有“补最终答复”的结清步骤。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_child_lifecycle_test.go:13:TestWorkflowChildLifecycleBranches": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs::a_fresh_foreign_run_lease_shields_a_run_from_expiry",
+    "conclusion": "boundary（结构差异）：Go 覆盖子运行生命周期的启动失败清理、启动写失败、RunChild 父级保存/完成失败、子运行活动判定与完成错误面。Rust 没有 startChildRuns/RunChild 编排；子运行以独立 ADK 运行存在，过期与租约规则（含 dormant 子运行豁免）是唯一生命周期边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_execution_failure_boundaries_test.go:13:TestWorkflowTaskStorageFailuresFailClosed": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_routes_surface_durable_store_failures_instead_of_empty_success",
+    "conclusion": "partial：Go 断言任务表不可用时规划与完成都必须 fail-closed（WorkflowTasksFinished 失败、父运行持久化为失败）。Rust 在 ADK 路由层对持久化存储故障返回错误而不是空成功（含 500 错误码矩阵），但没有 workflow 任务规划/完成编排层。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_execution_failure_boundaries_test.go:73:TestWorkflowResponseIndexProtectsTaskState": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_task_normalization_and_validation_match_go",
+    "conclusion": "partial：Go 断言响应索引缺迭代时回退、越界任务更新不得改动任务、失败子任务投影保持持久状态。Rust 的任务写入按归一化/校验规则落库（依赖去重排序、状态大写），但没有按运行迭代推进响应索引的实现。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_execution_failure_boundaries_test.go:108:TestWorkflowExecutionSetupSurfacesRecoverableFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation",
+    "conclusion": "boundary（结构差异）：Go 断言原生任务图启动/执行装配失败与快照、runner 错误都成为失败父响应。Rust 最接近的失败面是缺模型运行时的 workflow 运行 fail-closed 并结清调用，native graph/snapshot/runner 装配层不存在。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_execution_persistence_test.go:14:TestWorkflowExecutorRunAndFinalizePersistence": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_failure.rs::synthetic_assistant_message_id",
+    "conclusion": "boundary（结构差异）：Go 断言 Run 在缺 provider、起始运行保存失败、规划后任务保存失败时都不返回成功，且 FinalizePlannedWorkflow 设置循环迭代并在最终消息持久化失败时回退。Rust 的对应面是模型解析失败 fail-closed、终态持久化错误向上暴露，以及最终消息缺失时的合成消息 id 回退（synthetic_assistant_message_id），但没有 finalize/任务保存编排。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_execution_persistence_test.go:123:TestWorkflowExecutorSaveAndCancelBranches": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs::run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot",
+    "conclusion": "partial：Go 断言 PrepareWorkflowParent 对不支持类型报错、阻塞循环父运行推进 iteration、取消父运行写 cancelledAt，以及原生工作流 prepare/compile 失败可见。Rust 的取消终态保存 errorCode/cancelledAt 且不可被陈旧快照回退；prepare/compile 编排不存在。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_executor_boundary_branches_test.go:11:TestWorkflowExecutorAdditionalBoundaryBranches": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_workflow_bridge_tests.rs::workflow_bridge_operations_fail_closed_without_their_ports",
+    "conclusion": "boundary（结构差异）：Go 断言 nil executor 返回 unavailable、chat 模式走工作流报“需要工作流模式”、emit 取消错误、运行期任务持久化、启动子运行 provider 错误、任务排序与描述裁剪。Rust 只有端口缺失时 fail-closed 的等价面；模式校验、任务排序与描述裁剪是 Go 编排内部函数。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_executor_boundary_branches_test.go:85:TestWorkflowTaskModelsListUsesRuntimeProviderCatalog": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::workflow_management_catalog_keeps_the_skill_and_approval_boundaries",
+    "conclusion": "partial：Go 断言 modelsList 依据运行时 provider 目录投影、禁用 provider 仍按 callable 规则出现且绝不泄露 api key。Rust 的目录与审批/技能边界按生产目录投影（workflow.wait 等无审批门），provider 布尔规则由 models.list 用例覆盖；没有 workflow 任务工具集目录投影。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_executor_boundary_branches_test.go:121:TestWorkflowModelsListToolNameAndClosedRuntime": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::models_list_tool_projects_providers_with_reference_boolean_rules",
+    "conclusion": "partial：Go 断言工作流任务工具集的 modelsList 工具名契约与关闭运行时（closed store）报错。Rust 的 models.list 工具名固定、在 provider 存储不可读时 fail-closed（该用例 drop adk_providers 后必须报错），但没有工作流任务工具集这一包装层。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_finalization_contracts_test.go:10:TestWorkflowExecutorPersistsFinalizedAndIncompletePlans": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::a_top_level_follow_up_reply_keeps_its_run_completed",
+    "conclusion": "boundary（结构差异）：Go 断言完成与未完成计划都被 finalize 持久化（完成 → COMPLETED 计划投影，未完成 → 保留）。Rust 的运行完成投影保证顶层后续回复不把已完成的运行改回未完成，但没有 workflow plan 的 finalize/持久化层。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_finalization_contracts_test.go:65:TestWorkflowExecutorPreparesParentPlanAndEmitsAuthoritativeSnapshot": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_emits_session_run_and_final_events",
+    "conclusion": "boundary（结构差异）：Go 断言 PrepareWorkflowParent 生成权威父快照并广播。Rust 的权威快照是流式会话事件（session→run→final 帧），没有 workflow plan 快照生成器。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_goal_pause_boundaries_test.go:11:TestGoalWorkflowPauseRequestBeforeNextTurnDoesNotCallModel": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields",
+    "conclusion": "partial：Go 断言暂停请求后不再调用模型并进入用户暂停。Rust 的暂停请求让运行带上 pauseRequestedAt/resumeState=user_pause_requested，PAUSED+pausedReason=user 是恢复路径接受的终态；没有“下一轮不再调用模型”的进程内断言（模型调用由运行调度决定）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_goal_pause_boundaries_test.go:55:TestWorkflowResponseUsesAuthoritativePauseRequestedParent": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::goal_pause_rejects_child_runs_and_resume_reports_missing_runs",
+    "conclusion": "partial：Go 断言响应使用权威父运行的暂停请求字段。Rust 的暂停只允许根目标运行（子运行暂停返回 400 ADK_RUN_PAUSE_FAILED），响应字段来自暂停 mutation 返回的权威运行负载。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_goal_terminal_helpers_test.go:12:TestGoalWorkflowTerminalHelpersPersistCompletionContinuationAndStablePause": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_completed_run_persists_the_reply_and_audits_run_completed",
+    "conclusion": "partial：Go 断言完成/继续/稳定暂停三个终态助手都持久化决策快照与回复（含已记录决策幂等）。Rust 的完成运行持久化回复并写 run.completed 审计行，但没有 goal 决策快照与 continue 分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_helpers_test.go:11:TestWorkflowHelperBranches": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/src/workflow.rs::TaskGraph::new",
+    "conclusion": "boundary（结构差异）：Go 覆盖 plan/描述回退字段、运行期任务校验/环检测/发射错误、子运行状态与审批过滤的空操作分支。Rust 的 TaskGraph 只提供依赖校验、环检测与 ready/claim/complete；plan 投影、描述裁剪、运行期任务与审批过滤 helper 不存在。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_pending_input_contract_test.go:10:TestWorkflowExecutorProjectsPendingInputAndPersistsChildState": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_input_response_parity_tests.rs::input_response_payload_anchors_the_resumed_run_to_the_original_request",
+    "conclusion": "partial：Go 断言等待输入与被动子任务都被投影到计划并持久化子状态。Rust 的输入请求把运行锚定到原始请求（resumeState=waiting_input、问题集合），但没有 workflow plan/子任务投影。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_persistence_test.go:12:TestGoalWorkflowFailsWhenInitialStateCannotBePersisted": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_routes_surface_durable_store_failures_instead_of_empty_success",
+    "conclusion": "partial：Go 断言初始状态无法持久化时 Run 直接返回显式失败。Rust 的持久化故障在 ADK 路由层返回错误而不是空成功（含 500 错误码矩阵），没有 goal 入口的等价断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_persistence_test.go:35:TestCompletedWorkflowFailsWhenTerminalStateCannotBePersisted": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs::run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot",
+    "conclusion": "partial：Go 断言终态无法持久化时 FinalizePlannedWorkflow 返回错误、不给出成功响应。Rust 的终态写入是状态+revision CAS（终态不可回退、允许显式终态修正），写失败按端口错误暴露。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_persistence_test.go:67:TestUserPauseFailsWhenPausedStateCannotBePersisted": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs::user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume",
+    "conclusion": "partial：Go 断言用户暂停无法持久化时不得报告成功。Rust 的用户暂停字段必须随运行负载原子写入（陈旧写者不能清除、显式恢复才清），写失败即端口错误，没有“报告成功但无持久状态”的路径。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_persistence_test.go:96:TestGoalWorkflowFailsWhenIterationLimitPauseCannotBePersisted": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_agent_validation.rs::validate_loop_iterations",
+    "conclusion": "boundary（功能缺失，保留）：Go 断言 iteration_limit 暂停写入失败时 ContinueADKGoalWorkflow 返回显式失败。Rust 只校验 loopMaxIterations 范围（1..20），没有迭代上限暂停/持久化路径。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go:9:TestTaskResumeUsesStoredPendingChildBeforeCompletingParent": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs::paused_workflow_run_keeps_accepting_progress_and_terminal_updates",
+    "conclusion": "partial：Go 断言子运行等待审批时父运行保持 PAUSED 并把子审批挂到父运行。Rust 的暂停工作流运行可继续接受进度与终态更新（PAUSED→RUNNING→COMPLETED 的 CAS 链），审批投影独立于父运行负载；没有子审批挂载步骤。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go:69:TestTaskResumeUsesStoredRunningChildBeforeCompletingParent": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs::is_dormant_workflow_child_run",
+    "conclusion": "boundary（结构差异）：Go 断言子运行仍为 RUNNING 时父运行保持运行、步骤 IN_PROGRESS、不写完成时间。Rust 中子运行是独立 ADK 运行，父运行不由 reconcile 收口；dormant 判定区分“未活动的子运行交父预算”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go:110:TestTaskResumeTerminatesParentForStoredTerminalChild": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs::is_dormant_workflow_child_run",
+    "conclusion": "boundary（结构差异）：Go 断言 reconcile 遇到已存储的终态子运行时终止父运行（写入 BLOCKED 步骤与终态时间戳）。Rust 的子运行由过期/租约规则处理（dormant 子运行交给父预算），没有 reconcile 终止父运行的路径。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go:164:TestCompleteResumedWorkflowClearsTerminalPendingApprovals": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::a_completed_projection_hides_resolved_approvals",
+    "conclusion": "partial：Go 断言恢复后完成的父运行清除终态待审批。Rust 的完成投影隐藏已结清审批（只保留仍未结清的审批），持久行同样不保留终态待审批。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_reconcile_ignore_boundaries_test.go:9:TestReconcileWorkflowChildrenIgnoresMissingAndForeignRuns": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs::is_dormant_workflow_child_run",
+    "conclusion": "boundary（结构差异）：Go 断言仅剩缺失/外来子运行时 reconcile 不阻塞、父运行与步骤状态不变。Rust 没有 reconcile 子运行层，缺失/外来运行在读取时按不存在处理，dormant 子运行规则只影响过期判定。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_resume_approval_boundaries_test.go:13:TestRunChildBlocksDelegatedApprovalTask": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_catalog_policy_tests.rs::gated_call_persists_the_go_approval_projection",
+    "conclusion": "partial：Go 断言委托子任务在审批模式下阻塞任务（带 runId 与审批指引）且审批前不执行工具。Rust 的受门禁调用把运行停在仅待审批状态并持久化 Go 审批投影（审批前不执行工具），任务侧阻塞由 ADK 任务负载表达。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_resume_executor_boundaries_test.go:10:TestResumeLoopWorkflowKeepsUserPausedParentPaused": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs::user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume",
+    "conclusion": "partial：Go 断言用户暂停的父运行在恢复循环时保持暂停。Rust 的用户暂停字段在显式恢复前不会被清除（陈旧写者被护栏拒绝），恢复循环不存在但暂停保持语义由 CAS 保证。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_resume_executor_boundaries_test.go:35:TestRunChildSurfacesDeltaSinkErrorsAfterChildLaunchSnapshot": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_port.rs::adk_port_outputs_and_errors_keep_route_wire_mapping",
+    "conclusion": "boundary（结构差异）：Go 断言子运行启动快照后 delta sink 失败向上返回并保留已启动状态。Rust 的流式端口定义输出与错误的 wire 映射（delta 失败按路由错误返回），没有子运行启动快照阶段。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_resume_executor_boundaries_test.go:106:TestRunChildBlocksTaskWhenChildExecutionFailsImmediately": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_failed_tool_result_is_persisted_on_the_call_not_the_run",
+    "conclusion": "partial：Go 断言子执行立即失败时任务阻塞并保留失败摘要、子运行失败。Rust 的工具失败持久化在调用上而不是运行级错误（运行保持可见失败调用），没有任务阻塞摘要链。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_resume_executor_boundaries_test.go:173:TestResumeLoopWorkflowHonorsPauseRequestAfterChildCompletion": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs::paused_workflow_run_keeps_accepting_progress_and_terminal_updates",
+    "conclusion": "partial：Go 断言子任务完成后并发暂停请求优先（父运行暂停、不写完成时间、子任务保持已完成）。Rust 的暂停工作流运行可继续接受进度与终态更新且暂停字段受 CAS 保护，但没有“子完成 → 父暂停”的编排顺序。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_task_limit_boundaries_test.go:11:TestWorkflowExecutorRejectsRuntimeTaskOverflow": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 maxRuntimeWorkflowTasks 等价上限",
+    "conclusion": "boundary（功能缺失，保留）：Go 断言运行期任务数达到上限后 AddRuntimeWorkflowTask 报 limit reached。Rust 没有运行期任务写入路径（任务经 ADK mutation/存储校验，注意 loopMaxIterations 上限是另一维度），不迁移为等价测试。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_task_state_contracts_test.go:11:TestPauseGoalWorkflowPrunesInterruptedInternalToolCalls": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs::expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls",
+    "conclusion": "partial：Go 断言暂停目标时剪除被中断的内部工作流工具调用（幂等，且不动非工作流工具）。Rust 对中断/过期运行把未结清工具调用标为 FAILED 而不是剪除，幂等暂停剪枝分支不存在。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_task_state_contracts_test.go:49:TestPrepareGoalWorkflowTurnHandlesPendingChildrenBlockedTasksAndErrors": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_chat_turn_tests.rs::a_gated_tool_call_parks_the_run_with_only_pending_approvals",
+    "conclusion": "partial：Go 断言 goal 轮次准备对等待子任务、阻塞任务与任务读取错误分别短路（不启动另一个模型轮次）。Rust 的相当于“运行停在待审批/待输入状态、不再继续轮次”的停车语义，但没有任务/子运行短路面。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_task_tools_boundaries_test.go:13:TestWorkflowTaskToolsetBusinessBranches": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 task.delegate/merge 工具与父运行暂停投影",
+    "conclusion": "boundary（功能缺失，保留）：Go 断言 delegate 复用仍存活的子运行、merge 任务子投影时暂停父运行。Rust 没有 task.delegate/merge 工具，子运行与父运行的关联只作为运行负载字段（parentRunId/childRunIds）存在。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_task_tools_boundaries_test.go:69:TestWorkflowTaskToolsetErrorBranches": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_task_and_memory_crud_contracts_match_go",
+    "conclusion": "boundary（结构差异）：Go 断言任务工具集各方法的读取/更新/子运行错误面（lookup 失败、更新失败、畸形子运行、父级重载失败）。Rust 的任务写入/读取错误按 ADK 任务 CRUD 契约（含校验与归一化）暴露，没有工具集方法边界。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_task_tools_goal_test.go:7:TestWorkflowTaskToolsetSwitchesToGoalDecisionTools": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "不适用：Rust 无 goal decision 工具切换（goal.complete/goal.continue）",
+    "conclusion": "boundary（功能缺失，保留）：Go 断言目标模式下工具集只暴露 complete/continue 两个决策工具。Rust 的工具目录没有 goal 决策工具族，运行终态由运行时/存储拥有，不迁移为等价测试。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_task_tools_lookup_test.go:10:TestWorkflowTaskToolsetLookupBoundaryBranches": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_task_normalization_and_validation_match_go",
+    "conclusion": "partial：Go 断言任务查找边界（缺父/缺任务、按 id/current/ready 解析、首个阻塞子任务、完成阻塞判定、关闭存储报错）。Rust 的任务读取按 ADK 任务 CRUD 契约与归一化校验覆盖缺行/非法输入，但没有 current/ready 解析与阻塞判定聚合。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowexec/workflow_task_tools_lookup_test.go:135:TestWorkflowTaskToolsetMethodErrorAndFallbackBranches": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-assistant/src/workflow.rs::TaskGraph::complete",
+    "conclusion": "boundary（结构差异）：Go 断言任务工具集方法在已完成/缺失任务上的结果与 resultSummary 回退。Rust 的 TaskGraph::complete 只接受 ready 任务并写入结果摘要，缺失任务与回退文案分支不存在。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_task_tools_persistence_test.go:13:TestWorkflowTaskToolsReturnParentPlanPersistenceFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_tasks.rs::dispatch",
+    "conclusion": "boundary（结构差异）：Go 断言任务工具在父计划保存失败时保持已提交的当前任务状态并把错误返回给调用方。Rust 的任务 mutation 逐条落库、失败即路由错误，没有父计划保存这一层。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/assistant/engine/workflowexec/workflow_task_tools_persistence_test.go:112:TestWorkflowTaskToolsReturnParentPlanRefreshFailures": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待逐项复核：当前仅有领域级 Rust 入口映射，尚无该 Go 测试的独立行为证据；需补充对应 Rust 测试名或明确边界结论",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant -E 'test(workflow)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_routes_surface_durable_store_failures_instead_of_empty_success",
+    "conclusion": "partial：Go 断言任务工具在父计划刷新失败时返回已提交的部分结果并保留错误。Rust 在持久化故障时返回错误而不是空成功（含任务路由的错误码），但没有“部分结果 + 错误”并存的任务工具返回形态。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/workflowruntime/runtime_test.go:11:TestFacadeConstructorsAndSessionService": {
     "status": "[~]",

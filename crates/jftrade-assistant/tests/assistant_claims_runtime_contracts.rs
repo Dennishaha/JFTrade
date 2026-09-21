@@ -127,6 +127,8 @@ fn approval_tool_call() -> ToolCall {
     }
 }
 
+// Parity: go:452dea11:internal/assistant/engine/persistence/execution_claims_test.go:58 TestRunLeaseUsesExpiryAndFencingTokens
+// Parity: go:452dea11:internal/assistant/engine/execution_claim_failure_boundaries_test.go:39 TestExecutionClaimValidationAndReleaseLifecycle
 #[test]
 fn run_lease_expiry_fencing_and_stale_release_are_rejected() {
     let mut store = ClaimStore::default();
@@ -153,6 +155,7 @@ fn run_lease_expiry_fencing_and_stale_release_are_rejected() {
     assert_eq!(store.checkpoint().run_leases[RUN_ID], takeover);
 }
 
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:294 TestRuntimeRunLeaseHeartbeatPreventsPrematureTakeover
 #[test]
 fn same_owner_heartbeat_renews_without_advancing_fence() {
     let mut store = ClaimStore::default();
@@ -178,6 +181,7 @@ fn same_owner_heartbeat_renews_without_advancing_fence() {
     );
 }
 
+// Parity: go:452dea11:internal/assistant/engine/persistence/execution_claims_test.go:186 TestToolInvocationClaimReplaysCompletedOutput
 #[test]
 fn completed_tool_output_replays_after_checkpoint_restore() {
     let mut store = ClaimStore::default();
@@ -269,6 +273,7 @@ fn stale_tool_completion_is_rejected_after_keyed_takeover() {
         .expect("current owner completion");
 }
 
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:167 TestGoogleADKToolRejectsStaleContextAfterLeaseTurnover
 #[test]
 fn expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease() {
     let mut store = ClaimStore::default();
@@ -319,6 +324,8 @@ fn expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease() {
     );
 }
 
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:108 TestFailedReadIsDurablyCompletedButProjectedAsFailedToolCall
+// Parity: go:452dea11:internal/assistant/engine/execution_claim_failure_boundaries_test.go:83 TestToolInvocationAbandonAndCorruptionBoundaries
 #[test]
 fn fail_closed_expiry_becomes_indeterminate_and_keyed_expiry_can_take_over() {
     let mut store = ClaimStore::default();
@@ -452,6 +459,7 @@ fn input_resolution_is_idempotent_and_conflict_safe() {
     assert_eq!(run.input_requests[0].answers[0].option_id, "q1-o1");
 }
 
+// Parity: go:452dea11:internal/assistant/engine/runner_approval_concurrency_test.go:12 TestConcurrentResolveApprovalExecutesApprovedToolOnce
 #[test]
 fn approval_resolution_is_idempotent_and_conflict_safe() {
     for approved in [true, false] {

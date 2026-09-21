@@ -48,6 +48,7 @@ fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStor
     )
 }
 
+// Parity: go:452dea11:internal/assistant/engine/exec_bounds_test.go:57 TestGoogleADKExecutionToolCallReuseAndCompletionBoundaries
 /// Go persists the tool failure as a visible `ToolCall` instead of a run-level
 /// error, and `FirstToolCallFailure` is what later sets `degraded`.  The call
 /// carries the raw error text (`disk full`), not the model-facing envelope

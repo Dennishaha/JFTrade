@@ -745,6 +745,7 @@ async fn challenge_continuation_supervisor_shutdown_blocks_for_all_tasks() {
     );
 }
 
+// Parity: go:452dea11:internal/assistant/engine/runner_approval_concurrency_test.go:191 TestApprovalLeaseWaitStopsWhenRuntimeContextIsCancelled
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn challenge_continuation_supervisor_cancellation_signal_propagates() {
     let supervisor = Arc::new(super::ContinuationSupervisor::default());
@@ -783,6 +784,7 @@ async fn challenge_continuation_supervisor_cancellation_signal_propagates() {
     );
 }
 
+// Parity: go:452dea11:internal/assistant/engine/runtime_execution_lease_boundaries_test.go:176 TestRuntimeCloseCancelsAndWaitsForInFlightRunLease
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn challenge_continuation_supervisor_concurrent_spawn_shutdown_race() {
     for iter in 0..200 {
