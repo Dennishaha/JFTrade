@@ -235,8 +235,20 @@ impl NativeBootstrap {
 }
 
 fn platform_paths() -> Result<PlatformPaths, NativeError> {
-    let home_dir = env::var_os("HOME")
-        .or_else(|| env::var_os("USERPROFILE"))
+    platform_paths_from(|key| env::var_os(key))
+}
+
+/// Resolve the desktop platform paths from an injectable environment lookup.
+///
+/// The seam mirrors the retired Go `productDataDir(goos, home, config, getenv)`
+/// shape: tests clear `HOME`/`USERPROFILE` through the closure instead of
+/// mutating the process environment, which the desktop crate cannot do because
+/// it forbids unsafe code on edition 2024.
+fn platform_paths_from(
+    getenv: impl Fn(&str) -> Option<std::ffi::OsString>,
+) -> Result<PlatformPaths, NativeError> {
+    let home_dir = getenv("HOME")
+        .or_else(|| getenv("USERPROFILE"))
         .map(PathBuf::from)
         .filter(|path| !path.as_os_str().is_empty())
         .ok_or(NativeError::MissingHome)?;
@@ -250,9 +262,15 @@ fn platform_paths() -> Result<PlatformPaths, NativeError> {
     Ok(PlatformPaths {
         platform,
         home_dir: home_dir.to_string_lossy().into_owned(),
-        config_dir: env::var("APPDATA").unwrap_or_default(),
-        local_app_data: env::var("LOCALAPPDATA").unwrap_or_default(),
-        xdg_data_home: env::var("XDG_DATA_HOME").unwrap_or_default(),
+        config_dir: getenv("APPDATA")
+            .map(|value| value.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        local_app_data: getenv("LOCALAPPDATA")
+            .map(|value| value.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        xdg_data_home: getenv("XDG_DATA_HOME")
+            .map(|value| value.to_string_lossy().into_owned())
+            .unwrap_or_default(),
     })
 }
 

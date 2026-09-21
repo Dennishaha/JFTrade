@@ -187,4 +187,92 @@ mod tests {
             "a"
         ));
     }
+
+    // Parity: go:452dea11:internal/desktop/notification_policy_test.go:10 TestShouldForwardSystemNotification
+    #[test]
+    fn should_forward_system_notification_covers_disabled_all_custom_and_unknown_modes() {
+        let disabled = SystemNotificationSettings {
+            enabled: false,
+            mode: "all".to_owned(),
+            ..SystemNotificationSettings::default()
+        };
+        assert!(!should_forward_system_notification(
+            &disabled,
+            "warn",
+            "broker.connection"
+        ));
+
+        let all = SystemNotificationSettings {
+            enabled: true,
+            mode: "all".to_owned(),
+            ..SystemNotificationSettings::default()
+        };
+        assert!(should_forward_system_notification(&all, "info", ""));
+
+        let error_level = SystemNotificationSettings {
+            enabled: true,
+            mode: "custom".to_owned(),
+            levels: vec!["error".to_owned()],
+            categories: Vec::new(),
+            ..SystemNotificationSettings::default()
+        };
+        assert!(should_forward_system_notification(
+            &error_level,
+            "ERROR",
+            ""
+        ));
+
+        let signal_category = SystemNotificationSettings {
+            enabled: true,
+            mode: "custom".to_owned(),
+            levels: Vec::new(),
+            categories: vec!["strategy.order.signal".to_owned()],
+            ..SystemNotificationSettings::default()
+        };
+        assert!(should_forward_system_notification(
+            &signal_category,
+            "info",
+            "strategy.order.signal"
+        ));
+
+        assert!(!should_forward_system_notification(
+            &error_level,
+            "info",
+            "market.quota"
+        ));
+
+        let unknown_mode = SystemNotificationSettings {
+            enabled: true,
+            mode: "unknown".to_owned(),
+            ..SystemNotificationSettings::default()
+        };
+        assert!(!should_forward_system_notification(
+            &unknown_mode,
+            "error",
+            "broker.connection"
+        ));
+
+        let padded_level = SystemNotificationSettings {
+            enabled: true,
+            mode: "custom".to_owned(),
+            levels: vec![" warn ".to_owned()],
+            categories: Vec::new(),
+            ..SystemNotificationSettings::default()
+        };
+        assert!(should_forward_system_notification(
+            &padded_level,
+            "warn",
+            ""
+        ));
+    }
+
+    // Parity: go:452dea11:internal/desktop/runtime_path_matching_test.go:13 TestMatchesAnyCoverageForBlankAndNormalizedValues
+    #[test]
+    fn blank_values_never_match_and_padded_candidates_match_case_insensitively() {
+        assert!(!matches_value("", &["error".to_owned()]));
+        assert!(!matches_value("", &["".to_owned()]));
+        assert!(matches_value("ERROR", &[" error ".to_owned()]));
+        assert!(!matches_value("   ", &["error".to_owned()]));
+        assert!(matches_value(" error ", &["ERROR".to_owned()]));
+    }
 }

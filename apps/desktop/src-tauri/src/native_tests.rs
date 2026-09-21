@@ -185,6 +185,36 @@ mod tests {
         assert_eq!(profile.window_state_path, None);
     }
 
+    // Parity: go:452dea11:internal/desktop/runtime_path_test.go:41 TestProductDataDirUsesCurrentPlatform
+    #[test]
+    fn product_data_dir_uses_the_current_platform_base_directory() {
+        let paths = platform_paths().expect("current platform paths");
+        let directory = crate::profile::product_data_dir(&paths).expect("product data directory");
+        assert!(
+            directory.ends_with("/JFTrade") || directory.ends_with("/jftrade"),
+            "unexpected product data directory: {directory:?}"
+        );
+    }
+
+    // Parity: go:452dea11:internal/desktop/runtime_path_matching_test.go:5 TestProductDataDirReportsMissingHome
+    #[test]
+    fn platform_paths_report_missing_home_environment() {
+        assert!(matches!(
+            platform_paths_from(|_| None),
+            Err(NativeError::MissingHome)
+        ));
+        assert!(matches!(
+            platform_paths_from(|key| (key == "HOME").then(std::ffi::OsString::new)),
+            Err(NativeError::MissingHome)
+        ));
+
+        let fallback = platform_paths_from(|key| {
+            (key == "USERPROFILE").then(|| std::ffi::OsString::from("/Users/alice"))
+        })
+        .expect("user profile fallback");
+        assert_eq!(fallback.home_dir, "/Users/alice");
+    }
+
     // Parity: go:452dea11:cmd/internal/protogen/repository_test.go:12 TestFindRepoRoot
     #[test]
     fn repository_root_walks_up_from_a_nested_directory_to_the_workspace_markers() {

@@ -7,7 +7,9 @@ use jftrade_desktop::lifecycle::{
     SHUTDOWN_TIMEOUT_MILLIS,
 };
 use jftrade_desktop::links::{LinkTarget, classify_link};
-use jftrade_desktop::profile::{DesktopChannel, DesktopPlatform, DesktopProfile, PlatformPaths};
+use jftrade_desktop::profile::{
+    DesktopChannel, DesktopPlatform, DesktopProfile, PlatformPaths, ProfileError, product_data_dir,
+};
 
 fn asset(role: ProcessRole, path: &str, digest_byte: char) -> ReleaseAsset {
     ReleaseAsset {
@@ -55,6 +57,94 @@ fn build_profiles_preserve_tauri_identity_and_data_isolation() {
     assert_eq!(
         release.window_state_path.as_deref(),
         Some("/Users/alice/Library/Application Support/JFTrade/desktop-state.json")
+    );
+}
+
+fn platform_paths(
+    platform: DesktopPlatform,
+    home_dir: &str,
+    config_dir: &str,
+    local_app_data: &str,
+    xdg_data_home: &str,
+) -> PlatformPaths {
+    PlatformPaths {
+        platform,
+        home_dir: home_dir.to_owned(),
+        config_dir: config_dir.to_owned(),
+        local_app_data: local_app_data.to_owned(),
+        xdg_data_home: xdg_data_home.to_owned(),
+    }
+}
+
+// Parity: go:452dea11:internal/desktop/runtime_path_test.go:8 TestProductDataDirByPlatform
+#[test]
+fn product_data_dir_covers_every_platform_base_directory() {
+    let macos = platform_paths(
+        DesktopPlatform::Darwin,
+        "/Users/alice",
+        "/Users/alice/Library/Application Support",
+        "",
+        "",
+    );
+    assert_eq!(
+        product_data_dir(&macos).unwrap(),
+        "/Users/alice/Library/Application Support/JFTrade"
+    );
+
+    let macos_fallback = platform_paths(DesktopPlatform::Darwin, "/Users/alice", "", "", "");
+    assert_eq!(
+        product_data_dir(&macos_fallback).unwrap(),
+        "/Users/alice/Library/Application Support/JFTrade"
+    );
+
+    // Rust joins with `/` and keeps the platform prefix verbatim, so the Windows
+    // result mixes separators; Windows accepts both forms.
+    let windows_local_app_data = platform_paths(
+        DesktopPlatform::Windows,
+        r"C:\Users\alice",
+        r"C:\Users\alice\AppData\Roaming",
+        r"C:\Users\alice\AppData\Local",
+        "",
+    );
+    assert_eq!(
+        product_data_dir(&windows_local_app_data).unwrap(),
+        r"C:\Users\alice\AppData\Local/JFTrade"
+    );
+
+    let windows_config_fallback = platform_paths(
+        DesktopPlatform::Windows,
+        r"C:\Users\alice",
+        r"C:\Users\alice\AppData\Roaming",
+        "",
+        "",
+    );
+    assert_eq!(
+        product_data_dir(&windows_config_fallback).unwrap(),
+        r"C:\Users\alice\AppData\Roaming/JFTrade"
+    );
+
+    // Not covered by the Go table: the Go helper degrades to the relative
+    // `JFTrade` directory, Rust fails closed instead of inventing one.
+    let windows_without_base =
+        platform_paths(DesktopPlatform::Windows, r"C:\Users\alice", "", "", "");
+    assert_eq!(
+        product_data_dir(&windows_without_base),
+        Err(ProfileError::MissingDataDirectory(DesktopPlatform::Windows))
+    );
+
+    let linux_xdg = platform_paths(DesktopPlatform::Linux, "/home/alice", "", "", "/data/alice");
+    assert_eq!(product_data_dir(&linux_xdg).unwrap(), "/data/alice/jftrade");
+
+    let linux_fallback = platform_paths(DesktopPlatform::Linux, "/home/alice", "", "", "");
+    assert_eq!(
+        product_data_dir(&linux_fallback).unwrap(),
+        "/home/alice/.local/share/jftrade"
+    );
+
+    let trimmed_home = platform_paths(DesktopPlatform::Linux, " /home/alice ", "", "", "");
+    assert_eq!(
+        product_data_dir(&trimmed_home).unwrap(),
+        "/home/alice/.local/share/jftrade"
     );
 }
 
