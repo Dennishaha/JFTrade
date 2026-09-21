@@ -421,3 +421,93 @@ fn reviewed_read_schemas_keep_structured_routing_without_free_text_fields() {
         "account.orders must not expose an ignored query field: {orders:?}"
     );
 }
+
+/// Parity: go:452dea11:internal/assistant/assembly/typed_product_capabilities_test.go:45
+/// `TestAssistantSchemasCoverProviderAndResearchExtensions`. Go requires the
+/// four provider/research extension schemas to stay closed, `market.candles`
+/// to keep every provider routing field, `research.calendar` to keep the
+/// reviewed enums with `marketCapMin` unbounded and `ivMax` capped at 100, and
+/// `research.screen` to keep `conditions` with only the V2 operation.
+#[test]
+fn provider_and_research_extension_schemas_keep_their_reviewed_fields() {
+    for name in [
+        "research.screen_catalog",
+        "market.candles",
+        "market.depth",
+        "research.calendar",
+    ] {
+        let schema = schema_for(name);
+        assert_eq!(
+            schema["additionalProperties"],
+            serde_json::json!(false),
+            "{name} must reject unknown properties: {schema}"
+        );
+    }
+
+    let candles = schema_for("market.candles");
+    for field in [
+        "sessions",
+        "beforeTime",
+        "adjustment",
+        "startTime",
+        "endTime",
+    ] {
+        assert!(
+            candles["properties"].get(field).is_some(),
+            "market.candles lost {field}: {candles}"
+        );
+    }
+
+    let calendar = schema_for("research.calendar");
+    for field in [
+        "sort",
+        "stockScope",
+        "marketCapMin",
+        "optionVolumeMax",
+        "ivMin",
+        "ivRankMax",
+        "ivPercentileMin",
+    ] {
+        assert!(
+            calendar["properties"].get(field).is_some(),
+            "research.calendar lost {field}: {calendar}"
+        );
+    }
+    assert_eq!(
+        calendar["properties"]["sort"]["enum"],
+        serde_json::json!([
+            "hot",
+            "market_cap",
+            "option_volume",
+            "iv",
+            "iv_rank",
+            "iv_percentile"
+        ]),
+        "research.calendar sort enum changed"
+    );
+    assert_eq!(
+        calendar["properties"]["stockScope"]["enum"],
+        serde_json::json!(["all", "watchlist", "position", "special"]),
+        "research.calendar stockScope enum changed"
+    );
+    let market_cap_min = &calendar["properties"]["marketCapMin"]["anyOf"][0];
+    assert_eq!(market_cap_min["minimum"], 0, "{market_cap_min}");
+    assert!(
+        market_cap_min.get("maximum").is_none(),
+        "marketCapMin must stay unbounded: {market_cap_min}"
+    );
+    let iv_max = &calendar["properties"]["ivMax"]["anyOf"][0];
+    assert_eq!(iv_max["minimum"], 0, "{iv_max}");
+    assert_eq!(iv_max["maximum"], 100, "{iv_max}");
+
+    let screen = schema_for("research.screen");
+    assert!(
+        screen["properties"].get("conditions").is_some(),
+        "research.screen lost conditions: {screen}"
+    );
+    assert_eq!(
+        screen["properties"]["operation"]["enum"],
+        serde_json::json!(["stock_v2"]),
+        "research.screen must keep the V2-only operation"
+    );
+}

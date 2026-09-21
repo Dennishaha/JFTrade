@@ -2811,3 +2811,37 @@ Go 这两条把 ADK 摘要契约钉在两件事上：策略定义/实例摘要�
 - 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与策略实例写工具（第 52 批 `:122`；第 56 批确认含 `market.provider.select`/`backtest.cancel`；本批补充策略实例读/摘要工具与定义摘要 wire 形状）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 第 56 批的 `tradingCosts` 字段级类型解码差异、第 57 批的 `watchlist.list includeQuotes`（第 47 批）与 `RecordWorkflowAudit` 回调无 owner、`market.depth` 自由文本 instrument 推断、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具、第 53/54 批的 float 截断/query 文本推断/limit>50 钳制/capability 措辞、第 55 批禁用 503 路径差异。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1671 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2844 Rust** / **955 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第六十批：assembly `typed_product_capabilities_test.go` 全量结清（2 条 `[x]`；新增 2 条回归）
+
+范围：`internal/assistant/assembly/typed_product_capabilities_test.go` 2 条逐条结清。本批新增 **2 条 `[x]`**（`:11`/`:45`）；Rust 测试 2844 → **2846**，`[x]` 955 → **957**。
+
+### 冻结证据（Go）
+
+`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestTypedProductCapabilitiesDriveFeatureAndAssistantSchemas|TestAssistantSchemasCoverProviderAndResearchExtensions' -count=1`（checkout `/tmp/go452dea11.niwD1G`，`ok`；`:11` 的 16 个子测试逐工具 PASS）。
+
+### 本批结论（2 条新回归，均为既有实现的行为守卫）
+
+这两条把「typed product capability 表」钉在四件事上：工具→feature id 一致、schema 闭合、operation 枚举一致、按 SchemaKind 的必填路由字段；外加 Provider/Research 扩展 schema 的字段边界。Rust 已经实现全部行为，本批补齐的是把清单钉死的回归，不需要改生产代码。
+
+- `:11 [x]`：新增 `product_broker_capabilities_projection_tests.rs::typed_product_capabilities_drive_feature_ids_and_reviewed_schemas`。遍历与 Go 相同的 16 个 typed 工具，断言每个工具恰好命中一条 `FEATURE_SPECS` 且 `spec.id == tool`（Go 的 `broker.FeatureID` 常量值就是工具名，Rust 的 id/tool 同表同源）、`schema.additionalProperties == false`、operation 枚举逐项有序相等（`prediction.snapshot`/`prediction.depth`/`prediction.combo_eligible` 无 operation 属性）、Instrument→必填 `instrumentId`、PredictionDiscovery→`operation`、PredictionQuote→`accountId`/`mvc`/`legs`。
+- `:45 [x]`：新增 `product_mcp_protocol_tests.rs::provider_and_research_extension_schemas_keep_their_reviewed_fields`。`research.screen_catalog`/`market.candles`/`market.depth`/`research.calendar` 四者 `additionalProperties=false`；`market.candles` 保留 `sessions`/`beforeTime`/`adjustment`/`startTime`/`endTime`；`research.calendar` 保留 `sort`/`stockScope`/`marketCapMin`/`optionVolumeMax`/`ivMin`/`ivRankMax`/`ivPercentileMin`，`sort` 枚举 [hot,market_cap,option_volume,iv,iv_rank,iv_percentile]、`stockScope` 枚举 [all,watchlist,position,special]，`marketCapMin.anyOf[0]` 为 minimum=0 且无 maximum、`ivMax.anyOf[0]` 为 minimum=0/maximum=100；`research.screen` 保留 `conditions` 且 operation 只允许 `stock_v2`。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. `FEATURE_SPECS` 里 `research.calendar` 的 id 改成 `research.calendar.v2` → `:11` 测试转红（`left: "research.calendar.v2"` / `right: "research.calendar"`）。
+2. `prediction_quote_schema` 的 required 去掉 `"legs"` → 同一测试转红（`prediction.combo_quote must require legs` 并打印完整 schema）。
+3. `calendar_numeric_filter_schema` 屏蔽 maximum 注入 → `:45` 测试转红（`{"minimum":0,"type":"number"}`，`left: Null` / `right: 100`）。
+   3 处探针均在本批内执行并已回滚，`git diff` 只留两条新测试、清单与审计产物。
+
+### 结论登记（与 Go 的表面差异）
+
+- `:11` 的映射断言落在 Rust 的单一事实源上：Go 用 `productToolFeatureIDs`（init 里由描述表合并）与 `TypedCapabilityDescriptions()` 两处表，Rust 只有 `FEATURE_SPECS` 一张 `id`/`tool` 同源表，因此断言是「每个工具唯一命中一条 spec 且 `id == tool`」，没有为了照抄 Go 再建第二套映射。
+- `:45` 的字段与数值边界逐字段相等；Rust 的 `calendar_numeric_filter_schema` 把 `minimum: 0` 放在 `anyOf[0]`（number 分支）并把上限只加在 `iv*` 家族上，与 Go 的 `anyOf[0].minimum/maximum` 读法一致。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 13 条：`watchlist_adapter_test.go`/`workflow_bridge_contracts_test.go`/`workflow_tools_error_boundaries_test.go`/`maintenance_test.go`（各 2），`adk_backtest_adapter_test.go`/`adk_strategy_input_validation_test.go`/`adk_tool_failure_contracts_test.go`/`product_execution_contracts_test.go`/`workflow_execution_injection_test.go`（各 1）；随后 `internal/app/apiserver`（574，按 servercore/servercoretest 分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）、`internal/integration/akshare`（73）、`internal/integration/yfinance`（68）、`pkg/market`（56）。
+- 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与策略实例读写工具（第 52 批 `:122`；第 56 批确认含 `market.provider.select`/`backtest.cancel`；第 59 批补充策略实例读/摘要工具与定义摘要 wire 形状）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤、`workflow_runs.*` 过滤参数、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 第 56 批的 `tradingCosts` 字段级类型解码差异、第 57 批的 `watchlist.list includeQuotes`（第 47 批）与 `RecordWorkflowAudit` 回调无 owner、`market.depth` 自由文本 instrument 推断、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具、第 53/54 批的 float 截断/query 文本推断/limit>50 钳制/capability 措辞、第 55 批禁用 503 路径差异。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1673 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2846 Rust** / **957 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

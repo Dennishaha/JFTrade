@@ -774,3 +774,189 @@ fn reviewed_tool_operation_schemas_are_catalog_backed() {
         );
     }
 }
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum TypedSchemaKind {
+    Instrument,
+    Collection,
+    PredictionDiscovery,
+    PredictionQuote,
+}
+
+/// Parity: go:452dea11:internal/assistant/assembly/typed_product_capabilities_test.go:11
+/// `TestTypedProductCapabilitiesDriveFeatureAndAssistantSchemas`. Go walks
+/// `productfeatures.TypedCapabilityDescriptions()` and requires every typed
+/// capability to resolve to the same feature id, to keep a closed schema, to
+/// advertise exactly the reviewed operations, and to require the routing
+/// field of its schema kind. Rust keeps the same sixteen capabilities in
+/// `FEATURE_SPECS` plus the reviewed MCP schema catalog, so the assertions run
+/// over that single table instead of a second capability list.
+#[test]
+fn typed_product_capabilities_drive_feature_ids_and_reviewed_schemas() {
+    use crate::product::product_mcp_protocol::schema_for;
+
+    let capabilities: [(&str, TypedSchemaKind, &[&str]); 16] = [
+        (
+            "research.instrument",
+            TypedSchemaKind::Instrument,
+            &[
+                "profile",
+                "executives",
+                "executive_background",
+                "operational_efficiency",
+                "top_brokers",
+            ],
+        ),
+        (
+            "research.financials",
+            TypedSchemaKind::Instrument,
+            &[
+                "statements",
+                "revenue_breakdown",
+                "earnings_price_move",
+                "earnings_price_history",
+            ],
+        ),
+        (
+            "research.valuation",
+            TypedSchemaKind::Instrument,
+            &["detail", "constituents"],
+        ),
+        (
+            "research.analyst",
+            TypedSchemaKind::Instrument,
+            &["consensus", "ratings", "morningstar", "changes"],
+        ),
+        (
+            "research.ownership",
+            TypedSchemaKind::Instrument,
+            &[
+                "overview",
+                "changes",
+                "holders",
+                "institutional",
+                "insider_holders",
+                "insider_transactions",
+                "management_changes",
+            ],
+        ),
+        (
+            "research.corporate_actions",
+            TypedSchemaKind::Instrument,
+            &["dividends", "buybacks", "splits", "code_changes"],
+        ),
+        (
+            "research.short_interest",
+            TypedSchemaKind::Instrument,
+            &["daily_volume", "short_interest"],
+        ),
+        ("research.screen", TypedSchemaKind::Collection, &["stock_v2"]),
+        (
+            "research.calendar",
+            TypedSchemaKind::Collection,
+            &["earnings", "dividends", "economic", "ipos", "trade_dates"],
+        ),
+        (
+            "research.rankings",
+            TypedSchemaKind::Collection,
+            &[
+                "earnings_beat",
+                "dividend",
+                "pre_market",
+                "after_hours",
+                "overnight",
+                "top_movers",
+                "hot",
+                "short_selling",
+                "period_change",
+                "high_dividend_state",
+                "heatmap",
+                "rise_fall_distribution",
+                "market_state",
+                "fund_catalog",
+            ],
+        ),
+        (
+            "prediction.discover",
+            TypedSchemaKind::PredictionDiscovery,
+            &[
+                "categories",
+                "competitions",
+                "series",
+                "events",
+                "contracts",
+                "milestones",
+            ],
+        ),
+        ("prediction.snapshot", TypedSchemaKind::Instrument, &[]),
+        ("prediction.depth", TypedSchemaKind::Instrument, &[]),
+        (
+            "prediction.history",
+            TypedSchemaKind::Instrument,
+            &["candles", "historical", "ticks"],
+        ),
+        (
+            "prediction.combo_eligible",
+            TypedSchemaKind::Collection,
+            &[],
+        ),
+        ("prediction.combo_quote", TypedSchemaKind::PredictionQuote, &[]),
+    ];
+
+    let required_contains = |schema: &Value, field: &str| {
+        schema["required"]
+            .as_array()
+            .is_some_and(|required| required.iter().any(|value| value == field))
+    };
+
+    for (tool, kind, operations) in capabilities {
+        let specs = FEATURE_SPECS
+            .iter()
+            .filter(|spec| spec.tool == tool)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            specs.len(),
+            1,
+            "{tool} must map to exactly one capability feature"
+        );
+        assert_eq!(
+            specs[0].id, tool,
+            "{tool} keeps its feature id identical to the assistant tool name"
+        );
+
+        let schema = schema_for(tool);
+        assert_eq!(
+            schema["additionalProperties"],
+            json!(false),
+            "{tool} must reject unknown properties: {schema}"
+        );
+
+        match kind {
+            TypedSchemaKind::Instrument => assert!(
+                required_contains(&schema, "instrumentId"),
+                "{tool} must require instrumentId: {schema}"
+            ),
+            TypedSchemaKind::PredictionDiscovery => assert!(
+                required_contains(&schema, "operation"),
+                "{tool} must require operation: {schema}"
+            ),
+            TypedSchemaKind::PredictionQuote => {
+                for field in ["accountId", "mvc", "legs"] {
+                    assert!(
+                        required_contains(&schema, field),
+                        "{tool} must require {field}: {schema}"
+                    );
+                }
+            }
+            TypedSchemaKind::Collection => {}
+        }
+
+        if !operations.is_empty() {
+            assert_eq!(
+                schema["properties"]["operation"]["enum"],
+                json!(operations),
+                "{tool} must advertise the reviewed operations in order"
+            );
+        }
+    }
+}
