@@ -9,7 +9,9 @@ use tokio::sync::oneshot;
 
 use super::ProductionBacktestPort;
 use super::{persist_request_with_provider, requested_provider};
-use super::product_production_ports_backtest_parse::{provider_id, with_execution_model};
+use super::product_production_ports_backtest_parse::{
+    provider_id, with_execution_model, with_normalized_chart_type, with_normalized_time_range,
+};
 use super::product_production_ports_backtest_strategy::{
     parse_start_request, resolve_strategy_payload,
 };
@@ -100,7 +102,13 @@ impl ProductionBacktestPort {
                 "backtest worker runtime is not configured".to_owned(),
             )
         })?;
-        let persisted_payload = with_execution_model(payload, &request.execution_model)?;
+        let persisted_payload = with_normalized_time_range(
+            &with_normalized_chart_type(&with_execution_model(
+                payload,
+                &request.execution_model,
+            )?)?,
+            &request.symbol,
+        )?;
 
         let explicit_warmup = payload
             .get("warmupBars")

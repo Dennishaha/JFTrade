@@ -95,3 +95,74 @@ retry/cancel 和 SyncTask 快照隔离测试。
   `internal/backtest` 63、`pkg/market` 56、`internal/marketdataassets` 36，直至 4451 条清单全部完成。
 
 验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-backtest -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-engine -p jftrade-broker -p jftrade-strategy --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-engine -p jftrade-broker -p jftrade-strategy --all-targets --locked --no-fail-fast`（**2037 passed / 1 skipped**）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2925 Rust** / **1198 `[x]`**；missing 1515、partial 1337、boundary 397、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线，7 条 partial 无解析引用与 2 条无断言为前批已登记缺口）、`pnpm run check:compatibility`、`node scripts/check-zero-go.mjs`（2888 tracked files / 0 release artifact）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`（98 passed）、`pnpm run check:ai-context`。
+
+## 第八十九批：`internal/backtest` 全域收口（63 条）
+
+### 范围与分片
+
+`internal/backtest/**` 本批处理剩余 **63 条 `missing`**（11 个文件），分三片：
+P0 运行生命周期与恢复 22 条（`service_test.go` 15、`run_failure_recovery_test.go` 3、
+`recovery_test.go` 2、`service_pineworker_test.go` 2）→ P1 分页/同步/重试与时间边界 21 条
+（`sync_test.go` 12、`historical_source_test.go` 6、`time_test.go` 3）→ P2 输入与结果视图 20 条
+（`input_and_readiness_validation_test.go` 10、`result_view_test.go` 6、
+`result_view_aggregation_test.go` 2、`business_test.go` 2）。
+
+### 结果
+
+- 63 条全部给出结论：**6 条 `[x]`/`function_exact` + 57 条 `partial`**。
+- `internal/backtest/**` 归零：67 条 = **7 `[x]` + 60 `partial`，0 `missing`**。
+- 全局：4451 = function_exact **1217** + partial **2368** + boundary 529 + module_only 4 +
+  missing **333**（前批为 1211 / 2311 / 529 / 4 / 396），Rust 测试 2927 → **2932**。
+
+### 新增 `[x]` 锚点
+
+| Go 测试 | Rust 入口 | 结论 |
+| --- | --- | --- |
+| `service_test.go:196 TestPrepareResolvedBacktestNormalizesChartType` | `product_production_ports_backtest_strategy_time_range_tests::backtest_start_normalizes_chart_type` | `[x]`：空/未知(renko)→standard、HeikinAshi→heikinashi；Start 持久化前新增 `with_normalized_chart_type` 归一化（此前 Rust 原样透传）。 |
+| `sync_test.go:367 TestPlanSyncIntervals` | `product_backtest_sync_start_tests::sync_request_plans_intervals_like_go` | `[x]`：四条用例逐项一致；修复 US extended 下 `3d`/`2w` 未再降级为 `1h` 的差异。 |
+| `sync_test.go:412 TestParseSessionScope` | `product_backtest_sync_start_tests::sync_request_session_scope_parity_with_go` | `[x]`：放行/拒绝集合与 Go 一致（既有 Parity 锚点）。 |
+| `time_test.go:8 TestResolveBacktestTimeRangeUsesMarketDateAndDST` | `..._time_range_tests::backtest_start_resolves_market_dates_with_dst` | `[x]`：US 市场日按本地午夜解析（DST 日 23h），startDate/endDate 标签与 `America/New_York` 归一化。 |
+| `time_test.go:33 TestResolveBacktestTimeRangeUsesHongKongCalendarDay` | `..._time_range_tests::backtest_start_resolves_hong_kong_calendar_day` | `[x]`：HK 市场日 16:00Z 起点与 `Asia/Hong_Kong` 归一化。 |
+| `time_test.go:55 TestResolveBacktestTimeRangeNormalizesLegacyTimestamps` | `..._time_range_tests::backtest_start_normalizes_legacy_offset_timestamps` | `[x]`：偏移时间戳归一化 UTC，日期标签保持缺省。 |
+
+### 本批修复（先红后改）
+
+1. **市场日期 → 市场本地午夜**：Rust 原先把 `startDate`/`endDate` 当 UTC 零点
+   （`parse_start_timestamp`），US/HK 回测区间整体偏移 5/8 小时且 DST 日时长错误。
+   新增 `resolve_backtest_time_range` / `with_normalized_time_range`（jiff 时区 + 本地午夜、
+   结束为次日本地午夜 − 1ns），并在 Start 持久化前写回 `startTime`/`endTime`/
+   `startDate`/`endDate`/`marketTimezone`。红测：`backtest_start_resolves_market_dates_with_dst`
+   原值 `1772928000000`（00:00Z）vs 期望 `1772946000000`（05:00Z）。
+2. **US 扩展时段周期规划**：`plan_sync_intervals` 在多日降级后未再套用 extended 规则，
+   `3d` 残留 `1d`；探针（把 extended 分支改为恒假）复现 `["1d","1w"] != ["1h"]` 后按字节回滚。
+3. **chartType 归一化缺失**：Start 路径此前原样透传 `chartType`，现按 Go
+   `chart.NormalizeChartType` 归一化（空/未知 → standard，heikinashi 保留）。
+
+### 唯一引用约束
+
+- `service_test.go:680 TestRunStoreDelegation` 与 `run_failure_recovery_test.go:81`、
+  `service_test.go:732` 复用了 store 层既有证据：`test_in_memory_store_implements_run_lifecycle_and_cancellation`
+  已被 `internal/store/backtest/store_test.go:168` 作为 `function_exact` 占用，本批保持 `partial`
+  并在结论中写明引用来源。
+
+### 保留差异候选（保持 `partial` 的理由）
+
+- **P0 服务编排**：`service_test.go` 的多断言矩阵（符号/周期/定义版本/初始资金/日期标签/可观测性字段/
+  DBPath/执行模型）、`Close` 后拒绝新 Start、`FinishRun` 的内存兜底、runner 返回 nil/panic 的错误文本；
+  Rust 以端口注入 + 单一写入所有者实现，缺少同粒度断言或本就不存在等价路径。
+- **P1 同步与历史源**：provider 隔离缓存、adapter 关闭时序、“受理前拒绝不支持组合”、
+  在途分页取消、瞬时分页重试与 preflight 能力校验、重试耗尽/计时器取消。
+- **P2 输入与结果视图**：非法日期/单侧日期拒绝矩阵、provider 覆盖优先级、结果视图游标分页、
+  损坏 K 线丢弃与成交量守恒、summary 最新诊断选择、空运行形状的 wire 断言。
+
+验证：`cargo fmt --all`；`cargo clippy -p jftrade-engine -p jftrade-backtest --all-targets --locked`；
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（**1952 passed / 0 skipped**）；`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2932 Rust** / **1217 `[x]`**；missing 333、partial 2368、boundary 529、module_only 4；`OK: 1217 function_exact mappings cite existing workspace tests`、0 破坏引用、0 重复 rust_entry、0 条 `[x]` 缺少 function_exact；未锚定 193、7 条 partial 无解析引用、2 条无断言为前批基线告警）；`pnpm run check:rust:architecture`（文件长度门禁触发后把新增测试拆到 `product_production_ports_backtest_strategy_time_range_tests.rs`）；`pnpm run check:compatibility`；`node scripts/check-zero-go.mjs`（2891 tracked files / 0 release artifact）；`pnpm run check:ai-context`；`git diff --check`。
+
+`pnpm run check:quick` **未通过（EXIT=1）**，唯一失败项不在本批 diff 范围内，
+保留原始证据不记为通过：`pnpm run check:rust:static` 的 `cargo-deny` advisories
+仍因 **RUSTSEC-2026-0285**（rustls 0.23.44，修复 >=0.23.45）失败；本批未改
+`Cargo.lock`，该依赖由根 `Cargo.toml` 的 `rustls = "=0.23.44"` 精确锁定，
+解除需要一次显式的依赖升级批次（含 `deny.toml` 许可例外复核）。同一次
+`check:quick` 中 `pnpm run check:rust:workspace` **3049 passed / 2 skipped**、
+`check:web` 2435 passed、`check:python` 337 passed，目标健康告警按
+`docs/history/go-to-rust/README.md` 的处置流程执行 `cargo clean` 后消失。

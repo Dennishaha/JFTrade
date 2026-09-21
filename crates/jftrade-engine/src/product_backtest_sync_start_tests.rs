@@ -65,6 +65,34 @@ impl HistoricalKlineReadPort for FutuHistoryFixture {
 }
 
 #[test]
+fn sync_request_plans_intervals_like_go() {
+    // Parity: go:452dea11:internal/backtest/sync_test.go:367 TestPlanSyncIntervals
+    let cases: [(&str, &str, Vec<&str>, Vec<&str>); 4] = [
+        ("HK.00700", "", vec!["1m", "1m", "3d"], vec!["1m", "1d"]),
+        ("HK.00700", "", vec!["3d", "2w", "2h"], vec!["1d", "1h"]),
+        ("US.AAPL", "extended", vec!["1d", "3d", "1w"], vec!["1h"]),
+        ("US.AAPL", "regular", vec!["1d"], vec!["1d"]),
+    ];
+    for (symbol, session_scope, requested, want) in cases {
+        let payload = json!({
+            "market": symbol.split('.').next().unwrap_or(""),
+            "symbol": symbol,
+            "intervals": requested,
+            "since": "2026-08-01T00:00:00Z",
+            "until": "2026-08-02T00:00:00Z",
+            "sessionScope": session_scope,
+        });
+        let parsed = parse_sync_request(&payload).expect("planned sync intervals");
+        let planned = parsed
+            .intervals
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        assert_eq!(planned, want, "{symbol} {session_scope}");
+    }
+}
+
+#[test]
 fn sync_request_rejects_invalid_ranges_and_intervals() {
     let invalid_interval = json!({
         "market": "US",

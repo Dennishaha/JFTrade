@@ -268,18 +268,19 @@ fn parse_market_date(
 }
 
 fn plan_sync_intervals(symbol: &str, requested: &[String], session_scope: &str) -> Vec<String> {
+    let extended_us = session_scope == "extended" && symbol.starts_with("US.");
     let mut planned = Vec::with_capacity(requested.len());
     for interval in requested {
         let normalized = match interval.as_str() {
-            "60m" | "2h" | "3h" | "4h" | "6h" | "8h" | "12h" => "1h",
+            "60m" => "1h",
             "3d" | "2w" => "1d",
-            value
-                if session_scope == "extended"
-                    && symbol.starts_with("US.")
-                    && matches!(value, "1d" | "1w" | "1mo") =>
-            {
-                "1h"
-            }
+            "2h" | "3h" | "4h" | "6h" | "8h" | "12h" => "1h",
+            value => value,
+        };
+        // The reference planner applies the US extended hours downgrade after
+        // the multi-day normalization, so `3d`/`2w` become hourly there too.
+        let normalized = match normalized {
+            value if extended_us && matches!(value, "1d" | "1w" | "1mo") => "1h",
             value => value,
         };
         if !planned.iter().any(|value| value == normalized) {

@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use super::product_production_ports_backtest_parse::{
     ParsedBacktestStart, normalize_execution_model_name, parse_end_timestamp,
-    parse_start_timestamp,
+    parse_start_timestamp, resolve_backtest_time_range,
 };
 use crate::product::product_backtests_write_port::BacktestsWritePortError;
 
@@ -322,17 +322,16 @@ pub(super) fn parse_start_request(
         "regular"
     }
     .to_owned();
-    let start = text("startTime")
-        .or_else(|| text("startDate"))
-        .map(parse_start_timestamp)
-        .transpose()?;
-    let end = text("endTime")
-        .or_else(|| text("endDate"))
-        .map(parse_end_timestamp)
-        .transpose()?;
-    let (start_time_ms, end_time_ms) = match (start, end) {
-        (Some(start), Some(end)) => (start, end),
-        _ => {
+    let resolved = resolve_backtest_time_range(
+        &symbol,
+        text("startDate").unwrap_or(""),
+        text("endDate").unwrap_or(""),
+        text("startTime").unwrap_or(""),
+        text("endTime").unwrap_or(""),
+    )?;
+    let (start_time_ms, end_time_ms) = match resolved {
+        Some(range) => (range.start_time_ms, range.end_time_ms),
+        None => {
             let candles = corpus_case
                 .and_then(|case| case.get("candles"))
                 .and_then(Value::as_array)
@@ -694,3 +693,7 @@ mod execution_model_tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "product_production_ports_backtest_strategy_time_range_tests.rs"]
+mod time_range_tests;
