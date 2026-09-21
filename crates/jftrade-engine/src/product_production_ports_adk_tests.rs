@@ -4,6 +4,9 @@ use crate::product::product_adk_mutation_port::AdkMutationPortError;
 #[path = "product_adk_store_parity_tests.rs"]
 mod store_parity;
 
+#[path = "product_adk_workflow_tool_error_tests.rs"]
+mod workflow_tool_error;
+
 #[path = "product_adk_input_response_parity_tests.rs"]
 mod input_response_parity;
 

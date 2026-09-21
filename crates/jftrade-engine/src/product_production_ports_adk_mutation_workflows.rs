@@ -40,6 +40,7 @@ pub(super) fn dispatch(
         AdkMutationOperation::CreateWorkflow | AdkMutationOperation::UpdateWorkflow => {
             let is_update = input.operation == AdkMutationOperation::UpdateWorkflow;
             let body = object_body(&input.body, "workflow")?;
+            validate_request_canvas_graph(body.get("canvasGraph"))?;
             let id = input
                 .identifiers
                 .get("workflowId")
@@ -555,4 +556,23 @@ pub(super) fn dispatch(
         }
         _ => unreachable!("operation group checked before dispatch"),
     }
+}
+
+/// Rejects a structurally broken request `canvasGraph` before it is stored.
+///
+/// Go never keeps such a payload: the REST route binds `canvasGraph` into
+/// `*WorkflowCanvasGraph` and the console tool decodes it with
+/// `decodeWorkflowCanvasGraph`, so both answer `400 BAD_REQUEST`. Rust stores
+/// the body as JSON, so the request value is parsed here with the same graph
+/// type the canvas runtime reads back; `null` still clears a stored graph and
+/// an omitted key still keeps it. Only the incoming value is validated, so a
+/// legacy row that already holds an unparseable graph is not rewritten behind
+/// the caller's back.
+fn validate_request_canvas_graph(value: Option<&Value>) -> Result<(), AdkMutationPortError> {
+    let Some(value) = value.filter(|value| !value.is_null()) else {
+        return Ok(());
+    };
+    serde_json::from_value::<jftrade_assistant::WorkflowCanvasGraph>(value.clone())
+        .map(|_| ())
+        .map_err(|error| invalid_mutation_input(&format!("invalid workflow canvasGraph: {error}")))
 }

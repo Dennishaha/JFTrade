@@ -2918,3 +2918,51 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 - 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与 workflow CRUD 工具族（本批再次确认）、策略实例读写工具（第 52 批 `:122`；第 56 批确认含 `market.provider.select`/`backtest.cancel`；第 59 批补充策略实例读/摘要工具与定义摘要 wire 形状）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤与 `workflow_runs.*` 过滤参数（本批 ②）、`workflow.*` 单条读路由缺口（本批 ①）、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = `watchlist.list` 的 includeQuotes 行情富化与载荷字段形状（第 47/57 批 + 第 61 批 ②）、第 56 批的 `tradingCosts` 字段级类型解码差异、第 57 批的 `RecordWorkflowAudit` 回调无 owner、`market.depth` 自由文本 instrument 推断、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具、第 53/54 批的 float 截断/query 文本推断/limit>50 钳制/capability 措辞、第 55 批禁用 503 路径差异。
 
 验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1677 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2850 Rust** / **959 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 第六十三批：`internal/assistant/assembly/workflow_tools_error_boundaries_test.go`（2 条）
+
+### 范围与基线
+
+- 目标文件：`internal/assistant/assembly/workflow_tools_error_boundaries_test.go`（`:52` `TestWorkflowToolsRemainingManagerErrorPropagation`、`:103` `TestWorkflowToolsRemainingSessionAndPayloadErrors`）。
+- Go 基线：`GOFLAGS=-mod=mod /opt/homebrew/bin/go test ./internal/assistant/assembly/ -run 'TestWorkflowToolsRemainingManagerErrorPropagation|TestWorkflowToolsRemainingSessionAndPayloadErrors' -count=1`，两条均 PASS。
+- Rust 侧入口核对：`product_adk_mutation_port_parse.rs`（路由/载荷解析）、`product_production_ports_adk_mutation_workflows.rs`（workflow/trigger 写入）、`product_production_ports_adk_mutation_workflow_runtime.rs`（运行期 canvas 校验）、`product_adk_read_api.rs`（读端口失败映射）；挂载点选在 `product_production_ports_adk_tests.rs`（与 `product_adk_store_parity_tests.rs` 同父模块，可使用 `agent_validation_port`），未挂在 `product_adk_mutation_port.rs`（该文件被集成测试 `tests/adk_mutations_compatibility.rs` 以 `#[path]` 复用）。
+- 新增测试文件：`crates/jftrade-engine/src/product_adk_workflow_tool_error_tests.rs`（4 条测试）。
+
+### `:52 [~]`（管理器错误原样传播）
+
+- 新增 `product_adk_workflow_tool_error_tests.rs::workflow_manager_failures_surface_verbatim_on_every_workflow_route`：读端口返回 `Failed{502, WORKFLOW_MANAGER_FAILED, workflow manager failed, retryAfter=3}` 时，4 条 workflow 读路由（workflows / workflow / triggers / workflow-trigger-logs）逐字带出 status/code/message/retryAfter；mutation 端口返回 `Failed{422, WORKFLOW_MANAGER_FAILED, workflow manager failed}` 时，8 条 workflow 写路由逐字带出 status/code/message 且 `ok=false`。零改写即为 Go「工具把管理器错误 `errors.Is` 原样返回」的端口级等价断言。
+- nil 管理器 fail closed 半边不重复登记，由批次 62 的 `product_adk_workflow_bridge_tests.rs::workflow_bridge_operations_fail_closed_without_their_ports` 覆盖（4 条读 503 `ADK_READ_UNAVAILABLE`、8 条写 503 `ADK_MUTATIONS_UNAVAILABLE`）。
+- 仍为 partial：Go 注册的 14 个 workflow 模型工具（`workflows.*` / `workflow_triggers.*` / `workflow_runs.*` / `workflows.run` / `workflow_triggers.run`）在 Rust 无对应工具族（模型目录只有 `workflow.wait`，第 50/62 批同一 P1），因此「工具 handler 透传」这一层无对象可断言。
+
+### `:103 [~]`（会话与载荷错误）：本轮生产修正
+
+- 生产缺口：Rust 的 workflow create/update 把 body 的 `canvasGraph` 原样写入 SQLite，Go 在写前就会失败——工具层 `decodeWorkflowCanvasGraph`（`internal/assistant/assembly/workflow_tools.go:358`）与 REST 绑定 `*WorkflowCanvasGraph`（`internal/api/assistant/workflow.go:58`，失败 → 400 `BAD_REQUEST` `invalid workflow payload`）。因此 `canvasGraph:"invalid"` 在 Rust 会被持久化，直到运行期才以 400 `invalid workflow canvasGraph: …` 失败，且已落库的坏图会污染读投影。
+- 修正位置：`crates/jftrade-engine/src/product_production_ports_adk_mutation_workflows.rs` 新增 `validate_request_canvas_graph(body.get("canvasGraph"))`（create/update 分支入口）与同名私有函数——仅校验请求值（非 null 时用 canvas 运行时同一 `jftrade_assistant::WorkflowCanvasGraph` 反序列化），失败映射 400 `BAD_REQUEST` / `invalid workflow canvasGraph: {serde error}`；`null` 仍表示清空、省略仍保值，历史行不被回写重判。
+
+### `:103 [~]`（其余三段）
+
+- `product_adk_workflow_tool_error_tests.rs::workflow_writes_reject_malformed_canvas_graphs_before_storing`：create 收到 `"invalid"`、`{"version":"v1","nodes":"invalid"}`、数组 → 400 `BAD_REQUEST` 且列表不出现被拒 workflow；省略 `canvasGraph` 的更新不报错、读投影无 graph；`{"version":"v1"}` 正常保存；对已存图的 workflow 提交 `canvasGraph:"invalid"` → 400 且存图仍是 `version=v1`。等价 Go 的 `decodeWorkflowCanvasGraph` 错误分支 + 省略不报错 + 合法图写入 `payload.CanvasGraph`。
+- `product_adk_workflow_tool_error_tests.rs::workflow_writes_apply_the_documented_write_fields`：一次 create 带齐 `name/description/status/agentId/workMode/providerId/model/permissionMode/promptTemplate/objectiveTemplate/defaultInputs/tags`，断言落库与读投影逐字段一致（等价 `applyWorkflowWriteFields` 的 12 个拷贝点）。
+- `product_adk_workflow_tool_error_tests.rs::workflow_trigger_update_switches_a_manual_trigger_to_a_schedule`：manual → `{"type":"schedule","config":{"cron":"* * * * *"}}` 后 type=schedule、config.cron 保留、省略 title 保值、enabled schedule 重算 `nextRunAt`（等价 `workflowTriggerUpdateRequest` 的非 webhook 分支；Go 的 webhook type 改动限制属工具层，REST 面是它指向的 UI/API，不迁移——同第 62 批 `workflow_tools_test.go:132` 登记）。
+- Go-only 边界：`requireInteractiveWorkflowToolSession`（nil store / 缺失 session / 已关闭 store 必须报错）只存在于模型工具层；Rust 的 `workflows.run`/`workflow-triggers.run` 路由不要求交互式会话，因此这三段断言无对应对象，不作迁移实现。
+
+### 探针（改坏 → 转红 → 回滚）
+
+1. 删掉 `validate_request_canvas_graph(body.get("canvasGraph"))?;` 调用 → `workflow_writes_reject_malformed_canvas_graphs_before_storing` 转红（exit 100）。
+2. `product_adk_read_api.rs::snapshot_failure` 的 `Failed` 分支把 `retry_after_seconds` 写成 `None` → `workflow_manager_failures_surface_verbatim_on_every_workflow_route` 转红（exit 100）。
+3. 触发器更新把 `normalize_trigger_type(body.get("type"), …)` 改成 `normalize_trigger_type(None, …)` → `workflow_trigger_update_switches_a_manual_trigger_to_a_schedule` 转红（exit 100）。
+4. 从 create/update 的 patch 键列表移除 `"providerId"` → `workflow_writes_apply_the_documented_write_fields` 转红（exit 100）。
+   4 处探针均在本批内执行并已按字节回滚（脚本断言恢复后字节一致），suite 复测全绿。
+
+### 结论登记（本批新增/确认的边界与差异）
+
+- ①写期 canvas 校验比 Go 绑定更严一档：Go 的 `WorkflowCanvasNode` 允许缺 `id`/`type`（零值继续 normalize），Rust `WorkflowCanvasGraph` 反序列化要求 `id`/`type`，因此 `{"nodes":[{"data":{}}]}` 现在保存即 400（此前是保存成功、运行期 400）。判定为可接受收紧：Rust 运行期解析同一类型，坏图在存储前拒绝可避免污染读投影；登记为 P2 边界，若后续需要精确复刻 Go 的零值容忍，应在 `WorkflowCanvasNode` 加 `#[serde(default)]` 并在 normalize 阶段处理空 id/type。
+- ②`:52` 的模型工具族缺口与第 50/62 批同源（P1），本批不重复展开。
+- ③`:103` 的交互式会话守卫为工具层结构差异（P2，不迁移）。
+
+### 仍未结清（下一批）
+
+- `internal/assistant/assembly` 未复核余量 7 条：`maintenance_test.go`（2）、`adk_backtest_adapter_test.go`/`adk_strategy_input_validation_test.go`/`adk_tool_failure_contracts_test.go`/`product_execution_contracts_test.go`/`workflow_execution_injection_test.go`（各 1）；随后 `internal/app/apiserver`（574，按 servercore/servercoretest 分片）、`pkg/strategy`（342）、`pkg/backtest`（237）、`pkg/bbgo`（145）、`pkg/futu`（118，live_opend 放最后）、`internal/integration/akshare`（73）、`internal/integration/yfinance`（68）、`pkg/market`（56）。
+- 跨批 follow-up 汇总：P1 = 模型目录缺 9 个外部写/交易工具（第 50 批 `:29`/`:77`）与 workflow CRUD 工具族（第 62 批 + 本批 `:52`）、策略实例读写工具（第 52 批 `:122`；第 56 批确认含 `market.provider.select`/`backtest.cancel`；第 59 批补充策略实例读/摘要工具与定义摘要 wire 形状）、`portfolio.summary` 的多账户 `accountSummaries` 聚合/排序/partial、`portfolio.*` 无法投影 broker runtime `lastError`、策略定义版本/快照的生产 wire 形状、工作流触发日志 active/page 过滤与 `workflow_runs.*` 过滤参数（第 62 批 ②）、`workflow.*` 单条读路由缺口（第 62 批 ①）、Go `SaveRun` 终态谓词、审批续跑失败 `resumeState=approval_continuation_failed`；P2 = 本批 ①（写期 canvas 校验比 Go 绑定更严）与本批 ③（交互式会话守卫不迁移）、`watchlist.list` 的 includeQuotes 行情富化与载荷字段形状（第 47/57/61 批）、第 56 批的 `tradingCosts` 字段级类型解码差异、第 57 批的 `RecordWorkflowAudit` 回调无 owner、`market.depth` 自由文本 instrument 推断、`research.calendar` 缺省输入 fail-closed 差异、运行期动态工具注册与可空句柄、`backtest.kline_sync_status` 的 intervals/readyToRetry 字面量断言、research_backtest 内嵌 resultView 入参归一、per-agent 技能授权过滤、模型侧 memory/artifact 直接工具、第 53/54 批的 float 截断/query 文本推断/limit>50 钳制/capability 措辞、第 55 批禁用 503 路径差异。
+
+验证：`cargo fmt --all`、`cargo clippy -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（1680 passed）、`pnpm run check:zero-go`、`pnpm run check:compatibility`、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2854 Rust** / **959 `[x]`**，0 破坏引用）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。

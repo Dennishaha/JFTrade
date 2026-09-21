@@ -7323,17 +7323,17 @@
   },
   "internal/assistant/assembly/workflow_tools_error_boundaries_test.go:52:TestWorkflowToolsRemainingManagerErrorPropagation": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_workflow_canvas)'",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_workflow_tool_error_tests.rs::workflow_manager_failures_surface_verbatim_on_every_workflow_route",
+    "conclusion": "partial：Go 注册 14 个工作流管理工具并把管理器错误逐字返回调用方，nil 管理器 fail closed；Rust 无模型工具注册表（只注册 workflow.wait，见批次 50/62 记录的 P1），最接近的可达面是端口边界，新增 `workflow_manager_failures_surface_verbatim_on_every_workflow_route`：4 条 workflow 读路由原样带出读端口的 Failed{status, code, message, retryAfter}（502/WORKFLOW_MANAGER_FAILED/workflow manager failed/3），8 条 workflow 写路由原样带出 mutation 端口的 Failed{status, code, message}（422 同码同消息，body ok=false）。探针：把 AdkReadSnapshotError::Failed 的 retry_after_seconds 改成 None → 该测试转红，恢复后 1680 条 engine 测试全绿。nil 管理器 fail closed 由批次 62 的 workflow_bridge_operations_fail_closed_without_their_ports 覆盖（4 条读 503 ADK_READ_UNAVAILABLE、8 条写 503 ADK_MUTATIONS_UNAVAILABLE）。剩余缺口：14 个模型工具本体（schema/注册/handler）在 Rust 不存在，属工具层结构差异（P1）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(workflow_manager_failures_surface_verbatim_on_every_workflow_route)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/workflow_tools_error_boundaries_test.go:103:TestWorkflowToolsRemainingSessionAndPayloadErrors": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "待补证据：声明的 Rust 测试函数入口未通过文件存在/函数定义校验",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-    "evidence_type": "missing"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_workflow_tool_error_tests.rs::workflow_writes_reject_malformed_canvas_graphs_before_storing",
+    "conclusion": "partial：Rust 侧本轮补齐 3 组行为并修一处生产缺口。(1) 画布负载：workflow_writes_reject_malformed_canvas_graphs_before_storing 断言 create/update 收到 canvasGraph: \"invalid\"、{\"version\":\"v1\",\"nodes\":\"invalid\"} 或数组时返回 400 BAD_REQUEST、不落库（列表不会出现被拒 workflow），省略 canvasGraph 不报错，{\"version\":\"v1\"} 正常保存且读投影保留，被拒的更新不改动已存图；为此修正生产代码：新增 validate_request_canvas_graph，在 workflow create/update 前用 canvas 运行时同一 WorkflowCanvasGraph 反序列化校验请求值（null 仍表示清空，省略仍保值，只校验入参不重写历史行），对齐 Go 工具层 decodeWorkflowCanvasGraph 与 REST 绑定在写前拒绝的行为。(2) workflow_writes_apply_the_documented_write_fields 覆盖 applyWorkflowWriteFields 的 12 个字段（name/description/status/agentId/workMode/providerId/model/permissionMode/promptTemplate/objectiveTemplate/defaultInputs/tags）通过 REST body 原样落库并从读投影读回。(3) workflow_trigger_update_switches_a_manual_trigger_to_a_schedule 覆盖非 webhook 分支的 type+config 更新（manual→schedule、config.cron 保留、title 省略保值、nextRunAt 重算）。探针：删掉 validate_request_canvas_graph 调用 → 画布测试转红；移除 patch 键列表中的 \"providerId\" → 字段测试转红；更新触发器时固定沿用原 type → 触发器测试转红，全部恢复后 suite 全绿。Go-only 边界：requireInteractiveWorkflowToolSession（nil store / 缺失 session / 已关闭 store 必须报错）只存在于模型工具层；Rust run 路由不要求交互式会话，属工具层结构差异，不迁移。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(workflow_writes_reject_malformed_canvas_graphs_before_storing) | test(workflow_writes_apply_the_documented_write_fields) | test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/assembly/workflow_tools_test.go:15:TestWorkflowManagementToolCatalogAndApprovalMatrix": {
     "status": "[~]",
