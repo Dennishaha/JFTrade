@@ -30717,17 +30717,17 @@
   },
   "internal/trading/order_updates_reconnect_test.go:12:TestOrderUpdatesWorkerResubscribesAfterSubscribeFailureAndPushResumes": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::subscription_failure_retry_is_fenced_to_its_generation；crates/jftrade-integration-futu/tests/provider_runtime_recovery.rs::latest_demand_replaces_stale_replay_while_reconnect_is_pending",
-    "conclusion": "partial：Rust 覆盖订阅失败重试受代际栅栏与重连期间以最新需求替换过期回放；差异：Go 断言订阅失败后重订阅且推送恢复（订阅计数 + 推送恢复），Rust 未断言订单更新推送恢复路径。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
-    "evidence_type": "partial"
+    "rust_entry": "不适用：Rust 引擎不持有订单更新推送订阅（crates/jftrade-integration-futu/src/trade_session.rs::subscribe_trade_accounts 无生产调用方）；失败面证据见 crates/jftrade-integration-futu/tests/client_recovery_boundaries.rs::trade_push_subscription_failure_surfaces_a_transport_error",
+    "conclusion": "保留边界：Go 断言订阅失败（connection refused）后 (a) 记一条 kind=DISCONNECTED invalidation、(b) 半开订阅被 stop 恰好一次、(c) 下一次 Sync 重新订阅（subscribeCalls=2）、(d) 恢复后的推送落账（sourceDetail=broker.push、eventType=BROKER_PUSH_ORDER）。Rust 没有订单更新推送订阅这一对象：subscribe_trade_accounts 只在 jftrade-integration-futu 会话层定义且全仓无生产调用方（引擎用 15s 轮询 + push wake 的 ExecutionReconciliationWorker，不订阅券商推送）；因此 (b)(c)(d) 无同形对象，(a) 的部分语义已由第 124 批新增的 invalidation 诊断承接（扫描失败 → kind/message/createdAt，dial/timeout/closed 归为 DISCONNECTED，路由投影见 broker_order_updates_snapshot）。邻近证据（非同一 owner，仅作机制对照）：client_recovery_boundaries.rs::trade_push_subscription_failure_surfaces_a_transport_error 断言订阅 RPC 失败以传输错误上抛；product_runtime_opend_listener_tests::provider_reconnect_publishes_resync_events_and_wakes_reconciliation 断言重连以 resync 事件 + 唤醒对账收敛。升级路径与回归要求：若将来把交易推送订阅接线进引擎，需要补“订阅失败 → 半开订阅 stop 一次 → 下一轮重新订阅 → 恢复后推送落账且不重复订阅”的完整用例，并把 kind=DISCONNECTED 的 invalidation 与订阅生命周期关联。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(trade_push_subscription_failure_surfaces_a_transport_error)'",
+    "evidence_type": "boundary"
   },
   "internal/trading/order_updates_reconnect_test.go:68:TestOrderUpdatesWorkerKeepsPushSubscriptionWhenRefreshFails": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-futu/src/quote_push_tests.rs::lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push；crates/jftrade-integration-futu/src/subscriptions_tests.rs::failed_unsubscribe_is_deferred_until_its_retry_window",
-    "conclusion": "partial：Rust 覆盖推送生命周期（接受活跃推送、保留记录器失败、拒绝陈旧推送）与失败退订延迟；差异：Go 断言刷新失败时保留既有推送订阅（不退订），Rust 侧「刷新失败不导致退订」的断言缺失。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
-    "evidence_type": "partial"
+    "rust_entry": "不适用：Rust 无“刷新既有订单推送订阅”路径（订阅未接线，重连走 resync + 对账唤醒）；退订重试与代际栅栏证据见 crates/jftrade-integration-futu/src/subscriptions_tests.rs::failed_unsubscribe_is_deferred_until_its_retry_window",
+    "conclusion": "保留边界：Go 断言 Refresh 失败（i/o timeout）时 (a) 不触发重复 Subscribe、(b) 旧订阅 stops=0（保持存活）、(c) 记一条 invalidation、(d) 恢复后继续刷新同一订阅（refreshCalls=2）且推送不中断。Rust 无该路径：subscribe_trade_accounts 无生产调用方（见 :12），重连处理是 LiveHubOpenDEventListener 在 Reconnected 时发布 market-data.resync/console.refresh 并唤醒对账，账户集合与订单状态由每轮 read_accounts + reconcile_order 收敛；因此 (a)(b)(d) 无同形对象，(c) 已由本批 invalidation 诊断承接（扫描失败记录）。邻近证据（市场数据订阅域，非同一 owner）：subscriptions_tests.rs::subscription_failure_retry_is_fenced_to_its_generation（失败重试受代际栅栏）、failed_unsubscribe_is_deferred_until_its_retry_window（失败退订延迟到重试窗口而不是立即拆链）、quote_push_tests.rs::lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push（活跃推送保留、仅拒绝陈旧推送）。升级路径与回归要求：若接线交易推送订阅，需要断言“Refresh 失败不拆旧订阅、不重复 Subscribe、恢复后仍是同一订阅”三条，并保留单订阅计数不变式。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(failed_unsubscribe_is_deferred_until_its_retry_window) or test(subscription_failure_retry_is_fenced_to_its_generation)'",
+    "evidence_type": "boundary"
   },
   "internal/trading/order_updates_test.go:158:TestOrderUpdatesWorkerThrottleForceAndSubscribeOnce": {
     "status": "[~]",

@@ -348,7 +348,45 @@ Go 服务内自带 `OrderUpdatesWorker` 的测试集合（节流/强制同步、
 
 ### 第一百二十四批后续待办
 
-- 分片二：`order_updates_reconnect_test.go` 2 条（订阅失败后重订阅、refresh 失败保留订阅）。
 - 分片三：`order_updates_concurrency_test.go` 1 条与 `order_update_recovery_test.go` 2 条。
+- 分片二已完成：`order_updates_reconnect_test.go` 2 条收敛为边界保留（Rust 无订单更新推送订阅生命周期）。
 - 本批仍存差异：无 per-source（current/history/fees）动作标签；单边读取 fail-closed（Go 继续用可用数据）；
   `subscriptions[]` 恒为空；内存活动订单缓存（TTL/防御性拷贝/终态移除）在 Rust 由 SQLite 唯一真相取代。
+
+### 分片二：订阅重连语义收敛为边界保留（2 条）
+
+- `internal/trading/order_updates_reconnect_test.go:12`：`TestOrderUpdatesWorkerResubscribesAfterSubscribeFailureAndPushResumes`
+  → `evidence_type` 由 `partial` 改为 `boundary`（Rust 无订单更新推送订阅对象）。
+- `internal/trading/order_updates_reconnect_test.go:68`：`TestOrderUpdatesWorkerKeepsPushSubscriptionWhenRefreshFails`
+  → `evidence_type` 由 `partial` 改为 `boundary`（无“刷新既有订单推送订阅”路径）。
+
+#### 关键事实（本批 recon 与实测）
+
+- **交易推送订阅在 Rust 未接线**：`crates/jftrade-integration-futu/src/trade_session.rs::subscribe_trade_accounts`
+  只在会话层定义，全仓（排除测试）无生产调用方；引擎用 15s 轮询 + push wake 的
+  `ExecutionReconciliationWorker`，不订阅券商订单推送，因此 Go 的订阅 stop/重订阅/刷新计数没有同形对象。
+- **重连收敛路径不同但可观测**：重连由 `LiveHubOpenDEventListener` 发布 `market-data.resync`/`console.refresh`
+  并唤醒对账（`provider_reconnect_publishes_resync_events_and_wakes_reconciliation`），订单状态由每轮
+  `read_accounts` + `reconcile_order` 收敛。
+- **失败诊断已由分片一承接**：Go 两条测试中的 invalidation 断言（kind=DISCONNECTED / 至少一条）现由
+  `ExecutionReconciliationWorker` 的 invalidation 记录与 `broker_order_updates_snapshot` 投影承接。
+- **邻近机制证据（仅作对照，非同一 owner）**：`client_recovery_boundaries.rs::trade_push_subscription_failure_surfaces_a_transport_error`、
+  `subscriptions_tests.rs::subscription_failure_retry_is_fenced_to_its_generation`、
+  `subscriptions_tests.rs::failed_unsubscribe_is_deferred_until_its_retry_window`、
+  `quote_push_tests.rs::lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push`
+  均已复跑通过（4 条）。
+
+#### 分片二验证记录
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 邻近证据复跑 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(trade_push_subscription_failure_surfaces_a_transport_error) or test(failed_unsubscribe_is_deferred_until_its_retry_window) or test(subscription_failure_retry_is_fenced_to_its_generation) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push)'` | 4 条通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b124_p2.json` | 2 行改为 boundary，`[x]` 保持 1361 |
+
+#### 升级路径与回归要求
+
+若将来把交易推送订阅接线进引擎，需要一次性补齐三条断言：
+
+1. 订阅失败 → 半开订阅 stop 恰好一次 → 下一轮重新订阅（计数 1→2），恢复后推送落账且不重复订阅；
+2. Refresh 失败 → 不拆旧订阅（stops=0）、不重复 Subscribe、恢复后仍刷新同一订阅（refreshCalls=2）；
+3. 失败期间记录 kind=DISCONNECTED 的 invalidation 并与订阅生命周期关联。
