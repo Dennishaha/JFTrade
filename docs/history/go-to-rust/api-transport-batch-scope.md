@@ -1353,3 +1353,47 @@ owner：`crates/jftrade-engine`（运行时管理器、任务生命周期、执�
 | 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1882/1882 通过 |
 | 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`pnpm run check:quick` | 全部通过（本分片 `check:quick` 首轮通过，`.rcgu.o` 29340 未触发清理） |
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 在 cargo-deny advisories 阶段失败（bans/licenses/sources ok） |
+
+### 分片四：`pineworker_live_business_test.go` 6 行 + `product_lifecycle_business_test.go` 4 行 + `pine_live_executor_test.go` 24 行
+
+范围（按文件与行号升序）：`liveruntime/pineworker_live_business_test.go:226/:270/:305/:368/:404/:527`、
+`liveruntime/product_lifecycle_business_test.go:18/:56/:96/:151`、`pine_live_executor_test.go:14/:36/:66/:80/:93/:119/:150/:180/:198/:226/:255/:284/:314/:349/:383/:428/:443/:462/:474/:508/:532/:556/:601/:648`。
+owner：`crates/jftrade-engine`（实时意图执行、数量归一、会话与运行时账户）、`crates/jftrade-integration-pine`（会话 open/append/close 契约与 worker 错误映射）、
+`crates/jftrade-broker`（市场规则/手数）、`crates/jftrade-backtest`（括号撮合，边界项）。
+
+本分片 34 行全部给出终值：4 行升 `[x]`、27 行收紧 partial、3 行确认为 boundary。
+
+- `[x]`（4 行，均为本分片新增用例，与 Go 用例同形同值）：
+  `:80` `live_entry_without_quantity_is_rejected_before_any_broker_submission`（REAL 绑定 + entry 无数量 → 报 requires a positive finite quantity 且执行端口零调用；
+  重要事实：SIMULATE 绑定允许缺省数量 1，属离线模拟语义，用例内已注释区分）；
+  `:93` `live_entry_quantity_percent_sizes_from_available_equity_at_the_fallback_price`（权益 1000、现价 100、50% → 5 股，side BUY）；
+  `:119` `live_close_quantity_percent_sizes_from_the_open_position`（现仓 10、50% → 5 股，side SELL，reduceOnly true）；
+  `:150` `live_close_without_quantity_defaults_to_the_full_position`（现仓 3、无数量 → 3 股，reduceOnly true）。
+- boundary：`pine_live_executor_test.go:462/:474/:508`（Go 的实时原子 OCO 括号三条，Rust 实时执行无括号路径，最近语义在回测 matcher 括号输入/原子执行）。
+- 收紧为精确缺口的 partial（27 行）覆盖五类：会话与预热（`pineworker_live :226/:270/:404` 的 open 携带预热根数、全量重跑为 0、append 计数、重复 open 边界无断言）、
+  市场与告警（`:226/:255/:284/:314` 的最小量/整手/规则缺失/告警聚合在实时路径无实现）、
+  数量与错误语义（`pine_live_executor :36` 缺 timeInForce、`:66` 缺仓位定量时报错 vs 跳过、`:532/:556/:648` 错误文案与未知 kind 边界）、
+  方向与跟踪（`:180` 无空头 Tag、`:349/:383` 显式方向平仓差异延续分片三结论、`:428/:443/:601` 取消与 clientOrderId 形状只有部分断言）、
+  快照与观测（`product_lifecycle :18/:56/:96/:151` 的 nil funds、失败后观测排序、空币种余额无专门断言）。
+
+关键事实与新登记缺口（P1/P2）：
+
+1. **实时最小量/整手守卫缺失（P1）**：Go 在执行器内按市场最小量与港股整手忽略订单；Rust 实时路径只按绑定 `lotSize` 向下取整，最小量与港股 board lot 只在 `jftrade-broker` 手数初始化与回测流动性告警中体现。
+2. **`timeInForce` 未进 wire（P1）**：Go 断言限价单 GTC；Rust 的 `ExecutionWriteInput` payload 不含 `timeInForce`，券商侧取默认值。
+3. **告警通道缺失（P2）**：忽略订单在 Rust 只落 `INTENT_SKIPPED` 审计，无 warning sink、无按原因聚合计数（延续分片二 :468 与分片三 :527 登记）。
+4. **缺省数量语义差异（P2）**：SIMULATE 绑定下 entry 无数量默认 1；REAL 绑定报错（与 Go live 执行器一致），已在用例中显式区分。
+5. **会话预热计数无断言（P2）**：`jftrade-integration-pine` 的 open/append/close 修订契约有测试，但缺 warmup→open（2 根）→append（1 根）→close（1 次）与 session id 形状断言。
+6. **未知命令 kind 白名单（P2）**：延续分片二登记，`replace` 之类落入 entry 分支。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(live_entry_quantity_percent_sizes_from_available_equity_at_the_fallback_price) \| test(live_close_quantity_percent_sizes_from_the_open_position) \| test(live_close_without_quantity_defaults_to_the_full_position) \| test(live_entry_without_quantity_is_rejected_before_any_broker_submission)'` | 12/12 通过（四条用例 × 三个测试目标；缺数量用例首写为 SIMULATE 绑定导致未拒绝，改为 REAL 绑定后转绿并记录该语义差异） |
+| 映射写入 | payload `/tmp/s128d_payload.json` 经 `/tmp/b82_apply.py` 应用 | 34 行给出终值，`[x]` 1542 → 1546、partial 2300 → 2296 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3212 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1554、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1894/1894 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`pnpm run check:quick` | 全部通过；`check:quick` 首轮在 `api_launcher_reports_startup_failure_when_the_configured_address_is_taken` 抖动失败（1872/1924 中止），隔离复跑与次轮 `check:quick` 均通过，按抖动处置并记录（`.rcgu.o` 32811 未触发清理） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 在 cargo-deny advisories 阶段失败（bans/licenses/sources ok） |

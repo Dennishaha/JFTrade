@@ -469,6 +469,165 @@ fn test_execute_strategy_intents_sizes_close_quantity_pct_from_position() {
     assert_eq!(mutations[0].payload["side"], "SELL");
 }
 
+// Parity: go:452dea11:internal/strategy/pine_live_executor_test.go:93 TestLiveCommandExecutorSizesEntryQuantityPctFromEquity
+#[test]
+fn live_entry_quantity_percent_sizes_from_available_equity_at_the_fallback_price() {
+    let (_dir, _def_store, store, execution, provider, binding) = sizing_execution_fixture();
+    let ctx = StrategyExecutionContext {
+        execution: Some(&execution),
+        execution_store: None,
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-sizing",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: Some(100.0),
+        sellable_quantity: None,
+        current_position: None,
+        available_cash: Some(1_000.0),
+        virtual_account: None,
+    };
+
+    let mut intent = test_intent(0.0, 0.0);
+    intent.has_quantity = false;
+    intent.has_limit_price = false;
+    intent.has_quantity_pct = true;
+    intent.quantity_pct = 50.0;
+
+    let res = execute_strategy_intents(ctx, &[intent]);
+    assert!(res.is_ok(), "percentage entry sizing must succeed: {res:?}");
+
+    let mutations = execution.mutations.lock().unwrap();
+    assert_eq!(mutations.len(), 1);
+    assert_eq!(
+        mutations[0].payload["quantity"], 5.0,
+        "half of 1000 USD at 100 floors to 5 shares"
+    );
+    assert_eq!(mutations[0].payload["side"], "BUY");
+}
+
+// Parity: go:452dea11:internal/strategy/pine_live_executor_test.go:119 TestLiveCommandExecutorSizesCloseQuantityPctFromPosition
+#[test]
+fn live_close_quantity_percent_sizes_from_the_open_position() {
+    let (_dir, _def_store, store, execution, provider, binding) = sizing_execution_fixture();
+    let ctx = StrategyExecutionContext {
+        execution: Some(&execution),
+        execution_store: None,
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-sizing",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: Some(100.0),
+        sellable_quantity: Some(10.0),
+        current_position: Some(10.0),
+        available_cash: Some(1_000.0),
+        virtual_account: None,
+    };
+
+    let mut intent = test_intent(0.0, 0.0);
+    intent.kind = "close".to_owned();
+    intent.direction = "long".to_owned();
+    intent.has_quantity = false;
+    intent.has_limit_price = false;
+    intent.has_quantity_pct = true;
+    intent.quantity_pct = 50.0;
+
+    let res = execute_strategy_intents(ctx, &[intent]);
+    assert!(res.is_ok(), "percentage close sizing must succeed: {res:?}");
+
+    let mutations = execution.mutations.lock().unwrap();
+    assert_eq!(mutations.len(), 1);
+    assert_eq!(mutations[0].payload["quantity"], 5.0);
+    assert_eq!(mutations[0].payload["side"], "SELL");
+    assert_eq!(mutations[0].payload["reduceOnly"], true);
+}
+
+// Parity: go:452dea11:internal/strategy/pine_live_executor_test.go:150 TestLiveCommandExecutorDefaultsCloseToFullPosition
+#[test]
+fn live_close_without_quantity_defaults_to_the_full_position() {
+    let (_dir, _def_store, store, execution, provider, binding) = sizing_execution_fixture();
+    let ctx = StrategyExecutionContext {
+        execution: Some(&execution),
+        execution_store: None,
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-sizing",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: Some(100.0),
+        sellable_quantity: Some(3.0),
+        current_position: Some(3.0),
+        available_cash: Some(1_000.0),
+        virtual_account: None,
+    };
+
+    let mut intent = test_intent(0.0, 0.0);
+    intent.kind = "close".to_owned();
+    intent.direction = "long".to_owned();
+    intent.has_quantity = false;
+    intent.has_limit_price = false;
+
+    let res = execute_strategy_intents(ctx, &[intent]);
+    assert!(res.is_ok(), "default close must succeed: {res:?}");
+
+    let mutations = execution.mutations.lock().unwrap();
+    assert_eq!(mutations.len(), 1);
+    assert_eq!(
+        mutations[0].payload["quantity"], 3.0,
+        "a close without quantity must flatten the whole position"
+    );
+    assert_eq!(mutations[0].payload["reduceOnly"], true);
+}
+
+// Parity: go:452dea11:internal/strategy/pine_live_executor_test.go:80 TestLiveCommandExecutorRejectsMissingQuantity
+#[test]
+fn live_entry_without_quantity_is_rejected_before_any_broker_submission() {
+    let (_dir, _def_store, store, execution, provider, mut binding) = sizing_execution_fixture();
+    // A quantity default of one is only allowed for the offline simulate
+    // binding; a real broker binding has to reject a missing quantity.
+    binding["tradingEnvironment"] = json!("REAL");
+    let ctx = StrategyExecutionContext {
+        execution: Some(&execution),
+        execution_store: None,
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-sizing",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: Some(100.0),
+        sellable_quantity: None,
+        current_position: None,
+        available_cash: Some(1_000.0),
+        virtual_account: None,
+    };
+
+    let mut intent = test_intent(0.0, 0.0);
+    intent.kind = "entry".to_owned();
+    intent.direction = "long".to_owned();
+    intent.has_quantity = false;
+    intent.has_limit_price = false;
+
+    let err = execute_strategy_intents(ctx, &[intent])
+        .expect_err("a live entry without quantity must fail closed");
+    assert!(
+        err.contains("requires a positive finite quantity"),
+        "unexpected error: {err}"
+    );
+    assert!(
+        execution.mutations.lock().unwrap().is_empty(),
+        "a rejected entry must not reach the broker"
+    );
+}
+
 #[test]
 fn test_execute_strategy_intents_revision_fence_mismatch_blocks_and_audits() {
     let dir = tempfile::tempdir().expect("tempdir");
