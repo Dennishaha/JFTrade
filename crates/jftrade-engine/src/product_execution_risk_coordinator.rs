@@ -281,8 +281,12 @@ impl ExecutionRiskCoordinator {
                 0,
                 RealTradeControlEvent {
                     id: event_id,
-                    event_type: "HARD_STOP_REJECT".to_owned(),
-                    action: "REJECT".to_owned(),
+                    // Go's `recordRejectedHardStop` writes EventType
+                    // "rejected" with Action "HARD_STOP_REJECT"; the action
+                    // prefix is what the hard-stop event projection filters
+                    // on, so the rejection must appear in that trail.
+                    event_type: "rejected".to_owned(),
+                    action: "HARD_STOP_REJECT".to_owned(),
                     broker_id: order.broker_id.clone(),
                     operation: Some(order.order_kind.clone()),
                     trading_environment: Some("real".to_owned()),

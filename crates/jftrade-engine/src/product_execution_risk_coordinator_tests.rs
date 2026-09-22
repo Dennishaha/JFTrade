@@ -134,8 +134,8 @@ fn real_order_rejects_when_hard_stop_matches() {
     let fresh = load_state_strict(coordinator.path()).expect("load persisted state");
     assert_eq!(fresh.events.len(), 1);
     let event = &fresh.events[0];
-    assert_eq!(event.event_type, "HARD_STOP_REJECT");
-    assert_eq!(event.action, "REJECT");
+    assert_eq!(event.event_type, "rejected");
+    assert_eq!(event.action, "HARD_STOP_REJECT");
     assert_eq!(event.hard_stop_id.as_deref(), Some("hs-aapl-1"));
     assert_eq!(event.symbol.as_deref(), Some("US.AAPL"));
 }
@@ -523,7 +523,7 @@ fn kill_switch_and_hard_stop_survive_a_restart_with_rejection_audit() {
         persisted_state
             .events
             .iter()
-            .any(|event| event.event_type == "HARD_STOP_REJECT"),
+            .any(|event| event.action == "HARD_STOP_REJECT"),
         "persisted hard-stop rejection audit = {:?}",
         persisted_state.events
     );
@@ -835,4 +835,404 @@ fn runtime_risk_config_records_audit_events_and_survives_disable_reload() {
         snapshot.risk_events.len(),
         "reload must preserve the audit event count"
     );
+}
+
+fn control_plane_port(
+    dir: &TempDir,
+) -> (
+    std::sync::Arc<ExecutionRiskCoordinator>,
+    ProductionSystemWritePort,
+) {
+    let path = dir.path().join("real-trade-control.json");
+    let coordinator = std::sync::Arc::new(ExecutionRiskCoordinator::new(path));
+    let port = ProductionSystemWritePort::with_coordinator(std::sync::Arc::clone(&coordinator));
+    (coordinator, port)
+}
+
+fn kill_switch_input(
+    operation: SystemWriteOperation,
+    operator_id: &str,
+    reason: &str,
+) -> SystemWriteInput {
+    SystemWriteInput {
+        operation,
+        hard_stop_id: None,
+        kill_switch: Some(
+            crate::product::product_system_write_port::RealTradeKillSwitchCommand {
+                trading_environment: "real".to_owned(),
+                operator_id: operator_id.to_owned(),
+                reason: reason.to_owned(),
+            },
+        ),
+        hard_stop: None,
+        risk: None,
+    }
+}
+
+fn hard_stop_input(
+    operation: SystemWriteOperation,
+    hard_stop_id: Option<&str>,
+    command: crate::product::product_system_write_port::RealTradeHardStopCommand,
+) -> SystemWriteInput {
+    SystemWriteInput {
+        operation,
+        hard_stop_id: hard_stop_id.map(str::to_owned),
+        kill_switch: None,
+        hard_stop: Some(command),
+        risk: None,
+    }
+}
+
+fn account_hard_stop_command(
+    reason: &str,
+) -> crate::product::product_system_write_port::RealTradeHardStopCommand {
+    crate::product::product_system_write_port::RealTradeHardStopCommand {
+        broker_id: "futu".to_owned(),
+        trading_environment: "real".to_owned(),
+        account_id: "acc-1".to_owned(),
+        market: "US".to_owned(),
+        symbol: String::new(),
+        hard_stop_scope: "account".to_owned(),
+        operator_id: "tester".to_owned(),
+        reason: reason.to_owned(),
+    }
+}
+
+/// Parity: go:452dea11:internal/trading/control_plane_idempotency_test.go:12
+/// `TestRealTradeControlPlaneKillSwitchReleaseIsIdempotentAndAudited`.
+///
+/// Go releases an inactive kill switch (one audit event, no activation
+/// reference), activates it, then releases twice: both releases succeed, the
+/// audit trail keeps every event, the newest release has no activation
+/// reference and the earlier release still points at the activation time.
+#[test]
+fn control_plane_kill_switch_release_is_idempotent_and_audited() {
+    let dir = TempDir::new().unwrap();
+    let (coordinator, port) = control_plane_port(&dir);
+
+    port.mutate(&kill_switch_input(
+        SystemWriteOperation::ReleaseKillSwitch,
+        "tester",
+        "precautionary release",
+    ))
+    .expect("releasing an inactive kill switch is idempotent");
+    let snapshot = coordinator.snapshot();
+    assert!(!snapshot.kill_switch_active, "{snapshot:?}");
+    assert_eq!(snapshot.kill_switch_events.len(), 1);
+    assert_eq!(snapshot.kill_switch_events[0].action, "KILL_SWITCH_RELEASE");
+    assert!(
+        snapshot.kill_switch_events[0].activated_at.is_none(),
+        "release without activation must not reference an activation: {:?}",
+        snapshot.kill_switch_events[0]
+    );
+
+    port.mutate(&kill_switch_input(
+        SystemWriteOperation::ActivateKillSwitch,
+        "tester",
+        "incident",
+    ))
+    .expect("activate kill switch");
+    let activated_at = coordinator
+        .snapshot()
+        .kill_switch_entry
+        .as_ref()
+        .map(|entry| entry.activated_at.clone())
+        .expect("kill-switch activation time");
+
+    port.mutate(&kill_switch_input(
+        SystemWriteOperation::ReleaseKillSwitch,
+        "tester",
+        "",
+    ))
+    .expect("first release");
+    port.mutate(&kill_switch_input(
+        SystemWriteOperation::ReleaseKillSwitch,
+        "tester",
+        "",
+    ))
+    .expect("repeated release");
+    let snapshot = coordinator.snapshot();
+    assert!(!snapshot.kill_switch_active, "{snapshot:?}");
+    assert_eq!(
+        snapshot.kill_switch_events.len(),
+        4,
+        "release/release/activate/release must all be audited: {:?}",
+        snapshot.kill_switch_events
+    );
+    assert_eq!(snapshot.kill_switch_events[0].action, "KILL_SWITCH_RELEASE");
+    assert!(snapshot.kill_switch_events[0].activated_at.is_none());
+    assert_eq!(snapshot.kill_switch_events[1].action, "KILL_SWITCH_RELEASE");
+    assert_eq!(
+        snapshot.kill_switch_events[1].activated_at.as_deref(),
+        Some(activated_at.as_str()),
+        "the first release references the activation it released"
+    );
+    assert_eq!(
+        snapshot.kill_switch_events[2].action,
+        "KILL_SWITCH_ACTIVATE"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/control_plane_idempotency_test.go:65
+/// `TestRealTradeControlPlaneHardStopReleaseIsSingleShot`.
+///
+/// Go activates one hard stop, releases it once, and requires the repeated
+/// release to fail with "not found" while the audit trail keeps exactly the
+/// activate and release events.
+#[test]
+fn control_plane_hard_stop_release_is_single_shot() {
+    let dir = TempDir::new().unwrap();
+    let (coordinator, port) = control_plane_port(&dir);
+
+    port.mutate(&hard_stop_input(
+        SystemWriteOperation::ActivateHardStop,
+        None,
+        account_hard_stop_command("incident"),
+    ))
+    .expect("activate hard stop");
+    let entries = coordinator.snapshot().hard_stop_entries;
+    assert_eq!(entries.len(), 1, "{entries:?}");
+    let hard_stop_id = entries[0].id.clone();
+
+    port.mutate(&hard_stop_input(
+        SystemWriteOperation::ReleaseHardStop,
+        Some(&hard_stop_id),
+        account_hard_stop_command("resolved"),
+    ))
+    .expect("first hard-stop release");
+    assert!(coordinator.snapshot().hard_stop_entries.is_empty());
+
+    let error = port
+        .mutate(&hard_stop_input(
+            SystemWriteOperation::ReleaseHardStop,
+            Some(&hard_stop_id),
+            account_hard_stop_command("resolved"),
+        ))
+        .expect_err("a repeated hard-stop release must fail");
+    assert!(
+        error.to_string().contains("not found"),
+        "repeated release error = {error:?}"
+    );
+
+    let events = coordinator.snapshot().hard_stop_events;
+    assert_eq!(
+        events.len(),
+        2,
+        "repeated release must not append audit events: {events:?}"
+    );
+    assert_eq!(events[0].action, "HARD_STOP_RELEASE");
+    assert_eq!(events[1].action, "HARD_STOP_ACTIVATE");
+}
+
+/// Parity: go:452dea11:internal/trading/control_plane_idempotency_test.go:99
+/// `TestRealTradeControlPlaneHardStopsBlockUntilEveryEntryReleased`.
+///
+/// Go accumulates two hard stops on the same account: a REAL order is rejected
+/// with REAL_TRADE_HARD_STOP_ACTIVE, releasing one keeps it blocked (with每 an
+/// audited rejection), and releasing the last one allows the order again.
+#[test]
+fn control_plane_hard_stops_block_until_every_entry_released() {
+    let dir = TempDir::new().unwrap();
+    let (coordinator, port) = control_plane_port(&dir);
+
+    port.mutate(&SystemWriteInput {
+        operation: SystemWriteOperation::UpdateRisk,
+        hard_stop_id: None,
+        kill_switch: None,
+        hard_stop: None,
+        risk: Some(runtime_risk_command("real", true, Some(25.0), None)),
+    })
+    .expect("enable runtime risk");
+
+    for reason in ["first halt", "second halt"] {
+        port.mutate(&hard_stop_input(
+            SystemWriteOperation::ActivateHardStop,
+            None,
+            account_hard_stop_command(reason),
+        ))
+        .expect("activate hard stop");
+    }
+    let entries = coordinator.snapshot().hard_stop_entries;
+    assert_eq!(entries.len(), 2, "{entries:?}");
+    assert_ne!(entries[0].id, entries[1].id, "entries must accumulate");
+
+    let order = test_order(TradingEnvironment::Real, 1.0, 10.0);
+    let rejection = coordinator
+        .execute_with_risk_guard(&order, || Ok("must-not-run"))
+        .expect_err("two hard stops must block the order");
+    assert!(
+        matches!(
+            rejection,
+            ExecutionWritePortError::Failed { ref code, .. }
+                if code == "REAL_TRADE_HARD_STOP_ACTIVE"
+        ),
+        "hard-stop rejection = {rejection:?}"
+    );
+
+    let first_id = entries[0].id.clone();
+    port.mutate(&hard_stop_input(
+        SystemWriteOperation::ReleaseHardStop,
+        Some(&first_id),
+        account_hard_stop_command("first resolved"),
+    ))
+    .expect("release first hard stop");
+    let rejection = coordinator
+        .execute_with_risk_guard(&order, || Ok("must-not-run"))
+        .expect_err("the remaining hard stop must keep blocking");
+    assert!(
+        matches!(
+            rejection,
+            ExecutionWritePortError::Failed { ref code, .. }
+                if code == "REAL_TRADE_HARD_STOP_ACTIVE"
+        ),
+        "remaining hard-stop rejection = {rejection:?}"
+    );
+    let rejections = coordinator
+        .snapshot()
+        .hard_stop_events
+        .iter()
+        .filter(|event| event.action == "HARD_STOP_REJECT")
+        .count();
+    assert_eq!(rejections, 2, "each rejection must be audited");
+
+    let second_id = entries[1].id.clone();
+    port.mutate(&hard_stop_input(
+        SystemWriteOperation::ReleaseHardStop,
+        Some(&second_id),
+        account_hard_stop_command("second resolved"),
+    ))
+    .expect("release second hard stop");
+    assert_eq!(
+        coordinator
+            .execute_with_risk_guard(&order, || Ok("submitted"))
+            .expect("releasing every hard stop allows the order"),
+        "submitted"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/control_plane_state_audit_test.go:13
+/// `TestControlPlaneRetainsActivationAndBoundsRepeatedAuditEvents`.
+///
+/// Go keeps the original kill-switch/risk activation timestamps across repeated
+/// mutations (refreshing operator and limits) and caps the kill-switch audit
+/// trail at the control-plane event limit while keeping the newest event first.
+#[test]
+fn control_plane_retains_activation_and_bounds_repeated_audit_events() {
+    let dir = TempDir::new().unwrap();
+    let (coordinator, port) = control_plane_port(&dir);
+
+    port.mutate(&kill_switch_input(
+        SystemWriteOperation::ActivateKillSwitch,
+        "first-operator",
+        "first incident",
+    ))
+    .expect("initial activation");
+    let initial_activation = coordinator
+        .snapshot()
+        .kill_switch_entry
+        .as_ref()
+        .map(|entry| entry.activated_at.clone())
+        .expect("initial activation time");
+    assert!(!initial_activation.is_empty());
+
+    port.mutate(&kill_switch_input(
+        SystemWriteOperation::ActivateKillSwitch,
+        "second-operator",
+        "incident remains active",
+    ))
+    .expect("repeated activation");
+    let entry = coordinator
+        .snapshot()
+        .kill_switch_entry
+        .clone()
+        .expect("kill switch entry");
+    assert_eq!(
+        entry.activated_at, initial_activation,
+        "repeated activation keeps the original activation time"
+    );
+    assert_eq!(entry.operator_id, "second-operator");
+
+    port.mutate(&SystemWriteInput {
+        operation: SystemWriteOperation::UpdateRisk,
+        hard_stop_id: None,
+        kill_switch: None,
+        hard_stop: None,
+        risk: Some(runtime_risk_command("real", true, Some(10.0), None)),
+    })
+    .expect("initial runtime risk update");
+    let initial_risk_activation = coordinator
+        .snapshot()
+        .risk_entry
+        .as_ref()
+        .map(|entry| entry.activated_at.clone())
+        .expect("risk activation time");
+    port.mutate(&SystemWriteInput {
+        operation: SystemWriteOperation::UpdateRisk,
+        hard_stop_id: None,
+        kill_switch: None,
+        hard_stop: None,
+        risk: Some(runtime_risk_command("real", true, None, Some(1000.0))),
+    })
+    .expect("repeated runtime risk update");
+    let risk_entry = coordinator
+        .snapshot()
+        .risk_entry
+        .clone()
+        .expect("risk entry");
+    assert_eq!(
+        risk_entry.activated_at, initial_risk_activation,
+        "repeated runtime-risk updates keep the original activation time"
+    );
+    assert_eq!(
+        risk_entry.max_order_notional,
+        Some(Decimal::from_str("1000").unwrap()),
+        "the new limit is applied"
+    );
+
+    // Go loops `for index := 0; index <= realTradeControlEventLimit; index++`
+    // and requires the trail to stop at the limit; Rust truncates the same way
+    // at REAL_TRADE_EVENT_LIMIT (200) in prepend_event.
+    for _ in 0..=200 {
+        port.mutate(&kill_switch_input(
+            SystemWriteOperation::ActivateKillSwitch,
+            "",
+            "operator reconfirmed incident",
+        ))
+        .expect("reconfirm kill switch");
+    }
+    let events = coordinator.snapshot().kill_switch_events;
+    assert_eq!(events.len(), 200, "kill-switch audit trail must be bounded");
+    assert_eq!(events[0].action, "KILL_SWITCH_ACTIVATE");
+    assert_eq!(
+        events[0].reason.as_deref(),
+        Some("operator reconfirmed incident"),
+        "the newest event stays at the head of the trail"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/control_plane_state_audit_test.go:75
+/// `TestControlPlaneExecutesSimulatedOrdersThroughRiskEvaluation`.
+///
+/// Go runs a SIMULATE order through `executePlaceOrder`: the risk evaluation
+/// allows it, the submission callback runs, and no real-trade audit event is
+/// appended. Rust's `execute_with_risk_guard` is the same seam.
+#[test]
+fn control_plane_executes_simulated_orders_through_the_risk_guard_without_audit() {
+    let dir = TempDir::new().unwrap();
+    let (coordinator, _port) = control_plane_port(&dir);
+    let order = test_order(TradingEnvironment::Simulate, 1.0, 10.0);
+
+    let executed = std::cell::Cell::new(false);
+    coordinator
+        .execute_with_risk_guard(&order, || {
+            executed.set(true);
+            Ok("submitted")
+        })
+        .expect("a simulated order is allowed");
+    assert!(executed.get(), "the submission callback must run");
+
+    let snapshot = coordinator.snapshot();
+    assert!(snapshot.kill_switch_events.is_empty(), "{snapshot:?}");
+    assert!(snapshot.hard_stop_events.is_empty(), "{snapshot:?}");
+    assert!(snapshot.risk_events.is_empty(), "{snapshot:?}");
 }

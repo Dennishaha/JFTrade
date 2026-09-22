@@ -30226,24 +30226,24 @@
     "evidence_type": "function_exact"
   },
   "internal/trading/broker_conformance_test.go:15:TestFakeBrokerConformanceAcceptedPartialFullAndOutOfOrderUpdates": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_fake_broker_conformance_accepted_partial_full_and_out_of_order_updates",
-    "conclusion": "部分覆盖：Rust 仅验证 partial→accepted 不回退及 partial→filled 前进；Go 还覆盖真实订单创建、成交数量/均价、out-of-order 更新与 terminal cancelled 不回退",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(test_fake_broker_conformance_accepted_partial_full_and_out_of_order_updates)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::conformance_partial_full_fill_average_and_out_of_order_updates_hold（本批新增）",
+    "conclusion": "已覆盖：把 Go fake-broker 一致性主线搬到生产端口 + SQLite 执行账本上逐段走一遍——(a) 下单单 4 股成交 → PARTIALLY_FILLED 且 filledQuantity=4；(b) 更旧的乱序快照（SUBMITTED/1 股）→ 不推进、不落事件；(c) 第二笔 6 股 @101 → FILLED、filledQuantity=10、加权均价 100.6（Rust apply_fill_snapshot 的加权公式与 Go 一致）；(d) 更晚的终态快照（CANCELLED_ALL）→ 不回退 FILLED。Go 侧的 harness 内存实现无 Rust 同形对象，本行改以同一不变式在生产 owner（product_production_ports_execution_reconciliation.rs + jftrade-store-sqlite 执行账本）上断言；乱序/终态回退的通用矩阵另由 reconciliation_rejects_terminal_and_partial_status_regressions 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(conformance_partial_full_fill_average_and_out_of_order_updates_hold)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/broker_conformance_test.go:58:TestFakeBrokerConformanceCancelAcceptedAndCancelRejected": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_fake_broker_conformance_cancel_accepted_and_cancel_rejected",
-    "conclusion": "部分覆盖：Rust 仅验证 CANCELLED_ALL 的状态映射；Go 还验证 cancel requested、broker 接受/拒绝、terminal 再取消错误、lastError 与 BROKER_CANCEL_REJECTED 事件",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(test_fake_broker_conformance_cancel_accepted_and_cancel_rejected)'",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::cancel_rejects_missing_terminal_and_unidentified_persisted_orders",
+    "conclusion": "partial：已覆盖的一半——撤单受理（CANCEL_SUBMITTED → CANCELLED_ALL 收敛为 CANCELLED，reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation）与终态再撤单被拒（cancel_rejects_missing_terminal_and_unidentified_persisted_orders 断言终态/未识别订单返回请求错误）。未覆盖的一半是 Go harness 的“券商侧撤单被拒”语义：Go 在 CANCEL_REQUESTED 上保留状态、写 lastError + lastErrorSource=broker.cancel，并追加 BROKER_CANCEL_REJECTED 事件。Rust 没有券商撤单拒绝推送通道，撤单 RPC 失败走 place/cancel 的 fail-closed：product_production_ports_execution_orders_impl.rs::cancel_order 在 modify_order 失败时 persist_unknown(..., \"cancel_failed\")（状态转 UNKNOWN + last_error_source=cancel_failed），而不是保持 CANCEL_SUBMITTED 等券商回执。复现：让 TradeWritePort::modify_order 返回错误 → 本地订单转 UNKNOWN、无 BROKER_CANCEL_REJECTED 事件。修复位置与回归要求：若要贴齐 Go 语义，需要在 cancel 失败分支区分“可重试拒单”与“不可知失败”，并补断言 CANCEL_SUBMITTED 保持、lastError/lastErrorSource 写 broker.cancel、事件 BROKER_CANCEL_REJECTED 落账且不重复。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders)'",
     "evidence_type": "partial"
   },
   "internal/trading/broker_conformance_test.go:107:TestFakeBrokerConformancePlaceRejectedPushBeforeQueryAndUnsupportedCapability": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_fake_broker_conformance_place_rejected_push_before_query_and_unsupported_capability",
-    "conclusion": "部分覆盖：Rust 仅验证 SUBMIT_FAILED/ACCEPTED 状态分类和 terminal 属性；Go 还验证 place rejected 详情、push-before-query 订单发现及 unsupported capability 错误",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(test_fake_broker_conformance_place_rejected_push_before_query_and_unsupported_capability)'",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_discovers_external_order_into_empty_ledger；crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::challenge_edge_case_4_order_state_transitions_filled_cancelled_rejected",
+    "conclusion": "partial：三段里两段有实质对应、一段形态不同——(a) push-before-query 订单发现：Rust 无券商推送订阅，等价面是每轮对账从券商快照发现外部订单并落库（reconciliation_discovers_external_order_into_empty_ledger 断言空账本下发现 BROKER_ACCEPTED 外部单、幂等）；(b) place rejected：Go 的 harness 让下单同步返回 SUBMIT_FAILED 并把本地单标 REJECTED + rawBrokerStatus=SUBMIT_FAILED；Rust 下单 RPC 失败是 fail-closed UNKNOWN（persist_unknown, submission_failed），REJECTED 只在券商快照映射时出现（challenge_edge_case_4_order_state_transitions_filled_cancelled_rejected 断言 FILLED/CANCELLED/REJECTED 状态族映射）；(c) unsupported capability：Go 返回含 \"capability unsupported\" 的请求错误；Rust 把 TradeSessionError::Unsupported 映射为 503 Unavailable（product_production_ports_execution_order_helpers.rs::map_trade_error），错误码不是请求级 capability 错误。复现：让 TradeWritePort::place_order 返回 Unsupported(\"broker capability unsupported: stop-limit\") → Rust 返回 Unavailable(503) 且本地单转 UNKNOWN；Go 返回 4xx 文本错误。修复位置与回归要求：若要对齐，需要在 map_trade_error 区分 Unsupported → 409/400 BROKER_CAPABILITY_UNAVAILABLE，并在下单失败分支落 REJECTED（含 rawBrokerStatus）而不是 UNKNOWN；回归需断言错误码、状态与 rawBrokerStatus 三处。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(reconciliation_discovers_external_order_into_empty_ledger) or test(challenge_edge_case_4_order_state_transitions_filled_cancelled_rejected)'",
     "evidence_type": "partial"
   },
   "internal/trading/broker_test.go:186:TestServiceBrokerReadOperationsMapSnapshotsAndQueries": {
@@ -30296,39 +30296,39 @@
     "evidence_type": "partial"
   },
   "internal/trading/control_plane_idempotency_test.go:12:TestRealTradeControlPlaneKillSwitchReleaseIsIdempotentAndAudited": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_real_trade_control_plane_kill_switch_release_is_idempotent_and_audited",
-    "conclusion": "部分覆盖：Rust 仅验证 kill-switch Option 的激活/释放幂等；Go 还断言 release/activate 审计事件数量、顺序与 ActivatedAt 关联，且通过真实控制面方法执行",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(test_real_trade_control_plane_kill_switch_release_is_idempotent_and_audited)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::control_plane_kill_switch_release_is_idempotent_and_audited（本批新增）",
+    "conclusion": "已覆盖：经 ProductionSystemWritePort + ExecutionRiskCoordinator（Rust 的真实控制面 owner）逐段复现——(a) 未激活时 release → Ok、kill_switch_active=false、审计恰好 1 条 KILL_SWITCH_RELEASE 且 activatedAt 为 None；(b) 激活后取 activation time（非空）；(c) 连续两次 release 都成功、状态保持关闭、审计 4 条（release/release/activate/release）、最新一条 release 的 activatedAt 为 None、前一条 release 引用该 activation、第三条为 KILL_SWITCH_ACTIVATE（prepend_event 头插，与 Go 倒序一致）。生产侧见 product_production_ports_system.rs::release_kill_switch（take + 引用 previous.activated_at）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(control_plane_kill_switch_release_is_idempotent_and_audited)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/control_plane_idempotency_test.go:65:TestRealTradeControlPlaneHardStopReleaseIsSingleShot": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_real_trade_control_plane_hard_stop_release_is_single_shot",
-    "conclusion": "部分覆盖：Rust 仅验证移除 hard-stop 条目后重复查找为空；Go 还验证控制面 release 返回 not found、状态快照和 HARD_STOP_RELEASE/HARD_STOP_ACTIVATE 审计事件不被重复追加",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(test_real_trade_control_plane_hard_stop_release_is_single_shot)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::control_plane_hard_stop_release_is_single_shot（本批新增）",
+    "conclusion": "已覆盖：激活一条 account hard stop（entries.len()==1，id 来自 next_id(\"rths\")）→ 首次 release 成功且 hard_stop_entries 清空 → 重复 release 同一 id 返回错误且消息含 \"not found\"（生产侧 release_hard_stop 的 control_failed(\"real-trade hard stop not found\")）→ 审计事件恰好 2 条并保持顺序 [HARD_STOP_RELEASE, HARD_STOP_ACTIVATE]，重复 release 不追加事件。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(control_plane_hard_stop_release_is_single_shot)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/control_plane_idempotency_test.go:99:TestRealTradeControlPlaneHardStopsBlockUntilEveryEntryReleased": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_real_trade_control_plane_hard_stops_block_until_every_entry_released",
-    "conclusion": "部分覆盖：Rust 仅验证两条 hard-stop 条目逐条移除后的集合大小；Go 还验证 risk config、真实下单被阻断、每次拒绝审计以及全部释放后恢复放行",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(test_real_trade_control_plane_hard_stops_block_until_every_entry_released)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::control_plane_hard_stops_block_until_every_entry_released（本批新增，并修复拒绝审计事件形状）",
+    "conclusion": "已覆盖：启用运行期风控（realTradingEnabled=true、maxOrderQuantity=25）→ 同账户累积两条 hard stop（id 互异）→ REAL 单被拒且 reasonCode=REAL_TRADE_HARD_STOP_ACTIVE → 只解除第一条仍被第二条拦截 → hardStopEvents 中 ACTION=HARD_STOP_REJECT 恰好 2 条（每次拒绝都入审计）→ 解除第二条后同一单放行。**本批生产修复**：Rust 原先把拒绝审计写成 {eventType:\"HARD_STOP_REJECT\", action:\"REJECT\"}，而投影按 action 前缀 \"HARD_STOP_\" 过滤，导致拒绝事件根本不出现在 hardStopEvents（Go 的 recordRejectedHardStop 是 {eventType:\"rejected\", action:\"HARD_STOP_REJECT\"}）。现按 Go 对齐 event_type/action（product_execution_risk_coordinator.rs），第三条断言随之成立。探针：把事件改回 action=\"REJECT\" 后新用例转红（拒绝审计计数 0≠2），按字节回滚并核对 shasum 5c9dab4bf6797837d7139e177f0e75bda5f448c8ee058a0e322a8a3d9adebfed。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(control_plane_hard_stops_block_until_every_entry_released)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/control_plane_state_audit_test.go:13:TestControlPlaneRetainsActivationAndBoundsRepeatedAuditEvents": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_real_trade_control_plane_kill_switch_release_is_idempotent_and_audited；crates/jftrade-engine/src/product_execution_risk_coordinator.rs::mutate_with_activates_kill_switch_atomically_blocking_orders",
-    "conclusion": "partial：Rust 覆盖 kill switch 释放幂等且留审计、激活原子生效；差异：Go 断言控制面保留激活状态且重复审计事件数量有界（上限），Rust 未断言审计事件上界。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::control_plane_retains_activation_and_bounds_repeated_audit_events（本批新增）",
+    "conclusion": "已覆盖：重复激活 kill switch 保留首次 activatedAt、刷新 operator；重复更新运行期风控保留 activatedAt 并应用新 maxOrderNotional=1000；随后按 Go 的 `index <= realTradeControlEventLimit` 循环 201 次重新激活，断言 kill_switch_events.len()==200（Rust REAL_TRADE_EVENT_LIMIT=200，prepend_event/合并路径都做 truncate）且最新事件在表头（action=KILL_SWITCH_ACTIVATE、reason=\"operator reconfirmed incident\"）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(control_plane_retains_activation_and_bounds_repeated_audit_events)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/control_plane_state_audit_test.go:75:TestControlPlaneExecutesSimulatedOrdersThroughRiskEvaluation": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/risk_engine_tests.rs::simulate_bypasses_real_trade_controls_but_real_fails_closed；crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_allows_valid_simulate_order_even_if_real_controls_inactive",
-    "conclusion": "partial：Rust 覆盖模拟单绕过真实控制但仍走风控评估（模拟放行/真实 fail-closed）；差异：Go 断言控制面在模拟模式下执行订单并经过风控评估的完整路径与审计，Rust 断言风控决策层。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::control_plane_executes_simulated_orders_through_the_risk_guard_without_audit（本批新增）",
+    "conclusion": "已覆盖：SIMULATE 单经 ExecutionRiskCoordinator::execute_with_risk_guard（Rust 的 executePlaceOrder 等价 seam）放行、提交回调确实执行（Cell 观察），且三组审计列表（killSwitch/hardStop/risk）都为空——与 Go 的“非真实单 allow 且无真实交易审计副作用”一致（Go 余下的 cloneHardStopEntry(nil) 属于 Go 内部 helper 细节，Rust 无同形函数，故不登记）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(control_plane_executes_simulated_orders_through_the_risk_guard_without_audit)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/control_plane_state_audit_test.go:99:TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations": {
     "status": "[x]",
@@ -30338,11 +30338,11 @@
     "evidence_type": "function_exact"
   },
   "internal/trading/control_plane_state_audit_test.go:190:TestControlPlaneKeepsStateWhenAtomicPersistenceCannotComplete": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator.rs::mutate_with_persist_failure_fails_closed_and_preserves_memory_state",
-    "conclusion": "partial：Rust 断言原子持久化失败时 fail-closed 且保留内存状态；差异：Go 断言控制面在无法完成原子持久化时保持原状态（不产生半更新），Rust 断言内存保留策略，语义一致但断言点不同（无「原状态」快照对比）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::mutate_with_persist_failure_fails_closed_and_preserves_memory_state（本批升级）；对照组证见 failed_persistence_rolls_back_hard_stop_and_runtime_risk_changes",
+    "conclusion": "已覆盖：Go 用两种原子写失败（写阻断目录、rename 目标为目录）分别驱动 kill switch 与 hard stop 激活，并要求内存状态不被半更新。Rust 侧 mutating 先 clone → 持久化成功才替换内存：mutate_with_persist_failure_fails_closed_and_preserves_memory_state 把路径指向只读目录、释放 kill switch 失败后断言 snapshot 仍 kill_switch_active、control_plane_available 且后续 REAL 单仍被 403 REAL_TRADE_KILL_SWITCH_ACTIVE 拦截；hard stop 与 runtime-risk 的回滚（含释放失败保留 entries、disable 失败保留限额）由 failed_persistence_rolls_back_hard_stop_and_runtime_risk_changes 覆盖（该用例已是 execution_test.go:874 的 [x] 证据，故本行 entry 不重复登记）。Go 余下的 market/account scope 归一与两条 hard stop 释放一条的断言由 pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker 与本批 control_plane_hard_stops_block_until_every_entry_released 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(mutate_with_persist_failure_fails_closed_and_preserves_memory_state)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/control_plane_state_audit_test.go:250:TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure": {
     "status": "[x]",
@@ -30611,11 +30611,11 @@
     "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:738:TestRealTradeControlPlanePersistsKillSwitchAndHardStop": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::kill_switch_and_hard_stop_survive_a_restart_with_rejection_audit",
-    "conclusion": "partial（本轮已补齐持久化往返，仍缺 snapshot 事件投影等价）：新增测试覆盖 Go 的持久化主线——激活 kill switch → snapshot.kill_switch_active、kill_switch_source==RUNTIME → 从磁盘重载仍生效（REAL 单被拒）→ 释放 kill switch 并启用运行期风控（maxOrderQuantity=10）→ 激活 hard stop → 再次重载后 hard stop 生效，REAL 单被 Failed{403, REAL_TRADE_HARD_STOP_ACTIVE} 拒绝，且持久化文件内含 HARD_STOP_REJECT 审计事件（按 JSON 解析断言 event.eventType）。探针：让 mutate_with 跳过 persist_state（persist_result = Ok(())）→ 测试转红（重启后 kill switch 丢失），按字节回滚（shasum 48307de8… 一致）。**保留差异（功能差异，已登记）**：Go 断言 Snapshot().HardStopEvents[0].EventType == \"rejected\"；Rust 的审计事件写成 {eventType: \"HARD_STOP_REJECT\", action: \"REJECT\"}，而 snapshot.hard_stop_events 投影用 jftrade-trading/src/real_trade.rs::events_with_prefix(&state.events, \"HARD_STOP_\") 过滤 **action** 前缀，因此该拒绝事件不会出现在 hardStopEvents 列表里（只在持久化审计中可见）。复现：激活 hard stop 后提交匹配订单 → 读取文件可见 HARD_STOP_REJECT，而 snapshot().hard_stop_events 为空。修复位置：jftrade-trading/src/real_trade.rs 的 hard_stop_events 投影（改按 event_type 前缀过滤，或把拒绝事件的 action 归入 HARD_STOP_ 前缀）；回归要求：新增测试断言 hard-stop 拒绝后投影列表含该事件，且不改变既有激活/释放事件的对外形状。在该产品决策落地前，本行保持 partial，不冒充 function_exact。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::kill_switch_and_hard_stop_survive_a_restart_with_rejection_audit（本批解除最后缺口）",
+    "conclusion": "已覆盖（原登记差异本批修复）：该用例此前保持 partial 的唯一原因是硬停在 snapshot 投影中缺少拒绝审计事件——Rust 写成 {eventType:\"HARD_STOP_REJECT\", action:\"REJECT\"}，而 jftrade-trading/src/real_trade.rs::events_with_prefix 按 ACTION 前缀过滤，导致 hardStopEvents 看不到该条；Go 的 recordRejectedHardStop 是 {eventType:\"rejected\", action:\"HARD_STOP_REJECT\"}。第 125 批分片二按 Go 对齐事件形状（event_type=\"rejected\"、action=\"HARD_STOP_REJECT\"），持久化往返、重启后 kill switch/hard stop 生效、REAL 单 403 REAL_TRADE_HARD_STOP_ACTIVE、审计事件入列/入库等原有断言全部保持；同时更新既有断言由 event_type 改看 action。回归证据：control_plane_hard_stops_block_until_every_entry_released 断言投影列表含 ACTION=HARD_STOP_REJECT 且拒绝计数为 2；探针 shasum 5c9dab4bf6797837d7139e177f0e75bda5f448c8ee058a0e322a8a3d9adebfed。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(kill_switch_and_hard_stop_survive_a_restart_with_rejection_audit) or test(control_plane_hard_stops_block_until_every_entry_released)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:813:TestRealTradeControlPlaneRuntimeRiskConfigValidationAndDisableEvents": {
     "status": "[x]",

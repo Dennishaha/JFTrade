@@ -168,3 +168,61 @@ production-policy、`cargo fmt --check` 与 clippy 均通过；本批未改 `Car
 | 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b125s1_apply.json`、`/tmp/b125s1_fix.json` | 13 行写入，`[x]` 1362 → 1368 |
 | 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 无重复 rust_entry、0 条 `[x]` 缺少 function_exact |
 | 锚点 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1375（已记账 1320、unrecorded 0、unknown 54、stale 1 既有） |
+
+### 分片二：broker 一致性 harness 与控制面幂等/审计（10 条）
+
+范围：`internal/trading/broker_conformance_test.go`(3)、`internal/trading/control_plane_idempotency_test.go`(3)、
+`internal/trading/control_plane_state_audit_test.go`(3)，另含同域一行 `internal/trading/execution_test.go:738`
+（其唯一缺口正是本片修复的拒绝审计事件形状）。
+
+#### 生产修复：硬停拒绝审计事件的 eventType/action 对调
+
+`crates/jftrade-engine/src/product_execution_risk_coordinator.rs` 的拒绝审计事件原先写成
+`{eventType: "HARD_STOP_REJECT", action: "REJECT"}`；而
+`crates/jftrade-trading/src/real_trade.rs::events_with_prefix` 按 **action** 前缀 `HARD_STOP_` 过滤，
+导致该事件只存在于持久化审计文件、**不出现在 snapshot.hardStopEvents**。Go 的
+`recordRejectedHardStop`（`go:internal/trading/control_plane.go:509`）是
+`{EventType: "rejected", Action: "HARD_STOP_REJECT"}`。现已按 Go 对齐：
+
+- `event_type: "rejected"`、`action: "HARD_STOP_REJECT"`；
+- 既有断言随之从 `event_type == "HARD_STOP_REJECT"` 改看 `action == "HARD_STOP_REJECT"`
+  （`real_order_rejects_when_hard_stop_matches`、`kill_switch_and_hard_stop_survive_a_restart_with_rejection_audit`）。
+
+该修复同时解除了 `internal/trading/execution_test.go:738` 行进（原 partial 结论写明“修复位置：把拒绝事件的
+action 归入 HARD_STOP_ 前缀”），本批据此升为 `[x]`。
+
+#### 新增测试（6 条）
+
+| Rust 测试 | Go 基线 | 断言要点 |
+| --- | --- | --- |
+| `conformance_partial_full_fill_average_and_out_of_order_updates_hold` | `broker_conformance_test.go:15` | 4@100 → PARTIALLY_FILLED；乱序旧快照不回退；6@101 → FILLED 且加权均价 100.6；终态快照不回退 |
+| `control_plane_kill_switch_release_is_idempotent_and_audited` | `control_plane_idempotency_test.go:12` | 未激活 release 成功且 1 条事件（activatedAt=None）；激活后两次 release → 4 条事件、最新无引用、前一条引用激活时刻 |
+| `control_plane_hard_stop_release_is_single_shot` | `:65` | 首释成功；重复 release 报错含 "not found"；事件恰好 2 条且不追加 |
+| `control_plane_hard_stops_block_until_every_entry_released` | `:99` | 两条累积 hard stop、REAL 单被拒、逐条释放、每次拒绝入审计（HARD_STOP_REJECT==2）、全释放后放行 |
+| `control_plane_retains_activation_and_bounds_repeated_audit_events` | `control_plane_state_audit_test.go:13` | 重复激活保留首次 activatedAt/刷新 operator；风控上限更新保留 activatedAt；201 次重激活后事件封顶 200 且表头为新事件 |
+| `control_plane_executes_simulated_orders_through_the_risk_guard_without_audit` | `:75` | SIMULATE 单放行、提交回调执行、三组审计列表为空 |
+
+#### 探针记录
+
+| 探针 | 预期转红 | 回滚后 shasum |
+| --- | --- | --- |
+| 把拒绝审计事件改回 `action="REJECT"` | `control_plane_hard_stops_block_until_every_entry_released`（拒绝计数 0≠2） | `5c9dab4bf6797837d7139e177f0e75bda5f448c8ee058a0e322a8a3d9adebfed` |
+
+#### 分片二映射结论
+
+- `[x]` 7 条：`broker_conformance_test.go:15`、`control_plane_idempotency_test.go:12/:65/:99`、
+  `control_plane_state_audit_test.go:13/:75/:190`，加 `execution_test.go:738`（同片修复解除）。
+- partial 2 条：`broker_conformance_test.go:58`（撤单被拒的券商回执语义缺失：Rust cancel RPC 失败转 UNKNOWN
+  + `cancel_failed`，Go 保持 CANCEL_REQUESTED + `broker.cancel` + BROKER_CANCEL_REJECTED）、
+  `broker_conformance_test.go:107`（place rejected 在 Rust 为 fail-closed UNKNOWN；`TradeSessionError::Unsupported`
+  映射为 503 而非 Go 的请求级 capability 错误；push-before-query 由快照发现承接）。
+
+#### 分片二验证记录
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(...)'` | 6 条全部通过 |
+| 事件形状回归 | 同上 `-E 'test(real_order_rejects_when_hard_stop_matches) or test(kill_switch_and_hard_stop_survive_a_restart_with_rejection_audit)'` | 通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b125s2_apply.json` | 10 行写入，`[x]` 1368 → 1376 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 无重复 rust_entry、0 条 `[x]` 缺少 function_exact |
+| 锚点 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1379（已记账 1324、unrecorded 0、unknown 54、stale 1 既有） |

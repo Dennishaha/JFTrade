@@ -857,3 +857,106 @@ fn challenge_edge_case_4_order_state_transitions_filled_cancelled_rejected() {
         );
     }
 }
+
+/// Parity: go:452dea11:internal/trading/broker_conformance_test.go:15
+/// `TestFakeBrokerConformanceAcceptedPartialFullAndOutOfOrderUpdates`.
+///
+/// Go drives its fake-broker conformance harness through the order lifecycle: a
+/// placed order starts broker-accepted, a 4-share fill makes it partially
+/// filled, an older out-of-order snapshot cannot regress it, a second 6-share
+/// fill at a higher price completes it with the weighted average (100.6), and a
+/// later terminal snapshot cannot regress the filled order. Rust applies the
+/// same walk to the production port and the SQLite execution ledger.
+#[test]
+fn conformance_partial_full_fill_average_and_out_of_order_updates_hold() {
+    let (store, directory) = reconciliation_store();
+    let mut order = pending_order("SUBMITTED");
+    order.requested_quantity = Some(10.0);
+    store
+        .save_order(order, "2026-08-30T00:00:01Z")
+        .expect("save conformance order");
+    let reader = Arc::new(FixtureTradeReader::default());
+    let port = production_port(Arc::clone(&store), reader);
+
+    // (a) first fill: 4 shares at 100 → PARTIALLY_FILLED
+    let current = store
+        .get_order("rust-order-reconcile")
+        .expect("load order")
+        .expect("order exists");
+    let revision = store
+        .order_revision(&current.internal_order_id)
+        .expect("order revision");
+    let first = fill("2026-08-31T01:00:00Z", 4.0, "conformance-fill-1");
+    assert!(
+        port.apply_fill_snapshot(&current, &first, revision)
+            .expect("apply first fill"),
+        "the first fill must land"
+    );
+    let partial = store
+        .get_order("rust-order-reconcile")
+        .expect("load partial order")
+        .expect("partial order exists");
+    assert_eq!(partial.status, "PARTIALLY_FILLED", "{partial:?}");
+    assert_eq!(partial.filled_quantity, Some(4.0));
+
+    // (b) an older broker snapshot (SUBMITTED, 1 share) cannot regress it
+    let revision = store
+        .order_revision(&partial.internal_order_id)
+        .expect("order revision");
+    let mut stale = correlated_order_snapshot(5, Some(1.0));
+    stale.fill_avg_price = Some(100.0);
+    assert!(
+        !port
+            .apply_broker_snapshot(&partial, &stale, revision)
+            .expect("apply stale snapshot"),
+        "an out-of-order snapshot must not regress the partial fill"
+    );
+    let after_stale = store
+        .get_order("rust-order-reconcile")
+        .expect("load order after stale snapshot")
+        .expect("order exists");
+    assert_eq!(after_stale.status, "PARTIALLY_FILLED", "{after_stale:?}");
+    assert_eq!(after_stale.filled_quantity, Some(4.0));
+
+    // (c) second fill: 6 shares at 101 → FILLED with the weighted average
+    let revision = store
+        .order_revision(&after_stale.internal_order_id)
+        .expect("order revision");
+    let mut second = fill("2026-08-31T02:00:00Z", 6.0, "conformance-fill-2");
+    second.price = 101.0;
+    assert!(
+        port.apply_fill_snapshot(&after_stale, &second, revision)
+            .expect("apply second fill"),
+        "the completing fill must land"
+    );
+    let filled = store
+        .get_order("rust-order-reconcile")
+        .expect("load filled order")
+        .expect("filled order exists");
+    assert_eq!(filled.status, "FILLED", "{filled:?}");
+    assert_eq!(filled.filled_quantity, Some(10.0));
+    let average = filled.filled_average_price.expect("filled average price");
+    assert!(
+        (average - 100.6).abs() < 1e-9,
+        "weighted fill average = {average}, want 100.6"
+    );
+
+    // (d) a later terminal snapshot cannot regress a filled order
+    let revision = store
+        .order_revision(&filled.internal_order_id)
+        .expect("order revision");
+    let cancelled = correlated_order_snapshot(15, Some(10.0));
+    assert!(
+        !port
+            .apply_broker_snapshot(&filled, &cancelled, revision)
+            .expect("apply terminal snapshot"),
+        "a terminal snapshot must not regress a filled order"
+    );
+    let saved = store
+        .get_order("rust-order-reconcile")
+        .expect("load final order")
+        .expect("final order exists");
+    assert_eq!(saved.status, "FILLED", "{saved:?}");
+    assert_eq!(saved.filled_quantity, Some(10.0));
+    drop(directory);
+}

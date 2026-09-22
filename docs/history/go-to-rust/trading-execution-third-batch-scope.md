@@ -479,3 +479,14 @@ Go 侧 5 条（同文件 17 条中的最后 5 行）：
   `python3.12 scripts/compatibility/parity_anchor_reconcile.py` 1347 唯一引用
   （已记账 1284 → **1291**、unrecorded 0、unknown 55、stale 8 → **1**；含把 6 条 coordinator 测试
   的 rust_entry 改写为真实承载锚点的 `product_execution_risk_coordinator_tests.rs`）。
+
+---
+
+## 后续更正（第 125 批·分片二）
+
+本文件第 253 行附近登记的差异「Rust 把硬停拒绝审计写为 `{eventType: "HARD_STOP_REJECT", action: "REJECT"}`，
+投影按 action 前缀过滤导致 hardStopEvents 缺失该事件」**已在第 125 批分片二修复**：现按 Go
+`recordRejectedHardStop` 对齐为 `{eventType: "rejected", action: "HARD_STOP_REJECT"}`，
+`events_with_prefix(.., "HARD_STOP_")` 因此能正确投影拒绝事件；回归见
+`product_execution_risk_coordinator_tests.rs::control_plane_hard_stops_block_until_every_entry_released`
+（探针 shasum `5c9dab4bf6797837d7139e177f0e75bda5f448c8ee058a0e322a8a3d9adebfed`）。
