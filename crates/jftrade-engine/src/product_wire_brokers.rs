@@ -4,5 +4,8 @@ fn broker_read_snapshot_failure(error: BrokerReadSnapshotError) -> ApiFailure {
         BrokerReadSnapshotError::Unavailable(message) => {
             ApiFailure::new(503, "BROKER_READ_UNAVAILABLE", message)
         }
+        BrokerReadSnapshotError::NotFound(message) => {
+            ApiFailure::new(404, "BROKER_NOT_FOUND", message)
+        }
     }
 }

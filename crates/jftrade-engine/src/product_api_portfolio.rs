@@ -9,6 +9,11 @@ impl ProductApi {
         })?;
         port.read(path, query)
             .map(ApiOutput::Json)
-            .map_err(|error| ApiFailure::new(503, "PORTFOLIO_UNAVAILABLE", error.to_string()))
+            .map_err(|error| match error {
+                PortfolioSnapshotError::NotFound(message) => {
+                    ApiFailure::new(404, "BROKER_NOT_FOUND", message)
+                }
+                other => ApiFailure::new(503, "PORTFOLIO_UNAVAILABLE", other.to_string()),
+            })
     }
 }

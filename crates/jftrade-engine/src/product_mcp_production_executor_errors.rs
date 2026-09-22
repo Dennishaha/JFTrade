@@ -272,6 +272,9 @@ pub(super) fn broker_error(error: BrokerReadSnapshotError) -> McpToolFailure {
             McpToolFailure::unavailable("BROKER_UNAVAILABLE", message)
         }
         BrokerReadSnapshotError::Invalid(message) => McpToolFailure::invalid(message),
+        BrokerReadSnapshotError::NotFound(message) => {
+            McpToolFailure::unavailable("BROKER_NOT_FOUND", message)
+        }
     }
 }
 

@@ -22,6 +22,10 @@ use time::format_description::well_known::Rfc3339;
 use time::format_description::{FormatItem, parse_borrowed};
 
 use super::ActiveProviderState;
+/// The composition root activates a single trade broker. Requests that name
+/// any other broker must fail closed instead of being answered by the active
+/// Futu session, mirroring the Go service's `ErrBrokerNotFound` gate.
+pub(crate) const ACTIVE_TRADE_BROKER_ID: &str = "futu";
 #[allow(unused_imports)]
 use crate::product::product_query::QueryMap;
 use crate::product::{
@@ -107,6 +111,15 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                 .map_err(unavailable);
         }
         let request = TradeRequest::parse(path, query).map_err(BrokerReadSnapshotError::Invalid)?;
+        if !request
+            .broker_id
+            .eq_ignore_ascii_case(ACTIVE_TRADE_BROKER_ID)
+        {
+            return Err(BrokerReadSnapshotError::NotFound(format!(
+                "requested broker {} is not active",
+                request.broker_id
+            )));
+        }
         let is_simulated = matches!(request.environment_code(), Ok(Some(0)));
         let is_catalog_or_market_data = matches!(
             request.resource.as_str(),
@@ -408,6 +421,15 @@ impl PortfolioSnapshotPort for ProductionPortfolioPort {
     fn read(&self, path: &str, query: &str) -> Result<Value, PortfolioSnapshotError> {
         let request = TradeRequest::parse_with_prefix(path, query, "/api/v1/portfolio/")
             .map_err(PortfolioSnapshotError::Unavailable)?;
+        if !request
+            .broker_id
+            .eq_ignore_ascii_case(ACTIVE_TRADE_BROKER_ID)
+        {
+            return Err(PortfolioSnapshotError::NotFound(format!(
+                "requested broker {} is not active",
+                request.broker_id
+            )));
+        }
         if self.active_provider_state.snapshot().closing {
             return Err(unavailable_portfolio("Futu trade session is shutting down"));
         }

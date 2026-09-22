@@ -4477,3 +4477,176 @@ fn max_trade_quantity_rejects_invalid_security_after_account_resolution() {
         "expected an invalid-symbol rejection, got {error:?}"
     );
 }
+
+/// Trade-read client that fails every call so a broker-identity rejection can
+/// only come from the port gate rather than a session or projection fallback.
+#[derive(Debug, Default)]
+struct RefusingTradeRead {
+    calls: AtomicUsize,
+}
+
+impl RefusingTradeRead {
+    fn error(&self) -> TradeSessionError {
+        TradeSessionError::Response(ResponseError::ReturnCode {
+            ret_type: -1,
+            err_code: 1,
+            message: "refusing trade read client must not be called".to_owned(),
+        })
+    }
+
+    fn calls(&self) -> usize {
+        self.calls.load(Ordering::SeqCst)
+    }
+}
+
+impl TradeReadPort for RefusingTradeRead {
+    fn read_accounts(
+        &self,
+        _: u64,
+        _: Option<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Err(self.error())
+    }
+    fn read_funds(
+        &self,
+        _: TradeHeader,
+        _: Option<bool>,
+        _: Option<i32>,
+        _: Option<i32>,
+    ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Err(self.error())
+    }
+    fn read_cash_flows(
+        &self,
+        _: TradeHeader,
+        _: String,
+        _: Option<i32>,
+    ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Err(self.error())
+    }
+    fn read_order_fees(
+        &self,
+        _: TradeHeader,
+        _: Vec<String>,
+    ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Err(self.error())
+    }
+    fn read_margin_ratios(
+        &self,
+        _: TradeHeader,
+        _: Vec<TradeSecurity>,
+    ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Err(self.error())
+    }
+    fn read_max_trade_quantity(
+        &self,
+        _: TradeMaxTradeQuantityRequest,
+    ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Err(self.error())
+    }
+    fn read_positions(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Option<f64>,
+        _: Option<f64>,
+        _: Option<bool>,
+        _: Option<i32>,
+        _: Option<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Err(self.error())
+    }
+    fn read_orders(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Vec<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Err(self.error())
+    }
+    fn read_fills(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Err(self.error())
+    }
+}
+
+#[test]
+fn broker_read_routes_reject_a_broker_that_is_not_active() {
+    // Parity: go:452dea11:internal/trading/risk_status_broker_boundaries_test.go:124
+    // TestBrokerIdentityMismatchPropagatesAcrossReadAndWriteOperations. Go's
+    // service resolves the active broker for every entrypoint before it
+    // touches a broker port and returns ErrBrokerNotFound (HTTP 404
+    // BROKER_NOT_FOUND) when the request names a different broker. The Rust
+    // composition root activates a single trade broker (Futu), so every other
+    // broker id must fail closed instead of being answered by that session.
+    let (store, _directory) = execution_store();
+    let client = Arc::new(RefusingTradeRead::default());
+    let read_port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(client.clone()),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let portfolio_port = ProductionPortfolioPort {
+        active_provider_state: ready_state(),
+        _execution_store: store,
+        trade_read_port: Some(client.clone()),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    for path in [
+        "/api/v1/brokers/other/runtime",
+        "/api/v1/brokers/other/funds",
+        "/api/v1/brokers/other/positions",
+        "/api/v1/brokers/other/orders",
+        "/api/v1/brokers/other/fills",
+        "/api/v1/brokers/other/cash-flows",
+        "/api/v1/brokers/other/order-fees",
+        "/api/v1/brokers/other/margin-ratios",
+        "/api/v1/brokers/other/max-trade-qtys",
+        "/api/v1/brokers/other/quote",
+        "/api/v1/brokers/other/klines",
+        "/api/v1/brokers/other/securities",
+    ] {
+        let error = read_port
+            .read(path, "accountId=42&market=US&symbol=US.AAPL")
+            .expect_err("a broker that is not active must be rejected");
+        assert!(
+            matches!(error, BrokerReadSnapshotError::NotFound(ref message) if message.contains("other")),
+            "path {path} returned {error:?}"
+        );
+    }
+    for path in [
+        "/api/v1/portfolio/other/cash-balances",
+        "/api/v1/portfolio/other/positions",
+    ] {
+        let error = portfolio_port
+            .read(path, "accountId=42&market=US")
+            .expect_err("a broker that is not active must be rejected");
+        assert!(
+            matches!(error, PortfolioSnapshotError::NotFound(ref message) if message.contains("other")),
+            "path {path} returned {error:?}"
+        );
+    }
+    assert_eq!(
+        client.calls(),
+        0,
+        "an inactive broker must never reach the trade read client"
+    );
+}
