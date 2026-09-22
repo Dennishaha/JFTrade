@@ -545,3 +545,54 @@ OpenAPI 1、产品基础设施 2、产品生命周期 3、其他 2）。owner �
 
 后续（分片二）：`internal/app/apiserver/servercore` 余 68 行，随后 servercoretest 52、marketdataapp 68、
 webaccess 24 + tradingapp 11、backtestapp 10 + datamigration 11 与 runtime/lifecycle/application/futuapp 余量。
+
+### 分片二：`internal/app/apiserver/servercore` 第 35–68 行
+
+范围与 owner：按文件与行号排序的第 35–68 条（运行时集成边界 5、运行观测 2、策略运行时 4、策略实盘交易 6、
+安全设置 1、服务器生命周期 3、回测路由 2、启动边界 3、降级启动 3、服务器业务辅助 5）。owner 集中在
+`crates/jftrade-engine`（RuntimeComposition、ActiveProviderState、strategy runtime 及其执行端口、产品装配与关闭序列、
+回测启动解析）与 `crates/jftrade-api`（Web 流与安全变更）、`crates/jftrade-strategy`（Pine 元数据）。
+
+本分片新增 Rust 证据 2 条（`crates/jftrade-engine/src/strategy_runtime_execution_tests.rs`）：
+
+- `test_execute_strategy_intents_prefers_explicit_quantity_over_quantity_pct`（Go `runtime_trading_test.go:239`）：
+  quantity=20 与 quantityPct=50 同时存在时按显式 20 股下单（50% × 30000 / 150 会算出 100 股），reduceOnly=false。
+- `test_execute_strategy_intents_sizes_close_quantity_pct_from_position`（Go `runtime_trading_test.go:286`）：
+  close+quantityPct=50 在 20 股持仓上产生 10 股 reduce-only SELL。
+
+映射结果：4 行写入（2 行升 `[x]`：`runtime_trading_test.go:239`、`:286`；2 行收紧 partial：
+`server_backtest_test.go:19` 补引用已存在的 market/code 与 DST/时区用例并列出剩余缺口、`server_backtest_test.go:97`
+记录 Pine initial_capital 元数据已解析但未回填请求缺省）。其余 30 行复核后维持既有 partial/boundary 终值。
+计数：`[x]` 1512 → 1514；audit Rust 测试 3185；anchors 1526（unrecorded 0、stale 0、unknown 53）。
+
+关键事实与新登记缺口（P1/P2）：
+
+1. **Pine initial_capital 未回填回测请求（P2）**：Go 在请求省略 initialBalance 时用脚本 `initial_capital=250000`
+   作为运行资金；Rust 已解析该元数据（`jftrade-strategy`）但回测启动路径没有回填。owner：`crates/jftrade-engine`
+   回测启动 + definition 元数据透传。
+2. **回测请求落库断言缺口（P2）**：Go 的路由用例同时断言 `useExtendedHours`（Rust 由 `session_scope=extended` 推导）、
+   `definitionVersion` 快照、`initialBalance` 与 `startDate/endDate` 落库；Rust 已有 market/code 归一与 DST/时区用例，
+   上述四项尚无逐条断言。owner：`product_production_ports_backtest_strategy.rs` / `_task.rs`。
+3. **实例级 worker 上限门（P2，延续）**：Go 在每次实例启动时检查 `instanceWorkerLimit` 并拒绝；Rust 在组合期按配置
+   固定 Pine worker 数量并拒绝无 failover 的多 worker 配置，无运行时逐实例门。owner：`strategy_runtime` 启动路径。
+4. **nil runtime / 可空 Server 边界（边界，延续）**：`SetWebAccessReconfigure`、`SetAPIPort`、`ConfigureAuthOrigins`、
+   `SetFrontendFS`、`ApplySecuritySettings`、nil runtime limits/MCP 状态、`ExchangeOrError` 等 7 行属 Wails 时代可空
+   Server 形态，Rust 由不可空服务与 typed Option 端口 + 冻结兼容语料表达，统一登记 boundary 并保留升级路径。
+5. **策略实盘券商刷新语义（边界）**：Go 在 K 线收口前主动刷新券商持仓、断连时保留缓存持仓继续使用；Rust 使用调用方
+   提供的 current_position/sellable_quantity，断连即 fail-closed 拒绝下单（更严格），登记 boundary。
+
+验证记录：
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增下单定量用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(test_execute_strategy_intents_prefers_explicit_quantity_over_quantity_pct) + test(test_execute_strategy_intents_sizes_close_quantity_pct_from_position)'` | 6/6 通过（同一模块在 3 个测试目标中各编译一次） |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/s127b_payload.json` + 1 次单行修正 | 5 行更新，`[x]` 1512 → 1514 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；rust 测试 3185 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1526、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1864/1864 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`（8 组 replay 全部通过）、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`check:quick`（含 pineworker 98/98） | 全部通过 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 均在 cargo-deny advisories 阶段因 `deny.toml` 8 条 `advisory-not-detected` 失败（bans/licenses/sources ok），与本分片改动无关 |
+
+后续（分片三）：`internal/app/apiserver/servercore` 余 32 行，随后 servercoretest 52、marketdataapp 68、
+webaccess 24 + tradingapp 11、backtestapp 10 + datamigration 11 与 runtime/lifecycle/application/futuapp 余量。

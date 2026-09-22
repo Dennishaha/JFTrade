@@ -356,6 +356,119 @@ fn test_execute_strategy_intents_resolves_quantity_pct_and_close_intent() {
     );
 }
 
+/// Shared fixture for the two intent-sizing cases below: a seeded runtime
+/// store, a mock execution port, and a live-ready broker binding with enough
+/// cash that a percentage entry would size differently from an explicit
+/// quantity.
+fn sizing_execution_fixture() -> (
+    tempfile::TempDir,
+    Arc<StrategyDefinitionStore>,
+    StrategyRuntimeStore,
+    MockExecutionPort,
+    ActiveProviderState,
+    serde_json::Value,
+) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("strategy.db");
+    seed_strategy_test_db(&path);
+
+    let def_store = Arc::new(
+        StrategyDefinitionStore::open_existing(&path, STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE)
+            .expect("open def store"),
+    );
+    let store = StrategyRuntimeStore::from_definition_store(&def_store);
+    store
+        .seed_instance("inst-sizing", "RUNNING", "2026-08-30T00:00:00Z")
+        .expect("seed instance");
+
+    let execution = MockExecutionPort::default();
+    let provider = ActiveProviderState::default();
+    let binding = json!({
+        "brokerId": "futu",
+        "accountId": "12345",
+        "tradingEnvironment": "SIMULATE",
+        "orderSize": 200.0,
+    });
+    (dir, def_store, store, execution, provider, binding)
+}
+
+// Parity: go:452dea11:internal/app/apiserver/servercore/runtime_trading_test.go:239 TestStrategyRuntimeLiveUsesExplicitQuantityBeforeQuantityPct
+#[test]
+fn test_execute_strategy_intents_prefers_explicit_quantity_over_quantity_pct() {
+    let (_dir, _def_store, store, execution, provider, binding) = sizing_execution_fixture();
+    let ctx = StrategyExecutionContext {
+        execution: Some(&execution),
+        execution_store: None,
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-sizing",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: None,
+        sellable_quantity: None,
+        current_position: Some(20.0),
+        available_cash: Some(30_000.0),
+        virtual_account: None,
+    };
+
+    // The explicit quantity must win over a percentage that would size
+    // differently: 50% of 30_000 at 150 would be 100 shares, not 20.
+    let mut explicit = test_intent(20.0, 150.0);
+    explicit.has_quantity_pct = true;
+    explicit.quantity_pct = 50.0;
+
+    let res = execute_strategy_intents(ctx, &[explicit]);
+    assert!(res.is_ok());
+
+    let mutations = execution.mutations.lock().unwrap();
+    assert_eq!(mutations.len(), 1);
+    assert_eq!(mutations[0].payload["quantity"], 20.0);
+    assert_eq!(mutations[0].payload["reduceOnly"], false);
+}
+
+// Parity: go:452dea11:internal/app/apiserver/servercore/runtime_trading_test.go:286 TestStrategyRuntimeLiveSizesCloseQuantityPctFromPosition
+#[test]
+fn test_execute_strategy_intents_sizes_close_quantity_pct_from_position() {
+    let (_dir, _def_store, store, execution, provider, binding) = sizing_execution_fixture();
+    let ctx = StrategyExecutionContext {
+        execution: Some(&execution),
+        execution_store: None,
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-sizing",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: None,
+        sellable_quantity: None,
+        current_position: Some(20.0),
+        available_cash: Some(30_000.0),
+        virtual_account: None,
+    };
+
+    // A close intent with quantityPct sizes from the current position: half of
+    // a 20-share long is a 10-share reduce-only SELL.
+    let mut close_pct = test_intent(0.0, 0.0);
+    close_pct.kind = "close".to_owned();
+    close_pct.direction = "long".to_owned();
+    close_pct.has_quantity = false;
+    close_pct.has_limit_price = false;
+    close_pct.has_quantity_pct = true;
+    close_pct.quantity_pct = 50.0;
+
+    let res = execute_strategy_intents(ctx, &[close_pct]);
+    assert!(res.is_ok());
+
+    let mutations = execution.mutations.lock().unwrap();
+    assert_eq!(mutations.len(), 1);
+    assert_eq!(mutations[0].payload["quantity"], 10.0);
+    assert_eq!(mutations[0].payload["reduceOnly"], true);
+    assert_eq!(mutations[0].payload["side"], "SELL");
+}
+
 #[test]
 fn test_execute_strategy_intents_revision_fence_mismatch_blocks_and_audits() {
     let dir = tempfile::tempdir().expect("tempdir");

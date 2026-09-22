@@ -4984,18 +4984,18 @@
     "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/runtime_trading_test.go:239:TestStrategyRuntimeLiveUsesExplicitQuantityBeforeQuantityPct": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution.rs",
-    "conclusion": "partial：Rust resolve_strategy_intent_quantity 先取显式 quantity、再走 pct 分支，优先级与 Go 一致，但没有“quantity 与 quantityPct 同时存在”的专门断言。",
-    "command": "",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_prefers_explicit_quantity_over_quantity_pct",
+    "conclusion": "function_exact：Go 断言 quantity=20 与 quantityPct=50 同时存在时按显式 quantity 下单（20 股）。Rust 新增用例在 available_cash=30000、limit=150（50% 会算出 100 股）下断言成交数量 20、reduceOnly=false；锚点 internal/app/apiserver/servercore/runtime_trading_test.go:239。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(test_execute_strategy_intents_prefers_explicit_quantity_over_quantity_pct) + test(test_execute_strategy_intents_sizes_close_quantity_pct_from_position)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/runtime_trading_test.go:286:TestStrategyRuntimeLiveSizesCloseQuantityPctFromPosition": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution.rs",
-    "conclusion": "partial：Rust close+pct 分支按 position × pct/100（上限为整仓）实现并有 reduceOnly 约束，但现有测试只覆盖“百分比开仓 + 全平仓”，未单独断言平仓百分比。",
-    "command": "",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_sizes_close_quantity_pct_from_position",
+    "conclusion": "function_exact：Go 断言 close+quantityPct=50 在 20 股持仓上产生 SELL 10。Rust 新增用例断言 close+pct 分支按持仓 × pct/100 定量（quantity 10、reduceOnly=true、side SELL）；锚点 internal/app/apiserver/servercore/runtime_trading_test.go:286。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(test_execute_strategy_intents_prefers_explicit_quantity_over_quantity_pct) + test(test_execute_strategy_intents_sizes_close_quantity_pct_from_position)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/runtime_trading_test.go:334:TestStrategyRuntimeLiveDefaultsCloseToFullPosition": {
     "status": "[x]",
@@ -5076,16 +5076,16 @@
   },
   "internal/app/apiserver/servercore/server_backtest_test.go:19:TestBacktestRouteAcceptsExplicitMarketAndCode": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_rejects_invalid_ranges_and_intervals; crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_backtest_start_executes_fixture_and_persists_terminal_result; crates/jftrade-engine/src/product_production_ports_backtest_strategy.rs::start_request_accepts_explicit_market_and_code_without_symbol",
-    "conclusion": "partial：Go 断言回测路由接受显式 market=US/code=AAPL 并成功运行。Rust 回测运行请求使用 symbol 形状（market/code 组合出现在数据同步请求解析，见 sync_request_* 测试），运行侧由 start 测试覆盖落库与终态结果；显式 market/code 的运行路由断言缺失，列为待补。",
-    "command": "",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_strategy.rs::start_request_accepts_explicit_market_and_code_without_symbol; crates/jftrade-engine/src/product_production_ports_backtest_strategy_time_range_tests.rs",
+    "conclusion": "partial：Go 的 market/code 归一化（market=US+code=AAPL→US.AAPL）已由引用用例逐字断言（含 definitionId 形状与脚本形状），DST/时区半由 time_range 用例断言 America/New_York/Asia/Hong_Kong 与本地午夜边界。剩余缺口：useExtendedHours 持久化（Rust 由 session_scope=extended 推导）、definitionVersion 快照、initialBalance 与 startDate/endDate 落库断言未逐条对齐。owner：crates/jftrade-engine 回测启动解析与写端口。回归要求：回测请求结构变更时补这三项断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(start_request_accepts_explicit_market_and_code_without_symbol)'",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_backtest_test.go:97:TestEnqueueBacktestUsesPineInitialCapitalWhenRequestOmitsBalance": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_backtest_execution.rs",
-    "conclusion": "partial：Rust 回测执行使用请求/策略参数中的初始资金并在缺失时报错或取默认，没有“从 Pine initialCapital 回填”的专门断言，属待补 P2。",
-    "command": "",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_parses_backtest_strategy_metadata; crates/jftrade-engine/src/product_production_ports_backtest_parse.rs",
+    "conclusion": "partial：Go 断言请求省略 initialBalance 时用 Pine 脚本 initial_capital=250000 回填。Rust 已解析 Pine metadata 的 initial_capital（引用用例断言 250000/commission/slippage），但回测启动路径未见“请求缺省 → 脚本资金”回填（owner：crates/jftrade-engine 回测启动 + definition 元数据透传）。回归要求：接入回填后补一条用例断言省略 initialBalance 时运行请求为 250000。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(test_execute_strategy_intents_prefers_explicit_quantity_over_quantity_pct)'",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_bootstrap_boundaries_test.go:15:TestServerBootstrapRemainingFailureAndFallbackPaths": {
