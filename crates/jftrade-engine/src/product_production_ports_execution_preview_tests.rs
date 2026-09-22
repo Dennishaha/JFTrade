@@ -16,7 +16,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::product::product_brokers_write_port::{
     BrokersWriteContext, BrokersWriteInput, BrokersWriteOperation, BrokersWritePort,
-    BrokersWriteQuery,
+    BrokersWritePortError, BrokersWriteQuery,
 };
 
 /// Prediction-market read fixture keyed by the requested event-contract code.
@@ -1366,6 +1366,62 @@ fn broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend() {
     // The bridge test's caller sends no security firm, so it must stay unset
     // rather than being defaulted by the route.
     assert_eq!(unlocked[0].security_firm, None);
+}
+
+/// Parity: go:452dea11:internal/trading/broker_test.go:533
+/// `TestServiceBrokerWriteAndTimeoutBehaviors`. Go rejects a write when the
+/// requested broker is not the active one (`ErrBrokerNotFound`). Rust owns that
+/// guard in `BrokersWritePort::mutate`; this pins the 404 envelope and proves
+/// no place/unlock request reaches the trade writer for an inactive broker.
+#[test]
+fn broker_write_routes_reject_an_inactive_broker_before_the_trade_writer() {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, false);
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let port = preview_port_with_writer(state, None, Some(true), Some(Arc::clone(&writer)));
+
+    for operation in [
+        BrokersWriteOperation::PlaceOrder,
+        BrokersWriteOperation::CancelOrders,
+        BrokersWriteOperation::Unlock,
+    ] {
+        let error = BrokersWritePort::mutate(
+            &port,
+            &BrokersWriteInput {
+                operation,
+                query: BrokersWriteQuery {
+                    broker_id: "ib".to_owned(),
+                    account_id: "42".to_owned(),
+                    trading_environment: "REAL".to_owned(),
+                    market: "US".to_owned(),
+                },
+                payload: json!({}),
+                context: BrokersWriteContext::Normal,
+            },
+        )
+        .expect_err("inactive broker must be rejected");
+        assert!(
+            matches!(
+                error,
+                BrokersWritePortError::Failed {
+                    status: 404,
+                    ref code,
+                    ..
+                } if code == "BROKER_NOT_FOUND"
+            ),
+            "{operation:?} error = {error:?}"
+        );
+    }
+    assert!(
+        writer.placed.lock().expect("placed orders").is_empty(),
+        "an inactive broker must never reach Trd_PlaceOrder"
+    );
+    assert!(
+        writer.unlocked.lock().expect("unlocked trades").is_empty(),
+        "an inactive broker must never reach Trd_UnlockTrade"
+    );
 }
 
 #[test]

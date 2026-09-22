@@ -51,3 +51,47 @@ Rust 侧对应实现分布在 `crates/jftrade-engine`（broker/组合读端口�
 | 定向测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_read_projects_futu_funds_from_neutral_client) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(broker_current_orders_hide_terminal_statuses_while_history_keeps_them) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent)'` | 5 条通过 |
 | 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 通过：1357 function_exact 引用均可解析、无重复引用 |
 | 锚点对账 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1361、已记账 1305、unrecorded 0、unknown 55、stale 1（既有） |
+
+## 第一百二十二批（分片二）：写操作转发、解锁与超时缺口（1 条）
+
+### 范围与结论
+
+- `internal/trading/broker_test.go:533`：`TestServiceBrokerWriteAndTimeoutBehaviors`
+  → 保留 `[~]`/`partial`，并新增一条 404 分支回归把 Go 的 `ErrBrokerNotFound` 对到 Rust 写路由。
+
+### 关键事实（本批 recon 与实测）
+
+- **写操作透传与身份已断言**：`broker_adapter_place_and_cancel_keep_server_order_identity_and_submitted_status`
+  断言下单保留内部/券商/扩展订单号与 `SUBMITTED`、`clientOrderId` 作为 OpenD remark 透传、
+  撤单恰好一次 `Trd_ModifyOrder`；`accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel`
+  断言 broker 失败时不宣告撤单成功。
+- **解锁透传已断言**：`broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend`
+  断言 `unlock=true` 与 `passwordMd5` 透传、恰好一次 `Trd_UnlockTrade`，且未配置的 security firm 不被默认；
+  解锁成功信封与重试/重启语义由 `brokers_write_product_replays_browser_boundary_failure_recovery_and_restart` 断言。
+- **404 分支此前无测试**：`ProductionExecutionPort::mutate` 对非 futu broker 返回
+  `404 BROKER_NOT_FOUND`（`product_production_ports_execution_orders.rs:518`），但全仓没有断言该分支的用例，
+  属真实覆盖空洞；本批补齐。
+- **超时与不支持能力仍是缺口**：Go 用 `FundsWithTimeout`/`PositionsWithTimeout` 把读端口超时渲染成
+  `LastError` 文本与 `connectivity=disconnected`，Rust 读端口没有 timeout 参数（deadline 属 transport 层）；
+  `ErrTradingUnsupported`/`ErrUnlockUnsupported` 对应的 `NO_TRADING`/`NOT_SUPPORTED` 信封也没有专门用例。
+- **`placedAt` 无 Rust 生产字段**：全仓仅冻结契约 `trading.BrokerPlaceOrderResponse`、compatibility fixtures
+  与生成类型出现 `placedAt`；route ledger 记录该时间戳为 replay 注入值，生产响应未写该字段。
+
+### 新增测试与探针
+
+- `crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::broker_write_routes_reject_an_inactive_broker_before_the_trade_writer`
+  （锚 `internal/trading/broker_test.go:533`）：对 `PlaceOrder`/`CancelOrders`/`Unlock` 三个操作断言
+  非 futu broker 返回 `404 BROKER_NOT_FOUND`，且 `TradeWritePort` 未被触碰。
+- 探针：把 404 守卫短路（`if false && !broker_id.eq_ignore_ascii_case("futu")`）后，place 分支继续解析空 payload，
+  新测试转为 `400 BAD_REQUEST` 失败；随后按字节回滚，`shasum -a 256` 复核
+  `product_production_ports_execution_orders.rs` = `e01eb7c23b4933860aba277c73f82ae5dcca9058744a0dc707ce1850fc3e6128`（与探针前一致）。
+
+### 分片二验证记录
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b122_p2.json` | 1 行写入，`[x]` 保持 1357，键集 4451 不变 |
+| 新增测试（绿） | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_write_routes_reject_an_inactive_broker_before_the_trade_writer)'` | 通过 |
+| 探针（红 → 回滚 → 绿） | 同上命令（守卫短路后） | 探针红（`400 BAD_REQUEST`），回滚后复跑通过 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 通过；Trading & Broker Rust 测试 405 → **406**，全仓 Rust 测试 3098 → **3099** |
+| 锚点对账 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1362、已记账 1306、unrecorded 0、unknown 55、stale 1（既有） |
