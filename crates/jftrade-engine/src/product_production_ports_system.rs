@@ -109,6 +109,52 @@ impl ProductionSystemPort {
     }
 }
 
+/// Project the broker-order-updates diagnostics in Go's `SnapshotResponse`
+/// shape.  `subscriptions` stays empty because the engine does not own a
+/// broker push subscription; connectivity and the bounded invalidation
+/// history now come from the reconciliation worker itself.
+pub(crate) fn broker_order_updates_snapshot(
+    worker: &ExecutionReconciliationWorker,
+) -> serde_json::Value {
+    let status = worker.status();
+    let invalidations = worker
+        .invalidations()
+        .into_iter()
+        .map(|entry| {
+            json!({
+                "subscriptionKey": null,
+                "brokerId": entry.broker_id,
+                "tradingEnvironment": null,
+                "accountId": null,
+                "market": null,
+                "kind": entry.kind,
+                "message": entry.message,
+                "errorContext": null,
+                "consecutiveFailures": null,
+                "retryDelayMs": null,
+                "backoffUntil": null,
+                "createdAt": entry.created_at,
+            })
+        })
+        .collect::<Vec<_>>();
+    let brokers = match worker.connectivity() {
+        Some(connectivity) => vec![json!({
+            "brokerId": super::product_production_ports_trade::ACTIVE_TRADE_BROKER_ID,
+            "lastAction": "reconcile-orders",
+            "lastActionAt": status.last_scan_at,
+            "connectivity": connectivity,
+            "lastError": status.last_error,
+        })],
+        None => Vec::new(),
+    };
+    json!({
+        "subscriptions": [],
+        "recentInvalidations": invalidations,
+        "brokers": brokers,
+        "runtime": status,
+    })
+}
+
 impl SystemReadSnapshotPort for ProductionSystemPort {
     fn read(&self, path: &str) -> Result<Value, SystemReadSnapshotError> {
         match path {
@@ -126,12 +172,7 @@ impl SystemReadSnapshotPort for ProductionSystemPort {
                         "broker order updates worker is not configured".to_owned(),
                     ));
                 };
-                Ok(json!({
-                    "subscriptions": [],
-                    "recentInvalidations": [],
-                    "brokers": [],
-                    "runtime": worker.status(),
-                }))
+                Ok(broker_order_updates_snapshot(worker))
             }
             "/api/v1/system/info" => Ok(json!({
                 "version": env!("CARGO_PKG_VERSION"),

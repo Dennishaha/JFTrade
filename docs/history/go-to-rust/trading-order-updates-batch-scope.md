@@ -288,3 +288,67 @@ Go 服务内自带 `OrderUpdatesWorker` 的测试集合（节流/强制同步、
   `pnpm run check:quick` 均 EXIT=0；`check:rust:policy` 因 RUSTSEC-2026-0285 失败（不记为通过）；
   全量 engine nextest 1777→1778，唯一失败为既有 launcher SIGTERM 抖动（隔离复跑 PASS）。
 
+## 第一百二十四批：order-updates 家族收口（19 条 pending）
+
+### 分片一：worker 快照诊断补齐与 14 条结论收口
+
+- `:414 TestOrderUpdatesWorkerSnapshotCapsInvalidations` → 升 `[x]`/`function_exact`（本批补齐有界
+  invalidation 历史并投影到既有路由）。
+- `:427 TestOrderUpdatesWorkerInactiveSourcePreservesDiagnosticState` → 升 `[x]`/`function_exact`
+  （本批补齐源连通性投影：失败→inactive、成功→connected）。
+- 其余 12 条保留既有 `boundary`/`partial` 结论（`:442`、`:469` 依据本批新增诊断面精化），
+  均已写明缺口、复现条件与回归要求。
+
+### 关键事实（本批 recon 与实测）
+
+- **Go 诊断面此前在 Rust 恒为空**：`/api/v1/system/worker/broker-order-updates` 返回
+  `subscriptions: []`、`recentInvalidations: []`、`brokers: []`，只有 `runtime` 标量有值；
+  Go 在同一路由返回最近 20 条 invalidation 与 brokers[0].connectivity。
+- **`subscriptions` 仍不应补齐**：Rust engine 不持有券商推送订阅（订阅在
+  `jftrade-integration-futu` 会话层，engine 生产代码无调用方），因此该数组保持空数组并保留边界结论。
+- **invalidation 记录点唯一**：Rust 的失败信号来自 `ExecutionReconciliationWorker` 的扫描结果
+  （`product_production_ports_execution_orders.rs`），Go 的 kind 规则（dial/closed/timeout →
+  `DISCONNECTED`，其余 `ERROR`）与 20 条上限（`maxOrderUpdateInvalidations`）都可直接照搬。
+- **OpenAPI 不约束条目形状**：`system.BrokerOrderUpdatesResponse` 的三个数组是
+  `items: {additionalProperties: {}}`，只要求键存在，因此填充 Go 形状对象不改变公开契约。
+
+### 生产修复
+
+- `crates/jftrade-engine/src/product_production_ports_execution_orders.rs`：
+  `ExecutionReconciliationWorker` 增加 `ExecutionReconciliationDiagnostics`
+  （`connectivity` + 有界 `invalidations`，上限常量 `EXECUTION_RECONCILIATION_MAX_INVALIDATIONS = 20`），
+  扫描成功记 `connected`、失败记 `inactive` 并追加 `{brokerId, kind, message, createdAt}`；
+  新增 `invalidations()` 与 `connectivity()` 访问器。
+- `crates/jftrade-engine/src/product_production_ports_system.rs`：抽出
+  `broker_order_updates_snapshot`，把 invalidation 与 brokers 投影为 Go 字段形状
+  （`subscriptionKey/brokerId/tradingEnvironment/accountId/market/kind/message/errorContext/
+  consecutiveFailures/retryDelayMs/backoffUntil/createdAt`），并在 worker 未配置时保持原 503 fail-closed。
+
+### 新增测试与探针
+
+- `reconciliation_worker_bounds_recent_invalidations_to_twenty_entries`：失败 reader 驱动
+  25 次扫描（首次 + 24 次 push wake），断言 `scans>=25`、`failures>=25`、invalidation 恰好 20 条、
+  `brokerId=futu`、`kind∈{DISCONNECTED,ERROR}`、最后一条 message 等于 `status.lastError`。
+- `reconciliation_worker_projects_inactive_source_connectivity_and_go_shaped_invalidations`：
+  失败源 → `connectivity=inactive`、`brokers[0].connectivity=inactive`、`subscriptions` 为空、
+  invalidation 含 Go 字段名；健康源 → `connectivity=connected` 且 invalidation 为空。
+- 探针一：把 invalidation 裁剪短路为 `false` 后上限用例转红（`left: 25 right: 20`）。
+- 探针二：把失败连通性写成 `connected` 后投影用例转红
+  （`Some("connected") ≠ Some("inactive")`）。
+- 两次探针均按字节回滚，`product_production_ports_execution_orders.rs` shasum
+  `707396edfdbfc92ea2233aec2c1a694e9767683013f0b3f4ed98d0f37fc7e2d3` 与探测前一致。
+
+### 分片一验证记录
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(reconciliation_worker_bounds_recent_invalidations_to_twenty_entries) or test(reconciliation_worker_projects_inactive_source_connectivity_and_go_shaped_invalidations)'` | 2 条通过 |
+| 邻域回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(reconciliation) or test(system_read) or test(broker_order_updates)'` | 72 条通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b124_p1.json`、`/tmp/b124_p1b.json` | 4 行写入，`[x]` 1359 → 1361 |
+
+### 第一百二十四批后续待办
+
+- 分片二：`order_updates_reconnect_test.go` 2 条（订阅失败后重订阅、refresh 失败保留订阅）。
+- 分片三：`order_updates_concurrency_test.go` 1 条与 `order_update_recovery_test.go` 2 条。
+- 本批仍存差异：无 per-source（current/history/fees）动作标签；单边读取 fail-closed（Go 继续用可用数据）；
+  `subscriptions[]` 恒为空；内存活动订单缓存（TTL/防御性拷贝/终态移除）在 Rust 由 SQLite 唯一真相取代。

@@ -115,6 +115,65 @@ impl Default for ExecutionReconciliationWorkerStatus {
     }
 }
 
+/// Go bounds the worker's invalidation history to its most recent entries
+/// (`maxOrderUpdateInvalidations = 20`); the Rust worker reports the same cap
+/// from its own scan failures.
+pub(crate) const EXECUTION_RECONCILIATION_MAX_INVALIDATIONS: usize = 20;
+
+/// One recorded scan invalidation.  Go labels the entry with the configured
+/// broker id plus the failure kind it derives from the error text.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ExecutionReconciliationInvalidation {
+    pub broker_id: String,
+    pub kind: String,
+    pub message: String,
+    pub created_at: String,
+}
+
+/// Diagnostics the broker-order-updates route projects next to the worker
+/// status.  Subscription state itself stays out of Rust (the engine does not
+/// own a broker push subscription), but source connectivity and the bounded
+/// invalidation history keep the Go contract observable.
+#[derive(Clone, Debug, Default)]
+struct ExecutionReconciliationDiagnostics {
+    connectivity: Option<String>,
+    invalidations: Vec<ExecutionReconciliationInvalidation>,
+}
+
+impl ExecutionReconciliationDiagnostics {
+    fn record_success(&mut self) {
+        self.connectivity = Some("connected".to_owned());
+    }
+
+    fn record_failure(&mut self, message: &str, created_at: &str) {
+        self.connectivity = Some("inactive".to_owned());
+        self.invalidations
+            .push(ExecutionReconciliationInvalidation {
+                broker_id: super::super::product_production_ports_trade::ACTIVE_TRADE_BROKER_ID
+                    .to_owned(),
+                kind: invalidation_kind(message).to_owned(),
+                message: message.to_owned(),
+                created_at: created_at.to_owned(),
+            });
+        if self.invalidations.len() > EXECUTION_RECONCILIATION_MAX_INVALIDATIONS {
+            let excess = self.invalidations.len() - EXECUTION_RECONCILIATION_MAX_INVALIDATIONS;
+            self.invalidations.drain(..excess);
+        }
+    }
+}
+
+/// Go treats connection-shaped failures as `DISCONNECTED` and everything else
+/// as `ERROR` (`order_updates_state.go::markSubscriptions`).
+fn invalidation_kind(message: &str) -> &'static str {
+    let lower = message.to_ascii_lowercase();
+    if lower.contains("dial") || lower.contains("closed") || lower.contains("timeout") {
+        "DISCONNECTED"
+    } else {
+        "ERROR"
+    }
+}
+
 /// Owns the asynchronous broker reconciliation cadence and shutdown handle.
 /// It uses the shared trade runtime at scan time so dynamic Futu activation
 /// does not couple execution to the active market-data router.
@@ -124,6 +183,7 @@ pub(crate) struct ExecutionReconciliationWorker {
     wake: Arc<Notify>,
     handle: Mutex<Option<JoinHandle<()>>>,
     status: Arc<Mutex<ExecutionReconciliationWorkerStatus>>,
+    diagnostics: Arc<Mutex<ExecutionReconciliationDiagnostics>>,
     /// Once shutdown starts, a late `spawn_blocking` result may still finish
     /// its durable reconciliation, but it must not publish notifications or
     /// make the retired worker look healthy again.
@@ -151,10 +211,12 @@ impl ExecutionReconciliationWorker {
         let port = Arc::downgrade(&port);
         let wake = wake.unwrap_or_else(|| Arc::new(Notify::new()));
         let status = Arc::new(Mutex::new(ExecutionReconciliationWorkerStatus::default()));
+        let diagnostics = Arc::new(Mutex::new(ExecutionReconciliationDiagnostics::default()));
         let accept_results = Arc::new(AtomicBool::new(true));
         let (stop_tx, mut stop_rx) = oneshot::channel();
         let task_wake = Arc::clone(&wake);
         let task_status = Arc::clone(&status);
+        let task_diagnostics = Arc::clone(&diagnostics);
         let task_accept_results = Arc::clone(&accept_results);
         let handle = tokio::spawn(async move {
             let mut retry_delay = std::time::Duration::from_secs(1);
@@ -202,11 +264,19 @@ impl ExecutionReconciliationWorker {
                             state.last_error = None;
                             state.next_retry_at = None;
                             retry_delay = std::time::Duration::from_secs(1);
+                            task_diagnostics
+                                .lock()
+                                .unwrap_or_else(|error| error.into_inner())
+                                .record_success();
                         }
                         Err(error) => {
                             state.state = "degraded".to_owned();
                             state.failures = state.failures.saturating_add(1);
-                            state.last_error = Some(error);
+                            state.last_error = Some(error.clone());
+                            task_diagnostics
+                                .lock()
+                                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                                .record_failure(&error, &now);
                             next_delay = retry_delay;
                             retry_delay = retry_delay.saturating_mul(2).min(max_retry_delay);
                             state.next_retry_at = time::OffsetDateTime::now_utc()
@@ -241,6 +311,7 @@ impl ExecutionReconciliationWorker {
             wake,
             handle: Mutex::new(Some(handle)),
             status,
+            diagnostics,
             accept_results,
         })
     }
@@ -254,6 +325,26 @@ impl ExecutionReconciliationWorker {
         self.status
             .lock()
             .unwrap_or_else(|error| error.into_inner())
+            .clone()
+    }
+
+    /// Bounded invalidation history in Go's oldest-first order.
+    pub(crate) fn invalidations(&self) -> Vec<ExecutionReconciliationInvalidation> {
+        self.diagnostics
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .invalidations
+            .clone()
+    }
+
+    /// Source connectivity last observed by a scan: `connected` after a
+    /// successful discovery, `inactive` after a failed one, `None` before the
+    /// first scan completes (Go leaves the broker projection empty then too).
+    pub(crate) fn connectivity(&self) -> Option<String> {
+        self.diagnostics
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .connectivity
             .clone()
     }
 

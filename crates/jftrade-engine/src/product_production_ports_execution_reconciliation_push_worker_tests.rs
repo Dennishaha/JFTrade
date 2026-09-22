@@ -563,3 +563,112 @@ async fn reconciliation_polling_throttles_scans_until_a_push_wake_forces_one() {
         "one push wake must force exactly one extra scan"
     );
 }
+
+/// Parity: go:452dea11:internal/trading/order_updates_test.go:414 TestOrderUpdatesWorkerSnapshotCapsInvalidations
+#[tokio::test]
+async fn reconciliation_worker_bounds_recent_invalidations_to_twenty_entries() {
+    let (store, _directory) = reconciliation_store();
+    let failing = Arc::new(FixtureTradeReader {
+        accounts: vec![],
+        fail_accounts: true,
+        ..Default::default()
+    });
+    let port = Arc::new(production_port(Arc::clone(&store), failing));
+    let worker = ExecutionReconciliationWorker::start(Arc::clone(&port), None);
+
+    // Go drives 25 failing syncs and keeps only `maxOrderUpdateInvalidations`
+    // (20) entries in the snapshot.
+    let mut target = scans_reach(&worker, 1).await;
+    for _ in 0..24 {
+        target += 1;
+        worker.wake();
+        let reached = scans_reach(&worker, target).await;
+        assert!(reached >= target, "wake {target} must produce a scan");
+    }
+
+    let status = worker.status();
+    assert!(status.scans >= 25, "scans = {}", status.scans);
+    assert!(status.failures >= 25, "failures = {}", status.failures);
+    let invalidations = worker.invalidations();
+    assert_eq!(
+        invalidations.len(),
+        20,
+        "the invalidation history must stay capped"
+    );
+    assert!(
+        invalidations
+            .iter()
+            .all(|entry| entry.broker_id == "futu" && !entry.created_at.is_empty()),
+        "invalidations = {invalidations:?}"
+    );
+    assert!(
+        invalidations
+            .iter()
+            .all(|entry| entry.kind == "DISCONNECTED" || entry.kind == "ERROR"),
+        "invalidations = {invalidations:?}"
+    );
+    assert_eq!(
+        invalidations.last().map(|entry| entry.message.as_str()),
+        status.last_error.as_deref(),
+        "the newest invalidation must carry the current scan error"
+    );
+    worker.shutdown().await;
+}
+
+/// Parity: go:452dea11:internal/trading/order_updates_test.go:427 TestOrderUpdatesWorkerInactiveSourcePreservesDiagnosticState
+#[tokio::test]
+async fn reconciliation_worker_projects_inactive_source_connectivity_and_go_shaped_invalidations() {
+    let (store, _directory) = reconciliation_store();
+    let failing = Arc::new(FixtureTradeReader {
+        accounts: vec![],
+        fail_accounts: true,
+        ..Default::default()
+    });
+    let port = Arc::new(production_port(Arc::clone(&store), failing));
+    let worker = ExecutionReconciliationWorker::start(Arc::clone(&port), None);
+    scans_reach(&worker, 1).await;
+
+    assert_eq!(worker.connectivity().as_deref(), Some("inactive"));
+    let snapshot = crate::product::product_production_ports::product_production_ports_system::broker_order_updates_snapshot(&worker);
+    assert!(
+        snapshot["subscriptions"].as_array().expect("array").is_empty(),
+        "snapshot = {snapshot}"
+    );
+    assert_eq!(snapshot["brokers"][0]["brokerId"], "futu");
+    assert_eq!(snapshot["brokers"][0]["connectivity"], "inactive");
+    let invalidations = snapshot["recentInvalidations"]
+        .as_array()
+        .expect("recentInvalidations array");
+    assert!(!invalidations.is_empty(), "snapshot = {snapshot}");
+    for key in [
+        "subscriptionKey",
+        "brokerId",
+        "tradingEnvironment",
+        "accountId",
+        "market",
+        "kind",
+        "message",
+        "createdAt",
+    ] {
+        assert!(
+            invalidations[0].get(key).is_some(),
+            "missing {key} in {snapshot}"
+        );
+    }
+    worker.shutdown().await;
+
+    // A reachable source keeps the same projection healthy.
+    let (healthy_store, _healthy_directory) = reconciliation_store();
+    let healthy = Arc::new(FixtureTradeReader {
+        accounts: vec![account()],
+        ..Default::default()
+    });
+    let healthy_port = Arc::new(production_port(healthy_store, healthy));
+    let healthy_worker = ExecutionReconciliationWorker::start(Arc::clone(&healthy_port), None);
+    scans_reach(&healthy_worker, 1).await;
+    assert_eq!(healthy_worker.connectivity().as_deref(), Some("connected"));
+    assert!(healthy_worker.invalidations().is_empty());
+    let healthy_snapshot = crate::product::product_production_ports::product_production_ports_system::broker_order_updates_snapshot(&healthy_worker);
+    assert_eq!(healthy_snapshot["brokers"][0]["connectivity"], "connected");
+    healthy_worker.shutdown().await;
+}
