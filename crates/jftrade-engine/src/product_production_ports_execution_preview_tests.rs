@@ -1054,6 +1054,55 @@ fn implicit_real_environment_is_risk_rejected_before_the_broker_is_called() {
     );
 }
 
+/// Parity: go:452dea11:internal/trading/broker_test.go:680
+/// `TestPlaceBrokerOrderCannotBypassRiskWithImplicitRealEnvironment`. Go's
+/// service resolves an omitted `tradingEnvironment` through the configured
+/// default (REAL) before the pre-trade risk gate, so an active kill switch
+/// rejects the placement with `REAL_TRADE_KILL_SWITCH_ACTIVE` and the broker
+/// gateway is never called. Rust resolves the same default inside
+/// `ProductionExecutionPort::place_order`; this pins the implicit-REAL and
+/// kill-switch combination end to end instead of relying on an explicit REAL
+/// fixture.
+#[test]
+fn implicit_real_environment_hits_the_kill_switch_before_the_broker_is_called() {
+    let directory = tempfile::tempdir().expect("risk control directory");
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let mut port = cancel_contract_port(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
+    std::fs::write(
+        directory.path().join("real-trade-control.json"),
+        r#"{"riskConfig":{"realTradingEnabled":true},"killSwitch":{"id":"ks-1"}}"#,
+    )
+    .expect("write real-trade control plane");
+    port.risk_coordinator = Some(Arc::new(crate::product::ExecutionRiskCoordinator::new(
+        directory.path().join("real-trade-control.json"),
+    )));
+    port.default_trading_environment = Some(Arc::new(|| "REAL".to_owned()));
+
+    let mut payload = cancel_contract_payload("implicit-real-kill-switch");
+    payload
+        .as_object_mut()
+        .expect("payload object")
+        .remove("tradingEnvironment");
+    let error = port
+        .place_order(&payload)
+        .expect_err("implicit REAL must be blocked by the kill switch");
+    assert!(
+        matches!(
+            error,
+            ExecutionWritePortError::Failed {
+                status: 403,
+                ref code,
+                ..
+            } if code == "REAL_TRADE_KILL_SWITCH_ACTIVE"
+        ),
+        "implicit REAL kill-switch error = {error:?}"
+    );
+    assert!(
+        writer.placed.lock().expect("placed orders").is_empty(),
+        "order gateway must not run after an implicit REAL kill-switch rejection"
+    );
+}
+
 /// Parity: go:452dea11:internal/trading/execution_test.go:327
 /// `TestCreateExecutionOrderRejectsInvalidPayloadBeforeBrokerCall`. Go builds
 /// the order service with a fake `placeOrder` that fails the test when it is

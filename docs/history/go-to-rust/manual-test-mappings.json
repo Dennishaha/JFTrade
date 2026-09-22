@@ -30275,11 +30275,11 @@
     "evidence_type": "function_exact"
   },
   "internal/trading/broker_test.go:680:TestPlaceBrokerOrderCannotBypassRiskWithImplicitRealEnvironment": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_fails_closed_when_control_plane_unavailable_for_real；crates/jftrade-engine/src/product_execution_risk_coordinator.rs::real_order_fails_closed_when_control_plane_unavailable",
-    "conclusion": "partial：Rust 断言 REAL 单在控制面不可用时 fail-closed（无法绕过风控）；差异：Go 断言隐式 REAL 环境不能绕过风控（环境解析 + 风控的组合路径），Rust 侧隐式环境解析断言缺失。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::implicit_real_environment_hits_the_kill_switch_before_the_broker_is_called",
+    "conclusion": "function_exact（本批新增回归）：Go 构造默认交易环境 REAL（WithDefaultTradingEnvironment）且 kill switch 激活的服务，提交省略 tradingEnvironment 的下单请求，断言被预交易风控拒绝且 reasonCode=REAL_TRADE_KILL_SWITCH_ACTIVE、broker 的 placeOrder 未被调用。Rust 的默认环境解析在 product_production_ports_execution_order_parse.rs（payload 的 tradingEnvironment/env 缺失时取组合根注入的 default_trading_environment），风控在 ExecutionRiskCoordinator::execute_with_risk_guard 内以 403/REAL_TRADE_KILL_SWITCH_ACTIVE 拒绝；本批新增 implicit_real_environment_hits_the_kill_switch_before_the_broker_is_called 以同一控制面 fixture（riskConfig.realTradingEnabled=true + killSwitch）断言：隐式 REAL → 403 + REAL_TRADE_KILL_SWITCH_ACTIVE + RecordingTradeWriter 无任何下单记录。探针：把默认环境解析短路为 .or(None) 后，新测试与既有 implicit_real_environment_is_risk_rejected_before_the_broker_is_called 同时转红（订单以 SIMULATE 落到 broker）；按字节回滚并核对 shasum 26dcca142cf7c2e952257ca6e9e334d19b04feaceed00d58ae43cf13b4f3851d。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(implicit_real_environment_hits_the_kill_switch_before_the_broker_is_called)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/broker_test.go:711:TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable": {
     "status": "[x]",
@@ -30290,9 +30290,9 @@
   },
   "internal/trading/broker_test.go:735:TestNormalizeSymbolsAndRuntimeDefaults": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::market_rules_match_trimmed_symbols_and_apply_overrides_in_order；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::buying_power_defaults_follow_settings_and_preserve_explicit_environment",
-    "conclusion": "partial：Rust 覆盖代码规范化（trim/覆盖顺序）与运行期默认值；差异：Go 断言 normalizeSymbols 与运行期默认值的组合行为（含空输入），Rust 分散断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_runtime_projects_configured_connection_and_live_hub；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_runtime_requires_real_projection_sources；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::buying_power_defaults_follow_settings_and_preserve_explicit_environment",
+    "conclusion": "部分覆盖：Go 断言（1）ReadQuery(broker, env, account, market=\"\") 用 WithDefaultMarket 的配置值补齐 market；（2）NormalizeSymbols(\"US\", [\"AAPL\",\"MSFT\"]) 前缀化为 US.AAPL/US.MSFT，空符号报错；（3）无运行时投影的 broker 返回空 session/accounts（不报错）。Rust 证据：（2）由 trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols 断言各市场前缀（含 US:AAPL 冒号形式）与非法前缀拒绝，裸代码在 TradeRequest::securities() 里用请求 market 标签前缀化并对全空输入返回 \"query parameter symbol is required\"；（3）由 broker_runtime_projects_configured_connection_and_live_hub 断言配置齐全时的会话/连接字段、broker_runtime_requires_real_projection_sources 断言缺投影源时 fail-closed（Rust 不以空 session 冒充可用，属保留差异而非报错差异）。功能差异（需修复）：（1）Rust 交易读请求不读配置默认市场——product_production_ports_trade_requests.rs::market_label()（第 233 行）在 query 缺 market 时硬编码回退 \"HK\"，而设置里存在对应字段 FutuIntegrationConfig.trade_market（crates/jftrade-settings/src/broker.rs:20，默认 \"HK\"）未被读路径使用；resolve_trade_request 则改从账户权限列表推导市场。复现：把 futu.tradeMarket 设为 US 后请求 /api/v1/brokers/futu/margin-ratios?accountId=...&symbol=AAPL（省略 market），Rust 仍按 HK 解析并以 400 拒绝（symbol 与 market 冲突），Go 会取配置默认市场 US。预期：省略 market 时取 futu.tradeMarket、显式 market 优先、空配置回退 HK。修复位置：组合根按 default_trading_environment 同法注入默认市场 getter，替换 market_label 的 HK 兜底；回归要求：省略 market → 取配置值、显式 market 优先、空配置回退 HK、裸代码与显式市场的冲突校验保持不变。缺口（需新增测试）：裸代码 + market 参数在交易读路由上的前缀化没有专门断言（现有用例以显式前缀为主）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_runtime_projects_configured_connection_and_live_hub) or test(broker_runtime_requires_real_projection_sources) or test(trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols) or test(buying_power_defaults_follow_settings_and_preserve_explicit_environment)'",
     "evidence_type": "partial"
   },
   "internal/trading/control_plane_idempotency_test.go:12:TestRealTradeControlPlaneKillSwitchReleaseIsIdempotentAndAudited": {
