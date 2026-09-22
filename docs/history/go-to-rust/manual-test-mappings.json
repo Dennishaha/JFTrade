@@ -25866,44 +25866,44 @@
   },
   "internal/store/trading/broker_fill_reconciliation_test.go:11:TestExecutionOrderStoreReconcilesFillBeforeOrderSnapshot": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability",
-    "conclusion": "partial：Go 断言先到成交再到的订单快照能被对账合并。Rust 的执行订单生命周期用例断言事件与订单合并、重启后可持久读回（该用例），逐时序场景（成交先到）无专项断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_discovers_external_order_into_empty_ledger; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_discovers_external_order_into_empty_ledger; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::conformance_partial_full_fill_average_and_out_of_order_updates_hold",
+    "conclusion": "partial：Go 断言“成交先到→先按成交发现订单（FILLED/FILLED_ALL、broker.fill 来源、成交量与均价），随后订单快照合并到同一 internalOrderId 并补齐 requested 字段/备注/事件”。Rust 把该链路拆成发现（`persist_discovered_fill`/`discover_external_ledger`，discovered_order/discovered_fill 单测覆盖）与后续快照应用（`apply_broker_snapshot`，conformance 用例覆盖），本批新增的信用边界用例进一步钉住成交与快照的覆盖关系；缺口：无单一“成交先到再合并快照”的端到端断言（要求：在 engine 对账 harness 中先 apply_fill_snapshot 再 apply_broker_snapshot，断言同一 internalOrderId、requested 字段补齐与 2 条事件）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/store/trading/broker_fill_reconciliation_test.go:97:TestExecutionOrderStoreDoesNotDoubleCountSnapshotCoveredFill": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability",
-    "conclusion": "partial：Go 断言快照已覆盖的成交不重复计数。Rust 的执行订单用例断言事件/成交键去重与持久化（该用例），重复计数边界无逐条断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit",
+    "conclusion": "partial：Go 断言快照已覆盖的延迟成交不再重复累加（changed=false、保留快照均价），而晚于快照的新成交按加权均价合并。Rust 已断言覆盖信用（4/2/6/0 边界）与快照填充推进路径（`reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at`、`conformance_partial_full_fill_average_and_out_of_order_updates_hold` 的 100.6 加权均价）；缺口：缺“延迟成交被覆盖时不改写快照均价”的端到端断言（owner：`execution_reconciliation_discovery.rs::covered_by_snapshot` + `apply_fill_snapshot`）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/store/trading/broker_fill_reconciliation_test.go:144:TestExecutionOrderStoreRejectsStaleBrokerSnapshotRegression": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability",
-    "conclusion": "partial：Go 断言过期的 broker 快照回退被拒。Rust 的用例断言生命周期事件与订单状态在重启后保持（该用例），stale 快照拒绝由状态机单调性表达、无专项断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::reconciliation_rejects_terminal_and_partial_status_regressions; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::conformance_partial_full_fill_average_and_out_of_order_updates_hold",
+    "conclusion": "partial：Go 断言过期快照（SUBMITTED/0 股、更旧时间戳）被拒绝且 `rawBrokerStatus` 保持 FILLED_ALL。Rust 断言终态/部分成交状态回退被拒、`reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at` 与 conformance 用例断言乱序快照不能回退成交量；缺口：`raw_broker_status` 在拒绝后保持的专项断言（owner：`product_production_ports_execution_orders_impl.rs::apply_broker_snapshot` 的拒绝早退分支）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/store/trading/broker_ledger_test.go:10:TestBrokerSnapshotCoveredFillQuantityLedgerBoundaries": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability",
-    "conclusion": "partial：Go 断言 broker 快照已覆盖成交的数量账本边界。Rust 的执行订单用例断言成交与事件持久化（该用例），数量账本边界无逐条断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit",
+    "conclusion": "已覆盖：Rust 的 `covered_by_snapshot` 逐条断言 Go 的信用边界 —— 快照累计 10（updatedAt 03:30）、已记账成交 4（02:30）、延迟成交 2 时信用取 2（按成交数量封顶）、同一状态更新请求 10 时信用 6（快照总量减已记账）、再补记账 6 后信用 0。本批修复：已记账成交的覆盖判定原本拿“来件成交时间”比对，导致同一场景信用算成 10（会吞掉真实成交）；现改为与快照时间比对（两遍扫描，对齐 `brokerSnapshotCoveredFillQuantityLocked`），探针回滚该判定即复现 `10.0 != 6.0`，文件 shasum 2e0b585e3771c39af90a84ee15b7e92b5abc7aa85ff21777f8b8f289b61f8542。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked --lib -E 'test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/trading/broker_ledger_test.go:50:TestBrokerEventCoverageTimestampBoundaries": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability",
-    "conclusion": "partial：Go 断言 broker 事件覆盖时间戳边界。Rust 的持久化生命周期用例断言事件按订单保持时序（该用例），时间戳覆盖边界无专项断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_snapshot_coverage_timestamp_boundaries_are_conservative",
+    "conclusion": "已覆盖：Go 的四个时间戳边界逐条断言 —— 快照与事件时间均空（保守覆盖→信用 4）、两边都不可解析（保守覆盖→4）、快照早于成交（不覆盖→0）、时间相同（覆盖→4）；Rust 的 `time_after` 对空/畸形值返回 false，等价于 Go `brokerEventCanCoverFill` 的保守回退。本批修复同时去掉了“快照时间为空即返回 0”的早退，改为 `found_snapshot` 标记，使空时间戳走保守覆盖分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked --lib -E 'test(reconciliation_snapshot_coverage_timestamp_boundaries_are_conservative)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/trading/broker_ledger_test.go:65:TestBrokerFeeNilAndMissingOrderBoundaries": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability",
-    "conclusion": "partial：Go 断言 broker 费用为空/订单缺失的边界。Rust 的用例断言生命周期与事件持久化（该用例），费用为空与缺单边界无对应断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_provider_tests.rs::reconciliation_fee_amount_falls_back_to_fee_items; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_retries_fees_after_terminal_order_projection",
+    "conclusion": "partial：Go 断言空费用结果与“未知订单费用”都不产生事件/变更。Rust 已断言费用金额回退（feeItems 求和）、费用在订单终态后重试写入；缺口：`fee_amount == None` 或 orderIdEx 缺失时不应写事件/不应变账本的否定断言（owner：`product_production_ports_execution_reconciliation.rs` 的费用应用路径，`matches_fee`/`fee_amount` 守卫）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/store/trading/execution_composition_test.go:32:TestExecutionOrderStorePromotesBrokerSourceToSystemOnPlacedMerge": {
@@ -26033,39 +26033,39 @@
     "evidence_type": "boundary"
   },
   "internal/store/trading/out_of_order_reconciliation_test.go:43:TestExecutionOrderStoreIgnoresOutOfOrderRegressionPushAfterTerminalState": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability",
-    "conclusion": "partial：Go 断言终态后忽略乱序回退推送。Rust 的执行订单用例断言生命周期事件按订单保持时序（该用例），乱序回退忽略无专项断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::reconciliation_rejects_terminal_and_partial_status_regressions",
+    "conclusion": "已覆盖：Go 的三个用例（FILLED 忽略 SUBMITTED、FILLED 忽略 CANCELLED_ALL、PARTIALLY_FILLED 忽略 SUBMITTED）在 Rust 逐条断言拒绝回退、成交量不下降、且不追加状态事件；差异：Go 允许“no-op 审计事件”落账（changed=true 但前后状态相同），Rust 直接不落事件（更严格），状态与成交量语义一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked --lib -E 'test(reconciliation_rejects_terminal_and_partial_status_regressions)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/trading/out_of_order_reconciliation_test.go:96:TestExecutionOrderStoreAppliesFillProgressFromOlderSnapshot": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability",
-    "conclusion": "partial：Go 断言旧快照的成交进度仍被应用。Rust 的用例断言成交/事件持久化与重启读回（该用例），旧快照成交进度应用无对应断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at",
+    "conclusion": "已覆盖：先接受 02:00 的部分成交快照（2 股），再送入 01:00 生成但成交推进到 4 股的更旧快照：断言被接受、状态保持 PARTIALLY_FILLED、成交量 4、`updatedAt` 不回退（Rust 以接受时刻为准，天然单调）、事件数 +1；与 Go “进度推进优先于时间戳先后、updatedAt 保持最新已接受时间”一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked --lib -E 'test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/trading/out_of_order_reconciliation_test.go:140:TestExecutionOrderStoreKeepsUpdatedAtMonotonicForOlderFill": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability",
-    "conclusion": "partial：Go 断言旧成交不会让 updatedAt 回退（单调）。Rust 的用例覆盖事件时序持久化（该用例），updatedAt 单调性无专项断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::conformance_partial_full_fill_average_and_out_of_order_updates_hold",
+    "conclusion": "partial：Go 断言“快照已覆盖的更旧成交”不改变订单（changed=false）且 `updatedAt`/事件时间保持单调。Rust 的信用算法已与本批修复后的 Go 语义一致（覆盖判定改用快照时间），conformance 用例覆盖 4+6 股成交与乱序快照；缺口：缺“更旧成交被覆盖后订单字段与 updatedAt 均不变”的端到端断言（owner：`apply_fill_snapshot` 的 applied==0 分支）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/store/trading/out_of_order_reconciliation_test.go:178:TestExecutionOrderStoreResolvesCancelRequestRaceAgainstBrokerPush": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability",
-    "conclusion": "partial：Go 断言撤单请求与 broker 推送竞争时的收敛。Rust 的执行订单用例断言生命周期状态持久化（该用例），竞争收敛规则无逐条断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation",
+    "conclusion": "已覆盖：Go 的两条竞态分支逐条断言 —— CANCEL_SUBMITTED 后收到成交确认→FILLED（成交优先，事件 previousStatus=CANCEL_SUBMITTED、nextStatus=FILLED），无成交时收到撤单确认→CANCELLED（previousStatus=CANCEL_SUBMITTED、nextStatus=CANCELLED）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked --lib -E 'test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/trading/out_of_order_reconciliation_test.go:227:TestExecutionOrderStoreDuplicateTerminalPushIsNoOp": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability",
-    "conclusion": "partial：Go 断言重复终态推送为 no-op。Rust 的用例覆盖终态持久化（该用例），重复终态幂等无专项断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::reconciliation_duplicate_terminal_snapshot_is_idempotent",
+    "conclusion": "已覆盖：重复终态推送断言 applied=false、状态/成交量保持、`updatedAt` 不变、事件数不增，与 Go 的“重复终态推送为 no-op”一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked --lib -E 'test(reconciliation_duplicate_terminal_snapshot_is_idempotent)'",
+    "evidence_type": "function_exact"
   },
   "internal/store/trading/persistence_failures_test.go:14:TestExecutionPersistenceConstructorDependencyFailures": {
     "status": "[~]",
@@ -26160,15 +26160,15 @@
   },
   "internal/store/trading/submission_safety_test.go:13:TestExecutionSubmissionLedgerDeduplicatesAndNeverRetriesUnknown": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_order_reservation_replays_identity_without_retrying_unknown_submission",
-    "conclusion": "partial：Go 断言提交账本去重且绝不重试未知提交。Rust 的预留用例断言按身份重放且不重试未知提交（该用例），语义一致。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_order_reservation_replays_identity_without_retrying_unknown_submission; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_unknown_order_is_durable_and_idempotent; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::reconciliation_does_not_guess_an_identity_for_an_uncertain_submission",
+    "conclusion": "partial：Go 断言提交账本按身份去重且绝不重试未知提交。Rust 三处证据：sqlite 预留按身份重放（不重试未知提交）、未知订单持久化幂等、不确定提交不猜测身份且保持 UNKNOWN + EXECUTION_STATE_AMBIGUOUS；缺口：缺少“同一身份重复提交只产生一次外呼”的计数断言（owner：`ExecutionOrderStore::reserve_order` + `reconciliation_unknown_order_is_durable_and_idempotent`）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/store/trading/submission_safety_test.go:63:TestExecutionPreviewConsumptionIsIdempotentOnlyForIdenticalClientRequest": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_order_preview_consumption_is_idempotent_and_expiry_fenced",
-    "conclusion": "partial：Go 断言预览消费仅对相同客户端请求幂等。Rust 的预览消费用例断言幂等与过期栅栏（该用例），\"仅相同请求幂等\"的否定断言无对应。",
+    "conclusion": "partial：Go 断言预览消费仅对“相同客户端请求”幂等（不同请求必须失败）。Rust 已断言预览消费幂等与过期栅栏；缺口：幂等的“同一请求哈希”正例与“不同请求或已消费请求必须拒绝”的否定矩阵（owner：`ExecutionOrderStore::reserve_order_with_preview_checked` 的请求哈希比对分支）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
     "evidence_type": "partial"
   },

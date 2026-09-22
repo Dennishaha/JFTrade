@@ -867,45 +867,26 @@ pub(super) fn covered_by_snapshot(
     fill: &TradeFillSnapshot,
 ) -> Result<f64, ExecutionWritePortError> {
     let fill_at = fill.create_time.trim();
+    // Parity: go:452dea11:internal/store/trading/broker_ledger.go:180
+    // `brokerSnapshotCoveredFillQuantityLocked` reads the snapshot credit in two
+    // passes: first the largest broker snapshot quantity whose own timestamp can
+    // cover the incoming fill, then the fills that snapshot already represents.
+    // Comparing stored fills against the snapshot timestamp (instead of the
+    // incoming fill timestamp) is what keeps a late arriving snapshot from
+    // crediting quantity it never contained.
     let mut best = 0.0;
     let mut best_at = String::new();
-    let mut known = 0.0;
+    let mut found_snapshot = false;
     for event in events {
+        if event.event_type == "BROKER_FILL_RECEIVED" {
+            continue;
+        }
         let payload = serde_json::from_str::<Value>(&event.payload_json).map_err(|error| {
             invalid_stored(format!(
                 "stored order event {} has invalid JSON payload: {error}",
                 event.id
             ))
         })?;
-        if event.event_type == "BROKER_FILL_RECEIVED" {
-            if let Some(at) = payload.get("filledAt").filter(|value| !value.is_null()) {
-                let at = at.as_str().ok_or_else(|| {
-                    invalid_stored(format!(
-                        "stored fill event {} has invalid filledAt",
-                        event.id
-                    ))
-                })?;
-                if !at.is_empty() && !time_after(at, fill_at) {
-                    let quantity = payload
-                        .get("filledQuantity")
-                        .and_then(Value::as_f64)
-                        .ok_or_else(|| {
-                            invalid_stored(format!(
-                                "stored fill event {} has invalid filledQuantity",
-                                event.id
-                            ))
-                        })?;
-                    if !quantity.is_finite() || quantity < 0.0 {
-                        return Err(invalid_stored(format!(
-                            "stored fill event {} has an invalid filledQuantity",
-                            event.id
-                        )));
-                    }
-                    known += quantity;
-                }
-            }
-            continue;
-        }
         let Some(quantity_value) = payload
             .get("filledQuantity")
             .filter(|value| !value.is_null())
@@ -935,13 +916,56 @@ pub(super) fn covered_by_snapshot(
                     ))
                 })
             })?;
+        // `time_after` treats unparsable timestamps as "not after", so an empty
+        // or malformed snapshot timestamp conservatively covers the fill.
         if quantity > best && !time_after(fill_at, at) {
             best = quantity;
             best_at = at.to_owned();
+            found_snapshot = true;
         }
     }
-    if best <= 0.0 || best_at.is_empty() {
+    if !found_snapshot || best <= 0.0 {
         return Ok(0.0);
+    }
+
+    let mut known = 0.0;
+    for event in events {
+        if event.event_type != "BROKER_FILL_RECEIVED" {
+            continue;
+        }
+        let payload = serde_json::from_str::<Value>(&event.payload_json).map_err(|error| {
+            invalid_stored(format!(
+                "stored order event {} has invalid JSON payload: {error}",
+                event.id
+            ))
+        })?;
+        let quantity = payload
+            .get("filledQuantity")
+            .and_then(Value::as_f64)
+            .ok_or_else(|| {
+                invalid_stored(format!(
+                    "stored fill event {} has invalid filledQuantity",
+                    event.id
+                ))
+            })?;
+        if !quantity.is_finite() || quantity < 0.0 {
+            return Err(invalid_stored(format!(
+                "stored fill event {} has an invalid filledQuantity",
+                event.id
+            )));
+        }
+        if quantity <= 0.0 {
+            continue;
+        }
+        // A fill event without a usable timestamp is assumed to be inside the
+        // snapshot, matching Go's `brokerEventCanCoverFill` fallback.
+        let at = payload
+            .get("filledAt")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if !time_after(at, &best_at) {
+            known += quantity;
+        }
     }
     Ok((best - known).max(0.0).min(fill.qty))
 }

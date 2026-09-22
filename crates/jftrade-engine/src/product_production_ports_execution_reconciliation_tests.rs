@@ -518,6 +518,102 @@ fn reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity() {
     );
 }
 
+fn ledger_event(
+    event_type: &str,
+    payload_json: &str,
+    created_at: &str,
+) -> jftrade_store_sqlite::StoredExecutionOrderEventRecord {
+    jftrade_store_sqlite::StoredExecutionOrderEventRecord {
+        id: format!("ledger-event-{created_at}-{event_type}"),
+        internal_order_id: "order-1".to_owned(),
+        event_type: event_type.to_owned(),
+        previous_status: None,
+        next_status: "PARTIALLY_FILLED".to_owned(),
+        payload_json: payload_json.to_owned(),
+        created_at: created_at.to_owned(),
+    }
+}
+
+// Parity: go:452dea11:internal/store/trading/broker_ledger_test.go:10 TestBrokerSnapshotCoveredFillQuantityLedgerBoundaries
+#[test]
+fn reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit() {
+    let events = vec![
+        ledger_event(
+            "BROKER_PUSH_ORDER",
+            r#"{"filledQuantity":5,"updatedAt":"2026-07-22T01:00:00Z"}"#,
+            "2026-07-22T01:00:00Z",
+        ),
+        ledger_event(
+            "BROKER_PUSH_ORDER",
+            r#"{"filledQuantity":8,"updatedAt":"2026-07-22T03:00:00Z"}"#,
+            "2026-07-22T03:00:00Z",
+        ),
+        ledger_event(
+            "BROKER_PUSH_UPDATED",
+            r#"{"filledQuantity":10,"updatedAt":"2026-07-22T03:30:00Z"}"#,
+            "2026-07-22T03:30:00Z",
+        ),
+        ledger_event(
+            "BROKER_FILL_RECEIVED",
+            r#"{"filledQuantity":4,"filledAt":"2026-07-22T02:30:00Z"}"#,
+            "2026-07-22T02:30:00Z",
+        ),
+    ];
+    let capped = fill("2026-07-22T02:00:00Z", 2.0, "ledger-fill-capped");
+    assert_eq!(
+        covered_by_snapshot(&events, &capped).expect("capped snapshot credit"),
+        2.0
+    );
+    let partial = fill("2026-07-22T02:00:00Z", 10.0, "ledger-fill-partial");
+    assert_eq!(
+        covered_by_snapshot(&events, &partial).expect("partial snapshot credit"),
+        6.0
+    );
+    let mut exhausted_events = events.clone();
+    exhausted_events.push(ledger_event(
+        "BROKER_FILL_RECEIVED",
+        r#"{"filledQuantity":6,"filledAt":"2026-07-22T03:00:00Z"}"#,
+        "2026-07-22T03:00:00Z",
+    ));
+    assert_eq!(
+        covered_by_snapshot(&exhausted_events, &partial).expect("exhausted snapshot credit"),
+        0.0
+    );
+}
+
+// Parity: go:452dea11:internal/store/trading/broker_ledger_test.go:50 TestBrokerEventCoverageTimestampBoundaries
+#[test]
+fn reconciliation_snapshot_coverage_timestamp_boundaries_are_conservative() {
+    let snapshot_event = |updated_at: &str, created_at: &str| {
+        ledger_event(
+            "BROKER_PUSH_ORDER",
+            &format!(r#"{{"filledQuantity":4,"updatedAt":{}}}"#, serde_json::json!(updated_at)),
+            created_at,
+        )
+    };
+    let covered = |events: &[jftrade_store_sqlite::StoredExecutionOrderEventRecord],
+                   fill_at: &str| {
+        covered_by_snapshot(events, &fill(fill_at, 4.0, "ledger-timestamp-fill"))
+            .expect("timestamp boundary credit")
+    };
+    assert_eq!(covered(&[snapshot_event("", "")], "2026-07-22T02:00:00Z"), 4.0);
+    assert_eq!(covered(&[snapshot_event("bad", "bad")], "also-bad"), 4.0);
+    assert_eq!(
+        covered(
+            &[snapshot_event("2026-07-22T01:00:00Z", "2026-07-22T01:00:00Z")],
+            "2026-07-22T02:00:00Z"
+        ),
+        0.0
+    );
+    assert_eq!(
+        covered(
+            &[snapshot_event("2026-07-22T02:00:00Z", "2026-07-22T02:00:00Z")],
+            "2026-07-22T02:00:00Z"
+        ),
+        4.0
+    );
+}
+
 #[test]
 fn reconciliation_fee_amount_falls_back_to_fee_items() {
     let fee = TradeOrderFeeSnapshot {

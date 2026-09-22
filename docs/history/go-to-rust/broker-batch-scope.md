@@ -479,3 +479,69 @@ owner：`crates/jftrade-engine` 的 product/trade 投影与写路由错误映射
 | 快速门禁 | `pnpm run check:quick` | 通过。首跑因 `target/debug/deps` 的 `.rcgu.o` 超过 50000 触发 `check:rust:target-health` 失败；确认无 Cargo 进程后执行 `pnpm run clean:rust:artifacts`（清理 136057 文件 / 36.4GiB）并复跑通过 |
 | 空白检查 | `git diff --check` | 通过 |
 | 依赖策略 | `pnpm run check:rust:policy` | **未通过（既有阻断）**：`RUSTSEC-2026-0285` 与 `deny.toml` 8 条 `advisory-not-detected`，与本批无关，如实记录 |
+
+### 第一百二十六批 分片二 a：`internal/store/trading/` 乱序/信用家族 13 行（6 升 `[x]`）
+
+范围：`internal/store/trading/` 共 **44** 条 pending（分片一提交时的口径修正：`submission_safety_test.go:117`
+早已是 `[x]`，不在 pending 内）。本片处理乱序与成交信用家族 13 行：`broker_ledger_test.go` 3、
+`broker_fill_reconciliation_test.go` 3、`out_of_order_reconciliation_test.go` 5、`submission_safety_test.go` 2；
+其余 31 行（`startup_compatibility_test.go` 7、`ledger_test.go` 5、`ledger_lifecycle_test.go` 5、
+`execution_composition_test.go` 4、`maintenance_concurrency_test.go` 2、`persistence_failures_test.go` 2、
+`snapshot_normalization_test.go` 2、`fill_retention_test.go` 1、`order_leg_merge_test.go` 1、
+`persistence_query_plan_test.go` 1、`resource_test.go` 1）留待分片二 b。
+
+#### 关键事实：成交信用算法（Go 两遍扫描 vs Rust 原一遍扫描）
+
+Go `internal/store/trading/broker_ledger.go::brokerSnapshotCoveredFillQuantityLocked` 分两遍：
+先取“自身时间戳能覆盖来件成交”的最大快照累计量 `best/bestAt`，再累加 `BROKER_FILL_RECEIVED` 中
+`brokerEventCanCoverFill(bestAt, filledAt)` 为真的已记账成交量，最后 `credit = clamp(best-known, 0, fill.qty)`。
+Rust `execution_reconciliation_discovery.rs::covered_by_snapshot` 原实现只扫一遍，并把“已记账成交”
+与**来件成交时间**比较（而非快照时间），于是同一场景下信用被算成 10（Go 为 6）——即迟到快照会吞掉真实成交。
+另外原实现对 `bestAt` 为空直接返回 0，而 Go 对空/畸形时间戳保守覆盖（返回 credit）。
+
+#### 生产修复
+
+- 复现条件：快照事件 `BROKER_PUSH_UPDATED {filledQuantity:10, updatedAt:03:30}` + 已记账成交
+  `BROKER_FILL_RECEIVED {filledQuantity:4, filledAt:02:30}` + 来件成交 `create_time=02:00, qty=10`
+  → 修复前 credit=10（应 6）；空时间戳快照 → 修复前 credit=0（应 4）。
+- 修复：`covered_by_snapshot` 改为与 Go 同形的两遍扫描，`found_snapshot` 标记替代 `best_at.is_empty()` 早退，
+  已记账成交按快照时间判定，`filledQuantity<=0` 跳过、缺失 `filledAt` 视为保守覆盖。
+- 探针：仅把第二遍判定改回 `time_after(at, fill_at)` 即复现 `left: 10.0, right: 6.0` 失败；按字节还原后
+  文件 shasum `2e0b585e3771c39af90a84ee15b7e92b5abc7aa85ff21777f8b8f289b61f8542` 校验通过并转绿。
+
+#### 新增 Rust 测试（3 条）
+
+| Rust 测试 | Go 基线 | 断言要点 |
+| --- | --- | --- |
+| `product_production_ports_execution_reconciliation_tests.rs::reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit` | `broker_ledger_test.go:10` | 信用封顶 2 / 部分 6 / 耗尽 0 |
+| `...::reconciliation_snapshot_coverage_timestamp_boundaries_are_conservative` | `broker_ledger_test.go:50` | 空、畸形、更旧、同刻四种时间戳边界 |
+| `product_production_ports_execution_reconciliation_order_state_tests.rs::reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at` | `out_of_order_reconciliation_test.go:96` | 更旧时间戳但成交推进被接受、`updatedAt` 不回退、事件 +1 |
+
+另为既有证据补 `// Parity: go:452dea11:...` 锚点：`reconciliation_rejects_terminal_and_partial_status_regressions`
+（`out_of_order_reconciliation_test.go:43`）、`reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation`
+（`:178`）、`reconciliation_duplicate_terminal_snapshot_is_idempotent`（`:227`）。
+
+#### 结论变更（6 升 `[x]`、7 行收紧为可执行缺口）
+
+- 升 `[x]`：`broker_ledger_test.go:10/:50`、`out_of_order_reconciliation_test.go:43/:96/:178/:227`。
+- 收紧 `partial`：`broker_fill_reconciliation_test.go:11/:97/:144`、`broker_ledger_test.go:65`、
+  `out_of_order_reconciliation_test.go:140`、`submission_safety_test.go:13/:63` —— 每条都写明缺口、
+  owner（发现/应用路径、费用守卫、`applied==0` 分支、预留与预览哈希比对）与所需回归断言。
+- 本片未触碰的 31 行留在分片二 b，保持原有 `partial`/`boundary` 结论。
+
+#### 分片二 a 验证记录与门禁
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 先红回归 | `... -E 'test(reconciliation_snapshot_coverage)'` | 修复前 `caps_partial_and_exhausted_credit` 报 `left: 10.0, right: 6.0`、`timestamp_boundaries` 报空时间戳信用 0，均失败 |
+| 探针 | 仅改回“已记账成交按来件成交时间比对” | 复现 `10.0 != 6.0`；按字节还原 shasum `2e0b585e3771c39af90a84ee15b7e92b5abc7aa85ff21777f8b8f289b61f8542` 校验通过并转绿 |
+| 修复后证据 | `... -E 'test(reconciliation_snapshot_coverage) or test(reconciliation_older_snapshot_fill_progress) or test(reconciliation_deduplicates_same_fill) or test(conformance_partial_full_fill)'` | 6 条通过（含既有覆盖/去重/一致性用例，无回归） |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b126s2a_apply.json` | 13 行更新，`[x]` 1385 → 1391 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺少 function_exact、无重复 rust_entry |
+| 锚点 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1391、unrecorded 0、stale 0 |
+| 格式 / 架构 / Clippy | `cargo fmt --all -- --check`、`pnpm run check:rust:architecture`、`pnpm run check:clippy` | 通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1818 条通过（本片 +3） |
+| 工作区测试 | `pnpm run test:rust` | 3225 条通过（2 skipped） |
+| 兼容回放 / 生成物 / AI 上下文 / Zero-Go | `check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go` | 通过（zero-go 2942 文件） |
+| 快速门禁 / 空白 | `pnpm run check:quick`、`git diff --check` | 通过 |
+| 依赖策略 | `pnpm run check:rust:policy` | **未通过（既有阻断）**：`RUSTSEC-2026-0285` + 8 条 `advisory-not-detected`，如实记录 |

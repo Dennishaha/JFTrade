@@ -326,6 +326,7 @@ fn apply_order_snapshot(
     .expect("apply broker order snapshot")
 }
 
+// Parity: go:452dea11:internal/store/trading/out_of_order_reconciliation_test.go:43 TestExecutionOrderStoreIgnoresOutOfOrderRegressionPushAfterTerminalState
 #[test]
 fn reconciliation_rejects_terminal_and_partial_status_regressions() {
     let cases = [
@@ -400,6 +401,7 @@ fn reconciliation_rejects_terminal_and_partial_status_regressions() {
     }
 }
 
+// Parity: go:452dea11:internal/store/trading/out_of_order_reconciliation_test.go:178 TestExecutionOrderStoreResolvesCancelRequestRaceAgainstBrokerPush
 #[test]
 fn reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation() {
     let (store, port, _directory) = persist_reconciliation_order("SUBMITTED");
@@ -445,6 +447,7 @@ fn reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation() {
     assert_eq!(events[1].next_status, "CANCELLED");
 }
 
+// Parity: go:452dea11:internal/store/trading/out_of_order_reconciliation_test.go:227 TestExecutionOrderStoreDuplicateTerminalPushIsNoOp
 #[test]
 fn reconciliation_duplicate_terminal_snapshot_is_idempotent() {
     let (store, port, _directory) = persist_reconciliation_order("SUBMITTED");
@@ -472,6 +475,62 @@ fn reconciliation_duplicate_terminal_snapshot_is_idempotent() {
             .expect("list duplicate terminal events")
             .len(),
         events_before
+    );
+}
+
+// Parity: go:452dea11:internal/store/trading/out_of_order_reconciliation_test.go:96 TestExecutionOrderStoreAppliesFillProgressFromOlderSnapshot
+#[test]
+fn reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at() {
+    let (store, port, _directory) = persist_reconciliation_order("SUBMITTED");
+    let current = store
+        .get_order("rust-order-reconcile")
+        .expect("load submitted order")
+        .expect("submitted order exists");
+    let revision = store
+        .order_revision(&current.internal_order_id)
+        .expect("read revision");
+    let mut advance = correlated_order_snapshot(10, Some(2.0));
+    advance.update_time = "2026-08-31T02:00:00Z".to_owned();
+    assert!(
+        port.apply_broker_snapshot(&current, &advance, revision)
+            .expect("apply partial snapshot"),
+        "the forward partial snapshot must be accepted"
+    );
+    let partial = store
+        .get_order("rust-order-reconcile")
+        .expect("load partial order")
+        .expect("partial order exists");
+    assert_eq!(partial.status, "PARTIALLY_FILLED");
+    assert_eq!(partial.filled_quantity, Some(2.0));
+
+    let revision = store
+        .order_revision(&partial.internal_order_id)
+        .expect("read revision");
+    let mut older = correlated_order_snapshot(10, Some(4.0));
+    older.update_time = "2026-08-31T01:00:00Z".to_owned();
+    assert!(
+        port.apply_broker_snapshot(&partial, &older, revision)
+            .expect("apply older snapshot progress"),
+        "an older-timestamped snapshot that carries new fill progress must be accepted"
+    );
+    let progressed = store
+        .get_order("rust-order-reconcile")
+        .expect("load progressed order")
+        .expect("progressed order exists");
+    assert_eq!(progressed.status, "PARTIALLY_FILLED");
+    assert_eq!(progressed.filled_quantity, Some(4.0));
+    assert!(
+        progressed.updated_at.as_str() >= partial.updated_at.as_str(),
+        "accepted progress must not move updatedAt backwards: {} -> {}",
+        partial.updated_at,
+        progressed.updated_at
+    );
+    assert_eq!(
+        store
+            .list_order_events(&progressed.internal_order_id)
+            .expect("list progress events")
+            .len(),
+        2
     );
 }
 
