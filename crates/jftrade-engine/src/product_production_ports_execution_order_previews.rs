@@ -67,6 +67,7 @@ impl ProductionExecutionPort {
                 }
             }
         }
+        self.validate_futures_authority(&parsed)?;
 
         // Derivative previews retain the OpenD max-quantity read as external
         // evidence.  Ordinary equity/fund/etc. previews are intentionally

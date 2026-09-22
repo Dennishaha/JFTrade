@@ -73,6 +73,9 @@ struct ComboPreviewTradeReader {
     /// `TestExecutionComboPreviewKeepsLegacyBuyingPowerCompatible` (42.0) where
     /// the service has to backfill the legacy `buyingPowerImpact` field.
     buying_power_decrease_only: bool,
+    /// Account discovery rows; the futures-authority guard (Go's
+    /// `validateFuturesTradingAuthority`) reads them.
+    accounts: Vec<TradeAccountSnapshot>,
 }
 
 impl TradeReadPort for ComboPreviewTradeReader {
@@ -82,7 +85,7 @@ impl TradeReadPort for ComboPreviewTradeReader {
         _: Option<i32>,
         _: Option<bool>,
     ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
-        unsupported()
+        Ok(self.accounts.clone())
     }
 
     fn read_funds(
@@ -3779,5 +3782,545 @@ fn event_parlay_preview_place_and_amount_risk_keep_go_contract() {
         writer.placed_combo.lock().expect("placed combos").len(),
         1,
         "no submission may follow an invalid RFQ"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/execution_combo_lifecycle_test.go:412
+/// `TestExecutionComboHelperBranches`.
+///
+/// Go's helper matrix: `comboRiskQuantity` prefers the parlay amount, then the
+/// first leg quantity, then 1; `comboQuantityMode` maps an event parlay to
+/// amount mode and an option combo to contracts; `normalizedComboIntent` keeps
+/// the client order id; and an empty combo gateway reports
+/// `ErrOrderGatewayUnavailable` for place and cancel.
+#[test]
+fn combo_helper_branches_keep_go_risk_quantity_quantity_mode_and_gateway_contract() {
+    let parlay_payload = json!({
+        "accountId": "42",
+        "brokerId": "futu",
+        "market": "US",
+        "tradingEnvironment": "SIMULATE",
+        "clientOrderId": "helper-parlay",
+        "orderKind": "event_parlay",
+        "productClass": "event_contract",
+        "rfqId": "rfq-helper",
+        "mvc": "US.MVC",
+        "quoteExpiresAt": "2999-01-01T00:00:00Z",
+        "amount": 15.0,
+        "legs": [
+            {"instrumentId": "US.EC.ONE", "side": "BUY", "ratio": 1, "quantity": 3, "predictionSide": "YES"},
+            {"instrumentId": "US.EC.TWO", "side": "SELL", "ratio": 1, "quantity": 3, "predictionSide": "NO"}
+        ]
+    });
+    let parlay = super::execution_order_parse::parse_combo(&parlay_payload).expect("parlay intent");
+    let parlay_risk = super::execution_order_helpers::build_pre_trade_risk_combo_order(&parlay);
+    assert_eq!(
+        parlay_risk.quantity.to_string(),
+        "15",
+        "the parlay amount is the risk quantity"
+    );
+    assert_eq!(parlay_risk.quantity_mode, "amount");
+
+    let combo_payload = option_combo_fixture_payload();
+    let combo = super::execution_order_parse::parse_combo(&combo_payload).expect("option combo intent");
+    let combo_risk = super::execution_order_helpers::build_pre_trade_risk_combo_order(&combo);
+    assert_eq!(
+        combo_risk.quantity.to_string(),
+        "2",
+        "the first leg quantity is the combo risk quantity"
+    );
+    assert_eq!(combo_risk.quantity_mode, "contracts");
+
+    let mut bare_payload = option_combo_fixture_payload();
+    for leg in bare_payload["legs"].as_array_mut().expect("legs") {
+        leg.as_object_mut().expect("leg").remove("quantity");
+    }
+    let bare = super::execution_order_parse::parse_combo(&bare_payload).expect("combo without leg quantities");
+    assert_eq!(
+        super::execution_order_helpers::build_pre_trade_risk_combo_order(&bare)
+            .quantity
+            .to_string(),
+        "1",
+        "a combo without sizes falls back to one"
+    );
+
+    let canonical = super::canonical_execution_request(
+        &combo_payload,
+        &combo.order,
+        Some(super::execution_order_previews::canonical_combo_legs(&combo)),
+    )
+    .expect("canonical combo intent");
+    assert!(
+        canonical.contains("combo-transport"),
+        "the normalized combo intent keeps the client order id: {canonical}"
+    );
+
+    let (store, directory) = execution_store();
+    let _ = directory.keep();
+    let gatewayless = combo_failure_port(store, None, None, None);
+    let mut place_payload = combo_payload.clone();
+    place_payload["previewId"] = json!("preview-helper");
+    let error = gatewayless
+        .place_combo(&place_payload)
+        .expect_err("an empty combo gateway must fail closed");
+    assert!(
+        matches!(error, ExecutionWritePortError::Unavailable(_)),
+        "empty combo gateway error = {error:?}"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/execution_combo_lifecycle_test.go:441
+/// `TestExecutionProductPreviewAndSubmissionFailureContractsComplete`.
+///
+/// Go walks the single-order preview/submission failure contracts: a preview id
+/// without a client order id, the prediction request validation matrix, and the
+/// requirement that a risk rejection never spends the preview credential. The
+/// broker-registry branches (`resolveExecutionBroker` without a default broker
+/// or with a mismatched one) are Go's multi-broker registry; Rust is Futu-only
+/// and defaults `brokerId`, and the product-rule denials plus the prediction
+/// account eligibility are covered by `product_rule_denials_return_the_go_reason_code_matrix`
+/// and `prediction_account_eligibility` respectively.
+#[test]
+fn single_and_prediction_submission_failure_contracts_keep_go_boundaries() {
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, false);
+    let port = preview_port_with_writer(state, None, Some(true), Some(Arc::clone(&writer)));
+
+    let mut equity_preview = cancel_contract_payload("equity-preview-client");
+    equity_preview["previewId"] = json!("preview-equity");
+    equity_preview
+        .as_object_mut()
+        .expect("payload")
+        .remove("clientOrderId");
+    let error = port
+        .place_order(&equity_preview)
+        .expect_err("an equity preview without a client order id must fail");
+    match &error {
+        ExecutionWritePortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(*status, 400, "{error:?}");
+            assert_eq!(code, "BAD_REQUEST", "{error:?}");
+            assert!(message.contains("clientOrderId"), "{error:?}");
+        }
+        other => panic!("expected a request error, got {other:?}"),
+    }
+
+    let option_preview = json!({
+        "accountId": "1001",
+        "brokerId": "futu",
+        "market": "US",
+        "tradingEnvironment": "SIMULATE",
+        "symbol": "US.AAPL260717C00200000",
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "quantity": 1,
+        "price": 2.5,
+        "productClass": "option",
+        "previewId": "preview-locked",
+    });
+    let error = port
+        .place_order(&option_preview)
+        .expect_err("a locked derivative preview without a client order id must fail");
+    assert!(
+        matches!(
+            &error,
+            ExecutionWritePortError::Failed { status: 400, code, message }
+                if code == "BAD_REQUEST" && message.contains("clientOrderId")
+        ),
+        "locked preview error = {error:?}"
+    );
+
+    // Go's prediction validation matrix: amount, predictionSide and price are
+    // all required by the event-contract endpoint.
+    // Go's fixtures leave `productClass` empty, so both implementations reject
+    // them in the shared single-order gates (Go: "quantity must be greater than
+    // 0", Rust: "quantity is required"); the Go assertion only requires a
+    // request error for each case.
+    let prediction = |product_class: Value, amount: Value, side: &str, price: Value| {
+        json!({
+            "accountId": "1001",
+            "brokerId": "futu",
+            "market": "US",
+            "tradingEnvironment": "SIMULATE",
+            "symbol": "US.EVENT",
+            "side": "BUY",
+            "orderType": "LIMIT",
+            "productClass": product_class,
+            "amount": amount,
+            "predictionSide": side,
+            "price": price,
+            "clientOrderId": "prediction-client",
+        })
+    };
+    for (label, payload) in [
+        (
+            "missing amount",
+            prediction(Value::Null, Value::Null, "YES", json!(0.5)),
+        ),
+        (
+            "invalid side",
+            prediction(Value::Null, json!(10.0), "MAYBE", json!(0.5)),
+        ),
+        (
+            "missing price",
+            prediction(Value::Null, json!(10.0), "YES", Value::Null),
+        ),
+    ] {
+        let error = super::execution_order_parse::parse_order(&payload).expect_err(label);
+        assert!(error.contains("quantity"), "{label} error = {error:?}");
+    }
+    let mut non_us = prediction(Value::Null, json!(10.0), "YES", json!(0.5));
+    non_us["market"] = json!("HK");
+    non_us["symbol"] = json!("HK.EVENT");
+    let error = super::execution_order_parse::parse_order(&non_us)
+        .expect_err("a non-US prediction contract must fail");
+    assert!(
+        error.contains("quantity"),
+        "non-US prediction error = {error:?}"
+    );
+
+    // The explicit event-contract shape reaches Rust's prediction validator,
+    // which owns the same three rules plus the US-market gate.
+    for (label, payload, part) in [
+        (
+            "missing amount",
+            prediction(json!("event_contract"), Value::Null, "YES", json!(0.5)),
+            "amount",
+        ),
+        (
+            "invalid side",
+            prediction(json!("event_contract"), json!(10.0), "MAYBE", json!(0.5)),
+            "predictionSide",
+        ),
+        (
+            "missing price",
+            prediction(json!("event_contract"), json!(10.0), "YES", Value::Null),
+            "price",
+        ),
+    ] {
+        let error = super::execution_order_parse::parse_order(&payload).expect_err(label);
+        assert!(error.contains(part), "{label} error = {error:?}");
+    }
+    let mut explicit_non_us = prediction(
+        json!("event_contract"),
+        json!(10.0),
+        "YES",
+        json!(0.5),
+    );
+    explicit_non_us["market"] = json!("HK");
+    explicit_non_us["symbol"] = json!("HK.EVENT");
+    let error = super::execution_order_parse::parse_order(&explicit_non_us)
+        .expect_err("a non-US prediction contract must fail");
+    assert!(
+        error.contains("market US"),
+        "non-US prediction error = {error:?}"
+    );
+
+    // Go: a risk rejection must not spend the single-order preview credential.
+    let control_directory = tempfile::tempdir().expect("control directory");
+    let control_path = control_directory.path().join("real-trade-control.json");
+    std::fs::write(
+        &control_path,
+        json!({"riskConfig": {"realTradingEnabled": true, "maxOrderQuantity": 100.0}}).to_string(),
+    )
+    .expect("write real-trade control file");
+    let coordinator = Arc::new(crate::product::ExecutionRiskCoordinator::new(
+        control_path,
+    ));
+    let (store, directory) = execution_store();
+    let _ = directory.keep();
+    let risk_port = combo_failure_port(
+        store,
+        None,
+        Some(Arc::clone(&writer)),
+        Some(Arc::clone(&coordinator)),
+    );
+    let mut real_payload = cancel_contract_payload("single-hard-reject");
+    real_payload["tradingEnvironment"] = json!("REAL");
+    let preview = risk_port
+        .order_preview(&real_payload)
+        .expect("single-order preview");
+    real_payload["previewId"] = json!(preview["previewId"].as_str().expect("preview id"));
+    coordinator
+        .mutate_with(|state| {
+            state.kill_switch = Some(jftrade_trading::RealTradeKillSwitchEntry {
+                id: "ks-single-failures".to_owned(),
+                trading_environment: "REAL".to_owned(),
+                operator_id: "ops".to_owned(),
+                reason: "single-order staging halt".to_owned(),
+                activated_at: "2026-09-22T00:00:00Z".to_owned(),
+                updated_at: "2026-09-22T00:00:00Z".to_owned(),
+            });
+            Ok(())
+        })
+        .expect("activate kill switch");
+    let rejected = risk_port
+        .place_order(&real_payload)
+        .expect_err("an active kill switch must reject the REAL single order");
+    assert!(
+        matches!(
+            &rejected,
+            ExecutionWritePortError::Failed { status: 403, code, .. }
+                if code == "REAL_TRADE_KILL_SWITCH_ACTIVE"
+        ),
+        "single risk rejection = {rejected:?}"
+    );
+    assert!(
+        writer.placed.lock().expect("placed orders").is_empty(),
+        "a risk-rejected single order must never reach the broker"
+    );
+    coordinator
+        .mutate_with(|state| {
+            state.kill_switch = None;
+            Ok(())
+        })
+        .expect("release kill switch");
+    let placed = risk_port
+        .place_order(&real_payload)
+        .expect("a hard risk rejection must not spend the single-order preview");
+    assert_eq!(placed["status"], "SUBMITTED", "{placed}");
+    assert_eq!(
+        writer.placed.lock().expect("placed orders").len(),
+        1,
+        "the retried single-order credential submits exactly once"
+    );
+
+    // Go's `validateFuturesTradingAuthority`: a REAL futures preview needs an
+    // account whose market authorities include FUTURES; discovery failures and
+    // accounts without the authority stay request errors.
+    fn futures_account(id: u64, authorities: Vec<i32>) -> TradeAccountSnapshot {
+        TradeAccountSnapshot {
+            trd_env: 1,
+            acc_id: id,
+            trd_market_auth_list: authorities,
+            acc_type: None,
+            card_num: None,
+            security_firm: Some(2),
+            sim_acc_type: None,
+            uni_card_num: None,
+            acc_status: None,
+            acc_role: None,
+            jp_acc_type: Vec::new(),
+            competition_acc_name: None,
+        }
+    }
+    let futures_payload = json!({
+        "accountId": "1001",
+        "brokerId": "futu",
+        "market": "US",
+        "tradingEnvironment": "REAL",
+        "clientOrderId": "future-client",
+        "symbol": "US.ESZ6",
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "quantity": 1,
+        "price": 5500.0,
+        "productClass": "future",
+    });
+    for (label, accounts, expected) in [
+        (
+            "missing FUTURES authority",
+            vec![futures_account(1001, vec![2])],
+            Some("FUTURES account authority"),
+        ),
+        (
+            "other account carries FUTURES authority",
+            vec![futures_account(2002, vec![5])],
+            Some("FUTURES account authority"),
+        ),
+    ] {
+        let runtime = Arc::new(SharedTradeReadRuntime::default());
+        runtime.set(
+            Some(Arc::new(ComboPreviewTradeReader {
+                accounts,
+                ..Default::default()
+            }) as Arc<dyn TradeReadPort>),
+            Some(true),
+        );
+        let (store, directory) = execution_store();
+        let _ = directory.keep();
+        let futures_port = combo_failure_port(store, Some(runtime), None, None);
+        let error = futures_port
+            .order_preview(&futures_payload)
+            .expect_err(label);
+        match (&error, expected) {
+            (ExecutionWritePortError::Failed { status, message, .. }, Some(part)) => {
+                assert_eq!(*status, 400, "{label}: {error:?}");
+                assert!(message.contains(part), "{label}: {error:?}");
+            }
+            _ => panic!("{label}: expected a request error, got {error:?}"),
+        }
+    }
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(
+        Some(Arc::new(ComboPreviewTradeReader {
+            accounts: vec![futures_account(1001, vec![5])],
+            ..Default::default()
+        }) as Arc<dyn TradeReadPort>),
+        Some(true),
+    );
+    let (store, directory) = execution_store();
+    let _ = directory.keep();
+    let futures_port = combo_failure_port(store, Some(runtime), None, None);
+    let preview = futures_port
+        .order_preview(&futures_payload)
+        .expect("a FUTURES-authority account is eligible");
+    assert!(
+        preview["previewId"]
+            .as_str()
+            .is_some_and(|id| id.starts_with("preview-")),
+        "eligible futures preview = {preview}"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/execution_combo_lifecycle_test.go:571
+/// `TestExecutionProductRemainingLifecycleAndUpdateHelpers`.
+///
+/// Go covers the remaining lifecycle helpers: a preview whose store save fails
+/// must surface the store error, a combo intent must be refused by the
+/// single-order endpoint, fractional contract quantities and option
+/// extended-hours sessions are request errors, and the canonical
+/// stored/reconciled status helpers keep their mapping.
+#[test]
+fn execution_preview_and_order_state_helpers_keep_go_boundaries() {
+    let (store, directory) = execution_store();
+    let database = directory.path().join("execution-preview.db");
+    let connection = rusqlite::Connection::open(&database).expect("reopen execution database");
+    connection
+        .execute("DROP TABLE execution_order_previews", [])
+        .expect("drop preview table");
+    drop(connection);
+    let port = combo_failure_port(store, None, None, None);
+    let error = port
+        .order_preview(&cancel_contract_payload("preview-storage-failure"))
+        .expect_err("a preview storage failure must not be hidden");
+    assert!(
+        matches!(
+            &error,
+            ExecutionWritePortError::Failed { status: 500, code, .. }
+                if code == "EXECUTION_STORE_ERROR"
+        ),
+        "preview storage error = {error:?}"
+    );
+
+    let mut combo_on_single = option_combo_fixture_payload();
+    combo_on_single["previewId"] = json!("preview-single-endpoint");
+    let error = port
+        .order_preview(&combo_on_single)
+        .expect_err("a combo intent must not use the single-order endpoint");
+    assert!(
+        matches!(
+            &error,
+            ExecutionWritePortError::Failed { status: 400, code, message }
+                if code == "BAD_REQUEST"
+                    && message.contains("must use the combo execution endpoint")
+        ),
+        "single-endpoint combo error = {error:?}"
+    );
+
+    let mut fractional = json!({
+        "accountId": "1001",
+        "brokerId": "futu",
+        "market": "US",
+        "tradingEnvironment": "SIMULATE",
+        "symbol": "US.AAPL260717C00200000",
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "quantity": 1.5,
+        "price": 2.5,
+        "productClass": "option",
+    });
+    let error =
+        super::execution_order_parse::parse_order(&fractional).expect_err("fractional contracts must fail");
+    assert!(
+        error.contains("integer number of contracts"),
+        "fractional option quantity error = {error:?}"
+    );
+    fractional["quantity"] = json!(1);
+    fractional["session"] = json!("ETH");
+    let error = super::execution_order_parse::parse_order(&fractional)
+        .expect_err("options must not use extended hours");
+    assert!(
+        error.contains("extended-hours"),
+        "option session error = {error:?}"
+    );
+
+    assert_eq!(
+        jftrade_trading::canonical_stored_status("SUBMISSION_UNKNOWN"),
+        OrderStatus::SubmissionUnknown
+    );
+    assert_eq!(
+        jftrade_trading::canonical_stored_status("not-a-broker-status"),
+        OrderStatus::Unknown
+    );
+    assert_eq!(
+        jftrade_trading::reconcile_status(OrderStatus::Submitted, OrderStatus::Submitted),
+        (OrderStatus::Submitted, true)
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/execution_combo_lifecycle_test.go:635
+/// `TestExecutionDetailsResolverAndOrderUpdateCacheFailureBranches`.
+///
+/// Go covers the order-details resolver boundaries and the legacy order-update
+/// worker cache. Rust owns the details read through the production read port:
+/// an unusable ledger surface must propagate a failure instead of an empty
+/// detail payload. Go's `resolveExecutionBroker`/`OrderUpdatesWorker` cache
+/// branches belong to the Go multi-broker registry and the Wails-era worker;
+/// Rust's owner is the Futu-only port plus the reconciliation worker
+/// (`reconciliation_discovery_deduplicates_repeated_pages_and_keeps_newest_snapshot`),
+/// so those stay documented boundaries.
+#[test]
+fn execution_details_read_boundaries_keep_go_failure_propagation() {
+    let (store, directory) = execution_store();
+    let database = directory.path().join("execution-preview.db");
+    let _ = directory.keep();
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let port = combo_failure_port(store, None, Some(Arc::clone(&writer)), None);
+    let placed = port
+        .place_order(&cancel_contract_payload("details-boundary"))
+        .expect("place order");
+    let internal_id = placed["internalOrderId"]
+        .as_str()
+        .expect("internal order id")
+        .to_owned();
+
+    // Go: a blank identifier is a request error. Rust decodes it away and
+    // reports the order as missing; both refuse to read the ledger.
+    let error = port
+        .read("/api/v1/execution/orders/%20", "")
+        .expect_err("a blank order id must not resolve");
+    assert!(matches!(error, ExecutionReadSnapshotError::NotFound), "{error:?}");
+
+    let details = port
+        .read(&format!("/api/v1/execution/orders/{internal_id}"), "")
+        .expect("order details");
+    assert_eq!(details["order"]["internalOrderId"], json!(internal_id));
+    assert!(
+        details["recentEvents"].as_array().is_some(),
+        "details keep the recent event projection: {details}"
+    );
+
+    // Go: a list/get failure must propagate instead of an empty detail body.
+    let connection = rusqlite::Connection::open(&database).expect("reopen execution database");
+    connection
+        .execute("DROP TABLE execution_order_events", [])
+        .expect("drop order events table");
+    drop(connection);
+    let error = port
+        .read(&format!("/api/v1/execution/orders/{internal_id}"), "")
+        .expect_err("a broken event ledger must surface");
+    assert!(
+        matches!(
+            &error,
+            ExecutionReadSnapshotError::Failed { code, .. } if code == "GET_ORDER_FAILED"
+        ),
+        "broken events error = {error:?}"
     );
 }

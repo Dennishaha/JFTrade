@@ -136,9 +136,28 @@ pub(super) fn parse_order(payload: &Value) -> Result<ParsedOrder, String> {
     parse_order_with_defaults(payload, None)
 }
 
+/// Single-order entry point: Go's `normalizeExecutionProduct` rejects every
+/// combo order kind on this endpoint, so the shared normalization must not
+/// accept `option_combo`/`event_parlay` even when the payload carries legs.
 pub(super) fn parse_order_with_defaults(
     payload: &Value,
     default_environment: Option<&str>,
+) -> Result<ParsedOrder, String> {
+    parse_order_inner(payload, default_environment, false)
+}
+
+/// Combo routes share the same normalization but own the combo order kinds.
+pub(super) fn parse_order_for_combo(
+    payload: &Value,
+    default_environment: Option<&str>,
+) -> Result<ParsedOrder, String> {
+    parse_order_inner(payload, default_environment, true)
+}
+
+fn parse_order_inner(
+    payload: &Value,
+    default_environment: Option<&str>,
+    allow_combo_order_kind: bool,
 ) -> Result<ParsedOrder, String> {
     let object = payload
         .as_object()
@@ -197,11 +216,14 @@ pub(super) fn parse_order_with_defaults(
             "option".to_owned()
         };
     }
-    if has_legs {
-        if !matches!(order_kind.as_str(), "option_combo" | "event_parlay") {
+    if allow_combo_order_kind {
+        if has_legs && !matches!(order_kind.as_str(), "option_combo" | "event_parlay") {
             return Err("orderKind must be option_combo or event_parlay".to_owned());
         }
     } else if !matches!(order_kind.as_str(), "single" | "event_single") {
+        // Go rejects the combo kinds before it inspects the payload shape:
+        // a combo-shaped body posted to the single-order endpoints must not be
+        // submitted as a single leg.
         return Err(format!(
             "orderKind {order_kind:?} must use the combo execution endpoint"
         ));

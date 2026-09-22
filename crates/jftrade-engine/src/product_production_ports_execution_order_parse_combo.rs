@@ -10,7 +10,7 @@ pub(in super::super) fn parse_combo_with_defaults(
         .as_object()
         .ok_or_else(|| "combo payload must be an object".to_owned())?;
     let request_market = string_field(object, "market");
-    let mut order = parse_order_with_defaults(payload, default_environment)?;
+    let mut order = parse_order_for_combo(payload, default_environment)?;
     // ComboOrderIntent keeps the caller's market string (unlike a single
     // order's ParseInstrument projection, which resolves SH/SZ to CN).
     if let Some(ref request_market) = request_market {

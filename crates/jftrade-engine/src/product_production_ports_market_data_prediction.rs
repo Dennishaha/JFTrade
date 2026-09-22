@@ -163,6 +163,40 @@ pub(crate) fn prediction_account_eligibility(
     Err("no eligible Moomoo US (FUTUINC) account was found".to_owned())
 }
 
+/// Go's `validateFuturesTradingAuthority`: a REAL futures order needs an
+/// account whose market authorities include FUTURES. Discovery failures stay
+/// request errors so the caller sees the same 400 Go produces.
+pub(crate) fn futures_account_authority(
+    runtime: &SharedTradeReadRuntime,
+    account_id: Option<&str>,
+) -> Result<(), String> {
+    let requested = account_id.map(str::trim).filter(|value| !value.is_empty());
+    let client = runtime.prediction_account_source().ok_or_else(|| {
+        "futures authority could not be verified: Futu trade read client is unavailable".to_owned()
+    })?;
+    let accounts = client
+        .read_accounts(0, None, None)
+        .map_err(|error| format!("futures authority could not be verified: {error}"))?;
+    for account in accounts {
+        let identity = super::super::product_production_ports_trade::account_identity(&account);
+        if let Some(requested) = requested
+            && identity.as_deref() != Some(requested)
+        {
+            continue;
+        }
+        let has_futures = account.trd_market_auth_list.iter().any(|market| {
+            super::super::product_production_ports_trade::trade_projection::trade_market_authority(
+                *market,
+            )
+            .is_some_and(|label| label.eq_ignore_ascii_case("FUTURES"))
+        });
+        if has_futures {
+            return Ok(());
+        }
+    }
+    Err("REAL futures orders require FUTURES account authority".to_owned())
+}
+
 const PREDICTION_READ_QUERY_MAX_BYTES: usize = 8 * 1024;
 const PREDICTION_READ_VALUE_MAX_BYTES: usize = 512;
 

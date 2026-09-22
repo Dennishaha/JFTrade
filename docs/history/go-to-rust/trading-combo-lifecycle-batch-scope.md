@@ -322,6 +322,96 @@ reconcile anchors 1353 → **1356**（已记账 1297 → 1300、unrecorded 0、u
 | `python3 scripts/compatibility/audit_test_parity.py` | 4451 = function_exact 1353 + partial 2505 + boundary 589 + module_only 4 + missing 0；Rust 测试 3094 |
 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1356 / 已记账 1300 / unrecorded 0 / unknown 55 / stale 1（既有行） |
 
+## 第一百一十九批（分片四）：辅助分支、失败契约与详情/更新边界（4 条）
+
+### 范围
+
+- P1 `internal/trading/execution_combo_lifecycle_test.go:412`：`TestExecutionComboHelperBranches`。
+- P0 `internal/trading/execution_combo_lifecycle_test.go:441`：
+  `TestExecutionProductPreviewAndSubmissionFailureContractsComplete`。
+- P1 `internal/trading/execution_combo_lifecycle_test.go:571`：
+  `TestExecutionProductRemainingLifecycleAndUpdateHelpers`。
+- P1 `internal/trading/execution_combo_lifecycle_test.go:635`：
+  `TestExecutionDetailsResolverAndOrderUpdateCacheFailureBranches`。
+
+结论：`[x]` **2 条**（`:412`、`:441`），`[~]` **2 条**（`:571`、`:635`，缺口已登记到命令级复现与修复位置）。
+全仓 `[x]` 1353 → **1355**、`partial` 2505 → **2503**、`boundary` 589、`module_only` 4、`missing` 0（合计 4451 不变）；
+Rust 测试 3094 → **3098**。reconcile anchors 1356 → **1359**（已记账 1300 → 1303、unrecorded 0、unknown 55、stale 1）。
+
+### 两处生产修复
+
+1. **组合 orderKind 不再被单腿端点接受**：Go 的 `normalizeExecutionProduct` 对任何非
+   `single`/`event_single` 的 `OrderKind` 直接返回
+   `orderKind %q must use the combo execution endpoint`；Rust 此前只在**无 legs** 时拒绝，
+   带 legs 的组合意图（option_combo/event_parlay）会通过单腿解析并最终以单腿订单送往 OpenD。
+   修复：`product_production_ports_execution_order_parse.rs` 拆出
+   `parse_order_inner(payload, env, allow_combo_order_kind)`，单腿入口固定 `false`（任何组合 kind 一律 400），
+   组合路由改走新增的 `parse_order_for_combo`（`product_production_ports_execution_order_parse_combo.rs`）。
+2. **REAL 期货预览补 FUTURES 账户权限校验**：Go 的 `validateFuturesTradingAuthority`
+   在预览期要求所选账户持有 FUTURES 市场权限。Rust 无实现，任何能通过 OpenD 的账户都能拿到 REAL 期货
+   预览凭证。修复：`product_production_ports_market_data_prediction.rs` 新增
+   `futures_account_authority`（复用 `prediction_account_source` 的账户发现；权限码 5 = FUTURES），
+   由 `product_production_ports_execution_order_guards.rs::validate_futures_authority`
+   在 `order_preview` 中调用（仅 REAL + productClass=future），失败映射 400 `BAD_REQUEST`。
+
+### 新增测试（带 `Parity: go:452dea11` 锚点）
+
+- `crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::combo_helper_branches_keep_go_risk_quantity_quantity_mode_and_gateway_contract`
+  （锚 `:412`）：风险数量优先级 amount(15) → 首腿 quantity(2) → 默认(1)、parlay/option combo 的
+  quantityMode=amount/contracts、canonical 意图保留 clientOrderId、空组合网关 503。
+- `crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::single_and_prediction_submission_failure_contracts_keep_go_boundaries`
+  （锚 `:441`）：带 previewId 无 clientOrderId 的普通/衍生品两条文案、预测校验矩阵（Go fixture 形状 +
+  显式 event_contract 形状）、单腿 REAL 风控硬拒后不消耗预览凭证、FUTURES 权限三条（无权限 / 账号不匹配 → 400，
+  有权限 → 预览签发）。
+- `crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::execution_preview_and_order_state_helpers_keep_go_boundaries`
+  （锚 `:571`）：预览落库失败 500 `EXECUTION_STORE_ERROR`、组合意图走单腿端点 400、期权分数数量 400、
+  期权 ETH 会话 400、`canonical_stored_status`/`reconcile_status` 映射。
+- `crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::execution_details_read_boundaries_keep_go_failure_propagation`
+  （锚 `:635`）：空白 id 拒绝、详情 `order`+`recentEvents` 投影、事件账本损坏后详情 500 失败而不是空列表。
+- 夹具扩展：`ComboPreviewTradeReader` 增加 `accounts`（默认空）并由 `read_accounts` 返回，供 FUTURES 权限矩阵使用。
+
+### 探针记录（破 → 红 → 按字节回滚）
+
+1. 把组合风险数量固定为 1（`product_production_ports_execution_order_helpers.rs`，
+   原 sha `16347b8468c7614a028759c96ea23cb57d390f03c652a0ab064c77c6cc7deb04`）：`:412` 测试红于
+   `left: "1", right: "15"`；回滚后 sha 一致。
+2. 关闭单腿端点的组合 kind 拒绝（`product_production_ports_execution_order_parse.rs`，
+   原 sha `26dcca142cf7c2e952257ca6e9e334d19b04feaceed00d58ae43cf13b4f3851d`）：`:571` 测试红于
+   `Unavailable("Futu OpenD trade read client is unavailable")`（组合意图穿透到后续阶段）；回滚后 sha 一致。
+3. 删除 `order_preview` 的 `validate_futures_authority` 调用（`product_production_ports_execution_order_previews.rs`，
+   原 sha `397da3e5926666799ea7dd328464330806712e55a88968187839b50f942f8a9e`）：`:441` 测试红于
+   “无 FUTURES 权限的账户拿到了 preview-*”；回滚后 sha 一致。
+
+### 保留差异与升级路径
+
+- `:571`：Go 的 `BuildOrderUpdateQueries`（账户级去重）与 `(*OrderUpdatesWorker)(nil).SnapshotResponse()`、
+  `besteffort.LogError` 属 Wails 旧 worker；Rust 的订单更新 owner 是 reconciliation worker，
+  其 discovery 去重由 `reconciliation_discovery_deduplicates_repeated_pages_and_keeps_newest_snapshot`
+  证明（仅分页级，不含账户级去重）。若需要账户级去重语义，应在 reconciliation 的账户枚举处补测试。
+- `:635`：空白订单 id 在 Go 是 400 request error，Rust 在 `decode_order_id` 阶段判为不存在（404
+  `EXECUTION_ORDER_NOT_FOUND`）；多 broker 解析器与旧 worker 缓存分支同样属 Go-only owner。
+  若要逐字节对齐，应在 details 读取入口前置 400 校验并补回归。
+
+### 后续待办
+
+- 第 119 批 12 条已全部收口（分片一/二/三/四），转入第 120 批：`pkg/broker/broker_test.go` 8 条 partial，
+  随后 `catalog_test.go` 6 条等 trading_broker 剩余文件。
+
+### 验证记录（分片四）
+
+| 检查 | 结果 |
+| --- | --- |
+| `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(combo_helper_branches) + test(single_and_prediction_submission_failure_contracts) + test(execution_preview_and_order_state_helpers) + test(execution_details_read_boundaries)' --all-targets --locked --no-fail-fast` | 4 passed |
+| `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-trading -p jftrade-store-sqlite --all-targets --locked --no-fail-fast` | 2049 passed |
+| `cargo fmt --all --check` / `cargo clippy -p jftrade-engine -p jftrade-trading -p jftrade-store-sqlite --all-targets --locked` / `node scripts/quality/check-workspace-architecture.mjs` | 通过 |
+| `pnpm run test:rust` | 3195 passed, 2 skipped |
+| `pnpm run check:compatibility` | 全部 replay 通过（API transport 278 ops / assistant / desktop / storage / trading-strategy） |
+| `pnpm run check:generated` / `node scripts/check-zero-go.mjs` / `pnpm run check:ai-context` / `git diff --check` | 通过 |
+| `pnpm run check:quick` | 仅 `check:rust:static` 失败（advisories：RUSTSEC-2026-0285），其余并行阶段含 `check:rust:workspace` 通过（首轮 target-health 的 `.rcgu.o` 超限，确认无 Cargo 进程后 `pnpm run clean:rust:artifacts`（34.3GiB）复跑） |
+| `pnpm run check:rust` | **未通过**：既有 `check:rust:policy`（`cargo deny check` advisories，RUSTSEC-2026-0285）阶段失败；其前置 target-health、architecture、production-policy、format、clippy 与独立 `test:rust`/`check:compatibility` 通过 |
+| `python3 scripts/compatibility/audit_test_parity.py` | 4451 = function_exact 1355 + partial 2503 + boundary 589 + module_only 4 + missing 0；Rust 测试 3098 |
+| `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1359 / 已记账 1303 / unrecorded 0 / unknown 55 / stale 1（既有行） |
+
 ### 验证记录（分片一）
 
 | 检查 | 结果 |

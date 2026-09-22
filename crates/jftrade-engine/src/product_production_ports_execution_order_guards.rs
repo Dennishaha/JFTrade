@@ -37,4 +37,29 @@ impl ProductionExecutionPort {
             None => Ok(()),
         }
     }
+
+    /// Go validates the futures account authority inside the preview route
+    /// (`validateFuturesTradingAuthority`), so a REAL futures order can only
+    /// obtain the credential that placement requires when the selected account
+    /// carries the FUTURES market authority.
+    fn validate_futures_authority(
+        &self,
+        parsed: &execution_order_parse::ParsedOrder,
+    ) -> Result<(), ExecutionWritePortError> {
+        if parsed.product_class != "future" || parsed.header.trd_env != 1 {
+            return Ok(());
+        }
+        let Some(runtime) = self.trade_runtime.as_ref() else {
+            return Err(ExecutionWritePortError::Unavailable(
+                "Futu trade read runtime is unavailable for futures authority validation"
+                    .to_owned(),
+            ));
+        };
+        let account_id = parsed.header.acc_id.to_string();
+        crate::product::product_production_ports::product_production_ports_market_data_prediction::futures_account_authority(
+            runtime,
+            Some(account_id.as_str()),
+        )
+        .map_err(|message| failed(400, "BAD_REQUEST", message))
+    }
 }
