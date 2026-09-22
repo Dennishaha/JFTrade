@@ -107,6 +107,11 @@ mod tests {
         // TestNormalizeSubmitOrderPrice. A US order at or above one dollar uses
         // the cent tick; sub-dollar names use the $0.0001 step.
         assert_eq!(normalize_submit_order_price(SEC_MARKET_US, 123.456), 123.46);
+        // Parity: go:452dea11:internal/app/apiserver/servercoretest/exec_validate_test.go:18
+        // TestExecutionOrderRoutesNormalizeUSPricePrecision. The route test
+        // submits TME at 10.123 and reads 10.12 back off the OpenD place-order
+        // request, so the cent tick has to round half-down here as well.
+        assert_eq!(normalize_submit_order_price(SEC_MARKET_US, 10.123), 10.12);
         assert_eq!(normalize_submit_order_price(SEC_MARKET_US, 0.12344), 0.1234);
         assert_eq!(normalize_submit_order_price(SEC_MARKET_US, 0.12345), 0.1235);
         // HK keeps the caller's exact price; there is no HK tick table here.

@@ -2659,6 +2659,7 @@ fn runtime_account_discovery_deduplicates_sorts_and_falls_back_to_card_identity(
 }
 
 // Parity: go:452dea11:internal/app/apiserver/servercoretest/contract_test.go:165 TestContractBrokerRuntime
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_routes_test.go:61 TestBrokerRuntimeDescriptorIncludesReadFeatures
 #[test]
 fn broker_runtime_route_keeps_descriptor_session_and_accounts_keys() {
     let runtime = Arc::new(SharedTradeReadRuntime::default());
@@ -2678,6 +2679,17 @@ fn broker_runtime_route_keeps_descriptor_session_and_accounts_keys() {
     assert!(value.get("descriptor").is_some(), "{value}");
     assert!(value.get("session").is_some(), "{value}");
     assert!(value.get("accounts").is_some(), "{value}");
+    let read_features = &value["descriptor"]["capabilities"][0]["readFeatures"];
+    assert_eq!(
+        read_features["marginRatios"]["supportedEnvironments"],
+        json!(["REAL"]),
+        "{value}"
+    );
+    assert_eq!(
+        read_features["maxTradeQuantity"]["requiresPrice"],
+        true,
+        "{value}"
+    );
 }
 #[test]
 fn broker_runtime_projects_configured_connection_and_live_hub() {

@@ -421,6 +421,82 @@ fn test_normalize_execution_order_supports_extended_us_limit_sessions() {
     assert_eq!(order.fill_outside_rth, Some(true));
 }
 
+/// The three US route cases below all end on the same OpenD write path: the
+/// engine normalization keeps the caller's price for the adapter tick, maps
+/// the session and `fillOutsideRTH` flag, and hands the bare US code to
+/// `Trd_PlaceOrder`. `to_trade_request()` is asserted here so the composition
+/// with the adapter-side wire tests stays pinned.
+#[test]
+fn us_limit_route_orders_keep_price_session_and_explicit_market_code() {
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/exec_validate_test.go:18 TestExecutionOrderRoutesNormalizeUSPricePrecision
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/exec_validate_test.go:88 TestExecutionOrderRoutesPropagateUSSessionSelection
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/exec_validate_test.go:153 TestExecutionOrderRoutesAcceptExplicitCodeWithMarket
+    let rth = json!({
+        "brokerId": "futu",
+        "market": "US",
+        "symbol": "TME",
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "timeInForce": "DAY",
+        "quantity": 100,
+        "price": 10.123,
+        "accountId": "1001",
+        "tradingEnvironment": "SIMULATE",
+    });
+    let rth_order = parse_order(&rth).expect("default RTH US limit order");
+    assert_eq!(rth_order.header.trd_env, 0); // SIMULATE
+    assert_eq!(rth_order.market, "US");
+    assert_eq!(rth_order.code, "TME");
+    // The cent tick belongs to the adapter (`normalize_submit_order_price`),
+    // so the engine keeps the requested price verbatim.
+    assert_eq!(rth_order.price, Some(10.123));
+    assert_eq!(rth_order.session, Some(1)); // RTH
+    assert_eq!(rth_order.fill_outside_rth, Some(false));
+    let rth_wire = rth_order.to_trade_request();
+    assert_eq!(rth_wire.code, "TME");
+    assert_eq!(rth_wire.price, Some(10.123));
+    assert_eq!(rth_wire.session, Some(1));
+    assert_eq!(rth_wire.fill_outside_rth, Some(false));
+    assert_eq!(rth_wire.sec_market, Some(2)); // US trade market
+
+    let mut eth = rth.clone();
+    eth["session"] = json!("ETH");
+    let eth_order = parse_order(&eth).expect("extended-hours US limit order");
+    assert_eq!(eth_order.session, Some(2)); // ETH
+    assert_eq!(eth_order.fill_outside_rth, Some(true));
+    let eth_wire = eth_order.to_trade_request();
+    assert_eq!(eth_wire.session, Some(2));
+    assert_eq!(eth_wire.fill_outside_rth, Some(true));
+
+    // An explicit `market` + `code` pair is accepted without a `symbol` field
+    // and still resolves to the bare OpenD code.
+    let explicit = json!({
+        "brokerId": "futu",
+        "market": "US",
+        "code": "TME",
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "timeInForce": "DAY",
+        "quantity": 100,
+        "price": 10.12,
+        "accountId": "1001",
+        "tradingEnvironment": "SIMULATE",
+    });
+    let explicit_order = parse_order(&explicit).expect("explicit market + code order");
+    assert_eq!(explicit_order.market, "US");
+    assert_eq!(explicit_order.symbol, "US.TME");
+    assert_eq!(explicit_order.code, "TME");
+    assert_eq!(explicit_order.to_trade_request().code, "TME");
+
+    // Drop `market` and the same bare symbol can no longer be qualified, so
+    // the preview/place routes answer 400 before any broker call.
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/exec_validate_test.go:211 TestExecutionOrderRoutesRejectBareSymbolWithoutMarket
+    let mut bare_symbol = rth.clone();
+    bare_symbol.as_object_mut().expect("object").remove("market");
+    let error = parse_order(&bare_symbol).expect_err("bare symbol without market must fail");
+    assert_eq!(error, "market is required when symbol has no market prefix");
+}
+
 #[test]
 fn test_normalize_execution_order_supports_stop_and_market_orders() {
     // Parity: internal/trading/execution_test.go:71 TestNormalizeExecutionOrderSupportsStopAndMarketOrders

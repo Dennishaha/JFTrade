@@ -201,6 +201,187 @@ async fn swagger_document_preserves_legacy_schema_names() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/openapi_snapshot_test.go:20 TestOpenAPISpecStable
+// The served document is the checked-in contract byte for byte, so the
+// `/swagger/doc.json` baseline cannot drift without an explicit contract edit.
+async fn served_swagger_document_matches_the_checked_in_contract() {
+    let router = fixture();
+    let (status, headers, body) = get(&router, "/swagger/doc.json").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(headers["content-type"], "application/json; charset=utf-8");
+    assert_eq!(body, SWAGGER_DOCUMENT.as_bytes());
+    let spec: Value = serde_json::from_slice(&body).expect("swagger document");
+    let operation_count = spec["paths"]
+        .as_object()
+        .expect("paths")
+        .values()
+        .map(|methods| methods.as_object().expect("methods").len())
+        .sum::<usize>();
+    assert_eq!(
+        operation_count, 278,
+        "the frozen contract keeps the production route manifest operation count"
+    );
+}
+
+#[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/openapi_snapshot_test.go:89 TestOpenAPIDocumentsExplicitErrorResponses
+// Every documented operation keeps at least one 4xx/5xx response and each of
+// those responses references the single error envelope schema.
+async fn swagger_document_requires_explicit_error_envelopes_for_every_operation() {
+    let router = fixture();
+    let (status, _, body) = get(&router, "/swagger/doc.json").await;
+    assert_eq!(status, StatusCode::OK);
+    let spec: Value = serde_json::from_slice(&body).expect("swagger document");
+    let error_envelope = "#/definitions/httpserver.ErrorEnvelope";
+    let mut missing = Vec::new();
+    for (path, methods) in spec["paths"].as_object().expect("paths") {
+        for (method, operation) in methods.as_object().expect("methods") {
+            let responses = operation["responses"].as_object().expect("responses");
+            let errors = responses
+                .iter()
+                .filter(|(code, _)| matches!(code.chars().next(), Some('4' | '5')))
+                .collect::<Vec<_>>();
+            if errors.is_empty() {
+                missing.push(format!("{method} {path}"));
+                continue;
+            }
+            for (code, response) in errors {
+                assert_eq!(
+                    response["schema"]["$ref"], error_envelope,
+                    "{method} {path} {code} must use the error envelope"
+                );
+            }
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "operations without error responses: {missing:?}"
+    );
+}
+
+#[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/openapi_snapshot_test.go:136 TestOpenAPIDocumentsWritableRequestBodies
+// Write operations document their request body through the typed definition
+// that exposes client-writable fields and hides server-managed identity.
+async fn swagger_document_publishes_typed_writable_request_bodies() {
+    let router = fixture();
+    let (status, _, body) = get(&router, "/swagger/doc.json").await;
+    assert_eq!(status, StatusCode::OK);
+    let spec: Value = serde_json::from_slice(&body).expect("swagger document");
+    let cases = [
+        (
+            "/api/v1/strategy-definitions",
+            "post",
+            "strategy.StrategyDesignDefinition",
+            &["script", "visualModel"][..],
+            &[][..],
+        ),
+        (
+            "/api/v1/market-data/subscriptions",
+            "post",
+            "marketdata.SubscriptionRequest",
+            &["consumerId", "instruments"][..],
+            &["channel", "market", "symbol", "interval"][..],
+        ),
+        (
+            "/api/v1/settings/security",
+            "put",
+            "jftsettings.SecuritySettingsUpdate",
+            &[
+                "newPassword",
+                "publicAccessEnabled",
+                "webAccessEnabled",
+                "webPort",
+            ][..],
+            &["passwordConfigured", "passwordHash"][..],
+        ),
+        (
+            "/api/v1/settings/brokers/{brokerId}/integration",
+            "put",
+            "settings.BrokerIntegrationSaveRequest",
+            &["enabled", "config"][..],
+            &["brokerId", "createdAt", "updatedAt"][..],
+        ),
+        (
+            "/api/v1/brokers/{brokerId}/orders",
+            "post",
+            "trading.PlaceOrderRequest",
+            &["symbol", "side", "orderType", "quantity"][..],
+            &["brokerId", "tradingEnvironment", "accountId", "market"][..],
+        ),
+        (
+            "/api/v1/brokers/{brokerId}/unlock",
+            "post",
+            "trading.UnlockTradeRequest",
+            &["unlock"][..],
+            &[][..],
+        ),
+    ];
+    for (path, method, suffix, writable, forbidden) in cases {
+        let operation = &spec["paths"][path][method];
+        let reference = operation["parameters"]
+            .as_array()
+            .expect("parameters")
+            .iter()
+            .find(|parameter| parameter["in"] == "body")
+            .map(|parameter| parameter["schema"]["$ref"].as_str().expect("body ref"))
+            .unwrap_or_else(|| panic!("{method} {path} is missing a typed request body"));
+        assert!(
+            reference.ends_with(suffix),
+            "{method} {path} body ref {reference} must end with {suffix}"
+        );
+        let definition = &spec["definitions"][reference
+            .strip_prefix("#/definitions/")
+            .expect("definition reference")];
+        for property in writable {
+            assert!(
+                definition["properties"].get(property).is_some(),
+                "{suffix} must document writable field {property}"
+            );
+        }
+        for property in forbidden {
+            assert!(
+                definition["properties"].get(property).is_none(),
+                "{suffix} must not document server-managed field {property}"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/openapi_snapshot_test.go:204 TestOpenAPIDocumentsTypedBrokerRuntimeResponse
+// The broker runtime success response stays typed: its `data` payload
+// references the descriptor/session/accounts definition instead of a free-form
+// object.
+async fn swagger_document_publishes_the_typed_broker_runtime_response() {
+    let router = fixture();
+    let (status, _, body) = get(&router, "/swagger/doc.json").await;
+    assert_eq!(status, StatusCode::OK);
+    let spec: Value = serde_json::from_slice(&body).expect("swagger document");
+    let response =
+        &spec["paths"]["/api/v1/brokers/{brokerId}/runtime"]["get"]["responses"]["200"]["schema"];
+    let data_ref = response["allOf"]
+        .as_array()
+        .expect("allOf envelope")
+        .iter()
+        .find_map(|schema| schema["properties"]["data"]["$ref"].as_str())
+        .expect("broker runtime data ref");
+    assert!(
+        data_ref.ends_with("trading.BrokerRuntimeResponse"),
+        "unexpected broker runtime data ref {data_ref}"
+    );
+    let definition = &spec["definitions"][data_ref
+        .strip_prefix("#/definitions/")
+        .expect("definition reference")];
+    for property in ["descriptor", "session", "accounts"] {
+        assert!(
+            definition["properties"].get(property).is_some(),
+            "broker runtime response must document {property}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn swagger_surface_requires_access_and_keeps_the_json_envelope() {
     let router = fixture();
 

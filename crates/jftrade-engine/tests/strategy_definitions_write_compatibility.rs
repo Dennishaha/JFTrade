@@ -1,3 +1,5 @@
+#[path = "../src/product_id.rs"]
+mod product_id;
 #[path = "../src/product_strategy_definition_write_port.rs"]
 mod product_strategy_definition_write_port;
 #[path = "../src/product_strategy_definition_write_test_cutover.rs"]
@@ -8,7 +10,8 @@ use std::sync::{Arc, Mutex};
 
 use jftrade_api::ApiRequest;
 use product_strategy_definition_write_port::{
-    StrategyDefinitionWriteInput, StrategyDefinitionWriteOperation, StrategyDefinitionWritePort,
+    STRATEGY_DEFINITION_CREATE_PATH, StrategyDefinitionWriteInput,
+    StrategyDefinitionWriteOperation, StrategyDefinitionWritePort,
     StrategyDefinitionWritePortError, dispatch_strategy_definition_write,
     strategy_definition_write_routes,
 };
@@ -154,6 +157,11 @@ fn error_from_response(response: &Value, status: u16) -> StrategyDefinitionWrite
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/server_definitions_test.go:291 TestStrategyDefinitionRejectsInvalidScriptPayloads
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/server_definitions_test.go:316 TestDeleteMissingStrategyDefinitionReturnsNotFound
+// The frozen write-route corpus pins both error statuses: a Pine script the
+// plan runtime rejects answers 400 and deleting an unknown definition answers
+// 404, with the exact error envelopes recorded by the Go owner.
 fn strategy_definition_write_fixture_matches_go_owner_for_all_five_routes() {
     let fixture = fixture();
     for case in &fixture.cases {
@@ -205,6 +213,42 @@ fn strategy_definition_write_fixture_matches_go_owner_for_all_five_routes() {
             case_port_call_count(case),
             "{}",
             case.name
+        );
+    }
+}
+
+#[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/server_definitions_test.go:17 TestStrategyDefinitionEndpoints
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/server_definitions_test.go:236 TestStrategyDefinitionCreateGeneratesUUIDWhenIDMissing
+// The create route drops any client-supplied id and the store hands back a
+// freshly generated RFC 4122 v4 UUID, for both the explicit-id and the
+// missing-id payload shape.
+fn durable_create_ignores_client_ids_and_generates_uuid_v4_definition_ids() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let database_path = directory.path().join("strategy-definitions.db");
+    seed_go_strategy_schema(&database_path);
+    let port = Arc::new(
+        StrategyDefinitionSqliteTestCutoverPort::open(&database_path)
+            .expect("open strategy definition test-cutover port"),
+    );
+
+    for body in [
+        br#"{"id":"client-id","name":"With client id","script":"//@version=6\nstrategy(\"With client id\")\nlog.info(\"close\")"}"#.as_slice(),
+        br#"{"name":"Without client id","script":"//@version=6\nstrategy(\"Without client id\")\nlog.info(\"close\")"}"#.as_slice(),
+    ] {
+        let response = dispatch_strategy_definition_write(
+            &raw_request("POST", STRATEGY_DEFINITION_CREATE_PATH, body),
+            Some(port.as_ref()),
+            FIXTURE_TIMESTAMP,
+        );
+        assert_eq!(response.status, 200, "create response: {}", response.body);
+        let id = response.body["data"]["id"]
+            .as_str()
+            .expect("created definition id");
+        assert_ne!(id, "client-id", "client ids must be ignored");
+        assert!(
+            jftrade_engine::product_id::is_valid_uuid_v4(id),
+            "created definition id must be uuid v4: {id}"
         );
     }
 }

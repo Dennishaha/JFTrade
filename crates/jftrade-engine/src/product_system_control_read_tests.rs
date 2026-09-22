@@ -491,6 +491,57 @@ async fn system_status_matches_go_stable_fields_without_claiming_migration_owner
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/contract_test.go:13 TestContractSystemStatus
+// The status contract keeps the ok/timestamp envelope, the required top-level
+// fields, and the trading `execution-orders-db` runtime resource together in
+// one response instead of spreading them across separate fixtures.
+async fn system_status_contract_envelope_exposes_required_fields_and_trading_resource() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config");
+    let handle = start_product(config).await.expect("start product");
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200, "system status response: {response}");
+    assert_eq!(response["ok"], true);
+    assert!(
+        response["timestamp"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty())
+    );
+    let data = &response["data"];
+    for field in [
+        "name",
+        "apiPort",
+        "defaultBroker",
+        "build",
+        "persistence",
+        "runtimeResources",
+    ] {
+        assert!(data.get(field).is_some(), "missing required field {field}");
+    }
+    let resource_ids = data["runtimeResources"]["items"]
+        .as_array()
+        .expect("runtime resource items")
+        .iter()
+        .map(|item| item["id"].as_str().expect("runtime resource id"))
+        .collect::<Vec<_>>();
+    assert!(
+        resource_ids.contains(&"execution-orders-db"),
+        "trading execution-orders resource must be listed: {resource_ids:?}"
+    );
+    handle.shutdown().await.expect("shutdown product");
+}
+
+#[tokio::test]
 // Parity: go:452dea11:internal/app/apiserver/servercoretest/system_routes_test.go:12 TestSystemStatusEndpointReturnsStatus
 async fn system_status_uses_only_the_typed_market_data_runtime_port() {
     let directory = tempdir().expect("temporary directory");

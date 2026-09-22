@@ -863,3 +863,73 @@ frontend/installers/plugin/contract 余量等；owner 为 `crates/jftrade-engine
 `openapi_snapshot` 4、`server_definitions` 4、`strategy_logs` 3、`strategy_preview`/`strategy_sync` 2、`exec_validate` 4、
 `execution_routes` 3、`broker_new` 余量 14、`broker_routes` 2、`frontend` 5、`installers_degraded`/`plugin_lifecycle`/`contract` 余量等；
 owner 为 `crates/jftrade-engine` 对应投影、`crates/jftrade-store-sqlite` 与 `crates/jftrade-api` wire 层。
+
+### 分片三 b-2：`servercoretest` openapi/definitions/exec-validate/broker 余量（第 126 批）
+
+#### 范围
+
+`internal/app/apiserver/servercoretest/` 剩余 44 行 pending：`openapi_snapshot_test.go` 4、`server_definitions_test.go` 4、
+`strategy_logs_test.go` 3、`strategy_preview_test.go` 1、`strategy_sync_test.go` 1、`exec_validate_test.go` 4、
+`execution_routes_test.go` 3、`broker_new_test.go` 余量 14、`broker_routes_test.go` 2、`frontend_test.go` 5、
+`installers_degraded_test.go` 1、`plugin_lifecycle_test.go` 1、`contract_test.go` 1。
+
+#### 新增与补强用例
+
+| 用例 | 位置 | 覆盖 Go 引用 | 结果 |
+| --- | --- | --- | --- |
+| `served_swagger_document_matches_the_checked_in_contract` | `crates/jftrade-api/tests/swagger_docs_contracts.rs` | `openapi_snapshot_test.go:20` | 通过 |
+| `swagger_document_requires_explicit_error_envelopes_for_every_operation` | 同上 | `:89` | 通过 |
+| `swagger_document_publishes_typed_writable_request_bodies` | 同上 | `:136` | 通过 |
+| `swagger_document_publishes_the_typed_broker_runtime_response` | 同上 | `:204` | 通过 |
+| `system_status_contract_envelope_exposes_required_fields_and_trading_resource` | `crates/jftrade-engine/src/product_system_control_read_tests.rs` | `contract_test.go:13` | 通过 |
+| `durable_create_ignores_client_ids_and_generates_uuid_v4_definition_ids` | `crates/jftrade-engine/tests/strategy_definitions_write_compatibility.rs` | `server_definitions_test.go:17/:236` | 通过 |
+| `us_limit_route_orders_keep_price_session_and_explicit_market_code` | `crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs` | `exec_validate_test.go:18/:88/:153/:211` | 通过 |
+
+补强既有用例：`broker_runtime_route_keeps_descriptor_session_and_accounts_keys` 增加 `readFeatures` 两个字段断言
+（`broker_routes_test.go:61`）；`strategy_definition_write_fixture_matches_go_owner_for_all_five_routes` 增加
+`:291`/`:316` 锚点；`normalize_submit_order_price_rounds_us_prices_to_their_tick` 增加 `10.123 → 10.12` 断言。
+
+#### 功能修正
+
+`server_definitions_test.go:236` 要求 create 忽略客户端 id 并返回 UUID：Rust 改为
+`crates/jftrade-engine/src/product_id.rs::generate_uuid_v4`（对齐 Go `internal/store/strategy/normalize.go:61` 的
+`uuid.NewRandom()`），同时 trim 空 id；回归由 `durable_create_ignores_client_ids_and_generates_uuid_v4_definition_ids` 持有。
+
+#### 关键事实与新登记缺口（P1/P2）
+
+1. **exec_validate 分层证据（P1，已收口）**：Go 在 fututestkit OpenD 夹具上断言 `price/code/session/fillOutsideRTH`
+   wire 值；Rust 拆成 engine 归一（价格透传 + RTH/ETH 会话 + `fillOutsideRTH`）、`to_trade_request` 透传与
+   futu 适配器 tick 归一/wire 编码三段，逐段断言后在清单标注为组合等价（不再以“文案未逐字对齐”保留 partial）。
+2. **插件 `requiresRebuild` 固定 false（P1）**：Go `plugin_lifecycle_test.go:16` 断言目录条目 `requiresRebuild=true`
+   来自旧构建元组，Rust 生产投影固定 `false`（`product_production_ports_plugins.rs:135`）；→ partial，
+   owner = `crates/jftrade-engine` 插件投影，回归要求 = 补“旧构建元组 → requiresRebuild=true”断言或登记边界差异。
+3. **策略 legacy sourceFormat 无实例化门（P1）**：`strategy_preview_test.go:28` 的 400
+   “unsupported legacy strategy definition”在 Rust 未同形实现；→ partial，owner = 策略定义写入/实例化端口，
+   回归要求 = 先补失败测试再加迁移门。
+4. **策略日志/审计因果链缺口（P1）**：`strategy_logs_test.go:15/:120/:169` 由快照端口回放语料，缺“写事件后经同一
+   catalog 读到 logs/audit 与分页元数据”的因果断言；→ partial，owner = 策略运行时读投影。
+5. **definitionSync 刷新因果链缺口（P1）**：`strategy_sync_test.go:17` 的路由与字段已存在，缺“改版 → isLatest=false
+   → refresh-definition → true”的断言；→ partial，owner = `strategy_runtime_port.rs`/策略写端口。
+6. **broker 断线 200 degraded vs 503 fail-closed 延续（P1）**：`broker_new_test.go:126/:155/:181/:237`、
+   `broker_routes_test.go:14` 维持 partial，owner = `product_production_ports_trade.rs`，回归要求写在清单各行。
+7. **助手库降级启动策略相反（P1）**：`installers_degraded_test.go:13` 的“ADK 库不可用仍降级启动”与 Rust
+   受管库 fail-closed 相反；→ partial（产品边界差异），owner = `product_production_database_leases.rs`。
+8. **前端/桌面/CLI 入口边界（P2）**：`frontend_test.go:96/:137/:246` 为 partial（桌面代理与 Web 关闭组合属 Tauri
+   边界），`:157/:198` 为 boundary（Rust 无 `startForRunArgs`/`runAPIOnly` 同名入口）。
+
+#### 分片三 b-2 验证记录与门禁
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| swagger 契约 4 条 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(...)'` | 4/4 通过 |
+| engine 新用例与锚点 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(...)'` | 全部通过（含 1833 用例过滤运行） |
+| futu tick 归一 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(normalize_submit_order_price_rounds_us_prices_to_their_tick)'` | 通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b126s3b2_apply.json`（+ 1 行去重修正） | 35 行更新，`[x]` 1437 → 1446 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一 |
+| 锚点 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1451、unrecorded 0、stale 0、unknown 54 |
+| 格式 | `cargo fmt --all` | 通过 |
+
+#### 后续（分片三 b-3 / 第 127 批）
+
+`servercoretest` 余量为 0；下一批转入 `internal/api/httpserver/*`（SSE/WS/transport 边界）与 `api_transport` 478 行，
+另起 `docs/history/go-to-rust/api-transport-batch-scope.md`；同时清掉 `trading_broker` 收尾行。

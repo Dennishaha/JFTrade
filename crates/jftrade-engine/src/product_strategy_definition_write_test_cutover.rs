@@ -199,8 +199,10 @@ impl StrategyDefinitionSqliteTestCutoverPort {
             .unwrap_or_else(|| json!({"name": "New Strategy"}));
         let id = payload["id"]
             .as_str()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
             .map(ToOwned::to_owned)
-            .unwrap_or_else(|| format!("strat_{}", generate_id()));
+            .unwrap_or_else(crate::product_id::generate_uuid_v4);
         let def = definition_from_value(&id, &payload);
         let saved = self
             .store

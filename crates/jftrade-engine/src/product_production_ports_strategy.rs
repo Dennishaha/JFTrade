@@ -527,12 +527,11 @@ impl StrategyDefinitionWritePort for ProductionStrategyDefinitionPort {
     }
 }
 
+/// Strategy resources use RFC 4122 v4 UUIDs for server-generated ids, matching
+/// the Go owner (`internal/store/strategy/normalize.go` uses `uuid.NewRandom()`
+/// whenever the client id is blank).
 pub(crate) fn generate_strategy_id() -> String {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static COUNTER: AtomicU64 = AtomicU64::new(1);
-    let id = COUNTER.fetch_add(1, Ordering::Relaxed);
-    let timestamp = time::OffsetDateTime::now_utc().unix_timestamp_nanos();
-    format!("{timestamp:x}_{id}")
+    crate::product_id::generate_uuid_v4()
 }
 
 fn generate_instance_id(definition_id: &str) -> String {
