@@ -443,6 +443,7 @@ impl PlannerContext {
                 self.visit_expr(when_false)?;
             }
             ExprKind::Member { object, member } => {
+                note_runtime_variable(member, &mut self.result);
                 self.visit_expr(object)?;
                 // `ta.obv` is a bare member access rather than a call; Go's
                 // `parseOBVBinding` treats it as `obv()` over `close`.
@@ -494,8 +495,8 @@ impl PlannerContext {
                     self.indicators.insert(requirement.key.clone(), requirement);
                 }
             }
-            ExprKind::Identifier { .. }
-            | ExprKind::Number { .. }
+            ExprKind::Identifier { name } => note_runtime_variable(name, &mut self.result),
+            ExprKind::Number { .. }
             | ExprKind::String { .. }
             | ExprKind::Boolean { .. }
             | ExprKind::Null => {}
@@ -531,6 +532,11 @@ fn requirement_for_call(
                 key_parts.push(source);
             }
         }
+        // Go drops the source only when it equals the family's legacy default
+        // (`rsi:14` for close, `cci:20` for hlc3) and keeps whatever the script
+        // passed for the window family (`mom:close:5`, `rising:close:3`).
+        // Applying the close-only rule to every family turned `cci:20` into
+        // `cci:hlc3:20` and `mom:close:5` into `mom:5`.
         "ta.rsi" | "ta.cci" | "ta.mom" | "ta.roc" | "ta.range" | "ta.mode" | "ta.sum"
         | "ta.rising" | "ta.falling" => {
             let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
@@ -539,7 +545,7 @@ fn requirement_for_call(
                 .ok_or_else(|| invalid(line, format!("{callee} requires a length")))?;
             kind = lower.strip_prefix("ta.").unwrap_or_default();
             key_parts.extend([source.clone(), length]);
-            if source == "close" {
+            if legacy_source_for(kind) == Some(source.as_str()) {
                 key_parts.remove(0);
             }
         }
@@ -550,7 +556,27 @@ fn requirement_for_call(
                     .push(argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()));
             }
         }
-        "ta.atr" | "ta.stdev" | "ta.variance" | "ta.wpr" | "ta.vwap" | "ta.mfi" => {
+        "ta.stdev" => {
+            kind = "stdev";
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let length = argument_text(arguments.get(1))
+                .or_else(|| argument_text(arguments.first()))
+                .ok_or_else(|| invalid(line, format!("{callee} requires a length")))?;
+            if legacy_source_for(kind) != Some(source.as_str()) {
+                key_parts.push(source);
+            }
+            key_parts.push(length);
+        }
+        "ta.wpr" | "ta.williams_r" | "ta.williamsr" => {
+            // Go's `parseWilliamsRBinding` stores the Williams %R requirement
+            // under the DSL name (`williamsr:14`), not the Pine `ta.wpr` name.
+            kind = "williamsr";
+            for argument in arguments {
+                key_parts
+                    .push(argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()));
+            }
+        }
+        "ta.atr" | "ta.variance" | "ta.vwap" | "ta.mfi" => {
             kind = lower.strip_prefix("ta.").unwrap_or_default();
             for argument in arguments {
                 key_parts
@@ -877,6 +903,31 @@ fn source_period_parts(
 fn argument_text(expression: Option<&Expr>) -> Option<String> {
     expression.map(ToString::to_string)
 }
+/// Go records the runtime needs of an expression by scanning it for the
+/// position and account-value variables, so an assignment, an if condition or
+/// a call argument can all raise them (`position_size`,
+/// `position_avg_price`, `equity`).
+fn note_runtime_variable(name: &str, result: &mut Requirements) {
+    let lower = name.to_ascii_lowercase();
+    if lower == "position_size" || lower == "position_avg_price" {
+        result.requires_position = true;
+    }
+    if lower == "equity" {
+        result.requires_total_account_value = true;
+    }
+}
+
+/// Go keeps the requested source inside an indicator key unless it equals the
+/// family's legacy default; the window family has no legacy form and always
+/// keeps the source the script passed.
+fn legacy_source_for(kind: &str) -> Option<&'static str> {
+    match kind {
+        "rsi" | "stdev" => Some("close"),
+        "cci" => Some("hlc3"),
+        _ => None,
+    }
+}
+
 fn expr_contains_equity(expression: &Expr) -> bool {
     match &expression.kind {
         ExprKind::Identifier { name } => name == "strategy.equity",

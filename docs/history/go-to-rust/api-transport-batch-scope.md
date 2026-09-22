@@ -1495,3 +1495,54 @@ owner：`crates/jftrade-strategy`（Pine planner 的 warmup/需求计划、`indi
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 在 cargo-deny advisories 阶段失败（bans/licenses/sources ok） |
 
 后续：分片七进入 `pkg/strategy/ir/planner*` 29 行（`planner_test.go` 11、`planner_internal_boundaries_test.go` 6、`planner_business_boundary_test.go` 4、`planner_branch_test.go` 2、`planner_indicator_matrix_test.go` 3、`planner_internal_test.go` 3），随后 `pkg/strategy/pine/parse_*` 41 行，直至 `strategy_pine` 域 510 行清空。
+
+### 分片七：`pkg/strategy/ir/planner` 计划器键形与运行期标志 29 行
+
+范围：`planner_test.go` 11（`:10/:51/:62/:73/:85/:100/:122/:204/:254/:265/:310`）、`planner_internal_test.go` 3（`:5/:88/:122`）、
+`planner_internal_boundaries_test.go` 6（`:9/:57/:101/:131/:188/:217`）、`planner_business_boundary_test.go` 4（`:10/:42/:100/:165`）、
+`planner_indicator_matrix_test.go` 3（`:8/:55/:147`）、`planner_branch_test.go` 2（`:9/:100`）。
+owner：`crates/jftrade-strategy`（Pine planner 的需求键与运行期标志；Go 侧等价物是 `pkg/strategy/ir` 的 DSL 语句计划器，Rust 侧输入面为 Pine 源码）。
+
+修复（5 处功能差异，共用一次先红探针）：
+
+- 差异 1（CCI 遗留源）：Go 的 `parseSourcePeriodBinding(..., "hlc3", "20")` 让 `ta.cci(hlc3, 20)` 产键 `cci:20`、`ta.cci(close, 20)` 产键 `cci:close:20`；Rust 原按「close 才丢源」的统一规则产出 `cci:hlc3:20` / `cci:20`，与 Go 断言（`cci:hlc3:20` 必须缺席）相反。
+- 差异 2（窗口族丢源）：Go 的 `parseWindowBinding` 始终保留源（`mom:close:5`、`rising:close:3`、`sum:volume:20`），Rust 原对 close 源做丢弃，产出 `mom:5`、`rising:3`，与 pinespec 金标 `mom:close:3` 冲突。
+- 差异 3（stdev 遗留源）：Go 的 `stdev` 与 `rsi` 一样以 close 为遗留源（`stdev:5`），Rust 原产出 `stdev:close:5`。
+- 差异 4（Williams %R 键名）：Go 的 `parseWilliamsRBinding` 把键写成 DSL 名（`williamsr:14`），Rust 原产出 `wpr:14`；同时新增 `ta.williams_r` / `ta.williamsr` 别名入口。
+- 差异 5（运行期标志只认调用参数）：Go 在 `recordExpressionRequirements` 里扫描任意表达式（赋值、条件、循环条件），命中 `position_size`/`position_avg_price` 置 RequiresPosition、命中 `equity` 置 RequiresTotalAccountValue；Rust 原仅在 order/exit 调用参数上识别，实测赋值语句 `stopPrice = strategy.position_avg_price * 0.95` 与 `balance = strategy.equity` 都不置位。
+- 实现：`crates/jftrade-strategy/src/pine/planner.rs` 新增 `legacy_source_for`（按族返回 close/hlc3）与 `note_runtime_variable`（标识符与成员访问两处调用），并拆出 `ta.stdev`、`ta.wpr|ta.williams_r|ta.williamsr` 两个分支。
+- 先红探针：把 `planner.rs` 回滚到修复前版本后，新增测试文件 4/4 失败（CCI/窗口键、stdev 键、williamsr 键与两个标志全部不满足）；恢复修复后 4/4 通过。修复前 shasum `a1997ffb77e91b4cb3aba45d7207ac73730f50319aff65bf883489b69a3cf059`（等于分片六提交值），修复后 `f61ae3c0347d06d8a894bba17bf843391a2d4843bbba0bbf2f1ebfd1a272a486`，探针前后 `planner.rs` 与 `/tmp/probe_s128g_planner_after.rs` 按字节一致。
+- 新增证据：`crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs` 四条用例——`legacy_and_explicit_sources_keep_the_planned_keys`（编译 Go 的 Source Keys 脚本，集合相等断言 7 键并逐条断言 `ma:SMA:20:close`/`rsi:close:14`/`cci:hlc3:20` 缺席）、
+  `window_and_oscillator_keys_keep_the_requested_source`（13 键：`mom:close:5`、`roc:close:12`、`rising:close:3`、`falling:close:3`、`sum:volume:20`、`change:close:1`、`highest:high:20`、`lowest:low:10`、`stdev:20`、`stdev:hlc3:11`、`cci:20`、`rsi:14`、`williamsr:14`）、
+  `position_variables_in_expressions_require_position_data`（赋值 + 条件两种语句形态置位 requires_position）、
+  `account_value_usage_in_statements_requires_total_account_value`（赋值里的 `strategy.equity` 置位 requires_total_account_value 与 requires_position）。
+- 映射终值：29 行 = 2 `function_exact` + 24 `partial` + 3 `boundary`；`[x]` 1553 → 1555、partial 2280 → 2283、boundary 618 → 615。
+
+关键事实与新登记缺口（P1/P2）：
+
+1. **参数校验整体缺失（P1）**：实测被静默接受的非法输入包括 `ta.ema(close, nope)`→`ma:EMA:nope`、`ta.ema(close, 0)`、`ta.stdev(close, 0)`→`stdev:0`、`ta.rsi(close, 0)`→`rsi:0`、`ta.atr(0)`、`ta.macd(0, 26, 9)`、`ta.kc(close, 20, 1.5, maybe)`→`kc:close:20:1.5:maybe`、`ta.percentile_nearest_rank(close, 20, 101)`、`ta.linreg(close, 20, -1)`→`linreg:close:20:Negate1`、`ta.percentile_linear_interpolation(close, -1, 80)`→`...:Negate1:80`；Go 对同类输入一律拒绝或忽略（零周期不产生需求）。owner：`crates/jftrade-strategy/src/pine/planner.rs`；回归要求：按族补正整数/百分比/布尔/lookback/offset 校验与 Go 详情文案，并断言不再出现 `Negate` 形态键。
+2. **价格源白名单缺失（P1，沿用分片五 P2 升级）**：`ta.highest(close - open, 20)` 实测 ok=true 且产出畸形键 `highest:(close Subtract open):20`，`ta.rsi(spread, 14)` 产出 `rsi:spread:14`；Go 的 `ParseOHLCVSource`（窗口族）与 `ParsePriceSource`（振荡族）会拒绝并给出可用源列表。
+3. **高级指标元数契约缺失（P1）**：`ta.tsi(close, 13, 25, day, extra)`、`ta.linreg(close, 20, 1, day, extra)`、`ta.percentile_nearest_rank(close, 20, 80, "D", extra)` 均被接受并静默忽略尾参；Go 一律报 invalid argument count（`:101`）。
+4. **MTF 内层表不完整（P1）**：`security_inner_binding` 只覆盖 ma/linreg/obv/pivot/kc/kcw/alma/cmo/dev/median/percentrank/tsi/correlation/percentile_*/swma；`request.security(...,"D",ta.macd(close,12,26,9))` 实测输出图内键加退化 `security:syminfo.tickerid:"D":...` 键，而 Go 只给 `macd:close:12:26:9:day`；`ta.rsi`/`ta.atr` 同样退化。
+5. **整族缺失（P1）**：kdj、bollinger（含 `ta.bb`/`bbw`）、stoch、dmi、supertrend、sar、anchored_vwap、cum、security_source、highestbars/lowestbars、背离（`divergence:*`）与 protect（`sl:*`/`risk:*`）在 Rust 无需求键实现；其中 `ta.stoch`/`ta.cum`/`ta.anchored_vwap` 报 PINE_CALL_UNSUPPORTED，而 `ta.cog`/`ta.bbw` 既不产键也不报诊断（静默忽略，需补白名单或实现）。
+6. **input 缺省值未回填进键（P2）**：pinespec 金标 `golden-udf-static-for` 期望 `ma:EMA:3`，实测 Rust 产出 `ma:EMA:len`（`len = input.int(3, "Length")` 未解析为常量）。
+7. **数量模式枚举缺失（P2）**：`strategy.entry(..., qty_type="bananas")` 实测编译通过；Go 的 QuantityMode 表（fixed/cash_percent/account_position_percent/shares/amount 等）与别名归一未迁移。
+8. **IR 结构差异（boundary）**：分支局部别名作用域、可扩展 IR 语句类型与 `Kind()/SourceRange()` 契约、protect/divergence 键构造、nil 程序文案（Rust 以 PINE_VERSION_REQUIRED/PINE_STRATEGY_REQUIRED 表达）在 Rust 无同形对象，升级路径写在账本结论里。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 修复前先红 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --test pine_planner_requirement_keys --locked --no-fail-fast` | 4/4 失败（回滚 `planner.rs` 到 `a1997ffb…` 后复现：CCI/窗口键、stdev、williamsr、两个标志） |
+| 新增用例 | 同上（修复后） | 4/4 通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast` | 59/59 通过 |
+| 探针回滚校验 | `shasum -a 256 crates/jftrade-strategy/src/pine/planner.rs` | 修复后 `f61ae3c0…`，与探针副本按字节一致；修复前副本为分片六的 `a1997ffb…` |
+| 映射写入 | payload `/tmp/s128g_payload.json` 经 `/tmp/b82_apply.py` 应用 | 29 行给出终值，`[x]` 1553 → 1555、partial 2280 → 2283、boundary 618 → 615 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3226（Strategy 域 205） |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1569、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1894/1894 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2945 files）、`pnpm run check:quick` | 全部通过；本分片 `check:quick` 走 affected 计划（6 个受影响文件、rust 模块、nextest -p jftrade-desktop -p jftrade-engine -p jftrade-strategy），1983/1983 通过并以 exit 0 结束 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy`、`cargo deny check advisories` | 在目标健康检查处以 `.rcgu.o` 51902 ≥ 50000 中止（确认无 Cargo 进程后执行 `pnpm run clean:rust:artifacts`）；绕过健康检查直接跑 `cargo deny check advisories` 仍报 8 条 `advisory-not-detected`（advisories FAILED、bans/licenses/sources ok），与分片六结论一致 |
+
+后续：分片八进入 `pkg/strategy/pine/parse_*` 41 行，随后 `pkg/strategy/pine` 其余文件、`pkg/strategy/pineworker`、`pkg/strategy/pineengine` 与 pinespec，直至 `strategy_pine` 域 510 行清空。

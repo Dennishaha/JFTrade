@@ -28064,204 +28064,204 @@
   },
   "pkg/strategy/ir/planner_branch_test.go:9:TestPlanRequirementsCollectsLoopExitDivergenceAndLegacyProtectKeys": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_accepts_expression_udf_and_static_for_unroll",
-    "conclusion": "partial：Go 断言计划器收集循环/退出/背离与遗留保护键。Rust 的编译用例断言表达式 UDF 与静态 for 展开（同一循环覆盖）；Go 的背离与遗留保护键在 Rust 由风险声明与指标需求覆盖，无逐项断言。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::window_and_oscillator_keys_keep_the_requested_source",
+    "conclusion": "partial：Go 断言循环/退出/背离与遗留 protect 一次收集 15 个键（含 `divergence:rsi:14:top:5`、`divergence:kdj:9:3:3:bottom:3` 与 `sl:long:3:bar:5`）。Rust 无 Loop/Exit/Protect/Divergence 语句对象，键面覆盖 rsi/atr/macd/vwap/mfi/ma（本批修复源键形）与窗口族；缺口：kdj、bollinger、supertrend、sar、anchored_vwap、cum、security_source、背离键与 `sl:` 键。owner：crates/jftrade-strategy/src/pine/planner.rs。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_branch_test.go:100:TestIRStatementKindsAndSourceRangesStayStableForDiagnostics": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::parser_handles_strings_history_and_nested_calls_without_regex",
-    "conclusion": "partial：Go 断言 IR 语句种类与源码范围稳定（供诊断用）。Rust 的解析契约用例断言解析不依赖正则（同一解析稳定性面）；Go 的源码范围字段在 Rust 的 IR 中没有等价导出。",
+    "rust_entry": "不适用：Rust 无可扩展 IR 语句类型与其 Kind()/SourceRange() 契约",
+    "conclusion": "boundary（结构差异）：Go 断言 14 类 IR 语句的 Kind() 与 SourceRange() 逐类稳定（let/collection/tuple/loop/break/continue/object/if/log/notify/order/exit/cancel/protect），供诊断使用。Rust 的等价 IR 是 LoweredStatement 与解析器 SourceRange，语句种类由枚举在内部表达，没有对外的逐类型 Kind/SourceRange 矩阵契约。升级路径：若诊断需要同形契约，在 LoweredStatement 上补种类与范围投影，并按同一 14 类矩阵复刻断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/strategy/ir/planner_business_boundary_test.go:10:TestPlanRequirementsKeepsBranchLocalIndicatorAliases": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::native_pipeline_parses_lowers_and_plans_strategy_requirements",
-    "conclusion": "partial：Go 断言保留分支局部指标别名。Rust 的原生管线用例断言降级与计划全流程（同一别名解析阶段）；Go 的分支局部作用域断言在 Rust 由 IR 作用域处理覆盖。",
+    "rust_entry": "不适用：Rust planner 无分支局部别名绑定表",
+    "conclusion": "boundary（结构差异）：Go 断言 then/else 各自克隆 bindings 后按别名解析 `divergence_top(signal, 4)` / `divergence_bottom(signal, 5)`，产出 macd/kdj 与两条背离键。Rust planner 按 key 去重收集需求、没有别名作用域表，也没有背离族，因此「分支局部别名」在 Rust 无对应对象。升级路径：若引入别名解析与背离族，按 Go 的 then/else bindings 克隆语义与缩进作用域复刻，并断言同名别名在不同分支解析到不同指标。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/strategy/ir/planner_business_boundary_test.go:42:TestPlanRequirementsCollectsLoopObjectAndExitExpressions": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::native_pipeline_parses_lowers_and_plans_strategy_requirements",
-    "conclusion": "partial：Go 断言收集循环/对象/退出表达式需求。Rust 的原生管线用例断言计划需求全流程；Go 的表达式分类在 Rust 由 IR 遍历覆盖，无逐类断言。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::account_value_usage_in_statements_requires_total_account_value",
+    "conclusion": "partial：Go 断言循环/对象/退出三类语句里的表达式都会收集需求，并由 `equity > 0` 与 `position_avg_price` 置位两个运行时标志。Rust 无 Loop/Object/Exit 语句（Pine 侧为静态 for、strategy.exit 与运行时风险声明），标志面已由本批新用例覆盖：赋值里的 `strategy.equity` 现在置位 requires_total_account_value（先红探针失败），`strategy.position_size` 置位 requires_position；键面覆盖 ma/highest/lowest/stdev/variance/rsi/vwap/mfi（本批修复源键形）。缺口：supertrend/sar/security_source 族与「对象/退出表达式」收集面。owner：crates/jftrade-strategy/src/pine/planner.rs。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_business_boundary_test.go:100:TestPlanRequirementsRejectsBusinessInvalidIndicatorParameters": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::validation_payload_matches_save_hint_and_rejection_contract",
-    "conclusion": "partial：Go 断言业务非法指标参数被拒。Rust 的验证负载用例断言拒绝契约（同一拒绝面）；Go 的参数业务校验在 Rust 由计划阶段校验覆盖。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::window_and_oscillator_keys_keep_the_requested_source",
+    "conclusion": "partial：Go 断言 5 类业务非法参数报错（percentile 超过 100、kc 非布尔 useTrueRange、security_source 负 lookback、supertrend factor 0、exit 数量模式 cash_percent）。Rust 实测前两类未被拒（`ta.percentile_nearest_rank(close, 20, 101)` 产出 `...:101`；`ta.kc(close, 20, 1.5, maybe)` 产出 `kc:close:20:1.5:maybe`），security_source 与 supertrend 族缺失，exit 数量模式的枚举校验同样缺失。owner：crates/jftrade-strategy/src/pine/planner.rs。回归要求：按族补齐百分比/布尔/lookback/factor 校验并复刻错误详情。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_business_boundary_test.go:165:TestPlanRequirementsRejectsNilAndUnsupportedStatements": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::validate_script_rejects_unsupported_pine_runtime_feature",
-    "conclusion": "partial：Go 断言 nil 与不支持语句被拒。Rust 的 validate 用例断言不支持的 Pine 运行时特性被拒（同一不支持语句拒绝）；Go 的 nil 语句分支在 Rust 由类型系统排除。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::native_pipeline_parses_lowers_and_plans_strategy_requirements",
+    "conclusion": "partial：Go 断言 nil 程序报 strategy program is required，且未知 IR 语句类型报 unsupported IR statement type。Rust 对缺省脚本报 PINE_VERSION_REQUIRED（空串）与 PINE_STRATEGY_REQUIRED（只有版本行）——等价于「必须有策略程序」；不支持语句由解析/语义层以诊断拒绝（如 PINE_CALL_UNSUPPORTED），但没有 Go 那种可扩展 IR 语句类型的 unsupported statement 分支与文案。owner：`crates/jftrade-strategy/src/pine/mod.rs`。回归要求：明确保留两条拒绝路径并逐条断言诊断码。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_indicator_matrix_test.go:8:TestParseIndicatorBindingSupportedMatrix": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds",
-    "conclusion": "partial：Go 断言受支持的指标绑定矩阵。Rust 的指标属性用例断言指标属性在 Go 兼容范围内（同一指标矩阵）；Go 的逐项矩阵断言在 Rust 由指标注册表覆盖，无逐项枚举。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::window_and_oscillator_keys_keep_the_requested_source",
+    "conclusion": "partial：Go 用 27 条表达式锁定支持矩阵（variance/vwap/mfi/dmi/bollinger/williamsr/kdj/atr/stdev/cci/rising/security_source/cog/dev/median/percentrank/bbw/tsi/correlation/percentile_*/swma/linreg/obv/pivothigh/kc/alma）。Rust 覆盖其中 19 条（本批新增 williamsr、cci、stdev、窗口族键形对齐）；缺口：dmi、bollinger、kdj、bbw、security_source、supertrend、sar 无实现，cog 无诊断地静默忽略。owner：crates/jftrade-strategy/src/pine/planner.rs。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_indicator_matrix_test.go:55:TestParseIndicatorBindingValidationMatrix": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::validation_payload_matches_save_hint_and_rejection_contract",
-    "conclusion": "partial：Go 断言指标绑定校验矩阵（各非法输入对应错误）。Rust 的验证负载用例断言拒绝契约（同一校验矩阵机制）；Go 的逐格断言在 Rust 没有等价矩阵测试。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::legacy_and_explicit_sources_keep_the_planned_keys",
+    "conclusion": "partial：Go 的校验矩阵约 70 格，逐格断言错误详情（source/positive integer/time unit/between 0 and 100/invalid argument count 等）。Rust 只覆盖少数格（tsi 长周期、alma sigma、未知函数），大量参数校验缺失且没有错误文案契约；本批登记了长度、source、百分比、布尔、元数五类缺口。owner：crates/jftrade-strategy/src/pine/planner.rs。回归要求：把校验矩阵移植为参数化用例（每族合法/非法两列）并断言拒绝面与文案。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_indicator_matrix_test.go:147:TestCollectExpressionRequirementsHandlesInvalidAndBaseIndicatorForms": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::native_pipeline_parses_lowers_and_plans_strategy_requirements",
-    "conclusion": "partial：Go 断言表达式需求收集处理非法与基础指标形态。Rust 的原生管线用例断言计划需求全流程；Go 的非法形态处理在 Rust 由计划校验覆盖。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::window_and_oscillator_keys_keep_the_requested_source",
+    "conclusion": "partial：Go 断言零周期调用被静默忽略（11 条 stdev/rsi/macd/atr/bollinger/cci/variance/supertrend/sar 不产生需求也不报错）、5 条基础形态各产 1 键、17 条非法 source/长度/时间单位报错带详情。Rust 实测零周期仍产出键（`ta.rsi(close, 0)`→`rsi:0`、`ta.stdev(close, 0)`→`stdev:0`、`ta.atr(0)`→`atr:0`、`ta.macd(0, 26, 9)`→`macd:0:26:9`），即 Go 的「非法周期一律忽略」语义未迁移；基础形态 rsi/macd/atr 键形已对齐（本批窗口与 stdev 键形修复），bollinger/supertrend 族缺失。owner：crates/jftrade-strategy/src/pine/planner.rs。回归要求：零/负周期按 Go 语义忽略并断言不产生需求。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_internal_boundaries_test.go:9:TestParseIndicatorBindingBusinessKeys": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds",
-    "conclusion": "partial：Go 断言指标绑定业务键构造。Rust 的指标属性用例断言指标属性兼容边界（同一指标身份）；Go 的业务键规则在 Rust 由指标实例键覆盖。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::window_and_oscillator_keys_keep_the_requested_source",
+    "conclusion": "partial：Go 断言 15 条业务键与 args（ma 带时间单位与 source、rsi 源感知、macd、stoch、anchored_vwap、security_source、bollinger、williamsr、supertrend、sar、cmo、kcw、obv、pivotlow、alma）。Rust 的等价键面覆盖 ma（含时间单位/source）、rsi 源感知、cmo、kcw、obv、pivotlow、alma 与本批新增的 williamsr（`ta.wpr(14)` 现产出 `williamsr:14`）；缺口：stoch、anchored_vwap、security_source、bollinger、supertrend、sar 无实现，macd 的「时间单位 + source」键（`macd:hlc3:12:26:9:day`）在 MTF 包装下退化。owner：crates/jftrade-strategy/src/pine/planner.rs。另外 Go 的 binding.Args 逐项契约在 Rust 无导出面（键即契约）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_internal_boundaries_test.go:57:TestParseIndicatorBindingRejectsInvalidBusinessParameters": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/signal_validation_boundaries.rs::missing_signal_identity_is_rejected_before_planning",
-    "conclusion": "partial：Go 断言非法业务参数（含缺失/越界）被拒。Rust 的信号校验用例断言缺失标识在计划前被拒（同一计划前校验）；Go 的指标业务参数分支在 Rust 由计划校验覆盖。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::legacy_and_explicit_sources_keep_the_planned_keys",
+    "conclusion": "partial：Go 逐条断言 14 类非法业务参数与错误详情（ma 缺 period/非法可选 source、cum/window 非法 source、stoch 字面 high/low、anchored_vwap anchor、mfi 长度、dmi 缺 smoothing、supertrend 周期、security_source lookback、bollinger source、linreg offset、kcw 布尔、swma 周期）。Rust 目前只覆盖其中少数（tsi/alma 缺参报错、本批已让窗口/振荡族键形正确），其余参数校验整体缺失，且没有错误文案契约。owner：crates/jftrade-strategy/src/pine/planner.rs。回归要求：按族补校验矩阵并逐条复刻错误详情。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_internal_boundaries_test.go:101:TestAdvancedIndicatorBindingsRejectTrailingTimeframeArguments": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs::test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks",
-    "conclusion": "partial：Go 断言高级指标绑定拒绝尾部周期参数。Rust 的规划用例断言周期解析与回退（同一周期参数面）；Go 的\"尾部 timeframe 参数非法\"分支在 Rust 没有等价校验。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::window_and_oscillator_keys_keep_the_requested_source",
+    "conclusion": "partial：Go 断言高级指标的尾随多余参数被拒（bbw/tsi/correlation/percentile/linreg/pivot/kc/alma 的 `... extra` 一律报 invalid argument count，未知函数返回未识别）。Rust 实测 `ta.tsi(close, 13, 25, day, extra)`、`ta.linreg(close, 20, 1, day, extra)`、`ta.percentile_nearest_rank(close, 20, 80, \"D\", extra)` 全部被接受且静默忽略多余参数，bbw/pivot 的族级元数契约同样缺失。owner：crates/jftrade-strategy/src/pine/planner.rs。回归要求：为每个高级族加参数元数上限并断言非法调用被拒。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_internal_boundaries_test.go:131:TestCollectExpressionRequirementsCoversCompoundIndicatorExpressions": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::native_pipeline_parses_lowers_and_plans_strategy_requirements",
-    "conclusion": "partial：Go 断言复合指标表达式的需求收集。Rust 的原生管线用例断言计划需求全流程；Go 的复合表达式形态在 Rust 由 IR 遍历覆盖。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::window_and_oscillator_keys_keep_the_requested_source",
+    "conclusion": "partial：Go 断言复合表达式一次收集 17 个键并拒绝重复键（rsi/stdev/variance/cum/highestbars/lowestbars/range/mode/stoch/vwap/anchored_vwap/mfi/dmi/supertrend/sar/ma/security_source）。Rust 覆盖 variance、vwap、mfi、stdev、range、mode、ma（含 source/时间单位）与窗口族（本批修复源保留），并同样按 key 去重；缺口：cum、highestbars、lowestbars、stoch、anchored_vwap、dmi、supertrend、sar、security_source 无实现。owner：crates/jftrade-strategy/src/pine/planner.rs。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_internal_boundaries_test.go:188:TestCollectExpressionRequirementsRejectsInvalidCompoundIndicatorCalls": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::validation_payload_matches_save_hint_and_rejection_contract",
-    "conclusion": "partial：Go 断言非法复合指标调用被拒。Rust 的验证负载用例断言拒绝契约（同一拒绝面）；Go 的复合调用校验在 Rust 由计划/语义校验覆盖。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::window_and_oscillator_keys_keep_the_requested_source",
+    "conclusion": "partial：Go 断言 8 类非法复合调用报错并带详情（rsi 非法 source/周期、macd 非法周期、atr 非法周期、bollinger source、stoch 字面 high/low、mfi source、security_source source）。Rust 已拒部分（未知函数与 tsi/alma 缺参），但实测 `ta.macd(hlc3, 12, 26, 9)` 与 `ta.atr(14, week)` 之类周期/时间单位校验缺失，rsi/cci 非法 source（如 `ta.rsi(spread, 14)` 仍产出 `rsi:spread:14`）未被拒，bollinger/mfi/security_source 族缺失或未校验。owner：crates/jftrade-strategy/src/pine/planner.rs。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_internal_boundaries_test.go:217:TestProtectAndDivergenceKeyBusinessBoundaries": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::validation_metadata_projects_declared_risk_limits_like_go",
-    "conclusion": "partial：Go 断言保护与背离键的业务边界。Rust 的验证元数据用例断言声明风险限额按 Go 投影（同一风险/背离声明面）；Go 的键构造边界在 Rust 没有逐项断言。",
+    "rust_entry": "不适用：Rust 无 protect 语句与 `sl:`/`risk:` 键构造，也无背离族",
+    "conclusion": "boundary（结构差异）：Go 断言 protect 键两族形状与 5 类拒绝详情（mode/direction/time value/percentage/window policy）以及背离键的 4 组白名单断言。Rust 的风险面是运行时风险声明（mode off/monitor/enforce、closeOnly、限额）加上前端策略构建器生成的 `risk:trailingStop:auto:2:day:4:session` 键（见 `apps/web/src/features/strategy-builder` 与其 tests），后端没有 protect 语句、`sl:long:2:bar:4` 键或背离键构造。升级路径：若在后端重建 protect 键，按 Go 的 mode/direction/timeUnit/percentage/windowPolicy 词表复刻两族键与拒绝文案。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/strategy/ir/planner_internal_test.go:5:TestParseIndicatorBindingNormalizesSourceAwareIndicators": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds",
-    "conclusion": "partial：Go 断言带 source 的指标绑定归一。Rust 的指标属性用例断言指标属性兼容边界（同一 source 归一目标）；Go 的归一表在 Rust 由指标类型解析覆盖。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::window_and_oscillator_keys_keep_the_requested_source",
+    "conclusion": "partial：Go 断言源感知归一化的 7 个绑定（macd+tf+source、bollinger+tf+source、stoch、security_source lookback、cum、supertrend、obv 缺省 close）。Rust 的等价面是 `request.security` 内层表：obv 已对齐（实测 `request.security(...,\"D\",ta.obv)` 产出 `obv:close:day`，Go 归一为 `obv:close` 加时间单位）；缺口：MTF macd 退化为 `security:` 键（实测 `request.security(...,\"D\",ta.macd(hlc3,12,26,9))` 同时给出 `macd:hlc3:12:26:9` 与 `security:` 键，而 Go 只给 `macd:hlc3:12:26:9:day`），bollinger/stoch/security_source/cum/supertrend 无实现。owner：crates/jftrade-strategy/src/pine/planner.rs（`security_inner_binding`）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_internal_test.go:88:TestParseIndicatorBindingRejectsInvalidIndicatorParameters": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::validation_payload_matches_save_hint_and_rejection_contract",
-    "conclusion": "partial：Go 断言非法指标参数被拒。Rust 的验证负载用例断言拒绝契约；Go 的参数级分支在 Rust 由计划校验覆盖。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::window_and_oscillator_keys_keep_the_requested_source",
+    "conclusion": "partial：Go 断言四类非法参数被拒（macd 非法周期、stoch 缺字面 high/low、security_source 负 lookback、bollinger 非 OHLCV 源）。Rust 已拒部分形态（实测 `ta.tsi(close, 13)` 报 long length must be positive、`ta.alma(close, 9, 0.85)` 报 sigma must be positive）；缺口：`ta.kc(close, 20, 1.5, maybe)`、`ta.percentile_nearest_rank(close, 20, 101)`、`ta.linreg(close, 20, -1)`（产出 `linreg:close:20:Negate1`）、`ta.percentile_linear_interpolation(close, -1, 80)`（产出 `...:Negate1:80`）全部被接受，stoch/security_source/bollinger 族缺失。owner：crates/jftrade-strategy/src/pine/planner.rs。回归要求：按族校验布尔/百分比/偏移/长度并断言键不再出现 Negate 形态。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_internal_test.go:122:TestBuildDivergenceRequirementKeySupportsExpectedIndicators": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_v13_migration_indicators",
-    "conclusion": "partial：Go 断言背离需求键支持期望的指标族。Rust 的编译用例断言 v13 迁移指标可编译（同一指标族面）；Go 的背离键构造在 Rust 没有等价实现，按部分覆盖登记。",
+    "rust_entry": "不适用：Rust 无 `buildDivergenceRequirementKey` 等价对象（无背离需求族）",
+    "conclusion": "boundary（结构差异）：Go 断言背离键构造的白名单与形状（macd/kdj 产键、bollinger 返回 ok=false，键形 `divergence:macd:12:26:9:top:5`）。Rust 的 planner 没有背离需求族与 ok 返回契约，前置断言（Kind/Args）也没有等价物。升级路径：实现背离需求时按 Go 形状复刻白名单（rsi/macd/kdj）、方向 top/bottom 与 lookback，并保留不支持族返回 ok=false 的语义。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/strategy/ir/planner_test.go:10:TestPlanRequirementsCollectsPineIndicatorsAndRuntimeNeeds": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::native_pipeline_parses_lowers_and_plans_strategy_requirements",
-    "conclusion": "partial：Go 断言计划器收集 Pine 指标与运行期需求（指标键、运行需求集合）。Rust 的原生管线用例断言解析→降级→计划策略需求全流程（同一计划阶段）；Go 的指标与需求逐项集合在 Rust 由计划输出字段覆盖，无逐项断言。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::window_and_oscillator_keys_keep_the_requested_source",
+    "conclusion": "partial：Go 断言混合脚本的计划键 `ma:EMA:5:day`、`ma:SMA:20:day`、`macd:12:26:9` 与 `divergence:macd:12:26:9:top:6`，并要求 RequiresPosition 与 RequiresTotalAccountValue。Rust 由同一脚本产出前三个键（分片六 warmup 用例与分片七窗口用例均已断言），两个运行时标志在 `strategy.entry` 的行内 equity 表达式上置位；缺口：Rust 无背离需求族，`divergence_top(signal, 6)` 既无键也不参与预热。owner：crates/jftrade-strategy/src/pine/planner.rs。回归要求：实现 `divergence:<kind>:<args>:<top|bottom>:<lookback>` 白名单（Go 支持 rsi/macd/kdj）并复刻该键与由背离引发的预热需求。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_test.go:51:TestPlanRequirementsRejectsInvalidIndicatorBinding": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::validation_payload_matches_save_hint_and_rejection_contract",
-    "conclusion": "partial：Go 断言非法指标绑定被计划器拒绝。Rust 的验证负载用例断言保存提示与拒绝契约（同一计划前拒绝面）；Go 的绑定校验分类在 Rust 由计划阶段校验覆盖。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::legacy_and_explicit_sources_keep_the_planned_keys",
+    "conclusion": "partial：Go 断言 `ma(EMA, nope, day)` 这类非法均线绑定被计划器拒绝（长度必须为正整数）。Rust 实测 `ta.ema(close, nope)` 仍 ok=true 并产出 `ma:EMA:nope`，`ta.ema(close, 0)` 产出 `ma:EMA:0`，均未拒绝。owner：crates/jftrade-strategy/src/pine/planner.rs（`ta.ema|sma|rma|wma|hma|vwma` 分支只取文本、不做数字校验）。回归要求：均线长度按正整数校验并复刻拒绝路径，断言不得再出现 `ma:EMA:nope` 形状的键。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_test.go:62:TestPlanRequirementsRejectsInvalidMovingAverageType": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds",
-    "conclusion": "partial：Go 断言非法均线类型被拒。Rust 的指标属性用例断言指标属性在 Go 兼容范围内（同一均线族约束）；Go 的项目级拒绝分支在 Rust 由指标类型解析失败路径覆盖。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::legacy_and_explicit_sources_keep_the_planned_keys",
+    "conclusion": "partial：Go 断言非法均线类型 `ma(WILD, 5, day)` 被拒绝。Rust 对未知 `ta.*` 调用会在编译期报 PINE_CALL_UNSUPPORTED（实测 `ta.wild(close, 5)` 被拒），但均线类型表不同：Go 支持 MA/EMA/SMA/SMMA/LWMA/TMA/EXPMA/HMA/VWMA/BOLL，Rust 只识别 ta.ema/ta.sma/ta.rma/ta.wma/ta.hma/ta.vwma，无 SMMA/LWMA/TMA/EXPMA/BOLL 与未知归一到 MA 的规则（沿用分片五 P1 缺口登记）。owner：crates/jftrade-strategy/src/pine/planner.rs。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_test.go:73:TestPlanRequirementsRejectsUnsupportedOrderQuantityMode": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/signal_validation_boundaries.rs::non_positive_signal_quantity_is_rejected_before_planning",
-    "conclusion": "partial：Go 断言不支持的数量模式被计划器拒绝。Rust 的信号校验用例断言非正数量在计划前被拒（同一数量校验阶段）；Go 的模式枚举拒绝在 Rust 没有等价模式表。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::account_value_usage_in_statements_requires_total_account_value",
+    "conclusion": "partial：Go 断言不支持的数量模式 `bananas` 被计划器拒绝。Rust 实测 `strategy.entry(\"Long\", strategy.long, qty=1, qty_type=\"bananas\")` 编译通过且无诊断，数量语义由 qty/qty_percent 与运行时风险声明承担，没有 Go 的 QuantityMode 枚举（fixed/cash_percent/account_position_percent/shares/amount 等）与别名归一。owner：crates/jftrade-strategy/src/pine/planner.rs 与 `crates/jftrade-strategy/src/pine/lower.rs`。回归要求：恢复模式枚举校验并复刻拒绝文案。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_test.go:85:TestPlanRequirementsRejectsInvalidProtectTimeUnit": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs::test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks",
-    "conclusion": "partial：Go 断言非法保护时间单位被拒。Rust 的规划用例断言周期解析支持 broker 周期并有安全回退（同一时间单位解析）；Go 的保护时间单位分支在 Rust 由风险声明校验覆盖。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::account_value_usage_in_statements_requires_total_account_value",
+    "conclusion": "partial：Go 断言保护语句的非法时间单位 `lunar` 被拒（词表为 bar/minute/hour/day/week/month）。Rust 没有 protect 语句与时间单位词表，保护语义由运行时风险声明（mode off/monitor/enforce、closeOnly、限额）与前端的 `risk:` 键构造承担，因此该拒绝在 Rust 侧无语义对象。owner：crates/jftrade-strategy/src/pine/planner.rs（若恢复 protect 键构造）。回归要求：按 Go 词表复刻 ParseIndicatorTimeUnitValue 的接受/拒绝集合并断言错误详情。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_test.go:100:TestPlanRequirementsDetectsPositionVariablesInExpressions": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_parses_backtest_strategy_metadata",
-    "conclusion": "partial：Go 断言表达式中检测策略持仓变量。Rust 的编译用例断言回测策略元数据解析（同一策略变量面）；Go 的持仓变量识别在 Rust 由策略 IR 覆盖，无逐变量断言。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::position_variables_in_expressions_require_position_data",
+    "conclusion": "已覆盖：Go 断言表达式中的持仓变量（赋值 `position_avg_price * 0.95` 与条件 `position_size > 0`）置位 RequiresPosition。Rust 新增用例按同样两种语句形态断言 requires_position（本批修复：`note_runtime_variable` 现在在标识符/成员访问处识别 position_size 与 position_avg_price，而不再只依赖 order/exit 调用）。先红探针：去掉该识别后新用例 4/4 失败，恢复后 4/4 通过。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "pkg/strategy/ir/planner_test.go:122:TestPlanRequirementsIndicatorKeysMatchRuntimeBindingParity": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds",
-    "conclusion": "partial：Go 断言计划期指标键与运行期绑定一致（parity）。Rust 的指标属性用例断言指标属性兼容边界（同一指标键来源）；Go 的键 parity 断言在 Rust 由指标实例键与计划输出共享同一构造路径保证，无独立 parity 断言。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::window_and_oscillator_keys_keep_the_requested_source",
+    "conclusion": "partial：Go 用 24 个键锁定计划期与运行期绑定一致（ma/rsi/macd/atr/cci/williamsr/bollinger/stdev/highest/lowest/change/mom/roc/rising/falling/sum/kdj/sar 与 risk 键）。本批修复后 Rust 覆盖其中 19 个键形（`ma:EMA:14:minute`、`ma:SMA:20`、`ma:EMA:5:hour`、`rsi:14`、`macd:12:26:9`、`atr:20`、`cci:14`、`williamsr:14`、`stdev:20`、`highest:high:20`、`lowest:low:10`、`change:close:1`、`mom:close:5`、`roc:close:12`、`rising:close:3`、`falling:close:3`、`ma:SMA:20:volume`、`ma:EMA:5:high`、`sum:volume:20`，由新用例逐键断言）；缺口：kdj/bollinger/sar/risk 四族缺失，且 MTF macd/rsi/atr 未进 `security_inner_binding` 表（实测 `request.security(...,\"D\",ta.macd(...))` 输出图内键加退化 `security:` 键，而 Go 只给 `macd:close:12:26:9:day`）。owner：crates/jftrade-strategy/src/pine/planner.rs（`security_inner_binding` 表与缺失族）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_test.go:204:TestPlanRequirementsPreservesLegacyCloseKeysAndSourceAwareKeys": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds",
-    "conclusion": "partial：Go 断言保留遗留 close 键与带 source 的键。Rust 的指标属性用例断言指标属性兼容边界；Go 的键保留策略（兼容旧键）在 Rust 由指标键规范化覆盖，无遗留键断言。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::legacy_and_explicit_sources_keep_the_planned_keys",
+    "conclusion": "已覆盖：Go 断言遗留 close 键与带 source 的键并存（`ma:SMA:20`、`ma:SMA:20:volume`、`ma:EMA:20:hlc3`、`rsi:14`、`rsi:hlc3:14`、`cci:20`、`cci:close:20`），并明确 `ma:SMA:20:close`、`rsi:close:14`、`cci:hlc3:20` 不得出现。Rust 新用例编译同一脚本后按集合相等断言 7 个键并逐条断言 3 个禁用键缺席；本批修复给出该契约：CCI 的遗留源是 hlc3（`legacy_source_for` 按族返回 close/hlc3），窗口族则始终保留脚本传入的源。先红探针：修复前新用例 4/4 失败（`cci:hlc3:20`、`mom:5`、`stdev:close:20`、`williamsr` 缺失），恢复后 4/4 通过。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "pkg/strategy/ir/planner_test.go:254:TestPlanRequirementsRejectsUnsupportedWindowSource": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::validation_payload_matches_go_owner_field_set_and_defaults_requirements",
-    "conclusion": "partial：Go 断言不支持的窗口 source 被拒。Rust 的验证负载用例断言字段集与缺省值要求（同一字段校验面）；Go 的窗口 source 白名单在 Rust 没有等价字段。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::window_and_oscillator_keys_keep_the_requested_source",
+    "conclusion": "partial：Go 断言窗口指标的非白名单源 `highest(close - open, 20)` 被拒（只接受 open/high/low/close/volume）。Rust 实测 `ta.highest(close - open, 20)` ok=true 且产出畸形键 `highest:(close Subtract open):20`，没有价格源白名单（沿用分片五 P2 的价格源白名单缺口登记）。owner：crates/jftrade-strategy/src/pine/planner.rs。回归要求：按 Go 的 ParseOHLCVSource（窗口族）与 ParsePriceSource（振荡族）拒绝非法源并复刻错误文案。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_test.go:265:TestPlanRequirementsCollectsAdvancedIndicatorBindings": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_v12_advanced_indicators",
-    "conclusion": "partial：Go 断言计划器收集高级指标绑定。Rust 的编译用例断言 v12 高级指标可编译（同一高级指标族）；Go 的绑定收集在 Rust 由计划阶段指标需求输出覆盖。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::window_and_oscillator_keys_keep_the_requested_source",
+    "conclusion": "partial：Go 断言 12 个高级指标键（cog/bbw/tsi/correlation/percentile_linear_interpolation/percentile_nearest_rank/swma/linreg/obv/pivothigh/kc/alma）。Rust 支持其中 10 族（tsi/correlation/percentile_*/swma/linreg/obv/pivothigh/kc/alma，键形与 Go 一致，另由 pinespec 金标与分片六用例佐证）；缺口：`ta.cog` 与 `ta.bbw` 既无键也无诊断（实测 ok=true、keys=[]），未进入不支持函数白名单。owner：crates/jftrade-strategy/src/pine/planner.rs。回归要求：补齐 cog/bbw 键构造或显式拒绝，并断言不再出现静默忽略。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/ir/planner_test.go:310:TestPlanRequirementsCollectsExpressionIndicatorsAcrossStatementShapes": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::native_pipeline_parses_lowers_and_plans_strategy_requirements",
-    "conclusion": "partial：Go 断言跨语句形态收集表达式指标。Rust 的原生管线用例断言解析→降级→计划全流程（同一语句形态覆盖）；Go 的逐语句形态断言在 Rust 没有对应矩阵。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::window_and_oscillator_keys_keep_the_requested_source",
+    "conclusion": "partial：Go 断言在 collection/tuple 语句里跨形态收集 13 个键（stoch/security_source/variance/cum/anchored_vwap/mfi/dmi/supertrend/sar/bollinger/vwap/macd/atr）。Rust 的等价面是 Pine 赋值/元组/条件表达式收集，已覆盖 variance、mfi、vwap、macd、atr（stdev/窗口族由本批新用例覆盖）；缺口：stoch、security_source、cum、anchored_vwap、dmi、supertrend、sar、bollinger 无实现（多数报 PINE_CALL_UNSUPPORTED，bollinger 无诊断）。owner：crates/jftrade-strategy/src/pine/planner.rs。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
