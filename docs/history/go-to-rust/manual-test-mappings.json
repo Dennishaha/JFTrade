@@ -4453,23 +4453,23 @@
   },
   "internal/app/apiserver/servercore/adk_data_management_test.go:60:TestDatabaseMaintenanceADKBusyAndPurgeBoundaries": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-datamanagement/src/lib.rs::busy_owner_blocks_preview_and_execute_without_mutation",
-    "conclusion": "partial：Go 断言存在 running ADK run 时 ADK 库 busy；Rust 需要调用方把 busy reason 传入维护服务（测试证明传入即阻断且零改写），但没有内置“ADK 运行中”探测。",
-    "command": "",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_cleanup_candidates.rs::soft_deleted_adk_rows_are_the_only_candidates_and_changes_reject_execute; crates/jftrade-datamanagement/src/lib.rs::cleanup_requires_the_exact_approved_candidate_set",
+    "conclusion": "partial：Go 断言运行中 ADK run 使 ADK 库 busy、裸 Server 的 nil ADK store purge 报错、候选集变化返回 ErrCleanupCandidatesChanged、已取消 ctx 返回 context.Canceled。Rust 的 maintainer 是同步纯函数：候选集变化与 busy(调用方传入 reason) 已由引用用例逐条断言，ADK 运行探测与逐库 busy 注册表缺失（owner crates/jftrade-engine 数据管理装配），取消语义无同形对象。回归要求：接入 busy 注册表后补 ADK/backtest/strategy/execution 四类 409 DB_BUSY 断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --test maintenance_overview_and_cleanup_contracts --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/assistant_transport_lifecycle_test.go:11:TestServerCloseClosesAssistantHTTPTransport": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_runtime_tests.rs::test_product_runtime_ordered_shutdown_explicit; crates/jftrade-engine/src/product_production_ports_adk_stream.rs",
-    "conclusion": "partial：Go 断言 Server.Close() 会关闭 assistant HTTP transport。Rust 的 assistant/ADK HTTP 客户端由 ADK port 持有，连接池随 runtime 有序关闭释放（test_product_runtime_ordered_shutdown_explicit 覆盖关闭顺序），但没有单独断言“关闭后 transport 不可再复用”。",
-    "command": "",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_unavailable.rs::websocket_live_port_stays_enabled_until_shutdown; crates/jftrade-engine/src/product_runtime_tests.rs::test_product_runtime_ordered_shutdown_explicit",
+    "conclusion": "partial：Go 断言 Server.Close() 后 ADK chat stream 请求返回 assistant transport is shutting down。Rust 关闭时释放监听器与 ADK 端口，不存在关闭后仍可路由的请求路径；生命周期门控的同形断言在 WS live 端口（shutting down/stopped 拒绝新路由）与 runtime 有序关闭用例。owner：crates/jftrade-engine runtime/adk port。回归要求：若引入保留监听器（keep-alive 关闭窗口），须补关闭后 chat-stream 的 410/503 断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/broker_read_query_default_test.go:11:TestBrokerReadQueryDefaultMarket": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_requests.rs; crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_query_normalization_and_account_priority_match_go",
-    "conclusion": "partial：Go 断言 tradingSvc.ReadQuery 在 market 为空时用集成配置的 TradeMarket 填充、environment 为 REAL、accountId 透传。Rust 由 TradeRequest::parse + 账户市场授权解析决定市场（trim/大小写归一、授权回退由 broker_read_query_normalization_and_account_priority_match_go 覆盖），settings 侧 trade_market 归一（默认 HK）在 jftrade-settings 测试中；没有同形的服务层 ReadQuery 方法，故不标 function_exact。",
-    "command": "",
+    "conclusion": "partial：Go 断言 tradingSvc.ReadQuery 在 market 为空时用集成配置 TradeMarket(US) 填充、environment=REAL 与 accountId 透传。Rust 无服务层 ReadQuery：市场来自请求参数或账户授权（trim/大小写归一与账户优先级已由引用用例覆盖），设置侧 trade_market 归一默认 HK。缺口：交易读路径未消费集成配置的默认市场（owner crates/jftrade-engine trade request 层 + jftrade-settings）。回归要求：若接入默认市场，补 market 为空→配置值的断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/data_management_failure_boundaries_test.go:19:TestDataManagementBackendRemainingOperations": {
@@ -4501,11 +4501,11 @@
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/data_management_failure_boundaries_test.go:178:TestCompactBacktestRejectsInvalidDatabasePath": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/src/maintenance.rs; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::database_inspection_classifies_filesystem_and_schema_states",
-    "conclusion": "partial：Go 断言数据库路径指向目录时压缩报错；Rust compact_connection 对目录路径在 SQLite 打开阶段即失败并上抛，路径形态分类由 inspection 测试覆盖，但没有专门的“目录即库文件”压缩用例。",
-    "command": "",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::compaction_rejects_a_directory_where_the_backtest_database_belongs",
+    "conclusion": "function_exact：Go 断言 backtest 库路径指向目录时 compact 报错。Rust 新增用例在 descriptor 路径上创建目录后调用 compact(DATABASE_BACKTEST)，断言返回错误、目录仍存在且未被写入任何数据库侧文件；锚点 internal/app/apiserver/servercore/data_management_failure_boundaries_test.go:178。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --test maintenance_overview_and_cleanup_contracts --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/data_management_failure_boundaries_test.go:191:TestDataManagementStatusErrorIsIgnoredByPathLookup": {
     "status": "[~]",
@@ -4516,9 +4516,9 @@
   },
   "internal/app/apiserver/servercore/data_management_test.go:17:TestBacktestRunMaintenanceKeepsMemoryAndDatabaseInSync": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/src/backtest_run.rs",
-    "conclusion": "partial：Rust 的回测运行状态只存 SQLite（list_runs/purge 均由同一连接读写），不存在 Go 的“内存 map + DB 双写后清理保持一致”结构；清理一致性由维护服务在单库事务内完成。",
-    "command": "",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::backtest_history_cleanup_skips_running_runs_and_keeps_the_newest_terminal_run; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::backtest_history_preview_prefers_age_and_latest_protection",
+    "conclusion": "partial：Go 断言 completed run 从内存与 DB 同步清除、running run 的 purge 返回 ErrCleanupCandidatesChanged、运行中回测使维护 busy。Rust 回测运行只存 SQLite（无内存双写），本批新增用例断言 running 永不进入候选、keepLatest 保护最新终态运行、批准清理只删除旧终态运行且 running 保留；busy reason 半仍无逐库注册表（owner crates/jftrade-engine 数据管理装配）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --test maintenance_overview_and_cleanup_contracts --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/data_management_test.go:59:TestDataManagementServerCleanupAndCompactionPaths": {
@@ -4558,10 +4558,10 @@
   },
   "internal/app/apiserver/servercore/desktop_token_test.go:77:TestDesktopDevelopmentWithoutInjectedTokenRemainsTrusted": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_profile.rs",
-    "conclusion": "partial：Rust 开发 profile 不注入 token 时 AccessPolicy::desktop(None) 仍信任 loopback 来源（发行 profile 要求注入 32 字节 token），但没有专门的“无 token 开发仍受信”断言。",
-    "command": "",
-    "evidence_type": "partial"
+    "rust_entry": "boundary：Rust 不存在“桌面模式但不注入 token 仍受信”的路径——desktop_production 强制 ≥32 字节进程内 token（弱 token 直接拒绝），from_process_env 在缺少 token 时选择浏览器策略 AccessPolicy::web（要求登录会话而非桌面 bearer 信任）。",
+    "conclusion": "boundary（更严格收紧）：Go 的开发模式在无注入 token 时仍把 loopback 桌面请求视为受信（PUT /api/v1/settings/security → 204）。Rust 由 Tauri 壳始终注入每次启动生成的 token，缺 token 的进程被当作浏览器面并要求密码会话，属有意的 fail-closed 差异；owner crates/jftrade-engine product_production_profile.rs 与 apps/desktop/src-tauri。回归要求：若未来开放无 token 开发模式，必须补“无 token 仍受信”及其与浏览器面隔离的断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/servercore/desktop_token_test.go:101:TestDesktopDevelopmentWebListenerStillRequiresPasswordSession": {
     "status": "[x]",
@@ -4586,9 +4586,9 @@
   },
   "internal/app/apiserver/servercore/exec_writeback_test.go:127:TestRecordPlacedOrderReusesExistingBrokerDiscoveredOrder": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution.rs; crates/jftrade-engine/src/execution_reconciliation_discovery.rs",
-    "conclusion": "partial：Rust 对账发现券商订单时按券商订单号幂等复用（不重复建单），但没有“下单回写复用已发现订单”的专门用例。",
-    "command": "",
+    "rust_entry": "crates/jftrade-engine/src/execution_reconciliation_discovery.rs; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_read_boundaries_tests.rs::reconciliation_discovery_deduplicates_repeated_pages_and_keeps_newest_snapshot",
+    "conclusion": "partial：Go 断言命令回写 RecordPlacedOrder 复用已发现的券商订单内部 id（仍 1 条订单、push+command 两个事件）。Rust 对账发现按券商订单号分配/复用身份且分页去重（引用用例），但没有针对“下单回写复用已发现订单”的专门断言。owner：crates/jftrade-engine execution 写回/对账发现。回归要求：补一条用例断言 placed 记录命中已发现 brokerOrderId 时复用 internalOrderId 且只追加一条 COMMAND_PLACE_ACCEPTED 事件。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/instrument_ref_test.go:8:TestNormalizeInstrumentInput": {
@@ -4635,9 +4635,9 @@
   },
   "internal/app/apiserver/servercore/live_ws_boundaries_test.go:36:TestLiveWebSocketUsesActivePollOnlyProviderBehindLegacyFutuSelection": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_runtime_composition.rs; crates/jftrade-engine/tests/provider_runtime_compatibility.rs",
-    "conclusion": "partial：Rust 组合根按 active provider 解析 runtime（futu 选中但 provider 为轮询实现时走对应适配器），provider_runtime_compatibility 覆盖运行时切换；但没有“legacy futu 选择 + poll-only 活跃 provider”的专门 WS 断言。",
-    "command": "",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_subscription_tests.rs::broker_neutral_polling_acquire_heartbeat_release_never_consumes_futu_lease; crates/jftrade-api/src/router.rs",
+    "conclusion": "partial：Go 断言 legacy futu 选择 + yfinance 轮询 provider 时 heartbeat 同时给出 providerBrokerId=futu 与 marketDataProviderId=yfinance、transport.mode=snapshot-poll-delayed、sampleFreshnessMs 高于阈值且无 staleReasons，ticks/details 双 id 透传、depth 能力不支持。Rust 订阅层已断言 broker-neutral 轮询 provider 的 providerBrokerId 归一与 snapshot-poll-fallback 传输（引用用例），但运行时 heartbeat 只有 providerBrokerId+mode，缺 marketDataProviderId/sampleFreshnessMs/staleReasons（5f 已登记缺口，owner crates/jftrade-api router.rs::live_heartbeat_payload）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/live_ws_boundaries_test.go:114:TestLiveWebSocketBackendProviderAndNilBoundaries": {
@@ -4677,9 +4677,9 @@
   },
   "internal/app/apiserver/servercore/market_instrument_resolver_test.go:13:TestMarketInstrumentResolverEndpointUsesSearchWithoutQuoteSubscription": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_catalog.rs",
-    "conclusion": "partial：Rust 的仪器目录搜索/规范化端口不建立报价订阅（目录读取与订阅是分离端口），但没有 HTTP 解析端点“只搜索不订阅”的专门断言。",
-    "command": "",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::instrument_search_route_returns_subset_resolution_contract; crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::instrument_search_route_validates_input_and_maps_provider_failures",
+    "conclusion": "partial：Go 断言解析端点走搜索且不建立报价订阅。Rust 的目录/搜索是独立端口类型，不持有 demand/lease 句柄，结构上无法订阅；引用用例断言搜索解析契约与输入/错误映射，但没有显式“未创建订阅需求”的断言。owner：crates/jftrade-engine product_production_ports_market_data_catalog.rs。回归要求：若搜索端口接入共享 demand 句柄，须补零订阅断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/market_instrument_resolver_test.go:65:TestMarketInstrumentResolverQualifiedInputOnlyQueriesSelectedLeaf": {
@@ -4690,11 +4690,11 @@
     "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/market_realtime_test.go:18:TestMarketCandlesEndpointIncludesCurrentRealtimeBucket": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-marketdata/src/tick_candles.rs::tick_candles_use_explicit_volume_delta_across_trading_days; crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::candle_read_without_a_kline_lease_fails_before_realtime_provider_access",
-    "conclusion": "partial：Go 断言 K 线端点把当前实时桶并入历史序列；Rust 的 tick→candle 合并与租约前置校验分别有测试，但没有端到端“历史+实时合并”路由断言。",
-    "command": "",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_keeps_latest_history_after_all_forward_pages_and_current_bar; crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::candle_read_without_a_kline_lease_fails_before_realtime_provider_access",
+    "conclusion": "function_exact：Go 断言 candles 响应把 Qot_GetKL 当前实时桶并入历史序列。Rust 用例固定历史两页 + 当前桶：末根为当前桶起点、OHLC/成交量保留上游值、closed=false，分页 hasMore/nextBefore 齐备，且当前桶读取前必须先持有 K 线租约（引用第二条）；锚点 internal/app/apiserver/servercore/market_realtime_test.go:18。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go:18:TestBusinessNotificationsAndOptionalSecurityFieldsPreserveWireSemantics": {
     "status": "[~]",
@@ -4782,9 +4782,9 @@
   },
   "internal/app/apiserver/servercore/openapi_route_registration_test.go:17:TestOpenAPICoversRegisteredAPIRoutes": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_runtime_tests.rs::product_runtime_without_optional_workers_starts_and_stops_cleanly",
-    "conclusion": "partial：Rust 以 contracts/openapi/openapi.json 为契约源，路由与文档一致性由 check-openapi-quality/check:generated 门禁断言；引擎测试断言注册路由数量（owned_routes=26），但“每个注册路由都有 OpenAPI 文档”不是 Rust 内测试证据。",
-    "command": "",
+    "rust_entry": "crates/jftrade-engine/src/product_runtime_tests.rs::product_runtime_without_optional_workers_starts_and_stops_cleanly; crates/jftrade-api/tests/swagger_docs_contracts.rs::swagger_surface_requires_access_and_keeps_the_json_envelope",
+    "conclusion": "partial：Go 用 gin 注册表断言每个已注册 API 路由都在 OpenAPI 文档中。Rust 以 contracts/openapi/openapi.json 为契约源：兼容门禁 check-api-transport 断言 278 operations/18 route groups 与路由探针，check:generated 断言生成物一致，swagger 用例断言文档面与访问控制；但“注册路由集合 ↔ 文档 operation 集合”的等式没有 Rust 内测试。owner：crates/jftrade-engine 路由清单 + scripts/compatibility/check-api-transport.mjs；回归要求：路由清单变更时必须重跑 check:compatibility。",
+    "command": "pnpm run check:compatibility",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/openapi_route_registration_test.go:85:TestCapabilityCatalogAPISurfacesAreRegistered": {

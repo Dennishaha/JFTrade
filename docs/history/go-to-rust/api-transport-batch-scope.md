@@ -486,3 +486,62 @@ anchors 1521（unrecorded 0、stale 0、unknown 53）。
 （`internal/app/apiserver` 待办 331；随后 strategy_pine 465 → assistant_workflow 447 → other 311 →
 backtest_calendar 262 → storage_sqlite 178 → marketdata_quotes 155 → futu_opend 104 → settings_watchlist 39），
 按同一批次节奏推进：单分片一次提交，提交后立即把下一分片写入代办 codex 目标。
+
+## 第 127 批
+
+### 分片一：`internal/app/apiserver/servercore` 前 34 行
+
+范围与 owner：`internal/app/apiserver/servercore` 按文件与行号排序的前 34 条待办（数据管理 9、桌面 token 2、
+assistant 传输生命周期 1、broker 读查询 1、执行回写 1、instrument 归一 1、live WS 3、行情 3、通知与工作流 5、
+OpenAPI 1、产品基础设施 2、产品生命周期 3、其他 2）。owner 分别落在 `crates/jftrade-store-sqlite`（维护/清理、
+回测运行与执行账本）、`crates/jftrade-datamanagement`（预览/执行纯函数与 busy reason 入口）、
+`crates/jftrade-engine`（装配、ADK/WS/行情端口、执行对账与写回）与 `crates/jftrade-api`（传输、heartbeat、OpenAPI 契约）。
+
+本分片新增 Rust 证据 2 条：
+
+- `crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::compaction_rejects_a_directory_where_the_backtest_database_belongs`
+  （Go `data_management_failure_boundaries_test.go:178`）：backtest 库路径为目录时 compact 必须报错，且目录与内容不被改写。
+- `crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::backtest_history_cleanup_skips_running_runs_and_keeps_the_newest_terminal_run`
+  （Go `data_management_test.go:17`）：running 运行永不进入候选，keepLatest 保护最新终态运行，批准清理只删除旧终态运行。
+- 补锚点：`market_realtime_test.go:18` 指向 `candle_route_keeps_latest_history_after_all_forward_pages_and_current_bar`
+  （历史分页 + Qot_GetKL 当前桶合并、closed=false、分页游标），该行由 partial 升 `[x]`。
+
+映射结果：11 行写入（2 行升 `[x]`：`data_management_failure_boundaries_test.go:178`、`market_realtime_test.go:18`；
+9 行收紧或纠正为 partial/boundary）。经复核，其余 23 行维持既有 partial/boundary 终值（每条含差异说明、owner 与回归要求）。
+计数：`[x]` 1510 → 1512；audit Rust 测试 3183；anchors 1524（unrecorded 0、stale 0、unknown 53）。
+
+关键事实与新登记缺口（P1/P2）：
+
+1. **逐库 busy 注册表缺失（P1，延续）**：Go 的维护注册表内置行情同步、策略运行、非终态执行订单与运行中 ADK run 的 busy
+   reason（含中文文案）；Rust `preview_cleanup/verify_execute` 只接受调用方传入的 reason，engine 侧没有探测与装配，
+   因此 `data_management_failure_boundaries_test.go:61`、`adk_data_management_test.go:60`、`data_management_test.go:17`
+   的 busy 半仍为 partial。owner：`crates/jftrade-engine` 数据管理装配。
+2. **交易读路径默认市场（P2）**：Go `tradingSvc.ReadQuery` 用集成配置 `TradeMarket` 填充空 market；
+   Rust 市场来自请求或账户授权，设置侧 `trade_market` 默认 HK。owner：`product_production_ports_trade_requests.rs`。
+3. **下单回写复用已发现订单（P2）**：Go 断言 RecordPlacedOrder 复用券商已发现订单的内部 id；
+   Rust 对账发现已按券商订单号去重/复用，但缺“下单回写命中已发现订单”的专门断言。owner：`execution_reconciliation_discovery.rs`。
+4. **runtime heartbeat 字段（P2，延续 5f）**：Go 的 live heartbeat 在 legacy futu 选择下仍给 `marketDataProviderId`、
+   `sampleFreshnessMs`、`staleReasons`；Rust `live_heartbeat_payload` 只有 `providerBrokerId` 与 transport mode。
+   owner：`crates/jftrade-api/src/router.rs`。
+5. **OpenAPI 与注册路由集合等式（P2）**：Go 用 gin 注册表断言文档覆盖每个注册路由；Rust 由 `check-api-transport`
+   （278 operations/18 组 + 路由探针）与 `check:generated` 承担，缺 Rust 内集合等式。owner：`product_runtime.rs` 路由清单 + 兼容门禁。
+6. **nil/已关闭句柄边界（边界）**：Go 的 nil store、已关闭 store、nil backend、nil request 系列（数据管理边界 4 行、
+   live WS 1 行、通知 panic 2 行、产品基础设施 2 行、快照身份 1 行）在 Rust 的所有权/类型化端口下不可表达，
+   统一登记 boundary 并保留升级路径（若引入可空句柄，需补对应 fail-closed 断言）。
+
+验证记录：
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增维护用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --test maintenance_overview_and_cleanup_contracts --locked` | 13/13 通过（含 2 条新增） |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/s127a_payload.json` | 11 行更新，`[x]` 1510 → 1512 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；rust 测试 3183 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1524、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`；`... -p jftrade-engine ...` | 188/188、1858/1858 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`（SQLite 2 表 3 K 线、backtest 5 用例 8 成交、provider 14+9+3、trading 10/7/6/7/5/3、assistant 9/12、api-transport 278 operations/18 组、desktop 3 profiles）、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`check:quick` | 全部通过 |
+| 目标体积 | `target/debug/deps` 的 `.rcgu.o` 超 5 万触发 `check:rust:target-health` | 确认无 Cargo 进程后执行 `pnpm run clean:rust:artifacts`（`cargo clean` 释放 28.1GiB / 106448 文件），复跑 `check:quick` 通过 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 均在 cargo-deny advisories 阶段因 `deny.toml` 8 条 `advisory-not-detected` 失败（bans/licenses/sources ok），与本次改动无关 |
+
+后续（分片二）：`internal/app/apiserver/servercore` 余 68 行，随后 servercoretest 52、marketdataapp 68、
+webaccess 24 + tradingapp 11、backtestapp 10 + datamigration 11 与 runtime/lifecycle/application/futuapp 余量。

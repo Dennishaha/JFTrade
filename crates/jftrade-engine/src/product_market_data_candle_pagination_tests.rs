@@ -243,6 +243,7 @@ fn port(reader: Arc<PagedHistory>) -> ProductionMarketDataQuotePort {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercore/market_realtime_test.go:18 TestMarketCandlesEndpointIncludesCurrentRealtimeBucket
 async fn candle_route_keeps_latest_history_after_all_forward_pages_and_current_bar() {
     // Go derives `endAt` from `time.Now()` and `filterKLinesByWindow` then
     // drops every `Qot_GetKL` bucket outside that window, so the unresolved

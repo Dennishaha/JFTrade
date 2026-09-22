@@ -669,6 +669,96 @@ fn cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk() {
     assert!(compact.after_bytes < compact.before_bytes);
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/data_management_failure_boundaries_test.go:178 TestCompactBacktestRejectsInvalidDatabasePath
+//
+// The reference owner compacts the configured backtest database path and
+// fails when that path is a directory instead of a database file. Rust opens
+// the managed path through SQLite before compacting, so the same invalid path
+// has to fail without replacing or populating the directory.
+#[test]
+fn compaction_rejects_a_directory_where_the_backtest_database_belongs() {
+    let fixture = Fixture::new();
+    let path = PathBuf::from(&fixture.descriptor(DATABASE_BACKTEST).path);
+    fs::create_dir(&path).expect("create a directory at the database path");
+
+    let error = fixture
+        .maintenance_store()
+        .compact(DATABASE_BACKTEST, CHECKED_AT)
+        .expect_err("a directory path can never be compacted as a database");
+    assert!(
+        !error.to_string().is_empty(),
+        "the rejected compaction must report a reason"
+    );
+    assert!(
+        path.is_dir(),
+        "the directory must survive the rejected compaction"
+    );
+    assert_eq!(
+        fs::read_dir(&path).expect("read directory").count(),
+        0,
+        "the rejected compaction must not create database side files"
+    );
+}
+
+// Parity: go:452dea11:internal/app/apiserver/servercore/data_management_test.go:17 TestBacktestRunMaintenanceKeepsMemoryAndDatabaseInSync
+//
+// The reference owner purges completed backtest history, keeps the newest run
+// through `keepLatest`, and rejects a purge that would touch a running run.
+// Rust expresses the same guarantee in the maintenance owner: only terminal
+// runs are cleanup candidates, the newest terminal run stays, and the running
+// run survives the approved cleanup.
+#[test]
+fn backtest_history_cleanup_skips_running_runs_and_keeps_the_newest_terminal_run() {
+    let fixture = Fixture::new();
+    let path = fixture.initialize(DATABASE_BACKTEST_RUNS);
+    execute(
+        &path,
+        "INSERT INTO backtest_runs (id, status, request_json, result_json, created_at, updated_at)
+         VALUES
+             ('run-running', 'running', '{}', '{}', '2026-01-01T00:00:00Z', '2026-09-20T00:00:00Z'),
+             ('run-kept', 'completed', '{}', '{}', '2026-01-01T00:00:00Z', '2026-09-19T00:00:00Z'),
+             ('run-old', 'completed', '{}', '{}', '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z');",
+    );
+
+    let previews = fixture.preview_service();
+    let preview = previews
+        .preview(CleanupPreviewRequest {
+            kind: jftrade_datamanagement::CLEANUP_BACKTEST_HISTORY.to_owned(),
+            database_id: DATABASE_BACKTEST_RUNS.to_owned(),
+            older_than_days: 1,
+            keep_latest: 1,
+        })
+        .expect("backtest history preview");
+    assert_eq!(
+        preview.candidate_count, 1,
+        "only the old terminal run may be offered"
+    );
+
+    let approved = previews
+        .approved_preview(&preview.preview_id, OffsetDateTime::now_utc())
+        .expect("approved preview")
+        .expect("stored preview");
+    let result = fixture
+        .maintenance_store()
+        .execute_cleanup(&approved)
+        .expect("execute backtest history cleanup");
+    assert_eq!(result.deleted_count, 1);
+
+    let remaining = Connection::open(&path)
+        .expect("open backtest runs")
+        .prepare("SELECT id FROM backtest_runs ORDER BY id")
+        .expect("prepare remaining runs")
+        .query_map([], |row| row.get::<_, String>(0))
+        .expect("query remaining runs")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect remaining runs");
+    assert_eq!(
+        remaining,
+        ["run-kept", "run-running"],
+        "the newest terminal run and the running run must survive"
+    );
+}
+
 #[test]
 fn cleanup_preview_requires_a_ready_database_with_the_purgeable_table() {
     let fixture = Fixture::new();
