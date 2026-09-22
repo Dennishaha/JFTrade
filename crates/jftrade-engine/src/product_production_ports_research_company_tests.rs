@@ -548,6 +548,7 @@ fn company_research_accepts_an_omitted_operation() {
 ///
 /// Non-default operations for the embedded company-research features are
 /// capability errors and never reach the helper.
+// Parity: go:452dea11:internal/api/productfeatures/provider_research_routes_test.go:458 TestEmbeddedProviderCompanyResearchRejectsUnsupportedOperations
 #[test]
 fn company_research_rejects_non_default_operations() {
     for (path, operation) in [

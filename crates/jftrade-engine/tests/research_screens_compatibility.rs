@@ -124,6 +124,9 @@ impl ResearchScreenWritePort for FixturePort {
 }
 
 #[test]
+// Parity: go:452dea11:internal/api/productfeatures/research_screen_test.go:70 TestWriteResearchScreenErrorReturnsStructured429
+// The frozen `rate-limit-error` case pins 429 with `Retry-After: 3` and the
+// `RESEARCH_SCREEN_RATE_LIMITED` code on the POST wire.
 fn research_screen_fixture_replays_go_wire_for_the_post_route() {
     let fixture = fixture();
     assert_eq!(fixture.version, "stage9.research-screens.v1");

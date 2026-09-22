@@ -218,6 +218,7 @@ mod tests {
     /// The other screen-write failures keep their own contract: a rate limit
     /// carries the rounded Retry-After, warming/busy stay 503 lifecycle errors,
     /// and a provider failure is the generic 502.
+    // Parity: go:452dea11:internal/api/productfeatures/research_screen_test.go:70 TestWriteResearchScreenErrorReturnsStructured429
     #[test]
     fn futu_screen_write_errors_keep_their_transport_contract() {
         let rate_limited = map_futu_screen_write_error(ResearchScreenWritePortError::RateLimited {

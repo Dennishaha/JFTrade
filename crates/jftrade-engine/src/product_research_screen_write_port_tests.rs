@@ -61,6 +61,7 @@ fn valid_request_fails_closed_without_a_query_port() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/api/productfeatures/research_screen_test.go:185 TestResearchScreenPostRejectsV1Payload
 fn route_and_page_validation_precede_provider_calls() {
     let request = ResearchScreenWriteRequest {
         method: "POST".to_owned(),
@@ -194,6 +195,7 @@ impl ResearchScreenWritePort for RecordingScreenPort {
 /// Go defaults the screen page limit to 50, keeps the requested offset, and
 /// projects the catalog version plus the column factor keys back to the
 /// caller. The Rust port normalizes the same fields before the provider call.
+// Parity: go:452dea11:internal/api/productfeatures/research_screen_test.go:47 TestNormalizeResearchScreenQueryDefaultsAndRejectsNonV2Input
 #[test]
 fn screen_query_defaults_the_page_and_keeps_catalog_columns() {
     let port = RecordingScreenPort::default();
@@ -230,6 +232,7 @@ fn screen_query_defaults_the_page_and_keeps_catalog_columns() {
 /// Go rejects a screen request whose `catalogVersion` is not the active
 /// catalog and whose `querySchemaVersion` is not V2. Rust keeps the same
 /// fail-closed gate and never consults the provider port.
+// Parity: go:452dea11:internal/api/productfeatures/research_screen_test.go:47 TestNormalizeResearchScreenQueryDefaultsAndRejectsNonV2Input
 #[test]
 fn screen_query_rejects_wrong_catalog_and_schema_versions() {
     for (body, expected) in [

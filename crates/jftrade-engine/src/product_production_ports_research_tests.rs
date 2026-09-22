@@ -927,6 +927,10 @@ fn embedded_research_facade_serves_exactly_the_allowed_feature_set() {
 /// The embedded facade folds an unsupported capability into the broker
 /// capability contract, while warming/busy lifecycle sentinels keep their own
 /// identity so the transport can answer 503 with the documented Retry-After.
+// Parity: go:452dea11:internal/api/productfeatures/provider_research_routes_test.go:229 TestEmbeddedProviderRouteErrorsKeepHTTPContract
+// Parity: go:452dea11:internal/api/productfeatures/provider_research_routes_test.go:335 TestEmbeddedProviderRankingsRouteMapsUnsupportedOperations
+// Parity: go:452dea11:internal/api/productfeatures/provider_research_routes_test.go:458 TestEmbeddedProviderCompanyResearchRejectsUnsupportedOperations
+// Parity: go:452dea11:internal/api/productfeatures/provider_research_routes_test.go:606 TestEmbeddedProviderCalendarMacroRoutesRejectUnsupportedOperations
 #[test]
 fn embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels() {
     let unsupported = capability("research.news", "instrument news");

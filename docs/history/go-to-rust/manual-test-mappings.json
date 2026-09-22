@@ -1451,161 +1451,161 @@
   "internal/api/productfeatures/prediction_combo_routes_test.go:64:TestPostQueryMapsUpstreamFailureAndRouteHelpersCoverAcceptedEnums": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_prediction_tests.rs::prediction_read_query_accepts_go_route_defaults",
-    "conclusion": "partial：Go 断言 post query 上游失败映射与 route helper 枚举归一。Rust 该用例断言 prediction 读查询接受 Go 路由默认值（枚举归一）；上游失败映射由 prediction 读端口 fail-closed 用例覆盖。",
+    "conclusion": "partial：Go 断言 post query 上游失败映射与 route helper 枚举归一。Rust 引用用例断言 prediction 读查询接受 Go 路由默认值与枚举归一；上游失败的 502/错误码映射由 prediction 读端口 fail-closed 用例覆盖，未与枚举归一合并断言。缺口 owner：crates/jftrade-engine prediction 读端口；回归要求：补“上游失败 → 稳定错误码/状态”的单一断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/productfeatures/provider_research_routes_test.go:179:TestEmbeddedProviderNewsAndCorporateActionRoutes": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::corporate_action_projection_formats_statements",
-    "conclusion": "partial：Go 断言 news 与 corporate actions 的内嵌 provider 投影。Rust 该用例断言 corporate action statement 的数字渲染与投影；news 侧由 production_news_actions_port_forwards_yfinance_news_request 覆盖。",
+    "conclusion": "partial：Go 断言 news 与 corporate actions 的内嵌 provider 投影与字段透传。Rust 的 corporate action 投影用例断言 statement 数字渲染；news 侧由生产新闻端口转发用例覆盖，两条路由未同一用例断言。缺口 owner：crates/jftrade-engine research/news 端口；回归要求：补 news+actions 两条路由的投影矩阵断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/productfeatures/provider_research_routes_test.go:229:TestEmbeddedProviderRouteErrorsKeepHTTPContract": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback; crates/jftrade-engine/src/product_production_ports_market_data_news_search_tests.rs::query_style_news_route_rejects_a_non_active_explicit_broker",
-    "conclusion": "partial：Go 断言不支持/预热/忙碌的 409/503 与 retry 契约。Rust 该用例断言显式非活动 broker 被拒且不回退（409 语义，已带该 Go 行锚点）；预热/忙碌 sentinel 由 embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels 覆盖。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_tests.rs::embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback",
+    "conclusion": "已覆盖（组合证据）：生命周期用例断言 capability → 409 + BROKER_CAPABILITY_UNAVAILABLE、warming → 503 + Retry-After 1、busy → 503 + Retry-After 2（对应 Go 的 news/actions 两条路由契约）；news 用例断言显式非活动 broker 拒绝对不回退。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/productfeatures/provider_research_routes_test.go:264:TestEmbeddedProviderRankingsAndIndustryRoutes": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_market_tests.rs::rankings_operations_map_to_provider_kinds_on_the_wire",
-    "conclusion": "partial：Go 断言 rankings 与 industries 的投影与参数转发。Rust 该用例断言 rankings 操作按 wire 映射到 provider kind；industries 由 industry_board_operations_map_to_provider_kinds_on_the_wire 覆盖。",
+    "conclusion": "partial：Go 断言 rankings 与 industries 的投影与参数转发。Rust 分别断言 rankings 操作映射（引用用例）与 industry_board 操作映射；参数转发（market/operation/paging）未逐条断言。缺口 owner：crates/jftrade-engine research market 端口；回归要求：补两条路由的参数转发断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/productfeatures/provider_research_routes_test.go:335:TestEmbeddedProviderRankingsRouteMapsUnsupportedOperations": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_market_tests.rs::rankings_reject_unmapped_operations_without_a_helper_call",
-    "conclusion": "partial：Go 断言不支持的 rankings 操作→409 且不触达 helper。Rust 该用例断言未映射操作在调用 helper 前被拒。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_market_tests.rs::rankings_reject_unmapped_operations_without_a_helper_call; crates/jftrade-engine/src/product_production_ports_research_tests.rs::embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels",
+    "conclusion": "已覆盖（组合证据）：rankings 用例逐操作断言未映射/越界操作 → 409 + BROKER_CAPABILITY_UNAVAILABLE 且不触达 helper（对应 Go 的 pre_market 409 与 capability 409）；生命周期用例断言 busy → 503 + Retry-After 2、warming → 503 + Retry-After 1，与 Go 的 503/Retry-After 断言一致。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/productfeatures/provider_research_routes_test.go:370:TestEmbeddedProviderCompanyResearchRoutes": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::company_research_default_operations_project_on_the_wire",
-    "conclusion": "partial：Go 断言 profile/financials 等公司研究操作投影与参数转发。Rust 该用例断言默认公司研究操作按 wire 投影（含 analyst/financials 等）。",
+    "conclusion": "partial：Go 断言 profile/financials/analyst/ownership 等公司研究操作投影与参数转发。Rust 断言默认操作按 wire 投影（含 analyst/financials）；market/symbol/statement 参数转发由 financials 转发用例覆盖，未覆盖全部默认操作。缺口 owner：crates/jftrade-engine research company 端口；回归要求：补默认操作×参数矩阵断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/productfeatures/provider_research_routes_test.go:458:TestEmbeddedProviderCompanyResearchRejectsUnsupportedOperations": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::company_research_rejects_non_default_operations",
-    "conclusion": "partial：Go 断言不支持的公司研究操作→409 与预热/忙碌重试。Rust 该用例断言非默认操作被拒；生命周期 sentinel 由 embedded_capability_errors... 覆盖。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::company_research_rejects_non_default_operations; crates/jftrade-engine/src/product_production_ports_research_tests.rs::embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels",
+    "conclusion": "已覆盖（组合证据）：company 用例对 instruments/financials/analyst/ownership 的非默认操作逐条断言 409 + BROKER_CAPABILITY_UNAVAILABLE 且不触达 helper；生命周期用例断言 warming → 503 + Retry-After 1。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/productfeatures/provider_research_routes_test.go:498:TestEmbeddedProviderCalendarAndMacroRoutes": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_calendar_tests.rs::calendar_operations_map_to_provider_reads_on_the_wire",
-    "conclusion": "partial：Go 断言 earnings/dividends/economic/ipos 与 macro 的投影与参数转发。Rust 该用例断言日历操作按 wire 映射到 provider 读取；macro 由 macro_operations_map_to_provider_reads_on_the_wire 覆盖。",
+    "conclusion": "partial：Go 断言 earnings/dividends/economic/ipos 与 macro 投影及参数转发。Rust 分别断言 calendar 与 macro 操作映射；参数转发与逐操作 payload 未在同一用例断言。缺口 owner：crates/jftrade-engine research calendar/macro 端口；回归要求：补逐操作投影与参数转发矩阵。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/productfeatures/provider_research_routes_test.go:606:TestEmbeddedProviderCalendarMacroRoutesRejectUnsupportedOperations": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_calendar_tests.rs::calendar_and_macro_reject_unsupported_operations_without_a_helper_call",
-    "conclusion": "partial：Go 断言不支持的日历/macro 操作被拒并保持预热重试信号。Rust 该用例断言不支持操作在调用 helper 前被拒；预热重试由 embedded_capability_errors... 覆盖。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_calendar_tests.rs::calendar_and_macro_reject_unsupported_operations_without_a_helper_call; crates/jftrade-engine/src/product_production_ports_research_tests.rs::embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels",
+    "conclusion": "已覆盖（组合证据）：calendar/macro 用例断言 trade_dates/fed_target_rate/fed_dot_plot 等不支持操作 → 409 且先于 helper 调用；生命周期用例断言 warming → 503 + Retry-After 1。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/productfeatures/research_screen_test.go:19:TestResearchScreenCatalogRouteAndValidation": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_tests.rs::embedded_research_facade_serves_exactly_the_allowed_feature_set",
-    "conclusion": "partial：Go 断言 catalog 状态、省略 display 语义、不泄露 provider id、非法 market→400。Rust 该用例断言内置研究门面只暴露允许的特性集；catalog 逐字段变体由 research_screen_catalog_route_matches_go_fixture_for_all_variants 断言，非法 market 校验由写端口校验用例覆盖。",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_tests.rs::embedded_research_facade_serves_exactly_the_allowed_feature_set; crates/jftrade-engine/src/product_tests.rs::research_screen_catalog_route_matches_go_fixture_for_all_variants",
+    "conclusion": "partial：Go 断言 catalog 状态、省略 display 语义、不泄露 provider id 与非法 market→400。Rust 分别断言门面只暴露允许特性集与 catalog 逐变体 fixture；非法 market 校验由写端口校验用例覆盖，未合成单条断言。缺口 owner：crates/jftrade-engine research catalog 投影；回归要求：补“非法 market → 400 且 catalog 不含 provider id”断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/productfeatures/research_screen_test.go:47:TestNormalizeResearchScreenQueryDefaultsAndRejectsNonV2Input": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::screen_query_rejects_wrong_catalog_and_schema_versions",
-    "conclusion": "partial：Go 断言查询默认值归一并拒绝非 v2 schema。Rust 该用例断言 screen query 拒绝错误的 catalog 与 schema 版本；默认页码/列保持由 screen_query_defaults_the_page_and_keeps_catalog_columns 覆盖。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::screen_query_defaults_the_page_and_keeps_catalog_columns; crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::screen_query_rejects_wrong_catalog_and_schema_versions",
+    "conclusion": "已覆盖（组合证据）：默认用例断言 page.limit 缺省为 50、offset 保留、catalog 列与 factorKey 回投；版本用例断言 catalogVersion 不匹配、querySchemaVersion=1、page.limit=101 全部 400 且不触达端口。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/productfeatures/research_screen_test.go:70:TestWriteResearchScreenErrorReturnsStructured429": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/research_screen_query.rs::futu_screen_write_errors_keep_their_transport_contract",
-    "conclusion": "partial：Go 断言写错误返回结构化 429 与 retry 头。Rust 该用例断言限流错误映射为 429 RESEARCH_SCREEN_RATE_LIMITED 且 retry_after_seconds 为取整值。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/research_screen_query.rs::futu_screen_write_errors_keep_their_transport_contract; crates/jftrade-engine/tests/research_screens_compatibility.rs::research_screen_fixture_replays_go_wire_for_the_post_route",
+    "conclusion": "已覆盖：单测断言 RateLimited → 429 + RESEARCH_SCREEN_RATE_LIMITED + retry_after_seconds=3（2500ms 取整）；冻结语料 rate-limit-error 逐字段断言同一 wire 响应含 Retry-After: 3 头。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/productfeatures/research_screen_test.go:80:TestResearchScreenPostUsesTypedDefinitionAndOffset": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::route_and_page_validation_precede_provider_calls",
-    "conclusion": "partial：Go 断言 POST 使用类型化定义与 offset。Rust 该用例断言路由与分页校验先于提供者调用（含 page/offset 语义），类型化定义由 definition 校验用例覆盖。",
+    "conclusion": "partial：Go 断言 POST 使用类型化 definition 与 offset。Rust 引用用例断言 page.offset 校验与错误方法 404；类型化 definition 结构（conditions/sorts/columns 归一后交给端口）由默认与定义校验用例分别覆盖，未在同一条断言中断言端口收到的 definition。缺口 owner：crates/jftrade-engine research screen 写端口；回归要求：补“POST → RecordingPort 收到类型化 definition + offset”断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/productfeatures/research_screen_test.go:130:TestResearchScreenPostPreservesExecutableV2Definition": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::research_screen_definition_rejects_unsupported_market_and_stable_keys",
-    "conclusion": "partial：Go 断言 v2 可执行定义的归一与保留。Rust 该用例断言定义拒绝不支持的市场与稳定键；v2 可执行字段保留由 screen query 与 fixture 回放共同覆盖。",
+    "conclusion": "partial：Go 断言 v2 可执行定义的归一与保留（含未知/稳定键处理）。Rust 引用用例断言定义拒绝不支持 market 与稳定键；v2 可执行字段的原样保留由 screen query 与 fixture 回放共同覆盖，缺“保留”类正向断言。缺口 owner：crates/jftrade-engine research screen 写端口；回归要求：补“提交 v2 定义 → 端口收到同一可执行字段”断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/productfeatures/research_screen_test.go:185:TestResearchScreenPostRejectsV1Payload": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::screen_query_rejects_wrong_catalog_and_schema_versions",
-    "conclusion": "partial：Go 断言 v1 载荷被拒且不触达 broker。Rust 该用例断言 schema/catalog 版本不符即拒绝，配合 route_and_page_validation_precede_provider_calls 的“校验先于端口调用”结构保证不触达提供者。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::screen_query_rejects_wrong_catalog_and_schema_versions; crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::route_and_page_validation_precede_provider_calls",
+    "conclusion": "已覆盖（组合证据）：版本用例对 querySchemaVersion=1 断言 400 且使用 UnreachablePort 证明不触达 provider；路由/分页用例断言 page.offset=-1 → 400 与错误方法 404 均先于端口调用。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/productfeatures/research_screen_test.go:213:TestTypedResearchScreenResultOmitsUnknownTotal": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_tests.rs::research_screen_helper_projects_rows_and_cells_without_fixture_defaults",
-    "conclusion": "partial：Go 断言未知 total 不序列化、已知 total 保留、行使用 cells-only 契约。Rust 该用例断言筛选行与 cells 投影不注入 fixture 默认值；total 省略语义由类型化投影承载。",
+    "conclusion": "partial：Go 断言未知 total 不序列化、已知 total 保留、行使用 cells-only 契约。Rust 引用用例断言筛选行与 cells 投影不注入 fixture 默认值并断言已知 total=1；未知 total 的省略分支无断言（mock server 只回放单一体）。缺口 owner：crates/jftrade-engine research screen 结果投影；回归要求：补“provider 省略 total → 响应体无 total 字段”断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/productfeatures/research_screen_test.go:272:TestResearchScreenCatalogServesEmbeddedProviders": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_tests.rs::research_screen_catalog_route_matches_go_fixture_for_all_variants",
-    "conclusion": "partial：Go 断言内嵌 provider 的 catalog 变体与市场覆盖。Rust 该用例逐变体断言 catalog 路由与 Go fixture 一致（含市场覆盖差异）。",
+    "conclusion": "partial：Go 断言内嵌 provider 的 catalog 变体与市场覆盖。Rust 引用用例逐变体断言 catalog 路由与 Go fixture 一致（含市场覆盖差异）；内嵌 provider 标识（yfinance/akshare 选择原因）未在同一断言中覆盖。缺口 owner：crates/jftrade-engine research catalog 投影；回归要求：补内嵌 provider 变体的 selectionReason/market 覆盖断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/productfeatures/research_screen_test.go:355:TestResearchScreenPostServesEmbeddedProvider": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/research_screen_query.rs::futu_screen_capability_errors_use_the_broker_code",
-    "conclusion": "partial：Go 断言 POST 由内嵌 provider 服务（含 capability 冲突分支）。Rust 该用例断言 provider 能力冲突→409 BROKER_CAPABILITY_UNAVAILABLE（已带该 Go 行锚点），其余成功路径由 fixture 回放覆盖。",
+    "rust_entry": "crates/jftrade-engine/src/research_screen_query.rs::futu_screen_capability_errors_use_the_broker_code; crates/jftrade-engine/tests/research_screens_compatibility.rs::research_screen_fixture_replays_go_wire_for_the_post_route",
+    "conclusion": "partial：Go 断言内嵌 provider（embedded-stock-screen-v1 + yfinance）服务 POST 并回投 catalogVersion/brokerId/selectionReason/nextOffset/hasMore/total/asOf/cells。Rust 冻结语料回放 futu-stock-screen-v1 变体的成功投影并断言 capability → 409 BROKER_CAPABILITY_UNAVAILABLE；内嵌变体的 selectionReason/brokerId 未断言。缺口 owner：crates/jftrade-engine research screen 写端口 + 语料；回归要求：补内嵌 provider 变体语料或断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/productfeatures/research_screen_test.go:387:TestResearchScreenPostEmbeddedProviderConflictMatrix": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/tests/research_screens_compatibility.rs::research_screen_fixture_replays_go_wire_for_the_post_route",
-    "conclusion": "partial：Go 断言冲突矩阵（preset/operator/HK 越界等）。Rust 该用例回放冻结的 research-screen POST wire fixture，断言整份响应与 Go owner 一致。",
+    "rust_entry": "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::futu_interval_factor_rejects_non_catalog_operator_before_provider_call; crates/jftrade-engine/tests/research_screens_compatibility.rs::research_screen_fixture_replays_go_wire_for_the_post_route",
+    "conclusion": "partial：Go 冲突矩阵四条分支——futu preset 对嵌入 provider → 409、abs_desc 排序 → 409、gt 操作符 → 400（先于 provider）、HK 超覆盖 → 409 且请求带 market=HK 到达 provider。Rust 已覆盖操作符/未知 catalog 因子 400 与 capability 409 语料；futu preset、abs_desc 与“到达 provider 的 market 值”三条无断言。缺口 owner：crates/jftrade-engine research screen 写端口；回归要求：补三条分支断言后升级。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/productfeatures/routes_test.go:19:TestProductFeatureRoutesCoverReadWritePredictionAndSnapshots": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_market_data_prediction_read_tests.rs::market_data_prediction_read_routes_match_group_fixture_in_cutover_only",
-    "conclusion": "partial：Go 断言产品特性路由覆盖读/写/prediction/snapshot 及 0DTE/期权链/订阅释放。Rust 该用例断言 prediction 读路由整组与 fixture 一致；期权与快照路由由 market data 用例族覆盖。",
+    "conclusion": "partial：Go 断言产品特性路由覆盖读/写/prediction/snapshot 及 0DTE/期权链/订阅释放。Rust 引用用例断言 prediction 读路由整组与 fixture 一致；期权链与快照路由由 market data 用例族覆盖，未在同一用例断言全部路由族。缺口 owner：crates/jftrade-engine 产品特性路由；回归要求：补路由族清单断言（注册 + 每族一条 200/4xx）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/productfeatures/routes_test.go:93:TestTypedResearchRoutesPreserveQueriesAndWire": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::company_financials_forwards_market_symbol_and_statement",
-    "conclusion": "partial：Go 断言类型化研究路由保留查询参数与整份响应 wire。Rust 该用例断言 financials 转发 market/symbol/statement；逐路由响应 wire 由 company/market/calendar 族用例断言。",
+    "conclusion": "partial：Go 断言类型化研究路由保留查询参数与整份响应 wire。Rust 引用用例断言 financials 转发 market/symbol/statement；逐路由响应 wire 由 company/market/calendar 族用例断言，未覆盖全部类型化路由。缺口 owner：crates/jftrade-engine research 端口；回归要求：补类型化路由参数保留矩阵与响应 wire 断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/productfeatures/routes_test.go:142:TestProductFeatureRoutesMapValidationCapabilityEligibilityAndBrokerErrors": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_tests.rs::embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels",
-    "conclusion": "partial：Go 断言校验/能力/资格/broker 错误的映射（含 provider 404/400）。Rust 该用例断言能力与生命周期 sentinel 保留 broker 码；资格与 provider 4xx 映射由 prediction 资格用例覆盖。",
+    "conclusion": "partial：Go 断言校验/能力/资格/broker 错误的映射（含 provider 404/400）。Rust 引用用例断言 capability 409 与生命周期 503+Retry-After；资格拒绝与 provider 4xx 映射由 prediction 资格用例覆盖，未合成单条矩阵。缺口 owner：crates/jftrade-engine 产品特性路由错误映射；回归要求：补校验→400、资格→403/404、provider 4xx→透传 的矩阵断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/productfeatures/routes_test.go:265:TestProductFeatureRouteHelpers": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_tests.rs::research_helper_request_parses_canonical_instrument_ids",
-    "conclusion": "partial：Go 单测 queryParameters/firstQueryValue/firstPathValue/marketFromInstrument/predictionRoute。Rust 该用例断言研究 helper 请求解析规范 instrument id（等价于 marketFromInstrument/firstPathValue 语义）；其余 helper 由 product_query 的映射用例覆盖。",
+    "conclusion": "partial：Go 单测 queryParameters/firstQueryValue/firstPathValue/marketFromInstrument/predictionRoute。Rust 引用用例断言研究 helper 解析规范 instrument id（等价 marketFromInstrument/firstPathValue）；queryParameters/firstQueryValue 由 product_query 的映射用例覆盖，predictionRoute 无同名断言。缺口 owner：crates/jftrade-engine 产品特性 helper；回归要求：补 predictionRoute 归一断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -2017,64 +2017,64 @@
   },
   "internal/api/system/routes_test.go:19:TestSystemRoutesReturnEnvelopes": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state",
-    "conclusion": "partial：Go 断言系统只读路由返回带 data 的信封。Rust 该用例断言系统控制读路由需要认证且不创建控制状态（覆盖系统读端点族）；逐端点 data 形状由 product_server_persists_ui_settings_and_reports_actual_port 的全量 HTTP 断言覆盖。",
+    "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state; crates/jftrade-engine/src/product_system_read_tests.rs::system_read_routes_match_group_fixture_in_cutover_only",
+    "conclusion": "partial：Go 对 16 条系统读路由断言 200 + data 必填键（apiPort/autoRefreshEnabled/status/dependencies/pendingOutbox/blockedOperations 等）。Rust 引用用例覆盖认证与不创建状态（控制读族），读组语料只冻结 futu-opend 与 broker-order-updates 两条路径，未覆盖 16 条键集合。缺口 owner：crates/jftrade-engine 系统读投影 + system-read 语料；回归要求：扩充 system-read fixture 或补 16 路由键断言后升级。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/system/routes_test.go:61:TestSystemManualRetryRouteCallsReset": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_port_unavailable_maps_to_fail_closed_503",
-    "conclusion": "partial：Go 断言手动重试路由调用 reset 回调。Rust 该用例断言 futu-opend/manual-retry 在端口不可用时映射 fail-closed 503；成功回调由 system write 叶子端口契约表达。",
+    "conclusion": "partial：Go 断言手动重试路由调用 reset 回调。Rust 语料含 manual-retry-success 并断言 wire 响应，端口不可用映射 503 由引用用例覆盖；reset 回调副作用（调用次数/参数）无断言。缺口 owner：crates/jftrade-engine Futu/OpenD 控制端口；回归要求：补“manual-retry → reset 被调用一次”断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/system/routes_test.go:77:TestExchangeCalendarRefreshRouteCallsRefresh": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_tests.rs::calendar_control_plane_routes_share_the_real_manager_in_cutover_only",
-    "conclusion": "partial：Go 断言 refresh 路由调用刷新（含按市场）。Rust 该用例断言日历控制面路由共享真实管理器（cutover 下），刷新副作用以管理器用例表达。",
+    "conclusion": "partial：Go 断言 refresh 路由（含按市场）调用刷新。Rust 引用用例断言日历控制面路由共享真实管理器；刷新副作用（按市场参数与调用次数）以管理器用例表达，未在路由断言。缺口 owner：crates/jftrade-engine 日历控制面；回归要求：补“refresh/{market} → 管理器收到该市场”断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/system/routes_test.go:102:TestSystemRouteBoundaryValidatorsRejectMissingHardStopAndNonPositiveLimits": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_leaf_fails_closed_after_shape_validation",
-    "conclusion": "partial：Go 断言缺 hard-stop id→400、非正数限额被拒。Rust 该用例断言系统写叶子在形状校验后 fail-closed；缺失路径参数在模板路由下不匹配。",
+    "conclusion": "partial：Go 断言缺 hard-stop id → 400、非正数限额被拒。Rust 引用用例断言写叶子形状校验先于端口调用；缺失路径参数在模板路由下等价 404 而非 400。缺口 owner：crates/jftrade-engine system 写叶 + jftrade-api router；回归要求：补非正数限额 → 400 断言，并确认缺参语义（404 vs 400）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/system/routes_test.go:121:TestRealTradeReleaseRoutesRejectMalformedOptionalPayloadBeforeStateChange": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_leaf_fails_closed_after_shape_validation",
-    "conclusion": "partial：Go 断言释放路由在畸形可选载荷下先拒绝、不改变状态。Rust 该用例断言系统写叶子形状校验先于端口调用（state change）。",
+    "conclusion": "partial：Go 断言释放路由在畸形可选载荷下先拒绝、不改变状态。Rust 引用用例断言形状校验先于端口调用（state change）；按路由的畸形可选载荷分支由 system-write 语料覆盖（*-malformed-before-port），未单列释放路由断言。缺口 owner：crates/jftrade-engine system 写叶；回归要求：补“畸形释放载荷 → 400 且状态不变”断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/system/routes_test.go:170:TestExchangeCalendarProbeRouteCallsProbe": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_tests.rs::calendar_control_plane_routes_share_the_real_manager_in_cutover_only",
-    "conclusion": "partial：Go 断言 probe 路由调用探针（含按市场）。Rust 该用例断言日历控制面路由共享真实管理器，probe 副作用以管理器用例覆盖。",
+    "conclusion": "partial：Go 断言 probe 路由（含按市场）调用探针。Rust 引用用例断言日历控制面共享真实管理器；probe 副作用与按市场参数无路由级断言。缺口 owner：crates/jftrade-engine 日历控制面；回归要求：补“probe/{market} → 探针被调用且 market 透传”断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/system/routes_test.go:191:TestRealTradeControlRoutesDelegateStateChanges": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_fixture_replays_go_wire_for_all_seven_routes",
-    "conclusion": "partial：Go 断言真实交易控制路由的委派与状态变更（风险限额、kill switch、hard stop）。Rust 该用例回放七条系统写路由的 Go wire fixture（逐路由断言）。",
+    "conclusion": "partial：Go 断言真实交易控制路由委派与状态变更（风险限额、kill switch、hard stop）。Rust 引用用例逐路由回放七条写路由的 Go wire 响应；状态变更后的读回（GET 反映新状态）未断言。缺口 owner：crates/jftrade-engine 实盘控制端口；回归要求：补“写 → 读回可见状态”的序列断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/system/routes_test.go:316:TestRealTradeControlRoutesMapValidationAndControlFailures": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_leaf_fails_closed_after_shape_validation",
-    "conclusion": "partial：Go 断言控制路由的校验与控制失败映射。Rust 该用例断言系统写叶子形状校验后 fail-closed；逐错误码映射由写端口与 wire 承载。",
+    "conclusion": "partial：Go 断言控制路由的校验与控制失败映射（逐错误码）。Rust 引用用例断言形状校验后 fail-closed；逐错误码映射由 system-write 语料（*-validation-errors/*-control-failure）承载，未逐条断言错误码细节。缺口 owner：crates/jftrade-engine system 写叶 + product_wire；回归要求：补校验错误与控制失败的逐错误码断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/system/status_mapper_test.go:11:TestSystemStatusTransportMapperPreservesDomainJSON": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_matches_go_stable_fields_without_claiming_migration_ownership",
-    "conclusion": "partial：Go 断言状态传输投影不改写领域 JSON。Rust 该用例断言 /api/v1/system/status 的稳定字段与 Go 一致且不声称迁移所有权；逐字段等价以该用例的断言集表达。",
+    "conclusion": "partial：Go 断言状态传输投影不改写领域 JSON（原样透传）。Rust 引用用例断言 /api/v1/system/status 的稳定字段与 Go 一致且不声称迁移所有权；逐字段等价以该用例断言集表达，但“未改写”的正向对照（未知字段保留）无断言。缺口 owner：crates/jftrade-engine 系统状态投影；回归要求：补“领域响应含额外字段 → 投影原样保留”断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },

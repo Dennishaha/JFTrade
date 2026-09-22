@@ -388,6 +388,7 @@ fn rankings_operations_map_to_provider_kinds_on_the_wire() {
 ///
 /// Futu-only ranking operations (and an empty operation) must fail closed with
 /// the capability error and never reach the helper.
+// Parity: go:452dea11:internal/api/productfeatures/provider_research_routes_test.go:335 TestEmbeddedProviderRankingsRouteMapsUnsupportedOperations
 #[test]
 fn rankings_reject_unmapped_operations_without_a_helper_call() {
     for operation in [

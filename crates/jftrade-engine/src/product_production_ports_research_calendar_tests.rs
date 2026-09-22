@@ -735,6 +735,7 @@ fn macro_operations_map_to_provider_reads_on_the_wire() {
 /// operation is not a default, and indicator_history without indicatorId is a
 /// capability error — none of them falls through to broker routing or the
 /// helper.
+// Parity: go:452dea11:internal/api/productfeatures/provider_research_routes_test.go:606 TestEmbeddedProviderCalendarMacroRoutesRejectUnsupportedOperations
 #[test]
 fn calendar_and_macro_reject_unsupported_operations_without_a_helper_call() {
     for (path, query) in [
