@@ -29206,9 +29206,9 @@
   "pkg/strategy/pine/parser_loop_boundaries_test.go:10:TestMalformedNamespaceCallsRemainVisibleForValidation": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::framework_language_feature_tests::compile_supports_framework_language_features",
-    "conclusion": "partial：Go 断言 input/str/timeframe 命名空间重写助手对畸形调用保持原文，且 input() 降级为 na、input.float(defval=close) 降级为 close。Rust 无字符串重写层（AST 直接降级），input() 与 input.float 语义由 planner 与 semantic 承担，畸形调用保持原文与默认值降级无逐条断言。缺口（P2）：owner parser.rs、semantic.rs；回归要求：补 input() 与畸形命名空间调用的诊断用例。",
+    "conclusion": "boundary（由 partial 回归 boundary）：Go 断言的 input/str/int/timeframe 命名空间重写助手（lowerInputCalls、replaceStringNamespace、replaceTimeframeNamespace）是旧解析层的字符串级对象：畸形调用保持原文、input() 降级为 na、input.float(defval=close) 降级为 close。Rust 用 AST 直接降级，没有同形助手，input 系列语义由 planner 与 semantic 承担（现有框架语言族用例覆盖可支持形态）。升级路径：若 Rust 侧需要兼容旧式字符串降级语义，再按本用例迁移默认值降级与畸形调用保持原文的表；当前不把 Go 助手行为当作 Rust 契约。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/strategy/pine/parser_loop_boundaries_test.go:38:TestStaticLoopBoundsRejectNonTerminatingUserRanges": {
     "status": "[x]",

@@ -1648,7 +1648,7 @@ owner：`crates/jftrade-strategy`（Pine 解析、元组契约、static for 诊�
 
 新增证据：`crates/jftrade-strategy/tests/pine_tuple_contracts.rs` 四条用例——`public_entry_returns_program_and_propagates_helper_errors`（公开入口 program 结构 + internal JFTrade helper 文案）、`tuple_assignments_keep_the_go_alias_and_width_contract`（别名数量、非法别名、宽度、reassign 模式）、`malformed_tuple_and_switch_scripts_are_rejected`（8 条元组文案逐条 + switch 拒绝面）、`static_for_ranges_reject_non_terminating_bounds`（四类拒绝 + 降序通过）。
 
-映射终值：27 行 = 3 function_exact + 20 partial + 4 boundary（`public_lowering_test.go:10`、`tuple_assignment_contracts_test.go:11`、`parser_loop_boundaries_test.go:38` 升 `[x]`；`parser_helper_boundaries_test.go:196`、`parser_recovery_boundaries_test.go:151` 由 partial 转 boundary）；全量 `[x]` 1559 → 1562、partial 2273 → 2268、boundary 619 → 621。
+映射终值：27 行 = 3 function_exact + 19 partial + 5 boundary（`public_lowering_test.go:10`、`tuple_assignment_contracts_test.go:11`、`parser_loop_boundaries_test.go:38` 升 `[x]`；`parser_helper_boundaries_test.go:196`、`parser_recovery_boundaries_test.go:151` 由 partial 转 boundary，`parser_loop_boundaries_test.go:10` 维持 boundary 并改写为升级路径表述）；全量 `[x]` 1559 → 1562、partial 2273 → 2268、boundary 619 → 621。
 
 本分片新登记缺口：
 
@@ -1669,7 +1669,7 @@ owner：`crates/jftrade-strategy`（Pine 解析、元组契约、static for 诊�
 | 新增用例 | 同上（修复后） | 4/4 通过 |
 | 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast` | 72/72 通过 |
 | 探针回滚校验 | `shasum -a 256 crates/jftrade-strategy/src/pine/parser.rs crates/jftrade-strategy/src/pine/semantic.rs` | 修复后 `c13a22ef…` / `7ac4d0e3…`，与探针副本按字节一致 |
-| 映射写入 | payload `/tmp/s128j_payload.json` 经 `/tmp/b82_apply.py` 应用 | 27 行给出终值，`[x]` 1559 → 1562、partial 2273 → 2268、boundary 619 → 621 |
+| 映射写入 | payload `/tmp/s128j_payload.json` 经 `/tmp/b82_apply.py` 应用（补丁 `/tmp/s128j_payload_fix.json` 修正 `parser_loop_boundaries_test.go:10` 的 boundary 归类） | 27 行给出终值，`[x]` 1559 → 1562、partial 2273 → 2268、boundary 619 → 621 |
 | 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3239（Strategy 域 218） |
 | 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1582、unrecorded 0、stale 0、unknown 53 |
 | 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
