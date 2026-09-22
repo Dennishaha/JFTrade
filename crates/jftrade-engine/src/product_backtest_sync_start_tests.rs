@@ -188,6 +188,49 @@ fn sync_request_defaults_match_public_contract_without_provider_success() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:141 TestProviderHistoricalSourceAppliesMarketScopedLookback
+/// The AKShare intraday window is market scoped: the `US:5m` capability limits
+/// only US five-minute history, while the same interval on HK stays inside the
+/// provider limit and the one-minute rule applies to every market.
+fn akshare_lookback_windows_are_scoped_to_the_declared_market() {
+    let now = time::OffsetDateTime::now_utc();
+    let since = (now - time::Duration::days(6))
+        .format(&time::format_description::well_known::Rfc3339)
+        .expect("since");
+    let until = now
+        .format(&time::format_description::well_known::Rfc3339)
+        .expect("until");
+    let request = |market: &str, code: &str, interval: &str| {
+        parse_sync_request(&json!({
+            "market": market,
+            "code": code,
+            "intervals": [interval],
+            "since": since,
+            "until": until,
+            "rehabType": "none",
+            "sessionScope": "regular",
+        }))
+        .expect("parse akshare sync request")
+    };
+
+    let us_5m = request("US", "AAPL", "5m");
+    assert!(
+        validate_sync_lookback_window("akshare", &us_5m).is_err(),
+        "US five-minute history beyond five days must stay rejected"
+    );
+
+    let hk_5m = request("HK", "00700", "5m");
+    validate_sync_lookback_window("akshare", &hk_5m)
+        .expect("the US-only five-minute window must not constrain HK");
+
+    let hk_1m = request("HK", "00700", "1m");
+    assert!(
+        validate_sync_lookback_window("akshare", &hk_1m).is_err(),
+        "one-minute history is limited on every market"
+    );
+}
+
+#[test]
 // Parity: go:452dea11:internal/api/backtest/routes_boundaries_test.go:78 TestBacktestSyncRouteRejectsObsoleteSessionScope
 fn sync_request_session_scope_parity_with_go() {
     // Parity: go:452dea11:internal/backtest/sync_test.go:412 TestParseSessionScope

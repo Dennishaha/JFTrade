@@ -1011,8 +1011,95 @@ axum 的 `WebSocketUpgrade` 提取器要求 `hyper` 升级态存在（`Connectio
 `adk_session_detail_omits_resolved_approval_groups` 两条已知抖动用例；两条隔离复跑均通过，随后整轮 `check:quick` 通过。
 构建缓存已按门禁清理（`cargo clean` 移除 120081 文件 / 32.8GiB，`.rcgu.o` 0 个）。
 
-后续（分片九）：`internal/app/apiserver` 余 78 行——`backtestapp` 10 行、`datamigration` 11 行，以及
+后续（分片九）：`internal/app/apiserver` 余 74 行（[~] 计数）——`backtestapp` 10 行、`datamigration` 11 行，以及
 `runtime`/`lifecycle`/`runtimes`/`application`/`futuapp`/`liveapp`/`status`/`strategyapp`/`databaseguard`、
 `server_test.go`、`desktop_api_startup_test.go` 的余量；此后进入 `strategy_pine` 465 → `assistant_workflow` 447 →
 `other` 311 → `backtest_calendar` 262 → `storage_sqlite` 178 → `marketdata_quotes` 155 → `futu_opend` 104 →
 `settings_watchlist` 39。
+
+### 分片九：`internal/app/apiserver` 余 21 行（`backtestapp` 10 + `datamigration` 11）
+
+范围（按文件与行号升序）：`backtestapp/historical_source_test.go:62/:87/:108/:141/:206/:298/:354/:385/:401/:414`；
+`datamigration/maintenance_failure_paths_test.go:16/:70/:109/:167/:270/:538`、`datamigration/maintenance_test.go:82/:315`、
+`datamigration/manager_boundaries_test.go:14/:280`、`datamigration/rebuild_safety_test.go:211`。owner：
+`crates/jftrade-engine`（回测同步窗口与 provider 能力守卫）、`crates/jftrade-datamanagement`（清理预览与确认校验）、
+`crates/jftrade-store-sqlite`（维护快照、overview 检查、候选集与租约）。
+
+本分片新增 Rust 证据 1 项（1 行升 `[x]`）：
+
+- `crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::akshare_lookback_windows_are_scoped_to_the_declared_market`
+  对应 Go `historical_source_test.go:141`：同一条 6 天窗口下 US 5m 被 `provider akshare limits 5m history to 5 days` 拒绝、
+  HK 5m 放行（市场级 `US:5m` 不约束其它市场）、HK 1m 仍受一分钟规则限制。
+  先红探针：把 `ak_share_lookback_days` 的市场维度去掉（`("US", "5m" | ...)` 改为 `(_, "5m" | ...)`）后 HK 断言立即失败
+  （`the US-only five-minute window must not constrain HK: BadRequest(...)`）；随即按字节回滚
+  `crates/jftrade-engine/src/product_backtest_sync_request.rs`，回滚前后 shasum 均为 `69aaf8595ec5cc0c9f2d63fe9943c023acef1373f7980de25a7eabf8982dd7fd`。
+
+账本字段修正 11 行（`datamigration`）：此前 10 行把覆盖证据写在 `conclusion` 里、`rust_entry` 留空
+（`manager_boundaries_test.go:14` 还把 `conclusion` 放成了 nextest 命令），审计因此计为“partial 引用不可解析”。
+本次把每条覆盖证据落到 `rust_entry` 并补全真实路径：
+
+- `crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs::managed_backup_discovery_parses_only_canonical_filenames`
+- `crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::{overview_counts_main_wal_and_shm_and_keeps_an_unreadable_database_local,
+  cleanup_preview_requires_a_ready_database_with_the_purgeable_table, cleanup_candidates_fail_closed_when_the_maintenance_tables_are_missing,
+  database_inspection_classifies_filesystem_and_schema_states, overview_summary_only_skips_storage_and_a_single_filter_keeps_its_totals,
+  overview_normalizes_rebuild_marker_ids_and_fails_closed_when_it_is_unreadable}`
+- `crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::{backup_snapshot_is_private_verified_and_limited_to_managed_databases,
+  a_held_writer_lease_rejects_maintenance_before_any_snapshot_is_written, a_failed_rebuild_batch_removes_every_snapshot_it_created,
+  backup_and_compact_fail_closed_when_the_source_database_is_missing, a_corrupt_rebuild_marker_blocks_backup_and_rebuild_without_deleting_data}`
+- `crates/jftrade-store-sqlite/tests/maintenance_cleanup_candidates.rs::soft_deleted_adk_rows_are_the_only_candidates_and_changes_reject_execute`
+- `crates/jftrade-datamanagement/src/{cleanup.rs::preview_normalizes_defaults_summarizes_and_expires_after_ten_minutes,
+  cleanup.rs::preview_rejects_invalid_retention_and_non_ready_databases,
+  maintenance.rs::maintenance_service_confirmation_validation_and_rejection_parity,
+  lib.rs::cleanup_requires_the_exact_approved_candidate_set,
+  overview.rs::overview_preserves_go_order_filter_and_rebuild_projection}`
+
+终值不变（10 行 partial + 1 行 boundary），差异结论保留在 `conclusion`。
+
+顺带修正 4 条跨分片的陈旧引用（不改终值）：`internal/api/marketdata/routes_boundaries_test.go:119` 改引
+`crates/jftrade-engine/tests/market_data_production_compatibility.rs::test_non_futu_helper_candles_failure_uses_generic_market_code`；
+`internal/app/apiserver/marketdataapp/runtime_test.go:667` 改引
+`crates/jftrade-engine/src/product_production_assembly_tests.rs::production_market_data_catalog_and_provider_ports`；
+`internal/app/apiserver/servercore/server_business_test.go:25` 修正为
+`crates/jftrade-engine/src/product_production_ports_market_data_quote_reads_futu.rs::test_futu_kline_query_window_resets_invalid_begin_to_default_lookback`；
+`internal/app/apiserver/webaccess/auth_boundaries_test.go:43` 改引 `crates/jftrade-api/src/auth.rs::{request_origin_uses_production_semantics_without_malformed_origin_fallback,
+origin_normalization_accepts_web_and_tauri_schemes}`。审计的 partial 引用不可解析警告由 7 条降到 3 条。
+
+映射结果：21 行复核（1 行升 `[x]`、11 行修正字段、9 行确认原终值仍准确）加 4 行跨分片引用修正。
+计数：`[x]` 1533 → 1534；partial 2309 → 2308；boundary 609；audit Rust 测试 3201；anchors 1542
+（unrecorded 0、stale 0、unknown 53）。
+
+关键事实与新登记缺口（P2）：
+
+1. **provider 能力矩阵逐条断言缺口**：`historical_source_test.go:108`（前复权拒绝、超 lookback 拒绝、5m 不支持、1m+extended 不支持）
+   与 `:87`（非 US 日内扩展时段拒绝）在 Rust 分别落在复权映射校验、同步窗口守卫与 US 扩展时段降级
+   （`plan_sync_intervals` 把 `1d/1w/1mo` 降为 `1h`），缺 provider 能力矩阵驱动的逐条组合断言，也没有 HK 扩展时段拒绝入口。
+   owner：`crates/jftrade-engine/src/product_backtest_sync_request.rs` 与 provider registry。
+2. **InstrumentSpec 保守回退常量**：`historical_source_test.go:354` 断言规则失败时退回 HK 500/0.2、A 股 100、US 1/0.01；
+   Rust 的 `crates/jftrade-broker/tests/market_rules_snapshot_errors.rs` 只断言手数推导与规则覆写顺序，缺逐市场保守常量断言。
+3. **Python provider 就绪白名单**：`historical_source_test.go:385/:401` 断言 yfinance/akshare 需要 provider 就绪、Futu 不需要，
+   且 ProviderOptions 需要 market-data runtime；Rust 的就绪门与端口装配在组合期确定，缺该白名单断言，也没有函数式 options 构造器。
+4. **维护限流与注入缝缺失**：Go 的 30 秒 `backupMinimumInterval`（429）在 Rust 无实现（连续两次 backup 均成功，靠 WriterLease
+   串行加保留策略限制磁盘增长）；Go 的 BusyReason hook、`vacuum failed` 注入、`SetMaintenanceHooks` 的 purge/delete 故障注入
+   与可变 descriptor 表在 Rust 组合根一次性装配，没有等价注入点。owner：`crates/jftrade-store-sqlite` 维护路径与 `crates/jftrade-datamanagement`。
+5. **环境解析路径无测试**：`DesktopRetainedRuntimeConfig::from_process_env` 的 `JFTRADE_MARKETDATA_SIDECAR` 优先、
+   `JFTRADE_MARKETDATA_DEV_PYTHON(+PATH)` 构造 `-m marketdata_sidecar.main` 前缀参数的行为没有任何测试；
+   `env::set_var` 在 edition 2024 属 unsafe 且 crate 为 `forbid(unsafe_code)`，补测需先引入可注入的环境查找接口（生产改动，需产品决策）。
+
+验证记录：
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增用例（先红探针后绿） | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(akshare_lookback_windows_are_scoped_to_the_declared_market)'` | 探针后 0/1 失败并精确命中 HK 断言；回滚后 1/1 通过（连带既有 `akshare_sync_rejects_history_beyond_the_intraday_lookback_window` 2/2 通过） |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/s127o_payload.json`、`/tmp/s127o_hygiene.json` | 12 行修正 + 4 行引用修正，`[x]` 1533 → 1534 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析警告 7 → 3；Rust 测试 3201 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1542、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1875/1875 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`pnpm run check:quick` | 全部通过 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍在 cargo-deny advisories 阶段因 `deny.toml` 8 条 `advisory-not-detected` 失败（bans/licenses/sources ok） |
+
+后续（分片十）：`internal/app/apiserver` 余 53 行——`runtime` 8、`lifecycle` 8、`runtimes` 8、`application` 7、`futuapp` 6、
+`liveapp` 4、`server_test.go` 8、`desktop_api_startup_test.go` 2、`status`/`strategyapp`/`databaseguard` 各 1（另有
+`servercore`/`servercoretest`/`marketdataapp` 中未纳入本批队列的既有 [~] 行可在后续批次复查）；
+此后进入 `strategy_pine` 465 → `assistant_workflow` 447 → `other` 311 → `backtest_calendar` 262 → `storage_sqlite` 178 →
+`marketdata_quotes` 155 → `futu_opend` 104 → `settings_watchlist` 39。

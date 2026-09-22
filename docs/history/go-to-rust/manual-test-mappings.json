@@ -1044,8 +1044,8 @@
   },
   "internal/api/marketdata/routes_boundaries_test.go:119:TestProviderFailureCodesPreserveFutuCompatibilityOnlyForFutu": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs::read_candles helper/Futu 分支",
-    "conclusion": "部分覆盖：Go 的 providerFailureCode 依据显式 brokerId 或 active descriptor 在 OPEND_*_FAILED 与 MARKET_*_FAILED 之间选择。Rust 在 read_candles 内按 active provider 分支静态选择（helper 分支固定 MARKET_CANDLES_FAILED，Futu 分支固定 OPEND_*），已有 test_non_futu_helper_candles_failure_uses_generic_market_code 覆盖非 Futu 路径；但“显式 brokerId=' FuTu ' 覆盖 active 非 Futu 描述符”这一优先级规则在 Rust 无对应入口（读取层不解析 brokerId），保留 partial 并列为边界差异。",
+    "rust_entry": "crates/jftrade-engine/tests/market_data_production_compatibility.rs::test_non_futu_helper_candles_failure_uses_generic_market_code（生产分支在 crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs::read_candles）",
+    "conclusion": "partial：Go 的 providerFailureCode 依据显式 brokerId 或 active descriptor 在 OPEND_*_FAILED 与 MARKET_*_FAILED 之间选择。Rust 在 read_candles 内按 active provider 分支静态选择（helper 分支固定 MARKET_CANDLES_FAILED，Futu 分支固定 OPEND_*），由 test_non_futu_helper_candles_failure_uses_generic_market_code 覆盖非 Futu 路径；但“显式 brokerId=' FuTu ' 覆盖 active 非 Futu 描述符”这一优先级规则在 Rust 无对应入口（读取层不解析 brokerId），保留 partial 并列为边界差异。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_non_futu_helper_candles_failure_uses_generic_market_code)'",
     "evidence_type": "partial"
   },
@@ -2478,11 +2478,11 @@
     "evidence_type": "partial"
   },
   "internal/app/apiserver/backtestapp/historical_source_test.go:141:TestProviderHistoricalSourceAppliesMarketScopedLookback": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_reads_futu.rs::test_futu_kline_query_window_resets_invalid_begin_to_default_lookback",
-    "conclusion": "partial：Go 断言 “US:5m=5 天” 的市场级 lookback 只约束 US、不影响 HK。Rust 的 lookback 窗口处理（无效 begin 重置为默认 lookback）有真实断言，但未见市场前缀级 lookback 覆写（market:interval）的逐条测试，记为部分覆盖。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::akshare_lookback_windows_are_scoped_to_the_declared_market",
+    "conclusion": "function_exact：Go 断言 AKShare 的 `US:5m` 市场级 lookback（5 天）只约束 US、不影响 HK。Rust 新增用例断言同一条 6 天窗口下 US 5m 被拒、HK 5m 放行、HK 1m 仍受一分钟规则限制；先红探针已确认（把 market 维度去掉后 HK 断言立即失败，生产文件按字节回滚，shasum 69aaf859 前后一致）。该用例带本行 // Parity: 锚点。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/backtestapp/historical_source_test.go:162:TestProviderHistoricalSourceEnforcesProviderAdjustmentMatrix": {
     "status": "[x]",
@@ -2570,22 +2570,22 @@
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:16:TestMaintenanceExecutionRejectsConcurrentStaleAndPartialCleanup": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "部分覆盖：候选集变化/部分删除由 jftrade-datamanagement lib.rs::cleanup_requires_the_exact_approved_candidate_set 与 maintenance_cleanup_candidates.rs::soft_deleted_adk_rows_are_the_only_candidates_and_changes_reject_execute 覆盖（fingerprint 不符 → Stale，且回滚不删行）；并发由写者租约冲突覆盖（a_held_writer_lease_rejects_maintenance_before_any_snapshot_is_written）。边界：Go 用 SetMaintenanceHooks 注入“purge 返回 len-1”与“delete transaction failed”来制造部分/失败路径，Rust 的删除在单事务内按候选逐条执行并校验 deleted != len → 同一 fail-closed 语义，但注入缝不存在，故不伪造等价测试。",
+    "rust_entry": "crates/jftrade-datamanagement/src/lib.rs::cleanup_requires_the_exact_approved_candidate_set; crates/jftrade-store-sqlite/tests/maintenance_cleanup_candidates.rs::soft_deleted_adk_rows_are_the_only_candidates_and_changes_reject_execute; crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::a_held_writer_lease_rejects_maintenance_before_any_snapshot_is_written",
+    "conclusion": "partial：候选集变化与部分删除由 cleanup_requires_the_exact_approved_candidate_set 与 soft_deleted_adk_rows_are_the_only_candidates_and_changes_reject_execute 覆盖（fingerprint 不符 → Stale，且回滚不删行）；并发由写者租约冲突覆盖（a_held_writer_lease_rejects_maintenance_before_any_snapshot_is_written，backup/rebuild 均在快照前拒绝）。边界：Go 用 SetMaintenanceHooks 注入 purge 返回 len-1 与 delete transaction failed 制造部分/失败路径，Rust 在单事务内逐条删除并校验 deleted != len → 同一 fail-closed 语义，但注入缝不存在，不伪造等价测试。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:70:TestMaintenanceCompactAndBackupProtectUnavailableAndBusyDatabases": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "部分覆盖：锁冲突（Go lock.Lock / backupLock.Lock → ErrMaintenanceConflict）由 a_held_writer_lease_rejects_maintenance_before_any_snapshot_is_written（backup+rebuild）与 a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks 覆盖；不可用库由 backup_and_compact_fail_closed_when_the_source_database_is_missing 覆盖（compact/backup 均拒绝且不落盘）。差异：Go 的 BusyReason hook 与 vacuum failed 注入在 Rust 无对应注入点（压缩为内部 VACUUM，失败即 Failed 且清理部分快照）。",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::a_held_writer_lease_rejects_maintenance_before_any_snapshot_is_written; crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::backup_and_compact_fail_closed_when_the_source_database_is_missing",
+    "conclusion": "partial：锁冲突（Go lock.Lock/backupLock.Lock → ErrMaintenanceConflict）由 a_held_writer_lease_rejects_maintenance_before_any_snapshot_is_written 覆盖；不可用库由 backup_and_compact_fail_closed_when_the_source_database_is_missing 覆盖（compact 与 backup 均拒绝且不落盘）。边界：Go 的 BusyReason hook 与 vacuum failed 注入在 Rust 无对应注入点（VACUUM 在内部执行，失败即 Failed 并清理部分快照）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:109:TestMaintenanceDatabaseInspectionAndBackupRetentionFailuresStayLocal": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "部分覆盖：备份目录缺失/文件名时间戳非法由 managed_backup_discovery_parses_only_canonical_filenames 覆盖（缺失目录 Err、非规范文件名一律忽略）；库级错误隔离由 overview_counts_main_wal_and_shm_and_keeps_an_unreadable_database_local 覆盖。边界：Go 的 `context.WithCancel` 取消 inspection 后 stats.Error 非空依赖 context；Rust 维护 API 不接收 context，取消由调用方在 goroutine/任务边界处理，无对应断言。",
+    "rust_entry": "crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs::managed_backup_discovery_parses_only_canonical_filenames; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::overview_counts_main_wal_and_shm_and_keeps_an_unreadable_database_local",
+    "conclusion": "partial：备份目录缺失与非法文件名时间戳由 managed_backup_discovery_parses_only_canonical_filenames 覆盖（缺失目录返回 Err、非规范文件名一律忽略）；库级错误隔离由 overview_counts_main_wal_and_shm_and_keeps_an_unreadable_database_local 覆盖。边界：Go 用 context.WithCancel 取消 inspection 后 stats.Error 非空依赖 context，Rust 维护 API 不接收 context，取消由调用方在任务边界处理，无对应断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -2598,8 +2598,8 @@
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:167:TestMaintenancePreviewDefaultsAndConcurrentStateChangesFailClosed": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "部分覆盖：默认保留参数（30 天/保留 20）与 summary 归一由 jftrade-datamanagement cleanup.rs::preview_normalizes_defaults_summarizes_and_expires_after_ten_minutes 覆盖；缺失库/缺表拒绝对应 cleanup_preview_requires_a_ready_database_with_the_purgeable_table；已撤销预览由 take_approved_preview 的空结果 → PreviewNotFound 兜底（maintenance.rs::maintenance_service_confirmation_validation_and_rejection_parity 只覆盖 confirmation）。差异：Go 在 execute 期间再次读 markdown（BusyReason hook 写坏 marker）触发 “decode database rebuild marker”；Rust 的 cleanup 执行不读重建标记（保留策略只在备份/重建路径读），该组合不存在。",
+    "rust_entry": "crates/jftrade-datamanagement/src/cleanup.rs::preview_normalizes_defaults_summarizes_and_expires_after_ten_minutes; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::cleanup_preview_requires_a_ready_database_with_the_purgeable_table; crates/jftrade-datamanagement/src/maintenance.rs::maintenance_service_confirmation_validation_and_rejection_parity",
+    "conclusion": "partial：默认保留参数（30 天/保留 20）与 summary 归一由 preview_normalizes_defaults_summarizes_and_expires_after_ten_minutes 覆盖；缺失库/缺表拒绝对应 cleanup_preview_requires_a_ready_database_with_the_purgeable_table；已撤销预览由 take_approved_preview 空结果 → PreviewNotFound 兜底（maintenance_service_confirmation_validation_and_rejection_parity 覆盖 confirmation 校验）。差异：Go 在 execute 期间再次读 markdown（BusyReason hook 写坏 marker）触发 decode database rebuild marker，Rust 的 cleanup 执行不读重建标记，该组合不存在。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -2619,8 +2619,8 @@
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:270:TestMaintenanceStorageAndCandidateBoundaryErrorsAreContained": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "部分覆盖：空 descriptor/非法类别的存储与候选边界由 cleanup_candidates_fail_closed_when_the_maintenance_tables_are_missing（unsupported、NULL id、缺表）与 database_inspection_classifies_filesystem_and_schema_states（缺失/目录/不兼容/就绪）覆盖。边界：Go inspectStorage 对空 path 依赖 os.Stat 错误写入 stats.Error，Rust 的 OverviewPort::inspect 对空路径直接判 Unavailable（无 StorageStats.error 断言），且无 context 取消分支。",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::cleanup_candidates_fail_closed_when_the_maintenance_tables_are_missing; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::database_inspection_classifies_filesystem_and_schema_states",
+    "conclusion": "partial：空 descriptor/非法类别的存储与候选边界由 cleanup_candidates_fail_closed_when_the_maintenance_tables_are_missing（unsupported、NULL id、缺表）与 database_inspection_classifies_filesystem_and_schema_states（缺失/目录/不兼容/就绪）覆盖。边界：Go inspectStorage 对空 path 依赖 os.Stat 错误写入 stats.Error，Rust 的 OverviewPort::inspect 对空路径直接判 Unavailable（无 StorageStats.error 断言），且无 context 取消分支。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -2668,8 +2668,8 @@
   },
   "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:538:TestMaintenancePreviewRejectsAConfiguredCleanupTargetWithoutDescriptor": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "部分覆盖：Rust 的 CleanupPreviewService 以 descriptor map 解析目标，未配置的 id 直接返回 Rejected(\"unknown database id ...\")；相邻边界由 cleanup_preview_requires_a_ready_database_with_the_purgeable_table（缺失库/缺表）与 overview_summary_only_skips_storage_and_a_single_filter_keeps_its_totals（读路径未知 id）覆盖。差异：Go 通过从 manager.descriptors 移除 strategy 来构造“已配置清理目标但无 descriptor”，Rust 组合根按 settings 路径一次性生成 9 个 descriptor，没有等价的可变描述符注入点，因此没有单独测试该刻意构造。",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::cleanup_preview_requires_a_ready_database_with_the_purgeable_table; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::overview_summary_only_skips_storage_and_a_single_filter_keeps_its_totals",
+    "conclusion": "partial：Rust 的 CleanupPreviewService 以 descriptor map 解析目标，未配置的 id 直接返回 Rejected(unknown database id)；相邻边界由 cleanup_preview_requires_a_ready_database_with_the_purgeable_table（缺失库/缺表）与 overview_summary_only_skips_storage_and_a_single_filter_keeps_its_totals（读路径未知 id）覆盖。差异：Go 通过从 manager.descriptors 移除 strategy 构造“已配置清理目标但无 descriptor”，Rust 组合根按 settings 路径一次性生成 9 个 descriptor，没有等价的可变描述符注入点，因此没有单独测试该刻意构造。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -2696,8 +2696,8 @@
   },
   "internal/app/apiserver/datamigration/maintenance_test.go:82:TestDatabaseBackupCreatesVerifiedPrivateSnapshot": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "部分覆盖：Rust 快照契约（backups 目录、0600 权限、内容可读、未知库拒绝、写入后 quick_check 校验、写者租约冲突、失败清理）由 maintenance_backup_and_contracts.rs::backup_snapshot_is_private_verified_and_limited_to_managed_databases、a_held_writer_lease_rejects_maintenance_before_any_snapshot_is_written、a_failed_rebuild_batch_removes_every_snapshot_it_created 覆盖；confirmation 校验在 jftrade-datamanagement 服务层（maintenance_service_confirmation_validation_and_rejection_parity）。差异：Go 的 30 秒 backupMinimumInterval 内存限流（ErrBackupRateLimited → 429）在 Rust 无对应实现，连续两次 backup 均会成功；Rust 以 WriterLease 串行 + 保留策略限制磁盘增长。已登记为 P2 缺口。",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::backup_snapshot_is_private_verified_and_limited_to_managed_databases; crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::a_held_writer_lease_rejects_maintenance_before_any_snapshot_is_written; crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::a_failed_rebuild_batch_removes_every_snapshot_it_created; crates/jftrade-datamanagement/src/maintenance.rs::maintenance_service_confirmation_validation_and_rejection_parity",
+    "conclusion": "partial：Rust 快照契约（backups 目录、0600 权限、内容可读、未知库拒绝、写入后 quick_check 校验、写者租约冲突、失败清理）由 backup_snapshot_is_private_verified_and_limited_to_managed_databases、a_held_writer_lease_rejects_maintenance_before_any_snapshot_is_written 与 a_failed_rebuild_batch_removes_every_snapshot_it_created 覆盖；confirmation 校验在 maintenance_service_confirmation_validation_and_rejection_parity。差异：Go 的 30 秒 backupMinimumInterval 内存限流（ErrBackupRateLimited → 429）在 Rust 无对应实现，连续两次 backup 均成功；Rust 以 WriterLease 串行 + 保留策略限制磁盘增长。已登记为 P2 缺口。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -2731,8 +2731,8 @@
   },
   "internal/app/apiserver/datamigration/maintenance_test.go:315:TestCleanupAndCompactRejectInvalidOrUnavailableOperations": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "部分覆盖：非法保留参数与未就绪库由 cleanup.rs::preview_rejects_invalid_retention_and_non_ready_databases、store 的 cleanup_candidates_fail_closed_when_the_maintenance_tables_are_missing 覆盖；未知 compact/错误 confirmation 由 maintenance_service_confirmation_validation_and_rejection_parity 覆盖；缺失源库由 backup_and_compact_fail_closed_when_the_source_database_is_missing 覆盖。边界：Go 的 hooks.Purge/hooks.Compact == nil → \"unavailable\" 是 Wails 适配器的注入缝，Rust 组合根固定注入 MaintenanceService+ManagedDatabaseMaintenanceStore，不存在“未装配 hook”的运行态。",
+    "rust_entry": "crates/jftrade-datamanagement/src/cleanup.rs::preview_rejects_invalid_retention_and_non_ready_databases; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::cleanup_candidates_fail_closed_when_the_maintenance_tables_are_missing; crates/jftrade-datamanagement/src/maintenance.rs::maintenance_service_confirmation_validation_and_rejection_parity; crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::backup_and_compact_fail_closed_when_the_source_database_is_missing",
+    "conclusion": "partial：非法保留参数与未就绪库由 preview_rejects_invalid_retention_and_non_ready_databases 与 cleanup_candidates_fail_closed_when_the_maintenance_tables_are_missing 覆盖；未知 compact/错误 confirmation 由 maintenance_service_confirmation_validation_and_rejection_parity 覆盖；缺失源库由 backup_and_compact_fail_closed_when_the_source_database_is_missing 覆盖。边界：Go 的 hooks.Purge/hooks.Compact == nil → unavailable 是 Wails 适配器的注入缝，Rust 组合根固定注入 MaintenanceService 与 ManagedDatabaseMaintenanceStore，不存在未装配 hook 的运行态。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -2759,8 +2759,8 @@
   },
   "internal/app/apiserver/datamigration/manager_boundaries_test.go:14:TestManagerStatusesReflectRuntimeFailuresAndScheduledRebuilds": {
     "status": "[~]",
-    "rust_entry": "不适用：Go 的 SetUnavailable 是启动期把已捕获错误注入状态表的接缝（并区分 incompatible），Rust 的 OverviewPort::inspect 每次直接打开文件判定 status/currentVersion/error，没有可变 unavailable 表。rebuildScheduled/restartRequired/confirmationText 投影由 jftrade-datamanagement overview.rs::overview_preserves_go_order_filter_and_rebuild_projection 与 store 的 overview_normalizes_rebuild_marker_ids_and_fails_closed_when_it_is_unreadable 覆盖。",
-    "conclusion": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+    "rust_entry": "crates/jftrade-datamanagement/src/overview.rs::overview_preserves_go_order_filter_and_rebuild_projection; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::overview_normalizes_rebuild_marker_ids_and_fails_closed_when_it_is_unreadable",
+    "conclusion": "boundary（结构差异）：Go 的 SetUnavailable 是启动期把已捕获错误注入状态表的接缝（并区分 incompatible），Rust 的 OverviewPort::inspect 每次直接打开文件判定 status/currentVersion/error，没有可变 unavailable 表；rebuildScheduled/restartRequired/confirmationText 投影由 overview_preserves_go_order_filter_and_rebuild_projection 与 overview_normalizes_rebuild_marker_ids_and_fails_closed_when_it_is_unreadable 覆盖。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
     "evidence_type": "boundary"
   },
@@ -2801,8 +2801,8 @@
   },
   "internal/app/apiserver/datamigration/manager_boundaries_test.go:280:TestManagerPropagatesUnreadableMarkerAndDatabaseStatErrors": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "部分覆盖：不可读 marker 的传播由 overview_normalizes_rebuild_marker_ids_and_fails_closed_when_it_is_unreadable（overview/scheduled_rebuilds 失败）与 a_corrupt_rebuild_marker_blocks_backup_and_rebuild_without_deleting_data（维护路径失败）覆盖。差异：Go 用 NUL 字节路径构造 Stat 失败；Rust 的 Path 不允许含 NUL、且 inspect 对非普通文件/缺失路径已有显式分类（database_inspection_classifies_filesystem_and_schema_states），故没有等价断言。",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::overview_normalizes_rebuild_marker_ids_and_fails_closed_when_it_is_unreadable; crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::a_corrupt_rebuild_marker_blocks_backup_and_rebuild_without_deleting_data; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::database_inspection_classifies_filesystem_and_schema_states",
+    "conclusion": "partial：不可读 marker 的传播由 overview_normalizes_rebuild_marker_ids_and_fails_closed_when_it_is_unreadable（overview/scheduled_rebuilds 失败）与 a_corrupt_rebuild_marker_blocks_backup_and_rebuild_without_deleting_data（维护路径失败）覆盖。差异：Go 用 NUL 字节路径构造 Stat 失败，Rust 的 Path 不允许含 NUL，且 inspect 对非普通文件/缺失路径已有显式分类（database_inspection_classifies_filesystem_and_schema_states），故没有等价断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -2892,8 +2892,8 @@
   },
   "internal/app/apiserver/datamigration/rebuild_safety_test.go:211:TestScheduleRebuildLockedPropagatesUnreadableMarker": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "部分覆盖：损坏 marker 阻断调度并由 a_corrupt_rebuild_marker_blocks_backup_and_rebuild_without_deleting_data 断言（“decode database rebuild marker”、无新快照、源库字节不变）；scheduleRebuildLocked 与 ScheduleRebuild 在 Rust 合并为同一 rebuild 入口，没有再包一层函数级断言。",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::a_corrupt_rebuild_marker_blocks_backup_and_rebuild_without_deleting_data",
+    "conclusion": "partial：损坏 marker 阻断调度由 a_corrupt_rebuild_marker_blocks_backup_and_rebuild_without_deleting_data 断言（decode database rebuild marker、无新快照、源库字节不变）；scheduleRebuildLocked 与 ScheduleRebuild 在 Rust 合并为同一 rebuild 入口，没有再包一层函数级断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -3935,8 +3935,8 @@
   },
   "internal/app/apiserver/marketdataapp/runtime_test.go:667:TestBacktestProviderHelpersListAndPrepareProviders": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_provider.rs::BacktestMarketDataProviderState 与 production_market_data_catalog_and_provider_ports",
-    "conclusion": "部分覆盖：Go 断言 ProviderCatalog 返回 futu/yfinance/akshare 三个 SelectionID（顺序稳定）且 BacktestProviderPreparer(yfinance) 会真正启停 sidecar lease。Rust 有 BacktestMarketDataProviderState 负责回测 provider 覆盖的原子发布，production_market_data_catalog_and_provider_ports 断言 provider 路由的 selectionId/providerId 与 health 投影；但没有与 Go 完全同序的三项 catalog 断言，也没有“prepare 后无残留 lease”的断言（Rust 无 lease），故保留 partial。",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_market_data_catalog_and_provider_ports",
+    "conclusion": "partial：Go 断言 ProviderCatalog 返回 futu/yfinance/akshare 三个 SelectionID（顺序稳定）且 BacktestProviderPreparer(yfinance) 会真正启停 sidecar lease。Rust 有 BacktestMarketDataProviderState 负责回测 provider 覆盖的原子发布，production_market_data_catalog_and_provider_ports 断言 provider 路由的 selectionId/providerId 与 health 投影；但没有与 Go 完全同序的三项 catalog 断言，也没有“prepare 后无残留 lease”的断言（Rust 无 lease），故保留 partial。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -5132,9 +5132,9 @@
   },
   "internal/app/apiserver/servercore/server_business_test.go:25:TestWorkflowAndMarketRuntimeBoundaryHelpers": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_runtime_opend_listener.rs; crates/jftrade-engine/src/product_production_ports_market_data.rs::test_futu_kline_query_window_resets_invalid_begin_to_default_lookback",
-    "conclusion": "partial：Go 断言 nil/空 Server 推送行情 tick 时不 panic 且按 kind 分流。Rust 行情推送由 opend listener 上游持有并做去抖/负成交量校验（引用测试覆盖窗口与推送边界），不存在可空 Server 入参。",
-    "command": "",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_reads_futu.rs::test_futu_kline_query_window_resets_invalid_begin_to_default_lookback（行情推送由 crates/jftrade-engine/src/product_runtime_opend_listener.rs 承担）",
+    "conclusion": "partial：Go 断言 nil/空 Server 推送行情 tick 时不 panic 且按 kind 分流。Rust 行情推送由 opend listener 上游持有并做去抖/负成交量校验（test_futu_kline_query_window_resets_invalid_begin_to_default_lookback 覆盖窗口与推送边界），不存在可空 Server 入参。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercore/server_business_test.go:42:TestStrategyRuntimeBrokerBridgeDelegates": {
@@ -6441,9 +6441,9 @@
   },
   "internal/app/apiserver/webaccess/auth_boundaries_test.go:43:TestWebAuthRemainingNilAndRequestHelpers": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-api/src/auth.rs::request_origin_preserves_origin_precedence_and_referer_fallback_boundary; crates/jftrade-api/src/auth.rs",
-    "conclusion": "partial：Go 覆盖 Auth 的 nil 接收者安全、无效密码哈希标记 unavailable、Origin/Referer 解析与 requestRemoteIP 兼容（无端口地址）。Rust 的 auth.rs 断言 Origin 优先与 Referer 回退（引用测试）且 canonical_origin 处理 Tauri/web scheme；nil 接收者语义在 Rust 类型系统中不存在，按接口差异记录。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(request_origin_preserves_origin_precedence_and_referer_fallback_boundary)'",
+    "rust_entry": "crates/jftrade-api/src/auth.rs::request_origin_uses_production_semantics_without_malformed_origin_fallback; crates/jftrade-api/src/auth.rs::origin_normalization_accepts_web_and_tauri_schemes",
+    "conclusion": "partial：Go 覆盖 Auth 的 nil 接收者安全、无效密码哈希标记 unavailable、Origin/Referer 解析与 requestRemoteIP 兼容（无端口地址）。Rust 的 request_origin_uses_production_semantics_without_malformed_origin_fallback 断言 Origin 优先、缺 Origin 时回退 Referer、malformed/null Origin 不回退（不同于 origin.FromRequest 的宽容语义），origin_normalization_accepts_web_and_tauri_schemes 覆盖 Tauri/web scheme 归一；nil 接收者语义在 Rust 类型系统中不存在，无效哈希的 unavailable 标记由 engine 会话管理器承担，按接口差异记录。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(request_origin_uses_production_semantics_without_malformed_origin_fallback)'",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/webaccess/auth_boundaries_test.go:101:TestWebAuthRemainingAuthenticationStates": {
