@@ -36,7 +36,7 @@ use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::product_query::{
     CandleAdjustmentError, CandleSessionError, QueryMap, is_intraday_candle_period,
     normalize_candle_period, normalize_optional_query_time, parse_candle_adjustment,
-    parse_candle_before_time, parse_candle_sessions,
+    parse_candle_before_time, parse_candle_sessions, parse_optional_query_bool,
 };
 use crate::product::{
     MarketDataQuoteReadFuture, MarketDataQuoteReadSnapshotError, MarketDataQuoteReadSnapshotPort,

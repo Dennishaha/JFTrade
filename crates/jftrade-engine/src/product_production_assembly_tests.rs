@@ -2438,6 +2438,7 @@ mod product_production_assembly_tests {
     /// protected on both update and delete (`409 ADK_AGENT_PROTECTED`), and a
     /// user agent to delete cleanly and disappear from the list.
     #[tokio::test]
+    // Parity: go:452dea11:internal/api/middleware/adk_test.go:30 TestADKAvailablePassesThroughWhenRuntimeExists
     async fn production_adk_catalog_templates_and_delete_agent_contracts_hold() {
         let (_temp_dir, _settings_path, config, _security) = setup_test_env();
         let handle = start_product(config).await.expect("start product");

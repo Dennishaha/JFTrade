@@ -24,17 +24,19 @@ impl ProductionMarketDataQuotePort {
                 message: "invalid URL escape".to_owned(),
                 retry_after_seconds: None,
             })?;
+        // Go binds `refresh` through OptionalBoolValue, so the documented
+        // truthy/falsy aliases (including a blank value) select the cache or
+        // force path and anything else is a 400 before provider access.
         let refresh = match query_map.get_first("refresh") {
-            Some("true") | Some("1") => true,
-            Some("false") | Some("0") | None => false,
-            Some(_) => {
-                return Err(MarketDataQuoteReadSnapshotError::Failed {
+            None => false,
+            Some(value) => parse_optional_query_bool(value).map_err(|_| {
+                MarketDataQuoteReadSnapshotError::Failed {
                     status: 400,
                     code: "BAD_REQUEST".to_owned(),
                     message: "invalid refresh query".to_owned(),
                     retry_after_seconds: None,
-                });
-            }
+                }
+            })?,
         };
 
         let provider = self.active_provider()?;

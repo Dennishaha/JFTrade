@@ -66,7 +66,14 @@ impl ProductionMarketDataQuotePort {
                 message: "invalid URL escape".to_owned(),
                 retry_after_seconds: None,
             })?;
-        let period_raw = query_map.get_first("period").unwrap_or("1m");
+        // Go's CandlePeriodValue treats a blank query value as "not set"
+        // instead of an unsupported period, so `period=` keeps the default
+        // window rather than failing the request.
+        let period_raw = query_map
+            .get_first("period")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("1m");
         let period = normalize_candle_period(period_raw).map_err(|_| {
             MarketDataQuoteReadSnapshotError::Failed {
                 status: 400,
@@ -76,18 +83,24 @@ impl ProductionMarketDataQuotePort {
             }
         })?;
 
-        let raw_limit: Option<i64> = if let Some(limit_str) = query_map.get_first("limit") {
-            let parsed = limit_str.trim().parse::<i64>().map_err(|_| {
+        // Go binds `limit` through `OptionalIntValue`, whose empty/blank text is
+        // a valid zero, and the candle service maps `limit <= 0` to its 200-row
+        // default. A blank value therefore keeps the default window instead of
+        // failing the request; only non-integer text is a 400.
+        let raw_limit: Option<i64> = match query_map
+            .get_first("limit")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            Some(limit_str) => Some(limit_str.parse::<i64>().map_err(|_| {
                 MarketDataQuoteReadSnapshotError::Failed {
                     status: 400,
                     code: "BAD_REQUEST".to_owned(),
                     message: "limit must be an integer".to_owned(),
                     retry_after_seconds: None,
                 }
-            })?;
-            Some(parsed)
-        } else {
-            None
+            })?),
+            None => None,
         };
         let limit: usize = match raw_limit {
             Some(n) if n <= 0 => 200,

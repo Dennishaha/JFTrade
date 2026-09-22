@@ -1273,6 +1273,54 @@ async fn candle_route_rejects_unsupported_period() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/api/httpserver/bindings_boundaries_test.go:27 TestCandlePeriodValueHandlesEmptyAndUnsupportedInputs
+async fn candle_route_treats_blank_period_as_unset_and_rejects_unsupported() {
+    let reader = Arc::new(PagedHistory::default());
+    let port = port(reader.clone());
+    for query in ["period=", "period=%20", "period=+"] {
+        let value = port
+            .read("/api/v1/market-data/candles/HK/00700", query)
+            .await
+            .unwrap_or_else(|error| panic!("query {query} must use the default period: {error:?}"));
+        assert!(value["candles"].is_array(), "query {query}");
+    }
+    let error = port
+        .read("/api/v1/market-data/candles/HK/00700", "period=2h")
+        .await
+        .expect_err("unsupported period");
+    assert!(matches!(
+        error,
+        MarketDataQuoteReadSnapshotError::Failed { status: 400, .. }
+    ));
+}
+
+#[tokio::test]
+// Parity: go:452dea11:internal/api/httpserver/bindings_test.go:100 TestOptionalQueryValueParsingSemantics
+// The reference `OptionalIntValue` treats empty and blank text as a *valid*
+// zero, and the candle service maps `limit <= 0` onto its 200-row default, so
+// `limit=`/`limit=%20` must answer the default window while non-integer text
+// stays a 400.
+async fn candle_route_treats_blank_limit_as_unset_and_rejects_non_integer() {
+    let reader = Arc::new(PagedHistory::default());
+    let port = port(reader.clone());
+    for query in ["limit=", "limit=%20"] {
+        let value = port
+            .read("/api/v1/market-data/candles/HK/00700", query)
+            .await
+            .unwrap_or_else(|error| panic!("query {query} must use the default limit: {error:?}"));
+        assert!(value["candles"].is_array(), "query {query}");
+    }
+    let error = port
+        .read("/api/v1/market-data/candles/HK/00700", "limit=abc")
+        .await
+        .expect_err("non-integer limit");
+    assert!(matches!(
+        error,
+        MarketDataQuoteReadSnapshotError::Failed { status: 400, .. }
+    ));
+}
+
+#[tokio::test]
 async fn candle_route_rejects_invalid_limit() {
     // Parity: internal/api/marketdata/routes_test.go:387 TestCandlesRouteRejectsInvalidLimit
     let reader = Arc::new(PagedHistory::default());

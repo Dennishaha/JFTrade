@@ -198,6 +198,24 @@ pub(crate) enum QueryTimeError {
     Invalid(String),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum QueryBoolError {
+    Invalid(String),
+}
+
+/// Decode an optional boolean query value with the reference owner's alias
+/// table.  The baseline treats `0/false/no/n/off` and a blank value as false
+/// and `1/true/yes/y/on` as true; anything else is rejected so the route can
+/// answer 400 instead of silently guessing.
+pub(crate) fn parse_optional_query_bool(value: &str) -> Result<bool, QueryBoolError> {
+    let trimmed = value.trim();
+    match trimmed.to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "y" | "on" => Ok(true),
+        "0" | "false" | "no" | "n" | "off" | "" => Ok(false),
+        _ => Err(QueryBoolError::Invalid(trimmed.to_owned())),
+    }
+}
+
 pub(crate) fn parse_candle_before_time(value: &str) -> Result<Option<String>, QueryTimeError> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -280,6 +298,28 @@ mod tests {
             QueryMap::parse("q=%1").unwrap_err(),
             QueryError::InvalidUrlEscape
         );
+    }
+
+    // Parity: go:452dea11:internal/api/httpserver/bindings_boundaries_test.go:13 TestOptionalBoolRecognizesFalseAliases
+    // Parity: go:452dea11:internal/api/httpserver/bindings_test.go:100 TestOptionalQueryValueParsingSemantics
+    // The reference `OptionalBoolValue` treats every documented falsy alias and
+    // a blank value as false, the truthy aliases as true (after trim + lower),
+    // and any other text as invalid so the binding fails with 400.
+    #[test]
+    fn optional_query_bool_matches_the_reference_alias_table() {
+        for input in ["0", "false", "no", "n", "off", "", "   ", " OFF "] {
+            assert_eq!(parse_optional_query_bool(input), Ok(false), "{input:?}");
+        }
+        for input in ["1", "true", "yes", "y", "on", " YeS ", "ON"] {
+            assert_eq!(parse_optional_query_bool(input), Ok(true), "{input:?}");
+        }
+        for input in ["maybe", "not-a-boolean", "2"] {
+            assert_eq!(
+                parse_optional_query_bool(input),
+                Err(QueryBoolError::Invalid(input.trim().to_owned())),
+                "{input:?}"
+            );
+        }
     }
 
     #[test]

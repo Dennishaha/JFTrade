@@ -331,7 +331,29 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/api/origin/origin_test.go:8 TestCanonical
+    // The reference table is reproduced entry for entry; the desktop custom
+    // scheme is `tauri://` in this workspace, so the reference owner's retired
+    // double-host desktop row is kept as a registered boundary instead of a
+    // supported scheme.
     fn origin_normalization_accepts_web_and_tauri_schemes() {
+        for (input, expected) in [
+            ("  ", None),
+            (" HTTP://Example.COM/path?q=1 ", Some("http://example.com")),
+            (
+                "https://Example.COM:8443/a",
+                Some("https://example.com:8443"),
+            ),
+            ("/relative/path", None),
+            ("ftp://example.com", None),
+            ("://bad", None),
+        ] {
+            assert_eq!(
+                canonical_origin(input).as_deref(),
+                expected,
+                "input {input:?}"
+            );
+        }
         assert_eq!(
             canonical_origin(" HTTPS://Example.COM/path?q=1 "),
             Some("https://example.com".into())
@@ -376,7 +398,17 @@ mod tests {
     }
 
     #[test]
-    fn request_origin_preserves_origin_precedence_and_referer_fallback_boundary() {
+    // Parity: go:452dea11:internal/api/origin/origin_test.go:31 TestFromRequest
+    // Parity: go:452dea11:internal/api/middleware/security_boundaries_test.go:90 TestRequestOriginUsesRefererAndHandlesNil
+    // Parity: go:452dea11:internal/api/middleware/auth_test.go:173 TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight
+    // The reference owner ships two near-identical helpers: the test-only
+    // `origin.FromRequest` falls back to Referer even when an Origin header is
+    // present but malformed, while the production `middleware.requestOrigin`
+    // (and the live handler's `Canonical(c.GetHeader("Origin"))`) rejects a
+    // malformed Origin without falling back.  Rust implements the production
+    // semantics, because the fallback would let `Origin: null` plus an allowed
+    // Referer pass the preflight check that Go answers 403 for.
+    fn request_origin_uses_production_semantics_without_malformed_origin_fallback() {
         let mut headers = HeaderMap::new();
         assert_eq!(request_origin(&headers), None);
 

@@ -1321,6 +1321,29 @@ async fn snapshot_route_force_refresh_bypasses_the_cache() {
         .expect("cached snapshot");
     assert_eq!(cached["meta"]["fromCache"], true);
     assert_eq!(cached["snapshot"]["price"], "999.9");
+
+    // Parity: go:452dea11:internal/api/httpserver/bindings_boundaries_test.go:13 TestOptionalBoolRecognizesFalseAliases
+    // Go binds `refresh` through OptionalBoolValue, so every falsy alias and a
+    // blank value must keep the cached path while the truthy aliases force a
+    // provider read that fails closed without one.
+    for query in ["refresh=off", "refresh=no", "refresh=0", "refresh="] {
+        let cached = port
+            .read("/api/v1/market-data/snapshots/HK/00700", query)
+            .await
+            .unwrap_or_else(|error| panic!("query {query} must keep the cached path: {error:?}"));
+        assert_eq!(cached["meta"]["fromCache"], true, "query {query}");
+        assert_eq!(cached["snapshot"]["price"], "999.9", "query {query}");
+    }
+    for query in ["refresh=on", "refresh=yes", "refresh= Y "] {
+        let error = port
+            .read("/api/v1/market-data/snapshots/HK/00700", query)
+            .await
+            .expect_err("a truthy alias must force the provider read");
+        assert!(
+            matches!(error, MarketDataQuoteReadSnapshotError::Unavailable(_)),
+            "query {query} produced {error:?}"
+        );
+    }
 }
 
 /// The Futu descriptor used by live-read tests: streaming demand plus order

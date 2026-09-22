@@ -393,3 +393,96 @@ Go 的查询绑定在同一输入下返回 400 `BAD_REQUEST`；现在 items/bind
 
 后续（分片五 g）：`internal/api/research/*`（2）、`internal/api/origin/*`（2）、`internal/api/httpserver` 余量（8）、
 `internal/api/middleware` 余量（5）、`internal/api/assistant/*` 余量（8），并复核 live SSE 与 assistant 审批流。
+
+### 分片五 g：`internal/api/research` + `internal/api/origin` + `internal/api/httpserver` + `internal/api/middleware` + `internal/api/assistant`（25 行）
+
+范围与 owner：`internal/api/research/routes_test.go`（2 行）→ `crates/jftrade-engine/tests/research_presets_write_compatibility.rs`；
+`internal/api/origin/origin_test.go`（2 行）→ `crates/jftrade-api/src/auth.rs` 与 CORS 传输用例；
+`internal/api/httpserver/bindings*_test.go` 余量（8 行）→ `crates/jftrade-engine/src/product_query.rs`、
+`product_production_ports_market_data_quote*.rs`、`product_market_data_*_tests.rs`、`crates/jftrade-api/tests/transport_contracts.rs`；
+`internal/api/middleware/adk_test.go`、`auth_test.go`、`security_boundaries_test.go` 余量（5 行）→ 引擎 ADK 读/流端口与 transport；
+`internal/api/assistant/*` 余量（8 行）→ `crates/jftrade-engine/src/product_adk_chat_stream*`、`product_production_ports_adk_tests.rs`、
+`crates/jftrade-api/src/sse.rs`。本分片 25 行全部给出终值：8 行升 `[x]`（research 2、origin 1、httpserver 3、middleware 2）、
+1 行转 boundary（origin `TestFromRequest`）、其余收紧为带 owner 与回归要求的 partial/boundary。
+
+关键事实与生产修复：
+
+1. **Go 有两个近似同名的来源归一化 helper（本批新查清）**：`internal/api/origin/origin.go::FromRequest` 在 Origin 非法时回退 Referer，
+   但它在 go 分支没有任何生产调用方——生产路径是 `internal/api/middleware/cors.go::requestOrigin` 与
+   `internal/api/live/handler.go` 的 `Canonical(Origin)`，二者对非法 Origin 直接拒绝。Rust `request_origin` 实现的是生产语义，
+   因此保留“Origin 存在但非法 → None”，仅补盲测断言与锚点；照搬 `FromRequest` 会让 `Origin: null` + 允许 Referer 通过
+   `cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin`（Go 同断言为 403）。
+2. **可选布尔别名表（P1，修复）**：Go `OptionalBoolValue` 接受 0/false/no/n/off/空 → false，1/true/yes/y/on → true，其余 400。
+   Rust 快照路由此前只接受 `true/1/false/0`，`refresh=off|no|yes|on|` 会 400。新增 `parse_optional_query_bool` 并让
+   `refresh` 走该 helper；空值与别名在快照路由逐项断言（假值保持缓存、真值强制 provider）。
+3. **空白 period（P2，修复）**：Go `CandlePeriodValue` 空白视为未设置，蜡烛路由保持默认 1m；Rust 此前对
+   `period=`/`period=%20`/`period=+` 返回 400。修 `product_production_ports_market_data_quote_reads.rs::read_candles` 为
+   trim 后空值即未设置，`2h` 仍 400。
+4. **空白 limit（P2，修复）**：Go 经 `OptionalIntValue`（空文本是合法 0）+ 服务端 `limit <= 0 → 200`，
+   所以 `limit=`/`limit=%20` 返回默认窗口；Rust 此前 400。现同样把 trim 后空值当未设置，非整数仍 400。
+5. **ADK 可用性保证是两段式（P2）**：Go 中间件 `ADKAvailable` 在 runtime 缺失时对每个 ADK 路由回 503 `ADK_UNAVAILABLE`；
+   Rust 未装配端口即未注册路由（404），已装配但不可用才 503（读路由码为 `ADK_READ_UNAVAILABLE`，chat 为 `ADK_UNAVAILABLE`），
+   由 `wired_but_unavailable_adk_ports_fail_closed_on_every_route` 固定，本批登记为 partial 而非等价。
+6. **重连写失败无同形对象（P2）**：Go 断言重连时 retry 指令写失败只写一次并立即退出；Rust SSE 响应体在引擎侧一次性物化，
+   写失败传播由 `crates/jftrade-api/src/sse.rs` 的写错误用例断言，属传输层边界，登记 partial。
+
+新增与修改的 Rust 证据：
+
+- `crates/jftrade-engine/src/product_query.rs::optional_query_bool_matches_the_reference_alias_table`
+  （新增 `parse_optional_query_bool` + `QueryBoolError`，覆盖真/假别名表与非法值 400）。
+- `crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_treats_blank_period_as_unset_and_rejects_unsupported`、
+  `candle_route_treats_blank_limit_as_unset_and_rejects_non_integer`（本批新增，含 `limit=%20`）。
+- `crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_route_force_refresh_bypasses_the_cache`
+  （扩展为假值别名保持缓存、真值别名强制 provider）。
+- `crates/jftrade-api/src/auth.rs::origin_normalization_accepts_web_and_tauri_schemes`（补 Go 表格：空白、端口、缺失 host、ftp、://bad）
+  与 `request_origin_uses_production_semantics_without_malformed_origin_fallback`（Origin 优先、缺失回退 Referer、非法不回退）。
+- 补锚点：`internal/api/research/routes_test.go:18/:74`、`internal/api/origin/origin_test.go:8/:31`、
+  `internal/api/middleware/security_boundaries_test.go:90/:108`、`internal/api/middleware/adk_test.go:30`、
+  `internal/api/httpserver/bindings_test.go:224`。
+
+探针证据（先红后绿，按字节回滚）：
+
+- 回退空白 period 修复：`candle_route_treats_blank_period_as_unset_and_rejects_unsupported` 0/1 失败（`period=` → 400），恢复后 1/1 通过。
+- 回退空白 limit 修复：`candle_route_treats_blank_limit_as_unset_and_rejects_non_integer` 0/1 失败
+  （`query limit= must use the default limit: Failed { status: 400 … }`），恢复后 1/1 通过；
+  `product_production_ports_market_data_quote_reads.rs` shasum `96c4e6d906a7c2258dec44e57c8e0024f5b46008` 前后一致。
+- 回退 refresh 别名修复：`snapshot_route_force_refresh_bypasses_the_cache` 与 `snapshot_rejects_malformed_refresh_before_provider_access`
+  0/2 失败；恢复后 4 条引擎用例 4/4 通过，`product_production_ports_market_data_quote_snapshot_reads.rs` shasum
+  `4b9e1d5d01ca92a30f9d26c518eb40921fd262ca` 前后一致。
+
+映射结果：13 行写入（8 行升 `[x]`、5 行收紧 `[~]`），另修正 1 行过时引用（`internal/api/middleware/security_boundaries_test.go:90`
+由改名前的 `request_origin_preserves_origin_precedence_and_referer_fallback_boundary` 更新为新名），并解决 1 处 `[x]` 引用重复
+（`adk_test.go:30` 改用两条 assembly 用例组合引用）。计数：`[x]` 1502 → 1510；audit Rust 测试 3181；
+anchors 1521（unrecorded 0、stale 0、unknown 53）。
+
+关键缺口与新登记项（P1/P2）：
+
+1. **ADK 读路由错误码差异（P2）**：Go 中间件对 runtime 缺失统一 `ADK_UNAVAILABLE`；Rust 读路由为 `ADK_READ_UNAVAILABLE`
+   （chat 路由一致）。owner = `crates/jftrade-engine/src/product_adk_read_api.rs`。
+2. **404 文案未统一（P2）**：Go `WriteNotFound` 固定 `resource not found`；Rust 未知路由为 `unknown endpoint <path>`，
+   其余路由自有消息。owner = `crates/jftrade-api/src/{envelope,router}.rs`。
+3. **分页 helper 无同形对象（边界）**：`NormalizeBoundPage(limit, offset, default, max)` 未迁移，各路由自行 clamp；
+   Go 的 `limit=-3 → 1`、负 offset → 0 在 Rust usize/校验入参下不可达。
+4. **绑定 helper 结构边界（P2）**：`BindURI` 的 required 缺参、`requestEscapedPath` 的 RawPath 兜底在 Rust 无同形对象
+   （模板不匹配 → 404；路径转义由传输层处理），登记 boundary 并保留升级路径。
+5. **重连写失败单次重试（P2）**：见关键事实 6，若未来改为流式写回需补一次写失败即退出的传输用例。
+
+验证记录：
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 本批引擎 6 条 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(candle_route_treats_blank_limit_as_unset_and_rejects_non_integer) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_route_rejects_invalid_limit) or test(snapshot_route_force_refresh_bypasses_the_cache) or test(optional_query_bool_matches_the_reference_alias_table) or test(snapshot_rejects_malformed_refresh)'` | 6/6 通过 |
+| 探针（limit） | 回退生产修复后同用例 | 0/1 失败（先红），恢复后 1/1 通过 |
+| origin 表格与回退 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(request_origin) or test(origin_normalization) or test(cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin)'` | 3/3 通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/s5g_payload.json` 与 3 次单行修正 | 16 行更新，`[x]` 1502 → 1510 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；rust 测试 3181 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1521、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked --no-fail-fast`；`... -p jftrade-engine ...` | 81/81、1858/1858 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`（9 statuses/12 transitions、278 operations/18 groups、3 profiles 等 8 组）、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`check:quick` | 全部通过 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 均在 cargo-deny advisories 阶段因 `deny.toml` 8 条 `advisory-not-detected` 失败（bans/licenses/sources ok），与本次改动无关 |
+
+后续（分片五 h 与第 127 批）：先做 `internal/api/research`→`httpserver` 之外的 api_transport 余量
+（`internal/app/apiserver` 待办 331；随后 strategy_pine 465 → assistant_workflow 447 → other 311 →
+backtest_calendar 262 → storage_sqlite 178 → marketdata_quotes 155 → futu_opend 104 → settings_watchlist 39），
+按同一批次节奏推进：单分片一次提交，提交后立即把下一分片写入代办 codex 目标。

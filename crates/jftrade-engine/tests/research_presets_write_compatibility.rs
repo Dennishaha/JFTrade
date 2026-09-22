@@ -116,6 +116,7 @@ impl ResearchPresetWritePort for FixturePort {
 
 #[test]
 // Parity: go:452dea11:internal/app/apiserver/servercoretest/research_runtime_test.go:14 TestServerInitializesResearchDatabaseAndPresetRoutes
+// Parity: go:452dea11:internal/api/research/routes_test.go:18 TestScreenPresetRoutesCRUDAndConflict
 fn research_preset_write_fixture_matches_go_owner_for_all_three_routes() {
     let fixture = research_preset_write_fixture();
     assert_eq!(fixture.timestamp, FIXTURE_TIMESTAMP);
@@ -161,6 +162,7 @@ fn research_preset_write_fixture_matches_go_owner_for_all_three_routes() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/api/research/routes_test.go:74 TestScreenPresetRoutesValidatePayloadAndUnavailableStore
 fn research_preset_write_leaf_fails_closed_without_a_test_port() {
     let valid_body = br#"{"name":"Value","definition":{"brokerId":"futu","market":"US","catalogVersion":"futu-stock-screen-v1","querySchemaVersion":2,"columns":[]}}"#;
     let valid = ResearchPresetWriteRequest {

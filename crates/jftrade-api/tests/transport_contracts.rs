@@ -264,6 +264,7 @@ fn fixture() -> (axum::Router, Arc<RecordingPort>) {
 
 #[tokio::test]
 // Parity: go:452dea11:internal/app/apiserver/servercoretest/system_routes_test.go:89 TestRequestObservabilityMiddlewarePropagatesRequestID
+// Parity: go:452dea11:internal/api/httpserver/bindings_test.go:224 TestResponseEnvelopeWriters
 async fn desktop_token_reaches_port_with_stable_envelope_and_request_id() {
     let (router, port) = fixture();
     let response = router

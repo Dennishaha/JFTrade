@@ -407,8 +407,8 @@
   },
   "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart；crates/jftrade-engine/tests/adk_chat_stream_timing_challenge.rs::test_client_disconnect_returns_499_within_250ms",
-    "conclusion": "partial：Rust 已覆盖断线语义的核心：客户端断线后 250ms 内返回 499 CLIENT_DISCONNECTED（adk_chat_stream_timing_challenge），以及终局事件在重连时以 replay 标记重放（adk_chat_stream_product_tests / adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed）。Go 该用例额外断言“重连 SSE 写失败时只写一次 retry 指令并立即退出（writer.writes==1）”以及 X-ADK-Stream-ID 头，这是 Go gin SSEWriter 的分层写失败计数；Rust 的 ApiStreamSender 用 closed 状态 + 单次 send 错误表达，本轮未在同一测试中重建 gin 的 writes 计数，保留 partial 记录该 wire 层差异。",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
+    "conclusion": "partial：已覆盖重连路由的 replay 标记、after 游标切片、未知 stream/run fail-closed（adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed）与 499 断线后保留终态、重放过滤（引用用例）。Go 的“重连时 retry 指令写失败只写一次并立即退出”在 Rust 无同形 socket 写循环——SSE 响应体在引擎侧一次性物化后交传输层，写失败传播由 jftrade-api SseWriter 用例断言（write_failures_are_reported_with_their_source_message、write_event_propagates_serialization_and_write_failures）。缺口 owner：crates/jftrade-api sse/router；回归要求：若改为流式写回，需补一次写失败即退出的传输用例。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -742,18 +742,18 @@
     "evidence_type": "function_exact"
   },
   "internal/api/httpserver/bindings_boundaries_test.go:13:TestOptionalBoolRecognizesFalseAliases": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::models_list_tool_projects_providers_with_reference_boolean_rules",
-    "conclusion": "partial：Go 断言 false 别名集合 0/false/no/n/off/\"\" 全部被识别为 Set=false。Rust 最接近的解析器 optional_bool_strict 接受 \"false\"|\"0\"|\"no\"|\"n\"（trim + lowercase），不接受 \"off\" 与空串（会返回 invalid boolean）。缺口 owner：crates/jftrade-engine 查询/工具布尔强制（product_mcp_production_executor_helpers.rs 及各端口布尔解析）；回归要求：补一条别名表断言并决定是否接受 off/空串，否则把差异登记为候选边界（Go 的 OptionalBoolValue 是 HTTP query 绑定 helper，Rust 无同名对象）。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_query.rs::optional_query_bool_matches_the_reference_alias_table; crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_route_force_refresh_bypasses_the_cache",
+    "conclusion": "function_exact：参考别名表逐项对齐——0/false/no/n/off/空/空白 → false，1/true/yes/y/on（含大小写与首尾空白）→ true，其他文本绑定失败 400。本批修复前 refresh 查询只接受 true/1/false/0，现走 parse_optional_query_bool；快照路由按别名保持缓存或强制 provider（无 provider 时 Unavailable）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/httpserver/bindings_boundaries_test.go:27:TestCandlePeriodValueHandlesEmptyAndUnsupportedInputs": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_query.rs::candle_period_normalizes_aliases_and_rejects_unsupported; crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs",
-    "conclusion": "partial：Go 的 CandlePeriodValue 对空白输入置空且不报错、对 2h 报错。Rust 归一函数对空白返回 Unsupported（无“置空”状态），candles 路由以 query_map.get_first(\"period\").unwrap_or(\"1m\") 取缺省值，因此显式 period= 空白会变成 400 invalid candle query，而 Go 的空白周期等价于未设置。缺口 owner：crates/jftrade-engine candles 读路由（product_production_ports_market_data_quote_reads.rs）；回归要求：补“period= 空白 → 采用缺省周期”或“→ 400”的路由级断言并与 Go 对齐后升级。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_treats_blank_period_as_unset_and_rejects_unsupported; crates/jftrade-engine/src/product_query.rs::candle_period_normalizes_aliases_and_rejects_unsupported",
+    "conclusion": "function_exact：period=、period=%20、period=+ 视作未设置并保持默认 1m（本批修复前返回 400），2h 等未支持周期仍 400 BAD_REQUEST 且不触碰 provider；别名表由 product_query 用例逐项固定。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/httpserver/bindings_boundaries_test.go:37:TestNormalizeCandlePeriodSupportsEveryDocumentedFamily": {
     "status": "[x]",
@@ -805,23 +805,23 @@
     "evidence_type": "function_exact"
   },
   "internal/api/httpserver/bindings_test.go:100:TestOptionalQueryValueParsingSemantics": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_query.rs::query_time_parses_rfc3339_datetime_and_date",
-    "conclusion": "partial：Go 的 OptionalIntValue/OptionalBoolValue/OptionalTimeValue 共享 Set/Valid 三态（空白视为有效零值、非法文本置 Valid=false 且保留 Set、时间归一为 UTC 指针/字符串）。Rust 以每字段独立的 Option<T>/Result 解析表达同一信息（空白 → None 或默认、非法 → 400），没有统一的三态值类型，因此无法逐断言对应。缺口 owner：crates/jftrade-engine 查询参数解析（product_query.rs 与各读路由）；回归要求：为 int/bool/time 各补一条“空白/非法/合法”三态断言，或在契约中登记 Rust 类型化替代。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_query.rs::optional_query_bool_matches_the_reference_alias_table; crates/jftrade-engine/src/product_query.rs::optional_query_time_normalizes_to_utc_and_blank_means_absent; crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_treats_blank_limit_as_unset_and_rejects_non_integer",
+    "conclusion": "function_exact：三种可选值的可观测结果逐项对齐——int：空白 limit 视为有效 0 → 路由默认 200，非整数 400（本批修复 limit= / limit=%20）；bool：别名表 + 非法 400；time：空白→未设置，显式偏移归一化为 UTC RFC3339，非法→400（与 marketdata 路由 normalizeOptionalQueryTime 一致）。Rust 以 Option/Result 取代 Set/Valid 三态字段。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/httpserver/bindings_test.go:186:TestCandlePeriodAndPaginationNormalization": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_query.rs::candle_period_normalizes_aliases_and_rejects_unsupported; crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs",
-    "conclusion": "partial：别名归一（含 \" 60m \" → 1h）与 2h 拒绝已由引用测试断言（Go 前半段等价）；分页夹取在 Rust 是 candles 路由内联逻辑（limit<=0 → 200、>1000 → 1000、缺省 200，见 product_production_ports_market_data_quote_reads.rs:92-97），Go 是同名 helper NormalizeBoundPage(limit, offset, default=50, max=200) 的独立单测，两者参数化与抽层方式不同且无路线级夹取断言。缺口 owner：crates/jftrade-engine candles 读路由；回归要求：补 limit=0/超上限/负值三条路由级夹取断言后升级分页半段。",
+    "rust_entry": "crates/jftrade-engine/src/product_query.rs::candle_period_normalizes_aliases_and_rejects_unsupported; crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_treats_blank_period_as_unset_and_rejects_unsupported",
+    "conclusion": "partial：周期半已逐项对齐（60m→1h、k_day→1d、2h 拒绝，本批补齐空白 period 语义）；分页半无同签名 helper——Go NormalizeBoundPage(limit, offset, default, max) 在 Rust 由各路由 clamp 表达（watchlist normalize_limit(0)=100、min(max)；candle 路由 limit<=0→200、>1000→1000，与 Go 服务端 clamp 一致），且 Go 的 limit=-3→1 与负 offset→0 在 Rust usize/入参校验下不可达，登记为结构边界。缺口 owner：crates/jftrade-engine product_query 与各读路由。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/httpserver/bindings_test.go:224:TestResponseEnvelopeWriters": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::desktop_token_reaches_port_with_stable_envelope_and_request_id; crates/jftrade-api/tests/transport_contracts.rs::error_envelope_preserves_optional_retry_after_header",
-    "conclusion": "partial：Go WriteOK 断言 ok/data/timestamp（可 RFC3339 解析）；Rust 引用测试逐字断言 {ok:true,data,timestamp} 成功信封（固定时钟），错误侧由 retry-after 用例断言 {ok:false,error{code,message}}。差异：Go WriteNotFound 固定 message \"resource not found\"，Rust 未知路由的 404 由 ApiFailure 携带 \"unknown endpoint <path>\"（router.rs:404），没有固定的 NOT_FOUND 文案断言。缺口 owner：crates/jftrade-api envelope/router；回归要求：补“默认 NOT_FOUND 信封（404 + code + message）”断言并确认文案目标值。",
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::desktop_token_reaches_port_with_stable_envelope_and_request_id",
+    "conclusion": "partial：WriteOK 信封（ok=true、timestamp、data 透传）由该用例断言，WriteError 的 code/message 信封由同文件错误用例断言；WriteNotFound 的精确文案 resource not found 无 Rust 同形断言（各路由使用自有 NOT_FOUND 消息，如 unknown endpoint <path>、stream not found、strategy resource not found）。缺口 owner：crates/jftrade-api envelope/router；回归要求：若统一 404 文案，需在 transport 层补断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -1303,17 +1303,17 @@
   },
   "internal/api/middleware/adk_test.go:12:TestADKAvailableGuardsUnavailableRuntime": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_product_replays_browser_boundary_failure_recovery_and_restart",
-    "conclusion": "partial：Go 断言 ADK 运行时不可用时 /api/v1/adk 返回 503 + unavailable 信封。Rust 无中间件层：ADK 路由仅在端口可用时注册，不可用投影由引用用例断言 503 ADK_UNAVAILABLE（product_adk_chat_stream_product_tests.rs:848）。缺口 owner：crates/jftrade-engine ADK 路由装配；回归要求：补一条“端口不可用 → /api/v1/adk 503 ADK_UNAVAILABLE”的路由级断言后升级。",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::wired_but_unavailable_adk_ports_fail_closed_on_every_route; crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_routes_are_isolated_without_port",
+    "conclusion": "partial：Go 中间件在 runtime 不可用时对每个 ADK 路由回 503 ADK_UNAVAILABLE(\"ADK runtime is unavailable\")。Rust 无中间件层，等价保证分两段：未装配端口=路由未注册→404（adk_read_routes_fail_closed_without_snapshot_port、adk_chat_stream_routes_are_isolated_without_port），已装配但不可用→全路由 503（引用用例）；差异：读路由错误码为 ADK_READ_UNAVAILABLE（chat 路由保持 ADK_UNAVAILABLE）。缺口 owner：crates/jftrade-engine product_adk_read_api 与路由注册表；回归要求：路由注册策略或错误码变更时重跑引用用例。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/middleware/adk_test.go:30:TestADKAvailablePassesThroughWhenRuntimeExists": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_product_replays_browser_boundary_failure_recovery_and_restart",
-    "conclusion": "partial：Go 断言运行时存在时中间件放行。Rust 通过“能力注册且端口可用才注册路由”表达，放行路径由引用用例的成功分支与 ADK 快照/路由用例覆盖。缺口 owner：crates/jftrade-engine ADK 路由装配；回归要求：补“已装配 ADK 时 /api/v1/adk 200 + 目录投影”的显式放行断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::adk_snapshot_and_tools_routes_return_the_composed_catalog; crates/jftrade-engine/src/product_production_assembly_tests.rs::tests::production_adk_catalog_templates_and_delete_agent_contracts_hold",
+    "conclusion": "function_exact：装配真实 ADK 读端口后 GET /api/v1/adk 直通返回 200（不再被 503 拦截）——adk_snapshot_and_tools_routes_return_the_composed_catalog 断言 200 + ok=true + 目录字段非空，production_adk_catalog_templates_and_delete_agent_contracts_hold 继续断言 runtimeSettings/tools/agent-templates 契约；锚点 internal/api/middleware/adk_test.go:30。两条引用都落在 product_production_assembly_tests.rs，引用串保持唯一。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(adk_snapshot_and_tools_routes_return_the_composed_catalog)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/middleware/auth_test.go:13:TestAuthSkipsPublicPaths": {
     "status": "[x]",
@@ -1415,31 +1415,31 @@
   },
   "internal/api/middleware/security_boundaries_test.go:90:TestRequestOriginUsesRefererAndHandlesNil": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-api/src/auth.rs::tests::request_origin_preserves_origin_precedence_and_referer_fallback_boundary",
+    "rust_entry": "crates/jftrade-api/src/auth.rs::tests::request_origin_uses_production_semantics_without_malformed_origin_fallback",
     "conclusion": "function_exact：Rust 断言空 HeaderMap（对应 Go nil request）返回 None、Referer 大小写/空白归一化为 https://example.com、Origin 优先于 Referer，以及 malformed Origin=null 不回退 Referer 但 origin_provided 仍为 true；覆盖 Go 该测试全部断言，框架装配差异（HeaderMap vs Gin request）不改变可观察行为。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(request_origin_preserves_origin_precedence_and_referer_fallback_boundary)'",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(request_origin_uses_production_semantics_without_malformed_origin_fallback)'",
     "evidence_type": "function_exact"
   },
   "internal/api/middleware/security_boundaries_test.go:108:TestCanonicalOriginRejectsMalformedAndUnsupportedValues": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/src/auth.rs::origin_normalization_accepts_web_and_tauri_schemes",
-    "conclusion": "partial：本批在引用用例中补齐 Go 表格的畸形/不支持输入（\"\\t \"、example.com、http:example.com、http:/example.com、http://、ftp://…）与 HTTP://EXAMPLE.COM 归一断言；差异仅在桌面自定义 scheme——Go 用 wails://、Rust 用 tauri://（canonical_origin 只接受 http/https/tauri），Go 的 wails 两条断言在 Rust 无同形对象。缺口 owner：crates/jftrade-api auth canonical_origin；回归要求：若产品要求兼容 wails scheme，需显式加入并补断言，否则在清单登记为边界差异。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/auth.rs::origin_normalization_accepts_web_and_tauri_schemes; crates/jftrade-api/tests/transport_contracts.rs::cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin",
+    "conclusion": "function_exact：畸形/不支持输入表逐项断言（\"\\t \"、example.com、http:example.com、http:/example.com、http://、ftp://…、file://…），HTTP://EXAMPLE.COM 归一化小写，Origin:null + 允许 Referer 的 CORS 预检仍 403。桌面自定义 scheme 差异（参考 wails:// vs 本仓库 tauri://）为已登记边界。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/origin/origin_test.go:8:TestCanonical": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-api/src/auth.rs::origin_normalization_accepts_web_and_tauri_schemes",
-    "conclusion": "部分覆盖：Rust 断言 HTTP/Tauri 与非法 scheme，但未覆盖 Go 的空白、端口、缺失 host、无效 URL 表格；不得视为行为等价",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(origin_normalization_accepts_web_and_tauri_schemes)'",
-    "evidence_type": "partial"
+    "conclusion": "function_exact：参考表格逐项对齐——空白→空、HTTP://Example.COM/path?q=1→http://example.com、https://Example.COM:8443/a 保留端口、缺失 host/ftp/://bad 全部拒绝。差异仅在桌面自定义 scheme：参考实现接受 wails://（本仓库已退役的桌面宿主），Rust 接受 tauri://，作为已登记边界差异；锚点 internal/api/origin/origin_test.go:8。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(origin_normalization_accepts_web_and_tauri_schemes)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/origin/origin_test.go:31:TestFromRequest": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-api/src/auth.rs::request_origin_preserves_origin_precedence_and_referer_fallback_boundary",
-    "conclusion": "partial：Go 断言 FromRequest 的 nil 返回空、Origin 优先、Referer 回退。Rust 该用例断言来源优先级与 Referer 回退边界（含 malformed Origin 处理）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
-    "evidence_type": "partial"
+    "rust_entry": "crates/jftrade-api/src/auth.rs::request_origin_uses_production_semantics_without_malformed_origin_fallback; crates/jftrade-api/tests/transport_contracts.rs::cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin",
+    "conclusion": "boundary（结构差异）：Go 的 origin.FromRequest（Origin 非法时回退 Referer）在 go 分支无生产调用方，仅被该测试引用；生产路径是 middleware/cors.go requestOrigin 与 live handler 的 Canonical(Origin)，二者对非法 Origin 都直接拒绝。Rust crates/jftrade-api/src/auth.rs::request_origin 实现的是生产语义（Origin 存在但非法→None；Origin 缺失→Referer 归一化），由 crates/jftrade-api/src/auth.rs::request_origin_uses_production_semantics_without_malformed_origin_fallback 断言，并由 crates/jftrade-api/tests/transport_contracts.rs::cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin 固定 Origin:null + 允许 Referer → 403（与 Go TestRequestOriginUsesRefererAndHandlesNil、TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight 一致）。照搬 FromRequest 的非法回退会破坏该 CORS 对齐，因此登记为边界而非迁移。缺口 owner：crates/jftrade-api auth/router；回归要求：Origin/Referer 判定链或桌面 scheme 变化时重跑上述两个用例。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(request_origin_uses_production_semantics_without_malformed_origin_fallback) or test(cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin)'",
+    "evidence_type": "boundary"
   },
   "internal/api/productfeatures/prediction_combo_routes_test.go:15:TestPredictionComboQuoteAcceptsContextFromQueryAndMapsFailures": {
     "status": "[x]",
@@ -1610,18 +1610,18 @@
     "evidence_type": "partial"
   },
   "internal/api/research/routes_test.go:18:TestScreenPresetRoutesCRUDAndConflict": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/tests/research_presets_write_compatibility.rs::research_preset_write_fixture_matches_go_owner_for_all_three_routes",
-    "conclusion": "partial：Go 断言预设 CRUD 与冲突语义。Rust 该用例回放三条预设写路由的 Go owner fixture（逐路由断言）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "conclusion": "function_exact：Go 断言预设创建/更新/删除与重名 409 冲突。Rust 该用例逐条回放 tests/fixtures/compatibility/api-transport/research-presets-write.json 的 22 个 Go owner 用例（三条写路由），断言状态码、信封、端口调用顺序与并发冲突（200 + 8×409 RESEARCH_PRESET_CONFLICT）；锚点 internal/api/research/routes_test.go:18。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(research_preset_write_fixture_matches_go_owner_for_all_three_routes)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/research/routes_test.go:74:TestScreenPresetRoutesValidatePayloadAndUnavailableStore": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/tests/research_presets_write_compatibility.rs::research_preset_write_leaf_fails_closed_without_a_test_port",
-    "conclusion": "partial：Go 断言载荷校验与存储不可用时拒绝。Rust 该用例断言预设写叶子在缺测试端口时 fail-closed；V1/非法载荷校验由叶子解码用例覆盖。",
+    "conclusion": "function_exact：Go 断言非法载荷 400 与存储不可用 503。Rust 该用例断言无端口时三条写路由 fail-closed 503 RESEARCH_PRESET_UNAVAILABLE，未知字段体 400 RESEARCH_PRESET_INVALID；载荷校验矩阵由同一 fixture 的 RESEARCH_PRESET_INVALID 用例固定；锚点 internal/api/research/routes_test.go:74。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/api/settings/adk_routes_contracts_test.go:18:TestADKRuntimeSettingsDefaultAndSave": {
     "status": "[~]",
