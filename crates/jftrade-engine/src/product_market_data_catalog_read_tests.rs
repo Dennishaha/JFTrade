@@ -102,6 +102,7 @@ fn market_data_catalog_read_fixture() -> MarketDataCatalogReadFixture {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/contract_test.go:123 TestContractMarketDataMarkets
 async fn market_data_catalog_read_routes_match_group_fixture_in_cutover_only() {
     let fixture = market_data_catalog_read_fixture();
     let directory = tempdir().expect("temporary directory");

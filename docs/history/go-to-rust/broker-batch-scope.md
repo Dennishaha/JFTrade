@@ -645,3 +645,63 @@ Rust `ExecutionOrderStore` 的 `execution_sequences.value` 是**已分配高水�
 | 兼容回放 / 生成物 / AI 上下文 / Zero-Go | `check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go` | 通过 |
 | 快速门禁 / 空白 | `pnpm run check:quick`、`git diff --check` | 通过 |
 | 依赖策略 | `pnpm run check:rust:policy` | **未通过（既有阻断）**：`RUSTSEC-2026-0285` + 8 条 `advisory-not-detected`，如实记录 |
+### 第一百二十六批 分片三 a-1：`internal/app/apiserver/tradingapp/` 13 行 + `servercoretest/contract_test.go` 6 行（7 升 `[x]`）
+
+范围：第 126 批分片三的第一片——`tradingapp` 全部 13 条 pending 与 `servercoretest/contract_test.go` 6 条
+（system/settings/markets/broker-runtime/strategy-definitions/backtests 契约）。本片新增 2 条 Rust 测试、
+为 5 条既有测试补 `// Parity:` 锚点，7 行升 `[x]`，其余 12 行收紧为 11 partial + 1 boundary（每条含缺口 owner 与回归要求）。
+
+#### 新增 Rust 测试（2 条）
+
+| Rust 测试 | Go 基线 | 断言要点 |
+| --- | --- | --- |
+| `product_production_ports_execution_order_validation_tests.rs::combo_order_quantity_mode_maps_event_parlays_to_amount_and_option_combos_to_contracts` | `tradingapp/execution_gateway_boundaries_test.go:10` | 期权组合解析后 quantity_mode=contracts、事件组合=amount |
+| `product_production_ports_trade_tests.rs::broker_runtime_route_keeps_descriptor_session_and_accounts_keys` | `servercoretest/contract_test.go:165` | `/api/v1/brokers/futu/runtime` 返回体含 descriptor/session/accounts 三键 |
+
+#### 锚点补记（5 条既有测试升 `[x]` 的证据）
+
+- `product_appearance_read_tests.rs::appearance_read_route_matches_go_fixture_for_all_seed_documents` → `contract_test.go:90`
+  （逐 seed 重放 `/settings/ui`，断言 ok 信封 + data.appearance 且不写文件）。
+- `product_market_data_catalog_read_tests.rs::market_data_catalog_read_routes_match_group_fixture_in_cutover_only` → `contract_test.go:123`
+  （`markets-ready` 断言 data 全等，含 defaultMarket 与非空 markets）。
+- `product_strategy_definitions_tests.rs::strategy_definition_routes_match_group_fixture_in_cutover_only` → `contract_test.go:205`
+  （`list-current-only` 的 data 为直接数组并全等）。
+- `product_backtests_tests.rs::backtests_read_routes_match_group_fixture_in_cutover_only` → `contract_test.go:240`
+  （list / list-empty 断言 data.runs 数组）。
+- `product_production_ports_execution_reconciliation_tests.rs::reconciliation_scope_accepts_only_stock_trade_markets` → `tradingapp/order_update_source_test.go:172`
+  （基金等非股票市场不产生 scope，等价于跳过 fund-only 账户）。
+
+#### 本片登记的关键缺口
+
+- **订单通知消息内容**（`notifications_test.go:32`）：Rust 消息是事件固定短语（“订单 {id} 部分成交”），不含 Go 的
+  tradingEnvironment/symbol/side/qty/filled/brokerOrderId 标识拼接 → partial，owner `jftrade-engine` 通知投影 + `jftrade-trading`。
+- **ExecutionGateway 分支表**（`execution_gateway_lifecycle_test.go:144/:202/:298`）：Rust 无 app 层 gateway 聚合对象，
+  broker 不匹配、prepare 错误透传、stale/fresh 落库差异、组合撤单缺标识/非组合 broker 等分支没有 1:1 断言 → partial，
+  owner `jftrade-engine` 下单/撤单写路径 + `jftrade-integration-futu` 组合能力探测。
+- **订单更新源降级 shape**（`order_updates_test.go:92`）：Rust 读路由 fail-closed，但没有 `ErrOrderUpdateSourceInactive`
+  等价错误码与“可 Stop 空订阅”对象 → partial，owner `jftrade-engine` 读端口就绪状态与推送 worker。
+- **`/system/status` 组合契约**（`contract_test.go:13`）：稳定字段与 runtimeResources 分别有测试，但没有一条测试同时断言
+  信封必填字段 + `execution-orders-db(trading)` 资源存在（冻结 fixture 不含该路径）→ partial，owner `jftrade-engine` 系统状态投影。
+- **worker 构造与查询归一**（`order_updates_test.go:13/:70`）：Go 的 NewOrderUpdatesWorker 与 brokerOrderQuery 逐字段 trim
+  在 Rust 没有同形对象（对账端口 + 身份解析 scope）→ boundary，附升级路径说明。
+
+#### 分片三 a-1 验证记录与门禁
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(combo_order_quantity_mode_maps_event_parlays) or test(broker_runtime_route_keeps_descriptor_session_and_accounts_keys)'` | 2 条通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b126s3a1_apply.json` | 19 行更新，`[x]` 1402 → 1409 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺少 function_exact、无重复 rust_entry |
+| 锚点 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1410、unrecorded 0、stale 0、unknown 54 |
+| 格式 / 架构 / Clippy | `cargo fmt --all -- --check`、`pnpm run check:rust:architecture`、`pnpm run check:clippy` | 通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked` | 1823 条通过（本片 +2） |
+| 工作区测试 | `pnpm run test:rust` | 3239 条通过（本片 +2，2 skipped） |
+| 兼容回放 / 生成物 / AI 上下文 / Zero-Go | `check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go` | 通过 |
+| 快速门禁 / 空白 | `pnpm run check:quick`、`git diff --check` | 通过 |
+| 依赖策略 | `pnpm run check:rust:policy` | **未通过（既有阻断）**：`RUSTSEC-2026-0285` + 8 条 `advisory-not-detected`，如实记录 |
+
+#### 后续（分片三 a-2）
+
+`servercoretest` 余下 broker/exec 家族约 30 条：`broker_new_test.go` 18（funds/quote/klines/securities/unlock/place/cancel/
+JSON 形状/路径校验）、`exec_validate_test.go` 4、`execution_routes_test.go` 3、`broker_routes_test.go` 2、`broker_read_test.go` 1、
+`exec_routes_test.go` 1、`portfolio_routes_test.go` 1；owner 为 `crates/jftrade-engine` 的 broker/execution 读端口与 wire 投影。

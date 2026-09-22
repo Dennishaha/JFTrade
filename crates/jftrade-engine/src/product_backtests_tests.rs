@@ -133,6 +133,7 @@ fn backtests_read_fixture() -> BacktestsReadFixture {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/contract_test.go:240 TestContractBacktests
 async fn backtests_read_routes_match_group_fixture_in_cutover_only() {
     let fixture = backtests_read_fixture();
     for case in &fixture.cases {

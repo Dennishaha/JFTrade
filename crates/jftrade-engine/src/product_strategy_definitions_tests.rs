@@ -142,6 +142,7 @@ fn strategy_definition_fixture() -> StrategyDefinitionFixture {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/contract_test.go:205 TestContractStrategyDefinitions
 async fn strategy_definition_routes_match_group_fixture_in_cutover_only() {
     let fixture = strategy_definition_fixture();
     let directory = tempdir().expect("temporary directory");

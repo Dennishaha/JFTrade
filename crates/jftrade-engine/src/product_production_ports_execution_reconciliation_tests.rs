@@ -312,6 +312,7 @@ fn account() -> TradeAccountSnapshot {
     }
 }
 
+// Parity: go:452dea11:internal/app/apiserver/tradingapp/order_update_source_test.go:172 TestProductLifecycleOrderUpdateSourceSkipsFundOnlyAccounts
 #[test]
 fn reconciliation_scope_accepts_only_stock_trade_markets() {
     for (market, expected) in [(1, Some("HK")), (2, Some("US")), (3, Some("CN"))] {

@@ -751,3 +751,30 @@ fn option_combo_validation_rejects_incomplete_risk_shape_matrix() {
     straddle.as_object_mut().expect("object").remove("spread");
     parse_combo(&straddle).expect("complete straddle must parse");
 }
+
+// Parity: go:452dea11:internal/app/apiserver/tradingapp/execution_gateway_boundaries_test.go:10 TestComboOrderQuantityModeMapsEventParlaysToAmount
+#[test]
+fn combo_order_quantity_mode_maps_event_parlays_to_amount_and_option_combos_to_contracts() {
+    let combo = parse_combo(&option_combo_payload("quantity-mode-combo")).expect("option combo");
+    assert_eq!(combo.order.quantity_mode, "contracts");
+
+    let parlay = json!({
+        "accountId": "1001",
+        "brokerId": "futu",
+        "market": "US",
+        "tradingEnvironment": "SIMULATE",
+        "clientOrderId": "quantity-mode-parlay",
+        "orderKind": "event_parlay",
+        "productClass": "event_contract",
+        "rfqId": "rfq-1",
+        "mvc": "US.MVC",
+        "quoteExpiresAt": "2999-01-01T00:00:00Z",
+        "amount": 25.0,
+        "legs": [
+            {"instrumentId": "US.EVENT.ONE", "side": "BUY", "ratio": 1, "predictionSide": "YES"},
+            {"instrumentId": "US.EVENT.TWO", "side": "BUY", "ratio": 1, "predictionSide": "NO"}
+        ]
+    });
+    let parlay = parse_combo(&parlay).expect("event parlay");
+    assert_eq!(parlay.order.quantity_mode, "amount");
+}

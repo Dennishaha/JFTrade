@@ -2657,6 +2657,27 @@ fn runtime_account_discovery_deduplicates_sorts_and_falls_back_to_card_identity(
     );
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/contract_test.go:165 TestContractBrokerRuntime
+#[test]
+fn broker_runtime_route_keeps_descriptor_session_and_accounts_keys() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    let hub = Arc::new(LiveHub::default());
+    let config = FutuIntegrationConfig::current_default();
+    runtime.set_runtime_projection(&config, Some(hub), 7);
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let value = port
+        .read("/api/v1/brokers/futu/runtime", "")
+        .expect("runtime projection");
+    assert!(value.get("descriptor").is_some(), "{value}");
+    assert!(value.get("session").is_some(), "{value}");
+    assert!(value.get("accounts").is_some(), "{value}");
+}
 #[test]
 fn broker_runtime_projects_configured_connection_and_live_hub() {
     let runtime = Arc::new(SharedTradeReadRuntime::default());

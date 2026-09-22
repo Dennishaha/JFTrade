@@ -35,6 +35,7 @@ fn settings_ui_read_fixture() -> SettingsUiReadFixture {
     fixture
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/contract_test.go:90 TestContractSettings
 #[tokio::test]
 async fn appearance_read_route_matches_go_fixture_for_all_seed_documents() {
     let fixture = settings_ui_read_fixture();

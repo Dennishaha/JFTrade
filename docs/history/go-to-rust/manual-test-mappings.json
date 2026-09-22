@@ -5699,45 +5699,45 @@
   },
   "internal/app/apiserver/servercoretest/contract_test.go:13:TestContractSystemStatus": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_system_read_tests.rs::system_read_routes_match_group_fixture_in_cutover_only; crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_matches_go_stable_fields_without_claiming_migration_ownership",
-    "conclusion": "partial：Go 契约测试断言 system status 的 envelope 与必需字段。Rust 按冻结语料回放同组路由并断言稳定字段（引用测试），字段集合由语料固定而非 Go 逐键对照。",
-    "command": "",
+    "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_matches_go_stable_fields_without_claiming_migration_ownership; crates/jftrade-engine/src/product_system_read_tests.rs::system_read_routes_match_group_fixture_in_cutover_only",
+    "conclusion": "partial：Go 断言 /api/v1/system/status 信封 ok/timestamp/data 与必填字段（name/apiPort/defaultBroker/build/persistence/runtimeResources）且 runtimeResources.items 含 execution-orders-db(trading)。Rust 的 system status 与 runtimeResources 分别由两个用例覆盖（稳定字段、资源清单），但冻结 fixture 不含 /system/status 路径，没有一条测试同时断言该组合。缺口 owner：crates/jftrade-engine 系统状态投影；回归要求：补“/system/status 信封 + 必填字段 + execution-orders-db/trading 资源存在”的单条断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercoretest/contract_test.go:90:TestContractSettings": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_settings_read_tests.rs::settings_read_routes_replay_go_compatible_defaults_without_file_mutation",
-    "conclusion": "partial：Go 契约测试断言 settings envelope 与默认值。Rust 设置读路由回放 Go 兼容默认且不写文件（引用测试），字段全集由冻结语料断言。",
-    "command": "",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_appearance_read_tests.rs::appearance_read_route_matches_go_fixture_for_all_seed_documents",
+    "conclusion": "function_exact：Go 断言 GET /api/v1/settings/ui 返回 200、ok=true、data.appearance 存在。Rust 按冻结 fixture 逐案重放四个 seed 文档，断言完整响应体（含 ok 信封与 data.appearance）并断言读操作不改写设置文件。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/contract_test.go:123:TestContractMarketDataMarkets": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_market_data_catalog_read_tests.rs::market_data_catalog_read_routes_match_group_fixture_in_cutover_only",
-    "conclusion": "partial：Go 契约测试断言 markets 路由载荷。Rust 行情目录读路由按冻结语料回放（引用测试），与 Go 的字段级契约断言等价但语料驱动。",
-    "command": "",
-    "evidence_type": "partial"
+    "conclusion": "function_exact：Go 断言 GET /api/v1/market-data/markets 返回 defaultMarket 字段与非空 markets 数组。Rust 逐案重放冻结 fixture，`markets-ready` 的 data 恰为 {defaultMarket, markets[US,HK]}，断言 data 完全相等（强于字段存在性），并覆盖 provider/descriptor 失败分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/contract_test.go:165:TestContractBrokerRuntime": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_match_group_fixture_in_cutover_only; crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_runtime_projects_configured_connection_and_live_hub",
-    "conclusion": "partial：Go 契约测试断言 broker runtime 载荷。Rust broker 读路由回放冻结语料并投影真实连接/live hub（引用测试），字段全集由语料固定。",
-    "command": "",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_runtime_route_keeps_descriptor_session_and_accounts_keys",
+    "conclusion": "function_exact：Go 断言 GET /api/v1/brokers/futu/runtime 返回 200 且 data 含 descriptor/session/accounts。Rust 新增用例构造 Futu 运行时投影后请求该路由，断言三个键存在（原 fixture 重放用例的 rust_entry 已绑定 internal/trading/responses_test.go:12，故此处新增独立断言）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/contract_test.go:205:TestContractStrategyDefinitions": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_strategy_definitions_tests.rs::strategy_definition_routes_match_group_fixture_in_cutover_only",
-    "conclusion": "partial：Go 契约测试断言策略定义 payload 形状。Rust 同组路由按冻结语料回放（引用测试），字段级契约由语料断言。",
-    "command": "",
-    "evidence_type": "partial"
+    "conclusion": "function_exact：Go 断言 GET /api/v1/strategy-definitions 的 data 是直接数组（非 {definitions:[...]}）。Rust 逐案重放冻结 fixture，`list-current-only` 的 data 为数组并断言全等；同时覆盖详情/查询校验分支。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/contract_test.go:240:TestContractBacktests": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_backtests_tests.rs::backtests_read_routes_match_group_fixture_in_cutover_only",
-    "conclusion": "partial：Go 契约测试断言回测 read 载荷。Rust 回测读路由按冻结语料回放（引用测试），字段全集由语料固定。",
-    "command": "",
-    "evidence_type": "partial"
+    "conclusion": "function_exact：Go 断言 GET /api/v1/backtests 的 data.runs 是数组（允许空数组）。Rust 逐案重放冻结 fixture 的 list 与 list-empty 两个用例，断言 data（含 runs 数组）全等。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/exec_routes_test.go:18:TestExecutionOrderRoutesPlaceListEventsAndCancel": {
     "status": "[~]",
@@ -6286,11 +6286,11 @@
     "evidence_type": "function_exact"
   },
   "internal/app/apiserver/tradingapp/execution_gateway_boundaries_test.go:10:TestComboOrderQuantityModeMapsEventParlaysToAmount": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::option_combo_preview_normalizes_every_account_impact_and_unlimited_bounds; crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::event_parlay_preview_surfaces_snapshot_transport_failure",
-    "conclusion": "partial：Go 断言事件组合（event parlay）数量模式为 amount、期权组合为 contracts。Rust 的期权组合与事件组合预览分别断言 contracts 语义（option_combo_preview_normalizes_every_account_impact_and_unlimited_bounds）与 amount 语义（event_parlay_preview_*），但没有 ComboOrderQuantityMode(kind) 这一独立映射函数与表驱动断言。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::combo_order_quantity_mode_maps_event_parlays_to_amount_and_option_combos_to_contracts",
+    "conclusion": "function_exact：Go 断言 ComboOrderQuantityMode(event_parlay)=amount、ComboOrderQuantityMode(option_combo)=contracts。Rust 新增用例解析期权组合与事件组合请求，断言 quantity_mode 分别为 contracts / amount（由 productClass option→contracts、event_contract→amount 推导）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/tradingapp/execution_gateway_boundaries_test.go:19:TestNormalizedBrokerComboIntentKeepsClientOrderIdentity": {
     "status": "[x]",
@@ -6302,14 +6302,14 @@
   "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:144:TestExecutionGatewayPlaceOrderBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel; crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_order_reservation_replays_identity_without_retrying_unknown_submission",
-    "conclusion": "partial：Go 断言 broker 不匹配报错、缺订单存储报 ErrOrderStoreUnavailable、prepare 错误透传、fresh 与缓存 prepare 的落库差异。Rust 把下单落库拆到 execution order store（预占重放身份、不重试未知提交）与 preview 端口（broker 失败不宣告撤单），没有 ExecutionGateway 聚合对象，故无逐步对应的 app 层边界测试。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked",
+    "conclusion": "partial：Go 的 ExecutionGateway 分支表断言 broker 不匹配、缺订单存储 ErrOrderStoreUnavailable、prepare 错误透传、stale 与 fresh prepare 的落库差异、trading 不可用时写 UNKNOWN、成功时写 placed+通知+session payload。Rust 没有 ExecutionGateway 聚合对象：下单落库拆到 execution order store（预留身份/不重试未知）与预览端口，UNKNOWN 写入与通知由对账/通知投影承担，逐分支断言未形成。缺口 owner：crates/jftrade-engine 下单写路径；回归要求：补 broker 不匹配 400、prepare 错误透传、stale/fresh 落库差异、trading 不可用写 UNKNOWN、成功写 placed+通知 五条断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:202:TestExecutionGatewayCancelOrderBoundaries": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::cancel_order_uses_modify_order_cancel_operation",
-    "conclusion": "partial：Go 断言缺存储、终态订单、缺 broker order id、非法 broker order id 的撤单分支。Rust 的 cancel_order_uses_modify_order_cancel_operation 断言撤单映射到 ModifyOrder 取消操作，终态/缺失标识的前置校验由各端口校验覆盖，未形成 Go 的逐分支表。",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::cancel_rejects_missing_terminal_and_unidentified_persisted_orders",
+    "conclusion": "partial：Rust 用例覆盖缺标识、终态与未持久化订单的撤单拒绝（该 entry），成功路径契约由 accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel 覆盖。缺口：Go 的 app 层分支表还含缺 store（Rust 由类型系统消除）与非法 brokerOrderId 逐分支断言；owner：crates/jftrade-engine 撤单写路径；回归要求：如需逐分支对齐，补非法标识与终态组合的断言矩阵。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -6322,15 +6322,15 @@
   },
   "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:298:TestExecutionGatewayCancelComboBoundaries": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel",
-    "conclusion": "partial：Go 断言组合撤单的终态/缺标识/非法标识分支与成功路径。Rust 覆盖 “接受即持久化、broker 失败不宣告撤单” 的撤单契约，组合撤单的逐分支校验由组合预览端口承担，无逐步对应断言。",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::option_combo_preview_place_and_cancel_keep_server_identity",
+    "conclusion": "partial：Rust 断言期权组合下单/撤单保持服务端身份（该 entry）。缺口：Go 的分支表（缺 store、订单未找到、broker 非组合服务、缺 brokerOrderId、broker 撤单失败、成功）在 Rust 由组合端点能力校验与撤单前置校验分担，无 1:1 断言；owner：crates/jftrade-engine 组合写路径 + crates/jftrade-integration-futu 组合能力探测；回归要求：补缺 brokerOrderId 与非组合 broker 两条断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:331:TestExecutionGatewayHelpers": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent",
-    "conclusion": "boundary：Go 的 ExecutionGatewayHelpers 覆盖 app 层小工具（组合数量模式、归一化意图字符串、通知构造）的组合行为。Rust 把通知投影独立为 execution notification projector（游标幂等推进），helper 级字符串组合函数没有对应对象，按接口差异保留。",
+    "conclusion": "boundary（结构差异）：Go 的 app 层小工具（firstNonEmptyString、derefString、组合数量模式、意图字符串归一化）在 Rust 没有同形对象：空值与首非空由 Option/`.or_else` 与组合解析直接表达，通知构造独立为通知投影（该用例覆盖游标幂等）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "boundary"
   },
@@ -6365,21 +6365,21 @@
   "internal/app/apiserver/tradingapp/notifications_test.go:32:TestExecutionOrderNotificationMessageIncludesAvailableIdentifiers": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-trading/src/notification.rs::shadow_notifications_are_deduplicated_and_never_dispatched",
-    "conclusion": "partial：Go 断言订单通知消息包含可用标识（订单号/账户等）且省略缺失项。Rust 的通知去重与派发约束由 shadow_notifications_are_deduplicated_and_never_dispatched 覆盖，标识拼接的逐字段断言在 Rust 由通知构造器测试承担但未逐条列出“包含可用标识”表，故为部分覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+    "conclusion": "partial：Go 断言订单通知消息拼接可用标识（tradingEnvironment/symbol/side/qty/filled/brokerOrderId）并在无标识时退化为内部订单号。Rust 通知消息是按事件类型生成的固定短语（如“订单 {id} 部分成交”），只携带内部订单号，不含 symbol/side/数量/brokerOrderId 拼接。缺口 owner：crates/jftrade-engine 通知投影 + crates/jftrade-trading 通知模型；回归要求：若产品要求消息含可用标识，补消息构造断言（各字段存在/缺失两种）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/tradingapp/order_update_source_broker_test.go:12:TestOrderUpdateSourceActivatesThenDiscoversAccounts": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_discovers_external_order_into_empty_ledger; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_account_identity_requires_positive_numeric_id",
-    "conclusion": "partial：Go 断言订单更新源先激活 broker 再发现账户。Rust 对应“外部订单发现进空账本”与“账户身份必须是正数 ID”的断言；Go 的 “Activate→DiscoverAccounts” 两段式调用在 Rust 由就绪会话 + 发现路径表达，无逐步断言。",
+    "conclusion": "partial：Go 断言订单更新源先激活 Futu broker 再发现账户。Rust 没有 Activate→DiscoverAccounts 两段式对象：对账端口在会话就绪后按账户身份（正数 id，否则 card_num）建立 scope 并发现外部订单进空账本（两条 entry）。缺口 owner：crates/jftrade-engine 对账发现路径；回归要求：如需保留激活语义，补“会话未就绪不发现/就绪后发现”的装配断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/tradingapp/order_update_source_broker_test.go:33:TestOrderUpdateSourceSubscribeFiltersFutuAccounts": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_rejects_unknown_account_environment_without_projection",
-    "conclusion": "partial：Go 断言订阅时按 Futu 账户过滤。Rust 断言未知账户/环境不做投影（失败关闭），账户范围约束由 reconciliation scope 测试覆盖；订阅过滤逻辑（Go 的 Subscribe 回调）在 Rust 由推送流监听路径承担，无逐步断言。",
+    "conclusion": "partial：Go 断言订阅回调按 Futu 账户过滤事件。Rust 以账户/环境 scope 过滤，未知账户或环境不做投影（该 entry，失败关闭）；推送回调在 Rust 由推送 worker 承担，无逐分支订阅过滤断言。缺口 owner：crates/jftrade-engine 推送/对账层；回归要求：补“非 Futu 账户事件被忽略、Futu 账户事件入账本”的断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -6391,16 +6391,16 @@
     "evidence_type": "function_exact"
   },
   "internal/app/apiserver/tradingapp/order_update_source_test.go:172:TestProductLifecycleOrderUpdateSourceSkipsFundOnlyAccounts": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_scope_accepts_only_stock_trade_markets",
-    "conclusion": "partial：Go 断言跳过仅基金账户。Rust 的 reconciliation_scope_accepts_only_stock_trade_markets 断言仅股票交易市场进入对账范围，等价于“非股票账户不参与”；Go 的基金账户过滤分支无逐步断言。",
+    "conclusion": "function_exact：Go 断言仅基金账户（OrderMarketAuthorities 为空）在发现账户时被跳过，普通与混合账户保留。Rust 用例断言 market_label 只接受股票市场，账户 trd_market_auth_list 含 [1,2,3] 之外的基金/期权等市场时只产生 3 个 scope，等价于基金账户不进入对账范围。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/tradingapp/order_updates_test.go:13:TestNewOrderUpdatesWorkerConstructsWorker": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_keeps_external_unavailable_as_retryable_without_unknown_write",
-    "conclusion": "boundary：Go 的 NewOrderUpdatesWorker 构造 worker（依赖装配）。Rust 没有 worker 构造函数这一对象（订单更新由 reconciliation 端口周期执行），不可用时保持可重试且不写未知状态由 reconciliation_keeps_external_unavailable_as_retryable_without_unknown_write 覆盖。",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_unknown_order_is_durable_and_idempotent",
+    "conclusion": "boundary（结构差异）：Go 构造 NewOrderUpdatesWorker（依赖装配 + 后台 worker）。Rust 没有 worker 构造对象（订单更新由对账端口周期执行，未知订单持久化幂等由该 entry 覆盖），构造语义不存在同形对象。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "boundary"
   },
@@ -6414,21 +6414,21 @@
   "internal/app/apiserver/tradingapp/order_updates_test.go:70:TestBrokerOrderQueryTrimsRuntimeIdentifiers": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_read_boundaries_tests.rs::reconciliation_discovery_deduplicates_repeated_pages_and_keeps_newest_snapshot",
-    "conclusion": "partial：Go 断言 brokerOrderQuery 对 BrokerID/AccountID/TradingEnvironment/Market 做 trim 归一。Rust 的查询规范化在读取边界测试中体现为分页去重与最新快照保留，未见逐字段 trim 断言，故为部分覆盖。",
+    "conclusion": "boundary（结构差异）：Go 的 brokerOrderQuery 对 BrokerID/AccountID/TradingEnvironment/Market 逐字段 trim。Rust 读路径不构造携带这些字段的查询对象——账户与环境由身份解析确定 scope，过滤器中只在需要时 trim+规范化 symbol/时间（TradeFilter）；逐字段 trim 无同形对象，越界输入由解析层拒绝。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/tradingapp/order_updates_test.go:80:TestExecutionOrderUpdatesIgnoreMissingLedger": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_unknown_order_is_durable_and_idempotent",
-    "conclusion": "partial：Go 断言 nil 接收者与缺账本的 ApplyOrder/ApplyFill/ApplyFees 都是安全 no-op。Rust 没有可空 updates 对象；未知订单的持久化与幂等由 reconciliation_unknown_order_is_durable_and_idempotent 断言，nil 守卫语义由类型系统表达。",
+    "conclusion": "boundary（结构差异）：Go 断言 nil 接收者与缺账本的 ApplyOrder/ApplyFill/ApplyFees 是安全 no-op。Rust 用 Option/端口装配与类型系统消除 nil 接收者，缺账本无法构造写入路径；未知订单的持久化幂等由该 entry 覆盖。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "internal/app/apiserver/tradingapp/order_updates_test.go:92:TestOrderUpdateSourceDegradesCleanlyWithoutActiveFutuRuntime": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_adapter_forwards_unavailable_opend_errors_on_every_read_route",
-    "conclusion": "partial：Go 断言没有活动 Futu 运行时（或市价源）时 DiscoverAccounts 返回 ErrOrderUpdateSourceInactive、Current/History 返回空且 Subscribe 返回可 Stop 的空订阅。Rust 在 OpenD 不可用时的读路由统一 fail-closed（broker_adapter_forwards_unavailable_opend_errors_on_every_read_route），没有 “空订阅对象” 形态。",
+    "conclusion": "partial：Go 断言无活动 Futu 运行时时 DiscoverAccounts 返回 ErrOrderUpdateSourceInactive、Current/History 返回空且 Subscribe 返回可 Stop 的空订阅。Rust 在 OpenD 不可用时读路由统一 fail-closed（该 entry），但没有订阅对象与 ErrOrderUpdateSourceInactive 等价错误码；缺口 owner：crates/jftrade-engine 读端口就绪状态与推送 worker；回归要求：确认降级 shape（错误码/空列表/空订阅）是否需要与 Go 对齐。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
