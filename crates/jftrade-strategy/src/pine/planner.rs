@@ -469,7 +469,20 @@ impl PlannerContext {
                 }
             }
             ExprKind::Call { callee, arguments } => {
-                for argument in arguments {
+                // A supported `request.security` wrapper lowers the wrapped
+                // indicator into the timeframe-suffixed key, and Go then keeps
+                // only that key. Collecting the inner call as well would add a
+                // duplicate chart-timeframe requirement the worker never needs.
+                let wrapped_by_security = callee.eq_ignore_ascii_case("request.security")
+                    && arguments.len() >= 3
+                    && indicator_time_unit(&argument_text(arguments.get(1)).unwrap_or_default())
+                        .is_some()
+                    && security_inner_binding(arguments.get(2), expression.range.start_line)?
+                        .is_some();
+                for (index, argument) in arguments.iter().enumerate() {
+                    if wrapped_by_security && index == 2 {
+                        continue;
+                    }
                     self.visit_expr(argument)?;
                 }
                 if expr_contains_equity(expression) {

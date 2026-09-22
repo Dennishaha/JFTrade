@@ -1446,3 +1446,52 @@ owner：`crates/jftrade-engine`（实时意图执行、数量归一、会话与�
 | 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1894/1894 通过 |
 | 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`pnpm run check:quick` | 全部通过（本分片 `check:quick` 首轮通过，`.rcgu.o` 42374 未触发清理） |
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 在 cargo-deny advisories 阶段失败（bans/licenses/sources ok） |
+
+### 分片六：`pkg/strategy/indicatorwarmup` 预热与需求键族 28 行
+
+范围（按账本键取值）：`parser_validation_test.go:5/:55`、`risk_specification_rejection_test.go:5`、`spec_parse_business_test.go:11/:135/:198/:215`、
+`spec_parse_invalid_test.go:8/:60/:137/:203`、`spec_sort_business_test.go:8/:66`、`warmup_internal_test.go:10/:38/:50/:62/:110`、
+`warmup_plan_test.go:12/:40/:74/:98/:121`、`warmup_script_test.go:14/:51/:67/:96/:103`（`:142 TestResolveIntervalMinutesSupportsBrokerIntervalsAndSafeFallbacks` 已被既有 `[x]` 认领，不重复）。
+owner：`crates/jftrade-strategy`（Pine planner 的 warmup/需求计划、`indicator_time_unit`、MTF 周期校验、运行时风险声明）；对照方为 `crates/jftrade-engine` 的预热入口与 `workers/pinets` 的需求消费。
+
+修复（1 处功能差异，带先红探针）：
+
+- 差异：`request.security(sym, "15m", ta.ema(close, 20))` 这类调用在 Go 侧只产出一个需求键 `ma:EMA:20:15m`；Rust 的 `visit_expr` 在收集包装键之外，又把第 3 实参里的内层 `ta.ema` 当成独立需求收集，计划里同时出现 `ma:EMA:20` 与 `ma:EMA:20:15m`，导致预热根数被按较短键抬高。
+- 修复：`crates/jftrade-strategy/src/pine/planner.rs` 的 `Call` 分支新增 `wrapped_by_security` 判定，当 `request.security` 包装可解析时跳过内层调用收集，键集合与 Go 一致。
+- 先红探针：注释掉该判定后，`request_security_timeframes_validate_against_the_strategy_interval` 与同族键用例复现重复键（计划为 `ma:EMA:20`、`ma:EMA:20:15m`），恢复后 3/3 通过；`planner.rs` shasum `a1997ffb77e91b4cb3aba45d7207ac73730f50319aff65bf883489b69a3cf059` 在探针前后一致。
+- 新增证据：`crates/jftrade-strategy/tests/pine_indicator_warmup.rs` 七个用例——`warmup_bars_use_the_largest_indicator_requirement`（1m US 下 `ta.sma(close,5)` + `request.security(...,"D",ta.sma(close,20))` + `ta.macd` → 7800）、
+  `warmup_bars_follow_market_trading_profiles`（US 20*390、HK 20*330、SH/SZ 20*240）、
+  `warmup_bars_use_the_extended_trading_day_when_enabled`（US 扩展时段 5*24*60=7200）、
+  `warmup_bars_omit_a_runtime_series_floor`（1m `ta.sma(close,5)` → 5，不抬高到运行时序列下限）、
+  `warmup_bars_from_a_script_match_the_plan_for_extended_hours`（脚本入口 20*1440=28800）、
+  `warmup_bars_fall_back_to_the_generic_calendar_for_unknown_symbols`（未识别前缀回退 390 分钟/天，月线 5m 间隔 → 1560）、
+  `request_security_timeframes_validate_against_the_strategy_interval`（键恰为 `ma:EMA:20:15m`；1m 通过，`1h`/`1d` 报 fixed timeframe 低于策略周期）。
+- 映射终值：本分片 28 行 = 7 `function_exact` + 17 `partial` + 4 `boundary`；`[x]` 1546 → 1553、partial 2286 → 2280、boundary 619 → 618（其中 5 行原 boundary 收紧为 1 partial + 4 boundary）。
+
+关键事实与新登记缺口（P1/P2）：
+
+1. **固定周期校验只覆盖两族（P1）**：Go 的 `validateFixedTimeframeRequirements` 逐族校验 ma/security_source/rsi/stdev/variance/stoch/cci/mfi/advanced；Rust 的 `validate_timeframe_alignments` 只对 `security` 与 `ma` 两族生效，其余族即使声明了非法固定周期也不会在校验期被拒（`:62` 用例即为此收紧的 partial）。
+2. **需求键解析器整体缺失（P1）**：Go 有完整的“键字符串 → 类型化配置”解析与严格模式（`parser_validation`、`spec_parse_*` 共 10 行），Rust 的键只由 planner 生成、由 worker 目录消费，没有反向解析入口，也没有严格模式开关与逐族 invalid 文案；历史键再解析（迁移后遗留键）暂无对应实现。
+3. **高级指标 lookback 语义未逐 kind 对齐（P1）**：Go 逐 kind 断言 warmup 语义（`anchored_vwap`→1、`pivothigh(4,3)`→9、`linreg(20,2)`→24）；Rust 的 `estimated_lookback_bars_with_session` 对高级族走“取参数最大值”的通用估算，未按 kind 复刻这些常量，`ta.linreg` 的 offset 语义尤其未对齐（`:50` 登记为缺口）。
+4. **背离与保护回看族缺失（P1）**：Go 的 `divergence_*`、`protect` 回看计入预热（`:10` 的 11 类窗口、`:121` 的 divergence_top(signal,8)+protect 2 小时）；Rust 的风险面是声明式限额，没有背离回看与保护窗口需求族，换算无语义对象（`:10` partial、`:121` boundary）。
+5. **配置排序层缺失（P2）**：Go 按业务优先级 + tie-breaker 排序指标/风险配置（`spec_sort_business` 两行）；Rust 用有序映射去重，顺序稳定但不按业务优先级，也没有配置排序层，升级路径为“若下游需要固定业务优先序，在计划投影处加排序并复刻断言”。
+6. **风险规格校验面不同（P2）**：Go 拒绝畸形时间窗与策略契约（`quarter` 单位、非法 window policy 组合）；Rust 的风险声明只校验模式（off/monitor/enforce）、`closeOnly` 与限额，时间窗/策略契约无对应输入面（`:5` 登记为缺口）。
+7. **周期标签格式化已退役（P2）**：Go 的 `formatFixedTimeframeLabels` 为展示层文案；Rust 以分钟/枚举表达周期，展示由前端与 wire DTO 承担，如需同形标签应在策略预览投影处补格式化并复刻断言。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 修复前先红 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked -E 'test(request_security_timeframes_validate_against_the_strategy_interval)'` | 期望键为 `ma:EMA:20:15m` 时实际出现 `ma:EMA:20` 与 `ma:EMA:20:15m` 双键，用例失败（去掉 `wrapped_by_security` 判定可复现） |
+| 新增用例 | 同上（七条 `warmup_bars_*`/`request_security_*` 过滤） | 7/7 通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast` | 55/55 通过 |
+| 探针回滚校验 | `shasum -a 256 crates/jftrade-strategy/src/pine/planner.rs` | 修复文件与探针副本均为 `a1997ffb…`，按字节一致 |
+| 映射写入 | payload `/tmp/s128f_payload.json` 经 `/tmp/b82_apply.py` 应用 | 28 行给出终值，`[x]` 1546 → 1553、partial 2286 → 2280、boundary 619 → 618 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3222（Strategy 域 201） |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1565、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1894/1894 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2944 files）、`pnpm run check:quick` | 全部通过；`check:quick` 首轮在 `check:rust:workspace` 的目标健康检查处以 `.rcgu.o` 57456 ≥ 50000 中止（确认无 Cargo 进程后 `pnpm run clean:rust:artifacts` 清理 118027 文件/33.3 GiB，复跑 workspace 3342/3342 通过），次轮 `check:quick` 记录两处并行负载抖动：`check:compatibility:provider-runtime`（Node 加载器崩溃，隔离复跑通过）与 `adk_session_detail_omits_resolved_approval_groups`（1 failed，隔离复跑 3/3 通过），第三轮 `check:quick` 仅剩已知的 `check:rust:static` 失败，其余全部通过（.rcgu.o 已在清理后重建） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 在 cargo-deny advisories 阶段失败（bans/licenses/sources ok） |
+
+后续：分片七进入 `pkg/strategy/ir/planner*` 29 行（`planner_test.go` 11、`planner_internal_boundaries_test.go` 6、`planner_business_boundary_test.go` 4、`planner_branch_test.go` 2、`planner_indicator_matrix_test.go` 3、`planner_internal_test.go` 3），随后 `pkg/strategy/pine/parse_*` 41 行，直至 `strategy_pine` 域 510 行清空。
