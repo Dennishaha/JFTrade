@@ -46,6 +46,7 @@ fn watchlist_store_rejects_missing_drifted_and_corrupted_go_databases() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/watchlist_runtime_test.go:14 TestServerInitializesWatchlistDatabaseAndDefaultGroup
 fn watchlist_group_mutations_are_revision_fenced_and_survive_restart() {
     let directory = tempfile::tempdir().expect("temporary directory");
     let path = directory.path().join("watchlist.db");

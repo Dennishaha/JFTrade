@@ -322,6 +322,7 @@ mod tests {
     }
 
     // Parity: go:452dea11:internal/settings/service_test.go:446 TestSaveIntegrationPassesStructuredConfigWithoutChangingRuntimeEnv
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/settings_broker_test.go:18 TestBrokerIntegrationSavePersistsWithoutMutatingRuntimeEnv
     #[test]
     fn structured_integration_save_leaves_the_process_environment_untouched() {
         let environment = ["FUTU_OPEND_ADDR", "JFTRADE_FUTU_WEBSOCKET_PORT"]
@@ -355,6 +356,23 @@ mod tests {
                 "{name} changed during the settings write"
             );
         }
+    }
+
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/settings_normalization_test.go:40 TestNormalizeFutuConfigAppliesDefaults
+    #[test]
+    fn normalize_futu_config_applies_go_defaults_and_forces_encryption_off() {
+        let config = normalize_futu_integration_config(&FutuIntegrationConfig {
+            use_encryption: true,
+            ..FutuIntegrationConfig::default()
+        });
+        assert_eq!(config.integration_type, "futu");
+        assert_eq!(config.host, "127.0.0.1");
+        assert_eq!(config.api_port, 11_110);
+        assert_eq!(config.websocket_port, 11_111);
+        assert_eq!(config.max_websocket_connections, 20);
+        assert_eq!(config.trade_market, "HK");
+        assert_eq!(config.security_firm, "FUTUSECURITIES");
+        assert!(!config.use_encryption);
     }
 
     // Parity: go:452dea11:internal/app/apiserver/servercoretest/settings_normalization_test.go:10 TestNormalizeManagedBrokerAccountAppliesDefaults

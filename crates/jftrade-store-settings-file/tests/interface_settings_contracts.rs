@@ -26,6 +26,9 @@ struct InterfaceSettingsCase {
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/settings_interfaces_test.go:58 TestInterfaceSettingsUsesStoredOverride
+// A stored `interfaces` block overrides the launch defaults: the API and GUI
+// binds are read back verbatim and only the connection limit is normalized.
 fn live_websocket_limit_reads_go_settings_without_mutating_the_shadow_file() {
     let corpus: InterfaceSettingsCorpus = serde_json::from_str(include_str!(
         "../../../tests/fixtures/compatibility/api-transport/live-websocket-interface-settings.json"
@@ -61,6 +64,24 @@ fn live_websocket_limit_reads_go_settings_without_mutating_the_shadow_file() {
             .load_interface_settings()
             .expect("load interface settings");
 
+        if let Some(settings) = settings.as_ref() {
+            let expected_api_bind = test_case.document["interfaces"]["apiBind"]
+                .as_str()
+                .unwrap_or_default();
+            let expected_gui_bind = test_case.document["interfaces"]["guiBind"]
+                .as_str()
+                .unwrap_or_default();
+            assert_eq!(
+                settings.api_bind, expected_api_bind,
+                "case {} apiBind",
+                test_case.name
+            );
+            assert_eq!(
+                settings.gui_bind, expected_gui_bind,
+                "case {} guiBind",
+                test_case.name
+            );
+        }
         assert_eq!(
             normalize_live_websocket_connection_limit(settings.as_ref()),
             test_case.expected_limit,

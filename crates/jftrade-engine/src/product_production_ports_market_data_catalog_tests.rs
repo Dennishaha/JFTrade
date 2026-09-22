@@ -211,6 +211,7 @@ async fn futu_search_distinguishes_no_match_unsupported_market_and_runtime_failu
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/market_profiles_test.go:15 TestMarketProfilesEndpoint
 async fn futu_catalog_retains_market_precision_and_session_metadata() {
     let port = ProductionMarketDataCatalogPort::new(
         Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu))),

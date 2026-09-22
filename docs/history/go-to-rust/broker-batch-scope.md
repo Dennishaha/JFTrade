@@ -770,3 +770,96 @@ Rust 侧：
 `servercoretest` 其余约 59 条：settings/broker 与 onboarding 11、backtest_runs/provider 8、market_depth 4、
 openapi_snapshot 4、server_definitions 6、system/runtime 8、strategy_logs/preview/sync 5、watchlist/research 4、
 frontend/installers/plugin/contract 余量等；owner 为 `crates/jftrade-engine` 对应投影 + `crates/jftrade-api` wire 层。
+
+### 第一百二十六批 分片三 b-1：`servercoretest` settings/system/backtest/market/watchlist/research 38 行（23 升 `[x]`，12 partial，3 boundary）
+
+范围（全部来自 `internal/app/apiserver/servercoretest/`）：
+`settings_broker_test.go` 6、`settings_interfaces_test.go` 2、`settings_onboarding_test.go` 3、`settings_normalization_test.go` 1、
+`system_routes_test.go` 3、`runtime_defaults_test.go` 3、`backtest_provider_runtime_test.go` 4、`backtest_runs_test.go` 4、
+`watchlist_runtime_test.go` 2、`research_runtime_test.go` 2、`market_depth_routes_test.go` 4、`market_profiles_test.go` 2、
+`server_business_public_test.go` 2。
+
+#### 新增 Rust 测试（4 条）
+
+| Rust 测试 | 文件 | Go 基线 | 断言要点 |
+| --- | --- | --- | --- |
+| `direct_store_integration_save_leaves_the_process_environment_untouched` | `crates/jftrade-store-settings-file/tests/settings_file_contracts.rs` | `settings_broker_test.go:95` | 存储层直写 127.0.0.5:25555 落盘，`FUTU_OPEND_ADDR`/`JFTRADE_FUTU_API_PORT` 与调用前一致 |
+| `unsaved_broker_settings_expose_null_integration_and_go_defaults` | 同上 | `settings_broker_test.go:120` | 首存前 `saved_integration=None`、`accounts` 空，有效配置 = futu/127.0.0.1/11110/11111/20/HK/FUTUSECURITIES |
+| `onboarding_defaults_and_save_persist_through_the_settings_document` | 同上 | `settings_onboarding_test.go:18` | 初始未完成；保存后时间戳取 now、brokerId 归一 futu，settings 文档与重开读回一致 |
+| `normalize_futu_config_applies_go_defaults_and_forces_encryption_off` | `crates/jftrade-settings/src/broker.rs` | `settings_normalization_test.go:40` | 逐字段默认值与 `useEncryption=false` 强制 |
+
+#### 既有测试补强（4 处，均为加断言不加新函数）
+
+- `crates/jftrade-store-settings-file/tests/interface_settings_contracts.rs::live_websocket_limit_reads_go_settings_without_mutating_the_shadow_file`：
+  追加 `apiBind`/`guiBind` 原样读回断言（`settings_interfaces_test.go:58`）。
+- `crates/jftrade-engine/src/product_tests.rs::broker_settings_writes_replay_frozen_compatibility_cases`：
+  追加 CRUD 后投影断言（唯一账户 `futu|SIMULATE|ACC-2|HK`、`useEncryption=false`、`apiPort=11110`、`websocketKey` 原样）。
+- `crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_backtest_read_routes_project_store_state`：
+  追加“list 不含 result 载荷”断言（`backtest_runs_test.go:206`）。
+- `crates/jftrade-engine/src/product_research_preset_tests.rs::research_preset_read_routes_fail_closed_and_keep_mutations_unregistered`：
+  改为断言 503 `RESEARCH_PRESET_UNAVAILABLE` 与未注册写路由 404（`research_runtime_test.go:36`）。
+- `crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_matches_go_stable_fields_without_claiming_migration_ownership`：
+  追加 `build.version`/`build.commit` 非空断言（`system_routes_test.go:12`）。
+
+#### 锚点补记（主证据，`// Parity: go:452dea11:`）
+
+`structured_integration_save_leaves_the_process_environment_untouched`（`:18`）、
+`normalize_futu_config_applies_go_defaults_and_forces_encryption_off`（`:40`）、
+`appearance_round_trip_preserves_unknown_go_owned_fields`（`settings_broker_test.go:403`）、
+`live_websocket_limit_reads_go_settings_without_mutating_the_shadow_file`（`settings_interfaces_test.go:58`）、
+`readiness_matches_dependency_account_and_completion_rules`（`settings_onboarding_test.go:149`）、
+`product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields`（`:61`）、
+`system_status_matches_go_stable_fields_without_claiming_migration_ownership` 与
+`system_status_uses_only_the_typed_market_data_runtime_port`（`system_routes_test.go:12`）、
+`desktop_token_reaches_port_with_stable_envelope_and_request_id`（`:89`）、
+`production_futu_sync_uses_opend_reader_and_persists_candles`（`backtest_provider_runtime_test.go:27`）、
+`backtests_write_fixture_replays_all_four_go_owned_mutations`（`backtest_runs_test.go:127`）、
+`production_backtest_read_routes_project_store_state`（`:206`）、
+`watchlist_group_mutations_are_revision_fenced_and_survive_restart`（`watchlist_runtime_test.go:14`）、
+`research_preset_write_fixture_matches_go_owner_for_all_three_routes`（`research_runtime_test.go:14`）、
+`research_preset_read_routes_fail_closed_and_keep_mutations_unregistered`（`:36`）、
+`live_read_routes_require_a_logical_subscription_lease`（`market_depth_routes_test.go:31`）、
+`exact_method_and_single_segment_parameters_are_required`（`:54`）、
+`resolver_rejects_unknown_method_and_path`（`:72`/`:92`）、
+`futu_catalog_retains_market_precision_and_session_metadata`（`market_profiles_test.go:15`）。
+
+#### 关键事实与新登记缺口（P1/P2）
+
+1. **broker runtime 断线 shape 差异（P1，延续分片三 a-2）**：`settings_broker_test.go:162` 断言无启用集成时
+   `/api/v1/brokers/futu/runtime` 返回中性 200（disconnected、checkedAt 空、lastError null）；Rust 在无投影源时
+   返回 503 `BROKER_READ_UNAVAILABLE`（`production_http_broker_projection_fails_closed_and_validates_before_runtime`）。
+   OpenD health 中性侧已由 `production_system_read_defaults_opend_health_to_the_unavailable_reason` 覆盖。→ partial。
+2. **Go bootstrap 文档 vs Rust 读时归一（P1）**：Rust 无 `EnsureBootstrapFile` 等价动作，`interfaces` 只在首次 broker
+   集成写入时物化（`crates/jftrade-store-settings-file/src/lib.rs:341-348`），appearance 默认由归一函数承担。→ partial。
+3. **AKShare 5m/5 天窗口守卫缺失（P1）**：全仓无 `provider akshare limits 5m history to 5 days` 等价校验；
+   `backtest_provider_runtime_test.go:55` 收紧 partial（owner = `product_production_ports_backtest_sync.rs`）。
+4. **回测 run 重启恢复文案差异（P1）**：Rust `recover_orphaned_runs` 置 `failed` 并清空 `result_json`
+   （`product_production_ports_execution.rs:321-352`），不写 Go 的 recovered 错误文案；`backtest_runs_test.go:34` → partial。
+5. **watchlist 503 码缺失（P1）**：Rust 选择启动期 fail-closed，无按请求 503 `DATABASE_INCOMPATIBLE` 映射；
+   `watchlist_runtime_test.go:51` → partial，owner = `product_wire*.rs`。
+6. **归一化 CN 放宽（P2，既有设计）**：`CN.600519`/CN bare 在 Rust 推断 SH/SZ 前缀而非 400
+   “requires an exchange-qualified symbol”；`market_profiles_test.go:79` → partial（catalog_tests.rs 已标注有意差异）。
+7. **运行期改端口不适用（P2）**：Rust `apiPort` 来自启动配置（绑定不可变），Go 的 `SetAPIPort` 运行期改写
+   无对应对象；`system_routes_test.go:112` → partial。
+8. **运行时布局/launch defaults 形态差异（P2）**：`runtime_defaults_test.go:11/:28/:48` 与
+   `server_business_public_test.go:15` 维持 partial（Rust 由 CLI + 平台数据目录 + 受管数据库描述符驱动，
+   无 GUIBind/APIBaseURLForBind/可执行目录布局）；`:48`（nil Server 安全）为语言/所有权边界。
+9. **嵌套目录用例缺口（P2）**：Rust 启动时为 9 个受管库创建缺失父目录
+   （`product_data_management.rs::inspect_database_paths`），但无“backtest DB 位于缺失嵌套目录仍 200”的用例级断言；
+   `backtest_runs_test.go:279` → partial，补一条回归即可收口。
+
+#### 分片三 b-1 验证记录与门禁
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增/补强用例（4 新 + 5 补强） | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file --all-targets --locked`、`-p jftrade-settings`、`-p jftrade-api`、`-p jftrade-engine -E ...`、`-p jftrade-store-sqlite -E 'test(watchlist_group_mutations...)'` | 全部通过（engine 12/12、settings 58/58、store-settings-file 19/19） |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b126s3b1_apply.json` | 38 行更新，`[x]` 1414 → 1437 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、无重复 rust_entry |
+| 锚点 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1438、unrecorded 0、stale 0、unknown 54 |
+| 格式 | `cargo fmt --all -- --check` | 通过 |
+
+#### 后续（分片三 b-2）
+
+`openapi_snapshot` 4、`server_definitions` 4、`strategy_logs` 3、`strategy_preview`/`strategy_sync` 2、`exec_validate` 4、
+`execution_routes` 3、`broker_new` 余量 14、`broker_routes` 2、`frontend` 5、`installers_degraded`/`plugin_lifecycle`/`contract` 余量等；
+owner 为 `crates/jftrade-engine` 对应投影、`crates/jftrade-store-sqlite` 与 `crates/jftrade-api` wire 层。

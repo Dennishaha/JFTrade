@@ -1055,6 +1055,7 @@ async fn request_market_data_quote_read_json_response(
 }
 
 /// Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:387 TestLiveReadRoutesReturnConflictForMissingSubscriptionLease
+/// Parity: go:452dea11:internal/app/apiserver/servercoretest/market_depth_routes_test.go:31 TestMarketDepthEndpointRouting
 ///
 /// Go binds live snapshot/candles/depth reads behind the logical lease owned by
 /// the subscription reconciler: while Futu is active and no SNAPSHOT/KLINE

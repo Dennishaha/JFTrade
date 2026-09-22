@@ -228,6 +228,7 @@ fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/backtest_provider_runtime_test.go:27 TestBacktestSyncUsesAssembledMarketDataRuntime
 async fn production_futu_sync_uses_opend_reader_and_persists_candles() {
     let (mut port, _directory) = production_port();
     let runtime = std::sync::Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
@@ -449,6 +450,7 @@ fn production_sync_restart_recovery_marks_orphaned_task_failed() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/backtest_runs_test.go:206 TestBacktestListReturnsLightweightRunsAndResultReturnsDetail
 fn production_backtest_read_routes_project_store_state() {
     let (port, _directory) = production_port();
     port.store
@@ -468,6 +470,10 @@ fn production_backtest_read_routes_project_store_state() {
     let listed = port.list().expect("list runs");
     assert_eq!(listed["runs"][0]["id"], "run-production");
     assert_eq!(listed["runs"][0]["marketDataProvider"], "yfinance");
+    // The list projection stays lightweight: the persisted result payload is
+    // only reachable through the detail/result reads.
+    assert!(listed["runs"][0].get("result").is_none());
+    assert!(listed["runs"][0].get("results").is_none());
 
     let status = port
         .status("run-production")

@@ -98,6 +98,7 @@ async fn normalize_instrument_resolves_qualified_sh_and_sz_prefixes() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/market_profiles_test.go:79 TestNormalizeMarketInstrumentEndpoint
 async fn normalize_instrument_handles_us_and_hk() {
     let port = ProductionMarketDataProviderActionsPort::new(None);
 

@@ -176,6 +176,7 @@ fn settings_writer_lease_conflicts_but_read_only_shadow_stays_available() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/settings_onboarding_test.go:61 TestOnboardingRoutesSuggestOobeUntilCompleted
 fn product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields() {
     let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/compatibility/api-transport/product-slice-corpus.json");
@@ -513,6 +514,9 @@ fn product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/settings_broker_test.go:403 TestUIAppearanceSavePersistsToSettings
+// The appearance write lands in the settings document and survives a reload,
+// which is the store-side half of the `PUT /settings/ui` contract.
 fn appearance_round_trip_preserves_unknown_go_owned_fields() {
     let directory = tempdir().expect("temporary directory");
     let path = directory.path().join("settings.json");
@@ -922,6 +926,122 @@ fn test_failed_managed_account_crud_rolls_back_backing_array() {
     let inputs = store.load_broker_settings_inputs().expect("load accounts");
     let accounts = inputs.accounts;
     assert!(accounts.is_empty());
+}
+
+#[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/settings_broker_test.go:95 TestSettingsStoreDirectSaveDoesNotMutateRuntimeEnv
+// A direct store-level integration save persists the document and leaves the
+// OpenD environment variables exactly as the process found them, so the write
+// path never re-derives runtime configuration from `FUTU_*` variables.
+fn direct_store_integration_save_leaves_the_process_environment_untouched() {
+    use jftrade_settings::{BrokerIntegration, BrokerSettingsStorePort, FutuIntegrationConfig};
+
+    let environment =
+        ["FUTU_OPEND_ADDR", "JFTRADE_FUTU_API_PORT"].map(|name| (name, std::env::var(name).ok()));
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("settings.json");
+    let store = SettingsFileStore::open(&path).expect("open settings");
+    let saved = store
+        .save_broker_integration(
+            &BrokerIntegration {
+                broker_id: "futu".to_owned(),
+                enabled: true,
+                config: FutuIntegrationConfig {
+                    host: "127.0.0.5".to_owned(),
+                    api_port: 25_555,
+                    ..FutuIntegrationConfig::default()
+                },
+                ..BrokerIntegration::default()
+            },
+            "2026-08-20T00:00:00Z",
+        )
+        .expect("save integration");
+    assert_eq!(saved.config.host, "127.0.0.5");
+    assert_eq!(saved.config.api_port, 25_555);
+
+    let document: Value = serde_json::from_slice(&fs::read(&path).expect("read settings"))
+        .expect("decode persisted settings");
+    assert_eq!(document["integration"]["config"]["host"], "127.0.0.5");
+    assert_eq!(document["integration"]["config"]["apiPort"], 25_555);
+
+    for (name, before) in environment {
+        assert_eq!(
+            std::env::var(name).ok(),
+            before,
+            "{name} changed during the settings write"
+        );
+    }
+}
+
+#[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/settings_broker_test.go:120 TestBrokerSettingsExposeNullIntegrationUntilFirstSave
+// Before the first save the broker settings expose no integration and no
+// accounts, while the effective configuration is the current Go default set
+// (`127.0.0.1:11110` / `11111` / 20 connections / HK / FUTUSECURITIES).
+fn unsaved_broker_settings_expose_null_integration_and_go_defaults() {
+    use jftrade_settings::BrokerSettingsStorePort;
+
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("settings.json");
+    let store = SettingsFileStore::open(&path).expect("open settings");
+    let inputs = store
+        .load_broker_settings_inputs()
+        .expect("load broker settings");
+    assert!(inputs.saved_integration.is_none());
+    assert!(inputs.accounts.is_empty());
+    let config = inputs.effective_config;
+    assert_eq!(config.integration_type, "futu");
+    assert_eq!(config.host, "127.0.0.1");
+    assert_eq!(config.api_port, 11_110);
+    assert_eq!(config.websocket_port, 11_111);
+    assert_eq!(config.max_websocket_connections, 20);
+    assert_eq!(config.trade_market, "HK");
+    assert_eq!(config.security_firm, "FUTUSECURITIES");
+}
+
+#[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/settings_onboarding_test.go:18 TestOnboardingDefaultsAndSave
+// Onboarding starts incomplete with no broker selection, and the first save
+// stamps the completion timestamp, normalizes the broker id, and persists the
+// state into the settings document that a later read reloads.
+fn onboarding_defaults_and_save_persist_through_the_settings_document() {
+    use jftrade_settings::{OnboardingSettingsStorePort, OnboardingWriteRequest};
+
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("settings.json");
+    let store = Arc::new(SettingsFileStore::open(&path).expect("open settings"));
+    let service = OnboardingSettingsService::new(store);
+    let initial = service
+        .readiness(true)
+        .expect("initial onboarding readiness");
+    assert!(!initial.state.completed);
+    assert_eq!(initial.state.last_broker_id, "");
+
+    let saved = service
+        .save(
+            &OnboardingWriteRequest {
+                completed: true,
+                last_broker_id: " futu ".to_owned(),
+                ..OnboardingWriteRequest::default()
+            },
+            "2026-06-03T00:00:00Z",
+        )
+        .expect("save onboarding");
+    assert!(saved.completed);
+    assert_eq!(saved.completed_at, "2026-06-03T00:00:00Z");
+    assert_eq!(saved.last_broker_id, "futu");
+
+    let document: Value = serde_json::from_slice(&fs::read(&path).expect("read settings"))
+        .expect("decode persisted settings");
+    assert_eq!(document["onboarding"]["completed"], true);
+    assert_eq!(document["onboarding"]["lastBrokerId"], "futu");
+
+    let reloaded = SettingsFileStore::open_read_only(&path).expect("reopen settings");
+    let inputs = reloaded
+        .load_onboarding_inputs()
+        .expect("reload onboarding inputs");
+    assert!(inputs.state.completed);
+    assert_eq!(inputs.state.last_broker_id, "futu");
 }
 
 #[derive(Default)]

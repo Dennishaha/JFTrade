@@ -128,6 +128,7 @@ impl BacktestsWritePort for FixturePort {
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/backtest_runs_test.go:127 TestBacktestRouteDeletesTerminalRuns
 fn backtests_write_fixture_replays_all_four_go_owned_mutations() {
     let fixture = fixture();
     assert_eq!(fixture.version, "stage9.backtests-write.v1");

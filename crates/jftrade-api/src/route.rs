@@ -87,6 +87,8 @@ mod tests {
     use super::*;
 
     #[test]
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/market_depth_routes_test.go:54 TestMarketDepthEndpointMethodNotAllowed
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/market_depth_routes_test.go:92 TestMarketDepthRouteDoesNotCollide
     fn exact_method_and_single_segment_parameters_are_required() {
         let catalog = RouteCatalog::new([RouteSpec {
             method: "get".into(),

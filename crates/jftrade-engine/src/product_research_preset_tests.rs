@@ -131,6 +131,7 @@ async fn research_preset_read_routes_match_group_fixture_in_cutover_only() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/research_runtime_test.go:36 TestResearchPresetRoutesReturn503WhenDatabaseCannotOpen
 async fn research_preset_read_routes_fail_closed_and_keep_mutations_unregistered() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
@@ -139,13 +140,15 @@ async fn research_preset_read_routes_fail_closed_and_keep_mutations_unregistered
             .expect("config")
             .with_research_preset_read_snapshot_port(Arc::new(FailingResearchPresetReadPort));
     let handle = start_product(config).await.expect("start product");
-    let response = request_json(
+    let (status, response) = request_json_with_status(
         handle.startup_record().address,
         "GET",
         "/api/v1/research/screens/presets",
         None,
+        &[],
     )
     .await;
+    assert_eq!(status, 503, "unavailable preset store maps to 503");
     assert_eq!(response["ok"], false);
     assert_eq!(response["error"]["code"], "RESEARCH_PRESET_UNAVAILABLE");
     for (method, path) in [
@@ -153,7 +156,10 @@ async fn research_preset_read_routes_fail_closed_and_keep_mutations_unregistered
         ("PATCH", "/api/v1/research/screens/presets/preset-value"),
         ("DELETE", "/api/v1/research/screens/presets/preset-value"),
     ] {
-        let response = request_json(handle.startup_record().address, method, path, None).await;
+        let (status, response) =
+            request_json_with_status(handle.startup_record().address, method, path, None, &[])
+                .await;
+        assert_eq!(status, 404, "{method} {path} is unregistered");
         assert_eq!(response["ok"], false, "{method} {path}");
         assert_eq!(response["error"]["code"], "NOT_FOUND", "{method} {path}");
     }

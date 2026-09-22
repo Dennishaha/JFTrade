@@ -215,6 +215,7 @@ struct BrokerSettingsWriteCorpus {
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/settings_broker_test.go:281 TestManagedBrokerAccountCRUDReflectsInBrokerSettings
 fn broker_settings_writes_replay_frozen_compatibility_cases() {
     let corpus: BrokerSettingsWriteCorpus = serde_json::from_str(include_str!(
         "../../../tests/fixtures/compatibility/api-transport/broker-settings-write-corpus.json"
@@ -277,6 +278,27 @@ fn broker_settings_writes_replay_frozen_compatibility_cases() {
     assert_eq!(
         actual["persisted"]["interfaces"]["liveWebSocketConnectionLimit"],
         20
+    );
+
+    // The CRUD round trip must be visible in the broker settings projection a
+    // reader observes next: only the updated second account survives, its
+    // normalized identity/display fields are reflected, and the saved
+    // integration keeps the normalized (encryption-free) configuration.
+    let projected_accounts = actual["projection"]["accounts"]
+        .as_array()
+        .expect("projected managed accounts");
+    assert_eq!(projected_accounts.len(), 1);
+    assert_eq!(projected_accounts[0]["id"], "futu|SIMULATE|ACC-2|HK");
+    assert_eq!(projected_accounts[0]["displayName"], "Updated Second");
+    assert_eq!(projected_accounts[0]["tradingEnvironment"], "SIMULATE");
+    assert_eq!(projected_accounts[0]["market"], "HK");
+    assert_eq!(projected_accounts[0]["enabled"], false);
+    let projected_integration = &actual["projection"]["brokers"][0]["integration"];
+    assert_eq!(projected_integration["config"]["useEncryption"], false);
+    assert_eq!(projected_integration["config"]["apiPort"], 11110);
+    assert_eq!(
+        projected_integration["config"]["websocketKey"],
+        "write-secret"
     );
 
     assert_eq!(actual["updateMissing"], true);

@@ -168,6 +168,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/settings_onboarding_test.go:149 TestOnboardingReopensWhenRuntimeDependencyFailsAfterCompletion
     fn readiness_matches_dependency_account_and_completion_rules() {
         let service =
             OnboardingSettingsService::new(Arc::new(Store(RwLock::new(OnboardingInputs {

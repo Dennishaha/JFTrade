@@ -333,6 +333,7 @@ async fn runtime_dependencies_use_the_normalized_settings_node_candidate() {
 // Parity: go:452dea11:internal/app/apiserver/server_test.go:85 TestStartDesktopDoesNotMutatePersistedWebAccessSettings
 // Parity: go:452dea11:internal/app/apiserver/runtime/resources_test.go:78 TestRuntimeResourceSummaryIncludesCountAndItems
 // Parity: go:452dea11:internal/system/service_test.go:13 TestStatusDefaultsAndInjectedSummaries
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/system_routes_test.go:12 TestSystemStatusEndpointReturnsStatus
 #[tokio::test]
 async fn system_status_matches_go_stable_fields_without_claiming_migration_ownership() {
     let directory = tempdir().expect("temporary directory");
@@ -427,6 +428,19 @@ async fn system_status_matches_go_stable_fields_without_claiming_migration_owner
         "../../../tests/fixtures/compatibility/api-transport/broker-descriptor.json"
     ))
     .expect("broker descriptor fixture");
+    // The Go contract only requires non-empty build identity fields; the Rust
+    // projection fills them from build-time environment with dev/unknown
+    // fallbacks, so the assertion is non-emptiness rather than a fixed value.
+    assert!(
+        data["build"]["version"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty())
+    );
+    assert!(
+        data["build"]["commit"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty())
+    );
     assert_eq!(data["broker"], broker);
     assert_eq!(data["observability"]["broker"], broker);
     assert_eq!(
@@ -477,6 +491,7 @@ async fn system_status_matches_go_stable_fields_without_claiming_migration_owner
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/system_routes_test.go:12 TestSystemStatusEndpointReturnsStatus
 async fn system_status_uses_only_the_typed_market_data_runtime_port() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");

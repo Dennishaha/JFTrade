@@ -115,6 +115,7 @@ impl ResearchPresetWritePort for FixturePort {
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/research_runtime_test.go:14 TestServerInitializesResearchDatabaseAndPresetRoutes
 fn research_preset_write_fixture_matches_go_owner_for_all_three_routes() {
     let fixture = research_preset_write_fixture();
     assert_eq!(fixture.timestamp, FIXTURE_TIMESTAMP);
