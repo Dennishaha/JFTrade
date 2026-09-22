@@ -294,3 +294,51 @@ fn test_execution_details_resolver_and_order_update_cache_failure_branches() {
     let blank_id = "   ";
     assert!(blank_id.trim().is_empty());
 }
+
+#[test]
+fn broker_lifecycle_families_map_from_lowercase_and_spaced_values() {
+    // Parity: go:452dea11:internal/trading/risk_status_broker_boundaries_test.go:82
+    // TestOrderStatusMapsEveryBrokerLifecycleFamily. Go's
+    // CanonicalBrokerOrderStatus trims, upper-cases and underscores the raw
+    // broker value before matching the lifecycle family, so lower-case and
+    // spaced inputs must reach the same canonical status as the enum variants.
+    let cases = [
+        ("created", OrderStatus::Created),
+        ("precheck rejected", OrderStatus::PrecheckRejected),
+        ("waiting_submit", OrderStatus::Submitting),
+        ("submitted", OrderStatus::BrokerAccepted),
+        ("new", OrderStatus::BrokerAccepted),
+        ("filled_part", OrderStatus::PartiallyFilled),
+        ("filled_all", OrderStatus::Filled),
+        ("cancelling_all", OrderStatus::CancelRequested),
+        ("canceled_part", OrderStatus::Cancelled),
+        ("submitfailed", OrderStatus::Rejected),
+        ("expired", OrderStatus::Expired),
+        ("unexpected", OrderStatus::Unknown),
+    ];
+    for (raw, expected) in cases {
+        assert_eq!(canonical_broker_status(raw), expected, "raw status {raw:?}");
+    }
+
+    assert_eq!(canonical_stored_status("submitted"), OrderStatus::Submitted);
+    assert_eq!(
+        canonical_stored_status("order_status_broker_accepted"),
+        OrderStatus::BrokerAccepted
+    );
+    assert_eq!(
+        reconcile_status(OrderStatus::Unknown, OrderStatus::Submitted),
+        (OrderStatus::Submitted, true)
+    );
+    assert_eq!(
+        reconcile_status(OrderStatus::Submitted, OrderStatus::Unknown),
+        (OrderStatus::Submitted, false)
+    );
+    assert!(
+        !OrderStatus::Submitted.is_terminal(),
+        "a submitted order is not terminal"
+    );
+    assert_eq!(
+        reconcile_status(OrderStatus::Submitted, OrderStatus::Created),
+        (OrderStatus::Submitted, false)
+    );
+}

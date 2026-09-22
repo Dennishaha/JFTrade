@@ -67,10 +67,56 @@ Rust 侧对应实现分布在 `crates/jftrade-trading`（`risk.rs` 的 `HardStop
 | 邻域回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker) or test(portfolio)'` | 147 条通过 |
 | 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b123_p1.json` | 1 行写入，`[x]` 保持 1358，键集 4451 不变 |
 
+## 第一百二十三批（分片二）：硬停作用域矩阵与订单状态生命周期映射（2 条）
+
+### 范围与结论
+
+- `internal/trading/risk_status_broker_boundaries_test.go:82`：`TestOrderStatusMapsEveryBrokerLifecycleFamily`
+  → 升 `[x]`/`function_exact`，新增逐条复刻 Go 断言的 Rust 用例。
+- `internal/trading/risk_status_broker_boundaries_test.go:13`：`TestRiskDecisionAndHardStopBoundarySemantics`
+  → 保留 `[~]`/`partial`，硬停匹配矩阵与符号匹配语义落地为 Rust 用例，决策结构差异登记为缺口。
+
+### 关键事实（本批 recon）
+
+- **状态映射只有表示差异**：Go `CanonicalBrokerOrderStatus` 对 raw 值做 trim/大写/空格转下划线后匹配
+  生命周期族，Rust `model.rs::canonical_broker_status` 的实现逐分支等价（含 `EXPIRED`、
+  `SUBMITTED|NEW|ACCEPTED`、`FILLED_PART|PARTIAL_FILLED|PARTIALLY_FILLED` 等），只是返回 `OrderStatus`
+  枚举而非大写字符串常量。
+- **既有覆盖没有钉住小写/带空格输入**：`canonical_broker_status_covers_futu_lifecycle_families` 使用
+  PascalCase/混合大小写样本，`stored_status_and_terminal_classification_match_go_contract` 覆盖存储态与
+  终态分类，都没有逐条复刻 Go 的 12 条矩阵与 4 条对账断言。
+- **硬停匹配语义分散在私有 helper**：`symbol_matches`/`exact_matches`/`owner_matches` 是模块私有函数，
+  集成测试无法直接调用；`HardStop::matches_pre_trade` 是公开组合入口，可在不新增测试专用 API 的前提下
+  断言 Go 的每条作用域分支与首条命中语义。
+- **决策结构存在真实差异**：Rust `PreTradeRiskDecision` 以 `allowed`/`reason_code`/`reason_message`/
+  `matched_hard_stop_id` 表达，没有 Go 的 `decision` 字符串、`RequiresApproval()`、`RiskRejectedError`
+  与默认文案；审批语义在 assistant 域（`tool_requires_approval`），交易域不重复实现。
+
+### 新增测试与探针
+
+- 新增 `crates/jftrade-trading/tests/order_risk_compatibility.rs::broker_lifecycle_families_map_from_lowercase_and_spaced_values`：
+  逐条复刻 `:82` 的 12 条状态映射 + 2 条存储态 + 3 条对账 + 终态判定。
+- 新增 `crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker`：
+  覆盖 `:13` 的作用域矩阵（broker/environment/account/market/symbol 命中与不命中、大小写、
+  `MARKET.SYMBOL` 双向等价、空 order symbol 不命中、空/通配作用域命中）与 `matchHardStop` 首条命中语义
+  （`matched_hard_stop_id = hs-2`）及空策略放行。
+- 探针一：删除 `model.rs` 的 `"EXPIRED"` 映射后状态用例转红（`raw status "expired"`：Unknown ≠ Expired），
+  按字节回滚并核对 shasum `316a2077e0c8ddaca416da3c1abfc616ea6241699f4e2f15f9404f29c3d6b16d`。
+- 探针二：把 `HardStop::matches_pre_trade` 的 `symbol_matches` 短路后硬停用例转红
+  （`symbol: Some("MSFT")` 被判为命中），按字节回滚并核对 shasum
+  `d2d50143725158ebf0bfba25f3fee0fbb2b99cd3c73b6e2c6e3c2bcd2f4d4129`。
+
+### 分片二验证记录
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked -E 'test(pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker) or test(broker_lifecycle_families_map_from_lowercase_and_spaced_values)'` | 2 条通过 |
+| crate 全量 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked` | 84 条通过 |
+| clippy | `pnpm run check:clippy` | 通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b123_p2.json` | 2 行写入，`[x]` 1358 → 1359 |
+
 ## 后续待办
 
-- 分片二：`:13` 硬停匹配矩阵（`HardStop::matches_pre_trade` 的市场/符号/账户/环境分支与首条命中语义）
-  与 `:82` 订单状态生命周期映射（`canonical_broker_status`/`canonical_stored_status`/`reconcile_status`）。
 - 分片三：`:187` 低层回退 helper（Rust 无 `firstNonEmpty`/`withTimeout` 同形函数）与
   `:228` broker 解析（`resolveBroker` 必需/可选语义）与预测行情存储注入边界。
 - 本批登记的缺口：`/runtime` 无会话回退投影；`RiskRejectedError` 默认文案与 `RequiresApproval` 决策语义；

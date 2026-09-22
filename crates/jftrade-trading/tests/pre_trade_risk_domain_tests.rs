@@ -456,3 +456,124 @@ fn pre_trade_risk_snapshot_uses_empty_vectors_not_null() {
         );
     }
 }
+
+#[test]
+fn pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker() {
+    // Parity: go:452dea11:internal/trading/risk_status_broker_boundaries_test.go:13
+    // TestRiskDecisionAndHardStopBoundarySemantics (hard-stop matching matrix).
+    // Go's hardStopMatches skips blank broker/account/market/symbol scopes and
+    // compares the populated ones case-insensitively, accepting either the
+    // bare symbol or the MARKET.SYMBOL form.
+    let order = test_order(TradingEnvironment::Real);
+    let matching = HardStop {
+        id: Some("hs-1".to_owned()),
+        broker_id: Some("futu".to_owned()),
+        trading_environment: Some("REAL".to_owned()),
+        account_id: Some("acc-1".to_owned()),
+        market: Some("US".to_owned()),
+        symbol: Some("AAPL".to_owned()),
+    };
+    assert!(matching.matches_pre_trade(&order));
+
+    let nonmatching = [
+        HardStop {
+            broker_id: Some("other".to_owned()),
+            ..matching.clone()
+        },
+        HardStop {
+            trading_environment: Some("SIMULATE".to_owned()),
+            ..matching.clone()
+        },
+        HardStop {
+            account_id: Some("other".to_owned()),
+            ..matching.clone()
+        },
+        HardStop {
+            account_id: Some("*".to_owned()),
+            market: Some("HK".to_owned()),
+            ..matching.clone()
+        },
+        HardStop {
+            account_id: Some("*".to_owned()),
+            symbol: Some("MSFT".to_owned()),
+            ..matching.clone()
+        },
+    ];
+    for entry in &nonmatching {
+        assert!(
+            !entry.matches_pre_trade(&order),
+            "nonmatching hard stop {entry:?}"
+        );
+    }
+
+    for symbol in ["aapl", "US.AAPL"] {
+        assert!(
+            HardStop {
+                symbol: Some(symbol.to_owned()),
+                ..matching.clone()
+            }
+            .matches_pre_trade(&order),
+            "symbol scope {symbol:?} must match AAPL"
+        );
+    }
+    let mut prefixed = test_order(TradingEnvironment::Real);
+    prefixed.symbol = "US.AAPL".to_owned();
+    assert!(
+        matching.matches_pre_trade(&prefixed),
+        "an order carrying MARKET.SYMBOL must match the bare symbol scope"
+    );
+
+    for blank in [
+        HardStop {
+            symbol: Some("   ".to_owned()),
+            ..matching.clone()
+        },
+        HardStop {
+            market: Some(" ".to_owned()),
+            ..matching.clone()
+        },
+        HardStop {
+            broker_id: Some("*".to_owned()),
+            account_id: Some("*".to_owned()),
+            ..matching.clone()
+        },
+    ] {
+        assert!(
+            blank.matches_pre_trade(&order),
+            "blank or wildcard scope {blank:?} must match either value"
+        );
+    }
+    let mut anonymous = test_order(TradingEnvironment::Real);
+    anonymous.symbol = String::new();
+    assert!(
+        !matching.matches_pre_trade(&anonymous),
+        "a populated symbol scope must not match an empty order symbol"
+    );
+
+    // Go's matchHardStop skips nonmatching entries and returns the first match.
+    let mut policy = valid_policy();
+    policy.hard_stops = vec![
+        HardStop {
+            broker_id: Some("other".to_owned()),
+            ..matching.clone()
+        },
+        HardStop {
+            id: Some("hs-2".to_owned()),
+            ..matching.clone()
+        },
+    ];
+    let decision = evaluate_pre_trade_risk(&policy, &order);
+    assert!(!decision.allowed);
+    assert_eq!(
+        decision.reason_code.as_deref(),
+        Some("REAL_TRADE_HARD_STOP_ACTIVE")
+    );
+    assert_eq!(decision.matched_hard_stop_id.as_deref(), Some("hs-2"));
+
+    let mut empty = valid_policy();
+    empty.hard_stops = Vec::new();
+    assert!(
+        evaluate_pre_trade_risk(&empty, &order).allowed,
+        "an empty hard-stop policy must not block real orders"
+    );
+}

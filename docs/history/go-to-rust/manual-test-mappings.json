@@ -30892,17 +30892,17 @@
   },
   "internal/trading/risk_status_broker_boundaries_test.go:13:TestRiskDecisionAndHardStopBoundarySemantics": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_fails_when_hard_stop_matches；crates/jftrade-trading/tests/hard_stop_environment_scope.rs::hard_stop_environment_scope_blocks_only_matching_real_commands",
-    "conclusion": "partial：Rust 覆盖硬停匹配拒绝与硬停环境作用域（仅阻断匹配的真实命令、支持通配/大小写）；差异：Go 断言风控决策与硬停边界语义（决策结构、原因）的组合，Rust 以决策断言表达，结构字段不同。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker（本批新增）；crates/jftrade-trading/tests/hard_stop_environment_scope.rs::hard_stop_environment_scope_trims_case_and_supports_wildcards",
+    "conclusion": "partial：Go 断言四组边界——(a) PreTradeRiskDecision.RequiresApproval 对 \" require_approval \" 为真、对 \"reject\" 为假；(b) RiskRejectedError.Error() 的 message→code→默认文案优先级与 IsRiskRejected 分类；(c) symbolMatches 的 6 条矩阵（空 entry 不匹配、空 order symbol 不匹配、大小写与 MARKET.SYMBOL 双向等价、异符号不匹配）；(d) hardStopMatches/matchHardStop 的命中矩阵与首条命中语义（broker/environment/account/market/symbol 作用域、空配置不命中、跳过不匹配项）。Rust 证据：(c)(d) 由本批新增 pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker 覆盖——直接对 HardStop::matches_pre_trade 断言上述每个作用域分支、空/通配作用域、空 order symbol 不命中，并用 evaluate_pre_trade_risk 断言首条命中返回 matched_hard_stop_id=hs-2 与空 hard-stop 策略放行；环境作用域通配另有 hard_stop_environment_scope_trims_case_and_supports_wildcards。差异/缺口：(a) Rust 的 PreTradeRiskDecision 用 allowed/reason_code/reason_message/matched_hard_stop_id 表达，没有 decision 字符串与 RequiresApproval；审批语义归属 assistant 域（tool_requires_approval），不在交易域重复实现；(b) Rust 无 RiskRejectedError 类型与默认文案 \"pre-trade risk rejected the execution order\"，拒绝经 ExecutionWritePortError::Failed 携带 status+code+message 出网（403/400），回归要求：若未来引入订单审批决策，需先补决策结构用例再改实现；(d) 另登记一处有意偏差：Go 的 hardStopMatches 把 TradingEnvironment 当字面量比较（\"*\" 不再命中），Rust 的 owner_matches 把 \"*\" 视为任意环境的通配（更严格/更安全），已有测试固定，如需与 Go 完全一致须先确认风控口径。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked -E 'test(pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker) or test(hard_stop_environment_scope_trims_case_and_supports_wildcards)'",
     "evidence_type": "partial"
   },
   "internal/trading/risk_status_broker_boundaries_test.go:82:TestOrderStatusMapsEveryBrokerLifecycleFamily": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::test_canonical_broker_order_status_covers_futu_lifecycle；crates/jftrade-trading/src/model.rs::canonical_status_and_transition_match_go_rules",
-    "conclusion": "partial：Rust 覆盖 Futu 生命周期族到规范状态的映射与状态迁移规则；差异：Go 断言订单状态映射覆盖每个 broker 生命周期族（枚举矩阵逐项），Rust 覆盖 Futu 族，其它 broker 族未逐项断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::broker_lifecycle_families_map_from_lowercase_and_spaced_values（本批新增）",
+    "conclusion": "已覆盖：本批新增 broker_lifecycle_families_map_from_lowercase_and_spaced_values 逐条复刻 Go 的 CanonicalBrokerOrderStatus 矩阵（created→CREATED、\"precheck rejected\"→PRECHECK_REJECTED、waiting_submit→SUBMITTING、submitted/new→BROKER_ACCEPTED、filled_part→PARTIALLY_FILLED、filled_all→FILLED、cancelling_all→CANCEL_REQUESTED、canceled_part→CANCELLED、submitfailed→REJECTED、expired→EXPIRED、unexpected→UNKNOWN），以及 CanonicalStoredOrderStatus(\"submitted\")、CanonicalStoredOrderStatus(\"order_status_broker_accepted\")、ReconcileCanonicalOrderStatus(UNKNOWN,SUBMITTED)=(SUBMITTED,true)、(SUBMITTED,UNKNOWN)=(SUBMITTED,false)、(SUBMITTED,CREATED)=(SUBMITTED,false) 与 IsCanonicalTerminalOrderStatus(SUBMITTED)=false。表示差异：Go 返回大写字符串，Rust 返回 OrderStatus 枚举（同名常量一一对应）；其余 Futu 生命周期族覆盖保留在 order_risk_compatibility.rs::canonical_broker_status_covers_futu_lifecycle_families（已被 internal/trading/order_status_test.go:5 引用）与 stored_status_and_terminal_classification_match_go_contract。探针：删除 model.rs 的 \"EXPIRED\" 映射后新测试在 raw status \"expired\" 转红（Unknown≠Expired），按字节回滚并核对 shasum 316a2077e0c8ddaca416da3c1abfc616ea6241699f4e2f15f9404f29c3d6b16d。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked -E 'test(broker_lifecycle_families_map_from_lowercase_and_spaced_values)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/risk_status_broker_boundaries_test.go:124:TestBrokerIdentityMismatchPropagatesAcrossReadAndWriteOperations": {
     "status": "[~]",
