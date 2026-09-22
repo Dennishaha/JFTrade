@@ -483,3 +483,235 @@ fn seed_go_execution_orders_schema(path: &Path) {
         )
         .expect("seed Go-compatible execution-orders schema");
 }
+
+// Parity: go:452dea11:internal/store/trading/persistence_query_plan_test.go:12 TestExecutionEventLoadUsesOrderIndexAndPreservesPerOrderChronology
+#[test]
+fn execution_order_events_load_in_per_order_chronology_without_a_temp_sort() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("events.db");
+    seed_go_execution_orders_schema(&path);
+    let store = open_store(&path);
+    for (id, internal_order_id, event_type, created_at) in [
+        ("evt-000004", "order-b", "b-late", "2026-07-29T00:04:00Z"),
+        ("evt-000003", "order-a", "a-late", "2026-07-29T00:03:00Z"),
+        ("evt-000001", "order-a", "a-early", "2026-07-29T00:01:00Z"),
+        ("evt-000002", "order-b", "b-early", "2026-07-29T00:02:00Z"),
+    ] {
+        store
+            .record_event(&StoredExecutionOrderEvent {
+                id,
+                internal_order_id,
+                event_type,
+                previous_status: None,
+                next_status: "SUBMITTED",
+                payload_json: "{}",
+                created_at,
+            })
+            .expect("record execution order event");
+    }
+    let event_ids = |internal_order_id: &str| {
+        store
+            .list_order_events(internal_order_id)
+            .expect("list execution order events")
+            .into_iter()
+            .map(|event| event.id)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        event_ids("order-a"),
+        vec!["evt-000001".to_owned(), "evt-000003".to_owned()]
+    );
+    assert_eq!(
+        event_ids("order-b"),
+        vec!["evt-000002".to_owned(), "evt-000004".to_owned()]
+    );
+
+    let connection = Connection::open(&path).expect("open query plan connection");
+    let mut statement = connection
+        .prepare(
+            "EXPLAIN QUERY PLAN SELECT id, internal_order_id, event_type, previous_status,
+                    next_status, payload_json, created_at
+             FROM execution_order_events WHERE internal_order_id = ?1
+             ORDER BY created_at ASC, id ASC",
+        )
+        .expect("prepare query plan");
+    let details = statement
+        .query_map(["order-a"], |row| row.get::<_, String>(3))
+        .expect("query plan rows")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("read query plan");
+    assert!(
+        details
+            .iter()
+            .any(|detail| detail.contains("idx_execution_order_events_order")),
+        "event load must use the per-order index: {details:?}"
+    );
+    assert!(
+        !details
+            .iter()
+            .any(|detail| detail.contains("USE TEMP B-TREE")),
+        "event load must not sort with a temporary b-tree: {details:?}"
+    );
+}
+
+// Parity: go:452dea11:internal/store/trading/persistence_failures_test.go:58 TestExecutionPersistenceLoadsStoredSequenceHighWaterMarks
+#[test]
+fn execution_order_sequence_high_water_marks_survive_reopen() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("sequences.db");
+    seed_go_execution_orders_schema(&path);
+    {
+        let store = ExecutionOrderStore::open(&path).expect("open execution orders store");
+        store
+            .set_sequence("orders", 41)
+            .expect("persist orders sequence");
+        store
+            .set_sequence("events", 42)
+            .expect("persist events sequence");
+    }
+    let reopened = ExecutionOrderStore::open(&path).expect("reopen execution orders store");
+    assert_eq!(
+        reopened.get_sequence("orders").expect("orders sequence"),
+        41
+    );
+    assert_eq!(
+        reopened.get_sequence("events").expect("events sequence"),
+        42
+    );
+    assert_eq!(
+        reopened
+            .next_sequence("orders")
+            .expect("next orders sequence"),
+        42
+    );
+    assert_eq!(
+        reopened
+            .next_sequence("orders")
+            .expect("next orders sequence"),
+        43
+    );
+}
+
+fn concurrent_order(index: usize) -> StoredExecutionOrder {
+    StoredExecutionOrder {
+        internal_order_id: format!("concurrent-{index:02}"),
+        broker_id: "futu".to_owned(),
+        broker_order_id: None,
+        broker_order_id_ex: None,
+        source: "api".to_owned(),
+        source_detail: "concurrency".to_owned(),
+        trading_environment: "SIMULATE".to_owned(),
+        account_id: "acc-1".to_owned(),
+        market: "US".to_owned(),
+        symbol: Some("US.AAPL".to_owned()),
+        side: Some("BUY".to_owned()),
+        order_type: Some("LIMIT".to_owned()),
+        status: "SUBMITTED".to_owned(),
+        raw_broker_status: None,
+        requested_quantity: Some(1.0),
+        requested_price: Some(100.0),
+        filled_quantity: None,
+        filled_average_price: None,
+        remark: None,
+        last_error: None,
+        last_error_code: None,
+        last_error_source: None,
+        submitted_at: Some("2026-08-22T06:00:00Z".to_owned()),
+        updated_at: "2026-08-22T06:00:00Z".to_owned(),
+        created_at: "2026-08-22T06:00:00Z".to_owned(),
+        order_kind: "single".to_owned(),
+        product_class: "equity".to_owned(),
+        quantity_mode: "quantity".to_owned(),
+        client_order_id: Some(format!("concurrent-client-{index:02}")),
+        preview_id: None,
+        normalized_request: "{}".to_owned(),
+        requested_amount: None,
+        payout: None,
+        fees: None,
+    }
+}
+
+// Parity: go:452dea11:internal/store/trading/maintenance_concurrency_test.go:43 TestExecutionStoreConcurrentReadsWritesAndDurableReload
+#[test]
+fn execution_order_concurrent_writes_and_reads_survive_reopen() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("concurrent.db");
+    seed_go_execution_orders_schema(&path);
+    let store = std::sync::Arc::new(open_store(&path));
+    let mut handles = Vec::new();
+    for index in 0..24 {
+        let writer = std::sync::Arc::clone(&store);
+        handles.push(std::thread::spawn(move || {
+            writer
+                .save_order(concurrent_order(index), "2026-08-22T06:00:00Z")
+                .expect("concurrent save order");
+        }));
+        let reader = std::sync::Arc::clone(&store);
+        handles.push(std::thread::spawn(move || {
+            let _ = reader.list_orders();
+        }));
+    }
+    for handle in handles {
+        handle.join().expect("concurrent thread");
+    }
+    assert_eq!(store.order_count().expect("concurrent order count"), 24);
+    drop(store);
+
+    let reopened = open_store(&path);
+    assert_eq!(reopened.order_count().expect("reloaded order count"), 24);
+}
+
+// Parity: go:452dea11:internal/store/trading/startup_compatibility_test.go:31 TestExecutionOrderPersistenceRejectsV1WithoutMutatingFile
+#[test]
+fn execution_order_legacy_metadata_is_rejected_without_mutating_the_file() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("legacy-v1.db");
+    seed_go_execution_orders_schema(&path);
+    let connection = Connection::open(&path).expect("open legacy fixture");
+    connection
+        .execute_batch(
+            "UPDATE jftrade_schema_meta SET version = 1
+             WHERE component_id = 'execution-orders';",
+        )
+        .expect("downgrade schema metadata");
+    drop(connection);
+
+    let before = std::fs::read(&path).expect("read legacy bytes");
+    let error =
+        ExecutionOrderTestCutoverStore::open_existing(&path, EXECUTION_ORDERS_TEST_CUTOVER_PROFILE)
+            .expect_err("a v1 execution ledger must be rejected");
+    assert!(
+        matches!(error, ExecutionOrderStoreError::Schema(_)),
+        "error = {error:?}"
+    );
+    let after = std::fs::read(&path).expect("read bytes after rejection");
+    assert_eq!(before, after, "rejecting a v1 ledger must not rewrite it");
+}
+
+// Parity: go:452dea11:internal/store/trading/startup_compatibility_test.go:73 TestExecutionOrderPersistenceRejectsInvalidPaths
+#[test]
+fn execution_orders_store_rejects_directory_and_missing_parent_paths() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let directory_path = directory.path().join("orders-dir");
+    std::fs::create_dir(&directory_path).expect("create directory path");
+    assert!(
+        matches!(
+            ExecutionOrderTestCutoverStore::open_existing(
+                &directory_path,
+                EXECUTION_ORDERS_TEST_CUTOVER_PROFILE
+            ),
+            Err(ExecutionOrderStoreError::NotRegularFile(_))
+        ),
+        "a directory must never be opened as the execution ledger"
+    );
+
+    let nested = directory.path().join("missing-parent/orders.db");
+    assert!(
+        ExecutionOrderTestCutoverStore::open_existing(
+            &nested,
+            EXECUTION_ORDERS_TEST_CUTOVER_PROFILE
+        )
+        .is_err(),
+        "a ledger under a missing parent directory must be rejected"
+    );
+}

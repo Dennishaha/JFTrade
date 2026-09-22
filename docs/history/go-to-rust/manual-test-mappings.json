@@ -26019,11 +26019,11 @@
     "evidence_type": "partial"
   },
   "internal/store/trading/maintenance_concurrency_test.go:43:TestExecutionStoreConcurrentReadsWritesAndDurableReload": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability",
-    "conclusion": "boundary（结构差异）：Go 断言并发读写与持久重载。Rust 的执行订单存储为单连接事务写入（并发由连接互斥串行化），该用例只覆盖持久化与重启读回。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-    "evidence_type": "boundary"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_order_concurrent_writes_and_reads_survive_reopen",
+    "conclusion": "function_exact：Go 断言并发读写后计数正确且重载仍可见。Rust 用例在线程池中并行 24 次 `save_order` 与并发 `list_orders`，断言 `order_count()==24`，drop 后重开仍为 24。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --locked --test execution_order_store_contracts",
+    "evidence_type": "function_exact"
   },
   "internal/store/trading/order_leg_merge_test.go:10:TestExecutionLegSnapshotsMergeAppendAndNormalizeLifecycle": {
     "status": "[~]",
@@ -26075,18 +26075,18 @@
     "evidence_type": "partial"
   },
   "internal/store/trading/persistence_failures_test.go:58:TestExecutionPersistenceLoadsStoredSequenceHighWaterMarks": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability",
-    "conclusion": "partial：Go 断言加载已存序号高水位。Rust 的持久化用例断言订单/事件可读回（该用例），序号高水位恢复无专项断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_order_sequence_high_water_marks_survive_reopen",
+    "conclusion": "function_exact：Go 断言持久序号高水位在重载后驱动下一次分配。Rust 用例用生产 `ExecutionOrderStore` 写入 orders=41/events=42 后关闭重开，断言 `get_sequence` 读回原值且 `next_sequence(\"orders\")` 依次返回 42、43（存储值+1 的分配语义）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --locked --test execution_order_store_contracts",
+    "evidence_type": "function_exact"
   },
   "internal/store/trading/persistence_query_plan_test.go:12:TestExecutionEventLoadUsesOrderIndexAndPreservesPerOrderChronology": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability",
-    "conclusion": "partial：Go 断言事件加载走订单索引并保持单订单时序。Rust 的执行订单持久化用例断言订单事件按订单可读回（该用例），执行订单表的索引/计划断言在 Rust 缺失（现有查询计划审计只覆盖 adk_session_events）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_order_events_load_in_per_order_chronology_without_a_temp_sort",
+    "conclusion": "function_exact：Go 断言事件加载保持单订单时序且查询计划不使用临时排序。Rust 用例乱序写入 a/b 两单事件后断言各订单按 created_at/id 升序读回，并用 `EXPLAIN QUERY PLAN` 断言命中 `idx_execution_order_events_order` 且无 `USE TEMP B-TREE`。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --locked --test execution_order_store_contracts",
+    "evidence_type": "function_exact"
   },
   "internal/store/trading/resource_test.go:10:TestConstructorsReturnExecutionResourcesWithIdempotentClose": {
     "status": "[~]",
@@ -26117,18 +26117,18 @@
     "evidence_type": "partial"
   },
   "internal/store/trading/startup_compatibility_test.go:31:TestExecutionOrderPersistenceRejectsV1WithoutMutatingFile": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/sqlite_query_plan_and_migrations_audit.rs::test_p1_06_downgrade_strictly_rejected_at_all_layers",
-    "conclusion": "partial：Go 断言 v1 库被拒且不修改文件。Rust 的降级拒绝用例断言不兼容版本在各层严格拒绝（该用例），\"不修改文件\"由 `truncated_database_is_rejected_without_repair_or_rewrite` 一并覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_order_legacy_metadata_is_rejected_without_mutating_the_file",
+    "conclusion": "function_exact：Go 断言 v1 库打开被拒且文件字节不变。Rust 用例把种子库 schema version 降级为 1 后 `open_existing` 返回 `Schema(_)`，并逐字节比较拒绝前后的文件内容相等。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --locked --test execution_order_store_contracts",
+    "evidence_type": "function_exact"
   },
   "internal/store/trading/startup_compatibility_test.go:73:TestExecutionOrderPersistenceRejectsInvalidPaths": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_store_rejects_missing_drifted_and_corrupted_go_databases",
-    "conclusion": "partial：Go 断言非法路径被拒。Rust 的存储拒绝用例覆盖缺失/不可用库（该用例），非法路径由类型化 Path 与打开错误拒绝。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_store_rejects_directory_and_missing_parent_paths",
+    "conclusion": "function_exact：Go 断言非法路径被拒。Rust 用例断言目录路径返回 `NotRegularFile(_)`，父目录缺失的库路径打开失败。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --locked --test execution_order_store_contracts",
+    "evidence_type": "function_exact"
   },
   "internal/store/trading/startup_compatibility_test.go:87:TestExecutionOrderPersistenceRejectsPartialLegacySchema": {
     "status": "[~]",

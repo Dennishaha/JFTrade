@@ -545,3 +545,48 @@ Rust `execution_reconciliation_discovery.rs::covered_by_snapshot` 原实现只�
 | 兼容回放 / 生成物 / AI 上下文 / Zero-Go | `check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go` | 通过（zero-go 2942 文件） |
 | 快速门禁 / 空白 | `pnpm run check:quick`、`git diff --check` | 通过 |
 | 依赖策略 | `pnpm run check:rust:policy` | **未通过（既有阻断）**：`RUSTSEC-2026-0285` + 8 条 `advisory-not-detected`，如实记录 |
+
+### 第一百二十六批 分片二 b-1：`internal/store/trading/` 查询计划/序号/兼容性 5 行（升 `[x]`）
+
+范围：分片二 b 剩余 31 行中的 5 行——`persistence_query_plan_test.go:12`、
+`persistence_failures_test.go:58`、`maintenance_concurrency_test.go:43`、
+`startup_compatibility_test.go:31`、`startup_compatibility_test.go:73`。本片全部是**补覆盖证据**：
+沿用既有生产实现（无功能差异），把此前只标 `partial`/`boundary` 的 Go 行为补成可执行 Rust 断言。
+
+#### 新增 Rust 测试（5 条，全部落在 `execution_order_store_contracts.rs`）
+
+| Rust 测试 | Go 基线 | 断言要点 |
+| --- | --- | --- |
+| `execution_order_events_load_in_per_order_chronology_without_a_temp_sort` | `persistence_query_plan_test.go:12` | 乱序写入 a/b 两单事件后按 `created_at,id` 读回；`EXPLAIN QUERY PLAN` 命中 `idx_execution_order_events_order` 且无 `USE TEMP B-TREE` |
+| `execution_order_sequence_high_water_marks_survive_reopen` | `persistence_failures_test.go:58` | 生产 store 写入 orders=41/events=42，重开后 `get_sequence` 读回原值且 `next_sequence("orders")` 依次 42、43 |
+| `execution_order_concurrent_writes_and_reads_survive_reopen` | `maintenance_concurrency_test.go:43` | 24 写线程 + 并发读，`order_count()==24`；drop 重开仍 24 |
+| `execution_order_legacy_metadata_is_rejected_without_mutating_the_file` | `startup_compatibility_test.go:31` | 种子库 metadata 降级为 v1 → `open_existing` 返回 `Schema(_)`，拒绝前后文件逐字节相等 |
+| `execution_orders_store_rejects_directory_and_missing_parent_paths` | `startup_compatibility_test.go:73` | 目录路径 → `NotRegularFile(_)`；父目录缺失 → 打开失败 |
+
+#### 语义说明：序号 API 形状差异
+
+Go 的 `persistence.persistSequence(name, 41)` 写的是“下一次要分配的序号”，`loadFromDB` 后 `nextOrderSeq == 41`。
+Rust `ExecutionOrderStore` 的 `execution_sequences.value` 是**已分配高水位**，`next_sequence` 在同一事务里
+`value = value + 1` 后返回（存储值+1）。因此 Rust 断言写为 `get_sequence == 41` 且
+`next_sequence` 依次 `42/43`，与 Go “持久高水位驱动下一次分配”的行为等价，而非逐字对齐数值。
+
+#### 本片编译修正
+
+初稿误用测试专用 `ExecutionOrderTestCutoverStore`，该类型只暴露 `next_sequence`。改为生产
+`ExecutionOrderStore::open`（暴露 `get_sequence`/`set_sequence` 且共用同一 `execution_sequences` 表）后编译并转绿，
+未改动任何生产代码。
+
+#### 分片二 b-1 验证记录与门禁
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 聚焦用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --locked --test execution_order_store_contracts` | 9 条通过（本片 +5） |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b126s2b1_apply.json` | 5 行更新，`[x]` 1391 → 1396，missing 0 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺少 function_exact |
+| 锚点 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1396、unrecorded 0、stale 0、unknown 54 |
+| 格式 / 架构 / Clippy | `cargo fmt --all -- --check`、`pnpm run check:rust:architecture`、`pnpm run check:clippy` | 通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked --no-fail-fast` | 见提交记录 |
+| 工作区测试 | `pnpm run test:rust` | 见提交记录 |
+| 兼容回放 / 生成物 / AI 上下文 / Zero-Go | `check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go` | 通过 |
+| 快速门禁 / 空白 | `pnpm run check:quick`、`git diff --check` | 通过 |
+| 依赖策略 | `pnpm run check:rust:policy` | **未通过（既有阻断）**：`RUSTSEC-2026-0285` + 8 条 `advisory-not-detected`，如实记录 |
