@@ -30948,38 +30948,38 @@
   },
   "pkg/broker/broker_test.go:13:TestRegistryBasic": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs::capabilities_filters_by_broker_market_and_feature_id",
-    "conclusion": "部分覆盖：Go 的 Registry 是运行时多券商注册表（新建后 IDs=[]、ActiveBroker=nil、Lookup(\"futu\")=nil）。Rust 生产组合根只安装单一 Provider/OpenD 套件（SharedTradeReadRuntime + ActiveProviderState），没有可注册/查询的 broker 表；等价可观察行为是 /api/v1/brokers/capabilities 对非 futu 的 brokerId 过滤返回空 brokers 列表（capabilities_filters_by_broker_market_and_feature_id）。差异：Rust 无“空表/未注册查询”的运行时入口，属 Go 多券商 owner 的边界。",
+    "rust_entry": "不适用：Rust 无运行时多券商注册表；安装状态由组合根 ProductionPortBundle.installed_adapters（ProductionRouteAdapter 闭集 + BTreeSet）表达",
+    "conclusion": "边界保留：Go 建空注册表后断言 IDs()=[]、ActiveBroker()=nil、Lookup(\"futu\")=nil。Rust 没有 broker 注册表这一可查询对象：适配器由组合根在 crates/jftrade-engine/src/product_production_ports_types.rs 逐个注入 Arc<dyn ..Port>，installed_adapters 由 derive_installed_adapters() 从具体端口推导，构造完成即全部安装，不存在“先建空表、后注册”的状态。保留差异：Rust 的“缺失”只表现为按路由 readiness（bound_adapters 的 None / ExternalUnavailable / MissingInternalAdapter），没有全局 broker 列表查询面。复现条件：无法在 Rust 构造“零 broker 但进程存活且可查询”的状态——路由表编译期固定，组合根不得跳过安装。将来升级：若引入多 broker 运行时注册表，应在组合根新增 BrokerRegistry（id 键、register/lookup/ids/active）并让 capabilities 与 readiness 路由读同一 owner；回归须覆盖空表三断言、注册后可见、重复注册被拒。非等价邻居证据（仅参考）：capabilities_filters_by_broker_market_and_feature_id 断言未知 brokerId 过滤返回空 brokers/runtime 列表。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(capabilities_filters_by_broker_market_and_feature_id)'",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/broker/broker_test.go:27:TestRegistryRegisterAndLookup": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_adapter_bindings_tests.rs::prediction_readiness_reports_missing_uninstalled_adapter",
-    "conclusion": "部分覆盖：Go 断言 Register 后 Lookup/ActiveBroker/IDs/All 都能看到该 broker（首注册即 active）。Rust 的对应物是组合根显式安装 adapter（ProductionPortBundle 的 installed_adapters/bound_adapters），可观察结果是逐路由 readiness（Ready/ExternalUnavailable/MissingInternalAdapter），由 prediction_readiness_reports_missing_uninstalled_adapter 断言；broker 列表由 catalog/descriptor 发布（当前只有 futu 一个 broker id），没有注册后增删查询的 API。",
+    "rust_entry": "不适用：Rust 安装点静态（PortBundle 显式端口 + derive_installed_adapters），无按 id 注册后查询的 broker 入口",
+    "conclusion": "边界保留：Go 注册一个 broker 后断言 Lookup/ActiveBroker/IDs/All 四处都能看到该实例（首注册即 active）。Rust 没有等价的注册后查询：端口在组合根被逐个注入，installed_adapters 由 derive_installed_adapters() 推导，broker 维度只有 futu 一个 id（catalog/descriptor 发布），route→adapter 绑定是静态枚举。保留差异：Rust 的“安装是否生效”表现为按路由 readiness（Ready/ExternalUnavailable/MissingInternalAdapter）与 adapter_binding()，而不是注册表内容；也没有 ActiveBroker 概念（唯一活跃行情 provider 由 ProviderRouter.active 表达，属行情域）。复现条件：注入端口后无法枚举“已注册 broker”，只能逐路由查询绑定。将来升级：新增 BrokerRegistry 后，注册 API 必须写 registry 并让 list/capabilities 路由读同一 owner；回归须覆盖注册即可 Lookup、首注册成为 active、IDs/All 与插入顺序无关。最接近的非等价证据：prediction_readiness_reports_missing_uninstalled_adapter 证明安装缺失会显式暴露（adapter_binding()=None）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(prediction_readiness_reports_missing_uninstalled_adapter)'",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/broker/broker_test.go:46:TestRegistryReplaceUpdatesActiveBroker": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-marketdata/tests/provider_activation_recovery.rs::provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update",
-    "conclusion": "部分覆盖：Go 断言 Replace 同 id broker 后 Lookup/ActiveBroker 都指向新实例，Replace 新 id 则新增。Rust 无 broker 注册表替换；最接近的 owner 是 provider 激活切换（jftrade-marketdata ProviderRouter：切换失败 fail-closed、保留旧代际，健康恢复后生效）与引擎的 ActiveProviderState 代际快照。差异：Rust 切换对象是行情 Provider（futu/yfinance/akshare）而不是 broker 实例，且没有“同 id 换实例”的入口。",
+    "rust_entry": "不适用：Rust 无 broker 实例替换入口；最近似 owner 是 crates/jftrade-marketdata 的 ProviderRouter（provider 维度而非 broker 维度）",
+    "conclusion": "边界保留：Go 对同 id broker Replace 后 Lookup/ActiveBroker 都指向新实例，新 id 则新增。Rust 没有“同 id 换 broker 实例”的入口：适配器只在进程启动期由组合根安装一次；运行期可替换的对象是行情 Provider（ProviderRouter::register 以 selection_id 覆盖注册项，activate 显式激活，deactivate 停用且栅栏缓存）。保留差异：Rust 的 provider 切换是 fail-closed 且带代际栅栏（切换失败保留旧代际、健康恢复后才生效），Go 的 Replace 是立即覆盖且无代际概念。复现条件：Rust 替换 provider 需 register+activate 两步，存在托管订阅时会以 ManagedSubscriptionsActive 拒绝；broker 维度则完全不可替换。将来升级：若引入运行时 broker 替换，应在组合根新增 BrokerRegistry::replace 并复用 provider 激活的代际栅栏与 fail-closed 语义；回归须覆盖同 id 替换后查询到新实例、active 跟随更新、新 id 独立新增、切换失败保持旧实例可查询。非等价邻居证据：provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update)'",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/broker/broker_test.go:67:TestRegistryRemoveDeletesOnlySelectedBroker": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "边界保留：Go 断言 Remove(\"removed\") 后只删掉被选中 broker，其余 Lookup 仍命中，Remove(\"missing\") 无副作用。Rust 没有多券商注册表，也没有按 id 删除 broker 的运行时入口；provider 停用走唯一 owner ActiveProviderState::begin_shutdown()（进程级），不是“只删某个 broker”。该语义在 Rust 组合根模型下不可达，保留边界。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(product_broker_capabilities)'",
-    "evidence_type": "partial"
+    "rust_entry": "不适用：Rust 无按 id 删除 broker 的运行时入口；最近似是 ProviderRouter::deactivate（只停用被选 provider）",
+    "conclusion": "边界保留：Go 断言 Remove(\"removed\") 只删掉被选 broker、其余 Lookup 仍命中，Remove(\"missing\") 无副作用。Rust 的对应能力是 ProviderRouter::deactivate(provider_id)：只清空被选 provider 的 active 并栅栏缓存/推进代际，其余 provider 槽位保留，符合“只影响被选项”；但对象是行情 provider、且静态描述符不删除。保留差异：Rust 对未注册 id 返回 Err(ProviderNotFound) 而不是 Go 的静默无副作用；broker 维度没有删除入口，进程级停机走唯一 owner ActiveProviderState::begin_shutdown()。复现条件：Rust 侧无法通过 API 移除 futu broker。将来升级：BrokerRegistry 引入后，remove 必须只删单 id 且其余 id 保持可查询；回归须覆盖删除后 Lookup 缺失、其余 id 不受影响、删除不存在 id 的幂等性（若沿用 Go 静默语义需在结论中显式记录）。非等价邻居证据：deactivation_fences_cache_and_marks_router_inactive（停用仅影响被选 provider，其余槽位保留）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(deactivation_fences_cache_and_marks_router_inactive)'",
+    "evidence_type": "boundary"
   },
   "pkg/broker/broker_test.go:85:TestRegistryDuplicatePanics": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs::every_catalog_protocol_maps_to_a_feature_with_one_stable_id",
-    "conclusion": "部分覆盖：Go 用 panic 阻止同 id 重复注册。Rust 无运行时注册表，重复由静态目录唯一性守卫（every_catalog_protocol_maps_to_a_feature_with_one_stable_id 断言 feature/协议 id 不重复、协议 id 不冲突），同 id broker 在类型层无法构造第二个；panic 路径不可达。",
+    "rust_entry": "不适用：Rust 无运行时注册 API，唯一性由类型系统与静态目录守卫替代（ProductionRouteAdapter 闭集 + catalog id 守卫）",
+    "conclusion": "边界保留：Go 用 panic 阻止同 id 重复注册。Rust 不存在可重复注册的运行时表：ProductionRouteAdapter 是闭集枚举，installed_adapters 是 BTreeSet（同值重复插入幂等，结构上不可能出现两条同 id 条目）；静态目录另由 every_catalog_protocol_maps_to_a_feature_with_one_stable_id 断言 feature/协议 id 唯一。保留差异：Rust 以类型系统 + 目录守卫替代 panic，因此“重复注册即崩溃”的断言不可迁移、错误分支不可达。复现条件：无法在 Rust 构造“两个同 id 适配器同时已注册”的状态。将来升级：若引入 BrokerRegistry，重复注册需按项目错误策略返回显式错误（而不是 panic），回归须覆盖同 id 二次注册被拒后首个实例仍可查询、拒绝后注册表计数不变。非等价邻居证据：every_catalog_protocol_maps_to_a_feature_with_one_stable_id。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(every_catalog_protocol_maps_to_a_feature_with_one_stable_id)'",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/broker/broker_test.go:97:TestConvertFutuReadQuery": {
     "status": "[~]",
