@@ -37,6 +37,8 @@ pub enum WatchlistReadSnapshotError {
 pub enum PortfolioSnapshotError {
     #[error("portfolio snapshot is unavailable: {0}")]
     Unavailable(String),
+    #[error("portfolio snapshot request is invalid: {0}")]
+    Invalid(String),
     #[error("portfolio snapshot broker was not found: {0}")]
     NotFound(String),
 }

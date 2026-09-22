@@ -370,3 +370,112 @@ Rust 测试 **3215**；anchors 1379（已记账 1324、unrecorded 0、unknown 54
 - 之后按体量推进：api_transport 478、strategy_pine 465、assistant_workflow 447、other 311、
   backtest_calendar 262、storage_sqlite 178、marketdata_quotes 155、futu_opend 104、settings_watchlist 39。
 - 每批收口后立即设定下一批 codex 目标，直到 4451 行全部给出 `[x]`/partial/边界结论。
+
+## 第一百二十六批：`internal/api/trading/` 剩余 28 行收口（分片一）
+
+范围：`internal/api/trading/` 全部 28 条 pending（execution_test 8、execution_validation_contracts 4、
+routes_test 4、routes_helper_boundaries 3、execution_products 2、routes_broker_contracts 2、
+routes_failure_boundaries 2、routes_read_handlers 2、openapi_route_alignment 1）。
+owner：`crates/jftrade-engine` 的 product/trade 投影与写路由错误映射；wire 层在 `crates/jftrade-api`。
+
+### 摸底事实（生产 HTTP 面探针，`/tmp` 临时用例，未入库）
+
+用 `ProductConfig::desktop_production` + `SharedTradeReadRuntime(HttpTradeRead)` 启动真实产品路由后逐路径探测，
+确认以下 Go 断言在 Rust 生产面成立（探针随后被正式测试取代）：
+
+| 探测路径 | 结果 |
+| --- | --- |
+| `orders?scope=bad`、`max-trade-qtys&price=bad`、`klines&limit=bad` | 400 `BAD_REQUEST`（消息 `query parameter <name> is invalid`） |
+| `fills?scope=unknown`、`max-trade-qtys` 缺 price、`adjustSideAndLimit=bad`、`positionId=bad`、`klines` 缺 symbol | 400 `BAD_REQUEST` |
+| 11 条读路由 + `POST brokers/futu/orders` 携带 `%zz` | 400（读 `invalid query encoding`／写 `invalid broker write query`） |
+| `/api/v1/brokers//funds`、`/api/v1/portfolio//cash-balances`、`/api/v1/portfolio/futu/unknown` | 404 `NOT_FOUND` |
+| cash-flows 缺 `clearingDate`、order-fees 缺 `orderIdEx`、margin-ratios/securities 缺 `symbol` | 400 `BAD_REQUEST` |
+| positions/fills/fees/marginRatios/cashFlows/orders 空集合 | 200 且字段为 `[]`（不是 `null`） |
+| `funds`（读取端口返回 `Coordinator(Closed)`） | 503 `BROKER_READ_UNAVAILABLE`（Go 为 200 降级信封，既有产品差异） |
+| `portfolio/futu/cash-balances?%zz` | **修复前** 503 `PORTFOLIO_UNAVAILABLE`，**修复后** 400 `BAD_REQUEST` |
+| `/api/v1/brokers/ib/runtime` | 404 `BROKER_NOT_FOUND`（单 broker 模型，非 Go 的 200 空态） |
+| `POST brokers/futu/orders`（缺 accountId）／（带 accountId&market） | 400 `accountId is required`／503 `BROKERS_WRITE_UNAVAILABLE` |
+| `POST brokers/futu/unlock` | 503 `BROKERS_WRITE_UNAVAILABLE` |
+
+### 生产修复：portfolio 畸形 query 的 400 语义
+
+- 复现条件：`GET /api/v1/portfolio/futu/cash-balances?%zz`。
+- 预期（Go `routes_helper_boundaries_test.go:131` 的 `bindQuery` 语义）：400 `BAD_REQUEST`，dispatch 前拒绝。
+- 修复前：`ProductionPortfolioPort::read` 把 `TradeRequest::parse_with_prefix` 的所有错误折叠为
+  `PortfolioSnapshotError::Unavailable` → 503 `PORTFOLIO_UNAVAILABLE`（错误消息虽为 `invalid query encoding`，
+  但状态码与错误码不对齐）。
+- 修复：新增 `PortfolioSnapshotError::Invalid(String)`；`product_api_portfolio.rs` 映射为 400 `BAD_REQUEST`；
+  portfolio 端口先用 `QueryMap` 判定编码错误并抛 `Invalid`，其余路径形状失败继续走 `Unavailable`
+  （保持 `production_internal_adapters_dynamic_capability_and_recovery` 的 fail-closed 断言）；
+  `product_mcp_production_executor_errors.rs` 的 `portfolio_error` 增补 `Invalid` 分支
+  （MCP 工具侧返回 invalid，而非 unavailable）。
+- 回归：`crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_reads_reject_malformed_query_encoding_before_dispatch`
+  先红后绿（探针时 `left: 503, right: 400` 断言失败），修复文件 shasum `5bfd38daa3d4270c9e75ce49abd596fe28fc1052d098d8ecff148d8597d75a87`。
+
+### 新增 Rust 测试（7 条，全部带 `// Parity:` 锚点）
+
+| Rust 测试 | Go 基线 | 断言要点 |
+| --- | --- | --- |
+| `product_production_ports_trade_request_tests.rs::trade_query_normalizes_scope_merges_aliases_and_treats_blank_optionals_as_absent` | `execution_test.go:175` | scope 归一/拒绝、orderId 与 symbol 别名合并去重、optional float/uint/string 的空值与非法值（内联测试外置后父文件 786 行，满足 800 行生产文件上限） |
+| `product_production_assembly_tests.rs::production_http_broker_reads_reject_invalid_scope_and_numeric_queries` | `routes_test.go:145` | 3 条非法 scope/数值路径 400 |
+| `...::production_http_broker_reads_reject_missing_and_invalid_optional_inputs` | `routes_failure_boundaries_test.go:58` | 5 条缺失/非法可选参数 400 |
+| `...::production_http_broker_reads_reject_malformed_query_encoding_before_dispatch` | `routes_helper_boundaries_test.go:131` | 11 读路由 + portfolio + 写路由 `%zz` 全部 400 |
+| `...::production_http_broker_reads_serialize_empty_collections_as_arrays` | `routes_read_handlers_test.go:18` | 6 个集合字段等于 `[]` |
+| `...::production_http_broker_reads_serve_orders_fills_quotes_klines_and_securities` | `routes_test.go:121` | Go 的 7 条路径全部 200 |
+| `...::production_http_broker_reads_reject_missing_uri_broker_and_unknown_resource` | `routes_helper_boundaries_test.go:119` | 未知 portfolio 资源与缺 URI broker 均 404 |
+
+夹具调整：`HttpTradeRead::read_max_trade_quantity` 由「协调器 Closed」改为返回成功快照，
+使 `routes_test.go:121` 的 `max-trade-qtys` 200 断言可验证（改前夹具把「夹具失败」误当作路由缺失）。
+
+### 结论变更
+
+- 升 `[x]`（7 行）：`execution_test.go:175`、`routes_test.go:121`、`routes_test.go:145`、
+  `routes_failure_boundaries_test.go:58`、`routes_read_handlers_test.go:18`、
+  `routes_helper_boundaries_test.go:119`、`routes_helper_boundaries_test.go:131`。
+- 修正历史锚点：`execution_test.go:47` 的 `rust_entry` 指向 `product_execution_risk_coordinator_tests.rs::real_order_rejects_when_kill_switch_active`
+  （原指向不存在的 `product_execution_risk_coordinator.rs::...`），并把源码锚点补成 `go:452dea11:` 前缀形式，
+  锚点对账 stale 由 1 → 0。
+- 复核保留（21 行）：`execution_test.go:19/:47/:79/:110/:148/:205/:249`、
+  `execution_validation_contracts_test.go:52/:161/:205/:238`、`execution_products_test.go:18/:73`、
+  `openapi_route_alignment_test.go:14`、`routes_broker_contracts_test.go:143/:214`、
+  `routes_failure_boundaries_test.go:17`、`routes_helper_boundaries_test.go:17`、
+  `routes_read_handlers_test.go:71`、`routes_test.go:32/:95`，各自结论已写明缺口、owner 与回归要求。
+
+### 保留差异（本批新增/确认）
+
+- **降级信封 vs fail-closed**：Go 在无活动 broker/上游失败时返回 200 + `connectivity:"disconnected"` + `lastError`
+  （funds/quote/positions/portfolio），Rust 返回 503 `BROKER_READ_UNAVAILABLE`/`PORTFOLIO_UNAVAILABLE`。
+  既有产品差异，与 `broker_account_read_failures_test.go:11`、`responses_test.go:55/:107`、
+  `servercoretest/broker_routes_test.go:14` 同源（见本文件分片四）。
+- **broker 读失败映射缺 500/429**：Go `writeReadResult` 有 500 `BROKER_READ_FAILED` 与 429 + `Retry-After`；
+  Rust `broker_read_snapshot_failure` 只有 400/404/503，且无 `Retry-After`。若要补齐需先加失败用例再改
+  `crates/jftrade-engine/src/product_wire_brokers.rs` 与 `BrokerReadSnapshotError` 变体。
+- **单 broker 模型**：`/api/v1/brokers/ib/runtime` 在 Rust 为 404 `BROKER_NOT_FOUND`，Go 为 200 typed 空态。
+- **写路由账户解析**：Go 允许请求体不带 `accountId`（落到活动 broker），Rust 要求显式 `accountId`，否则 400。
+
+### 分片一验证记录
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增 7 条证据 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked --lib -E 'test(trade_query_) or test(production_http_broker_reads_)'` | 8 条通过（含既有 `trade_query_parses_symbol_and_optional_helpers`） |
+| 探针（先红） | 回滚 `product_production_ports_trade.rs` 的 `Invalid` 映射后单跑 | 断言 `503 != 400` 失败，随后按字节还原（shasum 校验 OK） |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b126s1_apply.json` | 28 行更新，`[x]` 1378 → 1385 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺少 function_exact、无重复 rust_entry |
+| 锚点 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1385、unrecorded 0、stale 0 |
+
+#### 分片一批次门禁
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 格式 | `cargo fmt --all -- --check` | 通过 |
+| Clippy | `pnpm run check:clippy` | 通过 |
+| 架构 | `pnpm run check:rust:architecture` | 通过（内联测试外置后 `product_production_ports_trade_requests.rs` 786 行，满足 800 行上限） |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1815 条通过（首轮出现 `adk_session_detail_omits_resolved_approval_groups` 与 `api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal` 两处已知抖动，隔离复跑后整轮 1815/1815） |
+| 工作区测试 | `pnpm run test:rust` | 3222 条通过（2 skipped），较上批 3215 增加本批 7 条 |
+| 兼容回放 | `pnpm run check:compatibility` | 通过（API 278 操作、assistant 运行时、desktop 3 profile、provider、sqlite） |
+| 生成物 | `pnpm run check:generated` | 通过（未改工作树） |
+| AI 上下文 | `pnpm run check:ai-context` | 通过（6 模块 8 文件） |
+| Zero-Go | `pnpm run check:zero-go` | 通过（2941 文件、0 发布产物） |
+| 快速门禁 | `pnpm run check:quick` | 通过。首跑因 `target/debug/deps` 的 `.rcgu.o` 超过 50000 触发 `check:rust:target-health` 失败；确认无 Cargo 进程后执行 `pnpm run clean:rust:artifacts`（清理 136057 文件 / 36.4GiB）并复跑通过 |
+| 空白检查 | `git diff --check` | 通过 |
+| 依赖策略 | `pnpm run check:rust:policy` | **未通过（既有阻断）**：`RUSTSEC-2026-0285` 与 `deny.toml` 8 条 `advisory-not-detected`，与本批无关，如实记录 |

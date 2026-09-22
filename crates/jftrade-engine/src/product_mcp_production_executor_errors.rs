@@ -263,7 +263,10 @@ pub(super) fn strategy_read_error(error: StrategyReadSnapshotError) -> McpToolFa
 }
 
 pub(super) fn portfolio_error(error: PortfolioSnapshotError) -> McpToolFailure {
-    McpToolFailure::unavailable("PORTFOLIO_UNAVAILABLE", error.to_string())
+    match error {
+        PortfolioSnapshotError::Invalid(message) => McpToolFailure::invalid(message),
+        other => McpToolFailure::unavailable("PORTFOLIO_UNAVAILABLE", other.to_string()),
+    }
 }
 
 pub(super) fn broker_error(error: BrokerReadSnapshotError) -> McpToolFailure {

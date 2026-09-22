@@ -230,11 +230,22 @@ mod product_production_assembly_tests {
         }
         fn read_max_trade_quantity(
             &self,
-            _: TradeMaxTradeQuantityRequest,
+            request: TradeMaxTradeQuantityRequest,
         ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
-            Err(TradeSessionError::Coordinator(
-                jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
-            ))
+            Ok(TradeMaxTradeQuantitySnapshot {
+                header: request.header,
+                code: request.code,
+                order_type: request.order_type,
+                price: request.price,
+                max_cash_buy: 250.0,
+                max_cash_and_margin_buy: None,
+                max_position_sell: 0.0,
+                max_sell_short: None,
+                max_buy_back: None,
+                long_required_im: None,
+                short_required_im: None,
+                session: request.session,
+            })
         }
         fn read_positions(
             &self,
@@ -5500,5 +5511,201 @@ mod product_production_assembly_tests {
         );
 
         handle.shutdown().await.expect("shutdown product");
+    }
+
+    /// Starts the production HTTP surface with a Futu trade-read fixture, a
+    /// history fixture, and a cache-backed quote router, then hands the bound
+    /// address to the broker-read boundary tests.
+    async fn start_broker_read_http_product() -> (TempDir, SocketAddr, crate::product::ProductHandle)
+    {
+        let directory = TempDir::new().expect("temp dir");
+        let runtime =
+            Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+        runtime.set(Some(Arc::new(HttpTradeRead)), Some(true));
+        runtime.set_historical_klines(Some(Arc::new(HttpHistory {
+            result: Ok(HistoricalKlineResult {
+                security: HistoricalSecurity {
+                    market: 11,
+                    code: "AAPL".to_owned(),
+                },
+                name: Some("Apple".to_owned()),
+                klines: vec![HistoricalKline {
+                    time: "2026-08-29 09:30:00".to_owned(),
+                    is_blank: false,
+                    high_price: Some(11.0),
+                    open_price: Some(10.0),
+                    low_price: Some(9.0),
+                    close_price: Some(10.5),
+                    volume: Some(100),
+                    turnover: None,
+                    change_rate: None,
+                }],
+                next_req_key: Vec::new(),
+            }),
+        })));
+        let router = Arc::new(std::sync::Mutex::new(ProviderRouter::new(8)));
+        router
+            .lock()
+            .expect("router")
+            .cache_mut()
+            .insert(
+                Tick {
+                    instrument_id: "US.AAPL".to_owned(),
+                    price: "12.34".parse().expect("price"),
+                    volume: "100".parse().expect("volume"),
+                    volume_delta: None,
+                    snapshot: None,
+                    observed_at_ms: 1_700_000_000_000,
+                    provider_generation: 0,
+                },
+                0,
+            )
+            .expect("tick");
+        let handle = start_product(http_product_config(&directory, runtime, Some(router)))
+            .await
+            .expect("start product");
+        let address = handle.startup_record().address;
+        (directory, address, handle)
+    }
+
+    // Parity: go:452dea11:internal/api/trading/routes_test.go:145 TestBrokerReadRoutesRejectInvalidScopeAndNumericQueryValues
+    #[tokio::test]
+    async fn production_http_broker_reads_reject_invalid_scope_and_numeric_queries() {
+        let (_directory, address, handle) = start_broker_read_http_product().await;
+        for path in [
+            "/api/v1/brokers/futu/orders?scope=bad",
+            "/api/v1/brokers/futu/max-trade-qtys?market=US&symbol=US.AAPL&orderType=LIMIT&price=bad",
+            "/api/v1/brokers/futu/klines?symbol=US.AAPL&limit=bad",
+        ] {
+            let (status, body) = http_get(address, path).await;
+            assert_eq!(status, 400, "GET {path} body={body}");
+            assert!(body.contains("BAD_REQUEST"), "GET {path} body={body}");
+        }
+        handle.shutdown().await.expect("shutdown");
+    }
+
+    // Parity: go:452dea11:internal/api/trading/routes_failure_boundaries_test.go:58 TestBrokerReadRoutesRejectMissingAndInvalidOptionalInputs
+    #[tokio::test]
+    async fn production_http_broker_reads_reject_missing_and_invalid_optional_inputs() {
+        let (_directory, address, handle) = start_broker_read_http_product().await;
+        for path in [
+            "/api/v1/brokers/futu/fills?scope=unknown",
+            "/api/v1/brokers/futu/max-trade-qtys?symbol=US.AAPL&orderType=LIMIT",
+            "/api/v1/brokers/futu/max-trade-qtys?symbol=US.AAPL&orderType=LIMIT&price=100&adjustSideAndLimit=bad",
+            "/api/v1/brokers/futu/max-trade-qtys?symbol=US.AAPL&orderType=LIMIT&price=100&positionId=bad",
+            "/api/v1/brokers/futu/klines",
+        ] {
+            let (status, body) = http_get(address, path).await;
+            assert_eq!(status, 400, "GET {path} body={body}");
+            assert!(body.contains("BAD_REQUEST"), "GET {path} body={body}");
+        }
+        handle.shutdown().await.expect("shutdown");
+    }
+
+    // Parity: go:452dea11:internal/api/trading/routes_helper_boundaries_test.go:131 TestTradingRoutesRejectMalformedQueryEncodingBeforeDispatch
+    #[tokio::test]
+    async fn production_http_broker_reads_reject_malformed_query_encoding_before_dispatch() {
+        let (_directory, address, handle) = start_broker_read_http_product().await;
+        for path in [
+            "/api/v1/brokers/futu/funds?%zz",
+            "/api/v1/brokers/futu/positions?%zz",
+            "/api/v1/brokers/futu/orders?%zz",
+            "/api/v1/brokers/futu/fills?%zz",
+            "/api/v1/brokers/futu/cash-flows?%zz",
+            "/api/v1/brokers/futu/order-fees?%zz",
+            "/api/v1/brokers/futu/margin-ratios?%zz",
+            "/api/v1/brokers/futu/max-trade-qtys?%zz",
+            "/api/v1/brokers/futu/quote?%zz",
+            "/api/v1/brokers/futu/klines?%zz",
+            "/api/v1/brokers/futu/securities?%zz",
+        ] {
+            let (status, body) = http_get(address, path).await;
+            assert_eq!(status, 400, "GET {path} body={body}");
+            assert!(
+                body.contains("invalid query encoding"),
+                "GET {path} body={body}"
+            );
+        }
+        let (status, body) = http_get(address, "/api/v1/portfolio/futu/cash-balances?%zz").await;
+        assert_eq!(status, 400, "GET portfolio body={body}");
+        assert!(body.contains("invalid query encoding"), "body={body}");
+        let (status, body) = request_json_with_status(
+            address,
+            "POST",
+            "/api/v1/brokers/futu/orders?%zz",
+            Some(
+                r#"{"symbol":"US.AAPL","side":"BUY","orderType":"LIMIT","quantity":1,"price":100}"#,
+            ),
+            &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")],
+        )
+        .await;
+        assert_eq!(status, 400, "POST orders body={body}");
+        handle.shutdown().await.expect("shutdown");
+    }
+
+    // Parity: go:452dea11:internal/api/trading/routes_read_handlers_test.go:18 TestBrokerReadHandlersSerializeEmptyCollectionsAsArrays
+    #[tokio::test]
+    async fn production_http_broker_reads_serialize_empty_collections_as_arrays() {
+        let (_directory, address, handle) = start_broker_read_http_product().await;
+        for (path, field) in [
+            (
+                "/api/v1/brokers/futu/cash-flows?clearingDate=2026-07-21",
+                "cashFlows",
+            ),
+            ("/api/v1/brokers/futu/order-fees?orderIdEx=order-1", "fees"),
+            (
+                "/api/v1/brokers/futu/margin-ratios?market=US&symbol=US.AAPL",
+                "marginRatios",
+            ),
+            ("/api/v1/brokers/futu/positions", "positions"),
+            ("/api/v1/brokers/futu/fills?scope=current", "fills"),
+            (
+                "/api/v1/brokers/futu/orders?scope=history&symbol=US.AAPL",
+                "orders",
+            ),
+        ] {
+            let (status, body) = http_get(address, path).await;
+            assert_eq!(status, 200, "GET {path} body={body}");
+            let envelope: Value = serde_json::from_str(&body).expect("envelope");
+            assert_eq!(envelope["data"][field], json!([]), "GET {path} body={body}");
+        }
+        handle.shutdown().await.expect("shutdown");
+    }
+
+    // Parity: go:452dea11:internal/api/trading/routes_test.go:121 TestBrokerReadRoutesCoverOrdersFillsQuotesKLinesAndSecurities
+    #[tokio::test]
+    async fn production_http_broker_reads_serve_orders_fills_quotes_klines_and_securities() {
+        let (_directory, address, handle) = start_broker_read_http_product().await;
+        for path in [
+            "/api/v1/brokers/futu/orders?scope=history&symbol=US.AAPL",
+            "/api/v1/brokers/futu/fills?scope=current&symbol=US.AAPL",
+            "/api/v1/brokers/futu/quote?symbol=US.AAPL",
+            "/api/v1/brokers/futu/klines?symbol=US.AAPL&period=1d&limit=10",
+            "/api/v1/brokers/futu/securities?symbol=US.AAPL",
+            "/api/v1/brokers/futu/margin-ratios?market=US&symbol=AAPL",
+            "/api/v1/brokers/futu/max-trade-qtys?market=US&symbol=US.AAPL&orderType=LIMIT&price=100&adjustSideAndLimit=1.5&positionId=42",
+        ] {
+            let (status, body) = http_get(address, path).await;
+            assert_eq!(status, 200, "GET {path} body={body}");
+            assert!(body.contains("\"ok\":true"), "GET {path} body={body}");
+        }
+        handle.shutdown().await.expect("shutdown");
+    }
+
+    // Parity: go:452dea11:internal/api/trading/routes_helper_boundaries_test.go:119 TestPortfolioReadUnknownResourceIsNotFound
+    #[tokio::test]
+    async fn production_http_broker_reads_reject_missing_uri_broker_and_unknown_resource() {
+        let (_directory, address, handle) = start_broker_read_http_product().await;
+        for path in [
+            "/api/v1/brokers//funds",
+            "/api/v1/brokers/futu/unsupported-resource",
+            "/api/v1/portfolio/futu/unknown",
+            "/api/v1/portfolio//cash-balances",
+        ] {
+            let (status, body) = http_get(address, path).await;
+            assert_eq!(status, 404, "GET {path} body={body}");
+            assert!(body.contains("NOT_FOUND"), "GET {path} body={body}");
+        }
+        handle.shutdown().await.expect("shutdown");
     }
 }

@@ -419,6 +419,17 @@ impl std::fmt::Debug for ProductionPortfolioPort {
 
 impl PortfolioSnapshotPort for ProductionPortfolioPort {
     fn read(&self, path: &str, query: &str) -> Result<Value, PortfolioSnapshotError> {
+        // Parity: go:452dea11:internal/api/trading/routes_helper_boundaries_test.go:131
+        // `bindQuery` rejects a malformed query encoding with 400 before the
+        // handler dispatches, so a portfolio request that cannot be decoded is
+        // a client error rather than an unavailable snapshot backend. Any other
+        // parse failure (unknown portfolio path shape) keeps the fail-closed
+        // unavailable classification.
+        if crate::product::product_query::QueryMap::parse(query).is_err() {
+            return Err(PortfolioSnapshotError::Invalid(
+                "invalid query encoding".to_owned(),
+            ));
+        }
         let request = TradeRequest::parse_with_prefix(path, query, "/api/v1/portfolio/")
             .map_err(PortfolioSnapshotError::Unavailable)?;
         if !request

@@ -10,6 +10,9 @@ impl ProductApi {
         port.read(path, query)
             .map(ApiOutput::Json)
             .map_err(|error| match error {
+                PortfolioSnapshotError::Invalid(message) => {
+                    ApiFailure::new(400, "BAD_REQUEST", message)
+                }
                 PortfolioSnapshotError::NotFound(message) => {
                     ApiFailure::new(404, "BROKER_NOT_FOUND", message)
                 }

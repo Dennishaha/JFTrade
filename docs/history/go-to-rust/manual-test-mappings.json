@@ -2081,198 +2081,198 @@
   "internal/api/trading/execution_products_test.go:18:TestExecutionProductRoutesBuyingPowerComboLifecycle": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_execution_write_product_tests.rs::execution_sqlite_test_cutover_replays_transport_and_restart",
-    "conclusion": "partial：Go 断言 buying-power、combos preview/place/cancel 全链路 200 与端口调用计数。Rust 该用例 HTTP 级逐一断言 /api/v1/execution/buying-power、combos、combos/previews、orders、combos/{id}/cancel 200 并覆盖重启回放；调用计数以 RecordingPort 记录表达，无逐次计数断言。",
+    "conclusion": "partial：Go 断言 buying-power、combos preview/place/cancel 全链路 200 与端口调用计数。Rust 该用例 HTTP 级逐一断言 /api/v1/execution/buying-power、combos、combos/previews、orders、combos/{id}/cancel 200 并覆盖重启回放；调用计数以 RecordingPort 记录表达，无逐次计数断言。本批复核保留：缺口为调用计数与组合生命周期逐步断言（owner 为 execution 写端口与产品路由）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/execution_products_test.go:73:TestExecutionProductRoutesValidationAndServiceErrors": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_execution_write_product_tests.rs::execution_write_product_replays_browser_boundary_failure_recovery_and_restart",
-    "conclusion": "partial：Go 逐条断言产品路由的畸形载荷、非法组合、服务错误的状态码与错误码。Rust 该用例断言浏览器边界失败/恢复（CSRF、端口失败）与写路由 200 组合；产品路由各自的错误码映射未逐条复刻。",
+    "conclusion": "partial：Go 逐条断言产品路由的畸形载荷、非法组合、服务错误的状态码与错误码。Rust 该用例断言浏览器边界失败/恢复（CSRF、端口失败）与写路由 200 组合；本批复核保留：缺口为产品路由各自错误码映射的逐条断言（含非法组合），owner 为 product_api_execution_write*.rs 的错误映射。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/execution_test.go:19:TestExecutionCommandErrorMapsRequestAndBrokerFailures": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_preserve_the_port_failure_code_and_message; crates/jftrade-engine/src/product_production_ports_execution_order_helpers.rs",
-    "conclusion": "partial：Go 直接单测 executionCommandError 把 request/broker 失败映射为 (status, code)。Rust 该用例 HTTP 级断言执行读路由保留端口的失败码与原文消息（EXECUTION_STORAGE_UNAVAILABLE）；请求侧 400 映射由 execution_write_leaf_fails_closed_without_test_port_after_shape_validation 断言 BAD_REQUEST，无单函数逐状态码等价断言。",
+    "conclusion": "partial：Go 直接单测 executionCommandError 的 (status, code) 映射表。Rust 该用例 HTTP 级断言执行读路由保留端口失败码与原文消息（EXECUTION_STORAGE_UNAVAILABLE）；本批新增证据：写路由畸形 query→400 BAD_REQUEST（production_http_broker_reads_reject_malformed_query_encoding_before_dispatch 的 POST 分支）。缺口：无单函数逐状态码断言（request→400、broker 失败码透传），owner 为 crates/jftrade-engine/src/product_api_execution*.rs 与 product_wire_helpers.rs。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/execution_test.go:47:TestHandleExecutionPlaceReturnsRiskRejectionEnvelope": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator.rs::real_order_rejects_when_kill_switch_active",
-    "conclusion": "partial：Go 断言 REAL 订单被风控拒绝时返回错误信封且不调用下单端口。Rust 该用例断言 kill switch 激活时 REAL 订单被拒（同文件的 hard stop、控制面不可用例覆盖其余拒绝分支），拒绝以 Result 错误表达，HTTP 信封层无等价断言。",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::real_order_rejects_when_kill_switch_active",
+    "conclusion": "partial：Go 在 HTTP 层断言 REAL 订单被 pre-trade 风控拒绝时返回风险信封且不调用下单端口。Rust 该用例（源码内已带该 Go 行锚点）断言 kill switch 激活时 REAL 订单被拒且不触达端口，hard stop 与控制面不可用由同文件其余用例覆盖；缺口：HTTP 信封的状态码/错误码等价断言（owner 为写路由的 ApiFailure 映射），回归要求：新增 REAL 拒绝信封用例（期望 409 PRE_TRADE_RISK_REJECTED）后方可升 [x]。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/execution_test.go:79:TestHandleExecutionPlaceRejectsEquityAmountModeSpoof": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::single_equity_rejects_event_only_fields",
-    "conclusion": "partial：Go HTTP 级断言带 amount/predictionSide 的股票下单→400 且 broker 未被调用。Rust 该用例在解析层逐一断言 amount、predictionSide、quantityMode 被拒且消息含 supported for event contracts only（已带该 Go 行锚点）；400 状态码与不触达 broker 由解析先于端口调用的结构保证，无 HTTP 级断言。",
+    "conclusion": "partial：Go HTTP 级断言带 amount/predictionSide 的股票下单→400 且 broker 未被调用。Rust 该用例在解析层逐一断言 amount、predictionSide、quantityMode 被拒（消息含 supported for event contracts only），并已带该 Go 行锚点；本批复核保留：缺口是 HTTP 级 400 与“端口未被调用”断言（结构上由“解析先于端口调用”保证）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/execution_test.go:110:TestHandleExecutionOrdersNormalizesScopeAndFilter": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_match_group_fixture_in_cutover_only",
-    "conclusion": "partial：Go 断言订单列表 scope/filter 归一（scope=ACTIVE、brokerId/accountId 去空白、market 归一）且 activeOnly 生效。Rust 该用例回放冻结的 execution-read fixture，逐 case 断言 HTTP 状态、data 与错误码（含 orders-active 的 scope=%20ACTIVE%20&brokerId=%20futu%20&accountId=%20ACC-1%20&market=us），断言落在响应而非捕获的过滤器。",
+    "conclusion": "partial：Go 断言订单列表 scope/filter 归一（scope=ACTIVE、brokerId/accountId 去空白、market 归一）且 activeOnly 生效。Rust 该用例回放冻结的 execution-read fixture，逐 case 断言 HTTP 状态、data 与错误码（含 orders-active 的 scope=%20ACTIVE%20&brokerId=%20futu%20&accountId=%20ACC-1%20&market=us）；本批复核保留：缺口是“传入端口的过滤器对象”断言，owner 为 product_execution_read_port.rs 的过滤投影。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/execution_test.go:148:TestHandleExecutionCancelReturnsMappedEnvelope": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/execution_write_compatibility.rs::sqlite_test_cutover_preserves_place_cancel_rollback_and_restart",
-    "conclusion": "partial：Go 断言取消成功与错误映射（状态码 + 信封）。Rust 该用例覆盖 place/cancel 的 sqlite cutover 回滚与重启回放；取消的 HTTP 200/错误码断言由 execution_write_product_replays_browser_boundary_failure_recovery_and_restart 的 200 与 operation 断言承担，缺失败分支的逐码断言。",
+    "conclusion": "partial：Go 断言取消成功与错误映射（状态码 + 信封）。Rust 该用例覆盖 place/cancel 的 sqlite cutover 回滚与重启回放，取消 200 与 operation 由 execution_write_product_replays_browser_boundary_failure_recovery_and_restart 承担；本批复核保留：缺口为取消失败分支的逐码断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/execution_test.go:175:TestTradingQueryHelpersNormalizeAndValidate": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_requests.rs::trade_query_parses_symbol_and_optional_helpers",
-    "conclusion": "partial：Go 单测 normalizeScope/mergeValues/optionalFloat/optionalUint 的归一与拒绝。Rust 该用例断言交易查询 parse 的 symbol 与 optional helper 行为（含畸形值处理）；normalizeScope 的枚举归一在 Rust 由执行读路由 scope fixture 覆盖，无同名单测。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_request_tests.rs::trade_query_normalizes_scope_merges_aliases_and_treats_blank_optionals_as_absent",
+    "conclusion": "已覆盖：Rust 该用例（已从超限的生产文件外置到 `product_production_ports_trade_request_tests.rs`，保持模块路径 `product_production_ports_trade_requests::tests`）逐条断言 normalizeScope↔history_scope（\" history \"→HISTORY；current/缺省→CURRENT；invalid→\"query parameter scope is invalid\"）、mergeValues↔order_id_ex_list/securities（trim + 大小写不敏感去重，保持输入顺序 ord-1,ord-2 与 US.AAPL,US.MSFT）、optionalFloat/optionalUint/optionalString↔max_trade_quantity_request 的 adjustSideAndLimit/positionId/orderIdEx（空白→None、1.25/42 解析、非法值→\"query parameter <name> is invalid\"）。唯一差异：Go 非法数值错误串拼接 strconv 原文，Rust 只保留前缀；状态码与拒绝语义一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked --lib -E 'test(trade_query_normalizes_scope_merges_aliases_and_treats_blank_optionals_as_absent)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/trading/execution_test.go:205:TestExecutionPlacePreviewAndEventsRoutes": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_execution_write_product_tests.rs::execution_write_product_replays_browser_boundary_failure_recovery_and_restart; crates/jftrade-engine/tests/execution_write_compatibility.rs::execution_write_fixture_replays_all_seven_go_owned_mutations",
-    "conclusion": "partial：Go 断言 POST /api/v1/execution/previews→200、已移除的 /api/v1/execution/orders/preview→404、place→200、events→200。Rust 该用例 HTTP 级断言 previews/orders 等写路由 200 且 operation 正确；orders/preview 在 Rust 从未注册（仓库无该路径字面量）故由 router 404，无显式 404 断言；events 读由 execution-read fixture 用例覆盖。",
+    "conclusion": "partial：Go 断言 POST /api/v1/execution/previews→200、已移除的 /api/v1/execution/orders/preview→404、place→200、events→200。Rust 该用例 HTTP 级断言 previews/orders 等写路由 200 且 operation 正确，events 读由 execution-read fixture 覆盖；本批新增证据：写路由畸形 query 于 dispatch 前 400（同一 POST 家族）。缺口：orders/preview 在 Rust 从未注册（仓库无该路径字面量），404 由 fallback 产生但无显式断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/execution_test.go:249:TestHandleExecutionOrderDetailsReturnsCanonicalReceiptAndNotFound": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_match_group_fixture_in_cutover_only",
-    "conclusion": "partial：Go 断言订单详情 200 且 status=PARTIALLY_FILLED、rawBrokerStatus=FILLED_PART，缺失订单→404 ORDER_NOT_FOUND。Rust 该用例断言 order-details 200 的冻结 data 与 order-missing 404 ORDER_NOT_FOUND（错误码逐字断言）；fixture 载荷为固定 JSON，状态归一的逐字段断言未复刻。",
+    "conclusion": "partial：Go 断言订单详情 200 且 status=PARTIALLY_FILLED、rawBrokerStatus=FILLED_PART，缺失订单→404 ORDER_NOT_FOUND。Rust 该用例断言 order-details 200 的冻结 data 与 order-missing 404 ORDER_NOT_FOUND；本批复核保留：缺口是状态归一逐字段断言（fixture 为固定 JSON）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/execution_validation_contracts_test.go:52:TestExecutionRoutesValidatePayloadsAndMapHandlerErrors": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/execution_write_compatibility.rs::execution_write_leaf_fails_closed_without_test_port_after_shape_validation",
-    "conclusion": "partial：Go 断言 place/preview 畸形 JSON→400、校验错误→400、broker 超时与非校验失败映射、list/events 传播服务失败、cancel 成功信封。Rust 该用例断言写叶子在形状校验后 fail-closed 并返回 BAD_REQUEST；超时与服务失败的差异化码无逐项断言。",
+    "conclusion": "partial：Go 断言 place/preview 畸形 JSON→400、校验错误→400、broker 超时与非校验失败映射、list/events 传播服务失败、cancel 成功信封。Rust 该用例断言写叶子在形状校验后 fail-closed 并返回 BAD_REQUEST；本批复核保留：缺口是超时与非校验失败的差异化码矩阵。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/execution_validation_contracts_test.go:161:TestExecutionOrdersRouteSwitchesBetweenActiveAndHistorySync": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::account_orders_forwards_scope_account_environment_and_market_filters",
-    "conclusion": "partial：Go 断言 scope=active 只取当前订单（current/history=1/0）、默认 2/1。Rust 该用例断言 account.orders 转发 activeOnly/scope/account/environment/market 过滤维度；current/history 计数语义无等价断言。",
+    "conclusion": "partial：Go 断言 scope=active 只取当前订单（current/history=1/0）、默认 2/1。Rust 该用例断言 account.orders 转发 activeOnly/scope/account/environment/market 过滤维度；本批复核保留：缺口为 current/history 计数语义断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/execution_validation_contracts_test.go:205:TestExecutionHandlersRejectMissingInternalOrderIDAndTrimWhitespace": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_are_not_registered_without_snapshot_port",
-    "conclusion": "partial：Go 断言缺失 URI 参数→400、bindInternalOrderID 去空白。Rust 该用例断言未注册/不匹配路径返回 NOT_FOUND（模板路由不存在缺参分支）；路径百分号与空白 trim 由 execution_write_leaf_preserves_null_trailing_json_and_percent_id_trim 覆盖。",
+    "conclusion": "partial：Go 断言缺失 URI 参数→400、bindInternalOrderID 去空白。Rust 该用例断言未注册/不匹配路径返回 NOT_FOUND（模板路由不存在“缺参分支”），路径百分号与空白 trim 由 execution_write_leaf_preserves_null_trailing_json_and_percent_id_trim 覆盖；本批复核保留：缺口为缺 id 的 400 等价断言，owner 为 product_execution_read_port.rs 的路径解析。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/execution_validation_contracts_test.go:238:TestExecutionOrderDetailsRouteMapsMissingAndStoreFailures": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_preserve_the_port_failure_code_and_message",
-    "conclusion": "partial：Go 断言订单详情缺失 id→400、存储失败→错误信封。Rust 该用例断言读路由保留端口失败码与消息（EXECUTION_STORAGE_UNAVAILABLE）；fixture 另断言 GET_ORDER_FAILED 500，缺 id 的 400 分支在 Rust 无等价断言。",
+    "conclusion": "partial：Go 断言订单详情缺失 id→400、存储失败→错误信封。Rust 该用例断言读路由保留端口失败码与消息（EXECUTION_STORAGE_UNAVAILABLE），fixture 另断言 GET_ORDER_FAILED 500；本批复核保留：缺口为缺 id 的 400 分支断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/openapi_route_alignment_test.go:14:TestTradingOpenAPIDocumentationRoutesMatchGinRegistration": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::every_declared_capability_resolves_to_an_executable_production_adapter",
-    "conclusion": "partial：Go 断言 OpenAPI 文档中的交易路由标识与 gin 注册一一对应、无重复。Rust 的契约源是 contracts/openapi/openapi.json 与 product_production_route_manifest.json（routeDigest）；该用例断言每个声明能力解析到可执行生产适配器，文档级一一对应由 manifest digest 与 check:generated 保证，无同名去重测试。",
+    "conclusion": "partial：Go 用 gin 注册表断言“文档路由标识 ↔ 注册路由”一一对应且无重复标识。Rust 无 gin 注册表：契约源为 contracts/openapi/openapi.json 与 product_production_route_manifest.json（routeDigest），不变量由 product_production_route_registry_tests.rs（每个 canonical 模板解析到 dispatch target）与 pnpm run check:contracts / check:generated 门禁保证；缺口：无“文档 operationId 去重 ↔ 注册”逐条 Rust 测试，无法在 nextest 内表达，属工具链边界。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/routes_broker_contracts_test.go:143:TestPortfolioRoutesUseBrokerSnapshotsAndMissingBrokerSemantics": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback",
-    "conclusion": "partial：Go 断言 portfolio funds/positions 走 broker 快照、缺 broker 返回明确错误。Rust 该用例断言 positions 投影（摊薄成本/账户 PnL 与旧字段回退）；缺 broker 语义由 broker_read_routes_fail_closed_when_snapshot_port_is_unavailable 与 product_mcp 的 unknown-broker 拒绝覆盖。",
+    "conclusion": "partial：Go 断言 portfolio funds/positions 走 broker 快照、缺 broker 返回明确错误。Rust 该用例断言 positions 投影（摊薄成本/账户 PnL 与旧字段回退）；本批新增证据：/api/v1/portfolio/futu/unknown 与 /api/v1/portfolio//cash-balances → 404 NOT_FOUND，/api/v1/portfolio/futu/positions 成功路径 200 且 positions:[]（production_http_broker_reads_reject_missing_uri_broker_and_unknown_resource / *_serialize_empty_collections_as_arrays）。缺口：portfolio cash-balances 在 funds 读取失败时 Rust 为 503 PORTFOLIO_UNAVAILABLE，与 Go 的 200 降级信封相反（既有产品差异）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/routes_broker_contracts_test.go:214:TestBrokerWriteRoutesMapBodyBrokerAndOperationOutcomes": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_brokers_write_product_tests.rs::brokers_write_sqlite_test_cutover_replays_transport_and_restart",
-    "conclusion": "partial：Go 断言写路由体校验 400、错误 broker/不支持资源 404、cancel 语义与 unlock 成功信封。Rust 该用例断言 brokers 写路由（futu orders）在 sqlite cutover 下的传输与重启回放；unlock 与不支持资源的 404 映射无逐项断言。",
+    "conclusion": "partial：Go 断言写路由体校验 400、错误 broker/不支持资源 404、cancel 语义与 unlock 成功信封。Rust 该用例断言 brokers 写路由（futu orders）在 sqlite cutover 下的传输与重启回放；本批新增证据：生产 HTTP 面 unlock → 503 BROKERS_WRITE_UNAVAILABLE、写路由畸形 query → 400（探针记录，见 routes_test.go:95 行）。缺口：body 校验 400 矩阵与错误 broker 404 的逐项断言，owner 为 product_brokers_write_port.rs。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/routes_failure_boundaries_test.go:17:TestBrokerReadRoutesPreserveDegradedBackendFailureSemantics": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_fail_closed_when_snapshot_port_is_unavailable",
-    "conclusion": "partial：Go 断言降级后端下 broker 读路由（/brokers/futu/positions、/portfolio/futu/positions）的错误消息保真。Rust 该用例断言缺快照端口时 broker 读路由 fail-closed（EXECUTION_UNAVAILABLE 族）；消息级断言由 helper_market_data_providers_fail_closed_without_futu_trade_session 覆盖。",
+    "conclusion": "partial：Go 断言降级后端下 /brokers/futu/quote、/brokers/futu/positions 返回 200 且带 connectivity:\"disconnected\"+lastError，/portfolio/futu/positions 返回 200 且 positions:[]。Rust 对同一失败返回 503 BROKER_READ_UNAVAILABLE / PORTFOLIO_UNAVAILABLE（fail-closed），属既有产品差异（同源行：broker_account_read_failures_test.go:11、responses_test.go:55/:107、servercoretest/broker_routes_test.go:14；见 docs/history/go-to-rust/broker-batch-scope.md 分片四）。本批证据：成功路径下 broker positions 与 portfolio positions 均 200 且 positions:[]（production_http_broker_reads_serialize_empty_collections_as_arrays，探针另记录 portfolio 路径），即差异只出现在上游失败时的信封策略。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/routes_failure_boundaries_test.go:58:TestBrokerReadRoutesRejectMissingAndInvalidOptionalInputs": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_requests.rs::trade_query_parses_symbol_and_optional_helpers",
-    "conclusion": "partial：Go 断言缺失/非法可选参数→400，并单测 optionalFloat/optionalUint 的空值语义。Rust 该用例断言交易查询可选 helper 的解析与畸形值处理；HTTP 400 映射无逐项断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_reads_reject_missing_and_invalid_optional_inputs",
+    "conclusion": "已覆盖：生产 HTTP 面（desktop_production + ProductionBrokerPort）对 Go 的 5 条清单 —— fills?scope=unknown、max-trade-qtys 缺 price、adjustSideAndLimit=bad、positionId=bad、klines 缺 symbol —— 逐条断言 400 BAD_REQUEST；Go 末尾的 optionalFloat(\" \")/optionalUint(\" \") 空白→nil 由 trade_query_normalizes_scope_merges_aliases_and_treats_blank_optionals_as_absent 断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked --lib -E 'test(production_http_broker_reads_reject_missing_and_invalid_optional_inputs)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/trading/routes_helper_boundaries_test.go:17:TestTradingRouteHelpersWriteHTTPBoundaryErrors": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_fails_closed_without_trade_client",
-    "conclusion": "partial：Go 子用例断言 bind URI/query 在缺参或类型错误时写 400、读结果映射 broker 失败与 snapshot retry 语义、写结果保留 pre-trade risk 拒绝语义。Rust 该用例断言缺交易客户端时读失败 fail-closed；retry 语义由 product_production_ports_market_data_projection.rs 的 retry 信号用例覆盖，缺参 400 在模板路由下不存在。",
+    "conclusion": "partial：Go 子用例断言 (a) bindBrokerURI 缺参→404 且 handler 停止；(b) bindQuery 类型错误→400（自定义文案）；(c) writeReadResult 通用后端错误→500 BROKER_READ_FAILED；(d) 未知 broker→404、snapshot 限流→429 + Retry-After；(e) writeOperationResult 保留 pre-trade 风险拒绝→409 PRE_TRADE_RISK_REJECTED。Rust 本批已覆盖 (a)(b)：/api/v1/brokers//funds 与 /api/v1/portfolio//cash-balances → 404，11 条读路由 + portfolio + 写路由畸形 query → 400（production_http_broker_reads_reject_* 两条用例）。缺口：(c)(d) 在 Rust 映射为 503 BROKER_READ_UNAVAILABLE / 404 BROKER_NOT_FOUND 且无 Retry-After 头，owner 为 crates/jftrade-engine/src/product_wire_brokers.rs::broker_read_snapshot_failure 与 BrokerReadSnapshotError 变体；(e) 的 409 信封映射在写路由 owner。回归要求：先补 (c)(d)(e) 失败用例再改映射。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/routes_helper_boundaries_test.go:119:TestPortfolioReadUnknownResourceIsNotFound": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::unknown_portfolio_reconciliation_route_returns_json_not_found",
-    "conclusion": "partial：Go 断言 /api/v1/portfolio/futu/unknown→404 明确响应。Rust 该用例断言未知 portfolio 对账路由返回 JSON 404 而非 SPA 回退；业务资源未知由 portfolio 读路由 fail-closed 覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_reads_reject_missing_uri_broker_and_unknown_resource",
+    "conclusion": "已覆盖：Go 主断言 /api/v1/portfolio/futu/unknown → 404 NOT_FOUND（生产 HTTP 面）；同用例并断言 /api/v1/portfolio//cash-balances 与 /api/v1/brokers//funds 在缺 URI broker 参数时同样 404，而不是回退到隐式活动 broker。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked --lib -E 'test(production_http_broker_reads_reject_missing_uri_broker_and_unknown_resource)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/trading/routes_helper_boundaries_test.go:131:TestTradingRoutesRejectMalformedQueryEncodingBeforeDispatch": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_requests.rs::trade_query_parses_symbol_and_optional_helpers",
-    "conclusion": "partial：Go 断言 11 条交易读路由在畸形 query 编码下于 dispatch 前→400。Rust 该用例断言查询解析对畸形参数的处理（回退或拒绝）；传输层 400 前置拒绝无逐路由断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_reads_reject_malformed_query_encoding_before_dispatch",
+    "conclusion": "已覆盖：Go 的 13 项清单（11 条 broker 读路由 + portfolio cash-balances + POST brokers/futu/orders）在 RawQuery=%zz 时全部 400 BAD_REQUEST 且于 dispatch 前拒绝（读路由消息 \"invalid query encoding\"，写路由 \"invalid broker write query\"）。本批修复：portfolio 端口原先把解析失败折叠为 Unavailable（503 PORTFOLIO_UNAVAILABLE），现按 Go bindQuery 语义改为 PortfolioSnapshotError::Invalid → 400；探针证据：修复前该用例断言 503 != 400 失败，修复后通过（shasum 4677f01cf220d1730e2cc2ac322d90458f12e697625f490357aca47f78f8f91e）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked --lib -E 'test(production_http_broker_reads_reject_malformed_query_encoding_before_dispatch)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/trading/routes_read_handlers_test.go:18:TestBrokerReadHandlersSerializeEmptyCollectionsAsArrays": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::margin_ratios_returns_empty_in_simulated_environment",
-    "conclusion": "partial：Go 断言空集合序列化为 [] 而非 null。Rust 该用例断言模拟环境下 margin ratios 返回空集合；空数组序列化由 Rust Vec 投影结构保证（product_wire 投影），无逐路由的 [] vs null 断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_reads_serialize_empty_collections_as_arrays",
+    "conclusion": "已覆盖：Go 的 3 个字段断言（cashFlows/fees/marginRatios）在生产 HTTP 面逐条比对 JSON 值等于 []（非 null），并额外覆盖 positions/fills/orders 同规则。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked --lib -E 'test(production_http_broker_reads_serialize_empty_collections_as_arrays)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/trading/routes_read_handlers_test.go:71:TestTradingReadHandlersValidateAndNormalizeBusinessQueries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_account_analytics_project_fees_margin_cash_flow_and_buying_power",
-    "conclusion": "partial：Go 断言 cash-flows 需 clearing date、order-fees 合并双 orderId、margin-ratios 按市场归一、quote/securities 合并别名、未知资源 404。Rust 该用例断言 fees/margin/cash-flow/buying-power 投影；需求校验由 cash_flows_require_clearing_date 与 order_fees_require_at_least_one_non_empty_order_id 覆盖。",
+    "conclusion": "partial：Go 断言 (a) cash-flows 缺 clearingDate→400 且转发 direction/account/market；(b) order-fees 合并 orderIdEx+orderIdExList 并去重（[\"ord-1\",\"ord-2\"]）；(c) margin-ratios 缺 symbol→400 且按 market 归一；(d) quote/securities 合并别名去重；(e) 未知资源→404。Rust 本批覆盖 (a)(c)(e) 的 HTTP 面（production_http_broker_reads_serialize_empty_collections_as_arrays 与 *_reject_missing_uri_broker_and_unknown_resource），(b)(d) 的 trim/去重/顺序由 trade_query_normalizes_scope_merges_aliases_and_treats_blank_optionals_as_absent 断言。缺口：未断言“转发给端口的 query 对象”逐字段值，owner 为 product_production_ports_trade.rs 的 resolve_account/trade_filter；如需 [x] 需新增记录端口入参的用例。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/routes_test.go:32:TestBrokerRoutesPreserveFallbackSemanticsAndRequestValidation": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_provider_tests.rs::helper_market_data_providers_project_futu_broker_and_portfolio_routes",
-    "conclusion": "partial：Go 断言 funds/portfolio/order-fees/cash-flows 的回退语义与请求校验。Rust 该用例断言 helper 提供者把 futu broker/portfolio 路由投影为 funds、fills、order-fees、orders、runtime、cash-balances 数据。",
+    "conclusion": "partial：Go 断言 (a) 无活动 broker 时 /brokers/futu/funds 200 degraded+lastError；(b) /portfolio/futu/cash-balances 200；(c) order-fees 与 cash-flows 缺参→400；(d) 写单→503；(e) /brokers/ib/runtime 200 空态。Rust 本批覆盖 (c)：两条缺参路径 400 BAD_REQUEST；探针记录 (d) 带 accountId&market 的 POST orders → 503 BROKERS_WRITE_UNAVAILABLE。缺口：(a)(b) Rust 为 503 fail-closed（既有产品差异，见 routes_failure_boundaries_test.go:17 行）；(e) 单 broker 模型下 /brokers/ib/runtime → 404 BROKER_NOT_FOUND（“requested broker ib is not active”），非 Go 的 200 空态。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/routes_test.go:95:TestBrokerWriteRoutesClassifyUnsupportedTradingAndUnlock": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_brokers_write_product_tests.rs::brokers_write_routes_register_only_with_explicit_test_port",
-    "conclusion": "partial：Go 断言 orders 写与 unlock 的分类结果（不支持交易/解锁成功）。Rust 该用例断言 brokers 写路由只在显式测试端口下注册；unlock 与写权限语义由 brokers_write_product_requires_private_bearer_and_internal_protocol 覆盖，分类映射无逐项断言。",
+    "conclusion": "partial：Go 断言 POST /brokers/futu/orders→503（不支持交易）与 POST /brokers/futu/unlock→503。Rust 探针记录：POST unlock → 503 BROKERS_WRITE_UNAVAILABLE（与 Go 一致）；POST orders 在带 accountId&market 时 → 503，但 Go 的请求体不带 accountId 也返回 503，而 Rust 先返回 400 \"accountId is required\"，即写路由账户解析契约不同（Rust 要求显式 accountId）。既有证据：brokers_write_routes_register_only_with_explicit_test_port、brokers_write_product_requires_private_bearer_and_internal_protocol。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/trading/routes_test.go:121:TestBrokerReadRoutesCoverOrdersFillsQuotesKLinesAndSecurities": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_current_orders_hide_terminal_statuses_while_history_keeps_them",
-    "conclusion": "partial：Go 断言 GET orders/fills/quote/klines/securities 全部 200。Rust 该用例断言订单当前/历史状态过滤；其余资源的投影由 funds/cash-flows/margin 用例与 helper_market_data_providers_project_futu_broker_and_portfolio_routes 覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_reads_serve_orders_fills_quotes_klines_and_securities",
+    "conclusion": "已覆盖：Go 的 7 条路径（orders/fills/quote/klines/securities/margin-ratios/max-trade-qtys）在生产 HTTP 面逐条 200 且 ok=true；quote 走 router 缓存、klines 走历史端口、max-trade-qtys 走成功快照（原夹具只有 Closed 协调器错误，本批补齐成功分支，避免把夹具失败误当成路由缺失）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked --lib -E 'test(production_http_broker_reads_serve_orders_fills_quotes_klines_and_securities)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/trading/routes_test.go:145:TestBrokerReadRoutesRejectInvalidScopeAndNumericQueryValues": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_requests.rs::trade_query_parses_symbol_and_optional_helpers",
-    "conclusion": "partial：Go 断言非法 scope、max trade qty、klines limit→400。Rust 该用例断言可选数值 helper 的解析与畸形回退；HTTP 400 映射无逐项断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_reads_reject_invalid_scope_and_numeric_queries",
+    "conclusion": "已覆盖：Go 的 3 条路径（orders?scope=bad、max-trade-qtys&price=bad、klines&limit=bad）在生产 HTTP 面均为 400 BAD_REQUEST 且错误码 BAD_REQUEST。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked --lib -E 'test(production_http_broker_reads_reject_invalid_scope_and_numeric_queries)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/watchlist/route_error_handling_test.go:16:TestWriteErrorMapsAllDomainErrors": {
     "status": "[~]",
