@@ -1546,3 +1546,45 @@ owner：`crates/jftrade-strategy`（Pine planner 的需求键与运行期标志�
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy`、`cargo deny check advisories` | 在目标健康检查处以 `.rcgu.o` 51902 ≥ 50000 中止（确认无 Cargo 进程后执行 `pnpm run clean:rust:artifacts`）；绕过健康检查直接跑 `cargo deny check advisories` 仍报 8 条 `advisory-not-detected`（advisories FAILED、bans/licenses/sources ok），与分片六结论一致 |
 
 后续：分片八进入 `pkg/strategy/pine/parse_*` 41 行，随后 `pkg/strategy/pine` 其余文件、`pkg/strategy/pineworker`、`pkg/strategy/pineengine` 与 pinespec，直至 `strategy_pine` 域 510 行清空。
+
+### 分片八：`pkg/strategy/pine/parse_test.go` 诊断与订单元数据 35 行
+
+范围：`parse_test.go` 35 行（`:10/:54/:84/:113/:126/:145/:167/:186/:202/:232/:253/:286/:317/:348/:367/:390/:432/:448/:464/:488/:560/:587/:621/:651/:690/:718/:732/:763/:790/:838/:903/:977/:1014/:1029/:1044`）。
+owner：`crates/jftrade-strategy`（Pine 编译/校验/分析入口与诊断面）；对照方为 `workers/pineworker` 与 `crates/jftrade-integration-pine`（订单 intent 语义投影）。
+
+复核方式：本轮把 35 行全部重读 Go 断言并逐行定位 Rust 证据。其中 21 行既有 `[x]` 通过 audit 复核（rust_entry 存在、指向真实测试、锚点无 stale/unrecorded），并抽检 `:10`（IR 形状）、`:126`（默认数量）、`:464`（高级订单诊断码）、`:1044`（字符串字面量不算历史引用）四条内容与 Go 断言一致；14 行非 `[x]` 逐条核对缺口描述，其中 3 行在本轮给出新终值。
+
+修复（1 处功能差异，带先红探针）：
+
+- 差异：`pine::compile` 用 `source.trim()` 归一化脚本，前导空行被吞掉，脚本里所有后续行号整体前移；Go 的 `AnalyzeScript` 保留原始行号（`parse_test.go:1029` 断言带一个前导空行的脚本首条诊断落在第 5 行）。实测 0/1/2 个前导空行的同一 `for ... by 0` 脚本在修复前都报第 3 行。
+- 修复：新增 `pine::normalize_source`，只裁剪首行水平空白（含 BOM）与尾部空白，绝不丢弃前导行；`pine::compile` 与 `pinespec::validate_script` 共用该入口（后者此前也做 `source.trim()`，会二次吞掉空行）。
+- 先红探针：把 `crates/jftrade-strategy/src/pine/mod.rs` 回滚到修复前版本（shasum `a1965978690a0475030a535b8d4861d8f2b9e28749980ce101b3257410de7ce3`）后，`blank_lines_before_the_script_keep_later_diagnostic_lines` 失败（1 个空行时报第 3 行而非第 4 行）；恢复修复后通过。修复后 `mod.rs` shasum `00386727cbd2c6ffdad8c6cd3b89d0b3afe648b3f56d609fe5b983db6e5d3638`、`pinespec/mod.rs` `c879f98fd079c79850a7ceb65941bc36c032929ca683ddcd6bf83ecbcb1d03a6`，探针副本与工作树按字节一致。
+- 新增证据：`crates/jftrade-strategy/tests/pine_parse_diagnostics.rs` 两条用例——`unsupported_security_symbols_report_the_original_line`（动态符号脚本 ok=false、诊断码 `PINE_REQUEST_SECURITY_DYNAMIC_SYMBOL`、消息含 request.security、行号为原始第 3 行）、
+  `blank_lines_before_the_script_keep_later_diagnostic_lines`（0/1/2 前导空行 → 第 3/4/5 行）；
+  以及 `crates/jftrade-strategy/src/pine/mod.rs::order_subset_compile_tests::compile_preserves_order_notification_metadata_and_immediate_close`（entry 的 comment/alert_message/disable_alert 与 close 的 immediately/comment/alert_message/disable_alert 按原值保留在 `LoweredStatement::Action` 命名实参中）。
+- 映射终值：35 行 = 22 `function_exact` + 12 `partial` + 1 `boundary`（`:1014` partial → function_exact；`:167` boundary → partial）；全量 `[x]` 1555 → 1556、partial 2274 → 2274、boundary 622 → 621。
+
+关键事实与新登记缺口（P1/P2）：
+
+1. **循环诊断行归属不同（P2）**：同一脚本 Go 把首条诊断归到循环体所在行（第 5 行），Rust 归到 `for` 语句行（第 4 行）；本批修复了前导空行导致的行号前移，但归属语义差异保留，若要复刻需调整 `LoopStmt` 的诊断锚点（owner：`crates/jftrade-strategy/src/pine/parser.rs`）。
+2. **订单元数据无 typed 投影（P2）**：Rust 以命名实参保留 comment/alert_message/disable_alert/immediately（本批新增断言），但没有 Go 的 `OrderStmt`/`ExitStmt` typed 字段；intent 语义投影在 `workers/pineworker` 与 `crates/jftrade-integration-pine` 执行层完成（`:286/:317/:348/:390/:432/:448` 五行保持 partial）。
+3. **静态展开与 UDF 诊断缺口（P1，沿用既有登记）**：Go 把静态 for 展开为 `history(close,i)` 序列并内联单表达式 UDF，Rust 保留 typed For 与 `program.functions`（展开由 PineTS 承担）；`:838/:903` 登记的 UDF 参数不匹配、递归/嵌套 UDF、循环变量只读三类诊断仍未实现。
+4. **兼容评分注册表（P2）**：`:763` 的 CompatibilityScore/SupportedFeatureIDs 在 Rust 由 MCP spec leaf 的冻结 payload 与 `supported_features()` 承担，缺少按注册表驱动的逐项断言。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 修复前先红 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --test pine_parse_diagnostics --locked --no-fail-fast` | 2 条中 1 条失败（前导空行用例报第 3 行），回滚 `mod.rs` 到 `a1965978…` 复现 |
+| 新增用例 | 同上（修复后） | 2/2 通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast` | 62/62 通过 |
+| 探针回滚校验 | `shasum -a 256 crates/jftrade-strategy/src/pine/mod.rs crates/jftrade-strategy/src/pinespec/mod.rs` | 修复后 `00386727…` / `c879f98f…`，与探针副本按字节一致 |
+| 映射写入 | payload `/tmp/s128h_payload.json` 经 `/tmp/b82_apply.py` 应用 | 3 行给出终值，`[x]` 1555 → 1556、partial 2274 → 2274、boundary 622 → 621 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3229（Strategy 域 208） |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1572、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1894/1894 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2946 files）、`pnpm run check:quick` | 全部通过；`check:quick` 走 affected 计划（7 个受影响文件、rust 模块），1986/1986 通过并以 exit 0 结束 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 在 `.rcgu.o` 29488（< 50000，目标健康检查通过）的前提下仍失败：cargo-deny advisories 阶段报 8 条 `advisory-not-detected`（advisories FAILED、bans/licenses/sources ok），与分片六/七结论一致 |
+
+后续：分片九进入 `pkg/strategy/pine/parse_collection_test.go` 17 行、`parse_object_test.go` 12 行、`parse_semantic_test.go` 12 行、`parse_request_test.go` 7 行（合计 48 行），随后 `pkg/strategy/pine` 其余文件，直至 `strategy_pine` 域 510 行清空。

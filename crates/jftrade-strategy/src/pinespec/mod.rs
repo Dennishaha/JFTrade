@@ -189,7 +189,7 @@ pub fn validate_script(
     include_requirements: bool,
     _include_ast: bool,
 ) -> ValidationPayload {
-    let normalized_script = source.trim().to_owned();
+    let normalized_script = crate::pine::normalize_source(source);
     if normalized_script.is_empty() {
         return ValidationPayload {
             ok: false,

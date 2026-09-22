@@ -45,8 +45,19 @@ pub struct AnalysisOptions {
 
 /// Run the complete native pipeline.  A parse or semantic error is returned
 /// as diagnostics, not as a panic or a partially successful program.
+/// Leading horizontal whitespace on the first line and trailing whitespace are
+/// noise, but blank lines at the start of a script are not: Go keeps the
+/// original line numbers in every diagnostic, so the compiler may only trim
+/// horizontal whitespace and must never drop a leading line.
+pub(crate) fn normalize_source(source: &str) -> String {
+    source
+        .trim_start_matches([' ', '\t', '\u{feff}'])
+        .trim_end()
+        .to_owned()
+}
+
 pub fn compile(source: &str) -> Compilation {
-    let normalized_script = source.trim().to_owned();
+    let normalized_script = normalize_source(source);
     let mut diagnostics = Vec::new();
     let mut semantic = SemanticSummary::default();
     let mut requirements = Requirements::default();
@@ -727,6 +738,48 @@ if cmoValue > 0 and corrValue > 0 and pctValue > 0 and swmaValue > 0
 mod order_subset_compile_tests {
     use super::lower::LoweredStatement;
     use super::*;
+
+    /// Parity: pkg/strategy/pine/parse_test.go:167
+    /// TestCompilePreservesOrderNotificationMetadataAndImmediateClose
+    ///
+    /// Go projects the notification metadata onto typed
+    /// `OrderStmt.Comment/AlertMessage/DisableAlert/Immediate` fields; Rust
+    /// keeps the same values as named arguments of the lowered action, so the
+    /// metadata must survive lowering verbatim.
+    #[test]
+    fn compile_preserves_order_notification_metadata_and_immediate_close() {
+        let script = r#"//@version=6
+strategy("Order Metadata")
+strategy.entry("Long", strategy.long, qty=1, comment="entry", alert_message="opened", disable_alert=false)
+strategy.close("Long", immediately=true, comment="close", alert_message="closed", disable_alert=true)"#;
+        let calls = action_calls(script);
+        assert_eq!(calls.len(), 2, "calls = {calls:?}");
+        let (entry_call, entry_arguments) = &calls[0];
+        assert_eq!(entry_call, "strategy.entry");
+        for wanted in [
+            "(comment Equal \"entry\")",
+            "(alert_message Equal \"opened\")",
+            "(disable_alert Equal false)",
+        ] {
+            assert!(
+                entry_arguments.iter().any(|argument| argument == wanted),
+                "entry must keep `{wanted}`: {entry_arguments:?}"
+            );
+        }
+        let (close_call, close_arguments) = &calls[1];
+        assert_eq!(close_call, "strategy.close");
+        for wanted in [
+            "(immediately Equal true)",
+            "(comment Equal \"close\")",
+            "(alert_message Equal \"closed\")",
+            "(disable_alert Equal true)",
+        ] {
+            assert!(
+                close_arguments.iter().any(|argument| argument == wanted),
+                "close must keep `{wanted}`: {close_arguments:?}"
+            );
+        }
+    }
 
     fn action_calls(script: &str) -> Vec<(String, Vec<String>)> {
         let compilation = compile(script);

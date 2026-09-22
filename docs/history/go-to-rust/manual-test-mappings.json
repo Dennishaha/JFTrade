@@ -28925,10 +28925,10 @@
   },
   "pkg/strategy/pine/parse_test.go:167:TestCompilePreservesOrderNotificationMetadataAndImmediateClose": {
     "status": "[~]",
-    "evidence_type": "boundary",
-    "rust_entry": "crates/jftrade-strategy/src/pine/lower.rs::low_statement",
-    "conclusion": "boundary（IR 模型不同）：Go 的 strategyir.OrderStmt 有 Comment/AlertMessage/DisableAlert/Immediate 字段；Rust 的 LoweredStatement::Action 只保留 call+arguments，参数以命名表达式形式存在。Rust 尚无等价的通知元数据投影，需在后续批次决定是否补齐 typed order IR。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(parse_metadata_tests) or test(parse_history_reference_tests)'"
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::order_subset_compile_tests::compile_preserves_order_notification_metadata_and_immediate_close",
+    "conclusion": "partial（由 boundary 升级）：Go 断言 entry 的 Comment/AlertMessage/DisableAlert 与 close 的 Immediate/Comment/AlertMessage/DisableAlert 被 typed OrderStmt 投影。Rust 新增用例断言同一脚本把 `comment`、`alert_message`、`disable_alert`（entry）与 `immediately`、`comment`、`alert_message`、`disable_alert`（close）按原值保留在 LoweredStatement::Action 的命名实参中；缺口：Rust IR 没有 typed OrderStmt/ExitStmt 字段投影，其到下单 intent 的语义投影在 `workers/pineworker` 与 `crates/jftrade-integration-pine` 执行层完成。owner：`crates/jftrade-strategy/src/pine/lower.rs`（若后续需要 typed order IR）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+    "evidence_type": "partial"
   },
   "pkg/strategy/pine/parse_test.go:186:TestCompileExplicitEntryQtyOverridesStrategyDefaultQuantity": {
     "status": "[x]",
@@ -29106,16 +29106,16 @@
     "evidence_type": "boundary"
   },
   "pkg/strategy/pine/parse_test.go:1014:TestAnalyzeScriptReturnsStructuredUnsupportedDiagnostics": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::request_security_tests::validate_script_rejects_unsupported_pine_runtime_feature",
-    "conclusion": "partial：Go 断言动态符号 request.security(\"NASDAQ:AAPL\", ...) 分析失败、诊断提及 request.security 且保留 AST 行数据。Rust 以稳定码拒绝（该用例断言 PINE_REQUEST_SECURITY_DYNAMIC_SYMBOL 与行号），但静态日内 security 是支持的（compile_accepts_native_pine_indicator_public_entry），策略面比 Go 的“非日内一律拒绝”更宽。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_parse_diagnostics.rs::unsupported_security_symbols_report_the_original_line",
+    "conclusion": "已覆盖：Go 断言动态符号脚本 `request.security(\"NASDAQ:AAPL\", \"D\", close)` 分析失败、首条诊断消息提及 request.security 且保留 AST 行数据。Rust 新用例按同一脚本断言 ok=false、诊断码 PINE_REQUEST_SECURITY_DYNAMIC_SYMBOL、消息含 request.security 且行号为原始第 3 行（本批修复前导空行丢失后行号仍正确）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "pkg/strategy/pine/parse_test.go:1029:TestAnalyzeScriptPreservesOriginalLineNumbers": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::advanced_order_diagnostic_tests::analyze_script_reports_v40_broker_boundary_diagnostics",
-    "conclusion": "partial：Go 断言前置空行后首个诊断落在原始第 5 行（行号不被归一化吞掉）。Rust 的诊断同样携带原始行号（该用例在 2 行前缀下断言诊断落在第 3 行），但语料只覆盖该固定脚本，没有空行偏移专项断言。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_parse_diagnostics.rs::blank_lines_before_the_script_keep_later_diagnostic_lines",
+    "conclusion": "partial：Go 断言带一个前导空行的脚本首条诊断落在原始第 5 行。本批修复：`compile` 原先用 `source.trim()`，会吞掉前导空行，使所有后续行号前移（实测 1 个空行与 2 个空行都报第 3 行）；改为只裁剪首行水平空白与尾部空白后，0/1/2 个前导空行分别报第 3/4/5 行，新用例逐值锁定（先红探针：修复前该用例失败，old 版本 mod.rs shasum a1965978…）。残差：Go 对同一脚本把首条诊断归到循环体所在行（第 5 行），Rust 归到 `for` 语句行（修复后第 4 行），行归属语义不同；owner：`crates/jftrade-strategy/src/pine/{parser,mod}.rs`（若要复刻 Go 的循环体归属需调整 LoopStmt 的诊断锚点）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
