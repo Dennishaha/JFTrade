@@ -5502,11 +5502,11 @@
     "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/backtest_provider_runtime_test.go:55:TestBacktestSyncRejectsActualAKShareOneYearUSFiveMinuteRange": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_rejects_invalid_ranges_and_intervals; crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_backtest_start_rejects_missing_history_without_queuing",
-    "conclusion": "partial：Rust 在请求解析层拒绝非法 interval 与倒置区间（引用测试），无缓存时回测启动以“K-line data is not ready”失败且不落库（引用测试）。缺口：AKShare “5m 历史仅 5 天” 的 provider 窗口守卫未实现/未断言（全仓无该消息），owner=crates/jftrade-engine/src/product_production_ports_backtest_sync.rs；补齐前不标 [x]。",
-    "command": "",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::akshare_sync_rejects_history_beyond_the_intraday_lookback_window; crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_backtest_start_rejects_missing_history_without_queuing",
+    "conclusion": "[x]：Go 断言 AKShare 一年期 US 5m 同步按 provider 能力窗口（HistoricalLookbackDays: US:5m=5）返回 400，消息为 provider akshare limits 5m history to 5 days，且不得落到 market-data provider runtime is unavailable；无缓存的回测启动再以 backtest K-line data is not ready 失败且不落库。Rust 新增 validate_sync_lookback_window（product_backtest_sync_request.rs，镜像 Go 的 1m=5 与 US:5m/15m/30m/1h=5 查找规则），在 start_sync_task 解析请求并经 provider 可用性解析后、任务派发前调用（与 Go 在 historical source 内校验的时机一致：provider 不可用仍报 503）；新用例断言 400 BadRequest 文案逐字一致，并保留 3 天内窗口与其他 provider 可通过；run 路径缺缓存失败与不落库由引用用例覆盖，provider 不可用 503 由 production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(akshare_sync_rejects_history_beyond_the_intraday_lookback_window) | test(production_backtest_start_rejects_missing_history_without_queuing)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/backtest_provider_runtime_test.go:119:TestLiveBacktestHistoricalProviders": {
     "status": "[~]",
@@ -5544,11 +5544,11 @@
     "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/backtest_runs_test.go:279:TestBacktestRoutesCreateRuntimeLayoutForMissingBacktestDir": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_data_management.rs; crates/jftrade-engine/src/product_runtime_tests.rs::test_product_runtime_ordered_shutdown_tokio_runtime_exit_drop",
-    "conclusion": "partial：Rust 启动时为 9 个受管数据库创建缺失父目录并逐个 open_existing（product_data_management.rs inspect_database_paths，运行时测试经 helper 断言全部可打开，引用测试）。缺口：没有“backtest DB 位于缺失嵌套目录时 GET /api/v1/backtests 200”的用例级断言（Go 用 JFTRADE_BACKTEST_DB 验证），owner=crates/jftrade-engine/src/product_data_management.rs；补一条嵌套缺失目录回归即可收口。",
-    "command": "",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_data_management_batch_atomic_startup_tests.rs::startup_creates_missing_nested_backtest_database_directory; crates/jftrade-engine/src/product_runtime_tests.rs::test_product_runtime_ordered_shutdown_tokio_runtime_exit_drop",
+    "conclusion": "[x]：Go 断言 JFTRADE_BACKTEST_DB 指向缺失的嵌套目录时服务器仍能启动并让 GET /api/v1/backtests 返回 200。Rust 的启动路径检查 inspect_database_paths 对每个受管数据库执行 create_dir_all（含多层缺失父目录）并随后以 open_existing 打开；新用例把 backtest 覆盖指向 missing/nested/backtest.db，断言启动初始化创建该文件并迁移到锚定 schema（运行时测试断言全部受管库可打开）。回测路由读取同一已初始化的运行库，因此启动成功即服务器读取面可用。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(startup_creates_missing_nested_backtest_database_directory)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/broker_new_test.go:100:TestBrokerFundsIncludesMarginFields": {
     "status": "[~]",
@@ -5559,7 +5559,7 @@
   },
   "internal/app/apiserver/servercoretest/broker_new_test.go:126:TestBrokerQuoteWithoutLeaseIsDegraded": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_quote_requires_every_requested_symbol_in_real_cache; crates/jftrade-engine/src/product_production_ports_market_data_quote_lease.rs::candle_read_without_a_kline_lease_fails_before_realtime_provider_access",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_quote_requires_every_requested_symbol_in_real_cache; crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::candle_read_without_a_kline_lease_fails_before_realtime_provider_access",
     "conclusion": "partial：Go 断言 broker quote 无行情租约时仍返回 200 + connectivity=degraded + lastError 含 \"subscription required\"。Rust 的 lease 错误仅在 /api/v1/market-data/* 路由断言（basic/candle 用例），broker quote 路由在缓存缺 symbol 或无行情路由时返回 Unavailable（503 信封）。缺口 owner：crates/jftrade-engine broker read 端口（quote 降级语义）；回归要求：确认是否要把无租约映射为 200 degraded 信封，并补生产 HTTP 断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
@@ -5670,11 +5670,11 @@
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercoretest/broker_new_test.go:462:TestBrokerGinRoutesRejectIncompletePaths": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_route_registry_tests.rs::resolver_rejects_unknown_method_and_path; crates/jftrade-api/src/route.rs::exact_method_and_single_segment_parameters_are_required",
-    "conclusion": "partial：Go 断言不完整/越界路径不会被 broker 路由捕获（gin 404）。Rust 路由注册表要求精确方法+单段参数，多余段与未知方法解析失败（两个引用测试），语义与 Go 一致。缺口 owner：crates/jftrade-api router::route；回归要求：把该组 broker 路径逐条纳入解析层矩阵断言后升级为精确覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_routes_reject_incomplete_paths",
+    "conclusion": "[x]：Go 断言 /api/v1/not-brokers/x/y、/api/v1/brokers/、/api/v1/brokers/x、/api/v1/brokers//y 均 404（gin 不把不完整/越界路径交给 broker 路由）。Rust 新用例在生产 HTTP 组合上逐条请求同一组路径，断言 404 + NOT_FOUND JSON 信封；路由注册表要求精确方法 + 单段参数，未知/残缺路径不会被 broker 读绑定捕获。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_http_broker_routes_reject_incomplete_paths)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/broker_read_test.go:72:TestBrokerReadEndpointsReturnExchangeBackedData": {
     "status": "[~]",

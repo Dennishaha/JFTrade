@@ -148,6 +148,41 @@ fn snapshot_files(path: &Path) -> Vec<(PathBuf, Vec<u8>)> {
         .collect()
 }
 
+/// Parity: go:452dea11:internal/app/apiserver/servercoretest/backtest_runs_test.go:279 TestBacktestRoutesCreateRuntimeLayoutForMissingBacktestDir
+///
+/// Go points JFTRADE_BACKTEST_DB at a missing nested directory and expects the
+/// server (and its backtest routes) to start with a working run database.
+/// Rust creates every managed database's parent directory during startup path
+/// inspection and opens the database at the same override, so a nested missing
+/// parent must materialize and migrate instead of failing the runtime.
+#[test]
+fn startup_creates_missing_nested_backtest_database_directory() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    fs::write(&settings_path, b"{}\n").expect("settings");
+    let nested = directory
+        .path()
+        .join("missing")
+        .join("nested")
+        .join("backtest.db");
+    let nested_label = nested.to_string_lossy().into_owned();
+    let (descriptors, marker) = database_descriptors(&settings_path, |name| {
+        (name == "JFTRADE_BACKTEST_DB").then(|| nested_label.clone())
+    });
+    let backtest = descriptor(&descriptors, DATABASE_BACKTEST);
+    assert_eq!(backtest.path, nested_label);
+    assert!(!nested.exists(), "fixture must start without the nested directory");
+
+    initialize_production_databases_inner(&descriptors, &marker)
+        .expect("startup must create and initialize the nested backtest database");
+
+    assert!(nested.is_file(), "nested backtest database was not created");
+    assert!(
+        current_version_at(&backtest).is_some(),
+        "nested backtest database must be migrated to the pinned schema"
+    );
+}
+
 /// Parity: go:452dea11:internal/assistant/assembly/runtime_test.go:45
 /// TestRuntimeDatabaseProbesUseProvidedLayout
 ///

@@ -1,4 +1,5 @@
 use super::product_backtest_sync_request::parse_sync_request;
+use super::product_backtest_sync_request::validate_sync_lookback_window;
 use super::*;
 use crate::product::product_backtest_execution::BacktestExecutionTaskRegistry;
 use crate::product::{BacktestExecutionError, BacktestExecutionPort, BacktestExecutionRequest};
@@ -127,6 +128,51 @@ fn sync_request_rejects_invalid_ranges_and_intervals() {
         parse_sync_request(&invalid_range),
         Err(BacktestsWritePortError::BadRequest(_))
     ));
+}
+
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/backtest_provider_runtime_test.go:55 TestBacktestSyncRejectsActualAKShareOneYearUSFiveMinuteRange
+///
+/// Go rejects a one-year AKShare US 5m sync through the provider capability
+/// window (`HistoricalLookbackDays: {"US:5m": 5}`) before any provider work,
+/// with the message `provider akshare limits 5m history to 5 days`. Rust now
+/// applies the same guard on the parsed sync window and keeps other providers
+/// and windows inside the limit working.
+#[test]
+fn akshare_sync_rejects_history_beyond_the_intraday_lookback_window() {
+    let beyond = json!({
+        "market": "US",
+        "code": "AAPL",
+        "intervals": ["5m"],
+        "startDate": "2025-07-13",
+        "endDate": "2026-07-13",
+        "rehabType": "none",
+        "sessionScope": "regular",
+    });
+    let request = parse_sync_request(&beyond).expect("parse akshare sync");
+    let error = validate_sync_lookback_window("akshare", &request)
+        .expect_err("one-year 5m AKShare sync must be rejected");
+    match error {
+        BacktestsWritePortError::BadRequest(message) => assert_eq!(
+            message, "provider akshare limits 5m history to 5 days"
+        ),
+        other => panic!("expected 400 BAD_REQUEST, got {other:?}"),
+    }
+
+    let now = time::OffsetDateTime::now_utc();
+    let within_limit = json!({
+        "market": "US",
+        "code": "AAPL",
+        "intervals": ["5m"],
+        "since": (now - time::Duration::days(3)).format(&time::format_description::well_known::Rfc3339).expect("since"),
+        "until": now.format(&time::format_description::well_known::Rfc3339).expect("until"),
+        "rehabType": "none",
+        "sessionScope": "regular",
+    });
+    let request = parse_sync_request(&within_limit).expect("parse recent akshare sync");
+    validate_sync_lookback_window("akshare", &request)
+        .expect("a 3-day AKShare 5m window is inside the provider limit");
+    validate_sync_lookback_window("yfinance", &request)
+        .expect("yfinance has no AKShare intraday window");
 }
 
 #[test]

@@ -660,3 +660,74 @@ Pine 实例参数、设置副作用、启动对账、WS 心跳 stale 语义、si
 webaccess 24 + tradingapp 11、backtestapp 10 + datamigration 11 与 runtime/lifecycle/runtimes/application/futuapp 余量。
 
 补充说明：`internal/app/apiserver/servercore` 的 98 条待办在本分片后全部给出终值；后续复核不再按该目录推进。
+
+### 分片四：`internal/app/apiserver/servercoretest` 前 26 行
+
+范围（按文件与行号升序）：`backtest_provider_runtime_test.go:55/:119/:162`；`backtest_runs_test.go:34/:279`；
+`broker_new_test.go:100/:126/:155/:181/:205/:237/:264/:286/:302/:319/:336/:359/:422/:462`；
+`broker_read_test.go:72`；`broker_routes_test.go:14`；`exec_routes_test.go:18`；`execution_routes_test.go:53/:110/:155`；
+`frontend_test.go:96`。owner 集中在 `crates/jftrade-engine`（回测同步请求校验与启动、运行恢复与结果回写、broker 读端口
+装配、生产路由注册表、执行订单投影）、`crates/jftrade-backtest`（冷启动恢复）与 `crates/jftrade-api`（SPA 回退与
+桌面开发代理边界）。
+
+本分片新增 Rust 证据 3 项，其中 1 项带生产修复：
+
+- `crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::akshare_sync_rejects_history_beyond_the_intraday_lookback_window`
+  （Go `backtest_provider_runtime_test.go:55`）：AKShare 1 分钟只保留近 5 个交易日、美股 5m/15m/30m/1h 只保留近 5 日，
+  超出窗口的同步请求返回 400 BAD_REQUEST。配套生产修复在 `product_backtest_sync_request.rs` 新增
+  `validate_sync_lookback_window`，并在 `product_production_ports_backtest_sync.rs::start_sync_task` 解析出 provider 运行时
+  之后调用——窗口校验必须晚于 provider 可用性判定，否则不可用 provider 的 503 会被 400 覆盖（首轮探针即暴露该顺序，
+  已按参照实现的历史源校验时机修正并回归）。
+- `crates/jftrade-engine/src/product_data_management_batch_atomic_startup_tests.rs::startup_creates_missing_nested_backtest_database_directory`
+  （Go `backtest_runs_test.go:279`）：`JFTRADE_BACKTEST_DB` 指向的多级缺失目录在启动时被创建并完成迁移，回测路由随即可用。
+- `crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_routes_reject_incomplete_paths`
+  （Go `broker_new_test.go:462`）：生产路由注册表下 `/broker/funds`、`/broker/quote`、`/broker/klines`、`/broker/securities`
+  的不完整路径变体全部返回 404 NOT_FOUND，与参照实现的精确路由匹配等价。
+
+映射结果：26 行写入（3 行升 `[x]`：`backtest_provider_runtime_test.go:55`、`backtest_runs_test.go:279`、
+`broker_new_test.go:462`；23 行复核并收紧为终值）。修正 1 处陈旧引用：`broker_new_test.go:126` 的
+`candle_read_without_a_kline_lease_fails_before_realtime_provider_access` 实际位于
+`crates/jftrade-engine/src/product_market_data_quote_read_tests.rs`。计数：`[x]` 1516 → 1519；audit Rust 测试 3189；
+anchors 1531（unrecorded 0、stale 0、unknown 53）。
+
+关键事实与新登记缺口（P2）：
+
+1. **AKShare/US 窗口守卫只覆盖同步启动路径**：参照实现对 historical source 统一校验，Rust 的回测 start 走缓存命中路径时
+   不校验 provider 窗口。owner：`product_backtest_start_request` 系列与 `product_production_ports_backtest_sync.rs`。
+2. **孤儿运行恢复文案与路由级断言缺口**：`recover_orphaned_runs` 只把非终态运行置 failed 并清空 result_json，没有
+   参照实现的 recovered 文案，也没有路由级重启恢复断言。owner：`product_production_ports_execution.rs`。
+3. **broker 读断开信封差异（P1 延续）**：参照实现断连时返回 200 降级信封，Rust 在缺失 trade 读或行情路由时返回
+   503 BROKER_READ_UNAVAILABLE（funds/quote/klines/securities 四条边界）；quote 无租约时参照实现为 200 降级 +
+   lastError 说明订阅缺失。owner：`crates/jftrade-engine` broker 读端口装配与 `crates/jftrade-api` 错误映射。
+4. **broker 写失败与非法 payload 缺少生产 HTTP 断言**：unlock 断连 502 UNLOCK_FAILED、unlock 类型错误 400、
+   place 无 broker 502、place 非法 payload 400、cancel 无 broker 502、cancel 畸形 payload 400；现有证据停在端口层
+   （`product_production_ports_execution_preview_tests.rs`）。
+5. **broker 路由 JSON content-type 未逐条断言**（`broker_new_test.go:422`）；方法/路径精确性已由路由注册表与未知 API
+   JSON 用例覆盖。
+6. **执行订单投影与同步 worker 断言缺口**：九端点串联（`broker_read_test.go:72`）与同步 worker 状态
+   （`execution_routes_test.go:155`）无单条端到端断言；按 tradingEnvironment/scope 过滤（`:53`）与默认环境（`:110`）
+   的投影断言缺失。
+
+结构性边界（保留）：`backtest_provider_runtime_test.go:119/:162` 属真实行情源 live workflow；`frontend_test.go:96` 的
+开发代理属 Tauri 桌面边界，API 层只承诺 SPA 回退（`transport_contracts.rs::desktop_unknown_client_routes_use_spa_fallback_without_file_paths`）。
+
+验证记录：
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增与关联用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(akshare_sync_rejects_history_beyond_the_intraday_lookback_window) \| test(startup_creates_missing_nested_backtest_database_directory) \| test(production_http_broker_routes_reject_incomplete_paths) \| test(production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start)'` | 4/4 通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/s127d_payload.json` 与 `/tmp/s127d_fix.json` | 26 行更新，`[x]` 1516 → 1519 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；Rust 测试 3189 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1531、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过（架构门禁曾因本分片把 `product_production_ports_backtest_sync.rs` 推到 802 行失败，压缩注释后 799 行通过） |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1869/1869 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`pnpm run check:quick` | 全部通过（quick 首轮因 .rcgu.o 达 67156 触发 target-health，清理 33.1GiB 后复跑通过） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 均在 cargo-deny advisories 阶段因 `deny.toml` 8 条 `advisory-not-detected` 失败（bans/licenses/sources ok），与本分片改动无关 |
+
+后续（分片五）：`internal/app/apiserver/servercoretest` 余 23 行（`frontend_test.go:137/:157/:198/:246`、
+`installers_degraded_test.go:13`、`market_profiles_test.go:79`、`openapi_snapshot_test.go:20/:89/:136/:204`、
+`plugin_lifecycle_test.go:16`、`runtime_defaults_test.go:11/:28/:48`、`server_business_public_test.go:15/:48`、
+`server_definitions_test.go:17`、`settings_broker_test.go:162`、`settings_interfaces_test.go:14`、
+`strategy_logs_test.go:15/:120/:169`、`strategy_preview_test.go:28`、`strategy_sync_test.go:17`、
+`system_routes_test.go:112`、`watchlist_runtime_test.go:51`），随后 marketdataapp 68、webaccess 24 + tradingapp 11、
+backtestapp 10 + datamigration 11 与 runtime/lifecycle/runtimes/application/futuapp 余量。

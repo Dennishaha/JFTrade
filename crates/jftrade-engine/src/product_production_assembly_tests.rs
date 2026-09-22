@@ -5736,6 +5736,23 @@ mod product_production_assembly_tests {
         }
         handle.shutdown().await.expect("shutdown");
     }
+
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:462 TestBrokerGinRoutesRejectIncompletePaths
+    #[tokio::test]
+    async fn production_http_broker_routes_reject_incomplete_paths() {
+        let (_directory, address, handle) = start_broker_read_http_product().await;
+        for path in [
+            "/api/v1/not-brokers/x/y",
+            "/api/v1/brokers/",
+            "/api/v1/brokers/x",
+            "/api/v1/brokers//y",
+        ] {
+            let (status, body) = http_get(address, path).await;
+            assert_eq!(status, 404, "GET {path} body={body}");
+            assert!(body.contains("NOT_FOUND"), "GET {path} body={body}");
+        }
+        handle.shutdown().await.expect("shutdown");
+    }
     // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:205 TestBrokerReadRoutesRejectInvalidQueryShape
     #[tokio::test]
     async fn production_http_broker_reads_reject_invalid_query_shapes_with_rust_messages() {

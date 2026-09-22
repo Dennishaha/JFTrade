@@ -134,6 +134,46 @@ pub(super) fn parse_sync_request(payload: &Value) -> Result<SyncRequest, Backtes
     })
 }
 
+/// Go's provider capability guard: the AKShare descriptor declares
+/// `HistoricalLookbackDays` for intraday candles (`1m` on every market and
+/// `5m/15m/30m/1h` on US), so a sync that reaches further back must be rejected
+/// before any provider work instead of failing halfway through the window.
+pub(super) fn validate_sync_lookback_window(
+    provider_id: &str,
+    request: &SyncRequest,
+) -> Result<(), BacktestsWritePortError> {
+    if provider_id != "akshare" {
+        return Ok(());
+    }
+    let market = request.market.trim().to_ascii_uppercase();
+    let since = time::OffsetDateTime::parse(
+        &request.since,
+        &time::format_description::well_known::Rfc3339,
+    )
+    .map_err(|error| BacktestsWritePortError::BadRequest(format!("invalid since: {error}")))?;
+    for interval in &request.intervals {
+        let days = ak_share_lookback_days(&market, interval);
+        if days == 0 {
+            continue;
+        }
+        let floor = time::OffsetDateTime::now_utc() - time::Duration::days(i64::from(days));
+        if since < floor {
+            return Err(BacktestsWritePortError::BadRequest(format!(
+                "provider {provider_id} limits {interval} history to {days} days"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn ak_share_lookback_days(market: &str, interval: &str) -> u32 {
+    match (market, interval) {
+        ("US", "5m" | "15m" | "30m" | "1h") => 5,
+        (_, "1m") => 5,
+        _ => 0,
+    }
+}
+
 fn normalize_sync_instrument(
     market: &str,
     symbol: &str,
