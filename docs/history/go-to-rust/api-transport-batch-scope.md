@@ -1516,7 +1516,7 @@ owner：`crates/jftrade-strategy`（Pine planner 的需求键与运行期标志�
   `window_and_oscillator_keys_keep_the_requested_source`（13 键：`mom:close:5`、`roc:close:12`、`rising:close:3`、`falling:close:3`、`sum:volume:20`、`change:close:1`、`highest:high:20`、`lowest:low:10`、`stdev:20`、`stdev:hlc3:11`、`cci:20`、`rsi:14`、`williamsr:14`）、
   `position_variables_in_expressions_require_position_data`（赋值 + 条件两种语句形态置位 requires_position）、
   `account_value_usage_in_statements_requires_total_account_value`（赋值里的 `strategy.equity` 置位 requires_total_account_value 与 requires_position）。
-- 映射终值：29 行 = 2 `function_exact` + 24 `partial` + 3 `boundary`；`[x]` 1553 → 1555、partial 2280 → 2283、boundary 618 → 615。
+- 映射终值：29 行 = 2 `function_exact` + 23 `partial` + 4 `boundary`（分片七把 4 行结构差异从 partial 改判为 boundary）；`[x]` 1553 → 1555、partial 2280 → 2274、boundary 618 → 622。
 
 关键事实与新登记缺口（P1/P2）：
 
@@ -1537,7 +1537,7 @@ owner：`crates/jftrade-strategy`（Pine planner 的需求键与运行期标志�
 | 新增用例 | 同上（修复后） | 4/4 通过 |
 | 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast` | 59/59 通过 |
 | 探针回滚校验 | `shasum -a 256 crates/jftrade-strategy/src/pine/planner.rs` | 修复后 `f61ae3c0…`，与探针副本按字节一致；修复前副本为分片六的 `a1997ffb…` |
-| 映射写入 | payload `/tmp/s128g_payload.json` 经 `/tmp/b82_apply.py` 应用 | 29 行给出终值，`[x]` 1553 → 1555、partial 2280 → 2283、boundary 618 → 615 |
+| 映射写入 | payload `/tmp/s128g_payload.json` 经 `/tmp/b82_apply.py` 应用 | 29 行给出终值，`[x]` 1553 → 1555、partial 2280 → 2274、boundary 618 → 622（逐行核对 `git show d9155270:docs/history/go-to-rust/manual-test-mappings.json` 与工作树的 evidence_type 差异为 6 行） |
 | 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3226（Strategy 域 205） |
 | 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1569、unrecorded 0、stale 0、unknown 53 |
 | 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
