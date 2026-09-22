@@ -337,6 +337,12 @@ impl SemanticContext<'_> {
         let mut iterations = 0u64;
         let mut value = start;
         loop {
+            // Go stops once the value passes the end bound, so a range such as
+            // `0 to 3 by 2` reports "does not reach" instead of running to the
+            // iteration cap.
+            if (step > 0 && value > end) || (step < 0 && value < end) {
+                break;
+            }
             iterations += 1;
             if iterations > MAX_STATIC_FOR_ITERATIONS {
                 self.summary.diagnostics.push(Diagnostic::error(
@@ -349,11 +355,7 @@ impl SemanticContext<'_> {
             if value == end {
                 return;
             }
-            let next = value.saturating_add(step);
-            if next == value {
-                break;
-            }
-            value = next;
+            value = value.saturating_add(step);
         }
         self.summary.diagnostics.push(Diagnostic::error(
             "PINE_LOOP_LIMIT_UNSUPPORTED",

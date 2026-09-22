@@ -329,19 +329,33 @@ impl Parser {
                 self.cursor,
             ));
         }
-        if let Some((names, operator, rhs)) = split_assignment(&line) {
-            let mode = match operator {
+        if let Some(split) = split_assignment(&line) {
+            let mode = match split.operator {
                 "var" => AssignmentMode::Var,
                 ":=" => AssignmentMode::Reassign,
                 _ => AssignmentMode::Let,
             };
-            let expression = expression_from_text(&line, rhs)?;
+            let expression = expression_from_text(&line, split.rhs)?;
             self.cursor += 1;
-            if names.len() > 1 {
+            // Go treats the bare `switch` keyword as an empty switch expression
+            // that needs at least one arm; Rust must not accept it as an
+            // identifier assignment.
+            if let ExprKind::Identifier { name } = &expression.kind
+                && name.eq_ignore_ascii_case("switch")
+            {
+                return Err(ParseError {
+                    code_name: "PINE_SWITCH_ARMS_REQUIRED",
+                    message: "switch requires at least one arm".to_owned(),
+                    line: line.number,
+                    column: line.indent + 1,
+                });
+            }
+            if split.tuple {
+                validate_tuple_assignment(&line, &split.names, &expression)?;
                 return Ok((
                     Statement::TupleAssignment {
                         range: range_for_line(&line),
-                        names,
+                        names: split.names,
                         expression,
                         mode,
                     },
@@ -351,7 +365,7 @@ impl Parser {
             return Ok((
                 Statement::Assignment {
                     range: range_for_line(&line),
-                    name: names.into_iter().next().unwrap_or_default(),
+                    name: split.names.into_iter().next().unwrap_or_default(),
                     expression,
                     mode,
                 },
@@ -625,7 +639,14 @@ fn parse_function_header(line: &LexedLine) -> Option<(String, Vec<String>, &str)
     Some((name.to_owned(), parameters, line.text[arrow + 2..].trim()))
 }
 
-fn split_assignment(line: &LexedLine) -> Option<(Vec<String>, &str, &str)> {
+struct AssignmentSplit<'a> {
+    names: Vec<String>,
+    tuple: bool,
+    operator: &'a str,
+    rhs: &'a str,
+}
+
+fn split_assignment(line: &LexedLine) -> Option<AssignmentSplit<'_>> {
     let tokens = &line.tokens;
     let mut depth = 0usize;
     let mut operator = None;
@@ -646,26 +667,34 @@ fn split_assignment(line: &LexedLine) -> Option<(Vec<String>, &str, &str)> {
     let rhs = line.text.get(rhs_start..)?.trim();
     if lhs.first().is_some_and(|token| token.lexeme == "var") {
         let name = lhs.get(1)?.lexeme.clone();
-        return Some((vec![name], "var", rhs));
+        return Some(AssignmentSplit {
+            names: vec![name],
+            tuple: false,
+            operator: "var",
+            rhs,
+        });
     }
     if lhs
         .first()
         .is_some_and(|token| token.lexeme == "const" || token.lexeme == "varip")
     {
         let name = lhs.get(1)?.lexeme.clone();
-        return Some((vec![name], operator, rhs));
+        return Some(AssignmentSplit {
+            names: vec![name],
+            tuple: false,
+            operator,
+            rhs,
+        });
     }
     if lhs.first().is_some_and(|token| token.lexeme == "[")
         && lhs.last().is_some_and(|token| token.lexeme == "]")
     {
-        let names = lhs[1..lhs.len() - 1]
-            .iter()
-            .filter(|token| token.kind == TokenKind::Identifier)
-            .map(|token| token.lexeme.clone())
-            .collect::<Vec<_>>();
-        if names.len() > 1 {
-            return Some((names, operator, rhs));
-        }
+        return Some(AssignmentSplit {
+            names: tuple_alias_tokens(&lhs[1..lhs.len() - 1]),
+            tuple: true,
+            operator,
+            rhs,
+        });
     }
     let name = lhs
         .first()
@@ -673,9 +702,147 @@ fn split_assignment(line: &LexedLine) -> Option<(Vec<String>, &str, &str)> {
         .lexeme
         .clone();
     if lhs.len() == 1 {
-        return Some((vec![name], operator, rhs));
+        return Some(AssignmentSplit {
+            names: vec![name],
+            tuple: false,
+            operator,
+            rhs,
+        });
     }
     None
+}
+
+/// Split `[first, second]` style alias tokens without dropping damaged ones, so
+/// the tuple contract can reject an alias such as `4bad` instead of silently
+/// treating the statement as a plain assignment.
+fn tuple_alias_tokens(tokens: &[Token]) -> Vec<String> {
+    let mut names: Vec<String> = vec![String::new()];
+    for token in tokens {
+        if token.lexeme == "," {
+            names.push(String::new());
+            continue;
+        }
+        if let Some(current) = names.last_mut() {
+            current.push_str(&token.lexeme);
+        }
+    }
+    names
+        .into_iter()
+        .map(|name| name.trim().to_owned())
+        .collect()
+}
+
+/// Go contract: `pkg/strategy/pine/parse_assignment.go::parseGeneralTupleAssignment`
+/// plus the `ta.bb`/`ta.dmi`/`ta.supertrend`/`ta.kc`/`ta.macd` tuple parsers and
+/// the `ta.*` signature table in `pkg/strategy/pine/semantic.go`.
+fn validate_tuple_assignment(
+    line: &LexedLine,
+    names: &[String],
+    expression: &Expr,
+) -> Result<(), ParseError> {
+    let error = |code: &'static str, message: String| ParseError {
+        code_name: code,
+        message,
+        line: line.number,
+        column: line.indent + 1,
+    };
+    if names.len() < 2 || names.len() > 8 {
+        return Err(error(
+            "PINE_TUPLE_ALIAS_COUNT",
+            "tuple assignment supports 2 to 8 aliases".to_owned(),
+        ));
+    }
+    for name in names {
+        if name != "_" && !is_tuple_alias(name) {
+            return Err(error(
+                "PINE_TUPLE_ALIAS_INVALID",
+                format!("invalid tuple alias {name:?}"),
+            ));
+        }
+    }
+    match &expression.kind {
+        ExprKind::Tuple { items } => {
+            if items.len() != names.len() {
+                return Err(error(
+                    "PINE_TUPLE_WIDTH",
+                    format!(
+                        "tuple returns {} values but assignment has {} aliases",
+                        items.len(),
+                        names.len()
+                    ),
+                ));
+            }
+            Ok(())
+        }
+        ExprKind::Call { callee, arguments } => {
+            let callee = callee.to_ascii_lowercase();
+            if callee == "request.security" {
+                if let Some(Expr {
+                    kind: ExprKind::Tuple { items },
+                    ..
+                }) = arguments.get(2)
+                    && items.len() != names.len()
+                {
+                    return Err(error(
+                        "PINE_TUPLE_WIDTH",
+                        format!(
+                            "request.security tuple returns {} values but assignment has {} aliases",
+                            items.len(),
+                            names.len()
+                        ),
+                    ));
+                }
+                return Ok(());
+            }
+            if let Some(message) = tuple_indicator_arity_message(&callee, arguments.len()) {
+                return Err(error("PINE_TUPLE_ARITY", message));
+            }
+            if tuple_indicator_signature(&callee).is_none() {
+                return Err(error(
+                    "PINE_TUPLE_SOURCE_UNSUPPORTED",
+                    TUPLE_SOURCE_UNSUPPORTED.to_owned(),
+                ));
+            }
+            Ok(())
+        }
+        _ => Err(error(
+            "PINE_TUPLE_SOURCE_UNSUPPORTED",
+            TUPLE_SOURCE_UNSUPPORTED.to_owned(),
+        )),
+    }
+}
+
+const TUPLE_SOURCE_UNSUPPORTED: &str = "tuple assignment is supported only for ta.macd(...), ta.bb(...), ta.dmi(...), ta.supertrend(...), ta.kc(...), or whitelisted request.security tuples";
+
+/// Return the Go signature text and inclusive arity range of a tuple-capable
+/// indicator. Older Pine aliases (`bollinger`, `macd`, ...) stay out of the
+/// tuple whitelist because Go only accepts the `ta.` namespace form.
+fn tuple_indicator_signature(callee: &str) -> Option<(&'static str, usize, usize)> {
+    match callee {
+        "ta.bb" => Some(("ta.bb(source, length, mult)", 3, 3)),
+        "ta.dmi" => Some(("ta.dmi(diLength, adxSmoothing)", 2, 2)),
+        "ta.supertrend" => Some(("ta.supertrend(factor, atrPeriod)", 2, 2)),
+        "ta.kc" => Some(("ta.kc(source, length, mult, useTrueRange?)", 3, 4)),
+        "ta.macd" => Some(("ta.macd(source, fast, slow, signal)", 4, 4)),
+        _ => None,
+    }
+}
+
+fn tuple_indicator_arity_message(callee: &str, arity: usize) -> Option<String> {
+    let (signature, min, max) = tuple_indicator_signature(callee)?;
+    if arity < min || arity > max {
+        return Some(format!("{callee} expects {signature}"));
+    }
+    None
+}
+
+fn is_tuple_alias(name: &str) -> bool {
+    let mut characters = name.chars();
+    match characters.next() {
+        Some(first) if first.is_ascii_alphabetic() || first == '_' => {}
+        _ => return false,
+    }
+    characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
 }
 
 fn expression_from_text(line: &LexedLine, text: &str) -> Result<Expr, ParseError> {

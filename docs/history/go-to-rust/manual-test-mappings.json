@@ -29129,154 +29129,154 @@
   "pkg/strategy/pine/parser_and_lowering_recovery_test.go:8:TestIncompleteColorAndRequestCallsRemainRecoverable": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::parser_handles_strings_history_and_nested_calls_without_regex",
-    "conclusion": "partial：Go 断言不完整的 color/request 调用仍可恢复解析。Rust 的解析契约用例断言字符串/历史/嵌套调用解析（同一解析恢复面）；Go 的不完整调用恢复策略在 Rust 由解析错误与诊断覆盖，无逐条断言。",
+    "conclusion": "partial：Go 断言不完整的 color/request 调用在解析助手中保持可恢复（原文保留、后续校验可见）。Rust 解析器没有 Go 的字符串级恢复助手，未闭合与不完整调用直接产出语法诊断（PINE_EXPRESSION_INVALID/PINE_INDENT_UNEXPECTED），无逐调用恢复断言。缺口（P2）：owner crates/jftrade-strategy/src/pine/parser.rs；回归要求：为不完整 color/request 调用补明确的拒绝或保留用例。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/parser_and_lowering_recovery_test.go:19:TestUDFExpansionRetainsWhitespaceAndUnwindsRejectedArguments": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::validate_script_reports_supported_udf_and_static_for_boundaries",
-    "conclusion": "partial：Go 断言 UDF 展开保留空白并在参数被拒时回滚。Rust 的 validate 用例断言 UDF 与静态 for 边界（同一 UDF 展开面）；Go 的空白保留与参数回滚在 Rust 由源码保真与错误传播覆盖。",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::udf_and_loop_boundary_tests::validate_script_reports_supported_udf_and_static_for_boundaries",
+    "conclusion": "partial：Go 断言 UDF 展开保留空白并在参数被拒时回滚（expandUDFCalls 与 parseState 状态回滚）。Rust 无展开式文本重写，UDF 以 AST 直接保留源码片段，参数校验失败即整条语句失败，不存在展开后回滚状态；空白保真与回滚语义无独立断言。缺口（P2）：owner parser.rs、lower.rs；回归要求：补 UDF 参数拒绝时的语句级原子性用例。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/parser_and_lowering_recovery_test.go:43:TestMethodAndControlFlowFailuresKeepSourceContracts": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations",
-    "conclusion": "partial：Go 断言方法/控制流失败时保留源码契约（错误位置与结构）。Rust 的语义检查用例断言非布尔条件与不支持声明被拒（同一控制流拒绝面）；Go 的源码位置契约在 Rust 由解析错误结构覆盖。",
+    "conclusion": "partial：Go 断言方法与控制流失败保留源码契约（错误结构与行号）。Rust 用诊断（PINE_CONDITION_NOT_BOOL、PINE_EXPRESSION_INVALID 等）与 AST range 表达同类契约，Go 的 method 助手无同名对象；无逐条位置契约断言。缺口（P2）：owner semantic.rs、parser.rs；回归要求：补失败路径的 line/column 断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/parser_and_lowering_recovery_test.go:119:TestNestedLoopStateAndImportRecoveryRemainStable": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_accepts_expression_udf_and_static_for_unroll",
-    "conclusion": "partial：Go 断言嵌套循环状态与导入恢复稳定。Rust 的编译用例断言表达式 UDF 与静态 for 展开（同一循环展开面）；导入恢复在 Rust 的解析器中没有等价恢复策略，按部分覆盖登记。",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::udf_and_loop_boundary_tests::compile_accepts_expression_udf_and_static_for_unroll",
+    "conclusion": "partial：Go 断言嵌套循环状态与 import 恢复稳定。Rust 支持嵌套静态 for（探针 for 嵌套编译通过），但 import 语句与动态 while 循环族未实现（while 顶层探针报 PINE_INDENT_UNEXPECTED，本分片登记 P1 缺口）。缺口（P1）：owner parser.rs；回归要求：先补 while 与 import 的失败回归用例再实现。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/parser_and_lowering_recovery_test.go:162:TestOrderAndTupleErrorsPreserveExecutableBoundaries": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_accepts_strategy_order_subset_scripts",
-    "conclusion": "partial：Go 断言下单与元组错误保留可执行边界。Rust 的编译用例断言策略下单子集脚本被接受（同一下单边界）；Go 的错误恢复边界在 Rust 由编译错误与策略元数据覆盖。",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::public_helper_guard_tests::compile_accepts_strategy_order_subset_scripts",
+    "conclusion": "partial：Go 断言下单与元组错误保留可执行边界。Rust 本轮补齐元组契约拒绝（PINE_TUPLE_ALIAS_COUNT/PINE_TUPLE_ALIAS_INVALID/PINE_TUPLE_WIDTH/PINE_TUPLE_ARITY/PINE_TUPLE_SOURCE_UNSUPPORTED），下单子集由 planner 与 semantic 的 PINE_ORDER_* 校验承担；Go 的 OrderStmt/TupleStmt 边界分类在 Rust 由 typed IR 表达，无同形断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/parser_and_lowering_recovery_test.go:206:TestOrderCallsRejectUnknownNamedArgumentsBeforePlanning": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::validation_payload_matches_save_hint_and_rejection_contract",
-    "conclusion": "partial：Go 断言下单调用的未知命名参数在计划前被拒。Rust 的验证负载用例断言保存提示与拒绝契约（同一计划前拒绝）；Go 的命名参数白名单在 Rust 由策略下单子集校验覆盖。",
+    "conclusion": "partial：Go 断言下单调用的未知命名参数在计划前被拒绝。Rust 有顺序参数白名单校验（PINE_ORDER_OCA_UNSUPPORTED、PINE_ORDER_QTY_CONFLICT、PINE_ORDER_EXIT_* 及 strategy.close_all/cancel_all 参数面），但未实现通用未知命名参数拒绝：探针 strategy.entry(..., risk=1) 仍编译通过。缺口（P1）：owner crates/jftrade-strategy/src/pine/semantic.rs；回归要求：先加 risk=1 失败回归用例。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/parser_and_lowering_recovery_test.go:235:TestSourceAnnotationsAndCommentsKeepTheirSeparateRoles": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::history_references_ignore_string_literals",
-    "conclusion": "partial：Go 断言源码注解与注释保持各自角色（注释不算历史引用）。Rust 的编译用例断言历史引用忽略字符串字面量（同一\"词法元素不误判\"语义）；Go 的注解角色分类在 Rust 由解析器词法处理覆盖。",
+    "conclusion": "partial：Go 断言源码注解与注释角色分离（注释不参与历史引用与别名字面量）。Rust 由 lexer 承担同类职责（已有字符串字面量不误判历史引用的断言），但注释与 //@version 注解的角色分类无独立断言。缺口（P2）：owner crates/jftrade-strategy/src/pine/lexer.rs；回归要求：补字符串与注释内的 close[1] 不产生历史引用的用例。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/parser_helper_boundaries_test.go:11:TestParserHelperContractsCoverEmptyHeadersAndLexicalEdges": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::parser_handles_strings_history_and_nested_calls_without_regex",
-    "conclusion": "partial：Go 断言解析助手覆盖空头部与词法边界。Rust 解析契约用例断言字符串/嵌套调用解析（同一词法面）；Go 的空头部处理在 Rust 由解析器输入校验覆盖。",
+    "conclusion": "partial：Go 断言空头部脚本回退为 1 条 log 语句、缩进首行仍从 executableStart=0 起，以及 skipDeclarationBlock/callArgs/firstStringArgument/unquote/callName 边界。Rust 无这些助手；探针显示空脚本产出 hooks=[on_kline_close:0]，Go 会补 fallback log 语句，登记新缺口（P2）：空程序 hook 语句面差异，owner crates/jftrade-strategy/src/pine/lower.rs 与 mod.rs。缩进首行两侧都被拒。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/parser_helper_boundaries_test.go:66:TestValidationAndDynamicWhileHelpersKeepDiagnosticsActionable": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::validate_script_reports_supported_udf_and_static_for_boundaries",
-    "conclusion": "partial：Go 断言校验与动态 while 助手保持诊断可操作。Rust validate 用例断言 UDF 与静态 for 边界（同一校验诊断面）；Go 的动态 while 回退在 Rust 由运行时循环回退覆盖。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_request_and_visual_contracts.rs::unsupported_request_security_forms_keep_the_go_diagnostic_codes",
+    "conclusion": "partial：Go 断言 request.security 元组三类专码（PINE_REQUEST_SECURITY_TUPLE_UNSUPPORTED/TUPLE_ASSIGNMENT/TUPLE_MISMATCH）、未闭合 TA 调用判定与 while 深度上限（maxRuntimeLoopDepth=4）。Rust 缺这三类专码（探针 x = request.security(syminfo.tickerid, \"15\", [close]) 仍被接受，需求键 security:...:[close]），且 while 循环族完全未实现（探针 while 顶层报 PINE_INDENT_UNEXPECTED，Go 支持 depth≤4）。缺口（P1 while 动态循环族、P2 security 元组专码）：owner crates/jftrade-strategy/src/pine/parser.rs 与 semantic.rs；回归要求：先加失败回归测试再实现。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/parser_helper_boundaries_test.go:110:TestRuntimeLoopAndTupleParserErrorContracts": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::validation_payload_matches_save_hint_and_rejection_contract",
-    "conclusion": "partial：Go 断言运行时循环与元组解析错误契约。Rust 验证负载用例断言拒绝契约（同一错误契约面）；Go 的循环/元组分类无逐条断言。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_request_and_visual_contracts.rs::request_security_moving_average_keys_keep_type_period_source_and_time_unit",
+    "conclusion": "partial：Go 断言 runtime for/while 头解析、循环归一化错误传播、request.security 元组宽度错误（returns N values）与四类 MTF 元组助手（bollinger/supertrend/kc/macd 带静态周期）。Rust 侧元组宽度（含 request.security tuple returns N values，PINE_TUPLE_WIDTH）与 MTF 需求键已有断言，runtime while 与 normalize 错误传播无对应对象。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/parser_helper_boundaries_test.go:196:TestCollectionParserHelperErrorsPreserveExecutableBoundaries": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::native_pipeline_parses_lowers_and_plans_strategy_requirements",
-    "conclusion": "partial：Go 断言集合解析助手错误保持可执行边界。Rust 原生管线用例断言解析→降级→计划（同一可执行边界）；Go 的集合错误分类在 Rust 由集合校验覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
-  },
-  "pkg/strategy/pine/parser_loop_boundaries_test.go:10:TestMalformedNamespaceCallsRemainVisibleForValidation": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::parser_handles_strings_history_and_nested_calls_without_regex",
-    "conclusion": "boundary（结构差异）：Go 在词法准备阶段保留畸形 namespace 调用与 input 默认值原文，交给后续校验报错。Rust 解析器是 token 化递归下降（无字符串改写阶段），畸形调用直接以解析/语义诊断拒绝；该 Rust 用例断言字符串字面量、历史引用与嵌套调用不被正则改写（同一“不改写用户源码”约束）。",
+    "rust_entry": "",
+    "conclusion": "boundary：Go 断言集合助手（collectionNamespaceForTargetExpression/collectionTargetAndArguments/resolveExecutableCollectionCall）与 array.push/array.get 参数错误。Rust 没有 Pine 集合执行面（array/matrix/map 由诊断直接拒绝），这些助手属旧 owner 内部对象。升级路径：若实现集合执行面，按本用例迁移命名空间与接收者解析契约。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "boundary"
   },
-  "pkg/strategy/pine/parser_loop_boundaries_test.go:38:TestStaticLoopBoundsRejectNonTerminatingUserRanges": {
+  "pkg/strategy/pine/parser_loop_boundaries_test.go:10:TestMalformedNamespaceCallsRemainVisibleForValidation": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::udf_and_loop_boundary_tests::validate_script_reports_supported_udf_and_static_for_boundaries",
-    "conclusion": "partial：Go 的 expandStaticForLoopValues 对非终止用户区间（降序、0 步长）返回空展开并由校验拒绝。Rust 只对 step=0 与超过 100 次迭代给出诊断，静态区间展开与逐区间拒绝列表由 PineTS 运行时承担，没有等价断言。",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::framework_language_feature_tests::compile_supports_framework_language_features",
+    "conclusion": "partial：Go 断言 input/str/timeframe 命名空间重写助手对畸形调用保持原文，且 input() 降级为 na、input.float(defval=close) 降级为 close。Rust 无字符串重写层（AST 直接降级），input() 与 input.float 语义由 planner 与 semantic 承担，畸形调用保持原文与默认值降级无逐条断言。缺口（P2）：owner parser.rs、semantic.rs；回归要求：补 input() 与畸形命名空间调用的诊断用例。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
+  "pkg/strategy/pine/parser_loop_boundaries_test.go:38:TestStaticLoopBoundsRejectNonTerminatingUserRanges": {
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_tuple_contracts.rs::static_for_ranges_reject_non_terminating_bounds",
+    "conclusion": "已覆盖（由 partial 升级，含 Rust 修复）：Go 断言 step=0、反向区间、不可整除区间（0 到 3 step 2）与超 maxStaticForIterations=100 四类拒绝，并允许降序 3 到 0 step -1。Rust 本轮修复 crates/jftrade-strategy/src/pine/semantic.rs 的 static for 越界判停（原先把 0 to 3 by 2 误报为 expands to more than 100 iterations），新用例逐条断言 step cannot be 0、does not reach（反向与不可整除两例）、more than 与降序区间通过。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+    "evidence_type": "function_exact"
+  },
   "pkg/strategy/pine/parser_loop_boundaries_test.go:63:TestTupleIndicatorsExposeUnsupportedCallHistory": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::history_reference_boundary_tests::validate_script_reports_unsupported_history_references",
-    "conclusion": "partial：Go 让元组指标调用的 history 引用保持可见以便校验（normalizeTupleExpressions 保留 unsupported history）。Rust 对任意 call-result history 引用统一以 PINE_HISTORY_REF_UNSUPPORTED（assign the function result first）拒绝，不区分元组指标特例。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_tuple_contracts.rs::malformed_tuple_and_switch_scripts_are_rejected",
+    "conclusion": "partial：Go 断言五类元组指标（bb/dmi/supertrend/kc/macd）在参数含历史引用（ta.sma(close, 2)[1]）时报 history references，normalizeTupleExpressions 同样拒绝。Rust 本轮已补元组 arity 与白名单校验，但探针显示 [value, aux] = ta.dmi(close[1], 14) 仍编译通过（Go 拒绝）。缺口（P1）：owner crates/jftrade-strategy/src/pine/semantic.rs；回归要求：先加元组参数历史引用失败回归测试。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/parser_recovery_boundaries_test.go:12:TestParserRejectsMalformedUDFAndStatementBoundaries": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::public_helper_guard_tests::compile_rejects_public_internal_helper_calls",
-    "conclusion": "partial：Go 断言畸形 UDF 与语句边界被拒（禁用助手语句、不支持的 request.security 语句、UDF 定义/编译体错误、保留 UDF 名保护）。Rust 覆盖同一保留名/内部助手保护面（编译入口拒绝内部助手调用），语句级恢复错误在 Rust 由解析诊断路径覆盖，没有逐条错误文案断言。",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::udf_and_loop_boundary_tests::validate_script_reports_supported_udf_and_static_for_boundaries",
+    "conclusion": "partial：Go 断言禁用 helper 语句、request.security 元组语句、UDF 体内禁用 helper、控制流不能作为 UDF 表达式体、compileUDFBody 四类分支错误与 isReservedUDFName。Rust 探针：history(close, 1) 与 f() => history(close, 1) 均报 PINE_INTERNAL_HELPER_PUBLIC 且文案含 internal JFTrade helper（与 Go 一致），f() => if close > open 被拒（Go 文案为 single expression body）；UDF 分支四类错误与保留名检查无同形断言。缺口（P2）：owner parser.rs UDF 路径；回归要求：补 if/else 分支返回值与嵌套块失败用例。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/parser_recovery_boundaries_test.go:104:TestObjectArgumentRecoveryRejectsOverrunAndPreservesDefaults": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::framework_language_feature_tests::compile_supports_framework_language_features",
-    "conclusion": "boundary（结构差异）：Go 断言对象构造/方法参数越界被拒且未提供参数保持默认值（含字段归一化）。Rust 编译入口不做对象构造器/方法参数恢复（type/method 定义与参数恢复矩阵由 PineTS worker 承担），框架语言用例只覆盖对象方法形态的编译。",
+    "rust_entry": "",
+    "conclusion": "boundary：Go 断言对象与 UDT 构造/方法参数（默认值填充、超参拒绝 too many、normalizationErr 传播、nextObjectMethodCall 等）。Rust 没有 Pine 对象（UDT）执行面，调用直接以 PINE_CALL_UNSUPPORTED/PINE_STATEMENT_UNSUPPORTED 拒绝，这些助手属旧 owner 内部对象。升级路径：实现 UDT 后按本用例迁移参数默认值与超参契约。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "boundary"
   },
   "pkg/strategy/pine/parser_recovery_boundaries_test.go:151:TestCollectionScannerRejectsDamagedAndUnknownCalls": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations",
-    "conclusion": "partial：Go 断言集合扫描器拒绝受损/未知调用并把可执行性上报校验（parse-only 原因文案）。Rust 的语义检查用例断言不支持声明与非法条件以 Error 诊断拒绝（PINE_DECLARATION_UNSUPPORTED / PINE_CONDITION_NOT_BOOL），集合调用可执行性矩阵无逐条实现。",
+    "rust_entry": "",
+    "conclusion": "boundary：Go 断言集合扫描助手（findCollectionHistoryCall/collectionHistoryCallArgs/resolveExecutableCollectionCall/nextCollectionReadCall）对损坏与未知调用的判定。Rust 无集合执行面，属旧 owner 内部对象。升级路径：实现集合执行面后迁移损坏调用不可执行的判定契约。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/strategy/pine/public_lowering_test.go:10:TestParseScriptPublicEntryReturnsProgramAndPropagatesErrors": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::native_pipeline_parses_lowers_and_plans_strategy_requirements",
-    "conclusion": "partial：Rust 公共编译入口返回 program（metadata、hooks、语句）与需求（该用例断言 name、pyramiding、hooks 数、ma 需求键）。Go 另外断言首条语句为 IfStmt→OrderStmt（买入、qty=1）与内部助手错误透传；这两项在 Rust 分散于 parse_ir_tests 与 public_helper_guard_tests，公共入口用例本身不覆盖。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_tuple_contracts.rs::public_entry_returns_program_and_propagates_helper_errors",
+    "conclusion": "已覆盖（由 partial 升级）：Go 断言公开 ParseScript 返回 program（名称 Public Parse、单 hook、if 分支内 strategy.entry(\"Long\", strategy.long, qty=1) 为 buy 且数量表达式为 1），并对 ma(EMA, 20) 报 internal JFTrade helper。Rust 新用例断言同一脚本编译通过、metadata.name 与单 hook 一致、statements[0] 为 if 且 then_body[0] 为 strategy.entry（\"Long\" 与 qty 命名参数保留），并对 ma(EMA, 20) 断言诊断含 internal JFTrade helper；Rust 用 typed IR 的 then_body/arguments 表达 Go 的 OrderAction/QuantityExpression，差异已在用例内说明。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "pkg/strategy/pine/public_lowering_test.go:38:TestTALoweringBoundariesPreserveInvalidNativeCalls": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-backtest/tests/pine_indicator_compatibility.rs::pine_macd_delays_signal_until_valid_macd_values_exist",
-    "conclusion": "partial：Go 断言 ta.macd/ta.stoch/ta.change 的文本替换边界（默认 12/26/9、参数个数校验、畸形调用保持原文）。Rust 不做文本替换：ta.ema/ta.sma 在 AST 上降为 ma 需求键（native pipeline 用例断言 ma:EMA:8），macd 语义由回测指标用例断言（该用例），畸形调用由编译诊断拒绝。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
+    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::advanced_indicator_requirement_tests::compile_supports_v12_advanced_indicators",
+    "conclusion": "partial：Go 断言 replaceTAMacd/replaceTASourceRequiredFunction/replaceTAStoch 的字符串重写边界（默认参数展开、畸形调用保持原文、源必需函数多参保留、ta.stoch 参数不足保留）。Rust 无重写层；探针 fast, slow, hist = ta.macd(close) 直接报 PINE_STATEMENT_UNSUPPORTED（Go 先归一到 macd(12, 26, 9)），ta.change(close, open) 在 Rust 反而编译出需求键 change:close:open。缺口（P2）：owner parser.rs、lower.rs；回归要求：补旧式多别名赋值与畸形 TA 调用的对齐用例。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/public_lowering_test.go:64:TestPineMovingAverageTypeCoversNativeAliases": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds",
-    "conclusion": "boundary（结构差异）：Go 断言 Pine MA 别名映射（ema/SMA/rma/wma/HMA/vwma → EMA/SMA/SMMA/LWMA/HMA/VWMA，未知 kama 拒绝）。Rust 没有本地别名表（SMMA/LWMA/VWMA 在 Rust 侧不存在，别名解析在 worker/需求键层），指标属性用例只约束属性保持在 Go 兼容边界内。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::indicator_properties_stay_within_go_compatibility_bounds",
+    "conclusion": "boundary（结构差异）：Go 断言 pineMovingAverageType 别名表（ema/SMA/rma 到 SMMA、wma 到 LWMA、HMA、vwma，kama 拒绝）。Rust 没有等价本地别名表（SMMA/LWMA/VWMA 不在 Rust 指标集内，别名与周期解析在 worker 与需求键层），指标属性用例只约束属性保持在 Go 兼容边界内。升级路径：若 Rust 新增 MA 别名归一化，再迁移该表。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "boundary"
   },
   "pkg/strategy/pine/public_lowering_test.go:84:TestRequestSecurityArgsFromLineCoversAssignmentForms": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::request_security_tests::compile_accepts_native_pine_indicator_public_entry",
-    "conclusion": "partial：Go 断言 request.security 行内参数提取覆盖普通赋值、元组赋值与独立调用，并拒绝非调用/未闭合行。Rust 从 AST 解析 request.security 调用（该用例覆盖 syminfo.tickerid + \"D\" + ta.sma 的原生指标形态），没有 Go 的行文本提取器与畸形行拒绝断言。",
+    "conclusion": "partial：Go 断言行文本参数提取器 requestSecurityArgsFromLine 覆盖普通赋值、元组赋值与独立调用，并拒绝非调用与未闭合行。Rust 从 AST 解析 request.security（该用例覆盖 syminfo.tickerid + \"D\" + ta.sma 的原生指标形态），没有行文本提取器；元组赋值形态由本轮 PINE_TUPLE_* 契约覆盖宽度，但提取器级的非调用与未闭合行拒绝无同形断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/public_lowering_test.go:130:TestStrategyQuantityAndMetadataBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::parse_metadata_tests::compile_parses_backtest_strategy_metadata",
-    "conclusion": "partial：Go 断言默认数量模式（fixed/cash/percent_of_equity，contracts 拒绝）、pyramiding 解析（0→1、(2)→2，-1/foo 拒绝）与 qty 表达式模式判定。Rust 的元数据用例断言 pyramiding 与默认 qty 值进入元数据，qty 语义由 parse_ir 用例覆盖；Go 的 helper 级拒绝与括号/负数边界无逐条断言。",
+    "conclusion": "partial：Go 断言 normalizeStrategyDefaultQtyMode（fixed/cash/percent_of_equity，contracts 拒绝）、parseStrategyPyramiding（0 到 1、(2) 到 2，-1 与 foo 拒绝）、pineExplicitQuantity 模式判定（qty_percent 到 account_position_percent、equity 表达式取 15、5000/close 到 amount、shares 到 shares、位置参数 2500/close 到 amount、risk 拒绝）与 pineEntryQuantity 默认取值。Rust 探针：default_qty_type=strategy.cash 加 7500 得到 metadata cash/7500、percent_of_equity 加 12.5 得到 percent_of_equity/12.5、pyramiding=(2) 得到 2（均与 Go 一致），但 strategy.contracts、pyramiding=-1、pyramiding=foo、strategy.entry(..., risk=1) 在 Rust 均被接受（Go 拒绝），数量模式未做 Go 同形归一。缺口（P1）：owner semantic.rs、parser.rs；回归要求：先补 contracts、pyramiding 非法值与 risk 的失败回归用例，再补数量模式断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -29360,21 +29360,21 @@
   "pkg/strategy/pine/security_lowering_test.go:9:TestRequestSecurityLoweringHelperBusinessBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::advanced_indicator_requirement_tests::compile_supports_v13_migration_indicators",
-    "conclusion": "partial：Go 断言降级助手业务边界（畸形/不支持符号保持原文、多调用同时替换、EMA 带 period/timeframe/source、\"15\" 周期与 barmerge 默认处理、参数不足拒绝）。Rust 在静态日内 security 白名单上降级指标需求（该用例断言 v13 指标集），不支持形态以诊断拒绝，逐助手替换文案不迁移。",
+    "conclusion": "partial：Go 断言 replaceSupportedRequestSecurity 与 lowerSupportedRequestSecurity 的逐助手业务边界（畸形与不支持符号保持原文、同一行多次替换、EMA 带 period/timeframe/source、\"15\" 周期与 barmerge 默认、参数不足拒绝）。Rust 无文本替换助手；探针 request.security(syminfo.tickerid, \"15\", ta.ema(hlc3, 20)) 得到需求键 ma:EMA:20:15m:hlc3、request.security(syminfo.tickerid, \"D\", ta.ema(close, 20)) 得到 ma:EMA:20:day（与 Go ma(EMA, 20, \"15m\", hlc3) 同义），不支持符号与动态周期由专码拒绝；逐助手替换文案与保持原文无对应断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/security_lowering_test.go:92:TestRequestSecurityPurityAndMergeArgumentBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::advanced_indicator_requirement_tests::compile_supports_v13_indicators_in_static_intraday_security",
-    "conclusion": "partial：Go 断言纯表达式降级（str.upper/timeframe.in_seconds/math.sqrt、ta.obv 属性、条件表达式）与拒绝面（alert、集合访问、未知 TA、未闭合调用、超限 history）。Rust 的静态日内 security 用例断言 v13 指标集降级；逐表达式纯度助手与超限 history 拒绝没有等价断言。",
+    "conclusion": "partial：Go 断言纯表达式降级（str.upper/timeframe.in_seconds/math.sqrt、ta.obv 属性、条件表达式）、merge 参数白名单（gaps/lookahead 关闭，calc_bars_count 拒绝）、源历史解析（ohlc4[3] 合法，badsource[1]、close[-1]、close[501]、close[1] + open 拒绝）与 requestSecurityUsesTimeframeAlias。Rust 探针：close[501] 报 PINE_HISTORY_REF_UNSUPPORTED、close[500] 通过（上限 500 与 Go maxHistoryLookback 一致）；str.upper 在 Rust 被拒（PINE_CALL_UNSUPPORTED，Go 的纯表达式降级接受），close[-1] 与 vwap 在 Rust 被接受（Go 助手拒绝）。缺口（P1）：security 内只读表达式白名单与负 lookback 拒绝，owner semantic.rs；回归要求：先加失败回归测试。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/security_lowering_test.go:168:TestRequestSecurityAdvancedTALoweringBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::advanced_indicator_requirement_tests::compile_supports_v12_advanced_indicators_in_static_intraday_security",
-    "conclusion": "partial：Go 断言高级 TA 降级参数形态（pivothigh/pivotlow 默认 source、kc 默认 use_true_range、tsi、correlation、percentile_nearest_rank、swma 与 timeframe 参数）。Rust 的静态日内 security 用例断言 v12 指标在白名单内降级，逐指标默认参数形态无逐条断言。",
+    "conclusion": "partial：Go 断言高级 TA 降级参数形态（pivothigh/pivotlow 默认 source、kc 默认 useTrueRange、tsi、correlation、percentile_nearest_rank、swma、静态周期仅 minute/hour）与六类拒绝。Rust 探针：ta.pivothigh(2, 3) 得到 pivothigh:high:2:3:15m、ta.obv 得到 obv:close:15m（与 Go 同义），静态日内白名单与 v12/v13 指标已由 advanced_indicator_requirement_tests 覆盖；逐指标默认参数与拒绝（linreg arity、correlation 第二源、swma arity、day 周期）无逐条断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -29456,16 +29456,16 @@
     "evidence_type": "partial"
   },
   "pkg/strategy/pine/tuple_assignment_contracts_test.go:11:TestGeneralTupleAssignmentsKeepPineAliasContract": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::native_pipeline_parses_lowers_and_plans_strategy_requirements",
-    "conclusion": "partial：Go 断言通用元组赋值保持 Pine 别名契约。Rust 原生管线用例断言解析→降级→计划（同一元组降级）；Go 的别名契约在 Rust 由降级阶段绑定覆盖。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_tuple_contracts.rs::tuple_assignments_keep_the_go_alias_and_width_contract",
+    "conclusion": "已覆盖（由 partial 升级，含 Rust 修复）：Go 断言别名数量 2..8、非法别名、元组值与别名数量不匹配被拒，且 := 解析为 reassign。Rust 本轮在 crates/jftrade-strategy/src/pine/parser.rs 补齐元组契约（split_assignment 保留受损别名、validate_tuple_assignment 校验数量/标识符/宽度），新用例断言 9 个别名报 supports 2 to 8 aliases、4bad 报 invalid tuple alias、[first, second] = [close] 报 tuple returns 1 values，并断言 [current, previous] := [close, close[1]] 编译通过且 IR mode=reassign。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "pkg/strategy/pine/tuple_switch_reject_test.go:8:TestCompileRejectsMalformedSwitchAndTupleContracts": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_rejects_public_internal_helper_calls",
-    "conclusion": "partial：Go 断言畸形 switch 与元组契约被拒。Rust 编译用例断言公开内建 helper 调用被拒（同一语法拒绝面）；Go 的 switch/元组分类在 Rust 由语义校验覆盖。",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_tuple_contracts.rs::malformed_tuple_and_switch_scripts_are_rejected",
+    "conclusion": "partial（由 partial 细化，含 Rust 修复）：Go 的 14 个用例中 8 个元组用例已在 Rust 逐条对齐（宽度 3 对 2、[close > 语法错误、ta.bb/ta.dmi/ta.supertrend/ta.kc/ta.macd 签名文案、非白名单 tuple 源），signal = switch 新增 PINE_SWITCH_ARMS_REQUIRED 且文案与 Go 一致；其余 5 个 switch 用例仅保证被拒（Rust 诊断与 Go 的 switch 文案不同，Go 的 switch 语句族在 Rust 未实现）。缺口（P1 switch 语言族）：owner crates/jftrade-strategy/src/pine/parser.rs 与 semantic.rs；回归要求：实现 switch 解析前先保留这 5 条失败回归用例。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
