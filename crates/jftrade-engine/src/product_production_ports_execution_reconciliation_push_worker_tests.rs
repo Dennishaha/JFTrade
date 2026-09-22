@@ -672,3 +672,60 @@ async fn reconciliation_worker_projects_inactive_source_connectivity_and_go_shap
     assert_eq!(healthy_snapshot["brokers"][0]["connectivity"], "connected");
     healthy_worker.shutdown().await;
 }
+
+/// Parity: go:452dea11:internal/trading/order_updates_concurrency_test.go:9 TestOrderUpdatesWorkerBrokerIDConcurrentInitializationAndPush
+#[tokio::test]
+async fn reconciliation_worker_keeps_a_push_wake_that_arrives_during_a_scan() {
+    // Go runs one full Sync concurrently with eight goroutines pushing order
+    // and fill updates and requires no update to be lost. Rust applies a push
+    // as a full reconciliation, so the invariant is that a wake arriving while
+    // a scan is still running forces an immediate follow-up scan.
+    let (store, _directory) = reconciliation_store();
+    let mut order = pending_order("SUBMITTING");
+    order.broker_order_id = Some("11".to_owned());
+    order.broker_order_id_ex = Some("order-ex".to_owned());
+    store.save_order(order, "2026-08-30T00:00:01Z").unwrap();
+
+    let entered = Arc::new(Notify::new());
+    let finished = Arc::new(Notify::new());
+    let gate = Arc::new(BlockingAccounts {
+        entered: Arc::clone(&entered),
+        finished: Arc::clone(&finished),
+        entries: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+        release: Arc::new((Mutex::new(false), Condvar::new())),
+    });
+    let mut snapshot = order_snapshot(10, Some(2.0));
+    snapshot.qty = 5.0;
+    let reader = Arc::new(FixtureTradeReader {
+        accounts: vec![account()],
+        active_orders: vec![snapshot],
+        blocking_accounts: Some(Arc::clone(&gate)),
+        ..Default::default()
+    });
+    let port = Arc::new(production_port(Arc::clone(&store), reader));
+    let worker = ExecutionReconciliationWorker::start(Arc::clone(&port), None);
+
+    tokio::time::timeout(Duration::from_secs(5), entered.notified())
+        .await
+        .expect("the first scan must enter account discovery");
+    let first_scan = worker.status().scans;
+    assert_eq!(first_scan, 0, "the first scan must still be in flight");
+    for _ in 0..3 {
+        worker.wake();
+    }
+    gate.release();
+    tokio::time::timeout(Duration::from_secs(5), finished.notified())
+        .await
+        .expect("the blocked scan must finish");
+
+    let scans = scans_reach(&worker, first_scan + 2).await;
+    assert!(
+        scans >= first_scan + 2,
+        "a wake that arrives mid-scan must force a follow-up scan, scans={scans}"
+    );
+    let saved = store.get_order("rust-order-reconcile").unwrap().unwrap();
+    assert_eq!(saved.status, "PARTIALLY_FILLED");
+    assert_eq!(saved.filled_quantity, Some(2.0));
+    assert_eq!(worker.status().failures, 0);
+    worker.shutdown().await;
+}

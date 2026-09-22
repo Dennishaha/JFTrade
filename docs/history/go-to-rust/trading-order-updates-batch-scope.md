@@ -390,3 +390,58 @@ Go 服务内自带 `OrderUpdatesWorker` 的测试集合（节流/强制同步、
 1. 订阅失败 → 半开订阅 stop 恰好一次 → 下一轮重新订阅（计数 1→2），恢复后推送落账且不重复订阅；
 2. Refresh 失败 → 不拆旧订阅（stops=0）、不重复 Subscribe、恢复后仍刷新同一订阅（refreshCalls=2）；
 3. 失败期间记录 kind=DISCONNECTED 的 invalidation 并与订阅生命周期关联。
+
+### 分片三：推送唤醒与恢复语义收敛（3 条）
+
+- `internal/trading/order_updates_concurrency_test.go:9`：`TestOrderUpdatesWorkerBrokerIDConcurrentInitializationAndPush`
+  → `function_exact`，证据 `reconciliation_worker_keeps_a_push_wake_that_arrives_during_a_scan`（本批新增）。
+- `internal/trading/order_update_recovery_test.go:11`：`TestExecutionOrderHistoryFailsClosedForInvalidOrUnavailableBackfill`
+  → 保留 `partial`（细化缺口：nil 接收者语义无对象；`historyCalls==0` 计数式断言非同形；无 per-source 动作标签）。
+- `internal/trading/order_update_recovery_test.go:68`：`TestConcurrentSubscriptionWaitHonorsCallerCancellation`
+  → `evidence_type` 由 `partial` 改为 `boundary`（Rust 无订单更新订阅等待路径）。
+
+#### 关键事实（本批 recon 与实测）
+
+- **Go 的“并发初始化只一次”在 Rust 退化为“扫描串行 + 唤醒不丢失”**：`ExecutionReconciliationWorker`
+  每轮扫描在 `spawn_blocking` 中串行执行，扫描完成后才进入 `tokio::select!` 的
+  `stop_rx / task_wake.notified() / sleep(next_delay)` 三路等待；`wake()` 用 `Notify::notify_one()`，
+  因此飞行中到达的推送会留下 permit，让 select 立即续扫而不等 15s 节拍（失败时按 1s 起倍增至 60s 封顶）。
+- **回填语义的对齐面**：历史回放重启后只写一次（`reconciliation_replays_history_fill_and_fee_once_after_restart`）；
+  外部历史不可用保持可重试且不产生 UNKNOWN 写入
+  （`reconciliation_keeps_external_unavailable_as_retryable_without_unknown_write`）；
+  无匹配候选时保留 UNKNOWN 提交（`reconciliation_no_candidate_preserves_unknown_submission`，对应“无 broker 引用不得被强行认领”）。
+- **计数式断言没有同形对象**：Rust 不按订单发起 per-order 历史请求（每个 broker 快照读一次 active/history，
+  见 `read_order_scope`），本地单不触发外部读取由候选选择（`list_reconciliation_candidates` 按非终态状态筛选 +
+  broker 身份匹配 + `find_recovery_candidates`）结构性保证，但没有专属回归钉住这一点。
+- **并发等待取消在交易域无对象**：`subscribe_trade_accounts` 全仓无生产调用方（分片二结论），
+  同类“合并等待 + 调用方取消”机制仅存在于市场数据域
+  （`security_snapshot_coordinator_honors_cancellation_of_a_coalesced_wait`）。
+
+#### 新增测试与探针
+
+- `reconciliation_worker_keeps_a_push_wake_that_arrives_during_a_scan`：用阻塞的账户发现（`BlockingAccounts`
+  + `entered`/`finished` 通知）把首轮扫描卡在飞行中，先断言 `status().scans == 0`（无并发第二轮），
+  连发 3 次 `wake()`，放行后等待 `scans` 达到首轮+2，并断言快照已落账
+  （`status=PARTIALLY_FILLED`、`filled_quantity=2.0`、`failures=0`）。
+- 探针：把 `tokio::select!` 的 `_ = task_wake.notified() => {}` 分支替换为
+  `_ = tokio::time::sleep(Duration::from_secs(3600)) => {}`，测试转红
+  （`a wake that arrives mid-scan must force a follow-up scan, scans=1`）。
+- 探针按字节回滚，`product_production_ports_execution_orders.rs` shasum 回到
+  `707396edfdbfc92ea2233aec2c1a694e9767683013f0b3f4ed98d0f37fc7e2d3`，隔离复跑新增用例通过。
+
+#### 分片三验证记录
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 探针（预期转红） | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(reconciliation_worker_keeps_a_push_wake_that_arrives_during_a_scan)'` | 1 条失败（scans=1） |
+| 探针回滚后隔离复跑 | 同上 | 1 条通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b124s3_apply.json` | 3 行写入，`[x]` 1361 → 1362 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | `[x]` 1362，missing 0，partial 无引用 7 条（既有已承认缺口） |
+| 锚点核对 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1369（已记账 1313、unrecorded 0、unknown 55、stale 1 既有） |
+
+#### 升级路径与回归要求
+
+1. 若要钉住“无 broker 引用不触发券商读取”，应在 `jftrade-engine` 增加“仅本地单不产生任何券商读取调用”的回归。
+2. 若恢复订阅诊断面，需在 worker 诊断里按来源（current/history/fees）记录动作标签并投影到该路由，回归断言
+   current 失败 `lastAction=sync-orders`、history 失败 `lastAction=sync-history-orders`、恢复后回到 `ready`。
+3. 若接线交易推送订阅，补“并发 ensureSubscribed 只发一次、后来者等待同一结果、调用方取消立即返回且不影响在飞订阅”用例。
