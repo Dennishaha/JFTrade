@@ -296,3 +296,35 @@ action 归入 HARD_STOP_ 前缀”），本批据此升为 `[x]`。
 | 其余证据 | 同上 `-E 'test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or ... or test(unavailable_control_plane_fails_closed)'` | 16 条通过 |
 | 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b125s4_apply.json` | 4 行变更，`[x]` 1377 → 1378 |
 | 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 无重复 rust_entry、0 条 `[x]` 缺少 function_exact |
+
+### 分片五/六：execution 家族与 order-updates 家族剩余边界复核（15 行）
+
+范围：`execution_combo_lifecycle_test.go`(2)、`execution_test.go`(1)、`order_updates_test.go`(12)。
+这 15 行在本批之前已全部收敛为 `boundary` 或带明确缺口的 `partial`，本片只做**逐行复核 + 证据复跑**，
+不改实现、不改结论分级（除下述 1 处交叉引用补记）。
+
+#### 复核要点
+
+- `execution_combo_lifecycle_test.go:571`（partial）：缺口仅剩 `BuildOrderUpdateQueries` 的账户级去重
+  （Rust 由 reconciliation discovery 的账户枚举承担，已有重复分页去重证据但无账户级去重回归）与
+  `(*OrderUpdatesWorker)(nil)` 的 nil-receiver/besteffort 语义（Go/Wails 旧 worker）。其余断言
+  （预览落库失败可见、组合意图走单腿端点被拒、期权分数数量/ETH 会话 400、CanonicalStoredOrderStatus 同态）
+  均有 Rust 用例；若后续给订单更新订阅补账户级去重，应在 discovery 账户枚举处加回归。
+- `execution_combo_lifecycle_test.go:635`（partial）：多 broker 解析器、`NewService()` 无默认 broker 的
+  「服务门面」语义为 Go-only；Rust 侧详情读的失败传播（空白 id、正常投影、事件账本损坏 500）已由
+  `execution_details_read_boundaries_keep_go_failure_propagation` 覆盖。
+- `execution_test.go:1047`（boundary）：读时刷新在 Rust 归后台 `ExecutionReconciliationWorker`（唯一写入所有者），
+  详情读为纯存储投影——与 Go 的 GetHistoryOrders 读时刷新属有意架构差异，保留边界。
+- `order_updates_test.go` 12 条（boundary）：节流/内存缓存 TTL/防御性拷贝/终态移除/订阅生命周期/订阅重连/
+  批量费用/低层 helper 均属于 Go 内存 worker 与推送订阅对象，Rust 由 SQLite 唯一真相 + 15s 对账 worker
+  （含第 124 批新增的有界 invalidation 与 connectivity 投影）承接；各行的保留差异、复现条件与升级路径已在
+  第 118/124 批及本文件前述章节登记。
+- 交叉引用补记：`order_updates_test.go:11`（节流边界）与 `:31`（缓存 TTL 边界）的结论已指向
+  `reconciliation_worker_bounds_recent_invalidations_to_twenty_entries` 等第 124 批证据，本批复跑确认有效。
+
+#### 分片五/六验证记录
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 证据复跑（12 条） | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked -E 'test(execution_details_read_boundaries_keep_go_failure_propagation) or ... or test(trade_push_subscription_failure_surfaces_a_transport_error)'` | 12 条通过 |
+| 映射 | 本片无新增/改级 | `[x]` 保持 1378 |
