@@ -75,3 +75,90 @@ capabilities、readiness 与列表路由读同一 owner（唯一写入所有权�
 | --- | --- | --- |
 | 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b120_p1.json` | 5 行写入，`[x]` 1355 → 1355，键集 4451 不变 |
 | 邻居证据复跑 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers)'` | 通过（构建 1m49s，断言 0.198s） |
+
+## 第一百二十批（分片二）：读查询投影升锚、指针辅助判界、lotSize 记账（3 条）
+
+### 范围
+
+- `pkg/broker/broker_test.go:97`：`TestConvertFutuReadQuery`。
+- `pkg/broker/broker_test.go:114`：`TestPointerHelpersReturnStableIndependentValues`。
+- `pkg/broker/broker_test.go:157`：`TestApplyMarketRuleUsesLotSizeAsQuantityConstraints`。
+
+结论：`:97` 升 `[x]`/`function_exact`（引用 MCP 生产工具执行器的 futu 读作用域回归测试）；
+`:114` 由 `partial` 改判 `boundary`；`:157` 保留 `[~]`/`partial`，结论改为“引用已占用、无功能缺口”。
+
+### 关键事实（本批 recon 与实测）
+
+- **Go 的 `ReadQuery.BrokerID` 在 Rust 由路由承载**：Rust 读端口没有 `brokerId` 字段，
+  `crates/jftrade-engine/src/product_mcp_production_executor.rs::portfolio_summary` 把
+  `accountId`、`tradingEnvironment`、`market` 逐字段编码成查询串，打到
+  `/api/v1/portfolio/futu/*` 与 `/api/v1/brokers/futu/orders` 三个 futu 作用域路由，
+  并在 `brokerId` 非 futu 时以 `BAD_REQUEST` 拒绝。因此“券商身份固定 + 三个读作用域字段原样透传”
+  这一 Go 契约在 Rust 有可断言的等价证据。
+- **指针辅助函数没有 Rust 对应物**：可选字段用 `Option<T>`，`Some(value)` 按值传递，
+  不存在 Go 那种“两次 `new(v)` 返回不同地址”的可观察差异，也没有可迁移的导出 API。
+- **lotSize 行为已等价，缺的只是记账**：`apply_market_rule` 在 `lot_size > 0` 时同时写
+  `min_quantity` 与 `step_size`，与 Go `ApplyMarketRule` 的 lot 分支一致；该 Rust 测试已被
+  `pkg/futu/exchange_test.go:62` 的 `[x]` 行占用，按 `[x]` 引用全局唯一约束不在本行重复占用。
+
+### 新增锚点
+
+`crates/jftrade-engine/src/product_mcp_server_tests.rs::portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers`
+补写 `/// Parity: go:452dea11:pkg/broker/broker_test.go:97` 锚点与说明（仅注释，无行为变更）；
+该测试此前无任何 Parity 锚点，本次为 `[x]` 引用补上代码侧证据，使清单声明与代码注释相互对应。
+
+### 批次结果
+
+- 8 条全部给出结论：**1 条升 `[x]` + 6 条改判 `boundary` + 1 条保留 `partial`（引用占用、无功能缺口）**。
+- `pkg/broker/broker_test.go` 归零待办：10 条 = **3 `[x]` + 6 `boundary` + 1 `partial`**，0 `missing`。
+- 全局：4451 = function_exact **1356** + partial **2496** + boundary **595** + module_only 4 + missing 0
+  （本批前为 1355 / 2503 / 589 / 4 / 0）。Rust 测试 3098（本批未新增测试函数）。
+- reconcile：anchors **1360**、已记账 **1304**、unrecorded 0、unknown 55、stale 1
+  （stale 为既有 `internal/api/trading/execution_test.go:47`，与本批无关）。
+
+### 后续待办（trading_broker 域剩余 71 条 partial）
+
+按文件收敛顺序：`pkg/broker/catalog_test.go` 6、`internal/trading/broker_test.go` 5、
+`internal/trading/risk_status_broker_boundaries_test.go` 5、`internal/trading/execution_products_test.go` 4、
+`internal/trading/responses_test.go` 4、`internal/trading/order_updates_test.go` 14（并发/重连/恢复子集）、
+`pkg/broker/research_screen_test.go` 3、`pkg/broker/product_capability_contracts_test.go` 2、
+`internal/trading/control_plane_*_test.go` 6、`internal/trading/service_test.go` 3 及其余单条文件。
+
+### 验证记录（分片二）
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b120_p2.json` | 3 行写入，`[x]` 1355 → 1356，键集 4451 不变 |
+| 格式 | `cargo fmt --all --check` | 通过 |
+| 定向测试 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-broker --all-targets --locked -E 'test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(broker_lot_size_initializes_minimum_and_step_quantity)'` | 通过 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 通过：1356 function_exact 引用均可解析、无重复引用 |
+| 锚点对账 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1360、已记账 1304、unrecorded 0、unknown 55、stale 1（既有） |
+
+## 批次门禁记录（第一百二十批）
+
+| 门禁 | 命令 | 结果 |
+| --- | --- | --- |
+| 格式 | `cargo fmt --all --check` | 通过 |
+| 静态检查 | `pnpm run check:rust:clippy`（另跑 `cargo clippy -p jftrade-engine -p jftrade-trading -p jftrade-store-sqlite --all-targets --locked`） | 通过 |
+| 定向测试 | 见分片二验证记录 | 2 条通过 |
+| 三 crate 全量 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-trading -p jftrade-store-sqlite --all-targets --locked --no-fail-fast` | 通过：2049 条全绿 |
+| workspace 测试 | `pnpm run test:rust` | 通过：3195 条通过、2 条 skipped |
+| 兼容 replay | `pnpm run check:compatibility` | 通过（storage/backtest/provider-runtime/trading-strategy/assistant-runtime/api-transport/desktop-runtime） |
+| 生成物 | `pnpm run check:generated` | 通过：contracts 校验未改动工作树 |
+| Zero-Go | `node scripts/check-zero-go.mjs` | 通过：2938 个跟踪文件、0 个发布产物 |
+| AI 上下文 | `pnpm run check:ai-context` | 通过：6 个模块、8 个指令文件 |
+| 架构/策略/目标健康 | `pnpm run check:rust:architecture`、`check:rust:production-policy`、`check:rust:target-health` | 全部通过（`.rcgu.o` 35986 < 50000） |
+| 工作树空白 | `git diff --check` | 通过 |
+| 快速门禁 | `pnpm run check:quick` | **未全通过**：唯一失败为既有 `check:rust:static`（`advisories FAILED`），其余阶段通过 |
+| Rust 全量门禁 | `pnpm run check:rust` | **未通过（既有阻断）**：`check:rust:static` 在 advisories 阶段中止，退出码 1 |
+| workspace 门禁复跑 | `pnpm run check:rust:workspace` | 第二次通过（第一次因既有 launcher 抖动失败，见下） |
+
+### 既有阻断与抖动说明（与本批无关）
+
+- `check:rust:static` / `check:rust:policy` 的失败原因为 `cargo deny check advisories`
+  报 1 条 `error[vulnerability]`（RUSTSEC-2026-0285，TLS 1.3 握手消息跨加密层级被错误接受）
+  与 8 条 `warning[advisory-not-detected]`（`deny.toml` 中 RUSTSEC-2024-04xx Tauri/GTK3 忽略项已不再命中）。
+  本批未改动 `deny.toml` 或依赖树，按既有事实如实标注“未通过”。
+- `crates/jftrade-engine/tests/product_api_launcher_lifecycle.rs::api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal`
+  在并行高负载下偶发失败（`left: None, right: Some(0)`，未走 shutdown 路径）；隔离复跑与随后
+  的 `check:rust:workspace` 全量复跑均通过，属既有抖动而非本批回归。

@@ -30982,23 +30982,23 @@
     "evidence_type": "boundary"
   },
   "pkg/broker/broker_test.go:97:TestConvertFutuReadQuery": {
-    "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "边界保留：Go 的 ConvertFutuReadQuery 是 broker 抽象适配器（固定 BrokerID=\"futu\"，透传 accountId/tradingEnvironment/market）。Rust 无多券商抽象层：读端口直接按 (accountId, environment, market) 构造 Futu 请求，broker 身份由组合根安装的单一 Provider 决定，交易环境字符串在 jftrade-settings/execution 侧归一，因此没有可对齐的转换函数（\"futu\" 字面量只存在于 catalog 协议元数据）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers",
+    "conclusion": "function_exact：Go 的 ConvertFutuReadQuery(accountID, tradingEnvironment, market) 固定 BrokerID=\"futu\" 并原样透传三个读作用域字段。Rust 读端口没有 brokerId 字段，券商身份由 futu 作用域路由承载，可观察行为一致：portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers 断言 (accountId=8240, tradingEnvironment=REAL, market=US) 逐字段编码为 query=accountId=8240&tradingEnvironment=REAL&market=US，且只打到 /api/v1/portfolio/futu/positions、/api/v1/portfolio/futu/cash-balances 与 /api/v1/brokers/futu/orders（三个路由的券商段固定 futu），返回值固定 brokerId=futu；brokerId=akshare 被拒（BAD_REQUEST），等价于“只允许 futu”。差异仅在承载形式：Go 把 futu 固化在 ReadQuery.BrokerID 字段，Rust 固化在路由/组合根。本批为该 Rust 测试补写 // Parity: go:452dea11:pkg/broker/broker_test.go:97 锚点。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers)'",
+    "evidence_type": "function_exact"
   },
   "pkg/broker/broker_test.go:114:TestPointerHelpersReturnStableIndependentValues": {
     "status": "[~]",
-    "rust_entry": "",
-    "conclusion": "边界保留：Go 的 Float64Ptr/StringPtr/BoolPtr/Uint64Ptr 是构造独立指针的辅助函数（每次返回新地址，供可选字段使用）。Rust 用 Option<T>/Some(value) 表达同一“可选值”语义，不存在共享指针别名问题，也没有对应导出 API；属 Go 语言层辅助，保留边界。",
+    "rust_entry": "不适用：Rust 以 Option<T>/Some(value) 值语义表达可选字段，无指针辅助函数与别名共享问题",
+    "conclusion": "边界保留：Go 的 Float64Ptr/StringPtr/BoolPtr/Uint64Ptr 每次调用返回独立指针，测试断言两次调用地址不同且值正确。Rust 的可选字段用 Option<T>：Some(value) 按值移动/复制，不存在同一可变地址被两个所有者共享的形态，也没有对应导出 API，因此“两次调用不得返回同一指针”的断言在 Rust 类型层不可构造。保留差异：Go 侧缓存指针会造成别名写入回归（该测试即为防线），Rust 由所有权规则在编译期排除。复现条件：Rust 无法在不引入 Rc/Arc/unsafe 的前提下构造同一值的两个可变别名；仓库 #![forbid(unsafe_code)] 明确禁止后者。将来升级：仅当某端口确需可写共享句柄时，才应显式引入 Arc<Mutex<T>> 或原子类型，并补并发回归；Go 的指针辅助函数本身无需迁移。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-broker --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/broker/broker_test.go:157:TestApplyMarketRuleUsesLotSizeAsQuantityConstraints": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::broker_lot_size_initializes_minimum_and_step_quantity",
-    "conclusion": "部分覆盖（引用已占用）：该行为由 pkg/futu/exchange_test.go:62 的 [x] 行占用同一 Rust 测试 broker_lot_size_initializes_minimum_and_step_quantity（lotSize=100 → min/step=100，lot-only 规则先落默认值）；按 [x] 引用全局唯一约束不在本行重复占用，保持 partial 并写明引用来源。Rust 的 lotSize 语义与 Go 一致（apply_market_rule 的 lot 分支，正 lotSize 同时写 min/step）。",
+    "conclusion": "部分覆盖（引用已占用，无功能缺口）：Go 传入 market(MinQuantity=1, StepSize=1) 与 lotSize=100，断言 min/step 都变为 100。Rust 同一行为已由 broker_lot_size_initializes_minimum_and_step_quantity 断言：apply_market_rule 在 lot_size=Some(100) 且无显式约束时把 min_quantity 与 step_size 同时置为 Fixed8(100)，语义等价（lot-only 规则先落默认值，显式约束再覆盖）。该 rust_entry 已被 pkg/futu/exchange_test.go:62 的 [x] 行占用，按 [x] 引用全局唯一约束不在本行重复占用同一测试，故保留 [~]/partial 并在此记录交叉引用与等价判定。缺口：无功能缺口，仅记账去重；若将来需要独立锚点，应在同一测试文件新增覆盖“lotSize 叠加显式 MinQuantity/StepSize 覆盖顺序”的独立用例（避免与既有断言逐字重复），届时再升级为 function_exact。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-broker --all-targets --locked -E 'test(broker_lot_size_initializes_minimum_and_step_quantity)'",
     "evidence_type": "partial"
   },

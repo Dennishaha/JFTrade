@@ -1562,6 +1562,14 @@ fn portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_
     }
 }
 
+/// Parity: go:452dea11:pkg/broker/broker_test.go:97
+/// `TestConvertFutuReadQuery`. Go's transitional helper pins the broker
+/// identity to `futu` and passes the account id, trading environment, and
+/// market through unchanged. The Rust read ports carry no `brokerId` field,
+/// so the same contract is expressed by the futu-scoped read routes asserted
+/// below: fixed broker identity (including the rejection of another broker),
+/// plus verbatim passthrough of the three read-scope fields.
+///
 /// Regression net for `portfolio.summary` as it exists in Rust today.
 ///
 /// The Go assembly tool aggregates per-account `accountSummaries`; the Rust MCP
