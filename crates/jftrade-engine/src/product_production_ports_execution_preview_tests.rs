@@ -4195,7 +4195,16 @@ fn single_and_prediction_submission_failure_contracts_keep_go_boundaries() {
         1,
         "the retried single-order credential submits exactly once"
     );
+}
 
+/// Parity: go:452dea11:internal/trading/execution_products_test.go:128
+/// `TestRealFuturesPreviewRequiresFuturesAuthority`.
+///
+/// Go's `validateFuturesTradingAuthority`: a REAL futures preview needs an
+/// account whose market authorities include FUTURES; discovery failures and
+/// accounts without the authority stay request errors.
+#[test]
+fn real_futures_preview_requires_futures_authority() {
     // Go's `validateFuturesTradingAuthority`: a REAL futures preview needs an
     // account whose market authorities include FUTURES; discovery failures and
     // accounts without the authority stay request errors.
@@ -4281,6 +4290,119 @@ fn single_and_prediction_submission_failure_contracts_keep_go_boundaries() {
             .as_str()
             .is_some_and(|id| id.starts_with("preview-")),
         "eligible futures preview = {preview}"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/execution_products_test.go:12
+/// `TestDerivativeSingleLegRequiresBrokerPreviewAndStableClientID`.
+///
+/// Go's derivative single-leg contract: the preview itself must carry a
+/// clientOrderId, an allowed preview keeps the derivative product class, and a
+/// placement without the locked preview id is rejected before the broker runs.
+#[test]
+fn derivative_single_leg_preview_requires_client_order_id_and_locks_the_place() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(
+        Some(Arc::new(ComboPreviewTradeReader::default()) as Arc<dyn TradeReadPort>),
+        Some(true),
+    );
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let (store, directory) = execution_store();
+    let _ = directory.keep();
+    let port = combo_failure_port(
+        Arc::clone(&store),
+        Some(runtime),
+        Some(Arc::clone(&writer)),
+        None,
+    );
+
+    let option_payload = json!({
+        "accountId": "42",
+        "brokerId": "futu",
+        "market": "US",
+        "tradingEnvironment": "SIMULATE",
+        "symbol": "US.AAPL260717C00200000",
+        "productClass": "option",
+        "orderKind": "single",
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "quantity": 1,
+        "price": 2.25
+    });
+    let error = port
+        .order_preview(&option_payload)
+        .expect_err("a derivative preview without a clientOrderId must fail");
+    assert!(
+        matches!(
+            &error,
+            ExecutionWritePortError::Failed { status: 400, code, message }
+                if code == "BAD_REQUEST" && message.contains("clientOrderId")
+        ),
+        "derivative preview error = {error:?}"
+    );
+    assert!(
+        writer.placed.lock().expect("placed orders").is_empty(),
+        "a rejected preview must not reach the broker"
+    );
+
+    let mut locked = option_payload.clone();
+    locked["clientOrderId"] = json!("option-client-1");
+    let preview = port.order_preview(&locked).expect("option preview");
+    assert_eq!(preview["productClass"], "option", "{preview}");
+    assert!(
+        preview["previewId"]
+            .as_str()
+            .is_some_and(|id| id.starts_with("preview-")),
+        "{preview}"
+    );
+
+    let mut place = locked.clone();
+    place.as_object_mut().expect("payload").remove("previewId");
+    let error = port
+        .place_order(&place)
+        .expect_err("placing a derivative without the locked preview must fail");
+    assert!(
+        matches!(
+            &error,
+            ExecutionWritePortError::Failed { status: 400, code, message }
+                if code == "BAD_REQUEST" && message.contains("previewId")
+        ),
+        "derivative place error = {error:?}"
+    );
+    assert!(
+        writer.placed.lock().expect("placed orders").is_empty(),
+        "no derivative order may reach the broker without a locked preview"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/execution_products_test.go:149
+/// `TestComboPreviewRejectsMixedProductsAndExpiredParlayRFQ`.
+///
+/// The mixed-product half is pinned by
+/// `combo_lifecycle_rejects_every_unsafe_boundary_before_the_broker`; this test
+/// pins the elapsed-deadline half: a parlay whose `quoteExpiresAt` already
+/// passed fails as a request error and never reaches the combo gateway.
+#[test]
+fn expired_parlay_rfq_is_rejected_before_the_combo_gateway() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let port = event_parlay_place_port(&runtime, &writer);
+    let mut payload = event_parlay_payload();
+    payload["quoteExpiresAt"] = json!("2020-01-01T00:00:00Z");
+    let error = port
+        .combo_preview(&payload)
+        .expect_err("an expired parlay RFQ must be rejected");
+    assert!(
+        matches!(
+            &error,
+            ExecutionWritePortError::Failed { status: 400, code, message }
+                if code == "BAD_REQUEST" && message.contains("request a new RFQ")
+        ),
+        "expired parlay error = {error:?}"
+    );
+    assert!(
+        writer.placed_combo.lock().expect("placed combos").is_empty(),
+        "an expired RFQ must never reach the combo gateway"
     );
 }
 

@@ -272,7 +272,7 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                     })
                 }).collect::<Vec<_>>();
                 Ok(
-                    json!({"checkedAt": checked_at(), "connectivity": "connected", "positions": positions }),
+                    json!({"checkedAt": checked_at(), "connectivity": "connected", "lastError": Value::Null, "positions": positions }),
                 )
             }
             "orders" => {

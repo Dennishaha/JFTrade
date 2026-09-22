@@ -30436,17 +30436,17 @@
     "evidence_type": "partial"
   },
   "internal/trading/execution_products_test.go:12:TestDerivativeSingleLegRequiresBrokerPreviewAndStableClientID": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::option_combo_preview_validates_non_spread_legality_against_opend_strategies；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_combo_complete_preview_place_cancel_and_buying_power",
-    "conclusion": "partial：Rust 覆盖期权合法性校验（单腿非价差策略）与组合预览/下单/撤单/买入力闭环；差异：Go 断言衍生品单腿预览必须带 clientOrderId、预览成功后下单必须带 previewId（缺则拒绝），Rust 未断言该单腿预览-下单绑定的错误分支。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::derivative_single_leg_preview_requires_client_order_id_and_locks_the_place（本批新增）",
+    "conclusion": "已覆盖：Go 三段行为逐项命中——(a) 衍生品单腿预览缺 clientOrderId → 请求错误且错误文本含 clientOrderId；(b) 带上 clientOrderId 后预览成功、productClass 保持 option、预览返回 previewId；(c) 用该预览下单但去掉 previewId → 请求错误文本含 previewId，且券商写端口零调用。Rust 生产侧对应 product_production_ports_execution_order_previews.rs::order_preview（requires_locked_preview 且缺 clientOrderId → 400 BAD_REQUEST \"clientOrderId is required for derivative and event-contract previews\"）与 product_production_ports_execution_orders_impl.rs::place_order（缺 previewId → 400 \"previewId is required for derivative and event-contract orders\"）。探针：删掉 order_preview 的 clientOrderId 守卫后新用例转红（预览直接返回 previewValid=true），按字节回滚并核对 shasum 397da3e5926666799ea7dd328464330806712e55a88968187839b50f942f8a9e。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(derivative_single_leg_preview_requires_client_order_id_and_locks_the_place)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_products_test.go:48:TestPredictionSingleLegEligibilityUsesSecurityFirmAndUSAuthority": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_prediction_tests.rs::prediction_eligibility_rejects_futu_securities_and_accepts_futu_inc；crates/jftrade-engine/src/product_production_ports_market_data_prediction_tests.rs::prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority",
-    "conclusion": "partial：Rust 覆盖预测资格按券商主体与美股权限判定（拒绝 Futu Securities、接受 Futu Inc、发现失败/空 firm/错误权限拒绝）；差异：Go 断言预测单腿下单资格的错误分支（按 product class + 权限），Rust 断言订阅资格，面不同但规则同源。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言预测单腿在下单预览链路上按“券商主体 + 美股权限”判定资格（FUTUSECURITIES/HK 权限 → 请求错误含 \"Moomoo US\"；FUTUINC/US 权限 → 预览成功且 OrderKind=event_single、QuantityMode=amount）。Rust 的同一判定在 product_production_ports_market_data_prediction.rs::prediction_account_eligibility（仅 FUTUINC 且市场权限含 US 或权限表为空；发现失败/空 firm/错误权限一律不合格，错误文本 \"no eligible Moomoo US (FUTUINC) account was found\"），但调用点是行情订阅（product_production_ports_market_data_subscription.rs）与预测推送（product_trade_runtime_prediction_push.rs），**未接线到执行预览/下单路径**：order_preview 对 event_single 只做 runtime 就绪 + 活跃合约校验，不校验券商主体与美股权限。缺口：把 prediction_account_eligibility 接进 event_single 预览/下单前置校验，并补“非 FUTUINC/非 US 权限账号 → 400 含 Moomoo US、FUTUINC+US → 预览通过”的回归；本轮如实保留 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(prediction_eligibility_rejects_futu_securities_and_accepts_futu_inc) or test(prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority)'",
     "evidence_type": "partial"
   },
   "internal/trading/execution_products_test.go:85:TestSingleNonEventOrderRejectsAmountAndPredictionFields": {
@@ -30457,18 +30457,18 @@
     "evidence_type": "function_exact"
   },
   "internal/trading/execution_products_test.go:128:TestRealFuturesPreviewRequiresFuturesAuthority": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_futures.rs::reports_reader_unavailable_without_invoking_query；crates/jftrade-engine/src/product_production_ports_market_data_futures.rs::maps_closed_opend_session_to_unavailable",
-    "conclusion": "partial：Rust 覆盖期货读不可用与闭市会话映射；差异：Go 断言真实期货预览需要期货权限（无权限时预览被拒绝），Rust 侧期货权限与预览的绑定断言缺失。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::real_futures_preview_requires_futures_authority（本批从 single_and_prediction_submission_failure_contracts_keep_go_boundaries 抽出并加锚点）",
+    "conclusion": "已覆盖：Go 断言 REAL 期货预览必须有期货权限（缺权限/权限在别的账户 → 请求错误，含权限账户 → 预览成功）。Rust 生产侧 validate_futures_authority（product_production_ports_execution_order_guards.rs）在 order_preview 中调用 futures_account_authority；本批把原先内嵌在 single_and_prediction_submission_failure_contracts_keep_go_boundaries 尾部的期货权限矩阵抽成独立用例 real_futures_preview_requires_futures_authority（行为断言逐字保留），既让 [x] 的 rust_entry 全局唯一，也让该 Go 用例有专属证据：\n  - \"missing FUTURES authority\"（账户权限 [2]）→ 400 且文本含 \"FUTURES account authority\"；\n  - \"other account carries FUTURES authority\"（只有别的账户有 [5]）→ 同样 400；\n  - 权限为 [5] 的账户 → 预览成功并返回 preview- 前缀的 previewId。\n抽出后两条用例（含原单腿/预测契约用例）均隔离复跑通过。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(real_futures_preview_requires_futures_authority)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_products_test.go:149:TestComboPreviewRejectsMixedProductsAndExpiredParlayRFQ": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::combo_intent_rejects_missing_kind_legs_and_account；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::event_parlay_preview_rejects_inactive_contract_filtered_from_snapshot_list",
-    "conclusion": "partial：Rust 覆盖组合意图缺少种类/腿/账户的拒绝与事件 parlay 非活跃合约拒绝；差异：Go 断言混合产品组合与过期 parlay RFQ 两类拒绝，Rust 未断言混合产品与 RFQ 过期。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::expired_parlay_rfq_is_rejected_before_the_combo_gateway（本批新增）",
+    "conclusion": "已覆盖：Go 两条拒绝——(a) 组合腿混用产品类别 → 请求错误含 \"cannot mix\"，(b) quoteExpiresAt 已过期的事件 parlay RFQ → 请求错误含 \"request a new RFQ\"。(a) 由既有用例 combo_lifecycle_rejects_every_unsafe_boundary_before_the_broker 的 \"mixed product\" 分支承接（legs[1].productClass=event_contract → 400 \"combo cannot mix product classes\"，该用例同时是 internal/trading/execution_combo_lifecycle_test.go:237 的 [x] 证据，故不重复登记为本行 entry）；(b) 由本批新增用例承接：把 quoteExpiresAt 设为 2020-01-01（已过期）后 combo_preview → 400 BAD_REQUEST 且文本含 \"request a new RFQ\"，并断言组合网关零调用（生产侧分支见 product_production_ports_execution_order_parse_combo.rs::validate_event_parlay_quote 的 `!now.lt(expires)` 判定）。探针：把该判定短路为 `if false` 后新用例转红（过期报价被放行），按字节回滚并核对 shasum 35b4b5f139cce1142391bae51ad9032d9db6988378945f65625bdc6c9b8502b4。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(expired_parlay_rfq_is_rejected_before_the_combo_gateway)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_products_test.go:193:TestPreviewHashesBindStableClientOrderID": {
     "status": "[x]",
@@ -30849,32 +30849,32 @@
     "evidence_type": "partial"
   },
   "internal/trading/responses_test.go:12:TestBrokerRuntimeResponseJSONShape": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_uses_only_the_typed_market_data_runtime_port；crates/jftrade-engine/src/product_market_data_runtime_status.rs::market_data_runtime_projection_matches_go_status_corpus",
-    "conclusion": "partial：Rust 覆盖运行期状态投影（typed port 与 wire corpus）；差异：Go 断言 broker 运行期响应 JSON 形状（字段集）逐字段，Rust 侧投影断言覆盖但未对 broker 运行期响应逐字段比对。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_match_group_fixture_in_cutover_only",
+    "conclusion": "已覆盖：Go 断言 runtime 响应含顶层 descriptor/session/accounts；session 含 connection/connectivity/globalState/liveWebSocketClients；globalState 与 lastError 为 null；accounts 为空数组。Rust 侧 runtime 路由的 wire 形状由 tests/fixtures/compatibility/api-transport/broker-read.json 的 runtime 用例冻结并在 broker_read_routes_match_group_fixture_in_cutover_only 中按字节比对（accounts=[]、session.globalState=null、session.lastError=null、session.connection/liveWebSocketClients 齐全、descriptor 齐全），生产投影（product_production_ports_trade.rs runtime 分支）另由 helper_market_data_providers_project_futu_broker_and_portfolio_routes 断言 accounts[0].accountId/session.tradeLoggedIn 与 lastError 键存在且为 null。差异说明：fixture 回放走注入的 BrokerReadSnapshotPort（cutover 模式），生产 Futu 端口在同一路径返回同一形状，但没有单独的“生产端口 runtime 全键集合”断言；已在第 125 批文档登记为可选加强项。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_read_routes_match_group_fixture_in_cutover_only)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/responses_test.go:55:TestBrokerFundsResponseJSONShape": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::funds_projection_preserves_full_margin_pdt_and_exposure_fields；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::funds_projection_keeps_missing_margin_fields_absent",
-    "conclusion": "partial：Rust 覆盖资金投影的 margin/PDT/exposure 字段保留与缺失时省略；差异：Go 断言资金响应 JSON 形状（键集合与空值表示），Rust 断言字段保留/省略策略。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_funds_response_serializes_the_contract_keys_with_null_last_error（本批新增）；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::funds_projection_preserves_currency_and_market_asset_arrays",
+    "conclusion": "partial（成功面已收口）：Go 断言资金成功响应键集合 {checkedAt,connectivity,lastError,summary,currencyBalances,marketAssets}、lastError 为 null、summary 为对象、空数据时 currencyBalances/marketAssets 为空数组。本批修复生产投影：trade_projection.rs::funds_value 之前缺少 OpenAPI required 的 lastError 键，现补 `\"lastError\": Value::Null`（Go 的 typed DTO 在无错误时 marshal 为 null）；新增测试按排序键集合逐项断言六个键、connectivity=connected、lastError 显式 null、summary 为对象、两个数组存在，另由 funds_projection_preserves_currency_and_market_asset_arrays 断言数组内容。探针：移除该键后新用例转红（left=[checkedAt,connectivity,currencyBalances,marketAssets,summary]），按字节回滚并核对 shasum a485e2131e73aadb2b437366e300b540db034061bde9f39ba6fc64855a163813。保留差异：Go 的失败分支返回 200 降级信封（summary=null、lastError=错误文本、数组为空），Rust 生产端口 fail-closed 返回错误状态（降级信封只存在于 cutover fixture 回放），此差异已在 internal/app/apiserver/servercoretest/broker_routes_test.go:14 行登记，需产品决策后再翻转。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_funds_response_serializes_the_contract_keys_with_null_last_error) or test(funds_projection_preserves_currency_and_market_asset_arrays)'",
     "evidence_type": "partial"
   },
   "internal/trading/responses_test.go:107:TestBrokerPositionsResponseJSONShape": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback",
-    "conclusion": "partial：Rust 覆盖持仓投影（稀释成本与账户盈亏优先、遗留回退）；差异：Go 断言持仓响应 JSON 形状逐字段，Rust 断言数值来源优先级。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_positions_response_serializes_the_contract_keys_with_null_last_error（本批新增）；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback",
+    "conclusion": "partial（成功面已收口）：Go 断言持仓成功响应键集合 {checkedAt,connectivity,lastError,positions}、positions 为数组且条目含 symbol/accountId。本批修复生产投影：product_production_ports_trade.rs 的 broker positions 成功分支缺少 OpenAPI required 的 lastError 键，现补 `\"lastError\": Value::Null`；新增测试断言排序键集合四键、connectivity=connected、lastError 显式 null、两条仓位条目（HK.00700/US.NVDA，accountId=42、symbol 限定市场前缀），数值来源优先级另由 position_projection_* 用例覆盖。探针：移除该键后新用例转红（left=[checkedAt,connectivity,positions]），按字节回滚并核对 shasum 9d866afc9e7c9d10df6158a912e0f2552237eadd6b09e316cd80102d99a93d9b。保留差异：Go 的失败分支返回 200 降级信封（positions=[]、lastError=错误文本），Rust 生产端口 fail-closed；同 funds 行，已登记待产品决策。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_positions_response_serializes_the_contract_keys_with_null_last_error) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback)'",
     "evidence_type": "partial"
   },
   "internal/trading/responses_test.go:141:TestBrokerReadStatusSerializesNullLastError": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::funds_projection_keeps_missing_margin_fields_absent；crates/jftrade-engine/src/product_market_data_runtime_status.rs::market_data_runtime_projection_matches_go_status_corpus",
-    "conclusion": "partial：Rust 覆盖缺失字段不以 null/零值伪造（省略缺失 margin 字段）；差异：Go 断言读状态在 lastError 为空时序列化为 null（显式 null 而非省略），Rust 侧该 wire 形状断言缺失。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_provider_tests.rs::helper_market_data_providers_project_futu_broker_and_portfolio_routes",
+    "conclusion": "已覆盖：Go 断言 connectedReadStatus() 序列化后 lastError 键存在且值为 null（显式 null 而非省略）。Rust 侧读状态以路由投影的 connectivity/lastError 两字段表达：该用例对 runtime 分支断言 `session` 对象含 lastError 键且值等于 Value::Null（注释锚点本批从 :140 修正为 :141，与 Go func 行一致）；本批同时给 funds/positions 成功投影补上显式 null（见 :55/:107 行），因此“connected 读状态 lastError 显式为 null”在三条读路径上都有证据。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(helper_market_data_providers_project_futu_broker_and_portfolio_routes)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/risk_shape_boundaries_test.go:11:TestCommandRiskShapeRejectsSpoofedAndIncompatibleFields": {
     "status": "[~]",
@@ -30926,25 +30926,25 @@
     "evidence_type": "partial"
   },
   "internal/trading/service_test.go:8:TestServiceReadQueryAppliesDefaultMarket": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_projects_futu_funds_from_neutral_client；crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::market_rules_match_trimmed_symbols_and_apply_overrides_in_order",
-    "conclusion": "partial：Rust 覆盖 broker 读投影与代码规范化；差异：Go 断言读查询在未指定市场时应用默认市场（provider 收到默认值），Rust 侧默认市场注入断言缺失。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_query_without_market_defaults_to_hk（本批新增）",
+    "conclusion": "已覆盖：Go 断言 ReadQuery 显式 market 原样透传、缺省时用服务默认市场（HK）。Rust 的等价点在 product_production_ports_trade_requests.rs::resolve_account_with_environment：请求未带 market 时先按账户市场权限取首个市场（HK），无权限表时回退 \"HK\"，显式 market 必须出现在账户权限表中。新增测试用同一 fixture 账户（权限 [1,2]=HK/US）断言 `accountId=42` 无 market → summary.market=\"HK\"，`accountId=42&market=US` → summary.market=\"US\"。本行为既有实现，本批只补断言面（无生产改动，故无探针）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_read_query_without_market_defaults_to_hk)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/service_test.go:24:TestServiceOrderUpdateDefaultsAreNoops": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_settings_filter_and_fail_closed；crates/jftrade-engine/src/product_production_ports_unavailable.rs",
-    "conclusion": "partial：Rust 覆盖通知投影在设置过滤下 fail-closed 与不可用端口；差异：Go 断言未配置订单更新 worker 时各入口为 no-op（返回零值且不报错），Rust 无同形 no-op 默认契约断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "rust_entry": "不适用：Rust 无“可选订单更新 worker + nil Service 默认 no-op”的对象（服务门面不存在；ExecutionReconciliationWorker 由 engine 组合期显式接线，缺端口时 fail-closed）",
+    "conclusion": "保留边界：Go 断言 (a) WithOrderUpdates(nil) 时 SyncOrderUpdates 不做事、OrderUpdatesSnapshot 返回空 map、StopOrderUpdates 返回 nil；(b) nil *Service 上同样安全（Go 特有 receiver 语义）。Rust 没有同形对象：不存在可空的服务门面，执行对账由 crates/jftrade-engine 的 ExecutionReconciliationWorker 承担，engine 组合期显式 start（product_production_ports_execution_orders.rs::start），未配置端口时读路由返回 503/不可用而不是静默 no-op（product_mcp_server_tests.rs::portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader 一类 fail-closed 断言）。因此 (b) 无语言级对应，(a) 的“空快照”语义由 worker 未启动时 brokers/subscriptions 为空投影承接（第 124 批新增 broker_order_updates_snapshot 投影）。升级路径与回归要求：若将来引入可选 worker 语义，需要补“缺 worker → Sync 无副作用、快照为空 map、Stop 返回 Ok”以及“worker 存在 → 委派”两条断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(reconciliation_worker_projects_inactive_source_connectivity_and_go_shaped_invalidations)'",
+    "evidence_type": "boundary"
   },
   "internal/trading/service_test.go:45:TestServiceOrderUpdatesDelegateToWorkerWhenPresent": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches；crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent",
-    "conclusion": "partial：Rust 覆盖订单更新解析/缓存与通知投影；差异：Go 断言 worker 存在时服务把订单更新调用委派给 worker（委派断言），Rust 为端口化组合，无同形委派断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "rust_entry": "不适用：Rust 无 Service→OrderUpdatesWorker 委派层；worker 生命周期由 engine 组合期直接持有（crates/jftrade-engine/src/product_production_ports_execution_reconciliation_push_worker_tests.rs）",
+    "conclusion": "保留边界：Go 断言服务在配置了 worker 时把 SyncOrderUpdates 委派给 worker（current/history 各拉 1 次）、快照透出 subscriptions、StopOrderUpdates 后 runtime.lastStoppedAt 非空。Rust 无该委派层：engine 组合期直接 start ExecutionReconciliationWorker（15s 节拍 + push wake），没有“服务持有可选 worker”的对象，因此“委派调用次数”与“快照透传”无同形断言；对应可观测面改由 worker 自身证据承担——reconciliation_worker_keeps_a_push_wake_that_arrives_during_a_scan（唤醒触发续扫、落账一次、failures=0）、reconciliation_worker_bounds_recent_invalidations_to_twenty_entries（失败诊断上限）、以及 broker_order_updates_snapshot 的 runtime/brokers/subscriptions 投影（worker 状态 degraded/ready/stopped、lastScanAt、nextRetryAt）。升级路径与回归要求：若恢复服务门面，需要断言“worker 存在 → current/history 各一次、快照含 subscriptions、stop 后 lastStoppedAt 非空”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(reconciliation_worker_keeps_a_push_wake_that_arrives_during_a_scan)'",
+    "evidence_type": "boundary"
   },
   "pkg/broker/broker_test.go:13:TestRegistryBasic": {
     "status": "[~]",

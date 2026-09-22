@@ -747,6 +747,109 @@ fn funds_projection_preserves_currency_and_market_asset_arrays() {
     assert_eq!(assets[1]["assets"], 200_000.0);
 }
 
+#[test]
+fn broker_funds_response_serializes_the_contract_keys_with_null_last_error() {
+    // Parity: go:452dea11:internal/trading/responses_test.go:55 TestBrokerFundsResponseJSONShape
+    //
+    // Go marshals `trading.BrokerFundsResponse`, whose OpenAPI `required` list
+    // is checkedAt/connectivity/currencyBalances/lastError/marketAssets/summary.
+    // A connected read must publish `lastError` as an explicit null so the
+    // console can tell "no error" apart from a missing key.
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let value = port
+        .read("/api/v1/brokers/futu/funds", "accountId=42&market=US")
+        .expect("funds");
+    let mut keys = value
+        .as_object()
+        .expect("funds object")
+        .keys()
+        .cloned()
+        .collect::<Vec<_>>();
+    keys.sort();
+    assert_eq!(
+        keys,
+        vec![
+            "checkedAt",
+            "connectivity",
+            "currencyBalances",
+            "lastError",
+            "marketAssets",
+            "summary",
+        ],
+        "{value}"
+    );
+    assert_eq!(value["connectivity"], "connected", "{value}");
+    assert!(value["lastError"].is_null(), "{value}");
+    assert!(value["summary"].is_object(), "{value}");
+    assert!(value["currencyBalances"].is_array(), "{value}");
+    assert!(value["marketAssets"].is_array(), "{value}");
+}
+
+#[test]
+fn broker_positions_response_serializes_the_contract_keys_with_null_last_error() {
+    // Parity: go:452dea11:internal/trading/responses_test.go:107 TestBrokerPositionsResponseJSONShape
+    //
+    // Go's positions DTO always carries checkedAt/connectivity/lastError plus a
+    // (possibly empty) positions array; the account-scoped entries expose the
+    // qualified symbol and the account identity.
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(PositionFixtureRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let value = port
+        .read("/api/v1/brokers/futu/positions", "accountId=42&market=HK")
+        .expect("positions");
+    let mut keys = value
+        .as_object()
+        .expect("positions object")
+        .keys()
+        .cloned()
+        .collect::<Vec<_>>();
+    keys.sort();
+    assert_eq!(
+        keys,
+        vec!["checkedAt", "connectivity", "lastError", "positions"],
+        "{value}"
+    );
+    assert_eq!(value["connectivity"], "connected", "{value}");
+    assert!(value["lastError"].is_null(), "{value}");
+    let positions = value["positions"].as_array().expect("positions array");
+    assert_eq!(positions.len(), 2, "{value}");
+    assert_eq!(positions[0]["symbol"], "HK.00700", "{value}");
+    assert_eq!(positions[0]["accountId"], "42", "{value}");
+}
+
+#[test]
+fn broker_read_query_without_market_defaults_to_hk() {
+    // Parity: go:452dea11:internal/trading/service_test.go:8 TestServiceReadQueryAppliesDefaultMarket
+    //
+    // Go's `Service.ReadQuery` injects the configured default market (HK) and
+    // passes an explicit market through untouched. Rust resolves the account
+    // with the same default: an omitted `market` query parameter lands on HK
+    // while `market=US` stays US.
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let defaulted = port
+        .read("/api/v1/brokers/futu/funds", "accountId=42")
+        .expect("funds without market");
+    assert_eq!(defaulted["summary"]["market"], "HK", "{defaulted}");
+    let explicit = port
+        .read("/api/v1/brokers/futu/funds", "accountId=42&market=US")
+        .expect("funds with explicit market");
+    assert_eq!(explicit["summary"]["market"], "US", "{explicit}");
+}
+
 /// Reader carrying Go's two-row position fixture from
 /// `pkg/futu/adapter_bridge_test.go:191`. Tencent exercises the diluted-cost
 /// branch; NVIDIA carries only legacy fields so the fallback stays observable.

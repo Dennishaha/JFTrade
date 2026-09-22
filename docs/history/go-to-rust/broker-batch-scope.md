@@ -109,3 +109,62 @@ P2 能力契约与 research screen 7 条（`product_capability_contracts_test.go
 根 `Cargo.toml` 精确锁定 `=0.23.44`，解除需一次显式的依赖升级批次并复核 `deny.toml` 许可例外），
 另有 8 条 `warning[advisory-not-detected]`（陈旧 ignore 条目）。同一次运行中 target-health、architecture、
 production-policy、`cargo fmt --check` 与 clippy 均通过；本批未改 `Cargo.lock` / `deny.toml`。
+
+## 第一百二十五批：trading/broker 域剩余 72 条收口（分片一 11 条）
+
+本批按 `pkg/broker` + `internal/trading` 前缀下 `evidence_type != function_exact` 的 72 行推进，
+分片划分与执行标准见 goal 文本。分片一覆盖三个文件：`internal/trading/execution_products_test.go`(4)、
+`internal/trading/responses_test.go`(4)、`internal/trading/service_test.go`(3)。
+
+### 分片一：产品枚举、读响应形状与服务默认值（11 条）
+
+#### 生产修复（契约 required 字段）
+
+`contracts/openapi/openapi.json` 中 `trading.BrokerFundsResponse` 与 `trading.BrokerPositionsResponse`
+都把 `lastError` 列入 `required`；Go 的 typed DTO 在无错误时 marshal 为显式 null，而 Rust 的两条成功投影
+此前**缺这个键**（失败路径因 fail-closed 不会走到该形状，cutover fixture 又只回放注入端口，所以既有门禁未捕获）：
+
+- `crates/jftrade-engine/src/trade_projection.rs::funds_value` 增加 `"lastError": Value::Null`；
+- `crates/jftrade-engine/src/product_production_ports_trade.rs` broker positions 成功分支增加 `"lastError": Value::Null`。
+
+#### 新增测试（5 条，均带 `// Parity:` 锚点）
+
+| Rust 测试 | Go 基线 | 断言要点 |
+| --- | --- | --- |
+| `derivative_single_leg_preview_requires_client_order_id_and_locks_the_place` | `execution_products_test.go:12` | 衍生品预览缺 clientOrderId → 400 含 clientOrderId 且券商零调用；补 clientOrderId → 预览成功（productClass=option、previewId 前缀）；下单缺 previewId → 400 含 previewId |
+| `expired_parlay_rfq_is_rejected_before_the_combo_gateway` | `execution_products_test.go:149` | quoteExpiresAt=2020-01-01 → 400 含 "request a new RFQ" 且组合网关零调用 |
+| `real_futures_preview_requires_futures_authority` | `execution_products_test.go:128` | 从 `single_and_prediction_submission_failure_contracts_keep_go_boundaries` 抽出期货权限矩阵（缺权限/权限在别的账户 → 400 含 "FUTURES account authority"；有权限 → 预览成功），使 [x] rust_entry 全局唯一 |
+| `broker_funds_response_serializes_the_contract_keys_with_null_last_error` | `responses_test.go:55` | 排序键集合 == {checkedAt,connectivity,currencyBalances,lastError,marketAssets,summary}、lastError 显式 null、summary 对象、两数组存在 |
+| `broker_positions_response_serializes_the_contract_keys_with_null_last_error` | `responses_test.go:107` | 排序键集合 == {checkedAt,connectivity,lastError,positions}、lastError 显式 null、两条仓位条目 symbol/accountId=42 |
+| `broker_read_query_without_market_defaults_to_hk` | `service_test.go:8` | 无 market → summary.market=HK；显式 market=US 原样透传（既有实现，仅补断言面） |
+
+另把 `product_production_ports_execution_reconciliation_provider_tests.rs` 内
+`responses_test.go` 的锚点行号由 `:140` 修正为 `:141`（与 Go `func` 行一致），`unknown go line` 由 55 降到 54。
+
+#### 探针记录（均按字节回滚并核对 shasum）
+
+| 探针 | 预期转红 | 回滚后 shasum |
+| --- | --- | --- |
+| 删除 funds 投影的 `lastError` 键 | `broker_funds_response_...`（left 缺 lastError） | `a485e2131e73aadb2b437366e300b540db034061bde9f39ba6fc64855a163813` |
+| 删除 positions 投影的 `lastError` 键 | `broker_positions_response_...`（left=[checkedAt,connectivity,positions]） | `9d866afc9e7c9d10df6158a912e0f2552237eadd6b09e316cd80102d99a93d9b` |
+| 删除 `order_preview` 的 clientOrderId 守卫 | `derivative_single_leg_preview_...`（预览直接 previewValid=true） | `397da3e5926666799ea7dd328464330806712e55a88968187839b50f942f8a9e` |
+| 把 parlay 过期判定短路为 `if false` | `expired_parlay_rfq_...`（过期报价被放行） | `35b4b5f139cce1142391bae51ad9032d9db6988378945f65625bdc6c9b8502b4` |
+
+#### 分片一映射结论（11 条）
+
+- `[x]` 6 条：`execution_products_test.go:12`、`:128`、`:149`、`responses_test.go:12`、`:141`、
+  `service_test.go:8`。
+- partial 3 条：`:48`（预测资格判定未接线到执行预览/下单路径——判定函数 `prediction_account_eligibility`
+  只服务行情订阅与预测推送，缺口与升级路径已写明）、`responses_test.go:55`/`:107`
+  （成功形状已收口；Go 的 200 降级信封在 Rust 为 fail-closed 错误状态，属既有产品差异）。
+- boundary 2 条：`service_test.go:24`/`:45`（Rust 无“可选 worker + 服务门面”对象，worker 由 engine 组合期直接持有）。
+
+#### 分片一验证记录
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(...)'`（按测试名逐一/组合） | 5 条全部通过 |
+| 抽出后回归 | `... -E 'test(real_futures_preview_requires_futures_authority) or test(single_and_prediction_submission_failure_contracts_keep_go_boundaries)'` | 2 条通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b125s1_apply.json`、`/tmp/b125s1_fix.json` | 13 行写入，`[x]` 1362 → 1368 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 无重复 rust_entry、0 条 `[x]` 缺少 function_exact |
+| 锚点 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1375（已记账 1320、unrecorded 0、unknown 54、stale 1 既有） |

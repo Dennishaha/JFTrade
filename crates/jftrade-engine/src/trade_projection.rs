@@ -155,6 +155,10 @@ pub(super) fn funds_value(request: &ResolvedTradeRequest, value: TradeFundsSnaps
         "checkedAt": checked_at(),
         "connectivity": "connected",
         "currencyBalances": balances,
+        // `trading.BrokerFundsResponse` requires `lastError` on every funds
+        // response: Go's typed DTO marshals a nil error as JSON null, and the
+        // console distinguishes "connected, no error" from a missing key.
+        "lastError": Value::Null,
         "marketAssets": assets,
         "summary": summary,
     })

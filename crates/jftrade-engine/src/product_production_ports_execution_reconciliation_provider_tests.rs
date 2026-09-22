@@ -291,7 +291,7 @@ fn helper_market_data_providers_project_futu_broker_and_portfolio_routes() {
             .expect("account projection");
         assert_eq!(runtime["accounts"][0]["accountId"], "42");
         assert_eq!(runtime["session"]["tradeLoggedIn"], true);
-        // Parity: internal/trading/responses_test.go:140 TestBrokerReadStatusSerializesNullLastError
+        // Parity: internal/trading/responses_test.go:141 TestBrokerReadStatusSerializesNullLastError
         assert!(runtime["session"].as_object().unwrap().contains_key("lastError"));
         assert_eq!(runtime["session"]["lastError"], serde_json::Value::Null);
 
