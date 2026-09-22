@@ -30996,11 +30996,11 @@
     "evidence_type": "boundary"
   },
   "pkg/broker/broker_test.go:157:TestApplyMarketRuleUsesLotSizeAsQuantityConstraints": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::broker_lot_size_initializes_minimum_and_step_quantity",
-    "conclusion": "部分覆盖（引用已占用，无功能缺口）：Go 传入 market(MinQuantity=1, StepSize=1) 与 lotSize=100，断言 min/step 都变为 100。Rust 同一行为已由 broker_lot_size_initializes_minimum_and_step_quantity 断言：apply_market_rule 在 lot_size=Some(100) 且无显式约束时把 min_quantity 与 step_size 同时置为 Fixed8(100)，语义等价（lot-only 规则先落默认值，显式约束再覆盖）。该 rust_entry 已被 pkg/futu/exchange_test.go:62 的 [x] 行占用，按 [x] 引用全局唯一约束不在本行重复占用同一测试，故保留 [~]/partial 并在此记录交叉引用与等价判定。缺口：无功能缺口，仅记账去重；若将来需要独立锚点，应在同一测试文件新增覆盖“lotSize 叠加显式 MinQuantity/StepSize 覆盖顺序”的独立用例（避免与既有断言逐字重复），届时再升级为 function_exact。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::broker_lot_size_initializes_minimum_and_step_quantity（与 pkg/futu/exchange_test.go:62 行共享同一 Rust 用例：两条 Go 用例断言的是同一条 lotSize 规则，测试体逐字相同）",
+    "conclusion": "已覆盖：Go 用 market(MinQuantity=1, StepSize=1) + lotSize=100，断言 ApplyMarketRule 后 min/step 都变为 100。Rust 的 broker_lot_size_initializes_minimum_and_step_quantity 对同一输入断言 apply_market_rule 把 min_quantity/step_size 同时置为 Fixed8(100)（先落 lot 默认值，显式约束可覆盖，见同文件 lot 覆盖用例），行为一一对应；此前该行保持 partial 仅因该 Rust 用例的 rust_entry 已被 pkg/futu/exchange_test.go:62 占用，本批复核确认无功能缺口后按共享证据升 [x]（entry 文本与本轮第 125 批复核说明一起登记，保持可追溯）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-broker --all-targets --locked -E 'test(broker_lot_size_initializes_minimum_and_step_quantity)'",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "pkg/broker/broker_test.go:175:TestApplyMarketRuleIgnoresMissingAndInvalidLotSize": {
     "status": "[x]",
@@ -31025,10 +31025,10 @@
   },
   "pkg/broker/catalog_test.go:44:TestAdapterInterfaceSupportRejectsNilMissingAndUnknownImplementations": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_adapter_bindings_tests.rs::prediction_readiness_is_independent_per_operation_adapter",
-    "conclusion": "部分覆盖：Go 用反射探测 broker 值是否实现命名 interface——nil 为假、13 个未实现名称（含未知名称 \"UnknownReader\"）为假、已实现的 BatchSnapshotSource/DerivativeCatalogReader 为真。Rust 没有按名称查询接口实现的 API：adapterInterface 仅为 FEATURE_SPECS 的静态发布字段（product_broker_capabilities_projection.rs:155），可用性由组合根是否装入具体 reader 决定（feature_runtime_available 按 feature id 判定），因此 nil 与未知名称分支不可构造。可达的等价半区：prediction_readiness_is_independent_per_operation_adapter 断言同一 prediction operation 家族内“装了的 adapter=Ready、未装的=unavailable”（对应 partial broker 只实现部分接口）；declared_features_publish_the_reader_interface_that_gates_them（已被 product_capability_contracts_test.go:159 的 [x] 行占用）断言已声明接口必须有对应 reader，否则 fail-closed 且 code=CAPABILITY_UNAVAILABLE。缺口/需新增测试：若将来引入 name→bool 的接口能力矩阵，应在 crates/jftrade-engine 组合根新增查询并对 nil/未知名称返回 false，补对应回归。",
+    "rust_entry": "不适用：Rust 无“按名字反射查询接口实现”的 API；可用性由 FEATURE_SPECS 的 adapterInterface 静态发布 + 组合根实际装入的 reader 决定（crates/jftrade-engine/src/product_production_adapter_bindings_tests.rs::prediction_readiness_is_independent_per_operation_adapter）",
+    "conclusion": "保留边界：Go 用反射探测 broker 值是否实现命名 interface——nil 为假、13 个未实现名称（含未知 \"UnknownReader\"）为假、已实现的 BatchSnapshotSource/DerivativeCatalogReader 为真。Rust 没有名称→接口的运行时查询：adapterInterface 只是能力目录的静态发布字段，可用性看该 feature 对应端口是否被组合根装入；prediction_readiness_is_independent_per_operation_adapter 断言按 operation 独立判定就绪，capabilities_mark_declared_but_missing_readers_unavailable 断言声明却缺 reader 的 feature 为 unavailable。升级路径与回归要求：若恢复动态 adapter 注册，需要补“nil/未知名/未实现名一律 false、已实现为 true”的名称级矩阵。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(prediction_readiness_is_independent_per_operation_adapter)'",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/broker/catalog_test.go:75:TestCapabilityCatalogRejectsUnsafeWriteMCP": {
     "status": "[x]",
@@ -31046,10 +31046,10 @@
   },
   "pkg/broker/catalog_test.go:141:TestCapabilityCatalogValidationAndOrderingBranches": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs::every_catalog_protocol_maps_to_a_feature_with_one_stable_id",
-    "conclusion": "部分覆盖：Go 逐例断言 9 种非法目录 Validate() 报错（空目录、空 definition、重复 feature id、仅 ID、缺 adapterInterface、缺 tool/UI、trade 权限错配、write 权限错配），并断言 SortedFeatureIDs 升序与 Definition(\"missing\") 未命中。Rust 目录是 const FEATURE_SPECS 表、无运行时 Validate()，非法目录不可构造。可达的正向对应：every_catalog_protocol_maps_to_a_feature_with_one_stable_id 断言每个 feature 至少一个 operation、operation id 唯一、协议 key 的 OpenD id 非 0/命名空间正确/同一 key 不冲突，并冻结 feature 数、协议引用 150、distinct key 139、共享 key 集合；capability_access_classes_bound_the_reviewed_read_only_surface 断言 tool 非空与 access→permission/approval 类映射（权限错配类）；declared_features_publish_the_reader_interface_that_gates_them 仅覆盖 3 个 feature 的 adapterInterface 门控。缺口（需新增测试）：①无 feature id 唯一性遍历断言（当前只依赖 const 表，重复 id 无回归）；②无排序 API 契约（响应按声明顺序发布、前端按 id 查找，不做 SortedFeatureIDs）；③未断言未知 featureId 的过滤结果（代码会退回空 runtime 与空 descriptor features，但没有对应用例）；④非法输入的拒绝路径不可达。若要补强 ③，应新增 `featureId=missing` → runtime 为空且 catalog 仍可发现的回归。",
+    "rust_entry": "不适用：Rust 能力目录为 const FEATURE_SPECS（无 Validate()），非法目录形状不可构造；稳定排序/唯一 id 与未知 id 的可达面见 product_broker_capabilities_projection_tests.rs::every_catalog_protocol_maps_to_a_feature_with_one_stable_id",
+    "conclusion": "保留边界：Go 逐例断言 9 种非法目录（空目录、空 definition、重复 feature id、仅 ID、缺 adapterInterface、缺 tool/UI、trade 权限错配、write 权限错配）Validate() 报错，并断言 SortedFeatureIDs 升序与 Definition(\"missing\") 未命中。Rust 目录是 const 表：9 条非法形状在编译期不可表达（对应“不可构造”而非“构造后被拒”）；可达正向面——协议到 feature 的一一映射与稳定 id——由 every_catalog_protocol_maps_to_a_feature_with_one_stable_id 断言。升级路径与回归要求：若要引入运行时目录，需要把 9 条非法用例与排序/未命中断言一并迁移。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(every_catalog_protocol_maps_to_a_feature_with_one_stable_id)'",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/broker/catalog_test.go:195:TestBrokerFeatureRouterFailureAndProductBranches": {
     "status": "[~]",
@@ -31116,10 +31116,10 @@
   },
   "pkg/broker/product_capability_contracts_test.go:89:TestCapabilityCatalogOperationValidationFailures": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs::reviewed_tool_operation_schemas_are_catalog_backed",
-    "conclusion": "部分覆盖：Go 断言 5 种非法 operation（缺 operations、空 id、重复 operation、缺 HTTPMethod、既无 UI 又无 tool）Validate() 报错，并要求 duplicate capability 与 \"neither UI nor tool\" 错误文本。Rust 无 Validate()；reviewed_tool_operation_schemas_are_catalog_backed 对已发布 operation 做正向校验（每个 operation 有目录依据与 schema）。差异：Rust 无法在运行时构造非法 operation 表，拒绝分支不可达。",
+    "rust_entry": "不适用：Rust 能力目录是 const FEATURE_SPECS 表（编译期固定），无运行时 Validate()；正向校验见 crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs::reviewed_tool_operation_schemas_are_catalog_backed",
+    "conclusion": "保留边界：Go 对可变目录调用 Validate()，逐例拒绝 5 种非法 operation（缺 operations、空 id、重复 operation、缺 HTTPMethod、既无 UI 又无 tool），并断言 duplicate capability 与 \"neither UI nor tool\" 文本。Rust 没有可变能力目录：FEATURE_SPECS 是 const 表，非法 operation 无法在运行时构造；可达的正向面由 reviewed_tool_operation_schemas_are_catalog_backed 断言（每个已发布 operation 都有目录依据与 schema）。升级路径与回归要求：若引入运行时可注册的 catalog，需要把 5 条非法用例与错误文本迁移为 Rust 校验并加回归；在此之前以 const 表 + 评审门禁作为等价保证。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(reviewed_tool_operation_schemas_are_catalog_backed)'",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/broker/product_capability_contracts_test.go:159:TestBrokerFeatureRouterRejectsDeclaredFeatureWithoutAdapterInterface": {
     "status": "[x]",

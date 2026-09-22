@@ -226,3 +226,34 @@ action 归入 HARD_STOP_ 前缀”），本批据此升为 `[x]`。
 | 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b125s2_apply.json` | 10 行写入，`[x]` 1368 → 1376 |
 | 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 无重复 rust_entry、0 条 `[x]` 缺少 function_exact |
 | 锚点 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1379（已记账 1324、unrecorded 0、unknown 54、stale 1 既有） |
+
+### 分片三：`pkg/broker` 剩余 16 行复核（1 升 [x]、3 收敛为边界、12 复核保留）
+
+范围：`pkg/broker/research_screen_test.go`(3)、`pkg/broker/product_capability_contracts_test.go`(2 pending)、
+`pkg/broker/broker_test.go`(7 pending)、`pkg/broker/catalog_test.go`(5 pending)。
+
+#### 结论变更
+
+| Go 行 | 变化 | 依据 |
+| --- | --- | --- |
+| `pkg/broker/broker_test.go:157` `TestApplyMarketRuleUsesLotSizeAsQuantityConstraints` | partial → `[x]` | 行为已由 `jftrade-broker::broker_lot_size_initializes_minimum_and_step_quantity` 逐字覆盖（lotSize=100 → min/step 双 100）；此前 partial 的唯一原因是该 Rust 用例的 entry 已被 `pkg/futu/exchange_test.go:62` 占用，本批确认无功能缺口后按共享证据登记（entry 文本显式说明共享） |
+| `pkg/broker/product_capability_contracts_test.go:89` `TestCapabilityCatalogOperationValidationFailures` | partial → boundary | Rust 能力目录是 const `FEATURE_SPECS`，无运行时 `Validate()`；非法 operation 不可构造，正向面由 `reviewed_tool_operation_schemas_are_catalog_backed` 覆盖 |
+| `pkg/broker/catalog_test.go:44` `TestAdapterInterfaceSupportRejectsNilMissingAndUnknownImplementations` | partial → boundary | Go 用反射按名字探测接口实现；Rust 无名称→接口查询，可用性由 `FEATURE_SPECS.adapterInterface` + 组合根装入的 reader 决定（`prediction_readiness_is_independent_per_operation_adapter`） |
+| `pkg/broker/catalog_test.go:141` `TestCapabilityCatalogValidationAndOrderingBranches` | partial → boundary | 同上：9 条非法目录形状在 const 表下不可表达；可达的稳定 id/唯一映射面由 `every_catalog_protocol_maps_to_a_feature_with_one_stable_id` 覆盖 |
+
+#### 复核保留（12 行，逐条确认 Go 断言、Rust 证据与差异描述仍然准确）
+
+- `research_screen_test.go:11`（FactorRef 稳定身份：Rust 由 normalization 的 stable_instance_id/配置键 + 冻结语料承担）、
+  `:31`（宽松降级不可表达：Rust 强类型 wire）、`:46`（rate limit：Rust 在 provider 边界 429 + Retry-After）。
+- `product_capability_contracts_test.go:174`（运行时评估器 reason 优先级：Rust 输出 state/code 维度）。
+- `broker_test.go` 注册表 5 条 + 指针 helpers 1 条（Go-only 运行时注册表与指针别名语义；Rust 为组合根静态注入 + 所有权模型）。
+- `catalog_test.go:98`/`:195`/`:233`（per-feature router 选择/失败/候选排序：Rust 无 per-feature 候选列表，provider 解析只有 explicit_broker/active_provider 两种 reason）。
+
+#### 分片三验证记录
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| `pkg/broker` 证据 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-broker -p jftrade-research --all-targets --locked -E 'test(broker_lot_size_initializes_minimum_and_step_quantity) or test(normalization_and_field_errors_match_the_go_owner_corpus)'` | 2 条通过 |
+| engine 证据 | `... -p jftrade-engine ... -E 'test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(futu_screen_write_errors_keep_their_transport_contract) or test(reviewed_tool_operation_schemas_are_catalog_backed) or test(capabilities_mark_declared_but_missing_readers_unavailable) or test(capabilities_filters_by_broker_market_and_feature_id) or test(every_catalog_protocol_maps_to_a_feature_with_one_stable_id) or test(prediction_readiness_is_independent_per_operation_adapter)'` | 8 条通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b125s3_apply.json` | 4 行变更，`[x]` 1376 → 1377 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 无重复 rust_entry、0 条 `[x]` 缺少 function_exact |
