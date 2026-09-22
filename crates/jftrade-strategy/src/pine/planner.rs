@@ -585,9 +585,21 @@ fn requirement_for_call(
         }
         "ta.highest" | "ta.lowest" | "ta.change" => {
             kind = lower.strip_prefix("ta.").unwrap_or_default();
-            for argument in arguments {
-                key_parts
-                    .push(argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()));
+            let texts = arguments
+                .iter()
+                .map(|argument| {
+                    argument_text(Some(argument)).unwrap_or_else(|| argument.to_string())
+                })
+                .collect::<Vec<_>>();
+            // Go normalizes the one-argument window forms before planning
+            // (`ta.highest(20)` becomes `highest(high, 20)`, `ta.change(close)`
+            // becomes `change(close, 1)`), so the requirement keys keep the
+            // default source and length instead of dropping them.
+            match (kind, texts.len()) {
+                ("highest", 1) => key_parts.extend(["high".to_owned(), texts[0].clone()]),
+                ("lowest", 1) => key_parts.extend(["low".to_owned(), texts[0].clone()]),
+                ("change", 1) => key_parts.extend([texts[0].clone(), "1".to_owned()]),
+                _ => key_parts.extend(texts),
             }
         }
         // Advanced indicator bindings mirror

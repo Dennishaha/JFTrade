@@ -1588,3 +1588,45 @@ owner：`crates/jftrade-strategy`（Pine 编译/校验/分析入口与诊断面�
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 在 `.rcgu.o` 29488（< 50000，目标健康检查通过）的前提下仍失败：cargo-deny advisories 阶段报 8 条 `advisory-not-detected`（advisories FAILED、bans/licenses/sources ok），与分片六/七结论一致 |
 
 后续：分片九进入 `pkg/strategy/pine/parse_collection_test.go` 17 行、`parse_object_test.go` 12 行、`parse_semantic_test.go` 12 行、`parse_request_test.go` 7 行（合计 48 行），随后 `pkg/strategy/pine` 其余文件，直至 `strategy_pine` 域 510 行清空。
+
+### 分片九：`pkg/strategy/pine` 的 collection/object/semantic/request 四文件 48 行
+
+范围：`parse_collection_test.go` 17、`parse_object_test.go` 12、`parse_semantic_test.go` 12、`parse_request_test.go` 7。
+owner：`crates/jftrade-strategy`（Pine 编译/语义/需求计划）；对照方为 `workers/pineworker`（语言族展开）与 `crates/jftrade-pinespec` 冻结矩阵。
+
+复核方式：把 48 条 Go 测试的金标脚本逐条抽出，用同一脚本跑 Rust 编译器形成支持矩阵（记录 ok 与诊断码/需求键），再按 Go 断言判定终值。矩阵结论：13 条脚本 Rust 可编译（其中 3 条可升 `[x]`、2 条给出新证据），35 条被拒（诊断码集中在 `PINE_CALL_UNSUPPORTED`、`PINE_STATEMENT_UNSUPPORTED`、`PINE_INDENT_UNEXPECTED`、`PINE_DECLARATION_UNSUPPORTED`、`PINE_EXPRESSION_INVALID`）。
+
+修复（1 处功能差异，带先红探针）：
+
+- 差异：Go 在计划前归一化单参数窗口形态（`ta.highest(20)` → `highest(high, 20)`、`ta.change(close)` → `change(close, 1)`），Rust planner 原先直接把实参入键，产出 `highest:20` 与 `change:close`，与 Go 断言及 pinespec 金标 `change:close:1` 不一致。
+- 修复：`crates/jftrade-strategy/src/pine/planner.rs` 的 `ta.highest|ta.lowest|ta.change` 分支按 Go 规则补缺省 source（high/low）与缺省长度 1。
+- 先红探针：回滚 `planner.rs` 到分片七值 `f61ae3c0347d06d8a894bba17bf843391a2d4843bbba0bbf2f1ebfd1a272a486` 后，`common_ta_window_keys_keep_the_requested_source` 失败（缺 `change:close:1` 与第二个 `highest:high:20`）；恢复修复后通过。修复后 shasum `88dd2ef344548cbd46eb57c24845840680e153ed1f01213af4805c92648cdbb0`，探针副本与工作树按字节一致。
+- 新增证据：`crates/jftrade-strategy/tests/pine_request_and_visual_contracts.rs` 六条用例——`unsupported_request_security_forms_keep_the_go_diagnostic_codes`（七类诊断码逐条）、`stdev_keeps_the_legacy_close_key`、`visual_calls_are_ignored_with_named_warnings`（4 条警告点名 alertcondition 与 label.new）、`visual_metadata_lists_every_drawing_call`（7 条语义视觉元数据）、`request_security_moving_average_keys_keep_type_period_source_and_time_unit`、`common_ta_window_keys_keep_the_requested_source`。
+- 映射终值：48 行 = 3 `function_exact` + 44 `partial` + 1 `boundary`（`:136`/`:82` partial → function_exact；`:377` boundary → function_exact；`:401` boundary → partial）；全量 `[x]` 1556 → 1559、partial 2274 → 2273、boundary 621 → 619。
+
+关键事实与新登记缺口（P1/P2）：
+
+1. **v2.0-v3.2 语言族整体缺失（P1）**：Go 的 collection（array/matrix/map 声明与操作）、UDT/object（`type ... new`、`method`、字段重赋值、方法链）、import/export 别名、varip 策略、动态循环与 v2.4-v2.7 集合/时间框架助手在 Rust 编译器均被拒（本分片 35 行 partial 的实测诊断码已写入账本），而 pinespec 冻结矩阵仍声明 v2.1 BBW/COG、v2.2 tuple、v2.3 collection/object、v2.4 MTF stoch 等能力——**矩阵声明与 Rust 实现不一致**，需要按批次决定是补齐实现还是修订矩阵（owner：`crates/jftrade-strategy/src/pine/{parser,lower,semantic}.rs` 与 `src/pinespec/mod.rs`）。
+2. **MTF 纯 source 键空间不同（P1）**：Go 为 `request.security(syminfo.tickerid, "D", close)` 产出 `security_source:day:close`，Rust 仍为退化键 `security:syminfo.tickerid:"D":close`；`source[n]` 与 tuple/纯表达式的同族键同样退化（`:10` 登记，沿用分片五/六/七的 MTF 键缺口）。
+3. **MTF 纯表达式/tuple 白名单未铺开（P1）**：`:183/:217/:263` 三条脚本 Rust 可编译，但内部表达式原样进 `security:` 键（如 `security:syminfo.tickerid:"15":((close Greater ta.sma(close,3)) And ...)`），Go 则展开为受支持 TA 键与 `security_source` 键；stoch/bollinger 族仍缺。
+4. **v1.4 窗口/状态族部分缺失（P1）**：`:141` 脚本 Rust 在第 16 行被拒（`PINE_EXPRESSION_INVALID`），Go 断言该批窗口/动量/状态指标全部可用（含 barssince/valuewhen 等状态函数）。
+5. **语义摘要字段面差异（P2）**：`:10`/`:55`/`:98` 的 Go 断言覆盖 Symbols/TupleBindings/FunctionCalls 的签名与 Visuals 的 title/variable/namedArgs；Rust 的 `SemanticSummary` 只暴露 symbols/visuals/declarations 子集，VisualMetadata 无 title/variable/namedArgs，限定成员 target 只保留末段（`top_right` vs Go `position.top_right`）。
+6. **v2.9/v3.2 request.security 诊断矩阵缺口（P2）**：`:173` 的四类（tuple assignment、tuple alias mismatch、tuple 宽度上限、unsupported pure expression）在 Rust 侧没有同名诊断码（只有通用 `PINE_REQUEST_SECURITY_UNSUPPORTED`）。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 修复前先红 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --test pine_request_and_visual_contracts --locked --no-fail-fast` | 6 条中 1 条失败（缺 `change:close:1` 与 `highest:high:20`），回滚 `planner.rs` 到 `f61ae3c0…` 复现 |
+| 新增用例 | 同上（修复后） | 6/6 通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast` | 67/67 通过 |
+| 探针回滚校验 | `shasum -a 256 crates/jftrade-strategy/src/pine/planner.rs` | 修复后 `88dd2ef3…`，与探针副本按字节一致；修复前副本为分片七的 `f61ae3c0…` |
+| 映射写入 | payload `/tmp/s128i_payload.json` 经 `/tmp/b82_apply.py` 应用 | 48 行给出终值，`[x]` 1556 → 1559、partial 2274 → 2273、boundary 621 → 619 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3232（Strategy 域 211） |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1578、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 首轮 1893/1894，`api_launcher_reports_startup_failure_when_the_configured_address_is_taken` 抖动失败（已知并行负载抖动）；隔离复跑 2/2 通过，次轮整轮 1894/1894 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2947 files）、`pnpm run check:quick` | 全部通过；`check:quick` 走 affected 计划（6 个受影响文件、rust 模块），1992/1992 通过并以 exit 0 结束 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 在 cargo-deny advisories 阶段失败（bans/licenses/sources ok），与分片六/七/八结论一致 |
+
+后续：分片十进入 `pkg/strategy/pine` 剩余文件（`collection_object_bounds_test.go` 3、`object_collect_bounds_test.go` 3、`object_declaration_contracts_test.go` 2、`control_flow_reject_test.go` 2、`parser_loop_boundaries_test.go` 3、`language_execution_boundaries_test.go` 8、`validation_semantics_boundaries_test.go` 8、`public_lowering_test.go` 5、`parser_and_lowering_recovery_test.go` 7、`strategy_business_test.go` 3、`security_lowering_test.go` 3、`semantic_helper_boundaries_test.go` 4、`runtime_and_parser_boundaries_test.go` 5、`compiler_rejection_contracts_test.go` 3、`extended_ticker_test.go` 2、`udf_expansion_contracts_test.go` 2、`order_command_security_rejection_test.go` 2、`request_security_ast_contracts_test.go` 2、`request_security_diagnostics_test.go` 2、`request_security_object_contracts_test.go` 2 等），直至 `strategy_pine` 域 510 行清空。
