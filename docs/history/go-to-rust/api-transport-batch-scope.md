@@ -1302,3 +1302,54 @@ anchors 1545（unrecorded 0、stale 0、unknown 53）。**第 127 批 `internal/
 | 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1879/1879 通过 |
 | 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`pnpm run check:quick` | 全部通过；`check:quick` 首轮在 `product_api_launcher_lifecycle::api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal` 抖动失败（1840/1909 中止），隔离复跑与次轮 `check:quick` 均通过，按抖动处置并记录 |
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 在 cargo-deny advisories 阶段失败（bans/licenses/sources ok） |
+
+### 分片三：`internal/strategy/liveruntime` 边界族 21 行
+
+范围（按文件与行号升序）：`manager_boundaries_test.go:16/:54/:94/:116/:155/:182/:216/:241/:275/:302/:356`、
+`manager_close_test.go:86/:140/:188`、`nil_boundaries_test.go:10/:43`、`order_risk_business_test.go:18/:67/:135/:216/:235`。
+owner：`crates/jftrade-engine`（运行时管理器、任务生命周期、执行与风险上下文）、`crates/jftrade-trading`（运行时风险原因码）、
+`crates/jftrade-calendar`（市场日起点）、`crates/jftrade-store-sqlite`（每日订单计数）、`crates/jftrade-strategy`（notify-only 协调器）。
+
+本分片 21 行全部给出终值：2 行升 `[x]`、18 行收紧 partial、1 行确认为 boundary。
+
+- `[x]`：`order_risk_business_test.go:18`。新增
+  `crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::strategy_intents_place_stop_market_orders_with_the_stop_price_and_reduce_only_flag`，
+  断言止损市价单经执行端口时 `orderType==STOP`、`stopPrice==95.25`、payload 不含 `price`、`reduceOnly==true`，与 Go 的
+  `TestLiveOrderPassesStopPriceToExecutionGateway` 四项断言逐条对应（实现：`dispatch_place_order` 仅在 `has_limit_price` 时写 `price`）。
+- `[x]`：`order_risk_business_test.go:67`。既有 `runtime_risk_enforce_applies_close_only_quantity_notional_and_daily_limits` 已被另一 `[x]` 行占用，
+  故新增 `crates/jftrade-trading/tests/risk_engine_tests.rs::runtime_risk_reason_codes_match_the_live_executor_table`，逐条复刻 Go 的原因码表
+  （`close_only`、`close_only_insufficient_position` ×2（数量 5/6）、`max_order_notional`、放行、关闭 closeOnly 后 `max_order_quantity`），
+  与 `runtime_reject_reason` 的同名原因码一致。
+- boundary：`nil_boundaries_test.go:10`（Go 的 nil 接收者防御分支，Rust 由所有权/Option 在编译期排除，空状态语义由状态投影覆盖）。
+- 收紧为精确缺口的 partial（18 行）覆盖三类：管理器维护态与轮询间隔（`:16` 无维护忙原因与 `closedKLineSyncInterval`）、
+  能力与健康门禁（`:94` `streaming_candles` 仅存在于测试夹具、`:116` 启动路径不做非健康 provider 拒绝）、
+  输入加载与构建边界（`:54`/`:155`/`:182`/`:216`/`:241`/`:275`/`:302`/`:356`）、关闭语义（`:86` 会话错误落 `SESSION_CLOSE_FAILED` 审计而非聚合返回、`:140` 无 `ErrClosed` 在途激活拒绝断言、`:188` 单任务顺序天然保证但无直接断言）、
+  风险与取消（`:135` 无失败保留跟踪与未跟踪忽略断言）、市场日与计数窗口（`:216` helper 无按市场逐值断言、`:235` 计数窗口用 UTC 零点而非市场日）。
+
+关键事实与新登记缺口（P1/P2）：
+
+1. **streaming_candles 能力门禁缺失（P1）**：Go 在 live/notify_only 启动前拒绝未声明流式 K 线的 provider；Rust 的 `ProviderCapabilities.streaming_candles`
+   只出现在夹具中，生产启动路径不校验。owner `crates/jftrade-engine/src/strategy_runtime.rs`，回归要求先建拒绝用例。
+2. **活动 provider 健康门禁缺失（P1）**：Go 在活动 provider 非健康时拒绝启动，除非显式 exchange 覆盖（覆盖时零健康调用）；Rust 只有就绪标志与探针真实性用例。
+3. **每日订单计数窗口为 UTC 零点（P1）**：`strategy_runtime_execution.rs` 用 `OffsetDateTime::new_utc(date, MIDNIGHT)` 作为 `count_daily_orders` 起点，
+   未接入 `jftrade-calendar::market_day_start_for_market`；Go 按标的市场日计数。
+4. **关停错误聚合语义（P2）**：Rust `shutdown()` 返回 bool 并在 5s 期限内汇合任务，会话关闭失败只写 `SESSION_CLOSE_FAILED`/`SESSION_CLOSE_TIMEOUT` 审计（键 `strategy:<instance>:<symbol>`），
+   没有 Go 的聚合错误返回与 12 并发调用断言。
+5. **维护态与轮询配置缺失（P2）**：无维护忙原因字符串、无 `closedKLineSyncInterval` 配置（Rust 由任务事件循环推进）。
+6. **事件类型差异（P2）**：Go 的 `runtime_error`/`order_ignored` 事件在 Rust 对应 `RUNTIME_EXITED`/`INTENT_SKIPPED`/`SESSION_CLOSE_*` 审计，缺空白错误忽略规则。
+7. **live 绑定五分支校验缺逐条断言（P2）**：`brokerId`/`accountId`/`tradingEnvironment`/`market` 缺失文案未与 Go 逐条对照。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(strategy_intents_place_stop_market_orders_with_the_stop_price_and_reduce_only_flag)'` | 3/3 通过（三个测试目标） |
+| 新增用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked -E 'test(runtime_risk_reason_codes_match_the_live_executor_table)'` | 1/1 通过 |
+| 映射写入 | payload `/tmp/s128c_payload.json` 经 `/tmp/b82_apply.py` 应用 | 21 行给出终值，`[x]` 1540 → 1542、partial 2302 → 2300 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3208 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1550、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked` | 85/85 通过（含新增原因码用例） |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1882/1882 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`pnpm run check:quick` | 全部通过（本分片 `check:quick` 首轮通过，`.rcgu.o` 29340 未触发清理） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 在 cargo-deny advisories 阶段失败（bans/licenses/sources ok） |

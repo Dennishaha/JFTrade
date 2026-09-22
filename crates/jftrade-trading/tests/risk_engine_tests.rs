@@ -126,6 +126,47 @@ fn runtime_risk_off_ignores_configured_limits() {
     assert_eq!(decision, jftrade_trading::RuntimeRiskDecision::default());
 }
 
+// Parity: go:452dea11:internal/strategy/liveruntime/order_risk_business_test.go:67 TestRuntimeRiskEvaluatesOrderLimits
+#[test]
+fn runtime_risk_reason_codes_match_the_live_executor_table() {
+    let settings = RuntimeRiskSettings {
+        mode: RUNTIME_RISK_MODE_ENFORCE.to_owned(),
+        close_only: true,
+        max_order_quantity: Some("5".parse().expect("quantity")),
+        max_order_notional: Some("500".parse().expect("notional")),
+        ..RuntimeRiskSettings::default()
+    };
+    let cases = [
+        ("BUY", "1", None, "close_only"),
+        ("SELL", "5", None, "close_only_insufficient_position"),
+        ("SELL", "6", None, "close_only_insufficient_position"),
+        ("SELL", "4", Some("130"), "max_order_notional"),
+        ("SELL", "4", None, ""),
+    ];
+    for (side, quantity, price, reason) in cases {
+        let decision = evaluate_runtime_risk(
+            settings.clone(),
+            &runtime_order(side, quantity, price),
+            &runtime_context("4", Some("100"), 0),
+        );
+        assert_eq!(
+            decision.reason.as_deref().unwrap_or(""),
+            reason,
+            "side={side} quantity={quantity} price={price:?}"
+        );
+    }
+
+    let quantity = evaluate_runtime_risk(
+        RuntimeRiskSettings {
+            close_only: false,
+            ..settings
+        },
+        &runtime_order("BUY", "6", None),
+        &runtime_context("4", Some("100"), 0),
+    );
+    assert_eq!(quantity.reason.as_deref(), Some("max_order_quantity"));
+}
+
 // Parity: go:452dea11:internal/app/apiserver/servercore/runtime_trading_test.go:123 TestStrategyRuntimeRiskCloseOnlyRejectsBuyOrder
 #[test]
 fn runtime_risk_enforce_applies_close_only_quantity_notional_and_daily_limits() {

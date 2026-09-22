@@ -578,6 +578,72 @@ fn test_execute_strategy_intents_close_short_maps_to_buy() {
     assert_eq!(mutations[0].payload["reduceOnly"], true);
 }
 
+// Parity: go:452dea11:internal/strategy/liveruntime/order_risk_business_test.go:18 TestLiveOrderPassesStopPriceToExecutionGateway
+#[test]
+fn strategy_intents_place_stop_market_orders_with_the_stop_price_and_reduce_only_flag() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("strategy.db");
+    seed_strategy_test_db(&path);
+
+    let def_store = Arc::new(
+        StrategyDefinitionStore::open_existing(&path, STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE)
+            .expect("open def store"),
+    );
+    let store = StrategyRuntimeStore::from_definition_store(&def_store);
+    store
+        .seed_instance("inst-stop-order", "RUNNING", "2026-08-30T00:00:00Z")
+        .expect("seed instance");
+
+    let execution = MockExecutionPort::default();
+    let provider = ActiveProviderState::default();
+    let binding = json!({
+        "brokerId": "futu",
+        "accountId": "12345",
+        "tradingEnvironment": "SIMULATE"
+    });
+
+    let ctx = StrategyExecutionContext {
+        execution: Some(&execution),
+        execution_store: None,
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-stop-order",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: Some(100.0),
+        sellable_quantity: Some(1.0),
+        current_position: Some(1.0),
+        available_cash: None,
+        virtual_account: None,
+    };
+
+    let mut stop_market = test_intent(1.0, 0.0);
+    stop_market.kind = "close".to_owned();
+    stop_market.direction = "sell".to_owned();
+    stop_market.has_limit_price = false;
+    stop_market.has_stop_price = true;
+    stop_market.stop_price = 95.25;
+
+    let res = execute_strategy_intents(ctx, &[stop_market]);
+    assert!(res.is_ok(), "stop-market close must be accepted: {res:?}");
+
+    let mutations = execution.mutations.lock().unwrap();
+    assert_eq!(mutations.len(), 1);
+    let payload = &mutations[0].payload;
+    assert_eq!(payload["orderType"], "STOP");
+    assert_eq!(payload["stopPrice"], 95.25);
+    assert!(
+        payload.get("price").is_none(),
+        "a stop-market order must not carry a limit price: {payload:?}"
+    );
+    assert_eq!(
+        payload["reduceOnly"], true,
+        "the gateway must receive the reduce-only flag"
+    );
+}
+
 // Parity: go:452dea11:internal/app/apiserver/servercore/runtime_trading_test.go:443 TestStrategyRuntimeLiveCancelsTrackedOrderFromWorkerCommand
 #[test]
 fn test_execute_strategy_intents_cancel_dispatches_order_cancel() {
