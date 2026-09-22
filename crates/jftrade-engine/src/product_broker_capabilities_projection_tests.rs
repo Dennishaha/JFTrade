@@ -524,6 +524,14 @@ fn customization_tools_map_to_their_single_opend_action() {
     }
 }
 
+/// Parity: go:452dea11:pkg/broker/catalog_test.go:75
+/// `TestCapabilityCatalogRejectsUnsafeWriteMCP`. Go rejects a catalog entry
+/// that declares external-write access while asking to join the read-only MCP
+/// surface. Rust derives `surface.readOnlyMcp` from the access class, so that
+/// combination cannot be constructed; this test asserts the same invariant for
+/// every published feature (write/trade tools never enter the reviewed
+/// read-only surface, reviewed reads always do).
+///
 /// Parity: go:452dea11:internal/assistant/assembly/adk_product_catalog_test.go:29
 /// TestCapabilityCatalogSurfacesAreRegisteredAndMCPBounded
 ///

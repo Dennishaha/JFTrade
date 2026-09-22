@@ -31026,21 +31026,21 @@
   "pkg/broker/catalog_test.go:44:TestAdapterInterfaceSupportRejectsNilMissingAndUnknownImplementations": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_adapter_bindings_tests.rs::prediction_readiness_is_independent_per_operation_adapter",
-    "conclusion": "部分覆盖：Go 用反射探测 broker 值是否实现命名 interface（nil、未实现的 13 个接口名、未知名称全为假，已实现的 BatchSnapshotSource/DerivativeCatalogReader 为真）。Rust 无反射式接口探测：adapter 安装状态由组合根显式绑定表表达（ProductionAdapterBinding::{Ready,ExternalUnavailable,MissingInternalAdapter}），逐 operation 独立性由 prediction_readiness_is_independent_per_operation_adapter 断言。nil 与未知名称分支在 Rust 类型系统下不可表达，保留边界。",
+    "conclusion": "部分覆盖：Go 用反射探测 broker 值是否实现命名 interface——nil 为假、13 个未实现名称（含未知名称 \"UnknownReader\"）为假、已实现的 BatchSnapshotSource/DerivativeCatalogReader 为真。Rust 没有按名称查询接口实现的 API：adapterInterface 仅为 FEATURE_SPECS 的静态发布字段（product_broker_capabilities_projection.rs:155），可用性由组合根是否装入具体 reader 决定（feature_runtime_available 按 feature id 判定），因此 nil 与未知名称分支不可构造。可达的等价半区：prediction_readiness_is_independent_per_operation_adapter 断言同一 prediction operation 家族内“装了的 adapter=Ready、未装的=unavailable”（对应 partial broker 只实现部分接口）；declared_features_publish_the_reader_interface_that_gates_them（已被 product_capability_contracts_test.go:159 的 [x] 行占用）断言已声明接口必须有对应 reader，否则 fail-closed 且 code=CAPABILITY_UNAVAILABLE。缺口/需新增测试：若将来引入 name→bool 的接口能力矩阵，应在 crates/jftrade-engine 组合根新增查询并对 nil/未知名称返回 false，补对应回归。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(prediction_readiness_is_independent_per_operation_adapter)'",
     "evidence_type": "partial"
   },
   "pkg/broker/catalog_test.go:75:TestCapabilityCatalogRejectsUnsafeWriteMCP": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs::capability_access_classes_bound_the_reviewed_read_only_surface",
-    "conclusion": "部分覆盖：Go 构造一个 write 访问却声明 ReadOnlyMCP=true 的目录并期望 Validate() 报 \"read-only MCP\"。Rust 目录是 const 表、没有运行时 Validate()；同一不变量由 capability_access_classes_bound_the_reviewed_read_only_surface 对全部 feature 正向断言（read → read_only + surface.readOnlyMcp=true；write/trade 工具不得进入只读 MCP 面）。差异：Rust 无法构造“非法目录”输入，拒绝路径不可达。",
+    "conclusion": "function_exact：Go 构造 write 访问却声明 ReadOnlyMCP=true 的目录，要求 Validate() 以 \"read-only MCP\" 拒绝。Rust 目录是 const 表且 surface.readOnlyMcp 由 access 派生（read → true，write/trade 不写该字段），非法组合不可构造；capability_access_classes_bound_the_reviewed_read_only_surface 对全部已发布 feature 断言同一不变量：read → permission=read_only、approval=none、surface.readOnlyMcp=true、工具在 REVIEWED_READ_ONLY_TOOLS 内且按 read_internal 注册；write → write_external/high 且工具必须不在只读 MCP 面；trade → live_trading/critical 且必须不在只读 MCP 面（并逐权限模式确认审批）；三个访问类恰好为 read/write/trade，trading 计数为 6。覆盖强于 Go 的单例拒绝（逐 feature 全量），差异仅为承载形式：Go 用运行时校验拒绝非法目录，Rust 由构造层排除。本批为该测试补写 // Parity: go:452dea11:pkg/broker/catalog_test.go:75 锚点。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(capability_access_classes_bound_the_reviewed_read_only_surface)'",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "pkg/broker/catalog_test.go:98:TestBrokerFeatureRouterHonorsExplicitSelectionAndFallback": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_broker_capabilities_projection_tests.rs::capabilities_filters_by_broker_market_and_feature_id",
-    "conclusion": "部分覆盖：Go 断言默认 broker、显式 brokerId 锁定（请求 partial-a 不得回落到 partial-b）与 configured fallback（选到 partial-b、reason=configured_fallback）。Rust 无 feature router：每个 feature 由静态 FEATURE_SPECS 绑定唯一 adapter，broker 过滤只接受 active provider（非 futu → brokers=[]），fallback 语义属于行情 provider 层（marketdata ProviderRouter）。显式选择与 fallback 候选排序无法逐条对齐，保留差异。",
+    "conclusion": "部分覆盖：Go 断言（1）显式 brokerId 只在该 broker 内解析、不得回落到其它 broker 且错误文本含该 id；（2）无显式 brokerId 时按注册/回退列表选到支持该 feature 的 broker，reason=configured_fallback。Rust 无 per-feature broker router：每个 feature 由静态 FEATURE_SPECS 绑定唯一 adapter；capabilities_filters_by_broker_market_and_feature_id 断言 brokerId=other 时 brokers 与 runtime 均为空（显式选择不回落到 futu，等价于 (1) 的“锁定即不回退”，且 catalog 仍可发现），featureId 过滤只保留该 feature 并在缺 reader 时给出 state=unavailable 与 reasonCode=CAPABILITY_UNAVAILABLE。缺口：Rust 无多 broker 候选列表与 configured_fallback reason，无法对齐 (2)；需先引入 broker 候选注册表（含显式选择、注册顺序、回退列表）再补回归。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(capabilities_filters_by_broker_market_and_feature_id)'",
     "evidence_type": "partial"
   },
