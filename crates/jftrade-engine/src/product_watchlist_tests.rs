@@ -118,6 +118,7 @@ fn watchlist_read_fixture() -> WatchlistReadFixture {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/api/watchlist/routes_test.go:72 TestInvalidListLimitReturns400
 async fn watchlist_read_routes_match_group_fixture_in_cutover_only() {
     let fixture = watchlist_read_fixture();
     let directory = tempdir().expect("temporary directory");
@@ -159,6 +160,8 @@ async fn watchlist_read_routes_match_group_fixture_in_cutover_only() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/api/watchlist/routes_test.go:15 TestUnavailableServiceReturns503Envelope
+// Parity: go:452dea11:internal/api/watchlist/routes_test.go:34 TestUnavailableServiceExercisesAllRouteErrorBranches
 async fn watchlist_read_routes_fail_closed_when_snapshot_port_is_unavailable() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
@@ -175,7 +178,9 @@ async fn watchlist_read_routes_fail_closed_when_snapshot_port_is_unavailable() {
         "/api/v1/watchlist/bindings",
         "/api/v1/watchlist/import-runs",
     ] {
-        let response = request_json(handle.startup_record().address, "GET", path, None).await;
+        let (status, response) =
+            request_json_with_status(handle.startup_record().address, "GET", path, None, &[]).await;
+        assert_eq!(status, 503, "path {path}");
         assert_eq!(response["ok"], false, "path {path}");
         assert_eq!(
             response["error"]["code"], "WATCHLIST_UNAVAILABLE",

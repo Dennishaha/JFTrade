@@ -911,86 +911,86 @@
   },
   "internal/api/live/dispatcher_boundaries_test.go:20:TestDispatcherInitialAndLiveDataFailures": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-api/src/sse.rs::stream_loop_propagates_initial_error_before_any_tick",
-    "conclusion": "partial：Go 断言 writeInitialEvents/writeLiveData/writeNotifications 三类错误在 dispatcher 内传播。Rust 引用测试断言流循环在任何 tick 前传播初始错误，通知写失败由 sse 的写失败用例覆盖。缺口 owner：crates/jftrade-api sse（dispatcher 组合层）；回归要求：补一条“live data 与 notification 写入失败均终止流并保留错误”的组合断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
+    "rust_entry": "crates/jftrade-api/src/sse.rs::stream_loop_propagates_initial_error_before_any_tick; crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
+    "conclusion": "partial：Go 四段（首帧写失败、tick provider 失败、tick 写失败、通知写失败）在 dispatcher write* 内冒泡。Rust SSE 流循环断言 tick 前初始错误传播；tick provider 失败终止流由语料 provider-error-cancels-stream 覆盖；缺口：SSE/WS 的“tick 写失败终止”与“通知写失败终止”未逐条断言。owner：crates/jftrade-api sse.rs + router.rs；回归要求：补两类写入失败终止断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test ws_live_compatibility --locked",
     "evidence_type": "partial"
   },
   "internal/api/live/dispatcher_boundaries_test.go:59:TestDispatcherAuxiliarySubscriptionBranches": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
-    "conclusion": "partial：Go 断言 console 刷新、security/depth provider 错误跳过、去重与失败冒泡。Rust 冻结语料含 provider-error-cancels-stream 与订阅归一用例并逐字断言帧与调用计数。缺口 owner：crates/jftrade-engine ws-live 契约模型；回归要求：补“provider 错误只跳过该辅助订阅、其余帧继续”的分支断言（Go 的 skip 语义），当前语料只覆盖取消整条流。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_ws_live_projection_tests.rs::auxiliary_provider_failure_skips_only_the_failing_subscription_family; crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
+    "conclusion": "partial（本批补证据）：Go 五段——console 刷新、security/depth provider 错误跳过、未变化数据去重、写失败冒泡。Rust 新增用例断言 console 刷新在任一类 provider 失败时保留且只跳过失败家族；语料 provider-error-cancels-stream 固定 tick provider 失败终止流。缺口：(a) security/depth 按 resolvedAt 去重（运行时无该状态）；(b) 投影写出失败冒泡（Rust 由传输 send 失败断连，无断言）。owner：crates/jftrade-api router.rs 会话 + engine 投影；回归要求：补 resolvedAt 去重与 send 失败终止断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test ws_live_compatibility --locked",
     "evidence_type": "partial"
   },
   "internal/api/live/dispatcher_boundaries_test.go:120:TestDispatcherRunPropagatesTriggerAndTickerFailures": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-api/src/sse.rs::stream_loop_propagates_trigger_and_ticker_failures",
-    "conclusion": "partial：Go 断言 dispatcher.run 传播 trigger/ticker 失败。Rust 引用测试在 sse 流循环层断言同一传播语义（同族 helper）。缺口 owner：crates/jftrade-api sse；回归要求：把该断言提升到 dispatcher 组合入口（含初始帧已写出的场景）后再升级。",
+    "conclusion": "partial：Go 断言 dispatcher.run 在 trigger 与各 ticker 分支的错误都回传调用方。Rust 对应循环分两处：SSE 流循环（trigger/ticker 传播已断言）与 WS 会话 select（interval/socket/hub，send 失败即断开、无错误对象回传）。缺口：WS 会话层无逐分支失败断言。owner：crates/jftrade-api router.rs websocket_session；回归要求：补会话层分支失败断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/live/dispatcher_boundaries_test.go:205:TestDispatcherEnvelopeDefaultsAndMapFallback": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-api/src/sse.rs::frames_preserve_go_retry_id_data_and_comment_shape",
-    "conclusion": "partial：Go 断言 writeEnvelope 默认字段与 mapString 回退。Rust 断言帧保留 retry/id/data/comment 形状，信封默认字段由 envelope 构造与 ws-live 语料固定；mapString 回退在 Rust 由类型化取值替代。缺口 owner：crates/jftrade-api sse/envelope；回归要求：补“缺省字段信封”与“非字符串值处理”断言。",
+    "conclusion": "partial：Go 断言 writeEnvelope 默认字段（entityId 回退 eventType、eventId 非空）与 mapString 非字符串回退。Rust 帧形状（retry/id/data/comment）由 sse 单测断言、信封默认字段由投影/语料固定；mapString 回退在 Rust 由类型化取值替代，无等价分支。缺口：缺省字段信封未单独断言。owner：crates/jftrade-api sse/envelope；回归要求：补缺省字段信封断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/live/dispatcher_boundaries_test.go:219:TestBackendReceivesExplicitBrokerSelection": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
-    "conclusion": "partial：Go 断言后端收到显式 broker 选择（心跳/行情/证券/深度 provider 均为 alpha）。Rust 语料逐字断言 provider 字段投影，类型断言拒绝由 backend trait 枚举替代。缺口 owner：crates/jftrade-engine ws-live 端口；回归要求：补“显式 provider 选择透传到每个后端调用”的逐调用断言（当前只按帧断言）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言心跳/行情/证券/深度四类调用都收到显式 provider（alpha），并覆盖 checkWebSocketOrigin 的 nil 与同源 https 边界及类型断言拒绝。Rust 语料逐帧断言 providerBrokerId 与 originPolicy，nil 分支由类型系统消除；缺口：按“调用”而非“帧”逐项断言 provider 透传。owner：crates/jftrade-engine ws-live 端口；回归要求：补逐调用 provider 断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test ws_live_compatibility --locked",
     "evidence_type": "partial"
   },
   "internal/api/live/dispatcher_boundaries_test.go:257:TestHandlerNilAndClosedLifecycleBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-api/src/websocket.rs::live_connection_limit_is_never_zero",
-    "conclusion": "partial：Go 断言 nil 后端/统计/关闭与默认连接上限。Rust 断言连接上限默认值兜底（永不为零）；nil 在 Rust 由 Option/类型系统表达，无运行时 nil 分支。缺口 owner：crates/jftrade-api websocket；回归要求：补“关闭后统计清零且新连接被拒”的生命周期断言。",
+    "conclusion": "partial：Go 断言 nil handler→404、nil stats/close 安全、默认连接上限、Close 后拒绝新连接。Rust 断言默认连接上限非零，nil 分支由 Option/类型系统消除；缺口：关闭后统计清零并拒绝新连接的断言。owner：crates/jftrade-api websocket；回归要求：补 Close 生命周期断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/api/live/dispatcher_boundaries_test.go:295:TestDepthUpdateSubscriptionFiltersAndCoalesces": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-api/src/websocket.rs::active_instruments_are_normalized_unioned_replaced_and_released; crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
-    "conclusion": "partial：Go 断言深度更新按订阅过滤并合并。Rust 断言活动工具归一/合并/替换/释放，深度合并由 ws-live 语料 depth 用例断言。缺口 owner：crates/jftrade-api websocket hub；回归要求：补“同一工具的连续深度更新只保留最新并按订阅过滤”的 hub 级断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
+    "conclusion": "partial：Go 断言深度订阅更新通道按订阅工具过滤（未订阅符号不触发、带空格符号归一后触发）、连续更新合并、unsubscribe 被调用。Rust 断言 hub 订阅归一/合并/替换/释放与语料 depth 帧及 depthSubscribe/Unsubscribe 计数；缺口：无“同一工具连续深度更新只保留最新”的合并断言（hub 广播不合并，运行时的 resolvedAt 去重缺失）。owner：crates/jftrade-api websocket hub + engine RouterDemandListener；回归要求：补合并与按订阅过滤断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test ws_live_compatibility --locked",
     "evidence_type": "partial"
   },
   "internal/api/live/handler_test.go:113:TestHandlerHeartbeatSubscribeNormalizationAndPayloads": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_subscription_registry_drives_status_and_releases_on_disconnect; crates/jftrade-api/src/websocket.rs::lagged_connection_receives_resync_control_before_future_events",
-    "conclusion": "partial：Rust 验证 subscribe 的 broker/instrument 规范化、连接状态与断开释放；未覆盖 Go 的 heartbeat、security/depth payload、depth num=50 限制与后端回调。缺口 owner：crates/jftrade-api websocket hub + engine ws-live 投影；回归要求：补 heartbeat 帧、security/depth payload 形状与 num=50 限制断言后再升级。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first; crates/jftrade-engine/src/product_ws_live_projection_tests.rs::subscription_normalization_matches_the_go_table; crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
+    "conclusion": "function_exact（本批新增真实握手断言）：首帧 heartbeat（type/source/entityId）由本批新增受信 Origin 握手用例断言；订阅归一（provider 小写、instrument 去空格大写、security/depth 去重、depth num 夹取 1..50）由投影归一单测断言；security/depth 载荷（HK.00700 security 帧、US.TME|50 depth 帧）与 depthSubscribe/depthUnsubscribe 调用计数由 ws-live 语料 subscription-event-order-and-normalization、depth-push-refresh-and-release 用例逐字断言；US.AAPL 归一进入 live 投影由 ws_live_subscription_registry_drives_status_and_releases_on_disconnect 断言。已登记差异：运行时 heartbeat 不含语料的 liveClients 字段（owner crates/jftrade-api router.rs）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first)' --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test ws_live_compatibility --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/live/handler_test.go:207:TestHandlerRejectsSubscriptionWithoutProvider": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
-    "conclusion": "partial：Go 断言缺 providerBrokerId 的订阅被拒并关闭连接。Rust 冻结语料 invalid-subscription-closes-without-code-frame 逐字断言握手/帧/关闭结果，但属契约模型回放而非真实 WS 连接。缺口 owner：crates/jftrade-engine ws-live 契约模型 + crates/jftrade-api websocket；回归要求：在真实 WS 连接（或 testkit 握手）上补同一拒绝路径后升级。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus; crates/jftrade-api/src/router.rs::subscription_message_matches_go_ignore_update_and_close_rules",
+    "conclusion": "partial（本批补证据与差异）：Rust 在消息分类层断言缺 providerBrokerId 的 subscribe 触发关闭，语料 invalid-subscription-closes-without-code-frame 固定“握手后仅 heartbeat 帧 + 1006 关闭”。差异：运行时实际发送 Close(1008, subscription policy violation)，与语料/Go 的“无 close 帧（1006）”不一致。owner：crates/jftrade-api router.rs websocket_session；回归要求：统一运行时与语料（改为直接断开或更新语料契约）后再升级。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test ws_live_compatibility --locked",
     "evidence_type": "partial"
   },
   "internal/api/live/handler_test.go:244:TestHandlerDepthUpdatePublishesFreshPayload": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
-    "conclusion": "partial：Go 断言深度订阅刷新后发布新 payload 并注册订阅者。Rust 语料 depth-push-refresh-and-release 逐字断言帧与 depthSubscribe/Unsubscribe 调用计数。缺口 owner：crates/jftrade-engine ws-live 契约模型；回归要求：补真实连接上的“刷新 → 新 payload”断言（含订阅者注册），再升级。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus; crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::order_book_pushes_publish_depth_for_the_subscribed_instrument",
+    "conclusion": "partial：Go 断言 depth 刷新（resolvedAt 变化）后向已注册订阅者推送新 payload，entityId=US.TME|50。Rust 语料 depth-push-refresh-and-release 断言两帧 depth 与订阅/退订计数（冻结投影），OpenD listener 用例断言真实推送侧 market.depth 载荷；缺口：未覆盖“resolvedAt 变化才重发”的刷新去重。owner：crates/jftrade-engine 运行时投影；回归要求：真实连接上的刷新→新 payload 断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test ws_live_compatibility --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(order_book_pushes_publish_depth_for_the_subscribed_instrument)' --locked",
     "evidence_type": "partial"
   },
   "internal/api/live/handler_test.go:316:TestHandlerNotificationSequenceZeroReplay": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
-    "conclusion": "partial：Go 断言 sequence=0 的通知事件仍被重放。Rust 语料 notification-replay-tick-and-deduplication 逐字断言通知帧与去重结果。缺口 owner：crates/jftrade-engine ws-live 契约模型；回归要求：补真实连接上的 sequence=0 通知断言后升级。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言首帧之后仍重放通知事件（sequence=1、id/source 固定）。Rust 语料 notification-replay-tick-and-deduplication 逐字断言 system.notification 帧（id=system-notification-1、source=notification）与去重；缺口：真实连接上未断言重放路径。owner：crates/jftrade-engine 通知桥 + api hub；回归要求：真实 WS 用例补 sequence=0/1 通知重放。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test ws_live_compatibility --locked",
     "evidence_type": "partial"
   },
   "internal/api/live/handler_test.go:342:TestHandlerConnectionLimitAndCloseLifecycle": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_rejects_origin_and_limit_without_leaking_permits",
-    "conclusion": "partial：Rust 验证连接上限 503、Origin 拒绝与 permit 释放；未覆盖 Go 的 Close 主动终止现有连接、stats 清零与 depth unsubscribe。缺口 owner：crates/jftrade-api websocket hub（+ engine ws-live 端口）；回归要求：补“Close 主动断开全部连接并清零统计、同时释放 depth 订阅”的断言后升级。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言第二条连接 503 LIVE_WS_LIMIT_REACHED、handler.Close 主动断开现有连接、连接统计清零、depth 订阅释放。Rust 断言 503 信封与断开后 permit 释放（可再次握手）；缺口：无“Close/shutdown 主动终止活动连接并清零统计、同时释放 depth 订阅”的组合断言。owner：crates/jftrade-api websocket hub/permit + engine 端口；回归要求：补 shutdown 期间活动连接收到 close 且统计归零的断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(ws_live_transport_rejects_origin_and_limit_without_leaking_permits)' --locked",
     "evidence_type": "partial"
   },
   "internal/api/live/handler_test.go:397:TestHandlerRejectsUntrustedWebSocketOrigin": {
@@ -1001,25 +1001,25 @@
     "evidence_type": "function_exact"
   },
   "internal/api/live/handler_test.go:421:TestHandlerAcceptsSameOriginWebSocket": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::auth_trusted_caller_without_origin_bypasses_csrf; crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_rejects_origin_and_limit_without_leaking_permits",
-    "conclusion": "partial：Go 断言同源 WebSocket 握手成功并可读首个事件。Rust 分别断言可信调用方无 Origin 的 CSRF 放行与不可信 Origin 的 upgrade 前 403；缺“同源 Origin → 握手成功并收到首个事件”的正向握手断言。缺口 owner：crates/jftrade-api websocket/auth；回归要求：补同源握手的 101 + 首帧断言后升级。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first",
+    "conclusion": "function_exact（本批新增）：受信页面 Origin（desktop 允许列表 http://127.0.0.1:3008）握手返回 101 并读到首个 heartbeat 事件。语义差异说明：Go 判定“同源=Host 相同”，Rust 判定“Origin 属于允许列表（Tauri/本机端口）”，不可信 Origin 仍为升级前 403。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first)' --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/live/handler_test.go:441:TestDispatcherDeduplicatesTickObservedAt": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/src/websocket.rs::lagged_connection_receives_resync_control_before_future_events",
-    "conclusion": "partial：Go 断言同一 observedAt 的 tick 只发一次且源字段保留。Rust 引用测试断言滞后连接先收 resync 再收事件（已带该 Go 行锚点）；observedAt 去重键由 envelope 去重策略表达，缺同一断言。缺口 owner：crates/jftrade-api websocket hub；回归要求：补“同 observedAt 两次 tick → 仅一帧且源字段保留”断言后升级。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_ws_live_projection_tests.rs::repeated_tick_observations_are_deduplicated_per_provider; crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
+    "conclusion": "function_exact（本批新增）：同 (provider, instrument, observedAt) 的两次 tick 只产出一帧，payload.source（bbgo:futu）保留、brokerId 打标；不同 observedAt 产出两帧；信封 source=market-data 由语料 tick 用例断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test ws_live_compatibility --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/live/handler_test.go:480:TestDispatcherProviderSwitchTagsAndDoesNotDeduplicateNewProvider": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/src/websocket.rs::live_hub_filters_instrument_events_and_releases_subscriptions; crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
-    "conclusion": "partial：Go 断言 provider 切换后新 provider 的 tick 打标且不被去重。Rust 断言 hub 按订阅工具过滤并释放订阅，provider 打标由 ws-live 语料 subscription-event-order-and-normalization 断言。缺口 owner：crates/jftrade-api websocket hub；回归要求：补“切换 provider 后新 tick 带新 provider 标记且不与旧 provider 去重”的断言后升级。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus; crates/jftrade-engine/src/product_ws_live_projection_tests.rs::repeated_tick_observations_are_deduplicated_per_provider",
+    "conclusion": "function_exact（本批新增）：provider 切换后同一 observedAt 不再被跨 provider 去重，并按新 provider 打标（alpha→futu 两次产出、brokerId 各自正确）；语料逐帧断言 provider 字段投影。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test ws_live_compatibility --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/marketdata/routes_boundaries_test.go:35:TestInstrumentHandlersRejectMissingURIParameters": {
     "status": "[x]",
@@ -1156,30 +1156,30 @@
   },
   "internal/api/marketdata/routes_news_actions_test.go:55:TestNewsAndCorporateActionsRoutesRequireInstrumentURI": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_tests.rs::research_helper_request_rejects_unsupported_or_malformed_paths",
-    "conclusion": "partial：Go 断言 news/corporate-actions 缺 instrument URI 时拒绝。Rust 该用例断言研究 helper 请求拒绝不支持或畸形路径（含路径段校验）；Rust 使用模板路由，缺段不匹配即 404。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::news_actions_helper_request_rejects_a_missing_instrument_uri; crates/jftrade-engine/src/product_production_ports_research_tests.rs::research_helper_request_rejects_unsupported_or_malformed_paths",
+    "conclusion": "partial（本批新增端口级断言）：Go 的 news/corporate-actions handler 在缺 instrument URI 时返回 400 BAD_REQUEST。Rust 端口对 news、news/、news/US、corporate-actions/、多余路径段五类输入均返回 400（本批用例）。差异：传输层模板路由对缺段路径不匹配→404（而非 Go 的 400）。owner：crates/jftrade-engine 路由模板/传输层；回归要求：确认 404 是否可接受，或补显式 400 映射。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(news_actions_helper_request_rejects_a_missing_instrument_uri)' --locked",
     "evidence_type": "partial"
   },
   "internal/api/marketdata/routes_news_actions_test.go:76:TestNewsRouteValidatesLimitAndForwardsToService": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_forwards_yfinance_news_request",
-    "conclusion": "partial：Go 断言 news 限制校验与转发参数（market/symbol/limit）。Rust 该用例断言 news 请求按 yfinance 转发；limit 校验由 production_news_actions_port_maps_helper_failure_and_rejects_bad_limit 覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_forwards_yfinance_news_request; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_maps_helper_failure_and_rejects_bad_limit",
+    "conclusion": "function_exact（本批补齐 limit 三段）：Go 断言 limit=abc/0/51→400、limit=5→200 且服务收到 market/symbol/limit=5、载荷 instrumentId/source/entries。Rust 转发用例以真实本地 mock 断言上游请求路径含 ?limit=5 与投影字段（instrumentId、entries.publishedAt）；limit 校验用例本批扩展为 abc/0/51 三者均 400 BAD_REQUEST。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(production_news_actions_port_forwards_yfinance_news_request) + test(production_news_actions_port_maps_helper_failure_and_rejects_bad_limit)' --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/marketdata/routes_news_actions_test.go:115:TestCorporateActionsRouteValidatesRangeAndForwardsToService": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_forwards_corporate_actions_window",
-    "conclusion": "partial：Go 断言 corporate actions 区间校验与转发（from/to）。Rust 该用例断言 corporate actions 窗口转发，区间校验由 corporate_actions_query_requires_rfc3339_and_ascending_range 覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_forwards_corporate_actions_window; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::corporate_actions_query_requires_rfc3339_and_ascending_range",
+    "conclusion": "function_exact：Go 断言 from/to 非法或降序→400、合法窗口→200 且服务参数 from/to 精确、载荷 events[0].kind=dividend。Rust 转发用例断言上游 URL 携带 from/to（RFC3339 编码）并投影 kind；校验用例断言非法时间 400 与 from>to 400。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(production_news_actions_port_forwards_corporate_actions_window) + test(corporate_actions_query_requires_rfc3339_and_ascending_range)' --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/marketdata/routes_news_actions_test.go:160:TestNewsAndCorporateActionsRoutesMapCapabilityAndProviderFailures": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_maps_helper_failure_and_rejects_bad_limit",
-    "conclusion": "partial：Go 断言 capability 与 provider 失败的 4xx/5xx 映射（news 失败、actions 忙碌）。Rust 该用例断言 helper 失败映射与非法 limit 拒绝；capability sentinel 由 embedded_capability_errors... 覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::futu_news_queries_stay_on_the_broker_path; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_maps_helper_failure_and_rejects_bad_limit",
+    "conclusion": "partial（差异登记）：Go 断言能力不支持→409 MARKET_DATA_CAPABILITY_UNSUPPORTED（news/actions 两路）、news provider 失败→502 MARKET_NEWS_FAILED、actions 忙碌→503 MARKET_DATA_PROVIDER_BUSY 且带 Retry-After。Rust 仅前项成立（Futu 路径 409 同码），后两项在本家族按上游状态/码直通（fixture 冻结），无 MARKET_NEWS_FAILED / MARKET_DATA_PROVIDER_BUSY 生产分支。owner：crates/jftrade-engine product_production_ports_market_data_news_actions_route.rs；回归要求：确认 helper 语义是否替代 Go 分类，或补等价错误码与 Retry-After。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(futu_news_queries_stay_on_the_broker_path) + test(production_news_actions_port_maps_helper_failure_and_rejects_bad_limit)' --locked",
     "evidence_type": "partial"
   },
   "internal/api/marketdata/routes_test.go:22:TestSubscriptionRoutesUseInstrumentRequestContract": {
@@ -1198,9 +1198,9 @@
   },
   "internal/api/marketdata/routes_test.go:147:TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback",
-    "conclusion": "partial：Go 断言显式 broker 路由走 broker reader 且绝不回退 legacy（含 409）。Rust 该用例断言显式非活动 broker 被拒且不回退（news 家族）；broker reader 选路由 product_production_ports_trade_tests 的 trade-session 用例覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::news_route_serves_an_explicit_broker_id_for_the_active_provider",
+    "conclusion": "partial：Go 断言显式 brokerId 走 broker reader（securities/snapshots/candles/depth 四路调用参数逐项）且绝不回退 legacy，无 reader 时四路 409。Rust 无 broker reader 列表（读取始终由 active provider owner 处理）：显式非活动 broker 一律 409 MARKET_DATA_CAPABILITY_UNSUPPORTED，显式活动 provider 走 helper（本批补锚点）。缺口：按路由的 reader 调用序列在 Rust 架构中不成立，记为边界差异（不伪装覆盖）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) + test(news_route_serves_an_explicit_broker_id_for_the_active_provider)' --locked",
     "evidence_type": "partial"
   },
   "internal/api/marketdata/routes_test.go:205:TestSubscriptionReleaseConsumerOnlyClearsConsumer": {
@@ -2275,87 +2275,87 @@
     "evidence_type": "function_exact"
   },
   "internal/api/watchlist/route_error_handling_test.go:16:TestWriteErrorMapsAllDomainErrors": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/tests/watchlist_write_compatibility.rs::watchlist_write_fixture_matches_go_owner_for_all_eight_routes",
-    "conclusion": "partial：Go 断言 writeError 覆盖全部领域错误映射。Rust 该用例回放八条 watchlist 写路由的 Go owner fixture（逐路由断言错误与结果）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "conclusion": "function_exact：Go 表驱动断言 9 个领域错误的状态与码；fixture 45 用例逐条重放同一映射——UNAVAILABLE 503、NOT_FOUND 404、INVALID 400、REMOTE_GROUP_AMBIGUOUS/GROUP_PROTECTED/PREVIEW_EXPIRED/PREVIEW_STALE/CONFLICT 409、未预期错误 500 WATCHLIST_FAILED。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test watchlist_write_compatibility --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/watchlist/route_error_handling_test.go:50:TestRouteHelpersCoverBindingAndDeleteErrors": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/tests/watchlist_write_compatibility.rs::watchlist_write_fixture_covers_concurrency_and_every_route",
-    "conclusion": "partial：Go 断言绑定与删除错误分支。Rust 该用例断言八条路由的并发与错误覆盖（含删除/绑定路径）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/tests/watchlist_write_compatibility.rs::watchlist_write_fixture_covers_concurrency_and_every_route; crates/jftrade-engine/src/product_watchlist_write_port.rs::every_watchlist_mutation_fails_closed_without_a_port",
+    "conclusion": "partial：Go 三段——合法 groupId 绑定成功、非法 URI 绑定→400、deleteBinding 服务不可用→503。Rust 前两段由模板路由与 fixture 用例（携带 groupId 的 group 读写）覆盖，第三段由 8 条写路由无端口 503 覆盖；但 Rust 无“URI 绑定失败→400”的等价分支（模板保证非空段，畸形组 ID 走 404）。缺口 owner：crates/jftrade-engine 路由/写端口；回归要求：如需 400 需在路由层显式校验空段。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test watchlist_write_compatibility --locked",
     "evidence_type": "partial"
   },
   "internal/api/watchlist/route_error_handling_test.go:77:TestBindQueryRejectsMalformedAndInvalidValues": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-watchlist/src/lib.rs::malformed_identity_and_unbounded_pages_fail_closed",
-    "conclusion": "partial：Go 断言查询绑定拒绝畸形与非法值。Rust 该用例断言畸形标识与无界分页 fail-closed（watchlist 领域层）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_query.rs::query_map_handles_percent_plus_and_multi_values; crates/jftrade-engine/src/product_production_assembly_tests.rs::production_watchlist_read_uses_real_pages_and_remote_catalog",
+    "conclusion": "function_exact：畸形转义由共享严格解码器拒绝（单测固定 %zz/%/%1 三类；watchlist 读端口本批改为复用该解码器并返回 Invalid→400 BAD_REQUEST），非数字 limit 同样返回 Invalid，与 Go bindQuery 的 400 语义一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(query_map_handles_percent_plus_and_multi_values) + test(production_watchlist_read_uses_real_pages_and_remote_catalog)' --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/watchlist/routes_business_test.go:51:TestWatchlistRoutesMembershipIdempotencyConflictAndPagination": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-watchlist/src/lib.rs::membership_plan_normalizes_identity_and_deduplicates_inputs",
-    "conclusion": "partial：Go 断言成员关系幂等、冲突与分页。Rust 该用例断言成员计划归一身份并对输入去重（幂等语义）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/watchlist_store_contracts.rs::watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog; crates/jftrade-engine/tests/watchlist_write_compatibility.rs::watchlist_write_fixture_matches_go_owner_for_all_eight_routes",
+    "conclusion": "function_exact：成员幂等（fixture membership-success-idempotent：两次 200、revision 均为 1、groups=[tech]）与陈旧 revision→409 WATCHLIST_CONFLICT（membership-conflict、update-concurrent-revision-fence）由 fixture 重放；分页（limit→nextCursor→次页取回剩余项、末页无 cursor）由 sqlite 契约用例覆盖 list_items_page，engine assembly 用例补末页 nextCursor=null 断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test watchlist_write_compatibility --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/watchlist/routes_business_test.go:126:TestWatchlistRoutesMapValidationNotFoundAndProtectedConflicts": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_watchlist_write_product_tests.rs::watchlist_write_product_replays_browser_boundary_failure_recovery_and_restart",
-    "conclusion": "partial：Go 断言校验/缺失/受保护冲突映射。Rust 该用例 HTTP 级回放浏览器边界失败与恢复（含 403/CSRF 与冲突路径）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_tests.rs::watchlist_memberships_route_matches_go_fixture_in_cutover_only; crates/jftrade-engine/tests/watchlist_write_compatibility.rs::watchlist_write_fixture_matches_go_owner_for_all_eight_routes",
+    "conclusion": "function_exact：畸形 instrument→400 WATCHLIST_INVALID（watchlist-memberships fixture 断码，写侧 membership-invalid-market 同码）、缺失组→404 WATCHLIST_NOT_FOUND（delete-group-not-found/update-not-found）、受保护组→409 WATCHLIST_GROUP_PROTECTED（delete-group-protected/update-protected）均由 fixture 逐条重放。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(watchlist_memberships_route_matches_go_fixture_in_cutover_only)' --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test watchlist_write_compatibility --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/watchlist/routes_business_test.go:147:TestWatchlistRoutesCompleteImportAndGroupLifecycle": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/tests/watchlist_write_compatibility.rs::sqlite_test_cutover_preserves_revision_fencing_import_commit_and_restart",
-    "conclusion": "partial：Go 断言导入与分组完整生命周期。Rust 该用例覆盖导入提交、修订 fencing 与重启的 sqlite cutover 行为。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/tests/watchlist_write_compatibility.rs::sqlite_test_cutover_preserves_revision_fencing_import_commit_and_restart; crates/jftrade-engine/src/product_watchlist_write_product_tests.rs::watchlist_write_product_replays_browser_boundary_failure_recovery_and_restart",
+    "conclusion": "partial：Go 单条 HTTP 用例串联 groups 列表/创建/更新、sources、preview→commit、bindings、import-runs、memberships、quotes/batch、删除 binding/组的 200 与载荷字段。Rust 证据分散：sqlite cutover 用例覆盖修订 fencing、导入提交与重启持久化；产品用例覆盖浏览器边界与失败恢复；45 条 fixture 覆盖逐路由载荷。缺口：无单条 Rust 测试按 Go 顺序走完整生命周期并逐段断言。owner：crates/jftrade-engine product watchlist 装配；回归要求：补端到端生命周期用例后升级。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test watchlist_write_compatibility --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(watchlist_write_product_replays_browser_boundary_failure_recovery_and_restart)' --locked",
     "evidence_type": "partial"
   },
   "internal/api/watchlist/routes_business_test.go:281:TestWatchlistRoutesRejectMalformedBodiesAndPageLimits": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-watchlist/src/lib.rs::test_preview_import_rejects_invalid_derived_group_name",
-    "conclusion": "partial：Go 断言畸形请求体与分页上限被拒。Rust 该用例断言导入预览拒绝非法派生组名（预览校验），分页上限由领域 fail-closed 用例覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_watchlist_write_port.rs::malformed_membership_and_commit_bodies_are_rejected; crates/jftrade-engine/tests/watchlist_write_compatibility.rs::watchlist_write_fixture_matches_go_owner_for_all_eight_routes; crates/jftrade-engine/src/product_watchlist_tests.rs::watchlist_read_routes_match_group_fixture_in_cutover_only",
+    "conclusion": "function_exact：Go 8 个请求（6 条畸形体 { + items/import-runs limit=0）全 400。Rust 合并覆盖：fixture 固定 groups 创建/更新、preview、quotes 的畸形体 400 BAD_REQUEST；本批新增用例固定 memberships PUT 与 commit 畸形体 400 BAD_REQUEST；watchlist-read fixture 固定 items/import-runs 的 limit=0→400（同一 Invalid 映射）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(malformed_membership_and_commit_bodies_are_rejected)' --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test watchlist_write_compatibility --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/watchlist/routes_test.go:15:TestUnavailableServiceReturns503Envelope": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_watchlist_tests.rs::watchlist_read_routes_fail_closed_when_snapshot_port_is_unavailable",
-    "conclusion": "partial：Go 断言服务不可用→503 信封。Rust 该用例断言 watchlist 读路由在缺快照端口时 fail-closed（错误码语义）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_watchlist_tests.rs::watchlist_read_routes_fail_closed_when_snapshot_port_is_unavailable; crates/jftrade-engine/src/product_watchlist_write_port.rs::every_watchlist_mutation_fails_closed_without_a_port",
+    "conclusion": "function_exact：GET /api/v1/watchlist/groups 在快照端口不可用时返回 503 信封（本批补上逐路径状态码断言 + ok=false + WATCHLIST_UNAVAILABLE）；同族写路由无端口时同样 503 且同错误码，由 every_watchlist_mutation_fails_closed_without_a_port 覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(watchlist_read_routes_fail_closed_when_snapshot_port_is_unavailable) + test(every_watchlist_mutation_fails_closed_without_a_port)' --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/watchlist/routes_test.go:34:TestUnavailableServiceExercisesAllRouteErrorBranches": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_watchlist_tests.rs::watchlist_read_routes_are_not_registered_without_snapshot_port",
-    "conclusion": "partial：Go 断言服务不可用时遍历全部路由错误分支。Rust 该用例断言 watchlist 读路由在无快照端口时不注册（路由级 fail-closed）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_watchlist_write_port.rs::every_watchlist_mutation_fails_closed_without_a_port; crates/jftrade-engine/src/product_watchlist_tests.rs::watchlist_read_routes_fail_closed_when_snapshot_port_is_unavailable; crates/jftrade-engine/src/product_tests.rs::watchlist_memberships_route_fails_closed_when_snapshot_port_is_unavailable",
+    "conclusion": "function_exact：Go 遍历 14 条路由断言 503；Rust 三段合并覆盖同一集合——8 条写路由（groups POST/PATCH/DELETE、memberships PUT、bindings DELETE、quotes/batch、imports/preview、commit）与 6 条读路由（items、memberships、sources、sources/{id}/groups、bindings、import-runs）全部 503。边界差异：完全未配置快照端口时读路由不注册（404，由 watchlist_read_routes_are_not_registered_without_snapshot_port 固定），Go 的 nil service 对应 Rust 的端口不可用。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(every_watchlist_mutation_fails_closed_without_a_port) + test(watchlist_read_routes_fail_closed_when_snapshot_port_is_unavailable) + test(watchlist_memberships_route_fails_closed_when_snapshot_port_is_unavailable)' --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/watchlist/routes_test.go:72:TestInvalidListLimitReturns400": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-watchlist/src/lib.rs::malformed_identity_and_unbounded_pages_fail_closed",
-    "conclusion": "partial：Go 断言非法列表 limit→400。Rust 该用例断言无界分页 fail-closed（领域层），传输层 400 由查询解析承担。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_watchlist_tests.rs::watchlist_read_routes_match_group_fixture_in_cutover_only; crates/jftrade-engine/src/product_production_assembly_tests.rs::production_watchlist_read_uses_real_pages_and_remote_catalog",
+    "conclusion": "function_exact：Rust 分两段等价覆盖 Go 的 limit=nope→400——传输层由 watchlist-read fixture 的 items-invalid-limit / import-runs-invalid-limit 断言 400 BAD_REQUEST（Invalid 映射），生产端口由 assembly 用例断言 limit=nope 与 limit=0 均返回 WatchlistReadSnapshotError::Invalid。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(watchlist_read_routes_match_group_fixture_in_cutover_only) + test(production_watchlist_read_uses_real_pages_and_remote_catalog)' --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/watchlist/routes_test.go:84:TestWatchlistListAndBindingRoutesRejectMalformedQueryEncoding": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_query.rs::query_map_handles_percent_plus_and_multi_values",
-    "conclusion": "partial：Go 断言列表/绑定路由拒绝畸形查询编码。Rust 该用例断言查询映射处理百分号/加号/多值（含畸形处理），400 前置拒绝由传输层承担。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_watchlist_read_uses_real_pages_and_remote_catalog; crates/jftrade-engine/tests/watchlist_write_compatibility.rs::watchlist_write_fixture_matches_go_owner_for_all_eight_routes; crates/jftrade-engine/src/product_query.rs::query_map_handles_percent_plus_and_multi_values",
+    "conclusion": "function_exact（本批修复）：读端口改为复用共享严格解码器（product_query::decode_query_component），items/bindings/import-runs 的 ?%zz 现返回 Invalid→400 BAD_REQUEST（assembly 用例逐路径断言，映射由 watchlist-read fixture 的非法 limit 用例固定）；DELETE bindings?%zz 由 fixture 的 delete-binding-malformed-query（400 BAD_REQUEST、portCall=false）固定；共享解析器单测固定 %zz/%/%1 三类非法转义。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(production_watchlist_read_uses_real_pages_and_remote_catalog)' --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test watchlist_write_compatibility --locked",
+    "evidence_type": "function_exact"
   },
   "internal/api/watchlist/routes_test.go:107:TestWatchlistRoutesRejectMissingURIValuesBeforeExecutingBusinessOperations": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-watchlist/src/lib.rs::malformed_identity_and_unbounded_pages_fail_closed",
-    "conclusion": "partial：Go 断言缺 URI 值在业务操作前被拒。Rust 该用例断言畸形标识 fail-closed（业务前拒绝），模板路由下缺段不匹配即 404。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist --all-targets --locked",
+    "rust_entry": "crates/jftrade-watchlist/src/lib.rs::malformed_identity_and_unbounded_pages_fail_closed; crates/jftrade-engine/src/product_watchlist_write_port.rs::every_watchlist_mutation_fails_closed_without_a_port",
+    "conclusion": "partial：Go 用中间件清空 params，断言 6 个 handler 在业务前返回 400；Rust 由模板路由保证参数非空，缺段请求不匹配模板→404，端口层畸形标识 fail-closed。差异 owner：crates/jftrade-engine 传输层路由模板；回归要求：若需保留 400 语义，要在路由层显式映射空段（当前记为边界差异）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist --all-targets --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(every_watchlist_mutation_fails_closed_without_a_port)' --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/application/assistant_test.go:45:TestAssistantPortsProjectSettingsAndHealth": {
@@ -22079,7 +22079,7 @@
   },
   "internal/live/client_test.go:8:TestNormalizeSubscriptions": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_ws_live.rs::tests::subscription_normalization_matches_the_go_table",
+    "rust_entry": "crates/jftrade-engine/src/product_ws_live_projection_tests.rs::subscription_normalization_matches_the_go_table",
     "conclusion": "function_exact（本批新增）：Go 表断言 providerBrokerId 去空白小写、activeInstruments 去空去重排序、securityDetails 按 instrument 去重排序（market/symbol 大写、空 market 丢弃）、depth 的 num 夹取到 [1,50] 并按 instrument+num 去重排序、consoleRefresh 透传。Rust 新测试对 normalized_subscriptions 用同一输入表断言同一结果（Alpha→alpha、active=[HK.00700,US.AAPL]、security=[HK.00700,US.MSFT]、depth=[HK.00700|10,US.TME|1,US.TME|50]、consoleRefresh=true），并断言 None 输入得到全空默认投影。探针：把 num 夹取上界改成 100 → 测试转红（多出 US.TME|100）→ 按字节回滚（shasum 21e49c72…）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(subscription_normalization_matches_the_go_table)'",
     "evidence_type": "function_exact"

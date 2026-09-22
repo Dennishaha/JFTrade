@@ -905,6 +905,32 @@ mod product_production_assembly_tests {
             .expect_err("zero limit must be rejected");
         assert!(matches!(invalid, WatchlistReadSnapshotError::Invalid(_)));
 
+        // Parity: go:452dea11:internal/api/watchlist/routes_test.go:72 TestInvalidListLimitReturns400
+        let non_numeric = ports
+            .watchlist
+            .read("/api/v1/watchlist/items", "limit=nope")
+            .expect_err("non-numeric limit must be rejected");
+        assert!(matches!(
+            non_numeric,
+            WatchlistReadSnapshotError::Invalid(_)
+        ));
+
+        // Parity: go:452dea11:internal/api/watchlist/routes_test.go:84 TestWatchlistListAndBindingRoutesRejectMalformedQueryEncoding
+        for path in [
+            "/api/v1/watchlist/items",
+            "/api/v1/watchlist/bindings",
+            "/api/v1/watchlist/import-runs",
+        ] {
+            let malformed = ports
+                .watchlist
+                .read(path, "%zz")
+                .expect_err("malformed query encoding must be rejected");
+            assert!(
+                matches!(malformed, WatchlistReadSnapshotError::Invalid(_)),
+                "path {path}"
+            );
+        }
+
         let remote_groups = ports
             .watchlist
             .read("/api/v1/watchlist/sources/futu:default/groups", "")

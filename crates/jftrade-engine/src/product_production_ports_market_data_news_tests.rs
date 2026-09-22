@@ -25,6 +25,7 @@ fn port(base_url: String) -> ProductionMarketDataNewsPort {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+// Parity: go:452dea11:internal/api/marketdata/routes_news_actions_test.go:76 TestNewsRouteValidatesLimitAndForwardsToService
 async fn production_news_actions_port_forwards_yfinance_news_request() {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
     let address = listener.local_addr().expect("address");
@@ -54,6 +55,7 @@ async fn production_news_actions_port_forwards_yfinance_news_request() {
 }
 
 // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_news_forwarding_test.go:52 TestRuntimeForwardsNewsAndCorporateActionsToCapableActiveProvider
+// Parity: go:452dea11:internal/api/marketdata/routes_news_actions_test.go:115 TestCorporateActionsRouteValidatesRangeAndForwardsToService
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn production_news_actions_port_forwards_corporate_actions_window() {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
@@ -85,6 +87,7 @@ async fn production_news_actions_port_forwards_corporate_actions_window() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+// Parity: go:452dea11:internal/api/marketdata/routes_news_actions_test.go:76 TestNewsRouteValidatesLimitAndForwardsToService
 async fn production_news_actions_port_maps_helper_failure_and_rejects_bad_limit() {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
     let address = listener.local_addr().expect("address");
@@ -100,20 +103,25 @@ async fn production_news_actions_port_maps_helper_failure_and_rejects_bad_limit(
         );
         stream.write_all(response.as_bytes()).await.expect("write");
     });
-    let result = MarketDataNewsActionsReadSnapshotPort::read(
-        &port(format!("http://{address}")),
-        "/api/v1/market-data/news/US/AAPL",
-        "limit=0",
-    )
-    .expect_err("invalid limit");
-    assert!(matches!(
-        result,
-        MarketDataNewsActionsReadSnapshotError::Failed {
-            status: 400,
-            ref code,
-            ..
-        } if code == "BAD_REQUEST"
-    ));
+    for invalid_limit in ["0", "abc", "51"] {
+        let result = MarketDataNewsActionsReadSnapshotPort::read(
+            &port(format!("http://{address}")),
+            "/api/v1/market-data/news/US/AAPL",
+            &format!("limit={invalid_limit}"),
+        )
+        .expect_err("invalid limit");
+        assert!(
+            matches!(
+                result,
+                MarketDataNewsActionsReadSnapshotError::Failed {
+                    status: 400,
+                    ref code,
+                    ..
+                } if code == "BAD_REQUEST"
+            ),
+            "limit {invalid_limit}"
+        );
+    }
     let result = MarketDataNewsActionsReadSnapshotPort::read(
         &port(format!("http://{address}")),
         "/api/v1/market-data/news/US/AAPL",
@@ -311,6 +319,7 @@ fn corporate_actions_projection_rejects_missing_events() {
 /// the fail-closed equivalent of "no fallback".
 ///
 /// Two Go transports render that sentinel: the path-style market-data routes
+// Parity: go:452dea11:internal/api/marketdata/routes_test.go:147 TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback
 /// (`/api/v1/market-data/news/{market}/{symbol}`) use
 /// `MARKET_DATA_CAPABILITY_UNSUPPORTED`, while the product-feature routes use
 /// `BROKER_CAPABILITY_UNAVAILABLE`. This port serves the path-style family, so
@@ -368,6 +377,7 @@ fn explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback(
 }
 
 #[test]
+// Parity: go:452dea11:internal/api/marketdata/routes_news_actions_test.go:115 TestCorporateActionsRouteValidatesRangeAndForwardsToService
 fn corporate_actions_query_requires_rfc3339_and_ascending_range() {
     let error = news_actions_helper_request(
         "/api/v1/market-data/corporate-actions/US/AAPL",
@@ -396,4 +406,40 @@ fn corporate_actions_query_requires_rfc3339_and_ascending_range() {
             ..
         } if message == "from must not be after to"
     ));
+}
+
+// Parity: go:452dea11:internal/api/marketdata/routes_news_actions_test.go:55 TestNewsAndCorporateActionsRoutesRequireInstrumentURI
+// The reference handlers bind the {market}/{symbol} URI exactly and answer 400
+// BAD_REQUEST when the route hand-off carries no instrument; the Rust owner
+// validates the same path shape before any helper call. A request that cannot
+// match the template route at all is a transport-level 404 instead.
+#[test]
+fn news_actions_helper_request_rejects_a_missing_instrument_uri() {
+    for (path, expected_message) in [
+        ("/api/v1/market-data/news", "unsupported news/actions path"),
+        ("/api/v1/market-data/news/", "invalid instrument"),
+        ("/api/v1/market-data/news/US", "invalid instrument"),
+        (
+            "/api/v1/market-data/corporate-actions/",
+            "invalid instrument",
+        ),
+        (
+            "/api/v1/market-data/corporate-actions/US/AAPL/extra",
+            "invalid instrument",
+        ),
+    ] {
+        let error = news_actions_helper_request(path, "").expect_err("missing instrument URI");
+        assert!(
+            matches!(
+                error,
+                MarketDataNewsActionsReadSnapshotError::Failed {
+                    status: 400,
+                    ref code,
+                    ref message,
+                    ..
+                } if code == "BAD_REQUEST" && message == expected_message
+            ),
+            "path {path} -> expected {expected_message}"
+        );
+    }
 }

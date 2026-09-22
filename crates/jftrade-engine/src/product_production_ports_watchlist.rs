@@ -119,9 +119,10 @@ fn invalid_query(message: impl Into<String>) -> WatchlistReadSnapshotError {
 }
 
 fn decode_query_component(value: &str) -> Result<String, WatchlistReadSnapshotError> {
-    percent_decode_str(&value.replace('+', " "))
-        .decode_utf8()
-        .map(|value| value.into_owned())
+    // Go's query binding rejects malformed percent escapes before the handler
+    // runs (`?%zz` is a 400), so read routes must share the strict decoder
+    // instead of silently keeping the raw escape.
+    crate::product::product_query::decode_query_component(value)
         .map_err(|_| invalid_query("invalid watchlist query encoding"))
 }
 

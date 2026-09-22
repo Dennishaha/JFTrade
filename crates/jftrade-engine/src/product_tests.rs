@@ -1853,6 +1853,7 @@ async fn watchlist_memberships_route_matches_go_fixture_in_cutover_only() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/api/watchlist/routes_test.go:34 TestUnavailableServiceExercisesAllRouteErrorBranches
 async fn watchlist_memberships_route_fails_closed_when_snapshot_port_is_unavailable() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
@@ -1863,13 +1864,15 @@ async fn watchlist_memberships_route_fails_closed_when_snapshot_port_is_unavaila
                 FailingWatchlistMembershipSnapshotPort,
             ));
     let handle = start_product(config).await.expect("start product");
-    let response = request_json(
+    let (status, response) = request_json_with_status(
         handle.startup_record().address,
         "GET",
         "/api/v1/watchlist/instruments/US/AAPL/memberships",
         None,
+        &[],
     )
     .await;
+    assert_eq!(status, 503);
     assert_eq!(response["ok"], false);
     assert_eq!(response["error"]["code"], "WATCHLIST_UNAVAILABLE");
     handle.shutdown().await.expect("shutdown product");

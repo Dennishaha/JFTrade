@@ -472,6 +472,64 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/api/watchlist/routes_test.go:34 TestUnavailableServiceExercisesAllRouteErrorBranches
+    fn every_watchlist_mutation_fails_closed_without_a_port() {
+        for (method, path, body) in [
+            (
+                "DELETE",
+                "/api/v1/watchlist/bindings?bindingId=binding-1",
+                None,
+            ),
+            ("DELETE", "/api/v1/watchlist/groups/group-1", None),
+            (
+                "PATCH",
+                "/api/v1/watchlist/groups/group-1",
+                Some(br#"{"name":"group","expectedRevision":1}"#.to_vec()),
+            ),
+            (
+                "POST",
+                "/api/v1/watchlist/groups",
+                Some(br#"{"name":"group"}"#.to_vec()),
+            ),
+            (
+                "POST",
+                "/api/v1/watchlist/imports/preview",
+                Some(br#"{"sourceId":"source-1","remoteGroupId":"remote-1"}"#.to_vec()),
+            ),
+            (
+                "POST",
+                "/api/v1/watchlist/imports/preview-1/commit",
+                Some(b"{}".to_vec()),
+            ),
+            (
+                "POST",
+                "/api/v1/watchlist/quotes/batch",
+                Some(br#"{"instrumentIds":["US.AAPL"]}"#.to_vec()),
+            ),
+            (
+                "PUT",
+                "/api/v1/watchlist/instruments/US/AAPL/memberships",
+                Some(br#"{"groupIds":[]}"#.to_vec()),
+            ),
+        ] {
+            let response = dispatch_watchlist_write(
+                &WatchlistWriteRequest {
+                    method: method.to_owned(),
+                    path: path.to_owned(),
+                    body,
+                },
+                None,
+                "2026-08-23T00:00:00Z",
+            );
+            assert_eq!(response.status, 503, "{method} {path}");
+            assert_eq!(
+                response.body["error"]["code"], "WATCHLIST_UNAVAILABLE",
+                "{method} {path}"
+            );
+        }
+    }
+
+    #[test]
     fn valid_route_fails_closed_without_a_test_port() {
         let response = dispatch_watchlist_write(
             &WatchlistWriteRequest {
@@ -484,6 +542,33 @@ mod tests {
         );
         assert_eq!(response.status, 503);
         assert_eq!(response.body["error"]["code"], "WATCHLIST_UNAVAILABLE");
+    }
+
+    // Parity: go:452dea11:internal/api/watchlist/routes_business_test.go:281 TestWatchlistRoutesRejectMalformedBodiesAndPageLimits
+    // The reference suite drives six state-changing routes with `{`; the
+    // fixture corpus already fixes the group/update/preview/quotes half, so
+    // this test pins the memberships and commit half of the same rule.
+    #[test]
+    fn malformed_membership_and_commit_bodies_are_rejected() {
+        for (method, path) in [
+            ("PUT", "/api/v1/watchlist/instruments/US/AAPL/memberships"),
+            ("POST", "/api/v1/watchlist/imports/preview-1/commit"),
+        ] {
+            let response = dispatch_watchlist_write(
+                &WatchlistWriteRequest {
+                    method: method.to_owned(),
+                    path: path.to_owned(),
+                    body: Some(b"{".to_vec()),
+                },
+                Some(&RecordingPort),
+                "2026-08-23T00:00:00Z",
+            );
+            assert_eq!(response.status, 400, "{method} {path}");
+            assert_eq!(
+                response.body["error"]["code"], "BAD_REQUEST",
+                "{method} {path}"
+            );
+        }
     }
 
     #[test]

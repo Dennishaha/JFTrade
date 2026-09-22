@@ -255,6 +255,7 @@ mod tests {
     use super::*;
 
     #[test]
+    // Parity: go:452dea11:internal/api/watchlist/route_error_handling_test.go:77 TestBindQueryRejectsMalformedAndInvalidValues
     fn query_map_handles_percent_plus_and_multi_values() {
         let q =
             QueryMap::parse("q=apple+pie&sessions=regular&sessions=extended%2Covernight&blank=")

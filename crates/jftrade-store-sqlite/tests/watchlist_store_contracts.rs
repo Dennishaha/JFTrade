@@ -196,6 +196,7 @@ fn watchlist_membership_mutations_and_preview_commit_lifecycle() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/api/watchlist/routes_business_test.go:51 TestWatchlistRoutesMembershipIdempotencyConflictAndPagination
 fn watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog() {
     let directory = tempfile::tempdir().expect("temporary directory");
     let path = directory.path().join("watchlist.db");

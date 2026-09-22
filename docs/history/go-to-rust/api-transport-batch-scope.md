@@ -318,6 +318,78 @@ owner：`crates/jftrade-engine` 交易执行写/读端口与执行错误映射�
 | 门禁 | `pnpm run check:compatibility`（SQLite 2 tables/3 K-lines、backtest 5 cases/8 fills、278 operations 等 8 组 replay）、`check:ai-context`、`check:zero-go`（2942 files）、`git diff --check` | 全部通过 |
 | 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1847/1847 通过 |
 
-后续（分片五 f）：`internal/api/watchlist/*`（12）、`internal/api/live/*`（15）、`internal/api/marketdata/*`（12）、
-`internal/api/research/*`（2）、`internal/api/origin/*`（2）、`internal/api/httpserver` 余量（8）、`internal/api/middleware` 余量（5）；
-分片五 g 收尾 `internal/api/assistant/*` 余量（8）与 live SSE 复核。
+### 分片五 f：`internal/api/watchlist` + `internal/api/live` + `internal/api/marketdata`（39 行）
+
+范围与 owner：`internal/api/watchlist/*`（12 行：routes_test 5、route_error_handling_test 3、routes_business_test 4）
+→ `crates/jftrade-engine` 观察列表读/写端口与 `crates/jftrade-watchlist`、`crates/jftrade-store-sqlite`；
+`internal/api/live/*`（15 行：handler_test 8、dispatcher_boundaries_test 7）→ `crates/jftrade-api` websocket/sse/router
+与 `crates/jftrade-engine` ws-live 投影、OpenD listener；`internal/api/marketdata/*`（12 行：routes_boundaries_test 5、
+routes_news_actions_test 4、routes_test 3）→ `crates/jftrade-engine` 行情读端口与新闻/公司行动 helper 路由。
+
+行为修复（本批唯一生产改动）：观察列表读端口把查询解码切到共享严格解码器
+（`product_query::decode_query_component`）。此前 `?%zz` 这类畸形转义被静默保留（未知键被忽略 → 200），
+Go 的查询绑定在同一输入下返回 400 `BAD_REQUEST`；现在 items/bindings/import-runs 三路读路由返回
+`WatchlistReadSnapshotError::Invalid`，由既有 wire 映射输出 400。
+
+新增 Rust 证据（6 条新增用例 + 3 处扩展/补断言）：
+
+- `product_watchlist_write_port`：`every_watchlist_mutation_fails_closed_without_a_port`（8 条写路由无端口 → 503
+  `WATCHLIST_UNAVAILABLE`）；`malformed_membership_and_commit_bodies_are_rejected`（memberships PUT 与 commit 畸形体 → 400
+  `BAD_REQUEST`）。
+- `product_watchlist_tests`：读路由 fail-closed 用例补逐路径 503 状态断言；`product_tests` 的成员关系 fail-closed
+  用例补 503 状态断言与 `routes_test.go:34` 锚点。
+- `product_production_assembly_tests`：生产观察列表读端口补 `limit=nope` 与 `%zz`（items/bindings/import-runs）三类
+  Invalid 断言。
+- `product_ws_live_tests`：`ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first`（受信页面 Origin
+  握手 101 + 首个 heartbeat 帧，配套 `read_server_text_frame` 帧读取辅助）。
+- `product_ws_live` 投影单测：`auxiliary_provider_failure_skips_only_the_failing_subscription_family`
+  （console 刷新保留、security/depth 各自失败只跳过该家族）、
+  `repeated_tick_observations_are_deduplicated_per_provider`（同 (provider, instrument, observedAt) 只发一帧、
+  payload source 保留、切换 provider 后重新打标且不跨 provider 去重）。
+- `product_production_ports_market_data_news_tests`：`news_actions_helper_request_rejects_a_missing_instrument_uri`
+  （缺 instrument URI 五类路径 → 400）；news limit 校验扩展为 `abc/0/51` 三段；corporate-actions 与 news 转发用例补
+  `routes_news_actions_test.go:76/:115` 锚点。
+
+映射结果：31 行更新（15 行升 `[x]`、16 行收紧 `[~]`），8 行（marketdata 复合读路由与 boundary 行）复核后维持原结论。
+计数：`[x]` 1487 → 1502；audit Rust 测试 3178；anchors 1511（unrecorded 0、stale 0、unknown 53）。
+
+关键事实与新登记缺口（P1/P2）：
+
+1. **WS 运行时 heartbeat 缺 liveClients（P2，本批新发现）**：冻结语料与 Go 后端 heartbeat 载荷含
+   `liveClients{connected,limit,atLimit}`；运行时 `live_heartbeat_payload` 只发 `liveStream/transport/stale`，
+   两侧 wire 形状不一致。owner = `crates/jftrade-api/src/router.rs`。
+2. **无效订阅的关闭形状（P2）**：Go 直接断开（客户端见 1006，无 close 帧），语料
+   `invalid-subscription-closes-without-code-frame` 同此；运行时发送 `Close(1008, subscription policy violation)`。
+   owner = `crates/jftrade-api/src/router.rs::websocket_session`，须统一运行时与语料。
+3. **news/actions 错误分类（P2）**：Go 的 provider 失败 → 502 `MARKET_NEWS_FAILED`、忙碌 → 503
+   `MARKET_DATA_PROVIDER_BUSY` + Retry-After；Rust 该家族按 helper 上游状态/码直通（fixture 冻结），
+   只有 409 `MARKET_DATA_CAPABILITY_UNSUPPORTED` 同码。owner = `product_production_ports_market_data_news_actions_route.rs`。
+4. **缺 instrument URI 404 vs 400（P2）**：Go 的 news/corporate-actions handler 对空参数返回 400，
+   Rust 模板路由不匹配 → 404（端口层已断言 400，传输层差异保留）。
+5. **深度刷新合并（P1）**：Go dispatcher 以 resolvedAt 去重并只向订阅者推送新 payload；
+   Rust hub 广播不合并、运行时无 resolvedAt 去重状态，仅在冻结语料断言帧序列。
+   owner = `crates/jftrade-api/src/websocket.rs` + `crates/jftrade-engine` RouterDemandListener。
+6. **辅助订阅写失败冒泡（P2）**：Go `writeAuxiliarySubscriptions/writeLiveData/writeNotifications` 的写失败回传错误；
+   Rust 由传输 send 失败断连，session/sse 层均无逐条断言。owner = `crates/jftrade-api/src/{router,sse}.rs`。
+7. **显式 broker reader 分流（边界）**：Go 的 securities/snapshots/candles/depth 显式 brokerId 走 broker reader
+   调用序列；Rust 无 reader 列表（单一 active provider owner），显式非活动 broker 一律 409，记边界差异不伪装覆盖。
+8. **watchlist 缺 URI/绑定失败 400（P2）**：Go 用中间件清空 params 断言 400；Rust 模板不匹配 → 404，
+   组 ID 畸形走 404，无等价 400 分支。owner = `crates/jftrade-engine` 路由模板层。
+9. **watchlist 完整生命周期单测（P2）**：Go 单条 HTTP 用例串联 groups/sources/import/bindings/import-runs/memberships/
+   quotes/删除；Rust 证据分散在 fixture（45 用例）、sqlite cutover 与浏览器边界用例，尚无同序端到端用例。
+
+验证记录：
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| watchlist 读/写 fail-closed | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(watchlist_read_routes_fail_closed_when_snapshot_port_is_unavailable) + test(watchlist_memberships_route_fails_closed_when_snapshot_port_is_unavailable) + test(every_watchlist_mutation_fails_closed_without_a_port)'` | 3/3 通过 |
+| watchlist 严格解码 | `... --lib -E 'test(production_watchlist_read_uses_real_pages_and_remote_catalog)'` | 1/1 通过 |
+| watchlist 写语料 | `... --test watchlist_write_compatibility` | 4/4 通过 |
+| ws-live 握手与投影 | `... --lib -E 'test(ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first)'`；`... --test ws_live_compatibility` | 1/1 与 5/5 通过 |
+| marketdata news/actions | `... --lib -E 'test(production_news_actions) + test(corporate_actions_query_requires_rfc3339_and_ascending_range) + test(news_actions_helper_request_rejects_a_missing_instrument_uri)'` | 6/6 通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/s5f_payload.json` | 32 行更新，`[x]` 1487 → 1502 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；rust 测试 3178 |
+| 锚点 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1511、unrecorded 0、stale 0、unknown 53 |
+
+后续（分片五 g）：`internal/api/research/*`（2）、`internal/api/origin/*`（2）、`internal/api/httpserver` 余量（8）、
+`internal/api/middleware` 余量（5）、`internal/api/assistant/*` 余量（8），并复核 live SSE 与 assistant 审批流。

@@ -137,6 +137,35 @@ async fn ws_live_transport_rejects_untrusted_origin_before_upgrade() {
     handle.shutdown().await.expect("shutdown product");
 }
 
+// Parity: go:452dea11:internal/api/live/handler_test.go:421 TestHandlerAcceptsSameOriginWebSocket
+// Parity: go:452dea11:internal/api/live/handler_test.go:113 TestHandlerHeartbeatSubscribeNormalizationAndPayloads
+// The reference owner dials the page origin that served the console and reads
+// the first event; the Rust transport keeps that guarantee through the
+// desktop origin allow-list and answers with the initial heartbeat frame.
+#[tokio::test]
+async fn ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_ws_live_snapshot_port(Arc::new(EnabledWsLiveSnapshotPort));
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+    let response = websocket_handshake(address, &[("Origin", "http://127.0.0.1:3008")]).await;
+    assert_eq!(response.status, 101, "trusted origin must upgrade");
+    let mut stream = response.upgraded_stream.expect("upgraded websocket stream");
+    let heartbeat: serde_json::Value =
+        serde_json::from_str(&read_server_text_frame(&mut stream).await).expect("heartbeat json");
+    assert_eq!(heartbeat["type"], "heartbeat");
+    assert_eq!(heartbeat["source"], "system");
+    assert_eq!(heartbeat["entityId"], "live-websocket");
+    assert_eq!(heartbeat["payload"]["type"], "heartbeat");
+    drop(stream);
+    wait_for_live_projection(address, 0, &[]).await;
+    handle.shutdown().await.expect("shutdown product");
+}
+
 #[tokio::test]
 async fn ws_live_route_unavailable_is_plain_text_and_does_not_register_without_port() {
     let directory = tempdir().expect("temporary directory");
@@ -265,6 +294,41 @@ fn masked_text_frame(payload: &[u8]) -> Vec<u8> {
             .map(|(index, byte)| byte ^ mask[index % mask.len()]),
     );
     frame
+}
+
+async fn read_server_text_frame(stream: &mut TcpStream) -> String {
+    let mut header = [0_u8; 2];
+    stream
+        .read_exact(&mut header)
+        .await
+        .expect("read websocket frame header");
+    assert_eq!(header[0] & 0x0f, 0x1, "expected a text frame");
+    assert_eq!(header[1] & 0x80, 0, "server frames must not be masked");
+    let length = match header[1] & 0x7f {
+        126 => {
+            let mut extended = [0_u8; 2];
+            stream
+                .read_exact(&mut extended)
+                .await
+                .expect("read websocket frame length");
+            usize::from(u16::from_be_bytes(extended))
+        }
+        127 => {
+            let mut extended = [0_u8; 8];
+            stream
+                .read_exact(&mut extended)
+                .await
+                .expect("read websocket frame length");
+            usize::try_from(u64::from_be_bytes(extended)).expect("frame length fits usize")
+        }
+        short => usize::from(short),
+    };
+    let mut payload = vec![0_u8; length];
+    stream
+        .read_exact(&mut payload)
+        .await
+        .expect("read websocket frame payload");
+    String::from_utf8(payload).expect("websocket frame utf8")
 }
 
 async fn wait_for_live_projection(
