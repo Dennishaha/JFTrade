@@ -30794,31 +30794,31 @@
   },
   "internal/trading/order_updates_test.go:414:TestOrderUpdatesWorkerSnapshotCapsInvalidations": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
-    "conclusion": "partial：Rust 覆盖失效事件/游标推进（通知投影器游标与幂等）；差异：Go 断言快照中无效化记录数量被限制（20 条上限），Rust 未断言该上界。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "rust_entry": "不适用：Rust 无 invalidation 记录面；/api/v1/system/worker/broker-order-updates 的 recentInvalidations 恒为空数组",
+    "conclusion": "保留边界：Go 的 worker 记录最近 invalidation 并截断到 20 条（order_updates_state.go maxOrderUpdateInvalidations=20、order_updates_snapshot.go 投影），测试用 25 次失败 sync 断言 len==20。Rust 该 wire 路由存在且保持 Go 字段形状（product_production_ports_system.rs:123 返回 {\"subscriptions\": [], \"recentInvalidations\": [], \"brokers\": [], \"runtime\": worker.status()}），但三个诊断数组恒为空；worker 诊断只有标量（state/scans/reconciled/failures/lastScanAt/lastError/nextRetryAt），没有历史列表，因此不存在“上限”断言对象，也没有溢出风险。复现：GET /api/v1/system/worker/broker-order-updates → recentInvalidations 始终 []，Go 返回最近 20 条。修复位置与回归要求：若恢复诊断，需要在 ExecutionReconciliationWorkerStatus 增加有界 invalidation 环形缓冲（上限常量 20）并在路由投影序列化；回归需断言 25 次失败扫描后长度 20、元素含 kind/at，且不改变 runtime 标量形状。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(system_read)' --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/trading/order_updates_test.go:427:TestOrderUpdatesWorkerInactiveSourcePreservesDiagnosticState": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
-    "conclusion": "partial：Rust 覆盖不可用源时保留诊断状态（fail-closed 且保留错误）；差异：Go 断言无活跃源时订阅数为 0 且 broker 诊断状态保留，Rust 侧该组合断言缺失。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "rust_entry": "不适用：Rust 无 per-source 订阅诊断；brokers/connectivity 投影缺失，worker 未配置时整条路由 503",
+    "conclusion": "保留边界：Go 在源 inactive（ErrOrderUpdateSourceInactive）时仍返回 200 快照：subscriptions 为空、brokers[0].connectivity=\"inactive\"。Rust 路由保持同名数组但恒为空（同上），没有 source/broker 条目与 connectivity 投影；当 worker 未配置时整条路由以 503 SYSTEM_READ_UNAVAILABLE fail-closed（product_production_assembly_tests.rs 的 unowned broker-order worker 断言与 product_system_read_tests.rs::system_read_routes_fail_closed_when_snapshot_port_is_unavailable）。复现：GET 该路由 → brokers 始终 []，Go 返回 [{connectivity: \"inactive\"}]。修复位置与回归要求：若恢复，应把 trade runtime 的登录/连接状态投影为 brokers[]（connectivity connected/inactive）并保留“未配置 worker 时 503”的 fail-closed 语义；回归需断言 inactive 源 → 200 + connectivity=inactive + subscriptions 为空。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(system_read)' --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/trading/order_updates_test.go:442:TestOrderUpdatesWorkerSyncCoversSubscriptionAndHistoryFallbackPaths": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
-    "conclusion": "partial：Rust 覆盖订阅与历史回退路径（订单更新缓存失败分支、历史回放）；差异：Go 断言 sync 覆盖订阅失败回退到历史路径的事件序列与计数，Rust 无同形序列断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "rust_entry": "不适用：Rust sync 不含订阅步骤且单边读取 fail-closed；无 invalidation 记录",
+    "conclusion": "保留边界：Go 断言订阅失败（dial timeout）不阻断同步（current/history/subscribe 各 1 次）并记录带 kind 的 invalidation。Rust 的 sync 路径不含订阅（见 :343/:397），因此“订阅失败不阻断”无对象；读取失败策略相反——active/history 单边失败即 fail-closed（read_order_scope 返回错误，product_production_ports_execution_reconciliation_tests.rs::reconciliation_order_discovery_fails_closed_on_one_sided_snapshot_failure 断言失败侧报 active read failed / history read failed），且没有 invalidation 记录面。复现：让 history 读取失败 → Rust worker 记 degraded + last_error（不落 invalidation），Go 记录 invalidation 并继续用可用数据。修复位置与回归要求：若采纳 Go 的“部分数据继续”策略需先做产品决策放宽 read_order_scope 的 fail-closed；回归需断言失败侧被标记、可用侧仍落库、且有界 invalidation 记录。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(reconciliation_order_discovery_fails_closed_on_one_sided_snapshot_failure)' --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/trading/order_updates_test.go:469:TestOrderUpdatesWorkerMarksCurrentAndHistoryFailures": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
-    "conclusion": "partial：Rust 覆盖失败可重试且不误写（reconciliation 保持可重试、不产生未知写入）；差异：Go 断言 current/history 失败分别被标记到 worker 状态，Rust 以协调器状态断言表达，字段不同。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "rust_entry": "不适用：Rust 无 per-subscription status/lastAction；失败以 worker status（degraded/failures/lastError/nextRetryAt）表达",
+    "conclusion": "保留边界：Go 断言 current/history 失败把对应订阅标成 inactive 并记录 lastAction=sync-orders / sync-history-orders。Rust 没有订阅对象，失败诊断集中在 ExecutionReconciliationWorkerStatus：失败 → state=degraded、failures+1、last_error、next_retry_at（退避 1s 起倍增封顶 60s），恢复 → state=ready 且 last_error/next_retry_at 清空；既有测试 test_tc_d5_04_opend_disconnect_degraded_backoff_and_self_healing 覆盖断连降级与自愈、test_p1_02_single_writer_lease_and_concurrency_fencing 覆盖成功路径 failures=0。保留差异：无 per-source（current/history/fees）动作标签与订阅状态字段。修复位置与回归要求：若恢复该诊断面，需要在 worker status 增加按来源的动作+状态记录并投影到该路由；回归需断言 current 失败 lastAction=sync-orders、history 失败 lastAction=sync-history-orders、恢复后回到 ready。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_tc_d5_04_opend_disconnect_degraded_backoff_and_self_healing)' --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/trading/order_updates_test.go:508:TestOrderUpdatesWorkerFeeSyncFiltersIdentifiersAndReportsFailure": {
     "status": "[~]",

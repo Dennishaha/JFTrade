@@ -77,10 +77,8 @@ Go 服务内自带 `OrderUpdatesWorker` 的测试集合（节流/强制同步、
   对应写入点）。推送触发链路本身由 push worker 测试覆盖（wake→扫描→持久化），但事件类型与
   `sourceDetail` 不同。
 
-### 后续待办（本文件剩余 6 条）
+### 后续待办（本文件剩余 2 条）
 
-- 分片三：`:414`（快照 invalidations 上限）、`:427`（非活跃 source 保留诊断状态）、
-  `:442`（订阅+历史回退路径）、`:469`（当前/历史失败标记）。
 - 分片四：`:508`（费用同步过滤与失败上报）、`:531`（nil/替换辅助边界）。
 - 该文件收口后：第 119 批 `internal/trading/execution_combo_lifecycle_test.go`（12 条），
   随后 `pkg/broker/broker_test.go`(8)、`catalog_test.go`(6) 等 trading_broker 剩余文件；
@@ -161,6 +159,46 @@ Go 服务内自带 `OrderUpdatesWorker` 的测试集合（节流/强制同步、
 - `:280` 的 metadata 面（`BROKER_HISTORY_*`/`BROKER_CACHE_*`/`BROKER_PUSH_*`）在 Rust 无对应写入点；
   若产品需要与 Go 逐字段的写回元数据，需先在引擎定义等价事件类型再补映射。
 
+## 第一百一十八批（分片三）：快照诊断与失败路径（4 条）
+
+### 范围与分片
+
+- P1 `:414`：`TestOrderUpdatesWorkerSnapshotCapsInvalidations`。
+- P1 `:427`：`TestOrderUpdatesWorkerInactiveSourcePreservesDiagnosticState`。
+- P1 `:442`：`TestOrderUpdatesWorkerSyncCoversSubscriptionAndHistoryFallbackPaths`。
+- P1 `:469`：`TestOrderUpdatesWorkerMarksCurrentAndHistoryFailures`。
+
+分类：4 条全部改判 `[~]`/`boundary`；全仓 `[x]` 1345（不变）、`partial` 2519 → **2515**、
+`boundary` 583 → **587**、`module_only` 4、`missing` 0；Rust 测试 3086（不变）。
+
+### 关键事实（本批 recon 与实测）
+
+- **路由存在但诊断数组恒为空**：Rust `/api/v1/system/worker/broker-order-updates`
+  （`product_production_ports_system.rs:123`）返回
+  `{"subscriptions": [], "recentInvalidations": [], "brokers": [], "runtime": worker.status()}`，
+  只有 `runtime`（`state/scans/reconciled/failures/lastScanAt/lastError/nextRetryAt`）是真实数据；
+  worker 未配置时整条路由 503 `SYSTEM_READ_UNAVAILABLE`（fail-closed）。前端不消费该路由内容
+  （只有生成的 OpenAPI 类型），因此 Go 的 subscriptions/brokers/invalidations 三个诊断面在 Rust
+  没有消费者，也没有实现。
+- **Go 机制**：`order_updates_state.go` 的 `maxOrderUpdateInvalidations=20` 截断 +
+  `order_updates_snapshot.go` 投影 subscriptions/brokers/recentInvalidations；非活跃源返回
+  `connectivity="inactive"` 而仍给 200 快照。
+- **Rust 失败策略与 Go 不同**：Go 的订阅失败不阻断同步、单边读取失败仍继续；Rust 的
+  `read_order_scope` 对 active/history 单边失败 fail-closed 并让 worker 记 degraded + last_error +
+  next_retry_at（退避 1s→60s），恢复后回 ready。
+
+### 保留差异
+
+- `:414`：无 invalidation 记录面（因此也没有 20 条上限对象）；若恢复，需要在
+  `ExecutionReconciliationWorkerStatus` 增加有界环形缓冲并投影到路由。
+- `:427`：无 brokers/connectivity 投影；Go 用 200 + inactive 表达“源不可用”，Rust 用 503
+  fail-closed 表达“worker 未配置”，语义相邻但字段/状态码不同。
+- `:442`：Go 的“订阅失败不阻断 + 部分数据继续”与 Rust 的“单边失败即 fail-closed”是策略差异；
+  采纳 Go 策略需先做产品决策，因为 fail-closed 是当前唯一写入所有者的安全边界。
+- `:469`：无 per-subscription status/lastAction；Rust 用 worker 级 degraded/failures/last_error/
+  next_retry_at 表达失败与自愈（既有 `test_tc_d5_04_opend_disconnect_degraded_backoff_and_self_healing`
+  已覆盖）。
+
 验证：
 - 分片一定向 nextest（1 条新测试）EXIT=0：`reconciliation_polling_throttles_scans_until_a_push_wake_forces_one`。
 - 分片一两次探针全部转红并按字节回滚，回滚后 `product_production_ports_execution_orders.rs` sha
@@ -192,4 +230,14 @@ Go 服务内自带 `OrderUpdatesWorker` 的测试集合（节流/强制同步、
   `[x]` 1345、`partial` 2524 → **2519**、`boundary` 578 → **583**、`missing` 0、0 破坏引用；
   `python3.12 scripts/compatibility/parity_anchor_reconcile.py` **1349** 唯一引用
   （已记账 1293、unrecorded 0、unknown 55、stale 1）。
+- 分片三为纯诊断面结论（无新增测试、无生产语义变更），审计：`python3 scripts/compatibility/audit_test_parity.py`
+  4451 Go / **3086** Rust、`[x]` 1345、`partial` 2519 → **2515**、`boundary` 583 → **587**、`missing` 0、
+  0 破坏引用；`python3.12 scripts/compatibility/parity_anchor_reconcile.py` 1349 唯一引用
+  （已记账 1293、unrecorded 0、unknown 55、stale 1）。
+- 分片三轮询证据：`/api/v1/system/worker/broker-order-updates` 的 503 fail-closed 由
+  `product_system_read_tests.rs::system_read_routes_fail_closed_when_snapshot_port_is_unavailable`
+  与 `product_production_assembly_tests.rs` 的 unowned worker 断言覆盖；失败/自愈由
+  `test_tc_d5_04_opend_disconnect_degraded_backoff_and_self_healing` 覆盖；
+  单边失败 fail-closed 由 `reconciliation_order_discovery_fails_closed_on_one_sided_snapshot_failure`
+  覆盖（均定向 nextest EXIT=0）。
 
