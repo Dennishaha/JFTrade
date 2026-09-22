@@ -139,4 +139,37 @@ mod tests {
             assert_eq!(actual, case.expected, "case {}", case.name);
         }
     }
+
+    #[test]
+    fn runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc() {
+        // Parity: go:452dea11:internal/app/apiserver/status/status_test.go:88 TestTimeAndStringPointers
+        // Go returns nil for the zero time and for blank strings, and renders a
+        // non-UTC timestamp in UTC (RFC3339). The Rust envelope expresses the
+        // same guarantee through Option-based absence and the wire helpers.
+        let state = MarketDataRuntimeState {
+            last_refresh_at: Some(
+                "2026-06-01T12:00:00.123+08:00"
+                    .parse::<WireTimestamp>()
+                    .expect("timestamp"),
+            ),
+            quote_last_error: Some("  futu  ".to_owned()),
+            stream_last_error: Some("   ".to_owned()),
+            ..MarketDataRuntimeState::default()
+        };
+        let wire = market_data_runtime_wire("idle", state);
+        assert_eq!(wire["lastRefreshAt"], "2026-06-01T04:00:00.123Z");
+        assert_eq!(wire["quoteLastError"], "futu");
+        assert_eq!(wire["streamLastError"], Value::Null);
+
+        let empty = market_data_runtime_wire("idle", MarketDataRuntimeState::default());
+        for field in [
+            "lastRefreshAt",
+            "quoteRetryAt",
+            "streamRetryAt",
+            "quoteLastError",
+            "streamLastError",
+        ] {
+            assert_eq!(empty[field], Value::Null, "{field} must stay absent");
+        }
+    }
 }

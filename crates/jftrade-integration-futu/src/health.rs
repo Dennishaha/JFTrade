@@ -761,6 +761,77 @@ mod tests {
         assert_eq!(router.runtime().readiness, ProviderReadiness::Failed);
     }
 
+    #[test]
+    fn market_data_health_requires_a_known_logged_in_quote_session() {
+        // Parity: go:452dea11:internal/app/apiserver/futuapp/coordinator_test.go:69 TestMarketDataHealthRequiresHealthyOpenDQuoteSession
+        // An unknown quote session, a logged-out session and a probe error each
+        // fail closed with their own message; only a connected session that is
+        // logged in reports ready.
+        let probe = |quote_logged_in: Option<bool>| {
+            OpenDProbe::from_global_state(
+                Some(WireGlobalState {
+                    qot_logged_in: quote_logged_in,
+                    trade_logged_in: Some(false),
+                    server_version: Some("10.9.7000".to_owned()),
+                    program_status: Some("Ready".to_owned()),
+                    program_timestamp: None,
+                    markets: Vec::new(),
+                }),
+                true,
+            )
+        };
+
+        let unknown = market_data_health_from_probe(true, &probe(None));
+        assert!(!unknown.connected);
+        assert_eq!(unknown.readiness, ProviderReadiness::Failed);
+        assert_eq!(
+            unknown.last_error.as_deref(),
+            Some("Futu OpenD quote session status is unavailable")
+        );
+
+        let logged_out = market_data_health_from_probe(true, &probe(Some(false)));
+        assert!(!logged_out.connected);
+        assert_eq!(
+            logged_out.last_error.as_deref(),
+            Some("Futu OpenD quote session is not logged in")
+        );
+
+        let mut degraded = probe(None);
+        degraded.connectivity = "degraded".to_owned();
+        degraded.status = "degraded".to_owned();
+        degraded.last_error = Some("unsupported OpenD version".to_owned());
+        let failed = market_data_health_from_probe(true, &degraded);
+        assert!(!failed.connected);
+        assert_eq!(
+            failed.last_error.as_deref(),
+            Some("unsupported OpenD version")
+        );
+
+        let healthy = market_data_health_from_probe(true, &probe(Some(true)));
+        assert!(healthy.connected);
+        assert_eq!(healthy.readiness, ProviderReadiness::Ready);
+        assert_eq!(healthy.last_error, None);
+    }
+
+    #[test]
+    fn disconnected_probe_keeps_its_transport_error_for_manual_retry() {
+        // Parity: go:452dea11:internal/app/apiserver/futuapp/runtime_state_boundaries_test.go:26 TestFutuRuntimeRemainingDisconnectedAndResetPaths
+        // A refused probe keeps the dial error and reports disconnected so the
+        // health projection can demand a manual retry instead of reporting up.
+        let probe = OpenDProbe::disconnected("connect to OpenD failed");
+        assert_eq!(probe.connectivity, "disconnected");
+        assert_eq!(probe.last_error.as_deref(), Some("connect to OpenD failed"));
+        assert!(!probe.market_data_ready());
+
+        let health = market_data_health_from_probe(true, &probe);
+        assert!(!health.connected);
+        assert_eq!(health.readiness, ProviderReadiness::Failed);
+        assert_eq!(
+            health.last_error.as_deref(),
+            Some("connect to OpenD failed")
+        );
+    }
+
     fn read_request(stream: &mut TcpStream) -> Frame {
         let mut header = [0_u8; HEADER_LEN];
         stream.read_exact(&mut header).expect("request header");

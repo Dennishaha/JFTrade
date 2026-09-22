@@ -1103,3 +1103,90 @@ origin_normalization_accepts_web_and_tauri_schemes}`。审计的 partial 引用�
 `servercore`/`servercoretest`/`marketdataapp` 中未纳入本批队列的既有 [~] 行可在后续批次复查）；
 此后进入 `strategy_pine` 465 → `assistant_workflow` 447 → `other` 311 → `backtest_calendar` 262 → `storage_sqlite` 178 →
 `marketdata_quotes` 155 → `futu_opend` 104 → `settings_watchlist` 39。
+
+### 分片十：`internal/app/apiserver` 余 53 行（第 127 批收尾）
+
+范围（按文件与行号升序）：`runtime/environment_fallbacks_test.go:14`、`runtime/resources_test.go:58`、
+`runtime/runtime_test.go:12/:28/:44/:59/:170/:185`；`lifecycle/lifecycle_test.go:90/:196/:490/:516/:555/:587/:691/:711`；
+`runtimes/handle_lifecycle_test.go:110/:250/:370/:513/:552/:573/:592/:622`；
+`application/assistant_test.go:75`、`application/installers_test.go:16`、`application/lifecycle_test.go:41/:68`、
+`application/resources_test.go:112/:137`、`application/runtime_dependencies_test.go:11`；
+`futuapp/coordinator_test.go:15/:69/:109`、`futuapp/runtime_state_boundaries_test.go:26/:44/:51`；
+`liveapp/bbgo_notifications_test.go:12/:43/:84`、`liveapp/handler_test.go:7`；`status/status_test.go:88`；
+`strategyapp/runtime_ports_test.go:62`；`databaseguard/groups_test.go:14`；`server_test.go:20/:73/:176/:184/:250/:359/:518`；
+`desktop_api_startup_test.go:40/:106`。owner：`crates/jftrade-engine`（运行时装配与生命周期、状态投影）、
+`crates/jftrade-integration-futu`（OpenD 探针与行情健康）、`apps/desktop/src-tauri`（桌面启动与就绪）。
+
+本分片新增 Rust 证据 3 项（4 行升 `[x]`）：
+
+1. `crates/jftrade-engine/src/product_market_data_runtime_status.rs::runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc`
+   对应 Go `status/status_test.go:88 TestTimeAndStringPointers`：`+08:00` 的 lastRefreshAt 在 wire 上归一为
+   `2026-06-01T04:00:00.123Z`，空白 quoteLastError 为 null、带空格错误串被 trim 保留，缺省状态的全部时间与错误字段为 null
+   （Rust 用 `Option` 表达 Go 的 nil，零值时间不可构造）。
+2. `crates/jftrade-integration-futu/src/health.rs::market_data_health_requires_a_known_logged_in_quote_session` 对应 Go
+   `futuapp/coordinator_test.go:69 TestMarketDataHealthRequiresHealthyOpenDQuoteSession`：quote session 未知、已登出、degraded 带错误、
+   登入且健康四条分支与错误文案逐字符一致，readiness 分别为 Failed/Ready。
+3. `crates/jftrade-integration-futu/src/health.rs::disconnected_probe_keeps_its_transport_error_for_manual_retry` 对应 Go
+   `futuapp/runtime_state_boundaries_test.go:26 TestFutuRuntimeRemainingDisconnectedAndResetPaths` 的探针错误传播部分，配合既有
+   `crates/jftrade-integration-futu/src/probe.rs::probe_opend_reports_closed_port_as_disconnected`（disconnected + last_error + issue_code）
+   与 `crates/jftrade-engine/src/product_production_assembly_tests.rs::production_opend_health_diagnoses_enabled_but_unreachable_opend`
+   （离线投影 connectivity=disconnected、diagnosis.code=OPEND_API_CONNECTIVITY、manualRetryRequired=true）共同闭环。
+4. 引用纠正后升 `[x]`：`futuapp/runtime_state_boundaries_test.go:51 TestFutuRuntimeHealthyProbeAndGlobalStateBoundaries` 改引
+   `crates/jftrade-integration-futu/src/health.rs::tcp_probe_maps_login_global_state_and_market_readiness`（connected/healthy/
+   server_version=10.9.7000/quote_logged_in/markets.len()==4）与
+   `crates/jftrade-integration-futu/src/probe.rs::probe_from_global_state_enforces_minimum_version_and_maps_neutral_state`，
+   原引用 `tcp_probe_reports_protocol_outcomes_without_a_real_opend` 只覆盖失败协议路径（该测试与 :26 行的原引用属错配，本分片互换纠正）。
+
+账本字段补全：本批 `internal/app/apiserver` 的 331 行待办此前有 87 行 `command` 为空（servercore 72、servercoretest 10、
+webaccess 5），本分片按各条引用证据的所属 crate 补齐 nextest 命令（engine／store-sqlite／store-settings-file／api／
+datamanagement／desktop 及组合命令），并补全 `servercore/server_bootstrap_degraded_runtime_test.go:84` 的证据引用
+（`crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_success_calls_execution_and_audits`，
+桥装配点 owner 为 `crates/jftrade-engine/src/product_production_ports.rs`）。审计的 partial 引用不可解析警告由 3 条降到 2 条
+（剩余 2 条为 `marketdataapp/sidecar_process_test.go:147/:208` 引用的 `product_runtime_workers.rs::from_process_env` 生产符号，
+该文件没有任何测试，登记为需先引入可注入环境查找接口的生产改动）。
+
+映射结果：53 行处理（4 行升 `[x]`、49 行复核后确认原 partial/boundary 终值仍准确，含 8 行旧 Go/Wails 启动与 GUI 边界）
+加 87 行命令补全与 1 行引用纠正。计数：`[x]` 1534 → 1538；partial 2308 → 2304；boundary 609；audit Rust 测试 3204；
+anchors 1545（unrecorded 0、stale 0、unknown 53）。**第 127 批 `internal/app/apiserver` 331 行待办至此全部给出终值**
+（servercore 98、servercoretest 52、marketdataapp 68、webaccess 24、tradingapp 11、backtestapp 10、datamigration 11、余量 53）。
+
+关键事实与新登记缺口（P2）：
+
+1. **启动与就绪模型差异**：Go 的 `StartForRunArgs`/`RunAPIOnly` 以 context 取消返回并聚合 handler 关闭错误，Rust 由
+   `start_product_runtime` 直接返回错误、`handle.shutdown` oneshot 结束服务循环（不聚合 handler 错误）；桌面侧以启动快照
+   readiness fail-closed 判定，取代 Go 的 HTTP 授权轮询与超时窗口（`server_test.go:184/:359/:518`、`desktop_api_startup_test.go:106`）。
+   owner：`crates/jftrade-engine/src/product_server_runtime.rs`、`apps/desktop/src-tauri/src/native_lifecycle.rs`。
+2. **所有权与聚合语义**：Go 的 `Lifecycle`/`Resources`/`Runtimes Handle` 支持懒注册、迟到注册立即关闭与
+   `errors.Join` 式的多因聚合；Rust 由组合根一次性构造 + `Arc` 所有权 + 单次 shutdown 表达，关闭返回首个错误，
+   不存在 nil handle／关闭后注册路径（`application/*`、`runtimes/handle_lifecycle_test.go:110/:592/:622`）。
+3. **环境契约差异**：Rust 不读取 Go 的 `FUTU_OPEND_ADDR`/`JFTRADE_FUTU_*`/`JFTRADE_ADK_SKILLS_DIR`/`JFTRADE_ADK_SESSION_DB`
+   同名变量（改用 `JFTRADE_FUTU_OPEND_HOST/PORT`、`JFTRADE_ADK_SKILLS`、`JFTRADE_ADK_SESSION_DB`），
+   `JFTRADE_REAL_TRADE_CONTROL_PATH` 只有声明与派生级证据（工作区禁止进程级 env 写入，`runtime/*` 6 行）。
+4. **futuapp 协调器形态**：Go 的 Coordinator.Reset 保持应用注册顺序并把 Futu 状态置失效，Rust 由连接替换清理配额/登记
+   （`subscriptions_tests.rs`）；禁用探针（Go 返回空探针）在 Rust 无同形对象，禁用投影由组合根 `unavailable + reason` 表达
+   （`futuapp/runtime_state_boundaries_test.go:44`、`coordinator_test.go:15/:109`）。
+5. **bbgo/Wails 边界**：`liveapp` 4 行断言 bbgo 通知桥启停、`bbgo.notify` 名称等级映射与 sink panic→delivery failed、
+   Wails live handler 选项对象，Rust 无对应运行时（通知由引擎 notification port 与 SSE/WS 投影承担，panic 语义由 `Result` 取代），
+   属已退役边界保留。
+
+验证记录：
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc)'`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(market_data_health_requires_a_known_logged_in_quote_session) \| test(disconnected_probe_keeps_its_transport_error_for_manual_retry)'` | 1/1 与 2/2 通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/s127p_payload.json`、`/tmp/s127p_bridge.json`、`/tmp/s127p_cmds.json` | 53 行处理 + 1 行引用纠正 + 86 行命令补全，`[x]` 1534 → 1538 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 3 → 2；Rust 测试 3204 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1545、unrecorded 0、stale 0、unknown 53 |
+| 字段完整性 | 全量 4451 行检查 `command` 非空 | 空命令 0 行（补全 86 行 + 1 行引用纠正） |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked` | 542/542 通过（1 skipped） |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1876/1876 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`pnpm run check:quick` | 全部通过（`check:quick` 前按门禁执行 `cargo clean`：121430 文件 / 34.5GiB，`.rcgu.o` 0 个） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍在 cargo-deny advisories 阶段因 `deny.toml` 8 条 `advisory-not-detected` 失败（bans/licenses/sources ok） |
+
+第 127 批收尾结论：`internal/app/apiserver` 的 331 行待办全部给出终值（各分片提交 b858fc7f、386afddc、207f9211、
+8e89b643、a73e9af1、c43362e9、322e7445、3a0027f1 与本分片），域内已无占位/未复核行，未以数量比例宣称功能等价。
+
+后续（第 128 批）：进入 `strategy_pine` 465 行（Pine 运行时、catalog、order/indicator 行为与策略生命周期），
+随后 `assistant_workflow` 447 → `other` 311 → `backtest_calendar` 262 → `storage_sqlite` 178 → `marketdata_quotes` 155 →
+`futu_opend` 104 → `settings_watchlist` 39。
