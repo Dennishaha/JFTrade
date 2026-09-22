@@ -1252,3 +1252,53 @@ anchors 1545（unrecorded 0、stale 0、unknown 53）。**第 127 批 `internal/
 
 本分片结论：`catalog`、`instancebinding`、`instanceview` 34 行全部给出终值，其中 1 行升 `[x]`、8 行收紧结论、
 25 行确认原 partial/boundary 判定仍准确；2 处功能差异已按参照修复并有先红探针与回归用例。
+
+### 分片二：`internal/strategy/live_command_business_boundaries_test.go` 11 行
+
+范围（按行号升序）：`:14 TestDefaultPineProducesEscapedCanonicalStarterStrategy`、`:33 TestServiceDelegatesDefinitionVersionHistoryWithIdentityPreserved`、
+`:57 TestCommandsFromOrderIntentsRejectsInvalidAtomicOCOLegs`、`:85 TestWorkerIntentDirectionAliasesPreserveTradingSide`、
+`:127 TestExecuteBarCommandsPreflightsBeforeBrokerSideEffects`、`:204 TestAtomicPineOrderValidationRejectsUnsafeGroupShapes`、
+`:362 TestAtomicPineOrderSubmissionIsAllOrNothing`、`:399 TestPositionAwareCloseNeverCrossesTheWrongSide`、
+`:468 TestIgnoredOrderWarningsRetainFallbackIdentityAndSymbol`、`:490 TestLiveOrderQuantityRespectsMinimumAndPrecision`、
+`:545 TestCancelByIntentDeduplicatesAliasesAndToleratesStaleMappings`。owner：`crates/jftrade-engine`（实时命令执行与意图归一，`strategy_runtime_execution.rs`）、
+`crates/jftrade-backtest`（括号/原子组撮合校验）、`crates/jftrade-broker`（市场规则与手数归一）、`crates/jftrade-store-sqlite`（执行订单与定义历史）。
+
+本分片 11 行全部给出终值：1 行升 `[x]`、6 行收紧 partial、4 行确认为 boundary（4 行均为既有 boundary 判定，本次逐条复核结构差异理由）：
+
+- `[x]`：`:33` 委派身份保持。Rust 证据沿用 `product_production_ports_strategy_tests.rs::strategy_definition_versions_report_unknown_ids_and_keep_deleted_history`，
+  该用例对真实 SQLite 定义库断言未知 id 返回 None、版本列表按 definition id 归属（definitionId 字段）、按 (definitionId, version) 读取不可变快照、未知版本 None、
+  软删除后历史保留；本次在该测试补写 `// Parity:` 锚点指向本行 Go 测试，使代码侧与账本侧同时成立（anchors 1547 → 1548）。
+- 确认为 boundary 的结构差异：`:14` Go 侧默认 Pine 起始模板生成（Rust 无默认模板生成器，从零创建由 Vue 设计器模板承担）；
+  `:57` 与 `:204` 原子/OCO 腿校验（Rust 实时执行无 AtomicGroupID/OCOGroupID 腿模型，最近语义在回测括号输入校验）；
+  `:362` 原子组提交全有或全无（Rust 无原子提交入口，最近语义为回测父括号原子撮合）。
+- 收紧为精确缺口的 partial：`:85` 未知命令 kind 不在实时意图路径被拒（cancel/close/entry 之外落入 entry 分支），且缺细粒度方向/kind 错误文案；
+  `:127` 缺整根 bar 预检（不支持 kind、空白取消 id、缺解析器都不预先失败，只有风险拒绝在下单前，见被引用的 risk 用例）；
+  `:399` Rust close 按现仓符号平仓且不校验声明方向是否匹配，无仓位读取器与告警文案分支未复刻；
+  `:468` 无 warning sink 与命令身份/符号回退格式化（仅 INTENT_SKIPPED 审计）；
+  `:490` 缺最小数量/VolumePrecision 向下取整/负数量归一的逐值断言（最近语义在 broker 手数与 backtest 流动性告警）；
+  `:545` 陈旧映射在 Rust 是硬错误（`strategy order <id> is not owned by instance <instance_id>`）而非容忍，且无别名去重表。
+
+关键事实与新登记缺口（P1/P2）：
+
+1. **陈旧映射硬错误（P1）**：Go 的按意图取消在别名指向缺失订单时不调用券商也不报错；Rust `dispatch_cancel_intent` 找不到归属订单直接返回错误。
+   处置需产品决策（容忍陈旧 = 幂等取消语义 vs fail-closed），owner `crates/jftrade-engine/src/strategy_runtime_execution.rs`，回归要求先建 no-op 成功用例。
+2. **整根 bar 预检缺失（P1）**：Go 在任何券商副作用前完成整批校验；Rust 逐条内联执行，未知 kind 不拒绝、空白取消 id 不校验。
+   owner 同上，回归要求先建断言 0 笔券商调用的失败用例再实现两阶段处理。
+3. **显式方向平仓语义差异（P2）**：Go 的 close 尊重声明的 long/short 方向（方向与现仓不匹配时仅告警），Rust 按现仓符号平仓。
+   owner 同上；当前 Rust 语义与前端发送的 close 意图一致，是否对齐取决于产品对显式方向平仓的定义。
+4. **忽略/告警通道缺失（P2）**：Go 的 warnIgnoredOrder 保留 FromEntry/<anonymous> 回退身份与 <unknown> 符号；Rust 只有审计事件，缺身份格式化。
+5. **数量归一缺口（P2）**：低于最小数量、无步长时按精度向下取整、负数量归一为 0 在实时路径无逐值断言；owner `crates/jftrade-broker` + engine 执行端口。
+6. **未知命令 kind 白名单（P2）**：Rust 实时意图路径未按 kind 白名单拒绝 replace 等未知命令，需先红用例再补。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 映射写入 | payload `/tmp/s128b_payload.json` 经 `/tmp/b82_apply.py` 应用 | 11 行给出终值，`[x]` 1539 → 1540、partial 2303 → 2302 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3206 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1548、unrecorded 0、stale 0、unknown 53 |
+| 目标用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(strategy_definition_versions_report_unknown_ids_and_keep_deleted_history)'` | 1/1 通过（新增锚点后复跑） |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1879/1879 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`pnpm run check:quick` | 全部通过；`check:quick` 首轮在 `product_api_launcher_lifecycle::api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal` 抖动失败（1840/1909 中止），隔离复跑与次轮 `check:quick` 均通过，按抖动处置并记录 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 在 cargo-deny advisories 阶段失败（bans/licenses/sources ok） |

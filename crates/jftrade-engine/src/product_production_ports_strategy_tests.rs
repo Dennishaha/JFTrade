@@ -185,6 +185,10 @@ fn instantiate_persists_the_same_normalized_binding_as_runtime_update() {
 /// listing the history of a soft-deleted definition, and returns the stored
 /// snapshot unchanged for a known version. The Rust owner is
 /// `ProductionStrategyDefinitionPort::{versions, version}`.
+/// Parity: go:452dea11:internal/strategy/live_command_business_boundaries_test.go:33
+/// `TestServiceDelegatesDefinitionVersionHistoryWithIdentityPreserved` also
+/// covers the delegation contract: list and read keep the requested
+/// definition id and version identity, and unknown ids answer not-found.
 #[test]
 fn strategy_definition_versions_report_unknown_ids_and_keep_deleted_history() {
     let dir = tempdir().expect("tempdir");

@@ -26693,77 +26693,77 @@
   "internal/strategy/live_command_business_boundaries_test.go:14:TestDefaultPineProducesEscapedCanonicalStarterStrategy": {
     "status": "[~]",
     "rust_entry": "不适用：Go 侧默认 Pine 起始模板生成",
-    "conclusion": "boundary（结构差异）：Go 断言 DefaultPine 生成规范化起始策略（名称去空白并转义）。Rust 只执行用户/前端提供的脚本（analyze/run_script），没有默认模板生成器，故无等价函数。",
+    "conclusion": "boundary（结构差异）：Go 断言 DefaultPine 生成规范化起始策略（空白名回退 Pine Strategy、名称去空白并按 Pine 源转义引号、含 strategy.entry(\"Long\", strategy.long) 规范入场）。Rust 只执行前端/用户提交的脚本（analyze/run_script 与回测），生产代码无默认模板生成器（raw 包与 workers/pinets 均无同名函数），从零创建策略由 Vue 设计器模板承担。升级路径：若产品要求后端默认模板，在策略定义写入端口新增模板函数并复刻空白/引号转义用例。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "boundary"
   },
   "internal/strategy/live_command_business_boundaries_test.go:33:TestServiceDelegatesDefinitionVersionHistoryWithIdentityPreserved": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::strategy_definition_versions_report_unknown_ids_and_keep_deleted_history",
-    "conclusion": "partial：Go 断言服务委派定义版本历史并保留身份（list/get）。Rust 该用例断言定义版本报告未知 id 并保留删除后的历史。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "conclusion": "已覆盖（身份保持）：Go 用记录型 store 断言 ListDefinitionVersions/GetDefinitionVersion 委派时保留 listedDefinitionID 与 loadedDefinitionID/loadedVersion；Rust 对真实 SQLite 定义库断言同一身份键——未知 definition id 返回 None（非空列表）、按 definition id 列出两条版本且 definitionId 字段归属该 id、按 (definitionId, version) 读取不可变快照、未知版本 None、软删除后历史保留。两者都在 verifies 请求身份被原样携带（Go 记录参数、Rust 按身份键读取），故对齐。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(strategy_definition_versions_report_unknown_ids_and_keep_deleted_history)'",
+    "evidence_type": "function_exact"
   },
   "internal/strategy/live_command_business_boundaries_test.go:57:TestCommandsFromOrderIntentsRejectsInvalidAtomicOCOLegs": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::input_and_atomic_bracket_validation_errors",
-    "conclusion": "boundary（结构差异）：Go 断言非法 OCO 腿在意图转换阶段被拒。Rust 实时执行无 OCO 腿模型（括号仅在回测撮合），该用例断言回测侧括号输入校验。",
+    "conclusion": "boundary（结构差异）：Go 在意图转换阶段拒绝非法原子 OCO 腿（限价腿 -1 报 limit price must be positive、止损腿 -1 报 stop price must be positive）。Rust 实时执行无 AtomicGroupID/OCOGroupID 腿模型，最近的对应语义是回测括号输入校验对非正 tick/step/min 的拒绝。升级路径：若实时执行引入 OCO 腿，需在意图归一端口加正数校验并复刻两条错误文案回归。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
     "evidence_type": "boundary"
   },
   "internal/strategy/live_command_business_boundaries_test.go:85:TestWorkerIntentDirectionAliasesPreserveTradingSide": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_close_short_maps_to_buy",
-    "conclusion": "partial：Go 断言 worker 意图方向别名保留交易方向（含不支持方向报错）。Rust 该用例断言空头回补方向映射；别名表在 Rust 由方向解析枚举表达。",
+    "conclusion": "partial：Go 断言 entry(buy)→direction long/side buy、close(sell)→long/sell，并拒绝 sideForWorkerIntent(\"close\",\"sideways\") 与未知 kind bracket（两条错误文案）。Rust 等价语义：entry 类 kind 的 direction 解析为 buy/long/bull/bullish→BUY、sell/short/bear/bearish→SELL，其余报 strategy order intent <index> has invalid direction；close 类 kind 按现仓符号决定 side，无仓位时按方向别名（short/sell/bear/cover→BUY，其余→SELL）。缺口：Rust 没有按 kind 白名单拒绝未知命令（cancel/close/entry 之外的 kind 落入 entry 分支），也没有 unsupported pine worker close direction / unsupported pine worker order intent kind 的细粒度错误。owner：crates/jftrade-engine/src/strategy_runtime_execution.rs。回归要求：先加未知 kind 拒绝的失败用例再补白名单。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/live_command_business_boundaries_test.go:127:TestExecuteBarCommandsPreflightsBeforeBrokerSideEffects": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_risk_rejection_blocks_broker_order",
-    "conclusion": "partial：Go 断言整根 bar 的命令预检先于券商副作用（不支持/空白取消/被忽略市价单/提交失败/非法依赖）。Rust 该用例断言风险拒绝在任何券商下单前发生（预检语义）。",
+    "conclusion": "partial：Go 断言整根 bar 的命令在券商副作用前完成预检——不支持 kind、空白取消 id、被忽略市价单（缺市场规则时仅告警）、提交失败按命令身份报错、market resolver 缺失阻止全部提交。Rust 逐条内联处理意图，只保证风险拒绝在该笔下单前发生（引用用例）；缺口：无整根 bar 预检（未知 kind 不拒绝、空白取消 id 不校验、缺解析器不预先失败）、错误文案无 submit pine worker command <id> 身份前缀；targeted cancel 找不到归属订单时直接报错而不是容忍。owner：crates/jftrade-engine/src/strategy_runtime_execution.rs。回归要求：先建整批预检失败用例（断言 0 笔券商调用）再实现两阶段处理。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/live_command_business_boundaries_test.go:204:TestAtomicPineOrderValidationRejectsUnsafeGroupShapes": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::input_and_atomic_bracket_validation_errors",
-    "conclusion": "boundary（结构差异）：Go 断言不安全的原子组形状被拒。Rust 实时执行无原子组，回测侧仅校验括号输入。",
+    "conclusion": "boundary（结构差异）：Go 断言 validatePineWorkerAtomicGroup 拒绝 11 类不安全组形状（单腿不能声称原子、entry 不可 reduce-only、entry 需稳定 id、组内不得含取消、未知 kind、entry 不得为 OCO 子项、预检跳过的保护腿使组不可分、保护腿必须 reduce-only、OCO 需恰好两腿且各含一限价腿与一止损腿）。Rust 实时执行无原子组概念，回测括号校验只覆盖输入合法性，未逐形状复刻。升级路径：若实时执行引入原子组，按上表逐例建测并保留中文缺口登记。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
     "evidence_type": "boundary"
   },
   "internal/strategy/live_command_business_boundaries_test.go:362:TestAtomicPineOrderSubmissionIsAllOrNothing": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::parent_bracket_runs_atomically_with_stop_first_protection",
-    "conclusion": "boundary（结构差异）：Go 断言原子组提交全有或全无（拒绝/部分结果处理）。Rust 实时执行无原子组提交；回测撮合器父括号原子执行是最近的对应语义。",
+    "conclusion": "boundary（结构差异）：Go 断言原子组提交全有或全无（券商原子拒绝按组标识报错且不落跟踪、部分结果 returned 1 orders for 3 commands 被拒、单命令入口拒绝原子碎片）。Rust 无原子提交入口，最近语义是回测撮合器的父括号原子执行（先止损保护）。升级路径：实时引入原子组时按三条分支建测。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
     "evidence_type": "boundary"
   },
   "internal/strategy/live_command_business_boundaries_test.go:399:TestPositionAwareCloseNeverCrossesTheWrongSide": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_close_short_maps_to_buy",
-    "conclusion": "partial：Go 断言仓位感知平仓不跨越错误方向（显式平仓、无仓位忽略）。Rust 该用例断言空头平仓方向映射（不跨越方向）。",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_parameterless_close_skips_when_no_position",
+    "conclusion": "partial：Go 六条分支——自动平多按现仓方向卖出、平坦账户仅告警 no open position is available、声明 short 但持有非空头仅告警 no short position is open、未知方向回退显式 side、无仓位读取器的显式平仓保留、已提交订单不跨越错误方向。Rust close 语义是按现仓符号平仓（多头→SELL、空头→BUY，见 test_execute_strategy_intents_close_short_maps_to_buy），平坦且无数量时写 INTENT_SKIPPED 审计（对应平坦分支，文案为 no open position to close）；缺口：Rust 不校验声明方向与现仓是否匹配（不会因 direction=short 却持有多头而跳过），也无 warning sink 文案，未知方向在 close 分支静默落到 SELL。owner：crates/jftrade-engine/src/strategy_runtime_execution.rs。回归要求：若引入显式方向平仓，按 Go 六分支建先红用例。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/live_command_business_boundaries_test.go:468:TestIgnoredOrderWarningsRetainFallbackIdentityAndSymbol": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::market_rules_ignore_missing_non_positive_and_non_finite_constraints",
-    "conclusion": "partial：Go 断言被忽略订单的 warning 保留回退身份与符号。Rust 无执行器 warning 结构；该用例断言市场规则对缺失/非法约束的忽略语义。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-broker --all-targets --locked",
+    "conclusion": "partial：Go 断言被忽略订单告警保留回退身份与符号——FromEntry 回退为 exit command \"long-entry\" for <unknown>，无 ID 时 <anonymous>。Rust 实时执行没有 warning sink 结构，被忽略意图写 INTENT_SKIPPED 审计（no open position to close / quantity rounded down to 0），审计细节不含命令身份与符号回退格式化；引用用例是市场规则忽略语义（最近邻，非等价）。owner：crates/jftrade-engine/src/strategy_runtime_execution.rs。回归要求：若引入 warning 通道，按 Go 两条回退文案建先红用例。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/live_command_business_boundaries_test.go:490:TestLiveOrderQuantityRespectsMinimumAndPrecision": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::broker_lot_size_initializes_minimum_and_step_quantity",
-    "conclusion": "partial：Go 断言数量尊重最小单位与精度（低于最小忽略、无步长时按精度向下取整）。Rust 该用例断言手数初始化最小与步长数量。",
+    "conclusion": "partial：Go 断言四类数量语义——低于最小数量忽略并告警 less than market min quantity、无步长时按 VolumePrecision 向下取整（1.239→1.23）、负数量归一为 0、取消命令不算空单，以及 liveIgnoredOrderError 文案。Rust 实时路径的数量来自 resolve_strategy_intent_quantity（数量/百分比/现仓）与风险归一，缺最小数量/精度向下取整的逐值断言；最近对应为 jftrade-broker 手数初始化（引用用例）与 jftrade-backtest liquidity_warnings_for_sub_step_and_below_min_quantity（回测侧按 min_quantity/step 告警）。owner：实时执行端口数量归一（crates/jftrade-broker 市场规则 + engine 执行）。回归要求：先补低于最小/精度取整/负数量的失败用例再补归一实现。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-broker --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/live_command_business_boundaries_test.go:545:TestCancelByIntentDeduplicatesAliasesAndToleratesStaleMappings": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders",
-    "conclusion": "partial：Go 断言按意图取消去重别名并容忍陈旧映射（不误取消）。Rust 该用例断言 cancel_all 查询并取消活动订单（去重语义在跟踪集合中表达）。",
+    "conclusion": "partial：Go 断言按意图取消先做别名去重（protect→protect:limit 重复项只取消一次并清空跟踪），再容忍陈旧映射（别名指向缺失订单时不调用券商、不报错）。Rust targeted cancel 按 intent.id/from_entry 在执行订单库按 (broker, environment, account) 查 client identity，仅当归属本实例且状态为 SUBMITTING/SUBMITTED/WAITING/OPEN 时取消，否则直接返回 strategy order <id> is not owned by instance <instance_id>——即陈旧映射是硬错误而非容忍；Rust 也没有一个意图映射多条 client 订单的别名表。owner：crates/jftrade-engine/src/strategy_runtime_execution.rs。回归要求：先建陈旧映射应 no-op 成功与别名去重的失败用例，再决定是否对齐。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
