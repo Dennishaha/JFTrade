@@ -14,6 +14,19 @@ pub const STRATEGY_PINE_ANALYZE_PATH: &str = "/api/v1/strategy-pine/analyze";
 pub const JSON_CONTENT_TYPE: &str = "application/json; charset=utf-8";
 pub const PINE_V6_SOURCE_FORMAT: &str = "pine-v6";
 
+/// Source formats eligible for strategy instantiation. Definitions persisted by
+/// the retired builder formats keep the reference rejection text so clients see
+/// the same 400 envelope instead of a silently seeded legacy instance.
+pub fn instantiation_source_format_error(source_format: &str) -> Option<String> {
+    let normalized = source_format.trim().to_ascii_lowercase();
+    if normalized.is_empty() || normalized == PINE_V6_SOURCE_FORMAT {
+        return None;
+    }
+    Some(format!(
+        "unsupported legacy strategy definition: sourceFormat {source_format:?} is no longer supported; use {PINE_V6_SOURCE_FORMAT}"
+    ))
+}
+
 /// The normalized request handed to the configured Pine analyzer adapter.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StrategyPineAnalyzeInput {

@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use strategy_pine::{
     JSON_CONTENT_TYPE, PINE_V6_SOURCE_FORMAT, StrategyPineAnalyzeInput,
     StrategyPineAnalyzeSnapshotError, StrategyPineAnalyzeSnapshotPort,
-    dispatch_strategy_pine_analyze,
+    dispatch_strategy_pine_analyze, instantiation_source_format_error,
 };
 
 #[derive(Debug, Deserialize)]
@@ -309,6 +309,23 @@ fn strategy_pine_preserves_snapshot_failures_and_wire_headers() {
         response.error.as_ref().map(|error| error.message.as_str()),
         Some("analysis snapshot timed out")
     );
+}
+
+#[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/strategy_preview_test.go:28 TestInstantiateStoredDefinitionRejectsLegacySourceFormat
+// The retired builder formats keep the reference rejection text, while blank
+// and Pine v6 spellings stay instantiable.
+fn strategy_pine_reports_retired_source_formats_for_instantiation() {
+    assert!(instantiation_source_format_error("").is_none());
+    assert!(instantiation_source_format_error("  Pine-V6 ").is_none());
+    let message =
+        instantiation_source_format_error("legacy-v0").expect("legacy source format rejection");
+    assert!(
+        message.contains("unsupported legacy strategy definition"),
+        "{message}"
+    );
+    assert!(message.contains("\"legacy-v0\""), "{message}");
+    assert!(message.ends_with("use pine-v6"), "{message}");
 }
 
 #[test]

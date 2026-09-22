@@ -731,3 +731,74 @@ anchors 1531（unrecorded 0、stale 0、unknown 53）。
 `strategy_logs_test.go:15/:120/:169`、`strategy_preview_test.go:28`、`strategy_sync_test.go:17`、
 `system_routes_test.go:112`、`watchlist_runtime_test.go:51`），随后 marketdataapp 68、webaccess 24 + tradingapp 11、
 backtestapp 10 + datamigration 11 与 runtime/lifecycle/runtimes/application/futuapp 余量。
+
+### 分片五：`internal/app/apiserver/servercoretest` 余 26 行
+
+范围（按文件与行号升序）：`frontend_test.go:137/:157/:198/:246`；`installers_degraded_test.go:13`；
+`market_profiles_test.go:79`；`openapi_snapshot_test.go:20/:89/:136/:204`；`plugin_lifecycle_test.go:16`；
+`runtime_defaults_test.go:11/:28/:48`；`server_business_public_test.go:15/:48`；`server_definitions_test.go:17`；
+`settings_broker_test.go:162`；`settings_interfaces_test.go:14`；`strategy_logs_test.go:15/:120/:169`；
+`strategy_preview_test.go:28`；`strategy_sync_test.go:17`；`system_routes_test.go:112`；`watchlist_runtime_test.go:51`。
+owner 集中在 `crates/jftrade-engine`（启动配置与运行时布局、策略定义读写叶与 pine 谓词、插件投影、系统状态投影）、
+`crates/jftrade-api`（SPA 回退与 Swagger/OpenAPI 契约）、`crates/jftrade-store-settings-file`（启动引导文档）与
+`apps/desktop/src-tauri`（桌面 profile 与运行期布局）。
+
+本分片新增 Rust 证据 2 项（含 1 项生产修复），并把 4 条 OpenAPI 契约行从 module_only 升级为等价覆盖：
+
+- `crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::instantiate_rejects_stored_definitions_with_a_retired_source_format`
+  （Go `strategy_preview_test.go:28`）：已存 legacy-v0 定义实例化返回 400 BAD_REQUEST 且文案含
+  unsupported legacy strategy definition；生产修复在 `strategy_pine.rs` 新增 `instantiation_source_format_error`
+  （空白与 pine-v6 放行），由生产策略写入端口在读到已存定义之后、绑定校验与实例播种之前调用。先红探针确认修复前该路径
+  会正常播种实例，修复后用例转绿；谓词边界（空白、大小写归一、文案形状）由
+  `crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_reports_retired_source_formats_for_instantiation`
+  覆盖。
+- `crates/jftrade-api/tests/swagger_docs_contracts.rs` 的 4 条既有用例（`served_swagger_document_matches_the_checked_in_contract`、
+  `swagger_document_requires_explicit_error_envelopes_for_every_operation`、`swagger_document_publishes_typed_writable_request_bodies`、
+  `swagger_document_publishes_the_typed_broker_runtime_response`）此前已带 Parity 锚点，但账本仍记为契约+脚本的 module_only；
+  本分片逐条核对后确认其断言语义与 Go 等价（逐字节契约、278 操作数、每个操作显式错误信封、六条写路由的 typed body
+  与托管字段隔离、broker runtime 的 data $ref 与三键定义），升级为 function_exact。
+
+映射结果：26 行复核（5 行升 `[x]`；2 行收紧为 boundary：前端资源加载辅助、API-only 取消语义；6 行收紧 partial 终值；
+13 行复核后确认原终值仍准确）。计数：`[x]` 1519 → 1524；audit Rust 测试 3189；anchors 1532
+（unrecorded 0、stale 0、unknown 53）。
+
+关键事实与新登记缺口（P1/P2）：
+
+1. **API 绑定不消费存储的 interfaces.apiBind（P1）**：Go 断言 Web 关闭时仍以接口设置绑定 API；Rust 启动路径只从接口设置
+   消费 liveWebSocketConnectionLimit（`product_server.rs`），监听地址来自 ProductConfig 与桌面 profile（开发 3000、桌面 dev
+   3008、release 6699），存储 apiBind 在启动路径无消费者。owner：`crates/jftrade-engine` 启动配置装配。
+2. **缺少启动引导文档物化（P2）**：Go 的 EnsureBootstrapFile 首启即落盘 interfaces+appearance 默认且不写 integration；
+   Rust 无等价动作，默认值在读取时归一，仅在首次 broker 集成保存时物化 interfaces{apiBind, liveWebSocketConnectionLimit}，
+   不含 guiBind 与 appearance。owner：`crates/jftrade-store-settings-file/src/lib.rs`。
+3. **OpenD 中性信封冲突（P2）**：Rust 未启用集成时健康投影为 unavailable+reason（锚定 internal/system/service_test.go:345 与
+   futuapp/runtime_contracts_test.go:44），而 servercoretest 期望中性 200（disconnected、checkedAt 空、diagnosis NONE）；
+   broker runtime 在缺投影源时为 503 BROKER_READ_UNAVAILABLE。owner：`product_production_ports_system.rs`、
+   `product_production_ports_trade.rs`。
+4. **插件 requiresRebuild 固定 false（P2）**：Go 目录项为 true，且缺单条五步生命周期串联用例。owner：`product_production_ports_plugins.rs`。
+5. **策略定义版本历史投影缺口（P2）**：全仓无 isCurrent/版本顺序断言，也没有 create→list→detail→update→versions 单条串联。
+   owner：策略定义读写叶。
+6. **策略日志/审计与 definitionSync 因果链缺口（P2，延续）**：读组语料由快照端口回放，缺“启动实例→日志可见 started”、
+   “运行时错误事件→列表 logs 尾部”、“定义改版→definitionSync.isLatest 翻转→refresh-definition”的因果链。
+7. **运行期改端口与按请求 503 无等价入口（P2）**：system/status 的 apiPort 来自启动配置；watchlist 库不可打开为启动期
+   fail-closed，全仓无 DATABASE_INCOMPATIBLE 错误码。
+8. **边界保留**：内嵌前端资源加载辅助、CLI run 布局与取消语义、nil sidecar 方法、桌面 profile/runtime defaults、
+   market profiles 的 CN 前缀推断（Rust 有意放宽，Go 硬拒绝）、助手库不可用时的降级启动（Rust 启动期 fail-closed）。
+
+验证记录：
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增与关联用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(instantiate_rejects_stored_definitions_with_a_retired_source_format) \| test(instantiate_persists_the_same_normalized_binding_as_runtime_update) \| test(instantiate_accepts_empty_body_but_rejects_malformed_json)'` | 4/4 通过（修复前先红探针为 0/1 失败） |
+| OpenAPI 契约用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(served_swagger_document_matches_the_checked_in_contract) \| test(swagger_document_requires_explicit_error_envelopes_for_every_operation) \| test(swagger_document_publishes_typed_writable_request_bodies) \| test(swagger_document_publishes_the_typed_broker_runtime_response)'` | 4/4 通过 |
+| 策略 pine 兼容目标 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test strategy_pine_compatibility --locked` | 7/7 通过（新增谓词用例消除 dead_code 警告） |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/s127f_payload.json` | 13 行更新，`[x]` 1519 → 1524 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；Rust 测试 3189 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1532、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 首轮 1870/1871（`runtime_dependencies::tests::node_probe_reports_ok_outdated_unrecognized_and_failed_scripts` 在并行负载下抖动），隔离复跑通过后整轮复跑 1871/1871 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`pnpm run check:quick` | 全部通过 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 均在 cargo-deny advisories 阶段因 `deny.toml` 8 条 `advisory-not-detected` 失败（bans/licenses/sources ok），与本分片改动无关 |
+
+后续（分片六）：`internal/app/apiserver/marketdataapp` 68 行，随后 webaccess 24 + tradingapp 11、
+backtestapp 10 + datamigration 11 与 runtime/lifecycle/runtimes/application/futuapp 余量。`servercoretest` 的 52 行待办
+在本分片后全部给出终值。

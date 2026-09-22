@@ -38,6 +38,72 @@ fn shadow_result_derives_go_compatible_signal_count_from_plot_tails() {
     assert_eq!(payload["signals"]["close"], 101.0);
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/strategy_preview_test.go:28 TestInstantiateStoredDefinitionRejectsLegacySourceFormat
+/// A definition persisted by the retired builder format cannot be
+/// instantiated: the route answers 400 with the stored rejection text instead
+/// of seeding a legacy instance into the runtime store.
+#[test]
+fn instantiate_rejects_stored_definitions_with_a_retired_source_format() {
+    let dir = tempdir().expect("tempdir");
+    let db_path = dir.path().join("strategy-legacy-instantiate.db");
+    let connection = rusqlite::Connection::open(&db_path).expect("create strategy database");
+    jftrade_store_sqlite::initialize_current(&connection, "strategy")
+        .expect("initialize strategy schema");
+    drop(connection);
+    let store = Arc::new(
+        StrategyDefinitionStore::open_existing(
+            &db_path,
+            jftrade_store_sqlite::STRATEGY_DEFINITION_PRODUCTION_PROFILE,
+        )
+        .expect("open strategy definition store"),
+    );
+    store
+        .save_definition(
+            jftrade_store_sqlite::StoredStrategyDefinition {
+                id: "legacy-breakout".to_owned(),
+                name: "Legacy Breakout".to_owned(),
+                version: "0.1.0".to_owned(),
+                description: String::new(),
+                runtime: "pine-pinets".to_owned(),
+                source_format: "legacy-v0".to_owned(),
+                symbol: "HK.00700".to_owned(),
+                interval: "1m".to_owned(),
+                script: "//@version=6\nstrategy(\"Legacy Breakout\", overlay=true)".to_owned(),
+                visual_model_json: "{}".to_owned(),
+                created_at: "2026-06-13T00:00:00Z".to_owned(),
+                updated_at: "2026-06-13T00:00:00Z".to_owned(),
+                deleted_at: None,
+            },
+            "2026-06-13T00:00:00Z",
+        )
+        .expect("seed legacy definition");
+    let port = ProductionStrategyDefinitionPort { store: Arc::clone(&store) };
+    let error = port
+        .mutate(&StrategyDefinitionWriteInput {
+            operation: StrategyDefinitionWriteOperation::Instantiate,
+            definition_id: Some("legacy-breakout".to_owned()),
+            definition: None,
+            binding: Some(json!({})),
+            binding_error: None,
+        })
+        .expect_err("a retired source format must not instantiate");
+    match error {
+        StrategyDefinitionWritePortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "BAD_REQUEST");
+            assert!(
+                message.contains("unsupported legacy strategy definition"),
+                "{message}"
+            );
+        }
+        other => panic!("unexpected instantiate error {other:?}"),
+    }
+}
+
 #[test]
 fn instantiate_persists_the_same_normalized_binding_as_runtime_update() {
     let dir = tempdir().expect("tempdir");

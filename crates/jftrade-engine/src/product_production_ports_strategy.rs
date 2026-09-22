@@ -7,6 +7,7 @@ use crate::product::product_strategy_definition_write_port::{
 use crate::product::product_strategy_runtime_write_port::StrategyRuntimeWritePortError;
 use crate::product::strategy_pine::{
     StrategyPineAnalyzeInput, StrategyPineAnalyzeSnapshotError, StrategyPineAnalyzeSnapshotPort,
+    instantiation_source_format_error,
 };
 use crate::product::{
     StrategyDefinitionPreview, StrategyDefinitionSnapshotError, StrategyDefinitionSnapshotPort,
@@ -477,6 +478,15 @@ impl StrategyDefinitionWritePort for ProductionStrategyDefinitionPort {
                         code: "NOT_FOUND".to_owned(),
                         message: "resource not found".to_owned(),
                     })?;
+                if let Some(message) =
+                    instantiation_source_format_error(&current.source_format)
+                {
+                    return Err(StrategyDefinitionWritePortError::Failed {
+                        status: 400,
+                        code: "BAD_REQUEST".to_owned(),
+                        message,
+                    });
+                }
                 if let Some(message) = input.binding_error.as_deref() {
                     return Err(StrategyDefinitionWritePortError::Failed {
                         status: 400,
