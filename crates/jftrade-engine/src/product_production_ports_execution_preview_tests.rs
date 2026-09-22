@@ -62,10 +62,13 @@ struct PreviewTradeReader {
 /// Combo-specific read fixture used by the option-combo lifecycle tests.
 ///
 /// It answers `Trd_GetComboMaxTrdQtys` with a fixed account impact so the
-/// preview can persist and be consumed by `place_combo`.
+/// preview can persist and be consumed by `place_combo`, and answers the
+/// ordinary `Trd_GetMaxTrdQtys` probe that the buying-power route forwards for
+/// option products.
 #[derive(Debug, Default)]
 struct ComboPreviewTradeReader {
     calls: Arc<Mutex<Vec<TradeComboMaxTradeQuantityRequest>>>,
+    max_quantity_calls: Arc<Mutex<Vec<TradeMaxTradeQuantityRequest>>>,
 }
 
 impl TradeReadPort for ComboPreviewTradeReader {
@@ -115,9 +118,26 @@ impl TradeReadPort for ComboPreviewTradeReader {
 
     fn read_max_trade_quantity(
         &self,
-        _: TradeMaxTradeQuantityRequest,
+        request: TradeMaxTradeQuantityRequest,
     ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
-        unsupported()
+        self.max_quantity_calls
+            .lock()
+            .expect("max quantity calls")
+            .push(request.clone());
+        Ok(TradeMaxTradeQuantitySnapshot {
+            header: request.header,
+            code: request.code,
+            order_type: request.order_type,
+            price: request.price,
+            max_cash_buy: 250.0,
+            max_cash_and_margin_buy: None,
+            max_position_sell: 0.0,
+            max_sell_short: None,
+            max_buy_back: None,
+            long_required_im: None,
+            short_required_im: None,
+            session: request.session,
+        })
     }
 
     fn read_combo_max_trade_quantity(
@@ -1561,6 +1581,7 @@ fn option_combo_preview_place_and_cancel_keep_server_identity() {
     let combo_calls = Arc::new(Mutex::new(Vec::new()));
     let reader = Arc::new(ComboPreviewTradeReader {
         calls: Arc::clone(&combo_calls),
+        ..Default::default()
     });
     let writer = Arc::new(RecordingTradeWriter::default());
     let state = Arc::new(ActiveProviderState::new(Some(
@@ -2773,4 +2794,327 @@ fn execution_order_detail_returns_order_with_bounded_recent_events() {
         .read("/api/v1/execution/orders/exec-missing", "")
         .expect_err("missing order must not resolve to an empty detail");
     assert!(matches!(missing, ExecutionReadSnapshotError::NotFound));
+}
+
+/// Real-trade control file for the combo lifecycle parity tests: REAL trading
+/// enabled with a two-contract quantity limit and an optional kill switch.
+fn combo_lifecycle_control_file(
+    directory: &std::path::Path,
+    kill_switch: bool,
+) -> std::path::PathBuf {
+    let path = directory.join("real-trade-control.json");
+    let mut state = json!({
+        "riskConfig": {
+            "realTradingEnabled": true,
+            "maxOrderQuantity": 2.0,
+            "maxOrderNotional": 100000.0
+        }
+    });
+    if kill_switch {
+        state["killSwitch"] = json!({
+            "id": "ks-combo-lifecycle",
+            "tradingEnvironment": "REAL",
+            "operatorId": "ops",
+            "reason": "combo staging halt",
+            "activatedAt": "2026-09-22T00:00:00Z",
+            "updatedAt": "2026-09-22T00:00:00Z"
+        });
+    }
+    std::fs::write(&path, state.to_string()).expect("write real-trade control file");
+    path
+}
+
+/// Production port for the combo lifecycle parity tests: one trade runtime owns
+/// the option-strategy readers, the combo/max-quantity reader and the scripted
+/// writer, and the risk coordinator reads the supplied real-trade control file.
+fn combo_lifecycle_port(
+    runtime: &Arc<SharedTradeReadRuntime>,
+    reader: &Arc<ComboPreviewTradeReader>,
+    writer: &Arc<RecordingTradeWriter>,
+    control_path: std::path::PathBuf,
+) -> ProductionExecutionPort {
+    runtime.set_option_strategy_spread(Some(Arc::new(OptionSpreadFixture)));
+    runtime.set_option_strategy_analysis(Some(Arc::new(OptionAnalysisFixture)));
+    runtime.set(
+        Some(Arc::clone(reader) as Arc<dyn TradeReadPort>),
+        Some(true),
+    );
+    runtime.set_writer(Some(Arc::clone(writer) as Arc<dyn TradeWritePort>));
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, false);
+    let (store, directory) = execution_store();
+    let _ = directory.keep();
+    ProductionExecutionPort {
+        store,
+        active_provider_state: state,
+        trade_logged_in: Some(true),
+        trade_read_port: None,
+        trade_write_port: None,
+        trade_runtime: Some(Arc::clone(runtime)),
+        cancel_inflight: Arc::new(std::sync::Mutex::new(std::collections::BTreeSet::new())),
+        risk_coordinator: Some(Arc::new(crate::product::ExecutionRiskCoordinator::new(
+            control_path,
+        ))),
+        default_trading_environment: None,
+        notification_projector: None,
+    }
+}
+
+/// Option-combo payload whose legs keep Go's padded, lower-case spelling.
+fn padded_real_option_combo_payload(client_order_id: &str) -> Value {
+    json!({
+        "accountId": "1001",
+        "brokerId": "futu",
+        "market": "US",
+        "tradingEnvironment": "REAL",
+        "clientOrderId": client_order_id,
+        "orderKind": "option_combo",
+        "productClass": "option",
+        "underlyingInstrumentId": "US.AAPL",
+        "optionStrategy": "vertical",
+        "nearExpiry": "2026-07-17",
+        "spread": 10.0,
+        "price": 1.25,
+        "legs": [
+            {"instrumentId": " us.aapl260717c00200000 ", "productClass": "option", "side": " buy ", "ratio": 1, "quantity": 2},
+            {"instrumentId": "us.aapl260717c00210000", "productClass": "option", "side": "sell", "ratio": 1, "quantity": 2}
+        ]
+    })
+}
+
+/// Parity: go:452dea11:internal/trading/execution_combo_lifecycle_test.go:15
+/// `TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower`.
+///
+/// Go drives one option-combo order through the trading service: the
+/// buying-power query carries the execution-buying-power feature and reaches
+/// the broker rule provider, the combo preview persists a credential bound to
+/// the canonical `option_combo` intent, placement spends that credential while
+/// handing the pre-trade gateway a two-contract command, and cancel trims the
+/// internal order id before reaching the combo gateway. Rust splits the same
+/// lifecycle across the execution write port, the durable preview/order fence
+/// and the risk coordinator, so this test keeps the whole chain on the
+/// production port instead of the compatibility placeholder.
+#[test]
+fn option_combo_lifecycle_preview_place_cancel_and_buying_power_keep_go_contract() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    let reader = Arc::new(ComboPreviewTradeReader::default());
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let control_directory = tempfile::tempdir().expect("control directory");
+    let control_path = combo_lifecycle_control_file(control_directory.path(), false);
+    let port = combo_lifecycle_port(&runtime, &reader, &writer, control_path);
+
+    // Go's first step asks the buying-power feature for an option product. The
+    // Rust endpoint owns that feature id (the route *is*
+    // `execution.buying_power`), so the equivalent evidence is the
+    // broker-owned max-trade-quantity probe carrying the option contract.
+    let buying_power = port
+        .buying_power_preview(&json!({
+            "accountId": "42",
+            "brokerId": "futu",
+            "market": "US",
+            "tradingEnvironment": "SIMULATE",
+            "orderKind": "single",
+            "orderType": "LIMIT",
+            "quantity": 2.0,
+            "price": 1.25,
+            "instrument": {
+                "instrumentId": "US.AAPL260717C00200000",
+                "productClass": "option",
+                "tradeMarket": "US"
+            }
+        }))
+        .expect("option buying power preview");
+    assert_eq!(buying_power["allowed"], true, "{buying_power}");
+    let probes = reader
+        .max_quantity_calls
+        .lock()
+        .expect("max quantity probes");
+    assert_eq!(probes.len(), 1, "one buying-power probe");
+    assert_eq!(probes[0].header.acc_id, 42);
+    // Futu's trade market for US is 2 (`TrdMarket_US`); 11 is the quote
+    // market the option-strategy readers use.
+    assert_eq!(probes[0].header.trd_market, 2);
+    assert_eq!(probes[0].code, "AAPL260717C00200000");
+    assert_eq!(probes[0].price, 1.25);
+    assert_eq!(probes[0].order_type, 1, "LIMIT reaches OpenD as 1");
+    drop(probes);
+
+    let payload = padded_real_option_combo_payload("client-combo-1");
+    let preview = port.combo_preview(&payload).expect("combo preview");
+    assert_eq!(preview["allowed"], true, "{preview}");
+    assert_eq!(preview["productClass"], "option");
+    assert_eq!(preview["orderKind"], "option_combo");
+    let legs = preview["legs"].as_array().expect("preview legs");
+    assert_eq!(legs.len(), 2);
+    assert_eq!(
+        legs[0]["instrumentId"], "US.AAPL260717C00200000",
+        "the padded lower-case leg must be canonicalized: {preview}"
+    );
+    assert_eq!(legs[0]["side"], "BUY");
+    let preview_id = preview["previewId"]
+        .as_str()
+        .expect("preview id")
+        .to_owned();
+    assert!(!preview_id.trim().is_empty());
+
+    // Go asserts the exact command handed to the pre-trade gateway
+    // (`Query.Quantity == 2`, `QuantityMode == contracts`). Rust builds that
+    // command in `build_pre_trade_risk_combo_order`; the policy below fences
+    // the same two-contract quantity, and the REAL placement has to pass it.
+    let parsed = super::execution_order_parse::parse_combo(&payload).expect("parsed combo");
+    let risk_order = super::execution_order_helpers::build_pre_trade_risk_combo_order(&parsed);
+    assert_eq!(risk_order.order_kind, "option_combo");
+    assert_eq!(risk_order.quantity_mode, "contracts");
+    assert_eq!(risk_order.quantity.to_string(), "2");
+    assert_eq!(risk_order.amount, None);
+    assert_eq!(risk_order.legs.len(), 2);
+    assert_eq!(risk_order.legs[0].quantity.to_string(), "2");
+    assert_eq!(risk_order.legs[1].quantity.to_string(), "2");
+
+    let mut place_payload = payload.clone();
+    place_payload["previewId"] = json!(preview_id);
+    let placed = port
+        .place_combo(&place_payload)
+        .expect("combo place under the two-contract limit");
+    assert_eq!(placed["status"], "SUBMITTED", "{placed}");
+    assert_eq!(placed["quantityMode"], "contracts");
+    assert_eq!(placed["requestedQuantity"], 2.0);
+    assert_eq!(placed["brokerOrderIdEx"], "COMBO-9001");
+    let submitted = writer.placed_combo.lock().expect("placed combos");
+    assert_eq!(submitted.len(), 1, "exactly one combo submission");
+    assert_eq!(submitted[0].quantity, 2.0);
+    assert_eq!(submitted[0].combo_legs.len(), 2);
+    assert_eq!(submitted[0].combo_legs[0].code, "AAPL260717C00200000");
+    assert_eq!(submitted[0].combo_legs[1].side, Some(2));
+    drop(submitted);
+
+    // The consumed credential replays the stored order instead of issuing a
+    // second combo submission, matching Go's `previewStore.consumed == 1`.
+    let replayed = port
+        .place_combo(&place_payload)
+        .expect("idempotent combo replay");
+    assert_eq!(replayed["status"], "SUBMITTED");
+    assert_eq!(
+        writer.placed_combo.lock().expect("placed combos").len(),
+        1,
+        "the consumed preview must not submit a second combo"
+    );
+
+    // Go's `CancelExecutionCombo(" internal-combo ")` trims the id before the
+    // combo gateway sees it. Rust trims while parsing the cancel route, so the
+    // padded path has to reach the same order with exactly one modify call.
+    let internal_id = placed["internalOrderId"]
+        .as_str()
+        .expect("internal combo order id");
+    // Go stores the canonical combo intent (`NormalizedRequest` contains
+    // `option_combo`) so the durable identity fence can replay it byte for
+    // byte. Rust persists the same canonical intent on the order record; the
+    // preview row keeps the raw payload that produced the request hash.
+    let stored = port
+        .store
+        .get_order(internal_id)
+        .expect("read stored combo order")
+        .expect("stored combo order row");
+    assert!(
+        stored.normalized_request.contains("option_combo"),
+        "canonical normalized request = {}",
+        stored.normalized_request
+    );
+    assert_eq!(stored.quantity_mode, "contracts");
+    assert_eq!(stored.requested_quantity, Some(2.0));
+    let cancel_response = crate::product::product_execution_write_port::dispatch_execution_write(
+        &crate::product::product_execution_write_port::ExecutionWriteRequest {
+            method: "POST".to_owned(),
+            path: format!("/api/v1/execution/combos/%20{internal_id}%20/cancel"),
+            body: None,
+            context: crate::product::product_execution_write_port::ExecutionWriteContext::Normal,
+        },
+        Some(&port),
+        "2026-09-22T00:00:00Z",
+    );
+    assert_eq!(cancel_response.status, 200, "{:?}", cancel_response.body);
+    let modified = writer.modified.lock().expect("modified combos");
+    assert_eq!(modified.len(), 1, "exactly one combo cancel attempt");
+    assert_eq!(modified[0].operation, 2, "cancel uses Trd_ModifyOrder");
+    assert_eq!(modified[0].order_id_ex.as_deref(), Some("COMBO-9001"));
+    drop(modified);
+}
+
+/// Parity: go:452dea11:internal/trading/execution_combo_lifecycle_test.go:83
+/// `TestExecutionOrderRechecksRiskImmediatelyBeforeBrokerSubmission`.
+///
+/// Go evaluates pre-trade risk, consumes the preview credential and then
+/// re-evaluates risk immediately before submission; a kill switch that
+/// appeared in between rejects the placement (`placed == false`) while the
+/// credential stays spent (`store.consumed == 1`). Rust keeps the same order:
+/// the reservation consumes the preview, the coordinator re-reads the control
+/// file inside the submission gate, and a rejection is persisted as REJECTED
+/// without touching the broker.
+#[test]
+fn real_option_combo_rechecks_risk_after_consuming_preview_before_submission() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    let reader = Arc::new(ComboPreviewTradeReader::default());
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let control_directory = tempfile::tempdir().expect("control directory");
+    let control_path = combo_lifecycle_control_file(control_directory.path(), false);
+    let port = combo_lifecycle_port(&runtime, &reader, &writer, control_path);
+
+    let payload = padded_real_option_combo_payload("client-risk-recheck");
+    let preview = port.combo_preview(&payload).expect("combo preview");
+    assert_eq!(preview["allowed"], true, "{preview}");
+    let mut place_payload = payload.clone();
+    place_payload["previewId"] = json!(preview["previewId"].as_str().expect("preview id"));
+
+    // The operator activates the kill switch while the preview credential is
+    // still in flight; only the submission-time re-read can see it.
+    combo_lifecycle_control_file(control_directory.path(), true);
+
+    let rejected = port
+        .place_combo(&place_payload)
+        .expect_err("kill switch activated after the preview must block submission");
+    match &rejected {
+        ExecutionWritePortError::Failed { status, code, .. } => {
+            assert_eq!(*status, 403, "{rejected:?}");
+            assert_eq!(code, "REAL_TRADE_KILL_SWITCH_ACTIVE", "{rejected:?}");
+        }
+        other => panic!("expected a kill-switch rejection, got {other:?}"),
+    }
+    assert!(
+        writer.placed_combo.lock().expect("placed combos").is_empty(),
+        "a rejected REAL combo must never reach the broker"
+    );
+
+    // The reservation already happened before the recheck, so the retry
+    // replays the durable REJECTED projection instead of submitting again.
+    let replayed = port
+        .place_combo(&place_payload)
+        .expect("identical replay returns the stored rejection");
+    assert_eq!(replayed["status"], "REJECTED", "{replayed}");
+    assert_eq!(replayed["lastErrorCode"], "REAL_TRADE_KILL_SWITCH_ACTIVE");
+    assert_eq!(replayed["lastErrorSource"], "risk");
+    assert!(
+        writer.placed_combo.lock().expect("placed combos").is_empty(),
+        "the replay must not issue a broker call"
+    );
+
+    // The preview credential is spent exactly once: a different client
+    // identity reusing the same preview id is refused as PREVIEW_INVALID.
+    let mut other_identity = padded_real_option_combo_payload("client-risk-recheck-2");
+    other_identity["previewId"] = place_payload["previewId"].clone();
+    let reused = port
+        .place_combo(&other_identity)
+        .expect_err("a spent preview must not bind a second client identity");
+    match &reused {
+        ExecutionWritePortError::Failed { status, code, .. } => {
+            assert_eq!(*status, 400, "{reused:?}");
+            assert_eq!(code, "PREVIEW_INVALID", "{reused:?}");
+        }
+        other => panic!("expected PREVIEW_INVALID, got {other:?}"),
+    }
+    assert!(
+        writer.placed_combo.lock().expect("placed combos").is_empty(),
+        "no combo submission may follow a consumed preview"
+    );
 }

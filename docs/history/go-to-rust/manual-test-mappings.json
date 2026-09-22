@@ -30352,18 +30352,18 @@
     "evidence_type": "function_exact"
   },
   "internal/trading/execution_combo_lifecycle_test.go:15:TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_combo_complete_preview_place_cancel_and_buying_power",
-    "conclusion": "部分覆盖：Rust 仅比较 BrokerAccepted/Filled 是否 terminal；Go 还覆盖 preview、place、cancel、事件 parlay 与 buying-power 响应的完整 envelope 和错误路径",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(test_execution_combo_complete_preview_place_cancel_and_buying_power)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::option_combo_lifecycle_preview_place_cancel_and_buying_power_keep_go_contract",
+    "conclusion": "function_exact：Rust 在生产执行端口上复现同一 option-combo 生命周期链。Go 分五步断言：(1) buying power 以 FeatureExecutionBuyingPower 抵达 broker 规则提供方并返回 allowed；(2) 组合预览持久化预览凭证并回传同一 previewId；(3) 下单消费凭证一次、风控命令为 2 手且 QuantityMode=contracts；(4) 重放同身份不再下单；(5) CancelExecutionCombo(\" internal-combo \") 先 trim 再调组合网关。Rust 对应证据：buying-power 路由即 execution.buying_power 特性（路由/能力目录承载 featureId，Futu 侧为 Trd_GetMaxTrdQtys 探测，测试断言记录到的 acc_id=42、trd_market=2、code=AAPL260717C00200000、price=1.25、orderType=1）；组合预览回传 allowed/option/option_combo 且把空白+小写腿规范化（us.aapl260717c00200000→US.AAPL260717C00200000、 buy →BUY）；build_pre_trade_risk_combo_order 产出的风控命令为 quantity=2、quantityMode=contracts、两条腿各 2 手；REAL 下单在 maxOrderQuantity=2 控制面下通过并在 broker 记录恰好一次 Trd_PlaceComboOrder（quantity=2、第 1 腿 code=AAPL260717C00200000、第 2 腿 side=2/SELL）；订单记录 normalized_request 含 option_combo（Go 的 NormalizedRequest 规范 intent 在 Rust 固定于订单记录）、quantityMode=contracts、requestedQuantity=2；重放不触发第二次提交；撤单走 /api/v1/execution/combos/%20<id>%20/cancel 由 parse_order_id 先 percent-decode+trim 再命中同一订单，恰好一次 Trd_ModifyOrder(operation=2)。保留差异：Go 的 ExecutionComboPreview.Operation（PLACE_COMBO/CANCEL_COMBO）是 Go 服务层信封字段，Rust 公开契约改由路由 operation 标签（combo-place/combo-cancel）与订单投影承载；Go 预览记录存 canonical normalizedComboIntent，Rust 预览行存原始 payload（该字段无读取方），规范 intent 落在订单 normalized_request。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(option_combo_lifecycle_preview_place_cancel_and_buying_power_keep_go_contract)' --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_combo_lifecycle_test.go:83:TestExecutionOrderRechecksRiskImmediatelyBeforeBrokerSubmission": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_combo_amount_mode_precedence_and_leg_bypass；crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::test_place_broker_order_runs_pre_trade_risk_before_broker_submission",
-    "conclusion": "partial：Rust 覆盖组合金额模式优先级与提交前风控；差异：Go 断言在 broker 提交前「再次」风控复核（重检时点语义），Rust 断言单次提交前风控，未覆盖提交前重检。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::real_option_combo_rechecks_risk_after_consuming_preview_before_submission",
+    "conclusion": "function_exact：Go 断言下单路径「先评估风控→消费预览凭证→提交前再评估风控」，控制面在预览期间变化时以 KILL_SWITCH_CHANGED 拒绝（risk.calls==2、store.consumed==1、placed==false）。Rust 在生产执行端口上保持同一顺序与同一阻塞结果：预览签发凭证后把 real-trade 控制面文件改为激活 kill switch，place_combo 先经 reserve_order_with_preview_checked 消费凭证并落库 SUBMITTING，再在提交门（ExecutionRiskCoordinator::execute_with_risk_guard）内重新从磁盘读取最新控制面后拒绝，返回 403 REAL_TRADE_KILL_SWITCH_ACTIVE 且 broker 侧零次 Trd_PlaceComboOrder；被拒订单以 REJECTED 落库（lastErrorCode=REAL_TRADE_KILL_SWITCH_ACTIVE、lastErrorSource=risk），同身份重放返回该 REJECTED 投影且仍不下单（证明凭证已花、提交前重检已生效）；换 clientOrderId 复用同一 previewId 被拒为 400 PREVIEW_INVALID 且 broker 零调用（凭证单次绑定语义）。保留差异：Go 用「网关被调用两次」计数表达重检时点，Rust 在提交门内单次读取最新控制面（等价语义：提交前一刻以最新状态裁决），因此无调用次数断言；Go 的 KILL_SWITCH_CHANGED 原因码在 Rust 归一为 REAL_TRADE_KILL_SWITCH_ACTIVE。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(real_option_combo_rechecks_risk_after_consuming_preview_before_submission)' --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_combo_lifecycle_test.go:110:TestExecutionEventParlayCompletePreviewAndAmountRisk": {
     "status": "[~]",
