@@ -1808,8 +1808,8 @@
   "internal/api/strategy/pine_routes_contracts_test.go:72:TestAnalyzeStrategyPineRouteReturnsDiagnosticsAndRequirements": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_replays_go_fixture_projection_status_and_headers",
-    "conclusion": "partial：Go 断言 POST /api/v1/strategy-pine/analyze 返回空 diagnostics 与 requirements 投影。Rust 该用例回放冻结的 strategy-pine fixture，逐 case 断言状态、响应头与整份 data/错误码；diagnostics 与 requirements 在冻结 data 内固定，以整份相等表达而非独立断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言 200 + 空 diagnostics + features 非空 + requirements.indicators 三条（含 sar:0.02:0.02:0.2）+ metadata 数值 + ast/semantic 非空。Rust fixture 的 success-include-ast-and-semantic case 逐字断言整份 data（含 requirements/features/metadata/ast/semantic）；indicators 计数与键的独立断言未复刻。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategy_pine_) | test(strategy_pine_compatibility)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/pine_routes_contracts_test.go:148:TestAnalyzeStrategyPineRouteOmitsASTByDefault": {
@@ -1822,198 +1822,198 @@
   "internal/api/strategy/pine_routes_contracts_test.go:182:TestAnalyzeStrategyPineRouteRejectsUnsupportedSourceFormat": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_applies_input_validation_and_error_precedence_before_the_port",
-    "conclusion": "partial：Go 断言 sourceFormat=legacy→400 与 BAD_REQUEST 信封。Rust 该用例断言非路由请求与输入校验/错误优先级先于端口（含 sourceFormat 校验），另由 fixture 的 unsupported-source-format 用例断言 400+错误码；错误消息文本断言未逐字复刻。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言 sourceFormat=legacy → 400 且 error.message 逐字等于 \"strategy-pine analyze supports pine-v6 only\"。Rust 校验用例断言非路由与输入校验先于端口（400 族），fixture 的 unsupported-source-format case 断言 400 + BAD_REQUEST；Rust 校验消息由端口生成，未与 Go 文案逐字比对。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategy_pine_) | test(strategy_pine_compatibility)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/pine_routes_contracts_test.go:217:TestAnalyzeStrategyPineRouteReportsUnsupportedSyntax": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_preserves_worker_shadow_errors_as_successful_projections",
-    "conclusion": "partial：Go 断言不支持的语法仍返回 200 且 diagnostics 报告。Rust 该用例断言 worker 侧错误（不可用/超时/取消/崩溃）作为成功投影透传（200 语义），对应 Go 的 shadow error 语义；不支持语法的具体 diagnostics 内容由 fixture 的 unsupported-syntax-projection 用例固定。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言 import 语法 → 200 且 diagnostics[0].code=PINE_DECLARATION_UNSUPPORTED、line=3。Rust 阴影错误用例断言 worker 不可用/超时/取消/崩溃仍以 200 成功投影透传，fixture 的 unsupported-syntax-projection case 逐字断言含 diagnostics 的整份 data；具体诊断码/行号由冻结 fixture 固定，未独立提取断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategy_pine_) | test(strategy_pine_compatibility)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/pine_routes_contracts_test.go:253:TestAnalyzeStrategyPineRouteReturnsV20ParseOnlyMetadata": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_accepts_go_zero_values_and_opaque_empty_or_abnormal_projections",
-    "conclusion": "partial：Go 断言 v20 仅解析场景的元数据与 collection 类型诊断。Rust 该用例断言 Go 零值与空/异常投影按原样接受（含不完整元数据），fixture 覆盖 v6 投影；v20 parse-only 诊断清单未逐项复刻。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言 v20(parse-only) 场景的 declarations（type/method/import/executable 字段）与 collectionOperations 诊断。Rust 该用例断言 Go 零值与空/异常投影原样接受；fixture 仅冻结 v6 投影，v20 parse-only 声明清单无独立用例与冻结 case。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategy_pine_) | test(strategy_pine_compatibility)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/pine_routes_contracts_test.go:398:TestAnalyzeStrategyPineRouteReturnsObjectSignatureDiagnostics": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_replays_go_fixture_projection_status_and_headers",
-    "conclusion": "partial：Go 断言对象签名诊断的 operations 内容。Rust 该用例以冻结 fixture 逐 case 断言整份投影（含 declarations/operations 结构）；对象签名诊断的独立断言未复刻。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言对象签名诊断的 objectOperations 内容。Rust 以 fixture 整份 data 相等表达投影（含 declarations/operations 结构），fixture case 清单未含对象签名场景，无该诊断的独立断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategy_pine_) | test(strategy_pine_compatibility)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/pine_routes_contracts_test.go:453:TestAnalyzeStrategyPineRouteReturnsImportAliasDiagnostics": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_replays_go_fixture_projection_status_and_headers",
-    "conclusion": "partial：Go 断言 import 别名诊断的 declarations 内容。Rust fixture 的 unsupported-syntax-projection 用例含 import 声明投影并逐字断言整份 data（含 declarations），未对 import 别名单独断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言 import 别名诊断的 declarations（alias/namespace/importPath/version/executable）。Rust fixture 的 unsupported-syntax-projection 含 import 声明并逐字断言整份 data，未对别名诊断字段单独提取断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategy_pine_) | test(strategy_pine_compatibility)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/pine_routes_contracts_test.go:502:TestAnalyzeStrategyPineRouteReturnsTypeMethodRegistryDiagnostics": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_replays_go_fixture_projection_status_and_headers",
-    "conclusion": "partial：Go 断言类型/方法注册表诊断。Rust 侧以冻结 fixture 的整份投影相等断言覆盖同族行为，无类型方法注册表的独立用例。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言类型/方法注册表诊断（type/method 声明与 receiver/parameters/fields）。Rust 无类型方法注册表独立用例，仅有 fixture 整份投影相等断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategy_pine_) | test(strategy_pine_compatibility)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/routes_boundary_contracts_test.go:16:TestStrategyDefinitionPreviewQueryRejectsInvalidBooleans": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters",
-    "conclusion": "partial：Go 断言 preview 查询非法布尔→校验错误。Rust 该用例断言预览参数覆盖与 warmup 推导；非法布尔的查询解析拒绝由 wire/query 解析层承担，无同名断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_strategy_definitions_tests.rs::strategy_definition_detail_rejects_invalid_boolean_query_before_the_port",
+    "conclusion": "function_exact：Go 断言 GET /api/v1/strategy-definitions/def-1?useExtendedHours=maybe → 400 BAD_REQUEST 且消息含 \"invalid strategy definition query\"。Rust 新增 HTTP 级用例在 cutover 产品上请求同一路径，断言 400 + BAD_REQUEST + 同文案，解析发生在读取快照端口之前。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategy_definition_detail_rejects_invalid_boolean_query_before_the_port)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/strategy/routes_boundary_contracts_test.go:31:TestStrategyRoutesRejectMissingBoundURIParamsAtHandlerBoundary": {
     "status": "[~]",
-    "rust_entry": "不适用：Go handler 层的 URI 缺参分支",
-    "conclusion": "boundary（结构差异）：Go 直接调用 handler 并断言缺 URI 参数→400。Rust 使用 /api/v1/strategies/{instanceId} 等模板路由，缺参请求不匹配路由而返回 NOT_FOUND，不存在 handler 内缺参分支。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "不适用：Go handler 层 URI 缺参分支在 Rust 路由模型中无同形对象",
+    "conclusion": "boundary：Go 直接调用 14 个 handler 并注入空 URI 参数，一律断言 400 BAD_REQUEST。Rust 路由按 path 模板匹配，/api/v1/strategies//start、/api/v1/strategy-definitions/ 等空参路径不匹配任何注册路由（实例路由 parse_route 见 raw_id.is_empty() → not_found_spec），返回 404 NOT_FOUND 未知端点而非 400。差异已登记（P1，owner = jftrade-api/engine 策略路由层），需决定是否补齐 400 语义及回归用例。",
+    "command": "`pnpm run check:compatibility`；`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategy_runtime_write) | test(strategy_definition_)'`",
     "evidence_type": "boundary"
   },
   "internal/api/strategy/routes_boundary_contracts_test.go:75:TestStrategyStartRouteMapsPreflightRuntimeAndTransitionBoundaries": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_strategy_runtime_write_port.rs::valid_request_fails_closed_without_test_port",
-    "conclusion": "partial：Go 断言 start 路由在 preflight/runtime/transition 边界的映射。Rust 该用例断言合法 start 请求在缺测试端口时 fail-closed；preflight 与转换边界的逐项断言由 runtime 状态机用例（strategy_runtime_lifecycle_bounded）覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/tests/strategies_write_compatibility.rs::sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart",
+    "conclusion": "partial：Go 断言缺失实例→404 NOT_FOUND、startability guard→400 BAD_REQUEST、worker 容量(pineworker.ErrCapacityExceeded)→400 BAD_REQUEST、转换失败→502 STRATEGY_RUNTIME_START_FAILED 且停止已启动 runtime。Rust cutover 端口用例断言 STARTING→RUNNING 失败回滚（502 STRATEGY_RUNTIME_START_FAILED、状态保持、无 STARTED 事件）；生产端口把状态 CAS 失败映射为 409 CONFLICT 并 cancel+release_demand（语义差异已登记）；缺失实例 404 映射存在但无用例断言；startability guard 与 worker 容量无 HTTP 级用例。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/routes_boundary_contracts_test.go:142:TestStrategyActivityRoutesRejectMalformedPagination": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::strategy_instance_activity_tool_normalizes_kind_and_paging_before_the_read_port",
-    "conclusion": "partial：Go 断言 logs/audit 畸形分页→400 且不发起查询。Rust 该用例断言活动工具先归一 kind 与分页再读端口；畸形分页的 400 前置拒绝由查询解析层承担，无同名断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_activity.rs::catalog_activity_paging_and_filters_match_go_boundaries; crates/jftrade-engine/src/product_strategies_tests.rs::strategy_instance_read_routes_match_group_fixture_in_cutover_only",
+    "conclusion": "function_exact：Go 断言 logs?limit=bogus 与 audit?offset=bogus → 400 且不触达活动 store。Rust 解析层用例新增断言畸形 limit/offset 在读取活动 store 前返回 Invalid(\"invalid <kind> query\")，HTTP fixture 用例断言 /logs?limit=bad → 400 BAD_REQUEST（audit 非法值同样 400），组合覆盖 Go 两条路径。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(catalog_activity_paging_and_filters_match_go_boundaries) | test(strategy_instance_read_routes_match_group_fixture_in_cutover_only)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/strategy/routes_failure_boundaries_test.go:16:TestAnalyzePineRouteCoversSuccessMalformedAndAnalysisFailure": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_applies_input_validation_and_error_precedence_before_the_port",
-    "conclusion": "partial：Go 断言 pine 分析成功、畸形 JSON 与分析失败的组合。Rust 该用例断言校验与错误优先级先于端口，fixture 另断言 malformed-json 400 与 worker 失败投影 200；组合场景未在同一用例复刻。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言 malformed JSON→400 BAD_REQUEST、分析器普通错误→400 PINE_ANALYSIS_FAILED、成功→200。Rust fixture 断言 malformed-json→400 BAD_REQUEST 与 success-*→200；分析失败在生产端口映射为 502 STRATEGY_PINE_ANALYZE_FAILED（状态码与码名均不同，已登记 P1，owner = product production pine analyze port）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategy_pine_) | test(strategy_pine_compatibility)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/routes_failure_boundaries_test.go:71:TestDefinitionRoutesMapReadWriteAndDeleteFailures": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/tests/strategy_definitions_write_compatibility.rs::strategy_definition_write_leaf_fails_closed_without_test_port",
-    "conclusion": "partial：Go 八子用例断言定义读写删除失败映射。Rust 该用例断言定义写叶子在缺测试端口时 fail-closed；读写删除各失败码的逐项映射由 write port 与 wire 承载，无八例复刻。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_strategy_research_write_product_tests.rs::strategy_definition_write_product_replays_browser_failure_recovery_and_restart; crates/jftrade-engine/src/product_strategy_definitions_tests.rs::strategy_definition_routes_match_group_fixture_in_cutover_only",
+    "conclusion": "partial：Go 断言 list/read/update/delete store 失败→500 STRATEGY_FAILED、create/update 畸形→400、create 清空 client ID、update 覆盖 body ID、有效 preview 派生 warmup=20。Rust 写路由 HTTP 用例断言 create/update/delete 失败→500 STRATEGY_FAILED 且可恢复，fixture 用例断言 400/404 族，create 清 ID/update 覆盖 ID 由 definition write port 用例断言；list/read 的 500 映射在 wire 层实现但无端口 Unavailable→500 的 HTTP 断言；preview 的 20 条数值未单独复刻（同族由 66/0 场景覆盖）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategy_definition_write_product_replays_browser_failure_recovery_and_restart) | test(strategy_definition_routes_match_group_fixture_in_cutover_only)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/routes_failure_boundaries_test.go:138:TestDefinitionOrchestrationRoutesMapBusinessFailures": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_strategy_definition_write_port.rs::instantiate_accepts_empty_body_but_rejects_malformed_json",
-    "conclusion": "partial：Go 断言 definition instantiate/apply-linked 的业务失败映射。Rust 该用例断言 instantiate 接受空体但拒绝畸形 JSON；业务失败码映射无逐项断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言 apply-linked catalog 失败→500 STRATEGY_FAILED、instantiate 定义读取失败→400 BAD_REQUEST、instantiate 定义缺失→404 NOT_FOUND。Rust 端口用例断言 instantiate 空体接受/畸形 JSON 拒绝；三条失败码由 port 错误映射承载，无逐码 HTTP 断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(instantiate_accepts_empty_body_but_rejects_malformed_json)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/routes_failure_boundaries_test.go:184:TestInstanceMutationRoutesMapCatalogFailures": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_strategy_runtime_write_port.rs::valid_request_fails_closed_without_test_port",
-    "conclusion": "partial：Go 断言实例变更在 catalog 失败下的映射。Rust 该用例断言合法请求在缺测试端口时 fail-closed；catalog 失败的逐码映射未复刻。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_strategy_runtime_write_port.rs::malformed_input_precedes_missing_port_and_non_mutations_are_isolated",
+    "conclusion": "partial：Go 断言 update、runtime-risk、pause、stop 四条变更的 catalog 失败一律→500 STRATEGY_FAILED。Rust 端口用例断言畸形输入先于缺端口（400/503）且非变更隔离；生产端口把转换/CAS 失败映射为 409/502 族（strategy_runtime_mutation.rs），无 500 STRATEGY_FAILED 的逐路由 HTTP 断言（语义差异已登记）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(malformed_input_precedes_missing_port_and_non_mutations_are_isolated)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/routes_failure_boundaries_test.go:230:TestPluginRoutesRejectWhitespaceIdentifiers": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_tests.rs::plugin_uninstall_guidance_route_fails_closed_when_snapshot_port_is_unavailable",
-    "conclusion": "partial：Go 断言插件路由拒绝纯空白标识符。Rust 该用例断言插件卸载指引在缺快照端口时 fail-closed；空白标识符的标识归一在 Rust 由路由标识归一（product_wire 标识解析）承担，无同名断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言 operations/%20、plugins/%20/install、plugins/%20/uninstall-guidance 三路→400 BAD_REQUEST。Rust 插件指引路由在缺快照端口时 fail-closed（503 PLUGIN_UNINSTALL_GUIDANCE_UNAVAILABLE）；标识符解码后空/空白 → 400 的判定在插件写路由/产品 wire 层，无三条路由级断言（缺口已登记，owner = 插件路由层）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(plugin_) | test(plugin_uninstall_guidance)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/routes_failure_boundaries_test.go:252:TestWriteStrategyErrorIgnoresNil": {
     "status": "[~]",
-    "rust_entry": "不适用：Go writeStrategyError(nil) 的空错误分支",
-    "conclusion": "boundary（结构差异）：Go 单测 writeStrategyError(nil) 不写响应。Rust 错误路径由 Result 与显式 ApiFailure 构造表达，不存在 nil error 入参，因此无对应分支可测；该行为在 Rust 由类型系统保证。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "不适用：Go writeStrategyError(nil) 的空错误分支在 Rust 无同形对象",
+    "conclusion": "boundary：Go 直接调用 writeStrategyError(ctx, nil, ...) 断言不写响应（保持 200 空体）。Rust 错误响应统一由 ApiFailure/端口错误枚举投影为信封，nil/空错误不可表达，属结构边界，无需迁移用例。",
+    "command": "`pnpm run check:compatibility`",
     "evidence_type": "boundary"
   },
   "internal/api/strategy/routes_lifecycle_test.go:203:TestDefinitionRoutesNormalizeCreateUpdateAndDeleteGuards": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_strategy_definition_write_port.rs::create_clears_client_id_and_update_overrides_body_id",
-    "conclusion": "partial：Go 断言 definition create/update 归一、list 与 delete guard。Rust 该用例断言 create 清空客户端 id、update 以路径 id 覆盖请求体 id；delete guard 与 list 归一在 Rust 由 definition 写叶子与读路由覆盖，未在同一用例复刻。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言 create 清空客户端 ID、update 以路径 ID 覆盖 body、linked 实例存在时 delete→400、解除关联后 delete→200 且传递 def-1。Rust 端口用例断言 create 清 ID 与 update 覆盖 ID；delete 的 linked 守卫 400/200 转换由产品写端口路径承载，无同场景用例（缺口已登记）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(create_clears_client_id_and_update_overrides_body_id)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/routes_lifecycle_test.go:252:TestDefinitionVersionRoutesExposeHistoryAndSnapshots": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/strategy_definitions_write_compatibility.rs::sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart",
-    "conclusion": "partial：Go 断言版本历史与快照读取（含缺失定义）。Rust 该用例覆盖定义版本、回滚、关联删除与重启的 sqlite cutover 行为，并断言未知 id 的报告；快照读取的 HTTP 形状无逐字断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言 versions 列表字段（definitionId/isCurrent/savedAt）、detail 字段（description/script）、缺失→404 NOT_FOUND、store 失败→500 STRATEGY_FAILED、handler 缺参→400。Rust SQLite cutover 用例断言版本历史/回滚/关联删除/重启；404/500 映射在 wire 层并由 fixture case 覆盖缺失路径；缺参 400 分支属 routes_boundary_contracts_test.go:31 已登记的 404/400 差异。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/routes_lifecycle_test.go:319:TestInstantiateApplyAndLifecycleRoutesFollowBusinessStateTransitions": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_strategy_runtime_write_product_tests.rs::strategy_runtime_write_product_replays_browser_failure_recovery_and_restart",
-    "conclusion": "partial：Go 断言 instantiate/apply/update/runtime-risk/pause/stop/start 的状态转换与参数透传。Rust 该用例 HTTP 级回放七条写路由（含 start/pause/stop/refresh-definition/runtime-risk/update）的浏览器边界失败、恢复与重启；逐转换的入参断言未全部复刻。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言 instantiate/apply/update/runtime-risk/pause/stop/start/refresh 的入参透传与状态转换（pause/stop 触发 runtime.Stop、start 置 RUNNING）。Rust 产品 HTTP 用例回放七条写路由的失败/恢复/重启，SQLite cutover 用例断言重复转换与事件；逐转换的 runtime.Stop 调用与参数透传断言未全部复刻（缺口已登记）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategy_runtime_write_product_replays_browser_failure_recovery_and_restart)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/routes_lifecycle_test.go:401:TestDeleteInstanceRouteMapsBusinessOutcomes": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/strategies_write_compatibility.rs::strategies_runtime_write_fixture_matches_go_owner_for_all_seven_routes",
-    "conclusion": "partial：Go 断言删除成功 200、缺失→404 NOT_FOUND、忙碌→400 BAD_REQUEST。Rust 该用例逐条对齐七条写路由（含 delete）的 Go owner fixture；404/400 的逐码断言未在同一用例复刻，busy 语义由 runtime 状态机覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言 delete 成功 200 且传递 inst-1、缺失→404 NOT_FOUND、busy→400 BAD_REQUEST。Rust fixture 用例逐条对齐七条写路由的 Go owner 输入/输出；cutover 用例断言运行中删除→400；缺失删除→404 的独立断言未复刻（404 映射存在于端口错误表）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategies_runtime_write_fixture_matches_go_owner_for_all_seven_routes)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/routes_lifecycle_test.go:462:TestStrategyRoutesMapValidationAndBusinessErrors": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_strategy_runtime_write_port.rs::malformed_input_precedes_missing_port_and_non_mutations_are_isolated",
-    "conclusion": "partial：Go 九个子用例断言畸形载荷→400、业务失败→404/400/502。Rust 该用例断言畸形输入先于缺端口返回 BAD_REQUEST 且非变更隔离；分业务码映射分散在 write port 与 product 用例，无九例等价复刻。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 九个子用例分别断言 instantiate/update/runtime-risk 畸形→400、instantiate 业务错误→400、apply-linked 缺失→404、apply-linked 读失败→400（含消息）、refresh 缺失→404、start 上游失败→502 STRATEGY_RUNTIME_START_FAILED、logs/audit 非法时间→400。Rust 端口用例断言畸形输入先于缺端口，HTTP 用例覆盖写失败/恢复与 502 启动失败族；未按九例逐条复刻（部分子用例缺独立断言，缺口已登记）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(malformed_input_precedes_missing_port_and_non_mutations_are_isolated)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/routes_lifecycle_test.go:611:TestActivityRoutesNormalizePaginationAndTimeFilters": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::strategy_instance_activity_tool_normalizes_kind_and_paging_before_the_read_port",
-    "conclusion": "partial：Go 断言 logs/audit 的分页与时间过滤归一后再查活动。Rust 该用例断言 strategy 实例活动工具按 kind 与分页归一后再读端口；时间过滤逐字段断言未复刻。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_activity.rs::catalog_activity_paging_and_filters_match_go_boundaries",
+    "conclusion": "function_exact：Go 断言 limit=-5→1、offset=-1→0、level 去空格转小写、fromTime/toTime 解析为时刻、audit kind 去空格。Rust 该用例新增同一查询串断言：limit=1、offset=0、selector=warn、from_ms/to_ms 等于 Go 两个时刻的毫秒值，并断言时间窗口包含边界；kind 去空格由既有断言覆盖。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(catalog_activity_paging_and_filters_match_go_boundaries)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/strategy/routes_lifecycle_test.go:642:TestPluginRoutesCoverCatalogOperationMutationAndGuidance": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_tests.rs::plugin_uninstall_guidance_route_matches_go_fixture_in_cutover_only",
-    "conclusion": "partial：Go 断言 plugins 目录、操作查询、安装/卸载与卸载指引。Rust 该用例断言插件卸载指引路由对齐 Go fixture；目录与安装/卸载变更由 plugins 写路由用例覆盖（product_plugins_write_tests），未合并复刻。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言 /plugins 目录 200、operations/op-1 200、install/uninstall 200 且传递 ID、guidance 200。Rust 卸载指引 fixture 用例断言 guidance 路由对齐，插件写路由用例覆盖目录与安装/卸载变更；未合并复刻五条断言（缺口已登记）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(plugin_)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/routes_lifecycle_test.go:689:TestPluginMutationRoutesMapNotFoundAndInternalFailures": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_tests.rs::plugin_uninstall_guidance_route_fails_closed_when_snapshot_port_is_unavailable",
-    "conclusion": "partial：Go 断言插件变更缺失/内部失败的映射。Rust 该用例断言插件卸载指引在缺快照端口时 fail-closed；缺失资源 404 与内部失败 500 的逐码断言未复刻。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 断言 install 缺失(os.ErrNotExist)→404、uninstall 普通错误→500、operation 缺失→404、guidance 缺失→404。Rust 用例断言 guidance 在缺快照端口时 fail-closed（503）；404/500 逐码断言未复刻（缺口已登记，owner = 插件路由层）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(plugin_uninstall_guidance_route_fails_closed_when_snapshot_port_is_unavailable)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/routes_test.go:41:TestWriteStrategyErrorMapsBusinessErrors": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_strategy_runtime_write_port.rs::malformed_input_precedes_missing_port_and_non_mutations_are_isolated",
-    "conclusion": "partial：Go 单测 writeStrategyError 把业务错误映射为 (status, code, message)。Rust 该用例断言畸形输入先于缺端口返回 BAD_REQUEST 并不产生非预期变更；错误映射本体在 strategy_runtime write port 内实现，无同名单测。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：Go 单测 writeStrategyError：NOT_FOUND→404、BusyError(空消息)→400 用 fallback 文案、UpstreamError→502 STRATEGY_RUNTIME_START_FAILED、普通错误→透传上下文状态码与 fallback 文案。Rust 无同形 helper，等价语义分散在端口错误枚举与产品投影：cutover 用例断言 NOT_FOUND→404、坏状态→400、启动失败→502 STRATEGY_RUNTIME_START_FAILED；busy 空消息的 fallback 回退无同形断言（缺口已登记 P2）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart)'",
     "evidence_type": "partial"
   },
   "internal/api/strategy/routes_test.go:114:TestEnrichDefinitionResponseDefaultsAndQueryOverride": {
-    "status": "[~]",
+    "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters",
-    "conclusion": "partial：Go 断言 enrichDefinitionResponse 默认 interval=5m、query 覆盖 15m、无效脚本 warmup=0、保留 definition symbol。Rust 该用例断言预览派生 warmup bars 与预览参数覆盖；默认 interval 与 invalid-script warmup=0 的具体断言未逐字复刻。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "conclusion": "function_exact：Go 断言默认派生 interval=5m、query 覆盖 15m、无效脚本 warmup=0 且保留 definition symbol。Rust 该用例在真实 SQLite 策略定义 store 上断言默认预览 5m、覆盖 15m、symbol 保留，并新增无效脚本定义断言 derivedWarmupBars=0 与 derivedWarmupInterval=5m。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/strategy/routes_test.go:146:TestHandleGetDefinitionReturnsNotFoundAndBadQuery": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/tests/strategy_definitions_write_compatibility.rs::sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart",
-    "conclusion": "partial：Go 断言 definition 缺失→404、非法 query→400。Rust 该用例覆盖 definition 生命周期（含删除后保留历史、版本回滚与重启）；404/400 传输映射由 wire 层承载，无同名单测。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_strategy_definitions_tests.rs::strategy_definition_detail_maps_missing_definition_and_invalid_query",
+    "conclusion": "function_exact：Go 断言缺失 definition → 404、非法 query → 400。Rust 新增 HTTP 级用例断言 /strategy-definitions/missing-definition → 404 + NOT_FOUND，?useExtendedHours=not-bool → 400 + BAD_REQUEST。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategy_definition_detail_maps_missing_definition_and_invalid_query)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/strategy/routes_test.go:181:TestHandleAnalyzePineMapsValidationErrors": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_applies_input_validation_and_error_precedence_before_the_port",
-    "conclusion": "partial：Go 断言 pine 分析校验错误→400 信封。Rust 该用例断言输入校验与错误优先级先于端口调用（含非路由请求拒绝），错误码由 fixture 的 malformed-json/wrong-script-type 用例固定为 BAD_REQUEST。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_replays_go_fixture_projection_status_and_headers; crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_applies_input_validation_and_error_precedence_before_the_port",
+    "conclusion": "function_exact：Go 断言 POST /strategy-pine/analyze 的校验错误 → 400 BAD_REQUEST 信封（sourceFormat=legacy）。Rust fixture 回放用例断言 unsupported-source-format/malformed-json/wrong-script-type → 400 + BAD_REQUEST，端口用例断言输入校验与错误优先级先于端口调用。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategy_pine_) | test(strategy_pine_compatibility)'",
+    "evidence_type": "function_exact"
   },
   "internal/api/system/routes_test.go:19:TestSystemRoutesReturnEnvelopes": {
     "status": "[~]",

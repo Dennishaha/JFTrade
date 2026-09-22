@@ -89,6 +89,7 @@ fn split_strategy_request_path(request_path: &str) -> (&str, &str) {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/api/strategy/routes_boundary_contracts_test.go:142 TestStrategyActivityRoutesRejectMalformedPagination
 async fn strategy_instance_read_routes_match_group_fixture_in_cutover_only() {
     let fixture = strategy_read_fixture();
     let directory = tempdir().expect("temporary directory");

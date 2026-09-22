@@ -115,6 +115,7 @@ fn fixture() -> StrategyPineFixture {
 }
 
 // Parity: go:452dea11:internal/api/strategy/pine_routes_contracts_test.go:148 TestAnalyzeStrategyPineRouteOmitsASTByDefault
+// Parity: go:452dea11:internal/api/strategy/routes_test.go:181 TestHandleAnalyzePineMapsValidationErrors
 #[test]
 fn strategy_pine_replays_go_fixture_projection_status_and_headers() {
     let fixture = fixture();
@@ -188,6 +189,7 @@ fn strategy_pine_preserves_worker_shadow_errors_as_successful_projections() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/api/strategy/routes_test.go:181 TestHandleAnalyzePineMapsValidationErrors
 fn strategy_pine_applies_input_validation_and_error_precedence_before_the_port() {
     let port = Arc::new(RecordingPort::new(Err(
         StrategyPineAnalyzeSnapshotError::Unavailable("owner unavailable".to_owned()),

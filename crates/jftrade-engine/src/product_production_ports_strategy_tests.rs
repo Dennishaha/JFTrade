@@ -194,6 +194,7 @@ fn strategy_definition_versions_report_unknown_ids_and_keep_deleted_history() {
 
 #[test]
 // Parity: go:452dea11:internal/app/apiserver/servercoretest/strategy_preview_test.go:99 TestStrategyDefinitionPreviewUsesRequestedSymbolAndExtendedHours
+// Parity: go:452dea11:internal/api/strategy/routes_test.go:114 TestEnrichDefinitionResponseDefaultsAndQueryOverride
 fn strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters() {
     let dir = tempdir().expect("tempdir");
     let db_path = dir.path().join("strategy.db");
@@ -262,6 +263,33 @@ log.info("close")"#;
     assert_eq!(override_result["derivedWarmupInterval"], "15m");
     assert_eq!(override_result["symbol"], "HK.00700");
     assert_eq!(override_result["interval"], "5m");
+
+    // 3. An unparseable script keeps the Go zero-warmup default preview.
+    let invalid = jftrade_store_sqlite::StoredStrategyDefinition {
+        id: "dsl-preview-invalid-script".to_owned(),
+        name: "Pine Preview Invalid".to_owned(),
+        version: "0.1.0".to_owned(),
+        description: "invalid script preview".to_owned(),
+        runtime: "pine-pinets".to_owned(),
+        source_format: "pine-v6".to_owned(),
+        symbol: "HK.00700".to_owned(),
+        interval: "5m".to_owned(),
+        script: "not valid pine".to_owned(),
+        visual_model_json: "{}".to_owned(),
+        created_at: "2026-06-13T00:00:00Z".to_owned(),
+        updated_at: "2026-06-13T00:00:00Z".to_owned(),
+        deleted_at: None,
+    };
+    store
+        .save_definition(invalid, "2026-06-13T00:00:00Z")
+        .expect("save invalid-script definition");
+    let invalid_result = ports
+        .get("dsl-preview-invalid-script", &default_preview)
+        .expect("get invalid-script definition")
+        .expect("definition exists");
+    assert_eq!(invalid_result["derivedWarmupBars"], 0);
+    assert_eq!(invalid_result["derivedWarmupInterval"], "5m");
+    assert_eq!(invalid_result["symbol"], "HK.00700");
 }
 
 #[test]

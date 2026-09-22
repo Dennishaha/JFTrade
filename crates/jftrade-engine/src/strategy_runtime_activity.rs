@@ -744,6 +744,8 @@ mod tests {
     fn catalog_activity_paging_and_filters_match_go_boundaries() {
         // Parity: internal/strategy/catalog/runtime_reconciliation_business_test.go:113
         // TestCatalogActivitySupportsPagingFilteringAndRuntimeObservationEnrichment
+        // Parity: go:452dea11:internal/api/strategy/routes_boundary_contracts_test.go:142 TestStrategyActivityRoutesRejectMalformedPagination
+        // Parity: go:452dea11:internal/api/strategy/routes_lifecycle_test.go:611 TestActivityRoutesNormalizePaginationAndTimeFilters
         let query =
             parse_activity_query("limit=1&offset=1&level= ERROR ", "logs").expect("log query");
         assert_eq!(query.limit, 1);
@@ -758,5 +760,27 @@ mod tests {
 
         let audit = parse_activity_query("kind=kind.error", "audit").expect("audit query");
         assert_eq!(audit.selector, "kind.error");
+
+        let normalized = parse_activity_query(
+            "limit=-5&offset=-1&level=%20warn%20&fromTime=2026-06-22T01:02:03Z&toTime=2026-06-22T04:05:06Z",
+            "logs",
+        )
+        .expect("normalized log query");
+        assert_eq!(normalized.limit, 1);
+        assert_eq!(normalized.offset, 0);
+        assert_eq!(normalized.selector, "warn");
+        assert_eq!(normalized.from_ms, Some(1_782_090_123_000));
+        assert_eq!(normalized.to_ms, Some(1_782_101_106_000));
+        assert!(normalized.includes(1_782_090_123_000));
+        assert!(!normalized.includes(1_782_090_123_000 - 1));
+
+        for (raw, activity) in [("limit=bogus", "logs"), ("offset=bogus", "audit")] {
+            match parse_activity_query(raw, activity) {
+                Err(StrategyReadSnapshotError::Invalid(message)) => {
+                    assert_eq!(message, format!("invalid {activity} query"));
+                }
+                other => panic!("{raw} must fail before the activity store read: {other:?}"),
+            }
+        }
     }
 }

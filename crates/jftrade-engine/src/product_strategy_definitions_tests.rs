@@ -184,6 +184,76 @@ async fn strategy_definition_routes_match_group_fixture_in_cutover_only() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/api/strategy/routes_boundary_contracts_test.go:16 TestStrategyDefinitionPreviewQueryRejectsInvalidBooleans
+async fn strategy_definition_detail_rejects_invalid_boolean_query_before_the_port() {
+    let fixture = strategy_definition_fixture();
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_strategy_definition_snapshot_port(Arc::new(
+                FixtureStrategyDefinitionSnapshotPort::from_fixture(&fixture),
+            ));
+    let handle = start_product(config).await.expect("start product");
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/strategy-definitions/fixture-current?useExtendedHours=maybe",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 400);
+    assert_eq!(response["ok"], false);
+    assert_eq!(response["error"]["code"], "BAD_REQUEST");
+    assert_eq!(
+        response["error"]["message"],
+        "invalid strategy definition query"
+    );
+    handle.shutdown().await.expect("shutdown product");
+}
+
+#[tokio::test]
+// Parity: go:452dea11:internal/api/strategy/routes_test.go:146 TestHandleGetDefinitionReturnsNotFoundAndBadQuery
+async fn strategy_definition_detail_maps_missing_definition_and_invalid_query() {
+    let fixture = strategy_definition_fixture();
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_strategy_definition_snapshot_port(Arc::new(
+                FixtureStrategyDefinitionSnapshotPort::from_fixture(&fixture),
+            ));
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+    let (status, response) = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/strategy-definitions/missing-definition",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 404);
+    assert_eq!(response["ok"], false);
+    assert_eq!(response["error"]["code"], "NOT_FOUND");
+    let (status, response) = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/strategy-definitions/fixture-current?useExtendedHours=not-bool",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 400);
+    assert_eq!(response["ok"], false);
+    assert_eq!(response["error"]["code"], "BAD_REQUEST");
+    handle.shutdown().await.expect("shutdown product");
+}
+
+#[tokio::test]
 async fn strategy_definition_routes_fail_closed_without_snapshot_port() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
