@@ -1230,6 +1230,95 @@ async fn product_server_persists_ui_settings_and_reports_actual_port() {
     );
 }
 
+// Parity: go:452dea11:internal/api/settings/routes_failure_boundaries_test.go:20 TestSettingWriteRoutesRejectMalformedJSON
+// Every settings write leaf answers 400 BAD_REQUEST for a truncated JSON body
+// instead of persisting a partial value or surfacing a 500 save failure.
+#[tokio::test]
+async fn settings_write_routes_reject_malformed_json_before_persistence() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let handle = start_product(
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config"),
+    )
+    .await
+    .expect("start product");
+    let address = handle.startup_record().address;
+
+    for (method, path) in [
+        ("PUT", "/api/v1/settings/ui"),
+        ("PUT", "/api/v1/settings/onboarding"),
+        ("PUT", "/api/v1/settings/security"),
+        ("PUT", "/api/v1/settings/system-notifications"),
+        ("PUT", "/api/v1/settings/adk"),
+        ("PUT", "/api/v1/settings/pine-worker"),
+        ("POST", "/api/v1/settings/broker-accounts"),
+        ("PUT", "/api/v1/settings/broker-accounts/account-1"),
+    ] {
+        let (status, response) =
+            request_json_with_status(address, method, path, Some("{"), &[]).await;
+        assert_eq!(status, 400, "{method} {path}: {response}");
+        assert_eq!(response["ok"], false, "{method} {path}: {response}");
+        assert_eq!(
+            response["error"]["code"], "BAD_REQUEST",
+            "{method} {path}: {response}"
+        );
+    }
+    handle.shutdown().await.expect("shutdown product");
+}
+
+// Parity: go:452dea11:internal/api/settings/routes_test.go:350 TestManagedAccountRoutesMapMissingRecordsToNotFound
+// Updating or deleting a managed account that is not persisted answers 404
+// instead of creating it implicitly or returning a save failure.
+#[tokio::test]
+async fn managed_account_write_routes_map_missing_records_to_not_found() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let handle = start_product(
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config"),
+    )
+    .await
+    .expect("start product");
+    let address = handle.startup_record().address;
+
+    let (status, updated) = request_json_with_status(
+        address,
+        "PUT",
+        "/api/v1/settings/broker-accounts/missing-account",
+        Some(r#"{"accountId":"ACC-1","displayName":"Updated"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(status, 404, "update missing account: {updated}");
+    assert_eq!(updated["ok"], false);
+    assert!(
+        updated["error"]["code"]
+            .as_str()
+            .is_some_and(|code| code.contains("NOT_FOUND")),
+        "update missing account: {updated}"
+    );
+
+    let (status, deleted) = request_json_with_status(
+        address,
+        "DELETE",
+        "/api/v1/settings/broker-accounts/missing-account",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 404, "delete missing account: {deleted}");
+    assert_eq!(deleted["ok"], false);
+    assert!(
+        deleted["error"]["code"]
+            .as_str()
+            .is_some_and(|code| code.contains("NOT_FOUND")),
+        "delete missing account: {deleted}"
+    );
+
+    handle.shutdown().await.expect("shutdown product");
+}
+
 // Parity: go:452dea11:internal/app/apiserver/servercore/data_management_test.go:191 TestTranslateDataManagementErrors
 #[tokio::test]
 async fn cleanup_preview_route_returns_candidates_and_rejects_bad_payloads() {

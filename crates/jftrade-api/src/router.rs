@@ -362,6 +362,25 @@ fn is_write_method(method: &Method) -> bool {
     )
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    // Parity: go:452dea11:internal/api/middleware/security_boundaries_test.go:46 TestWriteMethodDetectionSupportsOverridesAndNilRequests
+    // The state-changing verbs require the session origin/CSRF checks while
+    // safe verbs and preflight do not. The Go owner also supports an injectable
+    // write detector and a nil-request case, which have no Rust analogue.
+    fn write_method_classification_covers_state_changing_verbs() {
+        for method in [Method::POST, Method::PUT, Method::PATCH, Method::DELETE] {
+            assert!(is_write_method(&method), "{method:?} must be a write");
+        }
+        for method in [Method::GET, Method::HEAD, Method::OPTIONS] {
+            assert!(!is_write_method(&method), "{method:?} must not be a write");
+        }
+    }
+}
+
 fn apply_cors_headers(headers: &mut HeaderMap, origin: Option<&str>, policy: &AccessPolicy) {
     if let Some(origin) = origin.filter(|origin| policy.allowed_origins.contains(*origin))
         && let Ok(origin) = HeaderValue::from_str(origin)

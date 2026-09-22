@@ -342,6 +342,37 @@ mod tests {
             Some("tauri://localhost".into())
         );
         assert_eq!(canonical_origin("not-an-origin"), None);
+
+        // Parity: go:452dea11:internal/api/middleware/security_boundaries_test.go:108 TestCanonicalOriginRejectsMalformedAndUnsupportedValues
+        // Malformed and unsupported inputs stay empty; the desktop custom
+        // scheme is `tauri://` in this workspace (the retired desktop scheme of
+        // the reference owner is registered as a boundary difference).
+        for input in [
+            "\t ",
+            "example.com",
+            "http:example.com",
+            "http:/example.com",
+            "http://",
+            "ftp://example.com/path",
+        ] {
+            assert_eq!(canonical_origin(input), None, "input {input:?}");
+        }
+        assert_eq!(
+            canonical_origin("HTTP://EXAMPLE.COM"),
+            Some("http://example.com".into())
+        );
+        assert_eq!(
+            canonical_origin("tauri://LOCALHOST:3003/app"),
+            Some("tauri://localhost:3003".into())
+        );
+        assert_eq!(
+            canonical_origin("tauri://LOCALHOST/app"),
+            Some("tauri://localhost".into())
+        );
+        assert_eq!(
+            canonical_origin("HTTP://TAURI.LOCALHOST/app"),
+            Some("http://tauri.localhost".into())
+        );
     }
 
     #[test]

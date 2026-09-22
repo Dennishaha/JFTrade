@@ -443,6 +443,32 @@ async fn cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/api/middleware/security_boundaries_test.go:62 TestCORSAllowsTrustedPreflightAndSameOriginOptions
+// A same-origin preflight carries no Origin header, so the router answers 204
+// without reflecting any allow-origin value; only a *present* untrusted Origin
+// is rejected (covered by the trusted/unknown CORS case).
+async fn same_origin_options_preflight_is_allowed_without_reflected_origin() {
+    let (router, _) = fixture();
+    let response = router
+        .oneshot(
+            Request::builder()
+                .method(Method::OPTIONS)
+                .uri("/api/v1/settings/ui")
+                .body(Body::empty())
+                .expect("same-origin preflight"),
+        )
+        .await
+        .expect("same-origin response");
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert!(
+        response
+            .headers()
+            .get("access-control-allow-origin")
+            .is_none()
+    );
+}
+
+#[tokio::test]
 async fn auth_treats_patch_as_session_write_requiring_csrf() {
     // Parity: internal/api/middleware/auth_test.go:153 TestAuthTreatsPatchAsSessionWrite
     let (router, port) = fixture();
@@ -825,6 +851,27 @@ async fn auth_rejects_requests_without_any_authenticator() {
         .expect("settings response");
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     assert!(port.requests.lock().expect("requests").is_empty());
+}
+
+#[tokio::test]
+// Parity: go:452dea11:internal/api/middleware/security_boundaries_test.go:17 TestAuthenticationBoundaryDecisions
+// Third sub-case: an authenticated session read that carries no browser
+// Origin passes the authentication boundary and reaches the port.
+async fn authenticated_session_read_without_browser_origin_is_allowed() {
+    let (router, port) = auth_router([("GET", "/api/v1/settings/ui")]);
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/settings/ui")
+                .header("cookie", "jftrade_web_session=session-token")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_ne!(response.status(), StatusCode::FORBIDDEN);
+    assert_ne!(response.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(port.requests.lock().expect("requests").len(), 1);
 }
 
 #[tokio::test]
