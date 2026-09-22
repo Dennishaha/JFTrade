@@ -802,3 +802,68 @@ owner 集中在 `crates/jftrade-engine`（启动配置与运行时布局、策�
 后续（分片六）：`internal/app/apiserver/marketdataapp` 68 行，随后 webaccess 24 + tradingapp 11、
 backtestapp 10 + datamigration 11 与 runtime/lifecycle/runtimes/application/futuapp 余量。`servercoretest` 的 52 行待办
 在本分片后全部给出终值。
+
+### 分片六：`internal/app/apiserver/marketdataapp` 前 35 行
+
+范围（按文件与行号升序）：`assistant_provider_test.go:95/:114/:143/:159`；`data_plane_switch_test.go:66/:83/:189/:237/:265`；
+`heartbeat_test.go:14/:108/:155`；`market_depth_test.go:35/:198/:244`；`market_http_test.go:533/:555/:577/:592/:607/:622`；
+`provider_boundaries_test.go:145/:163/:197/:220`；`provider_test.go:12/:107`；`python_runtime_test.go:13/:55/:79/:94`；
+`query_test.go:21`；`runtime_akshare_test.go:126`；`runtime_forwarding_test.go:12/:98`。owner 集中在 `crates/jftrade-engine`
+（市场数据 provider 投影与切换、深度/证券读路由、目录归一、运行时状态投影）、`crates/jftrade-marketdata`（router 激活与
+readiness、订阅 demand）、`crates/jftrade-settings`（provider 选择持久化）、`crates/jftrade-integration-marketdata-helper`
+（helper 进程与资产落地）与 `crates/jftrade-integration-futu`（OpenD 深度投影）。
+
+本分片新增 Rust 证据 3 项（2 行升 `[x]`）：
+
+- `crates/jftrade-engine/src/product_settings_read_tests.rs::provider_switch_succeeds_while_watchlist_ports_are_unavailable`
+  （Go `data_plane_switch_test.go:66`）：在未装配任何 watchlist 端口的组合上先断言 watchlist 读取面不可用，再 PUT
+  `/api/v1/settings/market-data-provider` 断言 200 且 `data.activeProvider=akshare`，与参照“ApplyProviderSettings 容忍
+  不可用 watchlist”等价。
+- `crates/jftrade-engine/src/product_production_ports_market_data_catalog_futu.rs::unknown_search_prefixes_are_never_inferred_as_a_market`
+  （Go `provider_test.go:107`）：未知前缀不被推断成 HK/SH/SZ，`bad.CODE` 保持点号形状（大小写由全局搜索归一承担），
+  裸代码保持无前缀；同族用例继续覆盖已知别名与点号代码保留。
+- `crates/jftrade-settings/src/market_data_provider.rs::blank_provider_selection_is_rejected_before_persistence`
+  （Go `assistant_provider_test.go:114` 的空白 providerId 半边）：空串、纯空白与制表符输入均返回 Invalid，且不覆盖已存
+  选择；该行仍为 partial，因为参照还要求 before/after 信封（Rust 响应只含 activeProvider）。
+
+映射结果：35 行复核（2 行升 `[x]`；1 行收紧 partial 并补空白输入断言；其余 32 行复核后确认原终值仍准确）。引用存在性
+全量校验通过（其中两条为 `file.rs::tests::name` 形式的模块限定路径）。计数：`[x]` 1524 → 1526；audit Rust 测试 3194；
+anchors 1535（unrecorded 0、stale 0、unknown 53）。
+
+关键事实与新登记缺口（P1/P2）：
+
+1. **助手侧 provider 聚合工具未迁移（P2）**：参照的 AssistantMarketProviders 返回
+   liveProvider/backtestProvider/providers[]/liveHealth/liveRuntime/checkedAt，Rust 无对应 MCP 工具（同信息由 REST
+   `/api/v1/market-data/provider` 与两条 settings 路由承担）。owner：`crates/jftrade-engine` MCP 工具面。
+2. **深度与证券读信封差异（P2）**：参照的深度响应含 request/depth/meta（source=bbgo:futu、fromCache），Rust 直接回传
+   provider 载荷；证券读的 warrant/option/future/trust/index/plate 研究块在 Rust 契约中不存在（边界保留，禁止伪造）。
+   owner：`product_production_ports_market_data_quote.rs` 与 `product_watchlist_*` 之外的行情读投影。
+3. **心跳策略未折算进 wire（P2，延续）**：轮询模式 sampleFreshness=interval+timeout 与 transport/staleReasons 明细
+   只存在于 provider 状态投影，心跳信封仍缺 marketDataProviderId/sampleFreshnessMs/staleReasons。owner：`crates/jftrade-api`
+   心跳载荷与 `crates/jftrade-engine` 运行时状态投影。
+4. **python/helper 运行时形态差异（边界）**：参照按 DevPython→workspace venv→PATH 解析解释器、保留 legacy 环境变量
+   别名与“通用缓存目录 + legacy 回退”，并用 `python -c` 探针校验版本与依赖；Rust 使用冻结 helper 二进制 + 内容寻址资产
+   + `/health` 探针，属迁移期接口差异（owner：`crates/jftrade-integration-marketdata-helper`）。
+5. **切换恢复语义差异（P2）**：参照在切回 futu 时返回前同步恢复物理订阅、并提供 ProviderNeedsActivation 回调的
+   nil/健康/不可用三分支；Rust 保留 demand 所有权并按代际异步对账，nil-service 形状由装配期端口缺失替代。owner：
+   `crates/jftrade-marketdata` router 与 `crates/jftrade-engine/src/product_active_provider_state.rs`。
+
+验证记录：
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(provider_switch_succeeds_while_watchlist_ports_are_unavailable) \| test(unknown_search_prefixes_are_never_inferred_as_a_market) \| test(canonical_search_code_does_not_double_prefix_the_market)'` | 3/3 通过（未知前缀用例首轮按原样大小写断言失败，修正断言后转绿） |
+| settings crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-settings --all-targets --locked` | 59/59 通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/s127h_payload.json` | 3 行更新，`[x]` 1524 → 1526 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；Rust 测试 3194 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1535、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1873/1873 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`pnpm run check:quick` | 全部通过 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 均在 cargo-deny advisories 阶段因 `deny.toml` 8 条 `advisory-not-detected` 失败（bans/licenses/sources ok） |
+
+后续（分片七）：`internal/app/apiserver/marketdataapp` 余 33 行（`runtime_health_test.go:94/:114/:142/:167/:222`；
+`runtime_test.go:85/:191/:230/:370/:394/:476/:547/:570/:591/:633/:667/:704/:724`；`sidecar_os_process_test.go:146`；
+`sidecar_process_test.go:61/:147/:190/:208/:261/:297`；`sidecar_signal_test.go:9/:24`；`unavailable_provider_test.go:12/:72`；
+`watchlist_source_test.go:15/:74/:100/:121`），随后 webaccess 24 + tradingapp 11、backtestapp 10 + datamigration 11 与
+runtime/lifecycle/runtimes/application/futuapp 余量。

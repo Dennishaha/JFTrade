@@ -221,4 +221,15 @@ mod tests {
         assert_eq!(canonical_search_code("CNSH", "600519"), "600519");
         assert_eq!(canonical_search_code("US", "AAPL"), "AAPL");
     }
+
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/provider_test.go:107 TestBrokerSearchInstrumentPartsRejectsUnknownPrefixInference
+    /// An unknown prefix is never folded onto a market: the helper keeps the
+    /// prefix itself instead of inferring HK/SH/SZ. Case folding is the shared
+    /// normalization used by every search entrypoint.
+    #[test]
+    fn unknown_search_prefixes_are_never_inferred_as_a_market() {
+        assert_eq!(canonical_search_market_prefix("bad"), "BAD");
+        assert_eq!(canonical_search_code("", "bad.CODE"), "BAD.CODE");
+        assert_eq!(canonical_search_code("", "00700"), "00700");
+    }
 }

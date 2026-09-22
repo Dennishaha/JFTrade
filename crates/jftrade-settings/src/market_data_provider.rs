@@ -469,6 +469,29 @@ mod tests {
         );
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/assistant_provider_test.go:114 TestSelectAssistantMarketProviderPersistsScopeAndReturnsBeforeAfter
+    /// A blank or whitespace-only provider selection is rejected before the
+    /// durable write, so the stored selection keeps its previous value.
+    #[test]
+    fn blank_provider_selection_is_rejected_before_persistence() {
+        let store = Arc::new(Store(RwLock::new(Some("futu".to_owned()))));
+        let service = MarketDataProviderSettingsService::new(
+            Arc::clone(&store) as Arc<dyn MarketDataProviderSettingsStorePort>
+        );
+        for input in ["", "   ", "\t"] {
+            assert_eq!(
+                service.save(input),
+                Err(MarketDataProviderSettingsError::Invalid),
+                "input {input:?}"
+            );
+        }
+        assert_eq!(
+            store.0.read().expect("stored provider").as_deref(),
+            Some("futu"),
+            "blank selections must not overwrite the stored provider"
+        );
+    }
+
     #[test]
     fn active_failure_rolls_back_but_backtest_failure_never_persists() {
         let active_store = Arc::new(Store(RwLock::new(Some("yfinance".to_owned()))));

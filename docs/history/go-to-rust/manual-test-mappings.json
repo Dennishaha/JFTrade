@@ -3172,9 +3172,9 @@
   },
   "internal/app/apiserver/marketdataapp/assistant_provider_test.go:114:TestSelectAssistantMarketProviderPersistsScopeAndReturnsBeforeAfter": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/tests/market_data_production_compatibility.rs::test_active_provider_mutation_atomic_single_state_source; crates/jftrade-settings/src/market_data_provider.rs::active_failure_rolls_back_but_backtest_failure_never_persists",
-    "conclusion": "partial：Go 的 SelectAssistantMarketProvider(scope, providerId) 持久化选择并返回 before/after；scope 非法或 providerId 空白报错，scope=live/backtest 分别写入两个设置。Rust 把 scope 编码进路由（PUT /api/v1/settings/market-data-provider 与 /backtest-market-data-provider），组合测试断言切换后立即读到新 selectionId、非法 provider 返回 400 MARKET_DATA_PROVIDER_INVALID 且旧状态保留；settings 单测断言 live 保存失败回滚、backtest 失败不落盘。Rust 不返回 before/after 信封，也未见空白 providerId 的独立断言，记为部分覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-settings --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/tests/market_data_production_compatibility.rs::test_active_provider_mutation_atomic_single_state_source; crates/jftrade-settings/src/market_data_provider.rs::blank_provider_selection_is_rejected_before_persistence; crates/jftrade-settings/src/market_data_provider.rs::active_failure_rolls_back_but_backtest_failure_never_persists",
+    "conclusion": "partial：Go 的 SelectAssistantMarketProvider(scope, providerId) 持久化选择并返回 before/after，scope 非法或 providerId 空白报错，scope=live/backtest 分别写入两个设置。Rust 把 scope 编码进路由（PUT /api/v1/settings/market-data-provider 与 /backtest-market-data-provider）；组合用例断言切换后立即读到新 selectionId、非法 provider 返回 400 MARKET_DATA_PROVIDER_INVALID 且旧状态保留；settings 单测断言 live 保存失败回滚、backtest 失败不落盘；本分片新增空白输入的独立断言（空串/纯空白/制表符均 Invalid 且不覆盖已存选择）。缺口：Rust 响应只返回 activeProvider，没有 before/after 信封，助手侧聚合契约未迁移。owner：crates/jftrade-engine 设置写路由与 crates/jftrade-settings。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-settings --all-targets --locked -E 'test(provider_switch_succeeds_while_watchlist_ports_are_unavailable) | test(blank_provider_selection_is_rejected_before_persistence) | test(active_failure_rolls_back_but_backtest_failure_never_persists)'",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/assistant_provider_test.go:143:TestAssistantProviderPortsAndUnavailableServices": {
@@ -3206,11 +3206,11 @@
     "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/data_plane_switch_test.go:66:TestApplyProviderSettingsAllowsUnavailableWatchlist": {
-    "status": "[~]",
-    "rust_entry": "不适用：Rust 切换路径不接触 watchlist，watchlist 缺失以独立 route port fail-closed 表达",
-    "conclusion": "边界保留：Go 的 ApplyProviderSettings 接收可为 nil 的 *watchlist.Service，nil 时跳过 watchlist 重载仍返回成功。Rust 的 provider 切换（router.activate / PUT settings 路由）不持有 watchlist 依赖，watchlist 端口缺失表现为路由未注册或 503（crates/jftrade-engine/src/product_watchlist_tests.rs::watchlist_read_routes_fail_closed_when_snapshot_port_is_unavailable），不存在“nil watchlist 容忍”这一逐步对象，记录为接口差异。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "boundary"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_settings_read_tests.rs::provider_switch_succeeds_while_watchlist_ports_are_unavailable",
+    "conclusion": "[x]：Go 断言 ApplyProviderSettings 在 watchlist service 不可用（nil）时仍返回 nil，即 provider 切换不依赖 watchlist 数据面。Rust 新用例在未装配任何 watchlist 端口的组合上先断言读取面确实不可用（GET /api/v1/watchlist/groups 非 200），再 PUT /api/v1/settings/market-data-provider 断言 200 且 data.activeProvider=akshare，等价于“容忍不可用 watchlist”。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(provider_switch_succeeds_while_watchlist_ports_are_unavailable)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/data_plane_switch_test.go:83:TestApplyProviderSettingsRestoresExistingFutuDemandBeforeReturning": {
     "status": "[~]",
@@ -3479,11 +3479,11 @@
     "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/provider_test.go:107:TestBrokerSearchInstrumentPartsRejectsUnknownPrefixInference": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_catalog_futu.rs::canonical_search_code_does_not_double_prefix_the_market",
-    "conclusion": "partial：Go 断言未知前缀 bad.CODE 在空市场下不做推断、原样返回 \"\"/\"bad.CODE\"。Rust 的 canonical_search_market_prefix 只识别已知别名并返回 None、canonical_search_code 对未知前缀代码保留原值（同族测试断言 US/HK.00700 与 US/AAPL 的保留语义），但尚无 “未知前缀 + 空市场” 的逐条断言，记为部分覆盖并保留补测要求。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_catalog_futu.rs::unknown_search_prefixes_are_never_inferred_as_a_market; crates/jftrade-engine/src/product_production_ports_market_data_catalog_futu.rs::canonical_search_code_does_not_double_prefix_the_market",
+    "conclusion": "[x]：Go 断言未知前缀 bad.CODE 在空市场下不做推断、返回空市场与原始代码。Rust 的 canonical_search_market_prefix 只映射已知别名（cnsh/cnsz/hkfuture|hk_futures/cc），其余前缀保持自身，绝不推断成 HK/SH/SZ；新用例断言 \"bad\" 保持为 BAD（大小写由全局搜索归一承担）与 canonical_search_code(\"\", \"bad.CODE\") 保持点号形状、裸代码 00700 不带前缀，同族用例继续覆盖已知前缀与点号代码保留。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(unknown_search_prefixes_are_never_inferred_as_a_market) | test(canonical_search_code_does_not_double_prefix_the_market)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/python_runtime_test.go:13:TestResolveSourcePythonRuntimeHonorsEnvironmentAndFallbacks": {
     "status": "[~]",

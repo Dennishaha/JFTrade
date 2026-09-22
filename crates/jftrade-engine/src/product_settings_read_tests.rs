@@ -195,3 +195,39 @@ async fn system_notification_delivery_keeps_the_host_outcome_explicit() {
     );
     handle.shutdown().await.expect("shutdown product");
 }
+
+// Parity: go:452dea11:internal/app/apiserver/marketdataapp/data_plane_switch_test.go:66 TestApplyProviderSettingsAllowsUnavailableWatchlist
+/// Applying provider settings must not depend on the watchlist data plane: the
+/// switch succeeds while the watchlist routes are uncomposed, exactly like the
+/// reference tolerating an unavailable watchlist service.
+#[tokio::test]
+async fn provider_switch_succeeds_while_watchlist_ports_are_unavailable() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    fs::write(&settings_path, b"{}\n").expect("seed settings");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("test-cutover config");
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+
+    let (status, watchlist) =
+        request_json_with_status(address, "GET", "/api/v1/watchlist/groups", None, &[]).await;
+    assert_ne!(
+        status, 200,
+        "watchlist data plane must be unavailable in this composition: {watchlist}"
+    );
+
+    let (status, saved) = request_json_with_status(
+        address,
+        "PUT",
+        "/api/v1/settings/market-data-provider",
+        Some(r#"{"activeProvider":"akshare"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200, "provider switch without watchlist: {saved}");
+    assert_eq!(saved["data"]["activeProvider"], "akshare");
+
+    handle.shutdown().await.expect("shutdown product");
+}
