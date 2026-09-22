@@ -928,3 +928,91 @@ health monitor、watchlist 读投影）。
 
 后续（分片八）：`internal/app/apiserver/webaccess` 24 行 + `tradingapp` 11 行，随后 backtestapp 10 + datamigration 11 与
 runtime/lifecycle/runtimes/application/futuapp 余量。
+
+### 分片八：`internal/app/apiserver/webaccess` 24 行 + `tradingapp` 11 行
+
+范围（按文件与行号升序）：`webaccess/auth_boundaries_test.go:43/:101/:138/:195/:235/:282/:295/:319`；
+`webaccess/frontend_test.go:50/:67/:81/:106/:139`；`webaccess/security_integration_test.go:175/:210/:237/:256/:278/:293/:362/:422/:437/:461/:490`；
+`tradingapp/execution_gateway_lifecycle_test.go:144/:202/:298/:331`；`tradingapp/notifications_test.go:32`；
+`tradingapp/order_update_source_broker_test.go:12/:33`；`tradingapp/order_updates_test.go:13/:70/:80/:92`。
+owner：`crates/jftrade-api`（访问策略、来源校验、请求上下文、WS 握手判定）、`crates/jftrade-engine`（安全集成装配、
+执行网关生命周期、订单更新源与通知投影）、`crates/jftrade-integration-futu`（订单更新源）。
+
+本分片新增 Rust 证据 6 项（6 行升 `[x]`）：
+
+1. `crates/jftrade-api/tests/transport_contracts.rs::session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow`
+   对应 Go `security_integration_test.go:293`：同一条 cookie 会话读 200、缺 CSRF 写 403、带 CSRF 写 200，端口恰好两次调用。
+2. `crates/jftrade-api/tests/transport_contracts.rs::web_mode_rejects_the_development_origin` 对应 Go
+   `security_integration_test.go:362`：`Origin: http://localhost:3003` 被 403 且 `error.code=ORIGIN_FORBIDDEN`，端口零调用。
+3. `crates/jftrade-api/tests/transport_contracts.rs::untrusted_origin_is_rejected_while_the_allowed_lan_origin_authenticates`
+   对应 Go `security_integration_test.go:422`：`https://evil.example.com` 403，允许的 `http://192.168.1.10:3008` 200 且端口一次调用。
+4. `crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_upgrades_with_a_browser_session_cookie_alone`
+   对应 Go `security_integration_test.go:490`：产品实例只配置会话策略（`enforce_access` + `session_token`，无桌面 token），
+   真实握手无凭据 401 `WEB_AUTH_REQUIRED`、仅会话 cookie 升级 101。
+5. `crates/jftrade-api/src/router.rs::forwarded_client_identity_uses_the_proxy_appended_address` 对应 Go
+   `auth_boundaries_test.go:282`：回环对端取代理追加的最后一段地址，非回环对端保留自身地址而不信任该头。
+6. `crates/jftrade-api/src/router.rs::request_scheme_trusts_tls_and_loopback_proxy_only` 对应 Go
+   `frontend_test.go:139`：https URI 为安全、回环对端转发取最后一段协议、非回环对端忽略转发协议。
+
+实现探针（先红后绿，仅用于定位判定归属，未修改生产代码）：在 `crates/jftrade-api/tests/transport_contracts.rs` 里以
+`tower::ServiceExt::oneshot` 直接驱动 router 时，带合法升级头与会话 cookie 的 `/api/v1/ws/live` 请求返回 426 而非 101——
+axum 的 `WebSocketUpgrade` 提取器要求 `hyper` 升级态存在（`ConnectionNotUpgradable`），进程内 oneshot 不提供该状态。
+因此 WS 会话升级判定改由产品级真实 TCP 握手断言（第 4 项），router 层不再复制该实现细节。
+
+映射结果：35 行复核（6 行升 `[x]`；其余 29 行复核后确认原终值仍准确，其中 webaccess 11 行、tradingapp 8 行为结构/产品边界差异）。
+引用存在性校验通过。计数：`[x]` 1527 → 1533；audit Rust 测试 3200；anchors 1541（unrecorded 0、stale 0、unknown 53）。
+`internal/app/apiserver` 域的 331 行待办至此全部给出终值。
+
+关键事实与新登记缺口（P1/P2）：
+
+1. **浏览器入口的禁用语义差异（P1）**：参照在 private 模式下对远端浏览器返回 403 `REMOTE_WEB_ACCESS_DISABLED`
+   （`security_integration_test.go:256/:437`），并在 Web 关闭时对浏览器入口返回 403 `WEB_ACCESS_DISABLED`
+   （`:461`）；Rust 以监听地址表达同一意图（关闭不监听、private 绑 127.0.0.1、public 绑 0.0.0.0），远端得到连接拒绝而非
+   403 文案，且无 HTML 入口。owner：`crates/jftrade-engine/src/product_server_runtime.rs`。
+2. **桌面与浏览器对照断言缺失（P1）**：参照断言“同一进程内桌面 bearer 仍 200、浏览器入口 403”
+   （`security_integration_test.go:461`）与“helper 注入令牌不得绕过密码会话”（`security_integration_test.go:175`）；
+   Rust 的桌面 token 通道与 Web 会话通道各自有测试，缺同进程对照断言。owner：`crates/jftrade-api/src/auth.rs` 与 engine 装配。
+3. **代理与会话边界（P2）**：参照覆盖同主机 HTTPS 代理使用安全会话 cookie（`:210`）、网络客户端不能伪造 HTTPS 代理协议
+   （`:237`）、历史 admin bearer 不再认证（`:278`）。Rust 的 `secure` 由 URI scheme 或回环代理转发推导（已由第 6 项断言），
+   cookie 的 `Secure` 属性取决于该上下文；Rust 在普通 Web 模式不认任何 bearer，错误码为 `INTERNAL_PROXY_AUTH_REQUIRED`
+   或 `WEB_AUTH_REQUIRED` 而非参照的单一 401 形状，差异不合并为等价。
+4. **会话与登录状态矩阵（P2）**：参照表驱动断言登录的 403/503/400/200/401/408/500 全矩阵
+   （`auth_boundaries_test.go:138/:319`）、过期会话不再认证（`:101`）、会话上限与剪枝（`:235`）、状态映射有界（`:295`）、
+   登录期间改密码不得生成旧密码会话（`:195`）；Rust 的 `AuthSessionWritePortError` 定义了同一映射，但
+   “熵失败 500 / 取消 408 / 桌面受信 200”与 `SettingsChanged`（409）分支尚无独立路由或端口断言。
+   owner：`crates/jftrade-engine/src/product_auth_session_manager.rs`、`product_auth_session_write_port.rs`。
+5. **前端辅助边界（P2）**：参照的 `frontend_test.go:67/:81/:106` 覆盖开发代理仅允许回环、前端构造边界与 SPA 索引判定表；
+   Rust 由静态资产服务与 SPA 回退承担（已有 404/回退断言），无逐项 helper 同形对象。
+6. **执行网关聚合对象缺失（P2）**：参照的分支表断言 broker 不匹配、缺订单存储、prepare 错误透传、stale/fresh 落库差异、
+   trading 不可用时写 UNKNOWN、成功写 placed + 通知 + session payload（`execution_gateway_lifecycle_test.go:144/:202/:298/:331`）。
+   Rust 没有 `ExecutionGateway` 聚合对象：下单落库拆到 execution order store 与预览端口，UNKNOWN 与通知由对账/通知投影承担。
+   owner：`crates/jftrade-engine` 下单写路径。
+7. **订单更新源与通知投影（P2）**：参照的订单通知消息拼接可用标识（`notifications_test.go:32`）、订单更新源先激活再发现账户
+   并按键过滤订阅（`order_update_source_broker_test.go:12/:33`）、worker 构造与 nil 守卫（`order_updates_test.go:13/:70/:80`）、
+   无活动运行时时返回 `ErrOrderUpdateSourceInactive` 与空订阅（`:92`）。Rust 消息为事件类型短语、对账端口按账户/环境 scope
+   过滤、读路由 fail-closed，且无空订阅对象与同形错误码。owner：`crates/jftrade-engine` 通知投影与对账/推送路径。
+
+验证记录：
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增与关联用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) \| test(web_mode_rejects_the_development_origin) \| test(untrusted_origin_is_rejected_while_the_allowed_lan_origin_authenticates) \| test(forwarded_client_identity_uses_the_proxy_appended_address) \| test(request_scheme_trusts_tls_and_loopback_proxy_only)'` | 5/5 通过 |
+| 新增 WS 用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone)'` | 1/1 通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/s127m_payload.json` | 6 行更新，`[x]` 1527 → 1533 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；Rust 测试 3200 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1541、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-api -p jftrade-engine --all-targets --locked --no-fail-fast` | 1960/1960 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`pnpm run check:quick` | 全部通过 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 均在 cargo-deny advisories 阶段因 `deny.toml` 8 条 `advisory-not-detected` 失败（bans/licenses/sources ok） |
+
+并行负载抖动（已隔离复跑确认，不记为失败）：`check:quick` 首轮命中
+`api_launcher_reports_startup_failure_when_the_configured_address_is_taken`（端口占用重试断言 `None != Some(0)`）与
+`adk_session_detail_omits_resolved_approval_groups` 两条已知抖动用例；两条隔离复跑均通过，随后整轮 `check:quick` 通过。
+构建缓存已按门禁清理（`cargo clean` 移除 120081 文件 / 32.8GiB，`.rcgu.o` 0 个）。
+
+后续（分片九）：`internal/app/apiserver` 余 78 行——`backtestapp` 10 行、`datamigration` 11 行，以及
+`runtime`/`lifecycle`/`runtimes`/`application`/`futuapp`/`liveapp`/`status`/`strategyapp`/`databaseguard`、
+`server_test.go`、`desktop_api_startup_test.go` 的余量；此后进入 `strategy_pine` 465 → `assistant_workflow` 447 →
+`other` 311 → `backtest_calendar` 262 → `storage_sqlite` 178 → `marketdata_quotes` 155 → `futu_opend` 104 →
+`settings_watchlist` 39。

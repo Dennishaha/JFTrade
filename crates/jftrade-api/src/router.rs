@@ -379,6 +379,61 @@ mod tests {
             assert!(!is_write_method(&method), "{method:?} must not be a write");
         }
     }
+
+    fn request_from_peer(peer: &str) -> Request {
+        let mut request = Request::builder()
+            .uri("/")
+            .body(Body::empty())
+            .expect("request");
+        request
+            .extensions_mut()
+            .insert(ConnectInfo(peer.parse::<SocketAddr>().expect("peer")));
+        request
+    }
+
+    #[test]
+    fn forwarded_client_identity_uses_the_proxy_appended_address() {
+        // Parity: go:452dea11:internal/app/apiserver/webaccess/auth_boundaries_test.go:282 TestForwardedClientUsesProxyAppendedAddress
+        // The proxy-appended entry of a forwarded chain identifies the client,
+        // and a direct peer keeps its own address instead of trusting it.
+        let mut proxied = request_from_peer("127.0.0.1:42000");
+        proxied.headers_mut().insert(
+            "x-forwarded-for",
+            HeaderValue::from_static("198.51.100.50, 192.0.2.20"),
+        );
+        assert_eq!(request_context(&proxied).client_key, "192.0.2.20");
+
+        let mut direct = request_from_peer("192.0.2.1:42000");
+        direct.headers_mut().insert(
+            "x-forwarded-for",
+            HeaderValue::from_static("198.51.100.50, 192.0.2.20"),
+        );
+        assert_eq!(request_context(&direct).client_key, "192.0.2.1");
+    }
+
+    #[test]
+    fn request_scheme_trusts_tls_and_loopback_proxy_only() {
+        // Parity: go:452dea11:internal/app/apiserver/webaccess/frontend_test.go:139 TestFrontendRequestSchemeTrustsTLSAndLoopbackProxyOnly
+        // TLS terminates the request scheme; a loopback proxy may forward
+        // https, while a remote peer cannot promote its own scheme.
+        let tls = Request::builder()
+            .uri("https://jftrade.local/")
+            .body(Body::empty())
+            .expect("request");
+        assert!(request_context(&tls).secure);
+
+        let mut proxied = request_from_peer("127.0.0.1:443");
+        proxied
+            .headers_mut()
+            .insert("x-forwarded-proto", HeaderValue::from_static("http, https"));
+        assert!(request_context(&proxied).secure);
+
+        let mut remote = request_from_peer("192.0.2.1:443");
+        remote
+            .headers_mut()
+            .insert("x-forwarded-proto", HeaderValue::from_static("https"));
+        assert!(!request_context(&remote).secure);
+    }
 }
 
 fn apply_cors_headers(headers: &mut HeaderMap, origin: Option<&str>, policy: &AccessPolicy) {

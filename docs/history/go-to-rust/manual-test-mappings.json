@@ -6475,11 +6475,11 @@
     "evidence_type": "partial"
   },
   "internal/app/apiserver/webaccess/auth_boundaries_test.go:282:TestForwardedClientUsesProxyAppendedAddress": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/src/router.rs",
-    "conclusion": "partial：Go 断言 X-Forwarded-For 取代理追加的最后一个地址（192.0.2.20）、X-Forwarded-Proto 取最后一段（https）。Rust 的 router 实现同语义：last_forwarded_ip 从右向左取第一个可解析地址、forwarded_https 取最后一段且要求 loopback peer；无对应单测，登记为待补断言（限流 key 与 cookie secure 都依赖它）。",
-    "command": "",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs::forwarded_client_identity_uses_the_proxy_appended_address",
+    "conclusion": "function_exact：Go 断言回环对端加 X-Forwarded-For \"198.51.100.50, 192.0.2.20\" 时客户端地址取代理追加的最后一段 192.0.2.20。Rust 新增用例断言回环对端取最后一段，非回环对端忽略该头而保留自身地址（防伪造），与该测试的 requestClientIP 语义一致；该用例带本行 // Parity: 锚点。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/webaccess/auth_boundaries_test.go:295:TestWebAuthStateMapsStayBounded": {
     "status": "[~]",
@@ -6531,11 +6531,11 @@
     "evidence_type": "partial"
   },
   "internal/app/apiserver/webaccess/frontend_test.go:139:TestFrontendRequestSchemeTrustsTLSAndLoopbackProxyOnly": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/src/router.rs",
-    "conclusion": "partial：Go 断言 requestScheme 信任 TLS 与 loopback 代理的 X-Forwarded-Proto，但不信任远端转发头。Rust 的 router RequestContext 判定同源（scheme 为 https 或 loopback peer + 末段转发为 https），目前没有覆盖这三种输入（TLS、loopback 转发、远端转发）的测试，登记为待补断言。",
-    "command": "",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/src/router.rs::request_scheme_trusts_tls_and_loopback_proxy_only",
+    "conclusion": "function_exact：Go 断言 TLS 请求 scheme=https、回环代理的 X-Forwarded-Proto \"http, https\" 视为 https、远端对端转发 https 不被信任。Rust 新增用例覆盖同一三条判定（https URI 直接安全、回环对端转发取最后一段 https、非回环对端忽略转发协议）；该用例带本行 // Parity: 锚点。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/webaccess/security_integration_test.go:175:TestWebPasswordIsRequiredForProtectedAPI": {
     "status": "[~]",
@@ -6580,11 +6580,11 @@
     "evidence_type": "partial"
   },
   "internal/app/apiserver/webaccess/security_integration_test.go:293:TestWebPasswordSessionSupportsReadAndCSRFProtectedWrite": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::auth_requires_origin_and_csrf_for_session_writes; crates/jftrade-engine/src/product_auth_session_manager.rs::auth_manager_login_validate_and_logout_flow",
-    "conclusion": "partial：Go 断言密码登录后读请求 200、写请求缺 CSRF 时 403、带 CSRF 时不被 401/403 拒绝。Rust 的 router 测试断言同一判定（带会话仍要求 origin+CSRF，缺一即 403），会话本身由 auth manager 测试断言；缺的是“真实密码登录后同一条测试完成读+CSRF 写”的端到端串联。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth_requires_origin_and_csrf_for_session_writes)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow",
+    "conclusion": "function_exact：Go 断言密码登录后的同一条浏览器会话可自由读、写请求缺 CSRF 时 403、带 CSRF 时不被拒绝。Rust 新增用例在同一条 cookie 会话上串联读（200）→无 CSRF 写（403）→带 CSRF 写（200），并断言端口恰好收到两次调用（读与成功写各一次），与参照的读/写断言一一对应；该用例带本行 // Parity: 锚点。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/webaccess/security_integration_test.go:335:TestWebLoginRejectsWrongPasswordAndRateLimits": {
     "status": "[x]",
@@ -6601,11 +6601,11 @@
     "evidence_type": "function_exact"
   },
   "internal/app/apiserver/webaccess/security_integration_test.go:362:TestProductionWebDoesNotTrustDevelopmentOrigin": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::auth_rejects_untrusted_origin_before_authentication; crates/jftrade-engine/src/product_server_runtime.rs::allows_origin",
-    "conclusion": "partial：Go 断言 Web 模式不接受开发期 Origin（http://localhost:3003）并以 403 ORIGIN_FORBIDDEN 拒绝登录。Rust 的 Web 模式动态 origin 只放行当前 Web 端口（引用实现）且未受信 Origin 在认证前即 403（引用测试）；缺的是以“开发期 Origin + Web 模式”为输入的专门断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth_rejects_untrusted_origin_before_authentication)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::web_mode_rejects_the_development_origin",
+    "conclusion": "function_exact：Go 断言生产 Web 模式不接受开发期 Origin（http://localhost:3003）并以 403 ORIGIN_FORBIDDEN 拒绝登录。Rust 新增用例以同一开发期 Origin 携带会话 cookie 请求受保护读路由，断言 403、错误码 ORIGIN_FORBIDDEN，且请求在进入认证与端口前即被拒绝（端口零调用）；该用例带本行 // Parity: 锚点。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/webaccess/security_integration_test.go:379:TestWebLogoutClearsSessionCookie": {
     "status": "[x]",
@@ -6622,11 +6622,11 @@
     "evidence_type": "function_exact"
   },
   "internal/app/apiserver/webaccess/security_integration_test.go:422:TestUntrustedOriginIsRejectedButSameOriginLANHostWorks": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::auth_rejects_untrusted_origin_before_authentication; crates/jftrade-engine/src/product_server_tests.rs::dynamic_origin_allowlist_tracks_the_current_web_port",
-    "conclusion": "partial：Go 断言 https://evil.example.com 登录 403、同源 LAN host 登录 200。Rust 对未受信 Origin 在认证前 403（引用测试），同源放行由动态 origin allowlist 随当前 Web 端口变化覆盖（引用测试）；缺的是“同源 LAN host 登录成功”的 HTTP 级断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth_rejects_untrusted_origin_before_authentication)'",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::untrusted_origin_is_rejected_while_the_allowed_lan_origin_authenticates",
+    "conclusion": "function_exact：Go 断言 https://evil.example.com 登录被 403 拒绝，而配置为同源的 LAN host 登录成功。Rust 新增用例在允许来源含 http://192.168.1.10:3008 的策略下断言未受信 Origin 403、允许的 LAN 来源 200，且端口只被调用一次（仅成功请求）；该用例带本行 // Parity: 锚点。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/webaccess/security_integration_test.go:437:TestLoopbackPolicyBlocksRemoteBrowserUntilExplicitlyEnabled": {
     "status": "[~]",
@@ -6643,11 +6643,11 @@
     "evidence_type": "partial"
   },
   "internal/app/apiserver/webaccess/security_integration_test.go:490:TestWebSocketUsesCookieSessionWithoutDesktopToken": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs; crates/jftrade-api/tests/transport_contracts.rs::auth_requires_origin_and_csrf_for_session_writes",
-    "conclusion": "partial：Go 断言携带会话 cookie（无桌面 token）即可升级 /api/v1/ws/live。Rust 的 WS live 由同一 WebSessionValidator 判定（ws_live 测试覆盖连接/订阅/断开与连接上限），router 对 /api/v1/ws/live 显式跳过 origin 预检但要求会话有效；缺的是“仅 cookie 会话升级成功”的专门断言。",
-    "command": "",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_upgrades_with_a_browser_session_cookie_alone",
+    "conclusion": "function_exact：Go 断言仅携带 Web 会话 cookie（无桌面 token）即可升级 /api/v1/ws/live。Rust 新增端到端用例在 enforce_access 且只配置 session_token 的产品实例上做真实 WebSocket 握手：无凭据 401 WEB_AUTH_REQUIRED、仅 session cookie 升级 101，桌面 token 不参与该通道；该用例带本行 // Parity: 锚点。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/webaccess/security_integration_test.go:510:TestRemovedAuthTokenRouteReturnsNotFound": {
     "status": "[x]",

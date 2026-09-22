@@ -166,6 +166,43 @@ async fn ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first() 
     handle.shutdown().await.expect("shutdown product");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:490 TestWebSocketUsesCookieSessionWithoutDesktopToken
+/// A browser that only holds the web session cookie upgrades the live
+/// websocket while the same handshake without credentials is refused.
+#[tokio::test]
+async fn ws_live_transport_upgrades_with_a_browser_session_cookie_alone() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let mut config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_ws_live_snapshot_port(Arc::new(EnabledWsLiveSnapshotPort));
+    config.access = AccessPolicy {
+        session_token: Some("fixture-browser-session".to_owned()),
+        enforce_access: true,
+        ..AccessPolicy::default()
+    }
+    .with_allowed_origins(["https://jftrade.local".to_owned()]);
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+
+    let anonymous = websocket_handshake(address, &[("Origin", "https://jftrade.local")]).await;
+    assert_eq!(anonymous.status, 401);
+    assert!(anonymous.body.contains("WEB_AUTH_REQUIRED"));
+
+    let session = websocket_handshake(
+        address,
+        &[
+            ("Origin", "https://jftrade.local"),
+            ("Cookie", "jftrade_web_session=fixture-browser-session"),
+        ],
+    )
+    .await;
+    assert_eq!(session.status, 101, "cookie session must upgrade");
+    drop(session.upgraded_stream);
+    handle.shutdown().await.expect("shutdown product");
+}
+
 #[tokio::test]
 async fn ws_live_route_unavailable_is_plain_text_and_does_not_register_without_port() {
     let directory = tempdir().expect("temporary directory");

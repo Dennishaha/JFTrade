@@ -987,3 +987,117 @@ async fn auth_requires_origin_and_csrf_for_session_writes() {
     assert_ne!(accepted.status(), StatusCode::FORBIDDEN);
     assert_eq!(port.requests.lock().expect("requests").len(), 1);
 }
+
+// Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:293 TestWebPasswordSessionSupportsReadAndCSRFProtectedWrite
+/// One authenticated browser session (session cookie, no desktop token) reads
+/// freely and writes only with both the allowed origin and the CSRF token.
+#[tokio::test]
+async fn session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow() {
+    let (router, port) = auth_router([
+        ("GET", "/api/v1/settings/ui"),
+        ("PUT", "/api/v1/settings/ui"),
+    ]);
+    let read = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/settings/ui")
+                .header("cookie", "jftrade_web_session=session-token")
+                .header("origin", "https://jftrade.local")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("read");
+    assert_eq!(read.status(), StatusCode::OK);
+
+    let write = |csrf: Option<&str>| {
+        let mut builder = Request::builder()
+            .method(Method::PUT)
+            .uri("/api/v1/settings/ui")
+            .header("cookie", "jftrade_web_session=session-token")
+            .header("origin", "https://jftrade.local");
+        if let Some(csrf) = csrf {
+            builder = builder.header("x-csrf-token", csrf);
+        }
+        builder.body(Body::from("{}")).expect("request")
+    };
+    let denied = router.clone().oneshot(write(None)).await.expect("denied");
+    assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+    let accepted = router
+        .oneshot(write(Some("csrf-token")))
+        .await
+        .expect("accepted");
+    assert_eq!(accepted.status(), StatusCode::OK);
+    assert_eq!(port.requests.lock().expect("requests").len(), 2);
+}
+
+// Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:362 TestProductionWebDoesNotTrustDevelopmentOrigin
+/// The production web surface never trusts the development console origin.
+#[tokio::test]
+async fn web_mode_rejects_the_development_origin() {
+    let (router, port) = auth_router([("GET", "/api/v1/settings/ui")]);
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/settings/ui")
+                .header("cookie", "jftrade_web_session=session-token")
+                .header("origin", "http://localhost:3003")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert!(port.requests.lock().expect("requests").is_empty());
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body")
+        .to_bytes();
+    let value: Value = serde_json::from_slice(&body).expect("failure envelope");
+    assert_eq!(value["error"]["code"], "ORIGIN_FORBIDDEN");
+}
+
+// Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:422 TestUntrustedOriginIsRejectedButSameOriginLANHostWorks
+/// An untrusted origin is rejected before authentication while the configured
+/// same-origin LAN host keeps working.
+#[tokio::test]
+async fn untrusted_origin_is_rejected_while_the_allowed_lan_origin_authenticates() {
+    let port = Arc::new(RecordingPort::default());
+    let routes = RouteCatalog::new([RouteSpec {
+        method: "GET".into(),
+        path: "/api/v1/settings/ui".into(),
+    }])
+    .expect("routes");
+    let access = AccessPolicy {
+        session_token: Some("session-token".into()),
+        csrf_token: Some("csrf-token".into()),
+        ..AccessPolicy::default()
+    }
+    .with_allowed_origins(["http://192.168.1.10:3008".into()]);
+    let router = build_router(ApiState::new(routes, access, port.clone()));
+
+    let read = |origin: &'static str| {
+        Request::builder()
+            .uri("/api/v1/settings/ui")
+            .header("cookie", "jftrade_web_session=session-token")
+            .header("origin", origin)
+            .body(Body::empty())
+            .expect("request")
+    };
+    let untrusted = router
+        .clone()
+        .oneshot(read("https://evil.example.com"))
+        .await
+        .expect("untrusted origin");
+    assert_eq!(untrusted.status(), StatusCode::FORBIDDEN);
+
+    let trusted = router
+        .oneshot(read("http://192.168.1.10:3008"))
+        .await
+        .expect("lan origin");
+    assert_eq!(trusted.status(), StatusCode::OK);
+    assert_eq!(port.requests.lock().expect("requests").len(), 1);
+}
