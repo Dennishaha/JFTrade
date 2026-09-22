@@ -517,3 +517,49 @@ async fn test_reconciliation_terminate_suppresses_late_scan_updates() {
         "terminated owner must not start another scan"
     );
 }
+
+async fn scans_reach(worker: &ExecutionReconciliationWorker, target: u64) -> u64 {
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    loop {
+        let scans = worker.status().scans;
+        if scans >= target || std::time::Instant::now() >= deadline {
+            return scans;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+}
+
+/// Parity: go:452dea11:internal/trading/order_updates_test.go:263 TestOrderUpdatesWorkerForcedActiveSyncBypassesCache
+#[tokio::test]
+async fn reconciliation_polling_throttles_scans_until_a_push_wake_forces_one() {
+    let (store, _directory) = reconciliation_store();
+    let reader = Arc::new(FixtureTradeReader {
+        accounts: vec![account()],
+        ..Default::default()
+    });
+    let port = Arc::new(production_port(Arc::clone(&store), Arc::clone(&reader)));
+    let wake = Arc::new(Notify::new());
+    let worker = ExecutionReconciliationWorker::start(Arc::clone(&port), Some(Arc::clone(&wake)));
+
+    let first_scan = scans_reach(&worker, 1).await;
+    assert!(first_scan >= 1, "the worker must scan once at start");
+
+    // Go's throttled `Sync(force=false)`: repeat syncs inside the window reuse
+    // the cached result, so a short wait must not buy another broker round-trip.
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(
+        worker.status().scans,
+        first_scan,
+        "the polling cadence must throttle repeat scans"
+    );
+
+    // Go's forced `Sync(force=true)`: a broker push bypasses the cadence and
+    // pulls the current/history snapshot immediately.
+    worker.wake();
+    let forced = scans_reach(&worker, first_scan + 1).await;
+    assert_eq!(
+        forced,
+        first_scan + 1,
+        "one push wake must force exactly one extra scan"
+    );
+}
