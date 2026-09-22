@@ -115,10 +115,72 @@ Rust 侧对应实现分布在 `crates/jftrade-trading`（`risk.rs` 的 `HardStop
 | clippy | `pnpm run check:clippy` | 通过 |
 | 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b123_p2.json` | 2 行写入，`[x]` 1358 → 1359 |
 
+## 第一百二十三批（分片三）：低层回退 helper 与 broker 解析/预测存储边界（2 条）
+
+### 范围与结论
+
+- `internal/trading/risk_status_broker_boundaries_test.go:187`：`TestLowLevelTradingFallbackHelpers`
+  → 保留 `[~]`/`partial`：字符串与浮点回退、broker 错误展示与快照回退已在 Rust 侧以不同形状固定，
+  nil 函数适配器按边界保留，`withTimeout` 文本契约仍是已登记缺口。
+- `internal/trading/risk_status_broker_boundaries_test.go:228`：`TestServiceBrokerResolutionAndPredictionStoreBoundaries`
+  → 保留 `[~]`/`partial`：broker 身份解析与不匹配传播、预测存储注入语义已有证据，
+  `resolveBroker(required)`/`ErrNoBroker` 在 Rust 组合根不可达，按边界保留。
+
+### 关键事实（本批 recon）
+
+- **回退 helper 是形状差异而非行为缺失**：Go `firstNonEmpty`/`firstFloatPointer`/`firstFloat` 的“跳过空值取首个有效值”
+  在 Rust 分别由 `trade_projection::non_empty`、`product_production_ports_research_futu::first_non_empty`/
+  `optional_f64` 与投影层首选值链承担；浮点优先链已由
+  `position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback` 断言。
+- **nil 函数适配器没有 Rust 对应物**：Go 的 `orderStoreFunctions`/`orderGatewayFunctions` 用 nil 接收者
+  返回 `ErrOrderStoreUnavailable`/`ErrOrderGatewayUnavailable`；Rust 端口是 trait 对象，缺端口时由 wire 层
+  给出 503，不存在 nil 接收者语义。
+- **读端口超时契约与第 122 批是同一处缺口**：Rust 读端口没有 timeout 参数与 `LastError` 文本，
+  deadline 属 transport 层，已在 `trading-broker-service-batch-scope.md` 登记。
+- **`resolveBroker(required)` 在生产组合根不可达**：Rust 只激活 Futu 交易 broker，broker id 始终由路由携带
+  （`is_broker_read_path` 要求非空 broker 段），请求其它 broker 一律 404 `BROKER_NOT_FOUND`；
+  市场数据 provider 缺省走 `ActiveProviderState` 与 market-data 读端口，错误面是 503。
+- **预测存储注入语义与 Go 一致**：`with_prediction_quotes(None)` 清空持久化所有者，
+  RFQ 派发随即返回包含 persistence 的硬错误（`prediction_combo_quote_rejects_invalid_and_unpersistable_requests`），
+  与 Go option 的直接赋值 + 端口 fail-closed 行为等价。
+
+### 分片三验证记录
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 引用行回归 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(broker_read_routes_reject_a_broker_that_is_not_active) or test(prediction_combo_quote_rejects_invalid_and_unpersistable_requests)'` | 3 条通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b123_p3.json` | 2 行写入，`[x]` 保持 1359 |
+
 ## 后续待办
 
-- 分片三：`:187` 低层回退 helper（Rust 无 `firstNonEmpty`/`withTimeout` 同形函数）与
-  `:228` broker 解析（`resolveBroker` 必需/可选语义）与预测行情存储注入边界。
 - 本批登记的缺口：`/runtime` 无会话回退投影；`RiskRejectedError` 默认文案与 `RequiresApproval` 决策语义；
+  读端口 deadline/`LastError` 超时契约；`resolveBroker(required)`/`ErrNoBroker` 等价错误面；
   硬停 `tradingEnvironment = "*"` 的 Go 字面量比较与 Rust 通配语义差异（Rust 更严格，已有
   `hard_stop_environment_scope_trims_case_and_supports_wildcards` 固定）。
+
+## 批次结果（第一百二十三批）
+
+- 文件归零：`internal/trading/risk_status_broker_boundaries_test.go` 5 条 = 1 `[x]`（`:82`）+ 4 `partial`
+  （`:13`、`:124`、`:187`、`:228`），partial 均有明确缺口与回归要求。
+- 清单计数：4451 = function_exact `1359` + partial `2493` + boundary `595` + module_only `4` + missing `0`。
+- Rust 测试：`3100` → `3103`（engine 新增 1 条读路由身份守卫用例，trading 新增 2 条状态/硬停矩阵用例）。
+- 生产修复：读端口与组合端口 broker 身份守卫（`ACTIVE_TRADE_BROKER_ID`）、
+  `BrokerReadSnapshotError`/`PortfolioSnapshotError` 的 `NotFound` 分支与 404 `BROKER_NOT_FOUND`
+  wire 映射（含 MCP 工具失败映射）。
+- 顺带清理：移除 shard 2 误入库的 `scripts/compatibility/__pycache__/audit_test_parity.cpython-312.pyc`，
+  `check:zero-go` 恢复通过。
+
+### 批次门禁
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| Rust 全量测试 | `pnpm run test:rust` | 3200 通过 / 2 skipped（首轮 launcher 用例抖动失败，隔离复跑通过后整轮重跑全绿） |
+| clippy | `pnpm run check:clippy` | 通过 |
+| 兼容回放 | `pnpm run check:compatibility` | 通过（API 278 operations / 18 groups / 19 probes；desktop 3 profiles） |
+| 生成物 | `pnpm run check:generated` | 通过（未修改工作树） |
+| AI 上下文 | `pnpm run check:ai-context` | 通过（6 modules / 8 instruction files） |
+| 零 Go | `pnpm run check:zero-go` | 通过（清理误入库 pyc 后 2942 tracked files） |
+| 快速门禁 | `pnpm run check:quick` | 未通过：仅 `check:rust:static` 失败（既有 advisory 阻断），其余子项通过 |
+| Rust 静态/策略 | `pnpm run check:rust:static` | 未通过（既有 RUSTSEC-2026-0285 漏洞 + `deny.toml` 8 条 `advisory-not-detected`） |
+| diff 卫生 | `git diff --check` | 通过 |
+| target 健康 | `pnpm run clean:rust:artifacts` | 清理 131461 文件 / 34.4GiB 后 `check:rust:workspace` 通过 |
