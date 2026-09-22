@@ -599,7 +599,9 @@ pub(super) fn discovered_order(
             super::super::execution_order_parse::order_type_label(snapshot.order_type).to_owned(),
         ),
         status,
-        raw_broker_status: Some(snapshot.order_status.to_string()),
+        raw_broker_status: Some(
+            super::super::order_status_label(snapshot.order_status).to_owned(),
+        ),
         requested_quantity,
         requested_price,
         filled_quantity,

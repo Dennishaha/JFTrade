@@ -27,6 +27,17 @@ struct FixtureTradeReader {
     blocking_accounts: Option<Arc<BlockingAccounts>>,
     fee_batches: Mutex<Vec<Vec<TradeOrderFeeSnapshot>>>,
     calls: Mutex<FixtureCallCounts>,
+    scopes: Mutex<FixtureReadScopes>,
+}
+
+/// Records the trade header/filter actually used for order/fee reads so a
+/// test can prove a per-order history pull carries the stored order's scope.
+#[derive(Debug, Default, Clone)]
+struct FixtureReadScopes {
+    active_order_headers: Vec<(i32, u64, i32)>,
+    history_order_headers: Vec<(i32, u64, i32)>,
+    history_order_filters: Vec<(Vec<u64>, Vec<String>)>,
+    fee_order_ids: Vec<Vec<String>>,
 }
 
 #[derive(Debug)]
@@ -108,10 +119,16 @@ impl TradeReadPort for FixtureTradeReader {
 
     fn read_order_fees(
         &self,
-        _: TradeHeader,
-        _: Vec<String>,
+        header: TradeHeader,
+        order_id_ex_list: Vec<String>,
     ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
         self.calls.lock().expect("fixture calls").fees += 1;
+        self.scopes
+            .lock()
+            .expect("fixture scopes")
+            .fee_order_ids
+            .push(order_id_ex_list.clone());
+        let _ = header;
         if let Some(batch) = self.fee_batches.lock().expect("fixture fee batches").pop() {
             return Ok(batch);
         }
@@ -149,12 +166,18 @@ impl TradeReadPort for FixtureTradeReader {
 
     fn read_orders(
         &self,
-        _: TradeHeader,
-        _: Option<TradeFilter>,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
         _: Vec<i32>,
         _: Option<bool>,
     ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
         self.calls.lock().expect("fixture calls").active_orders += 1;
+        self.scopes
+            .lock()
+            .expect("fixture scopes")
+            .active_order_headers
+            .push((header.trd_env, header.acc_id, header.trd_market));
+        let _ = filter;
         if self.fail_active_orders {
             return unavailable("fixture active orders unavailable");
         }
@@ -163,12 +186,25 @@ impl TradeReadPort for FixtureTradeReader {
 
     fn read_history_orders(
         &self,
-        _: TradeHeader,
-        _: Option<TradeFilter>,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
         _: Vec<i32>,
         _: Option<bool>,
     ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
         self.calls.lock().expect("fixture calls").history_orders += 1;
+        {
+            let mut scopes = self.scopes.lock().expect("fixture scopes");
+            scopes
+                .history_order_headers
+                .push((header.trd_env, header.acc_id, header.trd_market));
+            scopes.history_order_filters.push((
+                filter.as_ref().map(|f| f.id_list.clone()).unwrap_or_default(),
+                filter
+                    .as_ref()
+                    .map(|f| f.order_id_ex_list.clone())
+                    .unwrap_or_default(),
+            ));
+        }
         if self.fail_history_orders {
             return unavailable("fixture history orders unavailable");
         }
@@ -930,3 +966,57 @@ mod push_worker_tests;
 
 #[path = "product_production_ports_execution_reconciliation_read_boundaries_tests.rs"]
 mod read_boundaries_tests;
+
+/// Parity: go:452dea11:internal/trading/order_updates_test.go:280 TestOrderUpdatesWorkerSyncExecutionOrderHistoryUsesOrderScope
+#[test]
+fn reconciliation_order_history_reads_use_the_stored_order_scope() {
+    let (store, _directory) = reconciliation_store();
+    store
+        .save_order(pending_order("SUBMITTED"), "2026-08-30T00:00:01Z")
+        .unwrap();
+    let reader = Arc::new(FixtureTradeReader {
+        accounts: vec![account()],
+        history_orders: vec![order_snapshot(11, Some(5.0))],
+        fees: vec![fee(2.5)],
+        ..FixtureTradeReader::default()
+    });
+    let port = production_port(Arc::clone(&store), Arc::clone(&reader));
+
+    assert_eq!(port.reconcile_pending_orders().expect("scope scan"), 1);
+
+    // The stored order owns the read scope: REAL -> trd_env 1, account 42 and
+    // US -> trd_market 2, with the broker identity used as the filter.
+    let scopes = reader.scopes.lock().expect("fixture scopes").clone();
+    assert!(
+        scopes.history_order_headers.contains(&(1, 42, 2)),
+        "history headers = {:?}",
+        scopes.history_order_headers
+    );
+    assert!(
+        scopes
+            .history_order_filters
+            .contains(&(vec![11], vec!["order-ex".to_owned()])),
+        "history filters = {:?}",
+        scopes.history_order_filters
+    );
+    assert!(
+        scopes
+            .active_order_headers
+            .contains(&(1, 42, 2)),
+        "active headers = {:?}",
+        scopes.active_order_headers
+    );
+    assert!(
+        scopes.fee_order_ids.contains(&vec!["order-ex".to_owned()]),
+        "fee order ids = {:?}",
+        scopes.fee_order_ids
+    );
+
+    let saved = store
+        .get_order("rust-order-reconcile")
+        .unwrap()
+        .expect("reconciled order");
+    assert_eq!(saved.status, "FILLED");
+    assert_eq!(saved.raw_broker_status.as_deref(), Some("FILLED_ALL"));
+    assert_eq!(saved.fees, Some(2.5));
+}

@@ -77,10 +77,8 @@ Go 服务内自带 `OrderUpdatesWorker` 的测试集合（节流/强制同步、
   对应写入点）。推送触发链路本身由 push worker 测试覆盖（wake→扫描→持久化），但事件类型与
   `sourceDetail` 不同。
 
-### 后续待办（本文件剩余 11 条）
+### 后续待办（本文件剩余 6 条）
 
-- 分片二：`:280`（历史同步按订单 scope）、`:322`（stop 幂等与可重订阅）、`:343`（账户集合变化重订阅）、
-  `:369`（sync 刷新既有订阅）、`:397`（并发 sync 只订阅一次）。
 - 分片三：`:414`（快照 invalidations 上限）、`:427`（非活跃 source 保留诊断状态）、
   `:442`（订阅+历史回退路径）、`:469`（当前/历史失败标记）。
 - 分片四：`:508`（费用同步过滤与失败上报）、`:531`（nil/替换辅助边界）。
@@ -90,6 +88,78 @@ Go 服务内自带 `OrderUpdatesWorker` 的测试集合（节流/强制同步、
   marketdata_quotes / futu_opend / settings_watchlist 顺序逐域收口。
 - 既有独立项：docs/history 尖括号占位符导致 `build:docs:generated` 失败；桌面周期性更新检查
   （`startDesktopUpdateChecks` 24h 节奏）；launcher SIGTERM 竞态抖动。
+
+## 第一百一十八批（分片二）：订阅生命周期、订单 scope 与并发（5 条）
+
+### 范围与分片
+
+- P1 `:280`：`TestOrderUpdatesWorkerSyncExecutionOrderHistoryUsesOrderScope`（历史拉取按订单 scope、
+  应用状态、写回 metadata、终态费用对账）。
+- P1 `:322`：`TestOrderUpdatesWorkerStopIsIdempotentAndCanResubscribe`。
+- P1 `:343`：`TestOrderUpdatesWorkerResubscribesWhenAccountSetChanges`。
+- P1 `:369`：`TestOrderUpdatesWorkerRefreshesExistingSubscriptionOnSync`。
+- P1 `:397`：`TestOrderUpdatesWorkerConcurrentSyncSubscribesOnce`。
+
+分类：5 条全部改判 `[~]`/`boundary`；全仓 `[x]` 1345（不变）、`partial` 2524 → **2519**、
+`boundary` 578 → **583**、`module_only` 4、`missing` 0；Rust 测试 3085 → **3086**。
+
+### 关键事实（本批 recon 与实测）
+
+- **交易推送订阅在 engine 无调用方**：`subscribe_trade_accounts` 只在
+  `crates/jftrade-integration-futu/src/trade_session.rs`（trait 实现 + 会话层）出现，engine 生产代码
+  没有任何调用点（全仓 grep 仅命中该文件与集成测试）。因此 Go 的“订阅一次 / 账户集合变化重订阅 /
+  刷新既有订阅 / 并发只订阅一次”四条断言在 Rust 都没有同形对象；Rust 以“每轮 `read_accounts`
+  账户发现 + (account_id, env) 闸门 + store 扫描互斥”承担等价职责。
+- **订单 scope 有真实等价面**：`header_from_order`（`product_production_ports_execution_order_helpers.rs`）
+  把存储订单的 env/account/market 映射成 `TradeHeader`（REAL→1、US→2），`reconcile_order` 用它构造
+  active/history 读取的 `TradeFilter{id_list, order_id_ex_list}`；终态费用按 `broker_order_id_ex` 读取。
+  这些此前没有断言覆盖（夹具忽略 header/filter），本轮补上。
+- **raw broker status 是真实缺陷（生产修复）**：对账应用
+  （`product_production_ports_execution_orders_impl.rs:39`）与外部订单发现
+  （`execution_reconciliation_discovery.rs:602`）把 `raw_broker_status` 写成 Futu 数字码（如 `"11"`），
+  而 Go 存的是券商原始状态串（`"FILLED_ALL"`），且该字段经 `/api/v1/execution/orders/{id}`
+  的 `rawBrokerStatus` 直接展示给前端（`OrderHistoryPanel.vue` / `OrderEntryPanel.vue`）。
+  现两处改用 `order_status_label`；文件内原有 `BROKER_SYNC_DISCOVERED` 与「FILLED_ALL」路径不受影响。
+- **对账事件类型仍是通用名**：`event_type: "reconciled"`（`..._orders_impl.rs:139`），
+  Go 的 `BROKER_HISTORY_UPDATED`/`BROKER_CACHE_UPDATED` 等 metadata 面无对应。
+
+### 新增测试（带 `// Parity:` 锚点）
+
+- `crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_order_history_reads_use_the_stored_order_scope`
+  （锚 `:280`）：夹具新增 `FixtureReadScopes` 录制 active/history 的 `(trd_env, acc_id, trd_market)`
+  与 filter `(id_list, order_id_ex_list)` 及费用 `order_id_ex_list`；断言
+  header=(1, 42, 2)、history filter=([11], ["order-ex"])、费用读取包含 ["order-ex"]、
+  落账后 `status=FILLED`、`raw_broker_status="FILLED_ALL"`、`fees=2.5`。
+
+### 生产修复与探针记录（破 → 红 → 按字节回滚）
+
+修复涉及三处生产文件（修复后 sha）：
+
+- `crates/jftrade-engine/src/product_production_ports_execution_orders_impl.rs`
+  `589be4cf43bf1aa95b6426d43f936c3fb30f58fdf2e1828917653d31e6799aa1`
+  （raw 状态改为 `order_status_label`）。
+- `crates/jftrade-engine/src/execution_reconciliation_discovery.rs`
+  `a23fe00be8d2c9fa76c1f1419d4ca4b5f6935141e90cd151e6d6b69c57a3a65b`
+  （外部订单发现同样改用 label）。
+- `crates/jftrade-engine/src/product_production_ports_execution_order_helpers.rs`
+  `16347b8468c7614a028759c96ea23cb57d390f03c652a0ab064c77c6cc7deb04`
+  与 `crates/jftrade-engine/src/product_production_ports_execution_reconciliation.rs`
+  `b6e4320a25caa006d2856b65054a3ee054b07b8430f998e49c8d5fdba280cb09`（仅被探测，逻辑未改）。
+
+三次探针全部转红并按字节回滚（回滚后 sha 与探测前一致）：
+
+- ① `header_from_order` 的 `trd_market` 固定为 `1` → header 断言转红。
+- ② `reconcile_order` 的 `TradeFilter` 去掉 `order_id_ex_list` → filter 断言转红。
+- ③ raw 状态退回 `snapshot.order_status.to_string()` → `raw_broker_status` 断言转红。
+
+### 保留差异
+
+- 五条均为旧 owner 边界：Rust 无自带券商订阅的 order-updates worker；订阅生命周期由 Futu 会话
+  承担，而该订阅当前未接线到 engine，账户/订单新鲜度由“轮询对账 + OpenD 事件唤醒 + SQLite 唯一真相”
+  保证。将来若接线交易推送订阅，需要同时补：账户集合变化重订阅/旧订阅停用、刷新既有订阅、
+  并发只订阅一次、stop 幂等后重订阅四组断言。
+- `:280` 的 metadata 面（`BROKER_HISTORY_*`/`BROKER_CACHE_*`/`BROKER_PUSH_*`）在 Rust 无对应写入点；
+  若产品需要与 Go 逐字段的写回元数据，需先在引擎定义等价事件类型再补映射。
 
 验证：
 - 分片一定向 nextest（1 条新测试）EXIT=0：`reconciliation_polling_throttles_scans_until_a_push_wake_forces_one`。
@@ -112,4 +182,14 @@ Go 服务内自带 `OrderUpdatesWorker` 的测试集合（节流/强制同步、
   `[x]` 1344 → **1345**、`partial` 2528 → **2524**、`boundary` 575 → **578**、`missing` 0、0 破坏引用；
   `python3.12 scripts/compatibility/parity_anchor_reconcile.py` **1348** 唯一引用
   （已记账 1291 → **1292**、unrecorded 0、unknown 55、stale 1）。
+- 分片二定向 nextest（1 条新测试）EXIT=0：`reconciliation_order_history_reads_use_the_stored_order_scope`；
+  三次探针全部转红并按字节回滚（修复后 sha 见上）。
+- 分片二全量 `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`：
+  **1778 tests / 1777 passed / 1 failed**，唯一失败为本批无关的既有抖动
+  `api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal`（隔离复跑 2/2 PASS，
+  与分片一登记的 launcher 家族抖动同源）。
+- 分片二审计：`python3 scripts/compatibility/audit_test_parity.py` 4451 Go / **3086** Rust、
+  `[x]` 1345、`partial` 2524 → **2519**、`boundary` 578 → **583**、`missing` 0、0 破坏引用；
+  `python3.12 scripts/compatibility/parity_anchor_reconcile.py` **1349** 唯一引用
+  （已记账 1293、unrecorded 0、unknown 55、stale 1）。
 

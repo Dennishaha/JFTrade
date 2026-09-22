@@ -36,7 +36,9 @@ impl ProductionExecutionPort {
         if next.broker_id.trim().is_empty() {
             next.broker_id = "futu".to_owned();
         }
-        next.raw_broker_status = Some(snapshot.order_status.to_string());
+        // Go persists the broker's raw status label (FILLED_ALL), never the
+        // numeric Futu code: the detail wire exposes this field verbatim.
+        next.raw_broker_status = Some(order_status_label(snapshot.order_status).to_owned());
         if snapshot.order_id > 0 {
             next.broker_order_id = Some(snapshot.order_id.to_string());
         }
