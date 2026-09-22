@@ -282,6 +282,11 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/api/httpserver/bindings_boundaries_test.go:37 TestNormalizeCandlePeriodSupportsEveryDocumentedFamily
+    // Parity: go:452dea11:internal/api/httpserver/bindings_test.go:186 TestCandlePeriodAndPaginationNormalization
+    // The reference owner normalizes the same documented family aliases and
+    // trims surrounding whitespace; the pagination half is owned by the candle
+    // route clamp in `product_production_ports_market_data_quote_reads.rs`.
     fn candle_period_normalizes_aliases_and_rejects_unsupported() {
         assert_eq!(normalize_candle_period("ticker").unwrap(), "tick");
         assert_eq!(normalize_candle_period("k_tick").unwrap(), "tick");
@@ -297,10 +302,92 @@ mod tests {
         assert_eq!(normalize_candle_period("day").unwrap(), "1d");
         assert_eq!(normalize_candle_period("k_week").unwrap(), "1w");
         assert_eq!(normalize_candle_period("k_month").unwrap(), "1mo");
+        // `CandlePeriodValue.UnmarshalText` trims before dispatching to the
+        // normalizer, so a padded alias has to resolve the same way.
+        assert_eq!(normalize_candle_period(" 60m ").unwrap(), "1h");
+        assert_eq!(normalize_candle_period(" Ticker ").unwrap(), "tick");
+        assert_eq!(normalize_candle_period("day").unwrap(), "1d");
 
         // Reject 1y and 2h
         assert!(normalize_candle_period("1y").is_err());
         assert!(normalize_candle_period("2h").is_err());
+    }
+
+    #[test]
+    // Parity: go:452dea11:internal/api/httpserver/bindings_boundaries_test.go:37 TestNormalizeCandlePeriodSupportsEveryDocumentedFamily
+    // Verbatim replay of the Go alias table: every documented family has to
+    // land on the canonical label the candle routes publish.
+    fn documented_candle_period_families_match_the_go_table() {
+        for (input, want) in [
+            ("ticker", "tick"),
+            ("1min", "1m"),
+            ("k_3m", "3m"),
+            ("5min", "5m"),
+            ("k_10m", "10m"),
+            ("15min", "15m"),
+            ("k_30m", "30m"),
+            ("k_60m", "1h"),
+            ("day", "1d"),
+            ("k_week", "1w"),
+            ("k_month", "1mo"),
+        ] {
+            assert_eq!(
+                normalize_candle_period(input).unwrap(),
+                want,
+                "input {input:?}"
+            );
+        }
+    }
+
+    #[test]
+    // Parity: go:452dea11:internal/api/httpserver/bindings_test.go:14 TestParseQueryTimeNormalizesToUTC
+    // Go's `ParseQueryTime` turns timezone-less timestamps and dates into UTC
+    // and converts explicit offsets, so the host's local zone can never leak
+    // into the wire value.
+    fn optional_query_time_normalizes_to_utc_and_blank_means_absent() {
+        assert_eq!(
+            normalize_optional_query_time("2026-06-20 09:30:00").unwrap(),
+            Some("2026-06-20T09:30:00Z".to_owned())
+        );
+        assert_eq!(
+            normalize_optional_query_time("2026-06-20").unwrap(),
+            Some("2026-06-20T00:00:00Z".to_owned())
+        );
+        assert_eq!(
+            normalize_optional_query_time("2026-06-20T09:30:00+08:00").unwrap(),
+            Some("2026-06-20T01:30:00Z".to_owned())
+        );
+
+        // Parity: go:452dea11:internal/api/httpserver/bindings_boundaries_test.go:61 TestParseQueryTimeReturnsCallerFallback
+        // Blank input leaves the caller's fallback in charge. Go additionally
+        // swallows unparseable text and returns the fallback there; Rust answers
+        // 400 "time must be a valid timestamp" instead, which is registered as
+        // a deliberate difference in the parity inventory.
+        assert_eq!(normalize_optional_query_time("   ").unwrap(), None);
+        assert!(normalize_optional_query_time("not-a-time").is_err());
+    }
+
+    #[test]
+    // Parity: go:452dea11:internal/api/httpserver/bindings_test.go:56 TestBindURIRejectsMalformedEscapeInRequestURI
+    // Parity: go:452dea11:internal/api/httpserver/bindings_test.go:75 TestBindURIAllowsEscapedLiteralPercent
+    // Parity: go:452dea11:internal/api/httpserver/bindings_boundaries_test.go:70 TestBindURIHandlesBindingAndFallbackEscapeValidation
+    // `BindURI` validates the escape sequence before decoding the segment, so a
+    // malformed `%ZZ`/`%2` fails while `%25` decodes to a literal percent and
+    // `%20` to a space.
+    fn uri_escape_validation_accepts_literal_percent_and_rejects_malformed() {
+        assert!(has_invalid_percent_escape("bad%ZZ"));
+        assert!(has_invalid_percent_escape("bad%2"));
+        assert_eq!(
+            decode_query_component("bad%ZZ").unwrap_err(),
+            QueryError::InvalidUrlEscape
+        );
+
+        assert!(!has_invalid_percent_escape("value%25"));
+        assert_eq!(decode_query_component("value%25").unwrap(), "value%");
+        assert_eq!(
+            decode_query_component("valid%20value").unwrap(),
+            "valid value"
+        );
     }
 
     #[test]
