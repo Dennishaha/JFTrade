@@ -669,7 +669,15 @@ fn requirement_for_call(
                 && let Some((inner_kind, mut parts)) =
                     security_inner_binding(arguments.get(2), line)?
             {
-                parts.push(time_unit);
+                if inner_kind == "ma" {
+                    // Go's `BuildMovingAverageKeyWithSource` keeps the time
+                    // unit before the optional source
+                    // (`ma:EMA:14:hour:hlc3`), so the suffix cannot simply be
+                    // appended after a non-close source.
+                    parts.insert(2.min(parts.len()), time_unit);
+                } else {
+                    parts.push(time_unit);
+                }
                 return Ok(Some(IndicatorRequirement {
                     alias: alias.to_owned(),
                     kind: inner_kind.clone(),
@@ -810,6 +818,22 @@ fn security_inner_binding(
             })?;
             vec![source, length, percentage]
         }
+        // Go's `planner_indicator.go` maps `ta.ema|sma|rma|wma|hma|vwma` onto
+        // the shared `ma` key, and a security wrapper keeps the requested
+        // timeframe as a suffix (`ma:EMA:5:15m`). The Rust arm below mirrors
+        // that shape so a higher-timeframe moving average resolves the same
+        // worker catalog entry instead of degrading to an opaque
+        // `security:` requirement.
+        "ema" | "sma" | "rma" | "wma" | "hma" | "vwma" => {
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let length = argument_text(arguments.get(1))
+                .ok_or_else(|| invalid(line, format!("{callee} requires a length")))?;
+            let mut parts = vec![kind.to_ascii_uppercase(), length];
+            if source != "close" {
+                parts.push(source);
+            }
+            return Ok(Some(("ma".to_owned(), parts)));
+        }
         "swma" => vec![argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned())],
         _ => return Ok(None),
     };
@@ -879,6 +903,34 @@ fn invalid(line: usize, message: impl Into<String>) -> PlannerError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Parity: go:452dea11:pkg/strategy/indicatorbinding/parse_test.go:235 TestParseIndicatorTimeUnitValue
+    /// Parity: go:452dea11:pkg/strategy/indicatorbinding/parse_semantics_test.go:20 TestParseIndicatorTimeUnitValueSupportsQuotedAndMinuteCountInputs
+    #[test]
+    fn indicator_time_unit_keeps_the_pine_timeframes_that_reach_indicator_keys() {
+        // The Rust planner only accepts the units that can appear in an
+        // indicator key, which is the subset of Go's `pineTimeframeUnit`
+        // table the Pine worker can actually resolve.
+        assert_eq!(indicator_time_unit("1"), Some("minute".to_owned()));
+        assert_eq!(indicator_time_unit("5"), Some("5m".to_owned()));
+        assert_eq!(indicator_time_unit("15"), Some("15m".to_owned()));
+        assert_eq!(indicator_time_unit("30"), Some("30m".to_owned()));
+        assert_eq!(indicator_time_unit("45"), Some("45m".to_owned()));
+        assert_eq!(indicator_time_unit("120"), Some("120m".to_owned()));
+        assert_eq!(indicator_time_unit("240"), Some("240m".to_owned()));
+        assert_eq!(indicator_time_unit("60"), Some("hour".to_owned()));
+        assert_eq!(indicator_time_unit("d"), Some("day".to_owned()));
+        assert_eq!(indicator_time_unit("W"), Some("week".to_owned()));
+        assert_eq!(indicator_time_unit("M"), Some("month".to_owned()));
+        assert_eq!(indicator_time_unit(" 15m "), Some("15m".to_owned()));
+        assert_eq!(indicator_time_unit("\"15\""), Some("15m".to_owned()));
+        assert_eq!(indicator_time_unit("60m"), Some("60m".to_owned()));
+        assert_eq!(indicator_time_unit("001m"), Some("001m".to_owned()));
+        assert_eq!(indicator_time_unit(""), None);
+        assert_eq!(indicator_time_unit("badm"), None);
+        assert_eq!(indicator_time_unit("1D"), None);
+        assert_eq!(indicator_time_unit("year"), None);
+    }
 
     #[test]
     fn test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks() {

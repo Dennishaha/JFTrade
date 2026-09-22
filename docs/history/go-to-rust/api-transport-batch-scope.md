@@ -1397,3 +1397,52 @@ owner：`crates/jftrade-engine`（实时意图执行、数量归一、会话与�
 | 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1894/1894 通过 |
 | 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`pnpm run check:quick` | 全部通过；`check:quick` 首轮在 `api_launcher_reports_startup_failure_when_the_configured_address_is_taken` 抖动失败（1872/1924 中止），隔离复跑与次轮 `check:quick` 均通过，按抖动处置并记录（`.rcgu.o` 32811 未触发清理） |
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 在 cargo-deny advisories 阶段失败（bans/licenses/sources ok） |
+
+### 分片五：`pkg/strategy/indicatorbinding` 解析族 27 行
+
+范围：`parse_test.go` 22 行（`:10/:93/:152/:176/:212/:235/:283/:304/:347/:384/:395/:425/:433/:467/:475/:501/:509/:542/:574/:609/:666/:720`）、
+`parse_semantics_test.go` 5 行（`:8/:20/:46/:114/:155`）。owner：`crates/jftrade-strategy`（Pine 解析器与 planner、信号校验）、
+`crates/jftrade-engine/src/strategy_runtime_execution.rs`（数量语义）、`crates/jftrade-trading/src/risk.rs`（运行时风险）。
+
+本分片 27 行全部给出终值：17 行收紧 partial、10 行确认为 boundary（Go 指标绑定 DSL 专属助手，Rust 已退役该 DSL）。
+
+**功能修复（1 处，带先红探针）**：`crates/jftrade-strategy/src/pine/planner.rs`
+
+- 差异：`security_inner_binding` 缺均线分支，`request.security(syminfo.tickerid, "<tf>", ta.ema(close, 14))` 在 Rust 退化为不透明键
+  `security:syminfo.tickerid:"1":ta.ema(close,14)`；Go 的 `planner_indicator.go`/`BuildMovingAverageKeyWithSource` 会产出可解析的
+  `ma:<TYPE>:<len>[:<source>]` 加时间单位后缀（产品侧 pinespec 金标也期望 `ma:EMA:5:15m`）。
+- 修复：新增 `ema|sma|rma|wma|hma|vwma` 分支返回 `("ma", [TYPE, length, source?])`，并在 security 包装处按 Go 键序把时间单位插入到 source 之前
+  （`ma:EMA:14:hour:hlc3`）。
+- 先红探针：两条新增集成用例在去掉分支后 2/2 失败（键为 `ma:EMA:14` 与 `security:...`），恢复修复后 3/3 通过；
+  `planner.rs` shasum `84dce8fa6d06efe54209d72059f83b7c02b1c02faae45ce4eb4ca59bf158092d` 在探针前后一致。
+- 新增证据：`crates/jftrade-strategy/tests/pine_indicator_binding_keys.rs::moving_average_keys_carry_type_period_and_security_time_unit`
+  （`ma:EMA:14:minute`、`ma:SMA:5:day`）与 `::moving_average_keys_append_the_requested_source_and_time_unit`
+  （`ma:EMA:14`、`ma:SMA:21:volume`、`ma:EMA:14:hour:hlc3`）；单测
+  `crates/jftrade-strategy/src/pine/planner.rs::indicator_time_unit_keeps_the_pine_timeframes_that_reach_indicator_keys` 逐值锁定时间单位表。
+
+关键事实与新登记缺口（P1/P2）：
+
+1. **时间单位词表差异（P1）**：Go 的 DSL `ParseIndicatorTimeUnitValue` 接受 m/min/hour/day/week/mo 词形与 bar(s)/空白空单位语义；
+   Rust `indicator_time_unit` 是 Pine 时间框架子集。已实测差异：Rust 接受 `0m`/`001m`/`15`（Go 拒绝或语义不同）、`60m` 归 `60m`（Go 归 `hour`）、引号 `"15"` 归 `15m`（Go 拒绝）。
+2. **均线类型表差异（P1）**：Go 支持 MA/EMA/SMA/SMMA/LWMA/TMA/EXPMA/HMA/VWMA/BOLL；Rust 只识别 ta.sma/ema/rma/wma/hma/vwma，无 MA/BOLL/TMA/EXPMA，也无“未知→MA”归一。
+3. **价格源白名单缺失（P2）**：Go 的 ParsePriceSource 只接受 8 个源并在建键时丢弃非法源；Rust 原样使用实参文本（`ma:EMA:14:day:bad` 这类键可能出现）。
+4. **数组形态 MTF 均线未展开（P2）**：pinespec 金标里的 `[a, b] = request.security(..., [close, ta.ema(close, 5)])` 形式在 Rust 仍退化为 `security:` 键（本次修复只覆盖单调用形态）。
+5. **DSL 助手族整体退役（boundary）**：函数调用解析、参数切分、函数名归一、参数元数契约、整数转字符串、括号配对、保护窗口策略与四张归一缺省表在 Rust 无同形对象；
+   升级路径统一为“若将来兼容导入 Go DSL，按原表逐条移植并复刻拒绝形态”。
+6. **数量/保护语义映射（P2）**：Go 的数量模式表（account_position_percent/symbol_position_percent/amount/shares 及别名）与保护模式/方向表，在 Rust 分别由 quantity/quantityPct 与运行时风险声明（off/monitor/enforce + allow_entry）承担，无别名归一与逐项断言。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 修复前先红 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked -E 'test(moving_average_keys_carry_type_period_and_security_time_unit) \| test(moving_average_keys_append_the_requested_source_and_time_unit)'` | 2/2 失败（键退化为 `security:`，去掉均线分支后复现） |
+| 新增用例 | 同上（含新增单测） | 3/3 通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast` | 48/48 通过 |
+| 探针回滚校验 | `shasum -a 256 crates/jftrade-strategy/src/pine/planner.rs` | 修复文件与探针副本均为 `84dce8fa…`，按字节一致 |
+| 映射写入 | payload `/tmp/s128e_payload.json` 经 `/tmp/b82_apply.py` 应用 | 27 行给出终值，partial 2296 → 2286、boundary 609 → 619（`[x]` 1546 不变） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3212 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1558、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1894/1894 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`pnpm run check:quick` | 全部通过（本分片 `check:quick` 首轮通过，`.rcgu.o` 42374 未触发清理） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 在 cargo-deny advisories 阶段失败（bans/licenses/sources ok） |

@@ -27672,192 +27672,192 @@
   },
   "pkg/strategy/indicatorbinding/parse_semantics_test.go:8:TestMatchingFunctionCallParenHandlesQuotesAndEscapes": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::parser_handles_strings_history_and_nested_calls_without_regex",
-    "conclusion": "partial：Go 断言匹配函数调用括号时正确处理引号与转义。Rust 的解析契约用例断言字符串与嵌套调用解析（同一引号/转义处理语义）；Go 的括号匹配助手在 Rust 由解析器词法阶段覆盖。",
+    "rust_entry": "不适用：Go 侧 DSL 调用的括号配对助手",
+    "conclusion": "boundary（结构差异）：Go 断言 matchingFunctionCallParen 在引号/转义/未闭合引号下的括号配对。Rust 无该助手（Pine 解析器用词法状态机处理字符串与嵌套调用，见 pine_mcp_contract 的 nested call 用例）。升级路径：兼容导入 DSL 时复用词法器而非移植该助手。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/strategy/indicatorbinding/parse_semantics_test.go:20:TestParseIndicatorTimeUnitValueSupportsQuotedAndMinuteCountInputs": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs::test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks",
-    "conclusion": "partial：Go 断言时间单位支持引号与纯分钟数输入。Rust 的规划用例断言周期分钟解析与 broker 周期（同一时间单位解析）；Go 的引号形态在 Rust 由参数值解码覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs::indicator_time_unit_keeps_the_pine_timeframes_that_reach_indicator_keys",
+    "conclusion": "partial：Go 断言引号形态表（\"minute\"→minute、\"60m\"→hour、\"15m\"→15m、\"001m\"→minute；\"15\"/\"1D\"/\"0m\"/\"badm\" 拒绝）。Rust 的 indicator_time_unit 只接受 Pine 时间框架（\"1\"→minute、\"15\"→15m、\"60\"→hour、D/W/M 等）并同样去除引号；已实测差异：Rust 把 \"60m\" 归 60m（Go 归 hour）、把 \"001m\" 归 001m（Go 归 minute）、把 \"0m\" 归 0m（Go 拒绝）、把引号 \"15\" 归 15m（Go 拒绝）。本分片单测逐值锁定了 Rust 当前行为。owner：planner.rs。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked -E 'test(indicator_time_unit_keeps_the_pine_timeframes_that_reach_indicator_keys)'",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_semantics_test.go:46:TestParseMovingAverageOptionalArgsCoversSourceAndTimeUnitSemantics": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds",
-    "conclusion": "partial：Go 断言均线可选参数（source、时间单位）语义。Rust 的指标属性用例断言指标属性兼容边界（同一均线参数语义）；Go 的可选参数解析在 Rust 由指标参数结构覆盖，无逐项断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_indicator_binding_keys.rs::moving_average_keys_append_the_requested_source_and_time_unit",
+    "conclusion": "partial：Go 断言均线可选参数表（无参→close/\"\"、单 source、单 time unit、unit+source，超过两个可选参或非法值报错）。Rust 没有可选参数解析器：source 由调用实参决定（非 close 才进键），时间单位来自 request.security 的 timeframe（新增用例断言 ma:EMA:14:hour:hlc3 与 Go 键序一致）；缺口：无“可选参过多/不支持 source”的错误与文案。owner：planner.rs。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked -E 'test(moving_average_keys_carry_type_period_and_security_time_unit) | test(moving_average_keys_append_the_requested_source_and_time_unit)'",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_semantics_test.go:114:TestParsePriceSourceAndBuildMovingAverageKeyWithSource": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds",
-    "conclusion": "partial：Go 断言价格源解析与带 source 的均线 key 构造。Rust 的指标属性用例断言指标属性兼容（同一指标身份）；Go 的 source 与 key 拼接在 Rust 由指标实例键覆盖，无逐字段断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_indicator_binding_keys.rs::moving_average_keys_append_the_requested_source_and_time_unit",
+    "conclusion": "partial：Go 断言价格源白名单（open/high/low/close/hl2/hlc3/ohlc4/volume，拒绝 typical）与带 source 的键四例（默认 close 省略→ma:EMA:14、非默认→ma:EMA:14:hl2、非法 source 被丢弃仅留单位→ma:EMA:14:day、单位+源→ma:EMA:14:hour:hlc3）。Rust 的键形态已对齐（新增用例断言 ma:EMA:14、ma:SMA:21:volume、ma:EMA:14:hour:hlc3，非 close 才追加 source）；缺口：无价格源白名单——Rust 原样使用实参文本，非法 source 不会被丢弃（会得到 ma:EMA:14:day:bad）。owner：planner.rs。回归要求：先建非法 source 应被丢弃的失败用例再补白名单。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked -E 'test(moving_average_keys_carry_type_period_and_security_time_unit) | test(moving_average_keys_append_the_requested_source_and_time_unit)'",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_semantics_test.go:155:TestNormalizeFallbackHelpersCoverDefaultBranches": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs::test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks",
-    "conclusion": "partial：Go 断言归一化回退助手覆盖缺省分支。Rust 的规划用例断言周期解析的安全回退（同一缺省回退语义）；Go 的逐助手缺省值在 Rust 由解析失败回退路径覆盖。",
+    "rust_entry": "不适用：Go 侧绑定 DSL 的归一缺省助手（数量模式/保护模式/方向/窗口策略）",
+    "conclusion": "boundary（结构差异）：Go 断言四个归一助手的缺省分支（positionpercent→symbol_position_percent、trailing_stop→trailingStop、both→auto、session→session）。Rust 的对应概念分别落在数量（quantity/quantityPct）、风险声明（off/monitor/enforce + allow_entry）上，均无这些别名归一的缺省表，属已退役 DSL 专属。升级路径：兼容导入 DSL 时按四张表移植并复刻缺省断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:10:TestParseFunctionCall": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::parser_handles_strings_history_and_nested_calls_without_regex",
-    "conclusion": "partial：Go 断言函数调用解析（名称、参数、引号与转义、嵌套调用）。Rust 的解析契约用例断言字符串/历史/嵌套调用不依赖正则解析（同一调用解析语义）；Go 的指标绑定解析助手在 Rust 不存在独立入口，绑定语义由 Pine 侧内建注册表表达。",
+    "rust_entry": "不适用：Go 侧指标绑定 DSL 的函数调用解析助手",
+    "conclusion": "boundary（结构差异）：Go 断言 ParseFunctionCall 的 9 条形态（无参 log()、嵌套 protect(...)、空白修剪、缺括号/空串拒绝）。Rust 无该 DSL：策略路径是 Pine 脚本 + 官方解析器（jftrade-strategy/src/pine/parser.rs），语法按 Pine 而非 ma(EMA,14,m) 形式。升级路径：若将来要兼容导入 Go DSL，需按该表逐条移植并复刻拒绝形态。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:93:TestSplitArguments": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::parser_handles_strings_history_and_nested_calls_without_regex",
-    "conclusion": "partial：Go 断言参数切分（逗号/括号/引号嵌套）。Rust 的解析契约用例断言嵌套调用与字符串处理（同一词法切分能力）；Go 的 splitArguments 助手无等价导出。",
+    "rust_entry": "不适用：Go 侧指标绑定 DSL 的参数切分助手",
+    "conclusion": "boundary（结构差异）：Go 断言 SplitArguments 在逗号/括号/引号嵌套下的切分与空串返回 nil。Rust 无该助手（Pine 解析器按语法树取参），升级路径同上。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:152:TestNormalizeFunctionName": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_framework_language_features",
-    "conclusion": "partial：Go 断言函数名归一（大小写/命名空间前缀）。Rust 的编译用例断言框架语言特性（含内建函数解析）；Go 的归一化助手在 Rust 由内建注册表键匹配覆盖。",
+    "rust_entry": "不适用：Go 侧指标绑定 DSL 的函数名归一",
+    "conclusion": "boundary（结构差异）：Go 断言函数名去命名空间前缀与大小写归一（供绑定表匹配）。Rust 以 Pine 内建注册表键匹配（ta.* 前缀在解析期解析），无函数名归一助手。升级路径：兼容导入 DSL 时按表移植。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:176:TestParseMovingAverageType": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds",
-    "conclusion": "partial：Go 断言均线类型解析（sma/ema/wma/rma/vwma 及别名）。Rust 的指标属性用例断言指标属性在 Go 兼容范围内（同一指标族定义）；Go 的别名解析表在 Rust 由指标类型枚举覆盖，无逐别名断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_indicator_binding_keys.rs::moving_average_keys_carry_type_period_and_security_time_unit",
+    "conclusion": "partial：Go 断言 10 种均线类型表（MA/EMA/SMA/SMMA/LWMA/TMA/EXPMA/HMA/VWMA/BOLL，大小写不敏感、返回大写规范名）与 5 种非法输入拒绝。Rust 的 Pine 路径只识别 ta.sma/ema/rma/wma/hma/vwma 六个调用名（ta.rma≈SMMA、ta.wma≈LWMA），并在指标键里大写化（本分片新增键用例断言 ma:EMA/ma:SMA 前缀）；缺口：无 MA/BOLL/TMA/EXPMA 类型与类型校验助手。owner：crates/jftrade-strategy/src/pine/planner.rs（requirement_for_call 与 security_inner_binding）。回归要求：若产品要求 BOLL 等 MTF 绑定，先建类型拒绝失败用例再扩表。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked -E 'test(moving_average_keys_carry_type_period_and_security_time_unit) | test(moving_average_keys_append_the_requested_source_and_time_unit)'",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:212:TestNormalizeMovingAverageType": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds",
-    "conclusion": "partial：Go 断言均线类型归一与缺省回退。Rust 的指标属性用例断言指标属性兼容边界（同一归一目标）；Go 的缺省回退分支在 Rust 由枚举解析失败路径覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_indicator_binding_keys.rs::moving_average_keys_carry_type_period_and_security_time_unit",
+    "conclusion": "partial：Go 断言 NormalizeMovingAverageType 的规范名与未知回退（WILD/空串→MA）。Rust 无归一助手：不认识的 ta.* 不会被当作均线（调用直接不产出 ma 需求），也没有“未知→MA”回退。缺口与 :176 同源。owner：planner.rs。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked -E 'test(moving_average_keys_carry_type_period_and_security_time_unit) | test(moving_average_keys_append_the_requested_source_and_time_unit)'",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:235:TestParseIndicatorTimeUnitValue": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs::test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks",
-    "conclusion": "partial：Go 断言指标时间单位解析（引号形态、分钟数、unit 后缀）。Rust 的规划用例断言周期分钟解析支持 broker 周期并有安全回退（同一时间单位语义）；Go 的逐形态解析表在 Rust 由周期解析函数覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs::indicator_time_unit_keeps_the_pine_timeframes_that_reach_indicator_keys",
+    "conclusion": "partial：Go 断言 DSL 时间单位词表（空/bar(s)/空白→(\"\",true)，m/min/minutes→minute，h/hr/hour→hour，d/day，w/week，mo/month，大小写不敏感，year/nanosecond 拒绝）。Rust 的 indicator_time_unit 是 Pine 时间框架子集：1→minute、5/15/30/45/120/240→Nm、60→hour、D/W/M→day/week/month，并支持引号与 Nm 形态（本分片新增单测逐值锁定）；差异已实测：Rust 接受 0m/001m/15（Go 分别拒绝或语义不同）、Rust 把 60m 归为 60m（Go 归 hour）、无 m/min/hour/day/mo 词形与 bar(s) 空单位语义。owner：planner.rs。回归要求：先建词形对照失败用例再决定是否扩表。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked -E 'test(indicator_time_unit_keeps_the_pine_timeframes_that_reach_indicator_keys)'",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:283:TestNormalizeIndicatorTimeUnit": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs::test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks",
-    "conclusion": "partial：Go 断言指标时间单位归一（大小写/别名）。Rust 的规划用例断言周期解析与安全回退（同一归一语义）；Go 的别名表在 Rust 没有逐项断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs::indicator_time_unit_keeps_the_pine_timeframes_that_reach_indicator_keys",
+    "conclusion": "partial：Go 断言归一缺省（m→minute、year→\"\"、\"\"→\"\"）。Rust 的 helper 返回 Option（未识别即 None），没有“未知→空单位”的归一函数；词形差异同 :235。owner：planner.rs。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked -E 'test(indicator_time_unit_keeps_the_pine_timeframes_that_reach_indicator_keys)'",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:304:TestBuildMovingAverageKey": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds",
-    "conclusion": "partial：Go 断言均线指标 key 构造（含 source/时间单位/长度）。Rust 的指标属性用例断言指标属性兼容边界（同一指标身份来源）；Go 的 key 拼接规则在 Rust 由指标实例键规范化覆盖，无逐字段断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
+    "rust_entry": "crates/jftrade-strategy/tests/pine_indicator_binding_keys.rs::moving_average_keys_carry_type_period_and_security_time_unit",
+    "conclusion": "partial：Go 断言 BuildMovingAverageKey 三个值（EMA/14/minute→ma:EMA:14:minute、MA/20/\"\"→ma:MA:20、SMA/5/day→ma:SMA:5:day）。**本分片修复**：Rust 的 security_inner_binding 原先缺均线分支，request.security(..., \"1\", ta.ema(close,14)) 会退化成不透明键 security:...；现按 Go 键序补 ma 分支（ma:<TYPE>:<len>[:<source>] 后插入时间单位），新增用例断言 ma:EMA:14:minute 与 ma:SMA:5:day 与 Go 逐字一致。缺口：Go 的 MA 类型（ma:MA:20）在 Rust 无对应调用名（ta.ma 不存在）。先红探针：去掉均线分支后两条新用例 2/2 失败，修复后 3/3 通过，planner.rs shasum 84dce8fa6d06efe54209d72059f83b7c02b1c02faae45ce4eb4ca59bf158092d 前后一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked -E 'test(moving_average_keys_carry_type_period_and_security_time_unit) | test(moving_average_keys_append_the_requested_source_and_time_unit)'",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:347:TestParseQuantityMode": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/tests/signal_validation_boundaries.rs::non_positive_signal_quantity_is_rejected_before_planning",
-    "conclusion": "partial：Go 断言数量模式解析（percent/fixed/cash 等）。Rust 的信号校验用例断言非正数量在计划前被拒（同一数量语义校验）；Go 的模式枚举解析在 Rust 没有等价模式表，按部分覆盖登记。",
+    "conclusion": "partial：Go 断言数量模式表（account_position_percent/symbol_position_percent 及其别名、amount/shares/share），并拒绝 percent/cash_percent/margin_buying_power_percent 等。Rust 的数量语义是 quantity 与 quantityPct（quantity_pct 按可用现金或持仓定量，见 strategy_runtime_execution 与信号校验用例）；缺口：无 8 模式表与别名归一。owner：crates/jftrade-strategy（信号/计划）+ crates/jftrade-engine/src/strategy_runtime_execution.rs。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:384:TestNormalizeQuantityMode": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/tests/signal_validation_boundaries.rs::non_positive_signal_quantity_is_rejected_before_planning",
-    "conclusion": "partial：Go 断言数量模式归一与缺省。Rust 的信号校验用例断言数量必须为正（同一数量校验面）；模式归一表在 Rust 不存在。",
+    "conclusion": "partial：Go 断言 NormalizeQuantityMode 的未知回退（bananas/cashPercent→shares）。Rust 无该归一（未识别或非正数量直接拒绝，不回退到 shares）。owner：同 :347。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:395:TestParseProtectMode": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_runtime_risk_declarations",
-    "conclusion": "partial：Go 断言保护模式解析（止损/止盈等）。Rust 的编译用例断言运行时风险声明（同一风险面）；Go 的保护模式枚举在 Rust 由风险声明字段覆盖，无逐模式断言。",
+    "conclusion": "partial：Go 断言保护模式解析（止损/止盈/追踪等模式表）。Rust 的风险面是 Pine 编译出的运行时风险声明（mode off/monitor/enforce、closeOnly、限额，见引用用例）；缺口：无保护模式枚举与别名表。owner：crates/jftrade-strategy/src/pine/mod.rs + crates/jftrade-trading/src/risk.rs。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:425:TestNormalizeProtectMode": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_runtime_risk_declarations",
-    "conclusion": "partial：Go 断言保护模式归一与缺省。Rust 的编译用例断言运行时风险声明（同一归一目标）；Go 的别名表无逐项断言。",
+    "conclusion": "partial：Go 断言 NormalizeProtectMode 的别名归一（trailing_stop→trailingStop 等）。Rust 的风险 mode 只有 off/monitor/enforce，无 trailingStop 等保护模式归一。owner：同 :395。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:433:TestParseProtectDirection": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_runtime_risk_declarations",
-    "conclusion": "partial：Go 断言保护方向解析（long/short/both）。Rust 的编译用例断言运行时风险声明；方向枚举在 Rust 由风险声明字段表达，无逐项断言。",
+    "conclusion": "partial：Go 断言保护方向解析（long/short/both）。Rust 无方向枚举；与方向相关的只有 allow_entry 声明（引用 allow_entry 用例）与平仓方向按现仓判定。owner：同 :395。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:467:TestNormalizeProtectDirection": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_allow_entry_in_risk_declaration",
-    "conclusion": "partial：Go 断言保护方向归一（含 allow_entry 相关缺省）。Rust 的编译用例断言风险声明中 allow_entry 被支持（同一风险声明语义）；方向归一表无逐项断言。",
+    "conclusion": "partial：Go 断言保护方向归一（both→auto 等）。Rust 无该归一表。owner：同 :395。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:475:TestParseProtectWindowPolicy": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_runtime_risk_declarations",
-    "conclusion": "partial：Go 断言保护窗口策略解析（bar/percent 等）。Rust 的编译用例断言运行时风险声明；窗口策略枚举在 Rust 没有等价入口。",
+    "rust_entry": "不适用：Go 侧保护窗口策略（bar/percent 等）解析",
+    "conclusion": "boundary（结构差异）：Go 断言保护窗口策略解析。Rust 的运行时风险没有窗口策略概念（限额按笔/按日提交计数），故无同形对象。升级路径：若引入按窗口的保护规则，需在 jftrade-trading 风险模型加字段并复刻该策略表。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:501:TestNormalizeProtectWindowPolicy": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::validation_metadata_projects_declared_risk_limits_like_go",
-    "conclusion": "partial：Go 断言保护窗口策略归一。Rust 的验证元数据用例断言声明的风险限额按 Go 投影（同一风险声明投影）；Go 的窗口策略归一表无逐项断言。",
+    "rust_entry": "不适用：Go 侧保护窗口策略归一",
+    "conclusion": "boundary（结构差异）：同 :475，Rust 无窗口策略归一表。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:509:TestParsePositiveInt": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/tests/signal_validation_boundaries.rs::non_positive_signal_quantity_is_rejected_before_planning",
-    "conclusion": "partial：Go 断言正整数解析（拒绝 0/负数/非数字）。Rust 的信号校验用例断言非正数量在计划前被拒（同一正数约束）；Go 的逐输入形态断言在 Rust 没有等价助手。",
+    "conclusion": "partial：Go 断言正整数解析（拒 0/负数/非数字，接受前后空白）。Rust 的等价约束是信号数量必须为正（引用用例），但没有解析助手与逐输入形态的错误文案。owner：crates/jftrade-strategy（信号校验）+ planner。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:542:TestParsePositiveFloat": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/tests/signal_validation_boundaries.rs::non_positive_signal_quantity_is_rejected_before_planning",
-    "conclusion": "partial：Go 断言正浮点解析（含科学计数与非法值）。Rust 的信号校验用例断言正数约束（同一校验面）；浮点解析助手在 Rust 无等价入口。",
+    "conclusion": "partial：Go 断言正浮点解析（含科学计数与非法值）。Rust 的数量/价格在计划期以数值校验（正数、有限），无科学计数法等逐形态断言。owner：同上。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:574:TestParsePercentage": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/tests/signal_validation_boundaries.rs::non_positive_signal_quantity_is_rejected_before_planning",
-    "conclusion": "partial：Go 断言百分比解析（0–100 边界与非法输入）。Rust 的信号校验用例断言数量约束（同一取值校验面）；百分比解析在 Rust 由数量字段的数值校验覆盖，无百分比专用断言。",
+    "conclusion": "partial：Go 断言百分比解析（0–100 边界、带 % 后缀、非法输入）。Rust 的 quantityPct 语义为 0< pct 的百分比（按现金/持仓定量，超过部分按 min(1.0) 截断），无 0–100 边界校验与 % 后缀解析。owner：crates/jftrade-engine/src/strategy_runtime_execution.rs。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:609:TestExpectOnePositiveIntArg": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/signal_validation_boundaries.rs::missing_signal_identity_is_rejected_before_planning",
-    "conclusion": "partial：Go 断言\"恰好一个正整数参数\"的参数契约（缺参/多参报错）。Rust 的信号校验用例断言缺失标识在计划前被拒（同一参数契约拒绝面）；Go 的元数约束由 Rust 的调用参数校验覆盖，无逐条断言。",
+    "rust_entry": "不适用：Go 侧绑定 DSL 的参数元数契约助手",
+    "conclusion": "boundary（结构差异）：Go 断言“恰好一个正整数参数”的契约（缺参/多参报错）。Rust 无该助手；Pine 调用的元数由解析器与各指标分支校验（如 ta.ema 缺 length 报错）。升级路径：兼容导入 DSL 时按该契约移植。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:666:TestExpectPositiveIntArgs": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/tests/signal_validation_boundaries.rs::unsupported_signal_side_is_rejected_before_planning",
-    "conclusion": "partial：Go 断言\"多个正整数参数\"的契约（逐参校验与错误定位）。Rust 的信号校验用例断言不支持的取值在计划前被拒（同一逐参校验语义）；Go 的元数/序号错误文案无对应实现。",
+    "rust_entry": "不适用：Go 侧绑定 DSL 的多数正整参数契约助手",
+    "conclusion": "boundary（结构差异）：Go 断言多参正整契约与逐参错误定位。Rust 由各指标分支逐参校验（缺失即报具体错误），无同形助手与序号文案。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/strategy/indicatorbinding/parse_test.go:720:TestIntsToStrings": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs::test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks",
-    "conclusion": "partial：Go 断言整数切片转字符串切片（指标 key 组装配）。Rust 的规划用例断言周期解析与回退（同族参数装配面）；Go 的辅助转换函数在 Rust 由规划/键构造内联覆盖。",
+    "rust_entry": "不适用：Go 侧指标键组装的整数转字符串助手",
+    "conclusion": "boundary（结构差异）：Go 断言 IntsToStrings 的切片转换（指标键装配用）。Rust 的键装配直接拼接字符串片段，无该助手。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "pkg/strategy/indicatorwarmup/parser_validation_test.go:5:TestAdvancedRequirementParserRejectsMalformedShapes": {
     "status": "[~]",
