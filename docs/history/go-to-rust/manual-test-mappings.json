@@ -30387,25 +30387,25 @@
     "evidence_type": "function_exact"
   },
   "internal/trading/execution_combo_lifecycle_test.go:205:TestExecutionComboPreviewKeepsLegacyBuyingPowerCompatible": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::option_combo_preview_normalizes_every_account_impact_and_unlimited_bounds；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::buying_power_defaults_follow_settings_and_preserve_explicit_environment",
-    "conclusion": "partial：Rust 覆盖组合账户影响归一（含无限额边界）与买入力默认值；差异：Go 断言旧版 buying power 字段兼容（遗留字段保持可用），Rust 未断言该兼容契约。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::combo_preview_backfills_legacy_buying_power_impact_from_account_impact_decrease",
+    "conclusion": "function_exact：Go 的券商预览结果只带 AccountImpact.BuyingPowerDecrease=42 而无顶层 BuyingPowerImpact，服务端用 preview.BuyingPowerImpact = preview.AccountImpact.BuyingPowerDecrease 回填旧字段并保留 accountImpact。Rust 的买入力/账户影响同源来自 Trd_GetComboMaxTrdQtys 单次读取，回归测试用只回报 buyingPowerDecrease=42 的读端口断言 allowed=true、buyingPowerImpact=42、accountImpact.buyingPowerDecrease=42 且 accountImpact 仅含该 1 个键（OpenD 未回报的 5 个字段不得伪造 null）、预览凭证仍落库 preview-*、Trd_GetComboMaxTrdQtys 恰好 1 次。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backfills_legacy_buying_power_impact)' --all-targets --locked --no-fail-fast",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_combo_lifecycle_test.go:237:TestExecutionComboRejectsEveryUnsafeBoundary": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::option_combo_preview_rejects_invalid_legality_and_hidden_transport_failures；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures",
-    "conclusion": "partial：Rust 覆盖组合预览/下单的非法腿、账户与隐藏传输失败拒绝；差异：Go 的「所有不安全边界」矩阵（账户、腿、方向、价格、权力不足等）在 Rust 拆成多条，未逐项对照。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::combo_lifecycle_rejects_every_unsafe_boundary_before_the_broker",
+    "conclusion": "function_exact：Go 的 10 条不安全边界（option combo：orderKind / at least two / clientOrderId / cannot mix / each combo leg；event parlay：market US / quote expired / rfqId / positive amount / predictionSide）加缺 previewId 下单全部逐条断言 400 BAD_REQUEST + 文案，且券商零调用。本轮为对齐 Go 的 combo 校验顺序修改 production 解析：带 legs 的组合不再先撞单腿 quantity 门槛，zero amount 因此命中 Go 原文 “event parlay requires rfqId and positive amount”。Go fixture 的 HK 市场 + US 前缀腿属双重非法，Rust 在共享 instrument 归一化先报 market 不匹配（仍 400），一致 HK parlay 才命中 “event parlay must use market US”，差异已登记。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(rejects_every_unsafe_boundary)' --all-targets --locked --no-fail-fast",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_combo_lifecycle_test.go:319:TestExecutionComboProviderStoreRiskAndGatewayFailures": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::event_parlay_preview_surfaces_snapshot_transport_failure",
-    "conclusion": "partial：Rust 覆盖组合下单的隐藏传输失败与快照传输失败可见；差异：Go 断言 provider/store/risk/gateway 四类失败分别在组合生命周期中传播（组合矩阵），Rust 覆盖其中传输类与校验类。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::combo_lifecycle_surfaces_provider_store_risk_and_gateway_failures",
+    "conclusion": "function_exact：Go 的四类组合生命周期故障矩阵。Rust 修正：新增 ExecutionRiskCoordinator::precheck（按 Go 的 evaluatePlaceExecutionOrderRisk 先于消耗凭证、提交门再重读控制面）并在 place_order/place_combo 的幂等重放之后调用，故风控硬拒（403 REAL_TRADE_KILL_SWITCH_ACTIVE）不再烧掉预览凭证——回归测试断言释放 kill switch 后同一 previewId 可成功下单且券商恰好 1 次。其余分支：无 OpenD/未装策略读端口一律 503 fail-closed（Go 为 400 request error，属既有 Futu-only provider 映射，已登记）、未知预览凭证 400 PREVIEW_INVALID、DROP execution_order_previews 后预览保存失败 500 EXECUTION_STORE_ERROR（不得返回 allowed）、缺组合网关下单与撤单均 Unavailable 且不消耗凭证。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(surfaces_provider_store_risk_and_gateway_failures)' --all-targets --locked --no-fail-fast",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_combo_lifecycle_test.go:412:TestExecutionComboHelperBranches": {
     "status": "[~]",

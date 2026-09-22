@@ -69,6 +69,10 @@ struct PreviewTradeReader {
 struct ComboPreviewTradeReader {
     calls: Arc<Mutex<Vec<TradeComboMaxTradeQuantityRequest>>>,
     max_quantity_calls: Arc<Mutex<Vec<TradeMaxTradeQuantityRequest>>>,
+    /// Answer only `buyingPowerDecrease`, like Go's broker preview result in
+    /// `TestExecutionComboPreviewKeepsLegacyBuyingPowerCompatible` (42.0) where
+    /// the service has to backfill the legacy `buyingPowerImpact` field.
+    buying_power_decrease_only: bool,
 }
 
 impl TradeReadPort for ComboPreviewTradeReader {
@@ -148,14 +152,15 @@ impl TradeReadPort for ComboPreviewTradeReader {
             .lock()
             .expect("combo preview calls")
             .push(request.clone());
+        let decrease_only = self.buying_power_decrease_only;
         Ok(TradeComboMaxTradeQuantitySnapshot {
             header: request.header,
-            nlv_change: Some(-100.0),
-            initial_margin_change: Some(-100.0),
-            maintenance_margin_change: Some(-100.0),
-            option_buy_power: Some(-100.0),
+            nlv_change: (!decrease_only).then_some(-100.0),
+            initial_margin_change: (!decrease_only).then_some(-100.0),
+            maintenance_margin_change: (!decrease_only).then_some(-100.0),
+            option_buy_power: (!decrease_only).then_some(-100.0),
             max_withdraw_change: None,
-            buying_power_decrease: Some(100.0),
+            buying_power_decrease: Some(if decrease_only { 42.0 } else { 100.0 }),
         })
     }
 
@@ -2833,6 +2838,23 @@ fn combo_lifecycle_port(
     writer: &Arc<RecordingTradeWriter>,
     control_path: std::path::PathBuf,
 ) -> ProductionExecutionPort {
+    combo_lifecycle_port_with_risk(
+        runtime,
+        reader,
+        writer,
+        Arc::new(crate::product::ExecutionRiskCoordinator::new(control_path)),
+    )
+}
+
+/// Same port, but the caller keeps the risk coordinator so a test can drive the
+/// production control-plane mutations (activate or release a kill switch) that
+/// the engine's system write port uses.
+fn combo_lifecycle_port_with_risk(
+    runtime: &Arc<SharedTradeReadRuntime>,
+    reader: &Arc<ComboPreviewTradeReader>,
+    writer: &Arc<RecordingTradeWriter>,
+    risk_coordinator: Arc<crate::product::ExecutionRiskCoordinator>,
+) -> ProductionExecutionPort {
     runtime.set_option_strategy_spread(Some(Arc::new(OptionSpreadFixture)));
     runtime.set_option_strategy_analysis(Some(Arc::new(OptionAnalysisFixture)));
     runtime.set(
@@ -2854,9 +2876,7 @@ fn combo_lifecycle_port(
         trade_write_port: None,
         trade_runtime: Some(Arc::clone(runtime)),
         cancel_inflight: Arc::new(std::sync::Mutex::new(std::collections::BTreeSet::new())),
-        risk_coordinator: Some(Arc::new(crate::product::ExecutionRiskCoordinator::new(
-            control_path,
-        ))),
+        risk_coordinator: Some(risk_coordinator),
         default_trading_environment: None,
         notification_projector: None,
     }
@@ -3049,9 +3069,11 @@ fn option_combo_lifecycle_preview_place_cancel_and_buying_power_keep_go_contract
 /// re-evaluates risk immediately before submission; a kill switch that
 /// appeared in between rejects the placement (`placed == false`) while the
 /// credential stays spent (`store.consumed == 1`). Rust keeps the same order:
-/// the reservation consumes the preview, the coordinator re-reads the control
-/// file inside the submission gate, and a rejection is persisted as REJECTED
-/// without touching the broker.
+/// the pre-consume evaluation reads the state the coordinator already owns, the
+/// reservation then consumes the preview, and the submission gate re-reads the
+/// control file so the kill switch activated in between is what rejects the
+/// placement. The rejection is persisted as REJECTED without touching the
+/// broker.
 #[test]
 fn real_option_combo_rechecks_risk_after_consuming_preview_before_submission() {
     let runtime = Arc::new(SharedTradeReadRuntime::default());
@@ -3059,7 +3081,15 @@ fn real_option_combo_rechecks_risk_after_consuming_preview_before_submission() {
     let writer = Arc::new(RecordingTradeWriter::default());
     let control_directory = tempfile::tempdir().expect("control directory");
     let control_path = combo_lifecycle_control_file(control_directory.path(), false);
-    let port = combo_lifecycle_port(&runtime, &reader, &writer, control_path);
+    let coordinator = Arc::new(crate::product::ExecutionRiskCoordinator::new(
+        control_path,
+    ));
+    let port = combo_lifecycle_port_with_risk(
+        &runtime,
+        &reader,
+        &writer,
+        Arc::clone(&coordinator),
+    );
 
     let payload = padded_real_option_combo_payload("client-risk-recheck");
     let preview = port.combo_preview(&payload).expect("combo preview");
@@ -3100,7 +3130,16 @@ fn real_option_combo_rechecks_risk_after_consuming_preview_before_submission() {
     );
 
     // The preview credential is spent exactly once: a different client
-    // identity reusing the same preview id is refused as PREVIEW_INVALID.
+    // identity reusing the same preview id is refused as PREVIEW_INVALID. The
+    // kill switch has to be released through the production control-plane
+    // mutation first, because Go also evaluates the pre-trade gateway before
+    // it inspects the preview record.
+    coordinator
+        .mutate_with(|state| {
+            state.kill_switch = None;
+            Ok(())
+        })
+        .expect("release the kill switch through the control plane");
     let mut other_identity = padded_real_option_combo_payload("client-risk-recheck-2");
     other_identity["previewId"] = place_payload["previewId"].clone();
     let reused = port
@@ -3116,6 +3155,463 @@ fn real_option_combo_rechecks_risk_after_consuming_preview_before_submission() {
     assert!(
         writer.placed_combo.lock().expect("placed combos").is_empty(),
         "no combo submission may follow a consumed preview"
+    );
+}
+
+/// Port whose owners are injected one by one so a failure matrix can remove the
+/// store, the trade runtime, the writer or the risk coordinator.
+fn combo_failure_port(
+    store: Arc<jftrade_store_sqlite::ExecutionOrderStore>,
+    runtime: Option<Arc<SharedTradeReadRuntime>>,
+    writer: Option<Arc<RecordingTradeWriter>>,
+    risk_coordinator: Option<Arc<crate::product::ExecutionRiskCoordinator>>,
+) -> ProductionExecutionPort {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, false);
+    ProductionExecutionPort {
+        store,
+        active_provider_state: state,
+        trade_logged_in: Some(true),
+        trade_read_port: None,
+        trade_write_port: writer.map(|value| value as Arc<dyn TradeWritePort>),
+        trade_runtime: runtime,
+        cancel_inflight: Arc::new(std::sync::Mutex::new(std::collections::BTreeSet::new())),
+        risk_coordinator,
+        default_trading_environment: None,
+        notification_projector: None,
+    }
+}
+
+/// Parity: go:452dea11:internal/trading/execution_combo_lifecycle_test.go:205
+/// `TestExecutionComboPreviewKeepsLegacyBuyingPowerCompatible`.
+///
+/// Go's broker rule result carried only `AccountImpact.BuyingPowerDecrease`
+/// (42.0) and no top-level `BuyingPowerImpact`; the service backfilled the
+/// legacy field from the account impact (`preview.BuyingPowerImpact =
+/// preview.AccountImpact.BuyingPowerDecrease`) while `accountImpact` stayed
+/// populated. Rust derives both fields from the single OpenD
+/// `Trd_GetComboMaxTrdQtys` read, so the equivalent contract is: a reader that
+/// reports only `buyingPowerDecrease` must publish the legacy
+/// `buyingPowerImpact` with that value, keep
+/// `accountImpact.buyingPowerDecrease`, and never invent null placeholders for
+/// the five impact fields OpenD did not send.
+#[test]
+fn combo_preview_backfills_legacy_buying_power_impact_from_account_impact_decrease() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    let reader = Arc::new(ComboPreviewTradeReader {
+        buying_power_decrease_only: true,
+        ..Default::default()
+    });
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let control_directory = tempfile::tempdir().expect("control directory");
+    let control_path = combo_lifecycle_control_file(control_directory.path(), false);
+    let port = combo_lifecycle_port(&runtime, &reader, &writer, control_path);
+
+    let mut payload = option_combo_fixture_payload();
+    payload["clientOrderId"] = json!("combo-legacy-impact");
+    let preview = port.combo_preview(&payload).expect("combo preview");
+
+    assert_eq!(preview["allowed"], true, "{preview}");
+    assert_eq!(
+        preview["buyingPowerImpact"].as_f64(),
+        Some(42.0),
+        "the legacy buyingPowerImpact mirrors AccountImpact.BuyingPowerDecrease: {preview}"
+    );
+    let impact = preview["accountImpact"]
+        .as_object()
+        .expect("accountImpact stays populated");
+    assert_eq!(impact["buyingPowerDecrease"].as_f64(), Some(42.0));
+    assert_eq!(
+        impact.len(),
+        1,
+        "only the reported impact field may be published: {preview}"
+    );
+    assert!(
+        preview["previewId"]
+            .as_str()
+            .is_some_and(|id| id.starts_with("preview-")),
+        "an allowed combo preview still persists its credential: {preview}"
+    );
+    assert_eq!(
+        reader.calls.lock().expect("combo preview calls").len(),
+        1,
+        "the combo preview reads Trd_GetComboMaxTrdQtys exactly once"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/execution_combo_lifecycle_test.go:237
+/// `TestExecutionComboRejectsEveryUnsafeBoundary`.
+///
+/// Go walks ten unsafe intents (five option-combo, five event-parlay) plus one
+/// placement without a preview id, and requires every one of them to fail as a
+/// request error naming the violated rule while the broker stays untouched.
+#[test]
+fn combo_lifecycle_rejects_every_unsafe_boundary_before_the_broker() {
+    type Case = (&'static str, fn(&mut Value), &'static str);
+
+    fn assert_request_error(error: ExecutionWritePortError, part: &str, label: &str) {
+        match &error {
+            ExecutionWritePortError::Failed {
+                status,
+                code,
+                message,
+            } => {
+                assert_eq!(*status, 400, "{label}: {error:?}");
+                assert_eq!(code, "BAD_REQUEST", "{label}: {error:?}");
+                assert!(message.contains(part), "{label}: {error:?}");
+            }
+            other => panic!("{label}: expected a request error, got {other:?}"),
+        }
+    }
+
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    let reader = Arc::new(ComboPreviewTradeReader::default());
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let control_directory = tempfile::tempdir().expect("control directory");
+    let control_path = combo_lifecycle_control_file(control_directory.path(), false);
+    let port = combo_lifecycle_port(&runtime, &reader, &writer, control_path);
+
+    let combo_cases: [Case; 5] = [
+        (
+            "unknown kind",
+            |value: &mut Value| value["orderKind"] = json!("single"),
+            "orderKind",
+        ),
+        (
+            "too few legs",
+            |value: &mut Value| {
+                value["legs"]
+                    .as_array_mut()
+                    .expect("legs")
+                    .truncate(1);
+            },
+            "at least two",
+        ),
+        (
+            "missing client",
+            |value: &mut Value| {
+                value
+                    .as_object_mut()
+                    .expect("payload")
+                    .remove("clientOrderId");
+            },
+            "clientOrderId",
+        ),
+        (
+            "mixed product",
+            |value: &mut Value| value["legs"][1]["productClass"] = json!("event_contract"),
+            "cannot mix",
+        ),
+        (
+            "bad leg",
+            |value: &mut Value| value["legs"][0]["ratio"] = json!(0),
+            "each combo leg",
+        ),
+    ];
+    for (label, mutate, part) in combo_cases {
+        let mut payload = option_combo_fixture_payload();
+        mutate(&mut payload);
+        let error = port
+            .combo_preview(&payload)
+            .expect_err(&format!("{label} combo preview must be rejected"));
+        assert_request_error(error, part, label);
+    }
+
+    let parlay_runtime = Arc::new(SharedTradeReadRuntime::default());
+    let parlay_writer = Arc::new(RecordingTradeWriter::default());
+    let parlay_port = event_parlay_place_port(&parlay_runtime, &parlay_writer);
+    let parlay_cases: [Case; 4] = [
+        (
+            "missing expiry",
+            |value: &mut Value| {
+                value
+                    .as_object_mut()
+                    .expect("payload")
+                    .remove("quoteExpiresAt");
+            },
+            "quote expired",
+        ),
+        (
+            "missing rfq",
+            |value: &mut Value| {
+                value.as_object_mut().expect("payload").remove("rfqId");
+            },
+            "rfqId",
+        ),
+        (
+            "zero amount",
+            |value: &mut Value| value["amount"] = json!(0),
+            "positive amount",
+        ),
+        (
+            "missing prediction side",
+            |value: &mut Value| {
+                value["legs"][1]
+                    .as_object_mut()
+                    .expect("leg")
+                    .remove("predictionSide");
+            },
+            "predictionSide",
+        ),
+    ];
+    for (label, mutate, part) in parlay_cases {
+        let mut payload = event_parlay_payload();
+        mutate(&mut payload);
+        let error = parlay_port
+            .combo_preview(&payload)
+            .expect_err(&format!("{label} parlay preview must be rejected"));
+        assert_request_error(error, part, label);
+    }
+
+    // Go mutates only the market to HK while the legs keep their US prefixes.
+    // Rust normalizes every leg against the requested market first, so that
+    // doubly invalid intent fails one step earlier; both shapes stay request
+    // errors and neither reaches the broker.
+    let mut mismatched = event_parlay_payload();
+    mismatched["market"] = json!("HK");
+    let error = parlay_port
+        .combo_preview(&mismatched)
+        .expect_err("a HK market with US legs must fail");
+    assert_request_error(error, "does not match symbol", "parlay market vs leg prefix");
+
+    // A parlay that is consistently HK-quoted hits Go's own rule verbatim.
+    let mut hk_parlay = event_parlay_payload();
+    hk_parlay["market"] = json!("HK");
+    hk_parlay["legs"][0]["instrumentId"] = json!("HK.EC.ONE");
+    hk_parlay["legs"][1]["instrumentId"] = json!("HK.EC.TWO");
+    let error = parlay_port
+        .combo_preview(&hk_parlay)
+        .expect_err("an event parlay must use the US market");
+    assert_request_error(error, "market US", "parlay market");
+
+    let mut no_preview = option_combo_fixture_payload();
+    no_preview["clientOrderId"] = json!("combo-no-preview");
+    let error = port
+        .place_combo(&no_preview)
+        .expect_err("placing a combo without a preview id must fail");
+    assert_request_error(error, "previewId", "place without preview");
+
+    assert_eq!(
+        writer.placed_combo.lock().expect("placed combos").len(),
+        0,
+        "no unsafe option combo may reach the broker"
+    );
+    assert_eq!(
+        parlay_writer.placed_combo.lock().expect("placed combos").len(),
+        0,
+        "no unsafe event parlay may reach the broker"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/execution_combo_lifecycle_test.go:319
+/// `TestExecutionComboProviderStoreRiskAndGatewayFailures`.
+///
+/// Go walks the combo failure matrix: buying power without an active broker, a
+/// broker without the product-rule/combo services, an unusable preview result,
+/// a preview-store save failure, a consumed-preview error, a risk rejection
+/// that must not spend the credential, and a missing combo gateway for both
+/// placement and cancellation. Rust's engine is Futu-only, so "no broker" maps
+/// onto the fail-closed OpenD/trade-owner absence (`Unavailable`) documented in
+/// the provider rows; every other branch keeps Go's status codes.
+#[test]
+fn combo_lifecycle_surfaces_provider_store_risk_and_gateway_failures() {
+    // Go: PreviewExecutionBuyingPower without an active broker.
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, false, false);
+    let providerless = preview_port(Arc::clone(&state), None, None);
+    let error = providerless
+        .buying_power_preview(&buying_power_payload())
+        .expect_err("buying power without the OpenD owner must fail closed");
+    assert!(
+        matches!(error, ExecutionWritePortError::Unavailable(_)),
+        "buying power error = {error:?}"
+    );
+
+    let reader = Arc::new(ComboPreviewTradeReader::default());
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let control_directory = tempfile::tempdir().expect("control directory");
+    let control_path = combo_lifecycle_control_file(control_directory.path(), false);
+    let (store, directory) = execution_store();
+    let _ = directory.keep();
+
+    // Go: a broker without ComboTradingService. Rust fails closed when the
+    // option-strategy readers are missing instead of publishing allowed=true.
+    let bare_runtime = Arc::new(SharedTradeReadRuntime::default());
+    bare_runtime.set(
+        Some(Arc::clone(&reader) as Arc<dyn TradeReadPort>),
+        Some(true),
+    );
+    bare_runtime.set_writer(Some(Arc::clone(&writer) as Arc<dyn TradeWritePort>));
+    let unsupported = combo_failure_port(
+        Arc::clone(&store),
+        Some(Arc::clone(&bare_runtime)),
+        Some(Arc::clone(&writer)),
+        None,
+    );
+    let error = unsupported
+        .combo_preview(&option_combo_fixture_payload())
+        .expect_err("a combo preview without the strategy readers must fail closed");
+    assert!(
+        matches!(error, ExecutionWritePortError::Unavailable(_)),
+        "unsupported combo error = {error:?}"
+    );
+
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_option_strategy_spread(Some(Arc::new(OptionSpreadFixture)));
+    runtime.set_option_strategy_analysis(Some(Arc::new(OptionAnalysisFixture)));
+    runtime.set(
+        Some(Arc::clone(&reader) as Arc<dyn TradeReadPort>),
+        Some(true),
+    );
+    runtime.set_writer(Some(Arc::clone(&writer) as Arc<dyn TradeWritePort>));
+    let coordinator = Arc::new(crate::product::ExecutionRiskCoordinator::new(
+        control_path,
+    ));
+    let port = combo_failure_port(
+        Arc::clone(&store),
+        Some(Arc::clone(&runtime)),
+        Some(Arc::clone(&writer)),
+        Some(Arc::clone(&coordinator)),
+    );
+
+    // Go: the preview store reports "already consumed", so placement fails as a
+    // request error instead of silently reusing the credential.
+    let mut unknown_preview = option_combo_fixture_payload();
+    unknown_preview["clientOrderId"] = json!("combo-consumed");
+    unknown_preview["previewId"] = json!("preview-missing");
+    let error = port
+        .place_combo(&unknown_preview)
+        .expect_err("an unusable preview credential must fail");
+    match &error {
+        ExecutionWritePortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(*status, 400, "{error:?}");
+            assert_eq!(code, "PREVIEW_INVALID", "{error:?}");
+            assert!(message.contains("preview-missing"), "{error:?}");
+        }
+        other => panic!("expected PREVIEW_INVALID, got {other:?}"),
+    }
+
+    // Go: a preview-store save failure must surface instead of an allowed
+    // preview. Dropping the preview table models the same store fault.
+    let (broken_store, broken_directory) = execution_store();
+    let broken_database = broken_directory.path().join("execution-preview.db");
+    let connection =
+        rusqlite::Connection::open(&broken_database).expect("reopen execution database");
+    connection
+        .execute("DROP TABLE execution_order_previews", [])
+        .expect("drop preview table");
+    drop(connection);
+    let broken_runtime = Arc::new(SharedTradeReadRuntime::default());
+    broken_runtime.set_option_strategy_spread(Some(Arc::new(OptionSpreadFixture)));
+    broken_runtime.set_option_strategy_analysis(Some(Arc::new(OptionAnalysisFixture)));
+    broken_runtime.set(
+        Some(Arc::new(ComboPreviewTradeReader::default()) as Arc<dyn TradeReadPort>),
+        Some(true),
+    );
+    broken_runtime.set_writer(Some(Arc::new(RecordingTradeWriter::default()) as Arc<dyn TradeWritePort>));
+    let broken = combo_failure_port(broken_store, Some(broken_runtime), None, None);
+    let error = broken
+        .combo_preview(&option_combo_fixture_payload())
+        .expect_err("a preview-store save failure must not publish an allowed preview");
+    assert!(
+        matches!(
+            &error,
+            ExecutionWritePortError::Failed { status: 500, code, .. } if code == "EXECUTION_STORE_ERROR"
+        ),
+        "preview save error = {error:?}"
+    );
+
+    // Go: a risk rejection must not spend the preview credential. Rust
+    // evaluates the gateway before reserving the credential and again inside
+    // the submission gate, so releasing the kill switch lets the same
+    // credential place the order.
+    let real_payload = padded_real_option_combo_payload("client-hard-reject");
+    let preview = port.combo_preview(&real_payload).expect("combo preview");
+    let mut place_real = real_payload.clone();
+    place_real["previewId"] = json!(preview["previewId"].as_str().expect("preview id"));
+    coordinator
+        .mutate_with(|state| {
+            state.kill_switch = Some(jftrade_trading::RealTradeKillSwitchEntry {
+                id: "ks-combo-failures".to_owned(),
+                trading_environment: "REAL".to_owned(),
+                operator_id: "ops".to_owned(),
+                reason: "combo staging halt".to_owned(),
+                activated_at: "2026-09-22T00:00:00Z".to_owned(),
+                updated_at: "2026-09-22T00:00:00Z".to_owned(),
+            });
+            Ok(())
+        })
+        .expect("activate kill switch");
+    let rejected = port
+        .place_combo(&place_real)
+        .expect_err("an active kill switch must reject the REAL combo");
+    match &rejected {
+        ExecutionWritePortError::Failed { status, code, .. } => {
+            assert_eq!(*status, 403, "{rejected:?}");
+            assert_eq!(code, "REAL_TRADE_KILL_SWITCH_ACTIVE", "{rejected:?}");
+        }
+        other => panic!("expected a kill-switch rejection, got {other:?}"),
+    }
+    assert!(
+        writer.placed_combo.lock().expect("placed combos").is_empty(),
+        "a risk-rejected combo must never reach the broker"
+    );
+    coordinator
+        .mutate_with(|state| {
+            state.kill_switch = None;
+            Ok(())
+        })
+        .expect("release kill switch");
+    let placed = port
+        .place_combo(&place_real)
+        .expect("a hard risk rejection must not spend the preview credential");
+    assert_eq!(placed["status"], "SUBMITTED", "{placed}");
+    assert_eq!(
+        writer.placed_combo.lock().expect("placed combos").len(),
+        1,
+        "the retried credential submits exactly once"
+    );
+
+    // Go: ErrOrderGatewayUnavailable for a missing combo gateway, on both the
+    // placement and the cancellation route.
+    let unwired_runtime = Arc::new(SharedTradeReadRuntime::default());
+    unwired_runtime.set(
+        Some(Arc::clone(&reader) as Arc<dyn TradeReadPort>),
+        Some(true),
+    );
+    let gatewayless = combo_failure_port(
+        Arc::clone(&port.store),
+        Some(unwired_runtime),
+        None,
+        Some(Arc::clone(&coordinator)),
+    );
+    let mut next = padded_real_option_combo_payload("client-gatewayless");
+    let next_preview = port.combo_preview(&next).expect("second combo preview");
+    next["previewId"] = json!(next_preview["previewId"].as_str().expect("preview id"));
+    let error = gatewayless
+        .place_combo(&next)
+        .expect_err("a missing combo gateway must fail the placement");
+    assert!(
+        matches!(error, ExecutionWritePortError::Unavailable(_)),
+        "missing gateway place error = {error:?}"
+    );
+    let internal_id = placed["internalOrderId"]
+        .as_str()
+        .expect("internal combo order id");
+    let error = gatewayless
+        .cancel_order(internal_id)
+        .expect_err("a missing combo gateway must fail the cancel");
+    assert!(
+        matches!(error, ExecutionWritePortError::Unavailable(_)),
+        "missing gateway cancel error = {error:?}"
     );
 }
 

@@ -244,17 +244,22 @@ pub(super) fn parse_order_with_defaults(
             "quantityMode {quantity_mode:?} is invalid for productClass {product_class:?}"
         ));
     }
-    let quantity = if product_class == "event_contract" {
+    let quantity = if has_legs {
+        // Go sizes a combo from its leg ratios and an event parlay from its
+        // amount, so the shared single-order gates must not pre-empt the combo
+        // validator: a zero/negative parlay amount has to reach
+        // `validateEventParlayRequest`'s "requires rfqId and positive amount"
+        // message instead of the generic quantity error.
+        amount.or(requested_quantity).unwrap_or(1.0)
+    } else if product_class == "event_contract" {
         amount.ok_or_else(|| "event-contract amount is required".to_owned())?
-    } else if has_legs {
-        requested_quantity.unwrap_or(1.0)
     } else {
         requested_quantity.ok_or_else(|| "quantity is required".to_owned())?
     };
-    if !quantity.is_finite() || quantity <= 0.0 {
+    if !has_legs && (!quantity.is_finite() || quantity <= 0.0) {
         return Err("quantity must be positive".to_owned());
     }
-    if quantity_mode == "contracts" && quantity.fract() != 0.0 {
+    if !has_legs && quantity_mode == "contracts" && quantity.fract() != 0.0 {
         return Err("option and future quantity must be an integer number of contracts".to_owned());
     }
     if !has_legs && product_class != "event_contract" {

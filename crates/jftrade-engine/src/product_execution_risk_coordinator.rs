@@ -210,84 +210,124 @@ impl ExecutionRiskCoordinator {
                 });
             }
 
-            let snapshot = RealTradeRiskSnapshot::from_control_state(fresh_state.clone(), None);
-            let policy = policy_from_snapshot(&snapshot);
-            let decision = evaluate_pre_trade_risk(&policy, order);
-
-            if !decision.allowed {
-                let code = decision
-                    .reason_code
-                    .unwrap_or_else(|| "PRE_TRADE_RISK_REJECTED".to_owned());
-                let message = decision
-                    .reason_message
-                    .unwrap_or_else(|| "pre-trade risk rejected order submission".to_owned());
-
-                if code == "REAL_TRADE_HARD_STOP_ACTIVE" {
-                    let now = time::OffsetDateTime::now_utc()
-                        .format(&time::format_description::well_known::Rfc3339)
-                        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned());
-                    let event_id = {
-                        let nanos = SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .map_or(0, |d| d.as_nanos());
-                        format!("rths-reject-{nanos}")
-                    };
-                    let mut candidate = fresh_state.clone();
-                    candidate.events.insert(
-                        0,
-                        RealTradeControlEvent {
-                            id: event_id,
-                            event_type: "HARD_STOP_REJECT".to_owned(),
-                            action: "REJECT".to_owned(),
-                            broker_id: order.broker_id.clone(),
-                            operation: Some(order.order_kind.clone()),
-                            trading_environment: Some("real".to_owned()),
-                            account_id: Some(order.account_id.clone()),
-                            market: Some(order.market.clone()),
-                            symbol: Some(order.symbol.clone()),
-                            quantity: Some(order.quantity),
-                            price: order.price,
-                            operator_id: Some("system".to_owned()),
-                            reason: Some(message.clone()),
-                            error_code: Some(code.clone()),
-                            hard_stop_id: decision.matched_hard_stop_id.clone(),
-                            created_at: now,
-                            ..RealTradeControlEvent::default()
-                        },
-                    );
-                    candidate.events.truncate(REAL_TRADE_EVENT_LIMIT);
-                    if let Err(error) = persist_state(&self.path, &candidate) {
-                        if let Ok(mut guard) = self.state.lock() {
-                            guard.control_plane_error = Some(error.clone());
-                            guard.generation = guard.generation.wrapping_add(1);
-                        }
-                        return Err(ExecutionWritePortError::Failed {
-                            status: 500,
-                            code: "CONTROL_PLANE_PERSIST_FAILED".to_owned(),
-                            message: format!("persist hard-stop rejection audit: {error}"),
-                        });
-                    }
-                    if let Ok(mut guard) = self.state.lock() {
-                        guard.state = candidate;
-                        guard.control_plane_error = None;
-                        guard.generation = guard.generation.wrapping_add(1);
-                    }
-                }
-
-                let status = if code == "INVALID_ORDER_RISK_SHAPE" {
-                    400
-                } else {
-                    403
-                };
-                return Err(ExecutionWritePortError::Failed {
-                    status,
-                    code,
-                    message,
-                });
-            }
+            self.reject_real_order(order, fresh_state)?;
         }
 
         submit_fn()
+    }
+
+    /// Go evaluates the pre-trade gateway once before spending the preview
+    /// credential (`evaluatePlaceExecutionOrderRisk`) and once more inside the
+    /// submission window (`executePlaceOrderWithRisk`). The earlier call reads
+    /// the control-plane state the coordinator already owns, so a REAL order
+    /// the current state already rejects is refused without consuming the
+    /// preview; the submission gate stays authoritative because it re-reads the
+    /// control file.
+    pub(crate) fn precheck(
+        &self,
+        order: &PreTradeRiskOrder,
+    ) -> Result<(), ExecutionWritePortError> {
+        if order.trading_environment != jftrade_trading::TradingEnvironment::Real {
+            return Ok(());
+        }
+        let (state, control_error) = {
+            let guard = self.state.lock().map_err(|_| {
+                ExecutionWritePortError::Unavailable("risk coordinator lock poisoned".to_owned())
+            })?;
+            (guard.state.clone(), guard.control_plane_error.clone())
+        };
+        if let Some(error) = control_error {
+            return Err(ExecutionWritePortError::Failed {
+                status: 500,
+                code: "CONTROL_PLANE_UNAVAILABLE".to_owned(),
+                message: format!("pre-trade risk control plane unavailable: {error}"),
+            });
+        }
+        self.reject_real_order(order, state)
+    }
+
+    /// Shared REAL rejection projection: maps the evaluated decision onto the
+    /// wire error and records Go's hard-stop audit event.
+    fn reject_real_order(
+        &self,
+        order: &PreTradeRiskOrder,
+        state: RealTradeControlState,
+    ) -> Result<(), ExecutionWritePortError> {
+        let snapshot = RealTradeRiskSnapshot::from_control_state(state.clone(), None);
+        let policy = policy_from_snapshot(&snapshot);
+        let decision = evaluate_pre_trade_risk(&policy, order);
+        if decision.allowed {
+            return Ok(());
+        }
+        let code = decision
+            .reason_code
+            .unwrap_or_else(|| "PRE_TRADE_RISK_REJECTED".to_owned());
+        let message = decision
+            .reason_message
+            .unwrap_or_else(|| "pre-trade risk rejected order submission".to_owned());
+
+        if code == "REAL_TRADE_HARD_STOP_ACTIVE" {
+            let now = time::OffsetDateTime::now_utc()
+                .format(&time::format_description::well_known::Rfc3339)
+                .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned());
+            let event_id = {
+                let nanos = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .map_or(0, |d| d.as_nanos());
+                format!("rths-reject-{nanos}")
+            };
+            let mut candidate = state.clone();
+            candidate.events.insert(
+                0,
+                RealTradeControlEvent {
+                    id: event_id,
+                    event_type: "HARD_STOP_REJECT".to_owned(),
+                    action: "REJECT".to_owned(),
+                    broker_id: order.broker_id.clone(),
+                    operation: Some(order.order_kind.clone()),
+                    trading_environment: Some("real".to_owned()),
+                    account_id: Some(order.account_id.clone()),
+                    market: Some(order.market.clone()),
+                    symbol: Some(order.symbol.clone()),
+                    quantity: Some(order.quantity),
+                    price: order.price,
+                    operator_id: Some("system".to_owned()),
+                    reason: Some(message.clone()),
+                    error_code: Some(code.clone()),
+                    hard_stop_id: decision.matched_hard_stop_id.clone(),
+                    created_at: now,
+                    ..RealTradeControlEvent::default()
+                },
+            );
+            candidate.events.truncate(REAL_TRADE_EVENT_LIMIT);
+            if let Err(error) = persist_state(&self.path, &candidate) {
+                if let Ok(mut guard) = self.state.lock() {
+                    guard.control_plane_error = Some(error.clone());
+                    guard.generation = guard.generation.wrapping_add(1);
+                }
+                return Err(ExecutionWritePortError::Failed {
+                    status: 500,
+                    code: "CONTROL_PLANE_PERSIST_FAILED".to_owned(),
+                    message: format!("persist hard-stop rejection audit: {error}"),
+                });
+            }
+            if let Ok(mut guard) = self.state.lock() {
+                guard.state = candidate;
+                guard.control_plane_error = None;
+                guard.generation = guard.generation.wrapping_add(1);
+            }
+        }
+
+        let status = if code == "INVALID_ORDER_RISK_SHAPE" {
+            400
+        } else {
+            403
+        };
+        Err(ExecutionWritePortError::Failed {
+            status,
+            code,
+            message,
+        })
     }
 }
 

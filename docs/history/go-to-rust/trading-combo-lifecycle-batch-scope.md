@@ -215,6 +215,113 @@ reconcile anchors 1350 → **1353**（已记账 1294 → 1297、unrecorded 0、u
 | `python3 scripts/compatibility/audit_test_parity.py` | 4451 = function_exact 1350 + partial 2508 + boundary 589 + module_only 4 + missing 0；Rust 测试 3091 |
 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1353 / 已记账 1297 / unrecorded 0 / unknown 55 / stale 1（既有行） |
 
+## 第一百一十九批（分片三）：旧购买力兼容、不安全边界与失败矩阵（3 条）
+
+### 范围
+
+- P1 `internal/trading/execution_combo_lifecycle_test.go:205`：
+  `TestExecutionComboPreviewKeepsLegacyBuyingPowerCompatible`。
+- P0 `internal/trading/execution_combo_lifecycle_test.go:237`：
+  `TestExecutionComboRejectsEveryUnsafeBoundary`。
+- P0 `internal/trading/execution_combo_lifecycle_test.go:319`：
+  `TestExecutionComboProviderStoreRiskAndGatewayFailures`。
+
+结论：3 条均升 `[x]`/`function_exact`。全仓 `[x]` 1350 → **1353**、`partial` 2508 → **2505**、
+`boundary` 589、`module_only` 4、`missing` 0（合计 4451 不变）；Rust 测试 3091 → **3094**。
+reconcile anchors 1353 → **1356**（已记账 1297 → 1300、unrecorded 0、unknown 55、stale 1）。
+
+### 三处生产修复（本轮 recon 与实测）
+
+1. **风控硬拒不再烧掉预览凭证（对齐 Go 的两段式网关）**：Go 的
+   `CreateExecutionOrder`/`CreateExecutionCombo` 顺序是
+   `evaluatePlaceExecutionOrderRisk`（消耗凭证前）→ `ConsumePreview` → 提交门内
+   `executePlaceOrderWithRisk`；Rust 此前只在提交门内评估一次，因此 kill switch/hard stop
+   会先消耗凭证并落 `REJECTED`，客户端被迫重新预览。修复：
+   `crates/jftrade-engine/src/product_execution_risk_coordinator.rs` 抽出共享拒绝投影
+   `reject_real_order`（含 Go 的 hard-stop 审计事件写入），新增 `precheck`：只读取协调器
+   持有的控制面状态（不重读文件），在 `place_order`/`place_combo` 的**幂等重放之后、预留凭证之前**
+   调用；提交门仍然重读控制面并保持权威。组合根把同一个 `Arc<ExecutionRiskCoordinator>`
+   注入执行端口与系统写端口（`product_production_ports.rs:221/245/576`），因此控制面变更与缓存同进程一致。
+2. **组合的 quantity 门槛不再抢占 Go 的组合校验文案**：带 `legs` 的请求不再先撞单腿
+   `quantity must be positive`，事件 parlay 的零/负 `amount` 因此命中 Go 原文
+   `event parlay requires rfqId and positive amount`（`product_production_ports_execution_order_parse.rs`）。
+3. **新增读取端口夹具形态**：`ComboPreviewTradeReader` 增加
+   `buying_power_decrease_only`，用于复现 Go “只回报 BuyingPowerDecrease=42” 的旧字段回填场景。
+
+### 新增测试（带 `Parity: go:452dea11` 锚点）
+
+- `crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::combo_preview_backfills_legacy_buying_power_impact_from_account_impact_decrease`
+  （锚 `:205`）：只回报 `buyingPowerDecrease=42` 的读端口下断言 `allowed=true`、
+  `buyingPowerImpact=42`、`accountImpact.buyingPowerDecrease=42`、`accountImpact` 仅含 1 个键
+  （未回报的 5 个字段不得伪造 null）、预览凭证仍落库 `preview-*`、`Trd_GetComboMaxTrdQtys` 恰好 1 次。
+- `crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::combo_lifecycle_rejects_every_unsafe_boundary_before_the_broker`
+  （锚 `:237`）：option combo 5 条（`orderKind` / `at least two` / `clientOrderId` / `cannot mix` /
+  `each combo leg`）与 event parlay 5 条（`market US` / `quote expired` / `rfqId` / `positive amount` /
+  `predictionSide`）逐条断言 400 `BAD_REQUEST` + 文案，另加缺 `previewId` 的下单拒绝；两个读取端口
+  的 `placed_combo` 均为 0。
+- `crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::combo_lifecycle_surfaces_provider_store_risk_and_gateway_failures`
+  （锚 `:319`）：无 OpenD → 503 fail-closed；未装策略读端口 → 503 fail-closed；未知预览凭证 →
+  400 `PREVIEW_INVALID`；`DROP TABLE execution_order_previews` → 500 `EXECUTION_STORE_ERROR`
+  （不得返回 allowed）；kill switch 硬拒 403 后释放开关，同一 `previewId` 仍可提交且券商恰好 1 次；
+  缺组合网关时下单与撤单均 `Unavailable` 且不消耗凭证。
+- 既有测试同步调整：`real_option_combo_rechecks_risk_after_consuming_preview_before_submission`
+  改持 `Arc<ExecutionRiskCoordinator>`（新增 `combo_lifecycle_port_with_risk` 辅助），第三段用
+  `mutate_with` 经生产控制面路径释放 kill switch 后再断言 `PREVIEW_INVALID`——因为 Go 也会先评估网关
+  再读取预览记录。
+
+### 探针记录（破 → 红 → 按字节回滚）
+
+1. 删除组合预览的 `buyingPowerImpact` 发布（`product_production_ports_execution_order_previews.rs`，
+   原 sha `43736cec2b258d2cf2492202eea691a6b5bf53e374cbae97e2116f392f2a6092`）：`:205` 测试红于
+   `left: None, right: Some(42.0)`；回滚后 sha 一致。
+2. 还原“带 legs 也走单腿 quantity 门槛”（`product_production_ports_execution_order_parse.rs`，
+   原 sha `7fb63fde44b64bfb0688a6cfca8ace38fa696c877ca95d4fba71c8b78acbdeb7`）：`:237` 测试红于
+   `zero amount: … "quantity must be positive"`；回滚后 sha 一致。
+3. 删除 `place_combo` 的 `precheck_order` 调用（`product_production_ports_execution_orders_impl.rs`，
+   原 sha `a5a9e89e05b8734e996f0d32cf09100d28e23207457b19d497877937f9fee748`）：`:319` 测试红于重试拿到
+   已落库的 `REJECTED` 投影（`left: "REJECTED", right: "SUBMITTED"`），即凭证被烧掉；回滚后 sha 一致。
+   该文件随后为满足 800 行上限拆出 `product_production_ports_execution_order_guards.rs`
+   （807 → 776 行；探针记录对应拆分前字节）。
+
+### 结构拆分
+
+- 新建 `crates/jftrade-engine/src/product_production_ports_execution_order_guards.rs`（40 行）：
+  承载 `execute_order_under_guard` 与 `precheck_order`；`product_production_ports_execution_orders.rs`
+  增加第三个 `include!`。`product_production_ports_execution_orders_impl.rs` 由 807 → **776** 行。
+  该文件头用 `//` 注释而非 `//!`（`include!` 插入点不允许内层文档注释）。
+
+### 保留差异与升级路径
+
+- Go 的 “no broker / broker 不支持 product rule 或 comboTrading” 是 400 request error；Rust 引擎是
+  Futu 单 provider，“无 broker” 等价于 OpenD/交易端口缺失，统一 503 `Unavailable` fail-closed
+  （与既有 provider 行一致）。若将来引入多 broker 适配器注册表，应在执行端口前置
+  `BROKER_UNAVAILABLE` 400 映射并补回归测试。
+- Go 的 `:237` fixture 用 market=HK + `US.` 前缀腿（双重非法）只断言子串 `market US`；Rust 在共享
+  instrument 归一化阶段先报 `market "HK" does not match symbol "US.EC.ONE"`（同为 400）。
+  若要逐字节对齐该文案，需要在 `parse_order_with_defaults` 之前为 parlay 增加市场前置校验，
+  并同步 `docs/history/go-to-rust` 的差异记录。
+
+### 后续待办
+
+- 分片四 `:412` 组合辅助分支、`:441` 预览与提交失败契约、`:571` 剩余生命周期与更新辅助、
+  `:635` 详情解析与订单更新缓存失败分支；收口后 `update_goal(complete)` 并转入第 120 批
+  （`pkg/broker/broker_test.go` 8 条，随后 `catalog_test.go` 6 条等 trading_broker 剩余文件）。
+
+### 验证记录（分片三）
+
+| 检查 | 结果 |
+| --- | --- |
+| `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(combo_lifecycle) + test(legacy_buying_power_impact) + test(rechecks_risk) + test(pre_trade_risk)' --all-targets --locked --no-fail-fast` | 6 passed |
+| `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-trading -p jftrade-store-sqlite --all-targets --locked --no-fail-fast` | 2045 passed（首轮 `adk_session_detail_omits_resolved_approval_groups` 抖动失败，隔离复跑通过后全量复跑全绿） |
+| `cargo fmt --all --check` / `cargo clippy -p jftrade-engine -p jftrade-trading -p jftrade-store-sqlite --all-targets --locked` | 通过（clippy 首次报 `type_complexity`，已用 `type Case = …` 修好） |
+| `pnpm run test:rust` | 3191 passed, 2 skipped（首轮既有 launcher 抖动 `api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal` 失败，隔离复跑通过后重跑全绿） |
+| `pnpm run check:compatibility` | 全部 replay 通过（API transport 278 ops / assistant-runtime / desktop-runtime / storage / trading-strategy） |
+| `node scripts/check-zero-go.mjs` / `pnpm run check:ai-context` / `git diff --check` | 通过 |
+| `pnpm run check:quick` | 仅 `check:rust:static` 失败（`cargo deny check` advisories：RUSTSEC-2026-0285 + `deny.toml` 陈旧 advisory 条目），其余并行阶段（含 `check:rust:workspace`：target-health + `test:rust`、架构、生产路由策略、web/contracts/python）通过。首轮另因两个生产文件行数超限与 `.rcgu.o` 计数超限失败：拆出 guards 模块，并确认无 Cargo 进程后 `pnpm run clean:rust:artifacts`（36.6GiB）复跑 |
+| `pnpm run check:rust` | **未通过**：既有 `check:rust:policy`（`cargo deny check` advisories，RUSTSEC-2026-0285）阶段失败；其前置 target-health、architecture、production-policy、format、clippy 与独立运行的 `test:rust`/`check:compatibility` 通过 |
+| `python3 scripts/compatibility/audit_test_parity.py` | 4451 = function_exact 1353 + partial 2505 + boundary 589 + module_only 4 + missing 0；Rust 测试 3094 |
+| `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1356 / 已记账 1300 / unrecorded 0 / unknown 55 / stale 1（既有行） |
+
 ### 验证记录（分片一）
 
 | 检查 | 结果 |

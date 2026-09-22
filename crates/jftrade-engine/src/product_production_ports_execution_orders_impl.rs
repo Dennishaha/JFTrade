@@ -230,6 +230,13 @@ impl ProductionExecutionPort {
             return replay_or_conflict(existing, &request_hash);
         }
         let risk_order = build_pre_trade_risk_order(&parsed);
+        // Go evaluates the gateway once before the preview credential is
+        // consumed (`evaluatePlaceExecutionOrderRisk`) and again inside the
+        // submission window; the earlier call only reads the state the
+        // coordinator already owns, so a rejected REAL order never spends the
+        // credential. It runs after the idempotent replay so a durable
+        // rejection keeps replaying its stored projection.
+        self.precheck_order(&risk_order)?;
         // Probe readiness before consuming a preview. A runtime that becomes
         // unavailable after this probe is still fenced as UNKNOWN below.
         let writer = self.writer()?;
@@ -332,6 +339,13 @@ impl ProductionExecutionPort {
         {
             return replay_or_conflict(existing, &request_hash);
         }
+        // Go evaluates the gateway once before the preview credential is
+        // consumed (`evaluatePlaceExecutionOrderRisk`) and again inside the
+        // submission window; the earlier call only reads the state the
+        // coordinator already owns, so a rejected REAL order never spends the
+        // credential. It runs after the idempotent replay so a durable
+        // rejection keeps replaying its stored projection.
+        self.precheck_order(&risk_order)?;
         // Keep the preview credential untouched when OpenD is already known
         // to be unavailable. A race after this probe is persisted as UNKNOWN.
         let writer = self.writer()?;
@@ -699,22 +713,6 @@ impl ProductionExecutionPort {
             )
             .map(|_| ())
             .map_err(map_transition_store_error)
-    }
-
-    fn execute_order_under_guard<T>(
-        &self,
-        risk_order: &PreTradeRiskOrder,
-        submit_fn: impl FnOnce() -> Result<T, ExecutionWritePortError>,
-    ) -> Result<T, ExecutionWritePortError> {
-        match self.risk_coordinator.as_ref() {
-            Some(coordinator) => coordinator.execute_with_risk_guard(risk_order, submit_fn),
-            None if risk_order.trading_environment == TradingEnvironment::Real => Err(failed(
-                403,
-                "PRE_TRADE_RISK_UNAVAILABLE",
-                "pre-trade risk gateway is unavailable; REAL orders are blocked",
-            )),
-            None => submit_fn(),
-        }
     }
 
     fn persist_rejected(
