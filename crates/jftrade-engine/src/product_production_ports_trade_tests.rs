@@ -748,6 +748,7 @@ fn funds_projection_preserves_currency_and_market_asset_arrays() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:388 TestBrokerFundsSummaryHasAllFields
 fn broker_funds_response_serializes_the_contract_keys_with_null_last_error() {
     // Parity: go:452dea11:internal/trading/responses_test.go:55 TestBrokerFundsResponseJSONShape
     //

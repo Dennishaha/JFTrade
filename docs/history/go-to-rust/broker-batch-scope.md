@@ -705,3 +705,68 @@ Rust `ExecutionOrderStore` 的 `execution_sequences.value` 是**已分配高水�
 `servercoretest` 余下 broker/exec 家族约 30 条：`broker_new_test.go` 18（funds/quote/klines/securities/unlock/place/cancel/
 JSON 形状/路径校验）、`exec_validate_test.go` 4、`execution_routes_test.go` 3、`broker_routes_test.go` 2、`broker_read_test.go` 1、
 `exec_routes_test.go` 1、`portfolio_routes_test.go` 1；owner 为 `crates/jftrade-engine` 的 broker/execution 读端口与 wire 投影。
+### 第一百二十六批 分片三 a-2：`servercoretest` broker/exec 家族 30 行（5 升 `[x]`，5 行收紧，20 行复核维持）
+
+范围：`broker_new_test.go` 18、`broker_read_test.go` 1、`broker_routes_test.go` 2、`exec_routes_test.go` 1、
+`exec_validate_test.go` 4、`execution_routes_test.go` 3、`portfolio_routes_test.go` 1。本片新增 3 条生产 HTTP 断言、
+为 3 条既有测试补锚点，5 行升 `[x]`；5 行按新证据收紧（broker 断线 shape 与 Go 的差异）；其余 20 行逐条复核后维持
+原有 partial/boundary 结论（owner 与回归要求不变）。
+
+#### 新增 Rust 测试（3 条，均为生产 HTTP 装配层）
+
+| Rust 测试 | Go 基线 | 断言要点 |
+| --- | --- | --- |
+| `production_http_broker_klines_requires_symbol_with_go_message` | `broker_new_test.go:167` | `/klines?period=1d` 缺 symbol → 400 + BAD_REQUEST + `query parameter symbol is required` |
+| `production_http_broker_securities_requires_symbol_with_go_message` | `:193` | `/securities` 缺 symbol → 400 + BAD_REQUEST + 同消息 |
+| `production_http_broker_reads_reject_invalid_query_shapes_with_rust_messages` | `:205`（partial 证据） | 9 条非法 query 矩阵：400 + BAD_REQUEST + Rust 消息（clearingDate/orderIdEx/scope/price/adjustSideAndLimit/positionId/limit） |
+
+#### 锚点补记
+
+- `production_http_broker_projection_fails_closed_and_validates_before_runtime` → `:141`（quote 缺 symbol：400 + 同消息；同用例断言无行情路由时 503 fail-closed）。
+- `broker_funds_response_serializes_the_contract_keys_with_null_last_error` → `:388`（funds 六键集合完全相等 + lastError 显式 null）。
+- `portfolio_read_routes_match_group_fixture_in_cutover_only` → `portfolio_routes_test.go:71`（degraded 空态：200 + connectivity=degraded + balances=[] 全等）。
+
+#### 关键事实：broker 断线 shape 的 Go/Rust 差异（P1，本片新登记）
+
+Go 的 `servercoretest` 断言“未配置/断开 broker 时读路由返回 200 + connectivity=degraded|disconnected”：
+funds（`:100`/`:388`）、quote 无租约（`:126`）、klines（`:155`）、securities（`:181`）、valid 断线 shape（`:237`）。
+Rust 侧：
+
+- 冻结 fixture（`broker-read.json`、`portfolio-read.json`）重放了这些 degraded 形状，但由**测试端口**驱动；
+- 生产 HTTP 在缺少行情路由/行情运行时时对 quote 返回 503 `BROKER_READ_UNAVAILABLE`
+  （`production_http_broker_projection_fails_closed_and_validates_before_runtime`），即**失败关闭**而非 200 降级信封；
+- 没有“无 broker 时 funds/klines/securities 返回 200 degraded/disconnected”的生产断言。
+
+因此 `:100`、`:126`、`:155`、`:181` 收紧为 partial（缺口 owner = `crates/jftrade-engine` broker read 绑定与各读路由；
+回归要求 = 确认产品语义后补生产 HTTP 断言或显式记录为有意差异）。`:205` 收紧为 partial：9 条路径的 status/code 已对齐，
+但 Go 消息内嵌 `strconv` 解析细节（如 `strconv.ParseFloat: parsing "abc": invalid syntax`），Rust 简化为
+`query parameter price is invalid`；owner = 请求解析层（`product_production_ports_trade_requests.rs`）。
+
+#### 复核维持的 20 行（结论不变）
+
+`broker_new_test.go:237/:264/:286/:302/:319/:336/:359/:422/:462`、`broker_read_test.go:72`、
+`broker_routes_test.go:14/:61`、`exec_routes_test.go:18`、`exec_validate_test.go:18/:88/:153/:211`、
+`execution_routes_test.go:53/:110/:155`。逐条复核要点：断线/非法 payload 的 wire 分支多由端口级或 fixture 级用例覆盖，
+缺少 Go 的 app 层逐分支表；执行下单校验的 4 条引用的 `test_normalize_execution_order_*` 用例已绑定到
+`internal/api/trading/*` 的 [x] 行（entry 唯一性限制），故维持在 partial 并在结论中记录证据来源。
+
+#### 分片三 a-2 验证记录与门禁
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(production_http_broker_klines_requires_symbol_with_go_message) or test(production_http_broker_securities_requires_symbol_with_go_message) or test(production_http_broker_reads_reject_invalid_query_shapes_with_rust_messages)'` | 3 条通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b126s3a2_apply.json` | 10 行更新，`[x]` 1409 → 1414 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺少 function_exact、无重复 rust_entry |
+| 锚点 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1416、unrecorded 0、stale 0、unknown 54 |
+| 格式 / 架构 / Clippy | `cargo fmt --all -- --check`、`pnpm run check:rust:architecture`、`pnpm run check:clippy` | 通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked` | 1826 条通过（本片 +3） |
+| 工作区测试 | `pnpm run test:rust` | 3242 条通过（本片 +3，2 skipped） |
+| 兼容回放 / 生成物 / AI 上下文 / Zero-Go | `check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go` | 通过 |
+| 快速门禁 / 空白 | `pnpm run check:quick`、`git diff --check` | 通过 |
+| 依赖策略 | `pnpm run check:rust:policy` | **未通过（既有阻断）**：`RUSTSEC-2026-0285` + 8 条 `advisory-not-detected`，如实记录 |
+
+#### 后续（分片三 b）
+
+`servercoretest` 其余约 59 条：settings/broker 与 onboarding 11、backtest_runs/provider 8、market_depth 4、
+openapi_snapshot 4、server_definitions 6、system/runtime 8、strategy_logs/preview/sync 5、watchlist/research 4、
+frontend/installers/plugin/contract 余量等；owner 为 `crates/jftrade-engine` 对应投影 + `crates/jftrade-api` wire 层。

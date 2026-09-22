@@ -73,6 +73,7 @@ fn portfolio_read_fixture() -> PortfolioReadFixture {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/portfolio_routes_test.go:71 TestPortfolioRoutesReturnDegradedEmptyStateWithoutConfiguredBroker
 async fn portfolio_read_routes_match_group_fixture_in_cutover_only() {
     let fixture = portfolio_read_fixture();
     let directory = tempdir().expect("temporary directory");

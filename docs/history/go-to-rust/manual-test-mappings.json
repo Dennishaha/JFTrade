@@ -5552,58 +5552,58 @@
   },
   "internal/app/apiserver/servercoretest/broker_new_test.go:100:TestBrokerFundsIncludesMarginFields": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::funds_projection_preserves_full_margin_pdt_and_exposure_fields",
-    "conclusion": "partial：Go 断言资金接口包含保证金/购买力字段。Rust 资金投影测试逐字段断言 margin/PDT/exposure 保留（含缺字段保持缺失的负例），但没有与 Go 逐键对照的 envelope 断言。",
-    "command": "",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_funds_response_serializes_the_contract_keys_with_null_last_error",
+    "conclusion": "partial：Go 断言断开/未集成时 funds 仍返回 currencyBalances、marketAssets、summary 三键。Rust 的同一键契约用例已绑定 :388（entry 唯一性），broker-read 冻结 fixture 也重放了 degraded + summary=null 的形状；但该形状由测试端口驱动，生产 HTTP 在缺少行情路由时对同类读路由返回 503 BROKER_READ_UNAVAILABLE（see production_http_broker_projection_fails_closed_and_validates_before_runtime），未见“无 broker 时 200 degraded”的生产断言。缺口 owner：crates/jftrade-engine broker read 绑定；回归要求：确认断开时是否需返回 200 degraded 信封，如需则补生产 HTTP 断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercoretest/broker_new_test.go:126:TestBrokerQuoteWithoutLeaseIsDegraded": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_quote_requires_every_requested_symbol_in_real_cache; crates/jftrade-engine/src/product_production_ports_market_data_quote_lease.rs",
-    "conclusion": "partial：Go 断言无订阅租约时报价以降级形状返回（仍 200）。Rust 报价读要求真实缓存命中且订阅租约由 quote lease 模块校验（租约缺失/不符返回结构化失败），与 Go 的“降级但 200”形状不同，属 wire 策略差异。",
-    "command": "",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_quote_requires_every_requested_symbol_in_real_cache; crates/jftrade-engine/src/product_production_ports_market_data_quote_lease.rs::candle_read_without_a_kline_lease_fails_before_realtime_provider_access",
+    "conclusion": "partial：Go 断言 broker quote 无行情租约时仍返回 200 + connectivity=degraded + lastError 含 \"subscription required\"。Rust 的 lease 错误仅在 /api/v1/market-data/* 路由断言（basic/candle 用例），broker quote 路由在缓存缺 symbol 或无行情路由时返回 Unavailable（503 信封）。缺口 owner：crates/jftrade-engine broker read 端口（quote 降级语义）；回归要求：确认是否要把无租约映射为 200 degraded 信封，并补生产 HTTP 断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercoretest/broker_new_test.go:141:TestBrokerQuoteMissingSymbol": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_quote_requires_every_requested_symbol_in_real_cache",
-    "conclusion": "partial：Go 断言缺 symbol 返回 400。Rust 在报价读入口要求 symbol 且缓存必须命中（引用测试），缺参由请求解析拒绝；错误码/文案由产品层统一映射，未逐字对齐。",
-    "command": "",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_projection_fails_closed_and_validates_before_runtime",
+    "conclusion": "function_exact：Go 断言 GET /api/v1/brokers/futu/quote 缺 symbol 时返回 400 BAD_REQUEST 且消息为 \"query parameter symbol is required\"。Rust 用例以生产 HTTP 装配请求同一路由，断言 400 + 响应体含同一条消息（同用例还断言无行情路由时 503 fail-closed）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/broker_new_test.go:155:TestBrokerKLinesDisconnected": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::historical_kline_error_surfaces_return_code_and_message; crates/jftrade-engine/src/product_production_ports_market_data_quote_reads_futu.rs::test_futu_kline_query_window_resets_invalid_begin_to_default_lookback",
-    "conclusion": "partial：Go 断言断连时 K 线仍返回结构化载荷。Rust 历史 K 线上游失败会带 return code/message 上抛（引用测试）并在窗口非法时回退默认回看，断连时的降级形状整体由路由层映射，无同形断言。",
-    "command": "",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_klines_valid_request_fails_closed_without_historical_source",
+    "conclusion": "partial：Go 断言断开时 klines 返回 200 + connectivity=disconnected。Rust 在缺少历史数据源时 fail-closed（该用例断言错误路径），装配用例在有历史源时断言 200 数据形状；没有“无历史源 = 200 disconnected”的断言。缺口 owner：crates/jftrade-engine klines 读路由；回归要求：确认断开 shape 是否需与 Go 对齐（200 disconnected vs 503 BROKER_READ_UNAVAILABLE）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercoretest/broker_new_test.go:167:TestBrokerKLinesMissingSymbol": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::instrument_read_routes_reject_missing_uri_parameters; crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::live_read_routes_reject_malformed_instruments_before_any_provider_access",
-    "conclusion": "partial：Go 断言缺 symbol 的 K 线请求 400。Rust 行情读路由在触达 provider 前拒绝缺参/畸形 instrument（引用测试逐条断言），与 Go 的 400 契约一致但错误体文案不同。",
-    "command": "",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_klines_requires_symbol_with_go_message",
+    "conclusion": "function_exact：Go 断言 GET /api/v1/brokers/futu/klines?period=1d 缺 symbol 时 400 BAD_REQUEST + \"query parameter symbol is required\"。Rust 新增生产 HTTP 用例断言状态、错误码与消息一致。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/broker_new_test.go:181:TestBrokerSecuritiesDisconnected": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_securities_returns_real_empty_result_when_cache_has_no_symbol; crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_securities_fails_closed_without_market_data_router",
-    "conclusion": "partial：Go 断言断连时证券详情仍返回结构化空结果。Rust 在缓存无该标时返回真实空结果、无行情路由时 fail-closed（两个引用测试），断连形状由路由层映射，无同形断言。",
-    "command": "",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_securities_returns_real_empty_result_when_cache_has_no_symbol",
+    "conclusion": "partial：Go 断言断开时 securities 返回 200 + connectivity=disconnected。Rust 端口用例断言缓存无该 symbol 时返回空 snapshots（未断言 connectivity），无行情路由时 fail-closed；没有 wire 级断开形状断言。缺口 owner：crates/jftrade-engine securities 读路由；回归要求：补 connectivity/信封断言或确认失败关闭语义。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercoretest/broker_new_test.go:193:TestBrokerSecuritiesMissingSymbol": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_securities_requires_symbol_query",
-    "conclusion": "partial：Go 断言缺 symbol 的证券请求 400。Rust 证券读要求 symbol 查询参数（引用测试），错误码/文案由产品层统一映射，未逐字对齐 Go。",
-    "command": "",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_securities_requires_symbol_with_go_message",
+    "conclusion": "function_exact：Go 断言 GET /api/v1/brokers/futu/securities 缺 symbol 时 400 BAD_REQUEST + \"query parameter symbol is required\"。Rust 新增生产 HTTP 用例断言同样的状态、错误码与消息。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/broker_new_test.go:205:TestBrokerReadRoutesRejectInvalidQueryShape": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::live_read_routes_reject_malformed_instruments_before_any_provider_access; crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::test_execution_normalization_helpers_reject_unsupported_inputs",
-    "conclusion": "partial：Go 表驱动断言 broker 读路由对畸形查询返回 400。Rust 在解析层拒绝畸形 instrument/不支持输入（引用测试），但没有与该表逐项对应的 broker 路由断言。",
-    "command": "",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_reads_reject_invalid_query_shapes_with_rust_messages",
+    "conclusion": "partial：Go 对 9 条非法 query（cash-flows 缺 clearingDate、order-fees 缺 orderIdEx、orders/fills 非法 scope、max-trade-qtys 缺参/price/adjust/positionId、klines limit）断言 400 BAD_REQUEST 且消息逐字相等（含 strconv 解析细节）。Rust 新增生产 HTTP 矩阵用例覆盖同样 9 条路径并断言 400 + BAD_REQUEST + 消息；差异仅在 Go 的 strconv 文本（如 `query parameter price is invalid: strconv.ParseFloat: ...`）在 Rust 简化为 `query parameter price is invalid`。缺口 owner：crates/jftrade-engine 请求解析；回归要求：确认是否需要复刻 Go 解析器细节文本，否则保持 partial。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercoretest/broker_new_test.go:237:TestBrokerReadRoutesKeepValidDisconnectedShape": {
@@ -5656,11 +5656,11 @@
     "evidence_type": "partial"
   },
   "internal/app/apiserver/servercoretest/broker_new_test.go:388:TestBrokerFundsSummaryHasAllFields": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::funds_projection_preserves_currency_and_market_asset_arrays; crates/jftrade-engine/src/product_production_ports_trade_tests.rs::account_projection_matches_broker_runtime_contract",
-    "conclusion": "partial：Go 断言 funds summary 所有字段存在。Rust 投影测试断言币种/资产数组与账户投影契约（引用测试），字段全集由冻结语料断言，未与 Go 逐键对照。",
-    "command": "",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_funds_response_serializes_the_contract_keys_with_null_last_error",
+    "conclusion": "function_exact：Go 断言 funds 响应恒含 summary/currencyBalances/marketAssets/checkedAt/connectivity/lastError 六个键。Rust 用例对同一路由断言键集合完全相等，并断言 lastError 为显式 null、summary 为对象、两个数组存在。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/broker_new_test.go:422:TestNewBrokerRoutesReturnJSON": {
     "status": "[~]",
@@ -5943,11 +5943,11 @@
     "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/portfolio_routes_test.go:71:TestPortfolioRoutesReturnDegradedEmptyStateWithoutConfiguredBroker": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_portfolio_tests.rs::portfolio_read_routes_match_group_fixture_in_cutover_only; crates/jftrade-engine/src/product_portfolio_tests.rs::portfolio_read_routes_fail_closed_when_snapshot_port_is_unavailable",
-    "conclusion": "partial：Go 断言未配置 broker 时 portfolio 路由返回降级空状态。Rust 读路由按冻结语料回放并在快照端口不可用时 fail-closed（引用测试），未配置 broker 的降级 payload 由快照投影承担，无同形断言。",
-    "command": "",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_portfolio_tests.rs::portfolio_read_routes_match_group_fixture_in_cutover_only",
+    "conclusion": "function_exact：Go 断言未配置 broker 时 GET /api/v1/portfolio/<broker>/cash-balances 返回 200、ok=true 且 data.balances 存在（降级空态）。Rust 逐案重放冻结 fixture 的 cash-balances（200、connectivity=degraded、balances=[]、lastError 文本）并断言 data 全等。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/servercoretest/research_runtime_test.go:14:TestServerInitializesResearchDatabaseAndPresetRoutes": {
     "status": "[~]",

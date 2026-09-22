@@ -476,6 +476,7 @@ mod product_production_assembly_tests {
     }
 
     #[tokio::test]
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:141 TestBrokerQuoteMissingSymbol
     async fn production_http_broker_projection_fails_closed_and_validates_before_runtime() {
         let directory = TempDir::new().expect("temp dir");
         let runtime =
@@ -5706,6 +5707,83 @@ mod product_production_assembly_tests {
             assert_eq!(status, 404, "GET {path} body={body}");
             assert!(body.contains("NOT_FOUND"), "GET {path} body={body}");
         }
+        handle.shutdown().await.expect("shutdown");
+    }
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:205 TestBrokerReadRoutesRejectInvalidQueryShape
+    #[tokio::test]
+    async fn production_http_broker_reads_reject_invalid_query_shapes_with_rust_messages() {
+        let (_directory, address, handle) = start_broker_read_http_product().await;
+        for (path, message) in [
+            (
+                "/api/v1/brokers/futu/cash-flows",
+                "query parameter clearingDate is required",
+            ),
+            (
+                "/api/v1/brokers/futu/order-fees",
+                "query parameter orderIdEx is required",
+            ),
+            (
+                "/api/v1/brokers/futu/orders?scope=bad",
+                "query parameter scope is invalid",
+            ),
+            (
+                "/api/v1/brokers/futu/fills?scope=bad",
+                "query parameter scope is invalid",
+            ),
+            (
+                "/api/v1/brokers/futu/max-trade-qtys?market=US&symbol=US.AAPL&orderType=LIMIT",
+                "query parameters symbol, orderType, and price are required",
+            ),
+            (
+                "/api/v1/brokers/futu/max-trade-qtys?market=US&symbol=US.AAPL&orderType=LIMIT&price=bad",
+                "query parameter price is invalid",
+            ),
+            (
+                "/api/v1/brokers/futu/max-trade-qtys?market=US&symbol=US.AAPL&orderType=LIMIT&price=320.5&adjustSideAndLimit=bad",
+                "query parameter adjustSideAndLimit is invalid",
+            ),
+            (
+                "/api/v1/brokers/futu/max-trade-qtys?market=US&symbol=US.AAPL&orderType=LIMIT&price=320.5&positionId=bad",
+                "query parameter positionId is invalid",
+            ),
+            (
+                "/api/v1/brokers/futu/klines?symbol=US.AAPL&limit=bad",
+                "query parameter limit is invalid",
+            ),
+        ] {
+            let (status, body) = http_get(address, path).await;
+            assert_eq!(status, 400, "GET {path} body={body}");
+            assert!(body.contains("BAD_REQUEST"), "GET {path} body={body}");
+            assert!(body.contains(message), "GET {path} body={body}");
+        }
+        handle.shutdown().await.expect("shutdown");
+    }
+
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:167 TestBrokerKLinesMissingSymbol
+    #[tokio::test]
+    async fn production_http_broker_klines_requires_symbol_with_go_message() {
+        let (_directory, address, handle) = start_broker_read_http_product().await;
+        let (status, body) = http_get(address, "/api/v1/brokers/futu/klines?period=1d").await;
+        assert_eq!(status, 400, "body={body}");
+        assert!(body.contains("BAD_REQUEST"), "body={body}");
+        assert!(
+            body.contains("query parameter symbol is required"),
+            "body={body}"
+        );
+        handle.shutdown().await.expect("shutdown");
+    }
+
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:193 TestBrokerSecuritiesMissingSymbol
+    #[tokio::test]
+    async fn production_http_broker_securities_requires_symbol_with_go_message() {
+        let (_directory, address, handle) = start_broker_read_http_product().await;
+        let (status, body) = http_get(address, "/api/v1/brokers/futu/securities").await;
+        assert_eq!(status, 400, "body={body}");
+        assert!(body.contains("BAD_REQUEST"), "body={body}");
+        assert!(
+            body.contains("query parameter symbol is required"),
+            "body={body}"
+        );
         handle.shutdown().await.expect("shutdown");
     }
 }
