@@ -328,3 +328,45 @@ action 归入 HARD_STOP_ 前缀”），本批据此升为 `[x]`。
 | --- | --- | --- |
 | 证据复跑（12 条） | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked -E 'test(execution_details_read_boundaries_keep_go_failure_propagation) or ... or test(trade_push_subscription_failure_surfaces_a_transport_error)'` | 12 条通过 |
 | 映射 | 本片无新增/改级 | `[x]` 保持 1378 |
+
+### 第一百二十五批收口与门禁
+
+- 分片一 `2971ea04`：broker 读响应补齐 OpenAPI `required` 的 `lastError`（funds/positions 成功面显式 null），
+  新增 5 条产品枚举/读形状/默认市场测试。
+- 分片二 `30f01a45`：硬停拒绝审计事件按 Go 对齐（`eventType=rejected` + `action=HARD_STOP_REJECT`），
+  解除 `execution_test.go:738` 行级缺口；新增 6 条一致性/控制面测试。
+- 分片三 `37f58a24`：`pkg/broker` 剩余 16 行复核（1 升 `[x]`、3 收敛 boundary、12 复核保留）。
+- 分片四 `38fe1b18`：服务/风控/端口边界 15 行复核（1 升 `[x]`、2 收敛 boundary、12 复核保留）。
+- 分片五/六 `95865610`：execution 与 order-updates 家族剩余 15 行边界复核（证据 12 条复跑通过）。
+
+批次计数：4451 = function_exact **1378** + partial **2466** + boundary **603** + module_only 4 + missing 0；
+Rust 测试 **3215**；anchors 1379（已记账 1324、unrecorded 0、unknown 54、stale 1 既有）。
+
+#### 批次门禁记录
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 格式 | `cargo fmt --all -- --check` | 通过 |
+| Clippy | `pnpm run check:clippy` | 通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-trading -p jftrade-broker -p jftrade-research -p jftrade-integration-futu --all-targets --locked` | 2455 条通过（1 skipped） |
+| 工作区测试 | `pnpm run test:rust` | 3215 条通过（2 skipped） |
+| 兼容回放 | `pnpm run check:compatibility` | 通过（API 278 操作 / assistant 9 状态 / trading-strategy 10 状态 / desktop 3 profile / provider / sqlite）。注：`cargo clean` 后首跑因并行子检查争用构建锁出现 3 个 exit 1，产物预热后单独复跑与整轮复跑均通过；不作为失败记录 |
+| 生成物 | `pnpm run check:generated` | 通过（未改工作树） |
+| AI 上下文 | `pnpm run check:ai-context` | 通过（6 模块 8 文件） |
+| Zero-Go | `pnpm run check:zero-go` | 通过（2941 文件、0 发布产物） |
+| 快速门禁 | `pnpm run check:quick` | 无产品改动（工作树干净） |
+| 依赖策略 | `pnpm run check:rust:policy` | **未通过（既有阻断）**：`advisories FAILED, bans ok, licenses ok, sources ok`，含 `RUSTSEC-2026-0285` 与 `deny.toml` 8 条 `advisory-not-detected`；与本批改动无关，如实记录 |
+| 空白检查 | `git diff --check` | 通过 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺少 function_exact、无重复 rust_entry |
+| 锚点 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1379、unrecorded 0 |
+
+#### 后续待办（第 126 批起）
+
+- trading_broker 域剩余未收口项：`internal/api/trading/*`（execution_test 8、routes 4、execution_validation_contracts 4、
+  routes_broker_contracts 2、routes_failure_boundaries 2、routes_helper_boundaries 3、routes_read_handlers 2、
+  execution_products 2）、`internal/store/trading/*`（startup_compatibility 7、ledger 5、ledger_lifecycle 5、
+  out_of_order_reconciliation 5、execution_composition 4、broker_fill_reconciliation 3、broker_ledger 3 等）、
+  `internal/app/apiserver/tradingapp/*`、`internal/assistant/engine/*` 中已路由到本域的行。
+- 之后按体量推进：api_transport 478、strategy_pine 465、assistant_workflow 447、other 311、
+  backtest_calendar 262、storage_sqlite 178、marketdata_quotes 155、futu_opend 104、settings_watchlist 39。
+- 每批收口后立即设定下一批 codex 目标，直到 4451 行全部给出 `[x]`/partial/边界结论。
