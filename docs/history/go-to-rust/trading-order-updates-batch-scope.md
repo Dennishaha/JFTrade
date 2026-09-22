@@ -77,9 +77,13 @@ Go 服务内自带 `OrderUpdatesWorker` 的测试集合（节流/强制同步、
   对应写入点）。推送触发链路本身由 push worker 测试覆盖（wake→扫描→持久化），但事件类型与
   `sourceDetail` 不同。
 
-### 后续待办（本文件剩余 2 条）
+### 后续待办（本文件已收口，转入下一文件）
 
-- 分片四：`:508`（费用同步过滤与失败上报）、`:531`（nil/替换辅助边界）。
+- 下批（第 119 批）：`internal/trading/execution_combo_lifecycle_test.go` 的 12 条 `partial`
+  （组合预览/下单/重检风控/事件 parlay 金额模式），随后 `pkg/broker/broker_test.go`(8)、
+  `catalog_test.go`(6) 等 trading_broker 剩余文件；之后按 api_transport / strategy_pine /
+  assistant_workflow / backtest_calendar / storage_sqlite / marketdata_quotes / futu_opend /
+  settings_watchlist 顺序逐域收口。
 - 该文件收口后：第 119 批 `internal/trading/execution_combo_lifecycle_test.go`（12 条），
   随后 `pkg/broker/broker_test.go`(8)、`catalog_test.go`(6) 等 trading_broker 剩余文件；
   再按 api_transport / strategy_pine / assistant_workflow / backtest_calendar / storage_sqlite /
@@ -199,6 +203,35 @@ Go 服务内自带 `OrderUpdatesWorker` 的测试集合（节流/强制同步、
   next_retry_at 表达失败与自愈（既有 `test_tc_d5_04_opend_disconnect_degraded_backoff_and_self_healing`
   已覆盖）。
 
+## 第一百一十八批（分片四）：费用同步过滤与辅助边界（2 条）
+
+### 范围与分片
+
+- P1 `:508`：`TestOrderUpdatesWorkerFeeSyncFiltersIdentifiersAndReportsFailure`。
+- P2 `:531`：`TestOrderUpdatesWorkerHelperBoundariesCoverNilAndReplacementPaths`。
+
+分类：2 条改判 `[~]`/`boundary`；全仓 `[x]` 1345（不变）、`partial` 2515 → **2513**、
+`boundary` 587 → **589**、`module_only` 4、`missing` 0；Rust 测试 3086（不变）。
+
+### 关键事实
+
+- **费用路径按单而非按批**：Rust `reconcile_terminal_fees_only`（终态缺费用）与 `reconcile_order`
+  的费用分支都按单个 `broker_order_id_ex` 读取，单条 id 天然无重复；过滤条件是“终态或 fees 尚缺
+  且 order_id_ex 非空”。Go 的批量 id 列表 + 空白剔除 + 去重（一次请求一个 id）在 Rust 无同形对象。
+- **失败策略不同**：Go 的费用源失败只记录、不上账、不中断（后续 SUBMITTED 单不再请求费用）；
+  Rust 的费用读取失败会让整轮扫描 fail-closed（worker degraded + last_error + next_retry_at）。
+- **辅助层整体不存在**：nil worker 语义、内存活动订单 upsert/remove、`BuildOrderUpdateQueries`
+  市场回退、`sameOrder` 空白匹配、`cloneString(nil)` 在 Rust 无对应；等价职责分布在 store upsert
+  （`save_order`/`transition_order_and_event_fenced`）、`header_from_order`/`normalize_instrument`、
+  `reconciliation_scopes` 与 identity 测试。
+
+### 保留差异
+
+- `:508`：无批量去重与“部分成功”语义；若要恢复，需要在 reconciliation 费用阶段引入批 id 列表与
+  去重集合，并把源失败降级为记录（当前 fail-closed 是安全边界，变更需产品决策）。
+- `:531`：若重新引入内存缓存或查询构造辅助层，需要为覆盖/移除、市场回退、空白标识、nil 克隆
+  分别补断言；当前 SQLite 唯一真相下这些边界不成立。
+
 验证：
 - 分片一定向 nextest（1 条新测试）EXIT=0：`reconciliation_polling_throttles_scans_until_a_push_wake_forces_one`。
 - 分片一两次探针全部转红并按字节回滚，回滚后 `product_production_ports_execution_orders.rs` sha
@@ -240,4 +273,18 @@ Go 服务内自带 `OrderUpdatesWorker` 的测试集合（节流/强制同步、
   `test_tc_d5_04_opend_disconnect_degraded_backoff_and_self_healing` 覆盖；
   单边失败 fail-closed 由 `reconciliation_order_discovery_fails_closed_on_one_sided_snapshot_failure`
   覆盖（均定向 nextest EXIT=0）。
+- 分片四为纯诊断面结论（无新增测试、无生产语义变更），审计：`python3 scripts/compatibility/audit_test_parity.py`
+  4451 Go / **3086** Rust、`[x]` 1345、`partial` 2515 → **2513**、`boundary` 587 → **589**、`missing` 0、
+  0 破坏引用；`python3.12 scripts/compatibility/parity_anchor_reconcile.py` 1349 唯一引用
+  （已记账 1293、unrecorded 0、unknown 55、stale 1）。
+- 第 118 批总览（internal/trading/order_updates_test.go 15 条全部收口）：
+  **1 条 function_exact（`:263`）+ 14 条 boundary**；新增 2 条 Rust 测试
+  （push worker 节流/强制唤醒、订单 scope/费用/raw 状态），修复 1 处生产缺陷
+  （rawBrokerStatus 由数字码改为券商原始状态串，涉及
+  product_production_ports_execution_orders_impl.rs 与 execution_reconciliation_discovery.rs），
+  5 次探针全部破→红→按字节回滚。
+- 第 118 批门禁记录：分片一/二 `pnpm run test:rust` 3182→**3183 passed / 2 skipped**、
+  `pnpm run check:compatibility`、`check-zero-go`、`check:ai-context`、`git diff --check`、
+  `pnpm run check:quick` 均 EXIT=0；`check:rust:policy` 因 RUSTSEC-2026-0285 失败（不记为通过）；
+  全量 engine nextest 1777→1778，唯一失败为既有 launcher SIGTERM 抖动（隔离复跑 PASS）。
 

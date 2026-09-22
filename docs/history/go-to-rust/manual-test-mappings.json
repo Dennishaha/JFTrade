@@ -30822,17 +30822,17 @@
   },
   "internal/trading/order_updates_test.go:508:TestOrderUpdatesWorkerFeeSyncFiltersIdentifiersAndReportsFailure": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
-    "conclusion": "partial：Rust 覆盖费用同步（终态订单费用重试、费用项回退）；差异：Go 断言费用同步对订单 id 去重过滤（feeOrderIDs 唯一）并在源失败时不应用费用，Rust 侧去重与失败不下写断言在 reconciliation 测试中，未逐项合并。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "rust_entry": "不适用：Rust 无批量费用同步与去重面；费用按单（终态或缺费用）读取，源失败 fail-closed",
+    "conclusion": "保留边界：Go 断言 (a) 只对终态（FILLED_ALL/CANCELLED_ALL）且 BrokerOrderIDEx 非空的订单请求费用、空白剔除、重复去重（一次请求一个 id），(b) 源失败时不上账（错误只记录不抛出），(c) 之后对 SUBMITTED 单不再发起费用请求。Rust 无批量面：reconcile_terminal_fees_only 与 reconcile_order 的费用分支按订单读取（id 取自 broker_order_id_ex，单条天然去重），过滤条件是“终态或 fees 尚缺且 order_id_ex 非空”；源失败会让整轮扫描 fail-closed（worker 记 degraded + last_error + next_retry_at），与 Go 的“记录失败继续”策略不同；空白/重复 id 的组合不存在。既有证据：push worker Phase 4 与 reconciliation_order_history_reads_use_the_stored_order_scope 断言终态订单按 broker-ex id 读取并落账 fees。修复位置与回归要求：若恢复 Go 的“部分成功 + 批量去重”语义，需要在 reconciliation 费用阶段引入批 id 列表与去重集合并把源失败降级为记录；回归需断言终态过滤、空白剔除、重复去重、源失败不上账。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(reconciliation)' --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/trading/order_updates_test.go:531:TestOrderUpdatesWorkerHelperBoundariesCoverNilAndReplacementPaths": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs::test_notification_projector_advances_cursors_and_is_idempotent；crates/jftrade-trading/tests/order_risk_compatibility.rs::test_execution_details_resolver_and_order_update_cache_failure_branches",
-    "conclusion": "partial：Rust 覆盖缓存边界（解析器/缓存失败分支）与替换路径；差异：Go 断言 helper 对 nil 与替换路径的边界（缓存命中 ok=false、移除后不可命中、回退查询），Rust 无同形 helper 级断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "rust_entry": "不适用：Rust 无该辅助层（nil worker / 内存缓存 upsert-remove / BuildOrderUpdateQueries）；等价职责在 store upsert 与 scope 派生",
+    "conclusion": "保留边界：Go 断言 nil worker 的 Handle* 为 no-op、upsertActiveOrder 覆盖同号订单并可按 id 移除、BuildOrderUpdateQueries(nil, \"futu\", \" hk \") 回退为 1 条 HK/SIMULATE 查询、sameOrder 对空白标识不匹配、cloneString(nil)=nil、besteffort.LogError(nil) 安全。Rust 没有这一辅助层：① 无 worker handle 入口（类型化状态，无 nil 接收者语义）；② 无内存活动订单缓存——SQLite 是唯一真相，同一 broker 订单的更新走 save_order / transition_order_and_event_fenced 的 upsert，终态订单不再进入 list_reconciliation_candidates；③ 市场/环境派生由 header_from_order（US→trd_market 2）、normalize_instrument（市场规范化为大写）与 reconciliation_scopes 承担，隐式环境回退由 execution 端的 default_trading_environment 提供；④ 空白/单侧标识不匹配由 identity 测试断言（reconciliation_broker_identity_claims_are_scoped_to_the_trading_account、reconciliation_never_claims_a_single_similar_order_or_a_shared_user_remark 断言订单置 UNKNOWN 且不写 broker id）。修复位置与回归要求：若重新引入内存缓存或查询构造辅助层，需要为覆盖/移除、市场回退、空白标识、nil 克隆分别补断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(reconciliation)' --all-targets --locked",
+    "evidence_type": "boundary"
   },
   "internal/trading/ports_test.go:50:TestServiceUsesExplicitTradingPorts": {
     "status": "[~]",
