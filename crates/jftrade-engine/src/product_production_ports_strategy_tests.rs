@@ -105,6 +105,27 @@ fn instantiate_rejects_stored_definitions_with_a_retired_source_format() {
 }
 
 #[test]
+fn generated_instance_ids_use_the_definition_prefix_or_the_pine_runtime_default() {
+    // Parity: go:452dea11:internal/strategy/instanceview/view_test.go:92 TestBuildInstanceIDUsesDefinitionOrDefaultPrefix
+    let named = generate_instance_id(" definition-1 ");
+    let suffix = named
+        .strip_prefix("definition-1-")
+        .unwrap_or_else(|| panic!("instance id must keep the definition prefix: {named}"));
+    assert_eq!(suffix.len(), 24, "timestamp suffix shape: {suffix}");
+    assert!(suffix.contains('.'), "timestamp suffix shape: {suffix}");
+    assert!(
+        suffix.chars().all(|c| c.is_ascii_digit() || c == '.'),
+        "timestamp suffix shape: {suffix}"
+    );
+
+    let fallback = generate_instance_id(" ");
+    assert!(
+        fallback.starts_with("pine-pinets-"),
+        "blank definition ids fall back to the runtime prefix: {fallback}"
+    );
+}
+
+#[test]
 fn instantiate_persists_the_same_normalized_binding_as_runtime_update() {
     let dir = tempdir().expect("tempdir");
     let db_path = dir.path().join("strategy-instantiate.db");

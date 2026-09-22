@@ -26434,7 +26434,7 @@
   "internal/strategy/catalog/catalog_boundary_behavior_test.go:34:TestCatalogActivityQueryFailureReturnsKnownEmptyPage": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_activity.rs::test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable",
-    "conclusion": "部分覆盖：Go 断言 activity store 查询失败时 GetLogs/GetAudit 仍返回 found=true 的空页（total=0、entries=0）。Rust 的空页形状（total/returned/hasMore 与查询解析）由该用例覆盖，过滤/分页边界在 catalog_activity_paging_and_filters_match_go_boundaries；差异是 Rust 的活动流与实例同库且读路径 fail-closed（store 查询失败返回 StrategyReadSnapshotError::Unavailable），不做降级空页。",
+    "conclusion": "partial：Go 断言 activity store 查询失败时 GetLogs/GetAudit 仍返回 found=true 的空页（total=0、entries=0）；该行为在 Go 侧被 route ledger 记为 quirk（Activity 失败降级 200 空页而非 5xx，处置为硬切后修复）。Rust 的空页形状（page.total/returned/hasMore 与查询解析）由引用用例断言，过滤与分页边界由 catalog_activity_paging_and_filters_match_go_boundaries 断言；但 Rust 的 logs()/audit() 在 store 失败时返回 StrategyReadSnapshotError::Unavailable（fail-closed 5xx），不复制该 quirk。owner：crates/jftrade-engine strategy_runtime_port.rs（如需逐字对齐需产品决策是否接受降级空页）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -26602,14 +26602,14 @@
   "internal/strategy/instancebinding/binding_test.go:65:TestApplyParamsWritesCanonicalBindingFields": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_mutation.rs::binding_normalization_validates_execution_enums_and_nested_account",
-    "conclusion": "partial：Go 断言 ApplyParams 写入规范字段（symbol/executionMode/chartType/brokerAccount/instruments）。Rust 该用例断言绑定归一的执行枚举与嵌套账户校验，等价于写入前的规范化；逐 param 键集合断言未复刻。",
+    "conclusion": "partial：Go 断言 ApplyParams 把 symbol/executionMode/chartType/brokerAccount/instruments 写入 params 规范字段。Rust 没有 ApplyParams 写回层：规范化发生在 binding 写出路径（引用用例断言 executionMode 小写、executeOrders 推导、chartType 小写、brokerAccount 嵌套归一、symbols 归一），实例视图的 params 只投影 definitionId/runtime/sourceFormat。缺口 owner：crates/jftrade-engine strategy_runtime_port.rs 与写入端口。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/instancebinding/binding_test.go:96:TestNormalizeBindingPreservesSupportedChartType": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_mutation.rs::binding_normalization_validates_execution_enums_and_nested_account",
-    "conclusion": "partial：Go 断言支持的 chartType 保留、未知值清空。Rust 该用例断言执行枚举与账户结构归一（枚举白名单语义），chartType 的逐值断言由绑定归一类型用例覆盖。",
+    "conclusion": "partial（行为差异）：Go 保留受支持 chartType（HeikinAshi），未知值静默清空为 standard；Rust 的 normalize_strategy_binding 把 chartType 归一为小写白名单（HeikinAshi→heikinashi），未知值（renko）直接 400 BAD_REQUEST 而不是静默清空。引用用例断言了白名单与小写归一。缺口 owner：crates/jftrade-engine strategy_runtime_activity.rs（如需完全对齐需决定未知 chartType 是清空还是拒绝）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -26651,42 +26651,42 @@
   "internal/strategy/instanceview/runtime_projection_test.go:9:TestInstanceViewHandlesUntypedRuntimeAndNilParams": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_strategy.rs::execution_model_defaults_and_normalizes_ascii_case",
-    "conclusion": "partial：Go 断言实例视图处理非类型化 runtime 与 nil params（RuntimeFromParams 归一、params 保持 nil）。Rust 该用例断言执行模型默认与 ASCII 大小写归一（类型化解析）。",
+    "conclusion": "partial：Go 断言实例视图可处理非类型化 runtime 与 nil params（RuntimeFromParams 归一、params 保持 nil）。Rust 的类型化解析在采集即拒绝非字符串 runtime/params，引用用例断言执行模型缺省与 ASCII 大小写归一；nil params 由 Option/缺省 map 表达，无“非类型化输入仍投影”的同形断言。owner：crates/jftrade-engine 实例视图与回测定义解析。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/instanceview/view_test.go:13:TestRuntimeAndSourceFormatFromParams": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_strategy.rs::definition_resolution_rejects_empty_or_unsupported_source",
-    "conclusion": "partial：Go 断言从 params 解析 runtime 与 sourceFormat（空/旧值/默认）。Rust 该用例断言定义解析拒绝空或不支持的 source（含默认注入缺失场景）。",
+    "conclusion": "partial：Go 断言 RuntimeFromParams 对空白 runtime 退回 pineworker.RuntimeID、保留 legacy runtime；SourceFormatFromParams 保留 legacy、对 nil 退回 pine-v6。Rust 的等价归一在回测定义解析与实例 binding 投影中：runtime 缺省为 pine-pinets、sourceFormat 缺省为 pine-v6，非法 sourceFormat 被拒（引用用例断言空/不支持来源被拒），但没有 params→(runtime, sourceFormat) 的独立 helper 与逐值断言。owner：crates/jftrade-engine 定义解析与实例视图投影。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/instanceview/view_test.go:28:TestDefinitionIDFromParamsTrimsStringValues": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_strategy.rs::definition_resolution_injects_source_binding_and_version",
-    "conclusion": "partial：Go 断言 definitionId 从 params 取值并 trim。Rust 该用例断言定义解析注入 source/binding/version（身份注入路径）。",
+    "conclusion": "partial：Go 断言 definitionId 从 params 取字符串并 trim（缺失/非字符串/空白→空串）。Rust 的 definition id 由定义解析注入（引用用例断言注入 source/binding/version），实例视图的 definitionId 直接来自持久化记录，没有 params 回退与 trim 的同形 helper，故无逐值断言。owner：crates/jftrade-engine 策略定义解析。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/instanceview/view_test.go:46:TestStartableRequiresPineV6AndPineRuntime": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_strategy.rs::definition_resolution_injects_source_binding_and_version",
-    "conclusion": "partial：Go 断言仅 pine-v6 + pine runtime 可启动（旧运行时/旧源格式不可）。Rust 该用例断言定义解析按 source/version 解析并注入绑定。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_port.rs::startable_requires_the_pinets_runtime_on_the_pine_v6_source_format",
+    "conclusion": "function_exact：Go 断言只有 runtime=pine-pinets 且 sourceFormat=pine-v6 的实例可启动，legacy runtime 或 legacy source 均不可。Rust 原先只检查 binding 是否带有 runtime/sourceFormat 两个键；本分片修复为严格等价（strategy_runtime_port.rs 新增 startable_runtime，startable 仅在 pine-pinets + pine-v6 时为 true，legacy 值仍在 wire 中可见但不可启动）。新增用例经实例 wire 断言四组 binding：pine-pinets+pine-v6 → startable=true（runtime/sourceFormat 原样暴露）、legacy-runtime、legacy-source、缺键 → false。先红探针：把 startable 改回“两键存在即真”后用例立即失败（left: Bool(true) vs false），按字节回滚后 strategy_runtime_port.rs shasum f5f0268a 前后一致（该用例带本行 // Parity: 锚点）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "internal/strategy/instanceview/view_test.go:62:TestToInstanceViewNormalizesBindingAndCopiesParams": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::instantiate_persists_the_same_normalized_binding_as_runtime_update",
-    "conclusion": "partial：Go 断言实例视图归一绑定并复制 params（不改源）。Rust 该用例断言实例化持久化与运行时更新相同的归一绑定。",
+    "conclusion": "partial：Go 断言 ToInstanceView 归一 binding（us:aapl→US.AAPL）并复制 params（改视图不影响源实例）。Rust 的实例化持久化归一 binding 由引用用例断言（US:AAPL→US.AAPL、默认 interval 5m），调用方隔离由 JSON 序列化边界与读快照重解码保证；缺少“改动投影不会回写实例”的直接断言。owner：crates/jftrade-engine 策略实例读写路径。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/instanceview/view_test.go:92:TestBuildInstanceIDUsesDefinitionOrDefaultPrefix": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::instantiate_persists_the_same_normalized_binding_as_runtime_update",
-    "conclusion": "partial：Go 断言实例 ID 使用定义或默认前缀、零时间与 copyMap(nil)。Rust 该用例断言实例化后的绑定归一与持久化身份。",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::generated_instance_ids_use_the_definition_prefix_or_the_pine_runtime_default",
+    "conclusion": "partial：Go 断言实例 ID 使用定义前缀（definition-1-20260102030405.000000006）、定义为空时退回 pine-pinets 前缀、零时间仍产出带前缀的 ID，并附带 PluginIDForDefinition(Definition{})==pine runtime 与 copyMap(nil) 非空两条 helper 断言。Rust 原先对空白 definition id 会产出以连字符开头的 ID；本分片修复 generate_instance_id（空白 definition id 退回 pine-pinets 前缀），新增用例断言 definition-1 前缀 + 18 位时间戳后缀形状（含毫秒 9 位）与空白 definition id 的 pine-pinets 前缀。先红探针：还原为直接使用 trim 后的 definition id 后空白分支失败（-20260922191453.166420000），按字节回滚后 product_production_ports_strategy.rs shasum 8623da4c 前后一致。缺口：PluginIDForDefinition 与 copyMap(nil) 在 Rust 无同形对象（runtime id 是固定常量、params 复制由序列化边界保证），owner crates/jftrade-engine 策略写入路径。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },

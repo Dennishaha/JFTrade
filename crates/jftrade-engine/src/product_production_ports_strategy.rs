@@ -553,7 +553,9 @@ fn generate_instance_id(definition_id: &str) -> String {
     let suffix = timestamp
         .format(&format)
         .unwrap_or_else(|_| generate_strategy_id());
-    format!("{}-{}", definition_id.trim(), suffix)
+    let trimmed = definition_id.trim();
+    let prefix = if trimmed.is_empty() { "pine-pinets" } else { trimmed };
+    format!("{prefix}-{suffix}")
 }
 
 fn map_strategy_store_error(

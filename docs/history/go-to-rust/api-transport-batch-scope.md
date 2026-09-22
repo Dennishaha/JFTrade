@@ -1191,3 +1191,64 @@ anchors 1545（unrecorded 0、stale 0、unknown 53）。**第 127 批 `internal/
 后续（第 128 批）：进入 `strategy_pine` 465 行（Pine 运行时、catalog、order/indicator 行为与策略生命周期），
 随后 `assistant_workflow` 447 → `other` 311 → `backtest_calendar` 262 → `storage_sqlite` 178 → `marketdata_quotes` 155 →
 `futu_opend` 104 → `settings_watchlist` 39。
+
+## 第 128 批：`strategy_pine` 域
+
+### 分片一：`internal/strategy/catalog` 20 行 + `instancebinding` 8 行 + `instanceview` 6 行
+
+范围（按文件与行号升序）：`catalog/catalog_boundary_behavior_test.go:34/:58/:84/:123/:192`、
+`catalog/instance_lifecycle_business_test.go:11/:89/:143/:189`、`catalog/plugin_normalization_business_test.go:13/:89/:99/:157/:186`、
+`catalog/repository_failure_business_test.go:11/:19/:126`、`catalog/runtime_reconciliation_business_test.go:12/:80/:113`；
+`instancebinding/binding_test.go:11/:28/:65/:96/:106/:143/:161/:202`；`instanceview/runtime_projection_test.go:9`、
+`instanceview/view_test.go:13/:28/:46/:62/:92`。owner：`crates/jftrade-engine`（策略 catalog、实例绑定归一、实例视图与运行时端口）、
+`crates/jftrade-store-sqlite`（策略实例/定义持久化与活动流）。
+
+本分片新增 Rust 证据 2 项（1 行升 `[x]`）并修复 2 处功能差异：
+
+1. `crates/jftrade-engine/src/strategy_runtime_port.rs::startable_requires_the_pinets_runtime_on_the_pine_v6_source_format`
+   对应 Go `instanceview/view_test.go:46 TestStartableRequiresPineV6AndPineRuntime`。**功能修复**：Rust 原先把 startable 计算为
+   “binding 同时带 runtime 与 sourceFormat 两个键”，与参照的“必须恰为 pine-pinets + pine-v6”不等价；现新增
+   `startable_runtime` 助手按参照判定（legacy 值仍在 wire 中暴露，但不再可启动）。用例经实例 wire 断言四组 binding
+   （pine-pinets+pine-v6 → true；legacy-runtime、legacy-source、缺键 → false）。先红探针：把判定改回“两键存在即真”后
+   两条目标用例立即失败（`left: Bool(true)` vs false），按字节回滚后 `strategy_runtime_port.rs`
+   shasum `f5f0268a06892d52de0e8fce904c201b0fd2064a2e599547919e91cc51764564` 前后一致。
+2. `crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::generated_instance_ids_use_the_definition_prefix_or_the_pine_runtime_default`
+   对应 Go `instanceview/view_test.go:92 TestBuildInstanceIDUsesDefinitionOrDefaultPrefix`。**功能修复**：Rust 原先对空白
+   definition id 会生成以连字符开头的实例 ID（`-20260922191453.166420000`），参照会退回 `pine-pinets` 前缀。
+   现 `generate_instance_id` 对空白 id 使用 runtime 前缀，用例断言 definition-1 前缀 + 24 字符时间戳后缀形状与空白回退。
+   先红探针：还原为直接使用 trim 后的 definition id 后空白分支失败，按字节回滚后
+   `product_production_ports_strategy.rs` shasum `8623da4cb3ac9d5d2615a5517a33aea005a3c3dd207478a986c3f5c1306ce268` 前后一致。
+
+映射结果：34 行复核（1 行升 `[x]`、8 行收紧引用与结论、25 行确认原 partial/boundary 终值仍准确）。
+计数：`[x]` 1538 → 1539；partial 2304 → 2303；boundary 609；audit Rust 测试 3206；anchors 1547（unrecorded 0、stale 0、unknown 53）。
+
+关键事实与新登记缺口（P2）：
+
+1. **活动流降级语义（P2）**：Go 在 activity store 查询失败时仍返回 found=true 的空页（route ledger 记为 quirk，
+   处置为硬切后修复）；Rust 的 `logs()`/`audit()` 在 store 失败时返回 `StrategyReadSnapshotError::Unavailable`（fail-closed 5xx），
+   空页形状只在分页函数上断言。owner：`crates/jftrade-engine/src/strategy_runtime_port.rs`（如需逐字对齐需产品决策是否接受降级空页）。
+2. **未知 chartType 处置差异（P2）**：Go 的 NormalizeBinding 保留受支持 chartType、未知值静默清空为 standard；
+   Rust 归一为小写白名单并对未知值（renko）返回 400 BAD_REQUEST。owner：`crates/jftrade-engine/src/strategy_runtime_activity.rs`。
+3. **ApplyParams 写回层缺失（P2）**：Go 把 symbol/executionMode/chartType/brokerAccount/instruments 写回 instance.params；
+   Rust 的 params 投影只含 definitionId/runtime/sourceFormat，规范字段体现在 binding 上。owner：策略写入端口与实例视图。
+4. **params→(runtime, sourceFormat) 与 definitionId trim helper 缺失（P2）**：参照有独立 helper（空白 runtime→pineworker.RuntimeID、
+   nil→pine-v6、definitionId 取值并 trim）；Rust 的等价归一散落在定义解析与 binding 投影中，缺逐值断言。
+5. **实例视图调用方隔离（P2）**：参照断言“改视图 params 不影响源实例”；Rust 的隔离由 JSON 序列化边界保证，缺直接断言。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过（架构检查先因本分片新增分支使 `product_production_ports_strategy.rs` 达 807 行超限，压缩前缀赋值后 800 行达标） |
+| 目标用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(startable_requires_the_pinets_runtime_on_the_pine_v6_source_format) \| test(generated_instance_ids_use_the_definition_prefix_or_the_pine_runtime_default)'` | 3/3 通过（含同文件 includer 镜像用例） |
+| 映射写入 | payload `/tmp/s128a_payload.json` 经 `/tmp/b82_apply.py` 应用 | 9 行给出终值，`[x]` 1538 → 1539、partial 2304 → 2303 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3206 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1547、unrecorded 0、stale 0、unknown 53 |
+| 字段完整性 | 全量 4451 行检查 `command` 非空 | 空命令 0 行 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1879/1879 通过 |
+| 产物清理 | `pnpm run clean:rust:artifacts` | `check:quick` 前按 target-health 要求清理 134599 文件 / 31.8GiB，`.rcgu.o` 83641 → 0 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`pnpm run check:quick` | 全部通过；`check:quick` 首轮在 ADK lifecycle `compacted_context_survives_restart_and_precedes_current_user_message` 用例上抖动失败（102/1909 中止），隔离复跑与次轮 `check:quick` 均通过，未记为通过前的抖动 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍在 cargo-deny advisories 阶段因 `deny.toml` 8 条 `advisory-not-detected` 失败（bans/licenses/sources ok） |
+
+本分片结论：`catalog`、`instancebinding`、`instanceview` 34 行全部给出终值，其中 1 行升 `[x]`、8 行收紧结论、
+25 行确认原 partial/boundary 判定仍准确；2 处功能差异已按参照修复并有先红探针与回归用例。

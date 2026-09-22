@@ -1,5 +1,20 @@
 use super::strategy_runtime_activity::*;
 use super::*;
+
+/// The reference runtime and source-format pair an instance may start on. The
+/// names stay local so this module compiles in every includer; the reference
+/// view keeps legacy values visible while refusing to start them.
+const STARTABLE_RUNTIME_ID: &str = "pine-pinets";
+const STARTABLE_SOURCE_FORMAT: &str = "pine-v6";
+
+/// The reference instance view only marks an instance startable when its
+/// binding names the PineTS runtime on the pine-v6 source format. Legacy
+/// runtime or source-format strings stay visible in the wire projection but
+/// must not be relaunchable.
+fn startable_runtime(runtime: Option<&str>, source_format: Option<&str>) -> bool {
+    runtime == Some(STARTABLE_RUNTIME_ID) && source_format == Some(STARTABLE_SOURCE_FORMAT)
+}
+
 #[derive(Debug)]
 pub(crate) struct ProductionStrategyRuntimePort {
     pub(crate) store: Arc<StrategyRuntimeStore>,
@@ -343,7 +358,7 @@ impl ProductionStrategyRuntimePort {
         }
         object.insert(
             "startable".to_owned(),
-            Value::Bool(runtime.is_some() && source_format.is_some()),
+            Value::Bool(startable_runtime(runtime, source_format)),
         );
         let mut params = serde_json::Map::new();
         if let Some(definition_id) = instance.definition_id.as_deref() {
@@ -443,6 +458,62 @@ impl ProductionStrategyRuntimePort {
 mod tests {
     use super::*;
     use jftrade_store_sqlite::{STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE, StrategyDefinitionStore};
+
+    #[test]
+    fn startable_requires_the_pinets_runtime_on_the_pine_v6_source_format() {
+        // Parity: go:452dea11:internal/strategy/instanceview/view_test.go:46 TestStartableRequiresPineV6AndPineRuntime
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("strategy.db");
+        let connection = rusqlite::Connection::open(&path).expect("database");
+        jftrade_store_sqlite::initialize_current(&connection, "strategy").expect("schema");
+        drop(connection);
+        let definitions = Arc::new(
+            StrategyDefinitionStore::open_existing(&path, STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE)
+                .expect("definitions"),
+        );
+        let store = Arc::new(StrategyRuntimeStore::from_definition_store(&definitions));
+        for (id, runtime, source_format) in [
+            ("startable", "pine-pinets", "pine-v6"),
+            ("legacy-runtime", "legacy-runtime", "pine-v6"),
+            ("legacy-source", "pine-pinets", "legacy-source"),
+            ("missing-binding", "", ""),
+        ] {
+            let mut binding = json!({"symbols": ["US.AAPL"]});
+            if !runtime.is_empty() {
+                binding["runtime"] = Value::String(runtime.to_owned());
+            }
+            if !source_format.is_empty() {
+                binding["sourceFormat"] = Value::String(source_format.to_owned());
+            }
+            store
+                .seed_instance_with_binding(id, "STOPPED", binding, "2026-09-01T00:00:00Z")
+                .expect("seed instance");
+        }
+        let manager = Arc::new(StrategyRuntimeManager::new(
+            None,
+            None,
+            None,
+            None,
+            Arc::new(ActiveProviderState::default()),
+        ));
+        let port = ProductionStrategyRuntimePort {
+            store: store.clone(),
+            definitions,
+            manager,
+        };
+        let wire = |id: &str| {
+            let instance = store.get_instance(id).expect("read").expect("instance");
+            port.runtime_instance_wire(instance).expect("instance wire")
+        };
+
+        let startable = wire("startable");
+        assert_eq!(startable["runtime"], "pine-pinets");
+        assert_eq!(startable["sourceFormat"], "pine-v6");
+        assert_eq!(startable["startable"], true);
+        for id in ["legacy-runtime", "legacy-source", "missing-binding"] {
+            assert_eq!(wire(id)["startable"], false, "{id} must not be startable");
+        }
+    }
 
     #[test]
     // Parity: go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:52 TestCatalogRuntimeFailureReconcilesOnlyRunningInstance
