@@ -357,6 +357,15 @@ impl ProductionExecutionPort {
         if let ExecutionOrderReservation::Existing(existing) = reservation {
             return replay_or_conflict(existing, &request_hash);
         }
+        if parsed.order.order_kind == "event_parlay"
+            && let Err(error) = self.consume_prediction_rfq(payload, &parsed, &now)
+        {
+            // Go's gateway marks the reserved order unknown when the service
+            // rejects the submission (`MarkSubmissionUnknown`): the client
+            // order identity stays fenced and no broker call is attempted.
+            self.persist_unknown(&mut order, &error, "submission_failed", &now)?;
+            return Err(error);
+        }
         let result = match self.execute_order_under_guard(&risk_order, || {
             writer.place_combo_order(parsed.to_trade_request()).map_err(map_trade_error)
         }) {

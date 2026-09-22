@@ -642,3 +642,112 @@ fn test_futu_security_from_symbol_uses_market_parser() {
         "error = {error:?}"
     );
 }
+
+/// Parity: go:452dea11:internal/trading/execution_combo_lifecycle_test.go:150
+/// `TestEventParlayRejectsCallerControlledPrice`.
+///
+/// Go's `validateEventParlayRequest` refuses a caller price because the parlay
+/// is priced by the server-side RFQ, and `validateOptionComboRequest` refuses
+/// `amount` because that field is the event-contract size unit rather than an
+/// option contract count. Both checks run before any broker call.
+#[test]
+fn event_parlay_rejects_caller_price_and_option_combo_rejects_amount() {
+    let parlay = json!({
+        "accountId": "1001",
+        "brokerId": "futu",
+        "market": "US",
+        "tradingEnvironment": "SIMULATE",
+        "clientOrderId": "parlay-price",
+        "orderKind": "event_parlay",
+        "productClass": "event_contract",
+        "rfqId": "rfq-1",
+        "mvc": "US.MVC",
+        "quoteExpiresAt": "2999-01-01T00:00:00Z",
+        "amount": 25.0,
+        "price": 1000000.0,
+        "legs": [
+            {"instrumentId": "US.EVENT.ONE", "side": "BUY", "ratio": 1, "predictionSide": "YES"},
+            {"instrumentId": "US.EVENT.TWO", "side": "BUY", "ratio": 1, "predictionSide": "NO"}
+        ]
+    });
+    let error = parse_combo(&parlay).expect_err("caller price must be rejected");
+    assert!(
+        error.contains("server-side RFQ"),
+        "parlay price error = {error:?}"
+    );
+
+    let mut combo = option_combo_payload("combo-amount");
+    combo["amount"] = json!(25.0);
+    let error = parse_combo(&combo).expect_err("option combo amount must be rejected");
+    assert!(
+        error.contains("event parlay"),
+        "option combo amount error = {error:?}"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/execution_combo_lifecycle_test.go:172
+/// `TestOptionComboValidationRejectsIncompleteRiskShape`.
+///
+/// Go walks five incomplete option-combo shapes and keeps the business reason
+/// text, then accepts a complete straddle. Rust parses the same shapes in
+/// `parse_combo_with_defaults`, so the matrix pins which field each rejection
+/// names instead of only asserting a generic 400.
+#[test]
+fn option_combo_validation_rejects_incomplete_risk_shape_matrix() {
+    type Case = (&'static str, fn(&mut Value), &'static str);
+    let cases: [Case; 5] = [
+        (
+            "missing underlying",
+            |payload| {
+                payload["underlyingInstrumentId"] = Value::Null;
+            },
+            "underlyingInstrumentId",
+        ),
+        (
+            "missing near expiry",
+            |payload| {
+                payload["nearExpiry"] = Value::Null;
+            },
+            "nearExpiry",
+        ),
+        (
+            "vertical missing spread",
+            |payload| {
+                payload["optionStrategy"] = json!("vertical");
+                payload.as_object_mut().expect("object").remove("spread");
+            },
+            "positive spread",
+        ),
+        (
+            "calendar missing far expiry",
+            |payload| {
+                payload["optionStrategy"] = json!("calendar");
+            },
+            "farExpiry",
+        ),
+        (
+            "unsupported strategy",
+            |payload| {
+                payload["optionStrategy"] = json!("iron-condor");
+            },
+            "unsupported optionStrategy",
+        ),
+    ];
+    for (name, mutate, want) in cases {
+        let mut payload = option_combo_payload("combo-shape");
+        payload.as_object_mut().expect("object").remove("optionStrategy");
+        mutate(&mut payload);
+        let error = parse_combo(&payload).expect_err(name);
+        assert!(
+            error.contains(want),
+            "{name} error = {error:?}, want {want:?}"
+        );
+    }
+
+    // Go accepts a complete straddle: neither a spread nor a far expiry is
+    // required once the underlying and near expiry are present.
+    let mut straddle = option_combo_payload("combo-shape-ok");
+    straddle["optionStrategy"] = json!("straddle");
+    straddle.as_object_mut().expect("object").remove("spread");
+    parse_combo(&straddle).expect("complete straddle must parse");
+}

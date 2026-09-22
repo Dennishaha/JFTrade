@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 #[path = "product_prediction_combo_quote.rs"]
-mod product_prediction_combo_quote;
+pub(in crate::product::product_production_ports) mod product_prediction_combo_quote;
 
 use super::super::product_production_ports_trade::SharedTradeReadRuntime;
 use crate::product::product_active_provider_state::ActiveProviderState;

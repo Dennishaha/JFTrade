@@ -141,16 +141,49 @@ impl PredictionComboQuoteRequest {
 
     /// Go `broker.PredictionQuoteLegsHash`: `sha256(JSON{mvc, legs})` in hex.
     pub(super) fn legs_hash(&self) -> String {
-        let binding = CanonicalQuoteBinding {
-            mvc: self.mvc.trim().to_owned(),
-            legs: self.legs.clone(),
-        };
-        let serialized = serde_json::to_vec(&binding).unwrap_or_default();
-        Sha256::digest(&serialized)
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect()
+        prediction_quote_binding_hash(&self.mvc, &self.legs)
     }
+}
+
+fn prediction_quote_binding_hash(mvc: &str, legs: &[CanonicalLeg]) -> String {
+    let binding = CanonicalQuoteBinding {
+        mvc: mvc.trim().to_owned(),
+        legs: legs.to_vec(),
+    };
+    let serialized = serde_json::to_vec(&binding).unwrap_or_default();
+    Sha256::digest(&serialized)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
+/// Go `broker.PredictionQuoteLegsHash` over an execution combo payload.
+///
+/// Go's trading service binds a parlay submission to the stored RFQ with
+/// `PredictionQuoteLegsHash(intent.MVC, intent.Legs)`; the execution write port
+/// therefore has to canonicalize the *order* payload exactly like the RFQ route
+/// canonicalized the quote payload, or a legitimately issued quote would look
+/// changed. Returning the MVC as well keeps both halves of the binding in one
+/// place.
+pub(in crate::product::product_production_ports) fn prediction_quote_binding(
+    payload: &Value,
+) -> Result<(String, String), String> {
+    let object = payload
+        .as_object()
+        .ok_or_else(|| invalid("prediction combo quote payload must be an object"))?;
+    let mvc = text(object, "mvc").ok_or_else(|| invalid("prediction RFQ requires mvc"))?;
+    let legs = object
+        .get("legs")
+        .and_then(Value::as_array)
+        .filter(|legs| legs.len() >= 2)
+        .ok_or_else(|| invalid("prediction combo quote requires at least two legs"))?;
+    let mut normalized = Vec::with_capacity(legs.len());
+    for (index, leg) in legs.iter().enumerate() {
+        normalized.push(normalize_leg(leg, index)?);
+    }
+    let mvc = mvc.trim().to_owned();
+    let legs_hash = prediction_quote_binding_hash(&mvc, &normalized);
+    Ok((mvc, legs_hash))
 }
 
 fn normalize_leg(leg: &Value, index: usize) -> Result<CanonicalLeg, String> {

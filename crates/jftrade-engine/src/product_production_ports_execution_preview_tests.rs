@@ -3118,3 +3118,170 @@ fn real_option_combo_rechecks_risk_after_consuming_preview_before_submission() {
         "no combo submission may follow a consumed preview"
     );
 }
+
+/// Port that can preview and place an event parlay: the prediction adapters
+/// answer the RFQ/contract reads and the scripted writer records submissions.
+fn event_parlay_place_port(
+    runtime: &Arc<SharedTradeReadRuntime>,
+    writer: &Arc<RecordingTradeWriter>,
+) -> ProductionExecutionPort {
+    runtime.set_prediction_adapters(
+        Some(Arc::new(PredictionReadFixture {
+            entries: vec![
+                event_contract_entry("EC.ONE", 2),
+                event_contract_entry("EC.TWO", 2),
+            ],
+            error: None,
+        })),
+        None,
+        Some(Arc::new(ComboQuoteFixture)),
+    );
+    // `writer()` reads the logged-in flag from the same runtime snapshot as the
+    // trade reader, so the parlay fixture installs an inert reader alongside it.
+    runtime.set(
+        Some(Arc::new(ComboPreviewTradeReader::default()) as Arc<dyn TradeReadPort>),
+        Some(true),
+    );
+    runtime.set_writer(Some(Arc::clone(writer) as Arc<dyn TradeWritePort>));
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, false);
+    let (store, directory) = execution_store();
+    let _ = directory.keep();
+    ProductionExecutionPort {
+        store,
+        active_provider_state: state,
+        trade_logged_in: Some(true),
+        trade_read_port: None,
+        trade_write_port: None,
+        trade_runtime: Some(Arc::clone(runtime)),
+        cancel_inflight: Arc::new(std::sync::Mutex::new(std::collections::BTreeSet::new())),
+        risk_coordinator: None,
+        default_trading_environment: None,
+        notification_projector: None,
+    }
+}
+
+/// Persist the RFQ that the market-data route would have stored for `payload`.
+fn stored_parlay_rfq(quote_id: &str, payload: &Value) -> jftrade_store_sqlite::StoredPredictionQuote {
+    let (mvc, legs_hash) = crate::product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_actions::product_prediction_combo_quote::prediction_quote_binding(payload)
+        .expect("prediction quote binding");
+    jftrade_store_sqlite::StoredPredictionQuote {
+        quote_id: quote_id.to_owned(),
+        broker_id: "futu".to_owned(),
+        account_id: "42".to_owned(),
+        trading_environment: "SIMULATE".to_owned(),
+        mvc,
+        legs_hash,
+        bid_price: Some(0.4),
+        ask_price: Some(0.5),
+        should_retry: false,
+        received_at: "2026-09-22T00:00:00Z".to_owned(),
+        expires_at: "2999-01-01T00:00:00Z".to_owned(),
+        expiry_source: "jftrade_policy".to_owned(),
+        status: "active".to_owned(),
+        consumed_at: None,
+        consumed_preview_id: None,
+        consumed_client_order_id: None,
+    }
+}
+
+/// Parity: go:452dea11:internal/trading/execution_combo_lifecycle_test.go:110
+/// `TestExecutionEventParlayCompletePreviewAndAmountRisk`.
+///
+/// Go previews an event parlay, places it, and then asserts that the intent
+/// handed to the combo gateway keeps `RFQID` while the pre-trade gateway sees
+/// `Query.Quantity == amount` with `QuantityMode == amount`. Rust keeps the RFQ
+/// binding on the combo request (`quoteId`) and the size in amount mode on the
+/// risk command, and the stored prediction RFQ is the durable credential Go
+/// consumes for exactly one preview/client-order pair.
+#[test]
+fn event_parlay_preview_place_and_amount_risk_keep_go_contract() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    let writer = Arc::new(RecordingTradeWriter::default());
+    let port = event_parlay_place_port(&runtime, &writer);
+
+    let payload = event_parlay_payload();
+    port.store
+        .save_prediction_quote(&stored_parlay_rfq("rfq-1", &payload))
+        .expect("save prediction RFQ");
+
+    let preview = port.combo_preview(&payload).expect("parlay preview");
+    assert_eq!(preview["allowed"], true, "{preview}");
+    assert_eq!(preview["productClass"], "event_contract");
+    assert_eq!(preview["orderKind"], "event_parlay");
+    let preview_id = preview["previewId"]
+        .as_str()
+        .expect("parlay preview id")
+        .to_owned();
+
+    // Go asserts the gateway command shape: the parlay is sized by `amount`,
+    // not by a contract count, and carries no caller price.
+    let parsed = super::execution_order_parse::parse_combo(&payload).expect("parsed parlay");
+    let risk_order = super::execution_order_helpers::build_pre_trade_risk_combo_order(&parsed);
+    assert_eq!(risk_order.quantity_mode, "amount");
+    assert_eq!(risk_order.quantity.to_string(), "10");
+    assert_eq!(
+        risk_order.amount.map(|value| value.to_string()),
+        Some("10".to_owned())
+    );
+    assert_eq!(risk_order.price, None);
+
+    let mut place_payload = payload.clone();
+    place_payload["previewId"] = json!(preview_id);
+    let placed = port.place_combo(&place_payload).expect("parlay place");
+    assert_eq!(placed["status"], "SUBMITTED", "{placed}");
+    let submitted = writer.placed_combo.lock().expect("placed combos");
+    assert_eq!(submitted.len(), 1, "exactly one parlay submission");
+    assert_eq!(
+        submitted[0].quote_id.as_deref(),
+        Some("rfq-1"),
+        "Go keeps intent.RFQID on the submitted combo"
+    );
+    drop(submitted);
+
+    // The RFQ funds exactly one preview/client-order pair; a second parlay that
+    // reuses it must fail closed without another broker call.
+    let mut second = event_parlay_payload();
+    second["clientOrderId"] = json!("parlay-2");
+    let second_preview = port.combo_preview(&second).expect("second parlay preview");
+    second["previewId"] = json!(second_preview["previewId"].as_str().expect("preview id"));
+    let reused = port
+        .place_combo(&second)
+        .expect_err("a consumed RFQ must not price a second parlay");
+    match &reused {
+        ExecutionWritePortError::Failed { status, message, .. } => {
+            assert_eq!(*status, 400, "{reused:?}");
+            assert!(message.contains("already consumed"), "{reused:?}");
+        }
+        other => panic!("expected a consumed-RFQ rejection, got {other:?}"),
+    }
+    assert_eq!(
+        writer.placed_combo.lock().expect("placed combos").len(),
+        1,
+        "a rejected parlay must never reach the broker"
+    );
+
+    // An RFQ id the server never issued cannot price a parlay either.
+    let mut unknown = event_parlay_payload();
+    unknown["clientOrderId"] = json!("parlay-3");
+    unknown["rfqId"] = json!("rfq-missing");
+    let unknown_preview = port.combo_preview(&unknown).expect("third parlay preview");
+    unknown["previewId"] = json!(unknown_preview["previewId"].as_str().expect("preview id"));
+    let missing = port
+        .place_combo(&unknown)
+        .expect_err("an unknown RFQ must fail closed");
+    match &missing {
+        ExecutionWritePortError::Failed { status, message, .. } => {
+            assert_eq!(*status, 400, "{missing:?}");
+            assert!(message.contains("prediction RFQ"), "{missing:?}");
+        }
+        other => panic!("expected an invalid-RFQ rejection, got {other:?}"),
+    }
+    assert_eq!(
+        writer.placed_combo.lock().expect("placed combos").len(),
+        1,
+        "no submission may follow an invalid RFQ"
+    );
+}

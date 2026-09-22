@@ -577,6 +577,7 @@ mod execution_preview_tests;
 mod execution_order_validation_tests;
 
 include!("product_production_ports_execution_orders_impl.rs");
+include!("product_production_ports_execution_orders_rfq.rs");
 fn replay_or_conflict(
     existing: StoredExecutionOrder,
     request_hash: &str,

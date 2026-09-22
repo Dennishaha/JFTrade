@@ -4,7 +4,7 @@
 //! actions to real production state without mock fixtures or dummy arrays.
 
 #[path = "product_production_ports_market_data_actions.rs"]
-mod product_production_ports_market_data_actions;
+pub(in crate::product::product_production_ports) mod product_production_ports_market_data_actions;
 #[path = "product_production_ports_market_data_catalog.rs"]
 mod product_production_ports_market_data_catalog;
 #[path = "product_production_ports_market_data_futures.rs"]
