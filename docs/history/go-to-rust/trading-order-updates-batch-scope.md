@@ -445,3 +445,39 @@ Go 服务内自带 `OrderUpdatesWorker` 的测试集合（节流/强制同步、
 2. 若恢复订阅诊断面，需在 worker 诊断里按来源（current/history/fees）记录动作标签并投影到该路由，回归断言
    current 失败 `lastAction=sync-orders`、history 失败 `lastAction=sync-history-orders`、恢复后回到 `ready`。
 3. 若接线交易推送订阅，补“并发 ensureSubscribed 只发一次、后来者等待同一结果、调用方取消立即返回且不影响在飞订阅”用例。
+
+### 第一百二十四批收口与门禁（order-updates 家族 19 条）
+
+- 分片一 `c8c1fb9a`：invalidation 有界诊断 + connectivity 投影（`:414`/`:427` 升 `[x]`）。
+- 分片二 `1fe94cfc`：订阅重连 2 条收敛为边界保留。
+- 分片三 `a9f057d3`：推送唤醒保留用例（`:9` 升 `[x]`）、`:11` 细化 partial、`:68` 收敛为边界。
+- 家族现状：19 条中 `[x]` 4 条（`:414`/`:427`/`:9` 等本批新增证据）、边界保留若干、其余 partial 均写明缺口与升级路径。
+
+#### 批次门禁记录（提交后复核）
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 格式 | `cargo fmt --all -- --check` | 通过 |
+| Clippy | `pnpm run check:clippy` | 通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked` | 1796 条通过 |
+| 工作区测试 | `pnpm run test:rust` | 3203 条通过（2 skipped） |
+| 兼容回放 | `pnpm run check:compatibility` | 通过（API transport 278 操作 / assistant 9 状态 / desktop 3 profile） |
+| 生成物 | `pnpm run check:generated` | 通过（未改工作树） |
+| AI 上下文 | `pnpm run check:ai-context` | 通过（6 模块 8 文件） |
+| Zero-Go | `pnpm run check:zero-go` | 通过（2941 文件、0 发布产物） |
+| 快速门禁 | `pnpm run check:quick` | 无产品改动（工作树干净） |
+| 静态门禁 | `pnpm run check:rust:static` | **未通过**：target-health/architecture/production-policy/fmt/clippy 均过，末段 `cargo deny check` 在 advisories 失败（`RUSTSEC-2026-0285` 命中 + `deny.toml` 8 条 `advisory-not-detected`）；与本批改动无关，按既有阻断如实记录 |
+| 依赖策略 | `pnpm run check:rust:policy` | **未通过**（同上，`advisories FAILED, bans ok, licenses ok, sources ok`） |
+| 空白检查 | `git diff --check` | 通过 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | `[x]` 1362；0 条引用不存在 crate；7 条 partial 无引用（既有已承认缺口）；202 条 function_exact 尚无 `// Parity:` 锚点 |
+| 锚点 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1369（已记账 1313、unrecorded 0、unknown 55、stale 1 既有） |
+
+#### 后续待办（第 125 批起）
+
+- trading_broker 剩余 56 条：`internal/trading/execution_products_test.go`(4)、`responses_test.go`(4)、
+  `broker_conformance_test.go`(3)、`control_plane_idempotency_test.go`(3)、`control_plane_state_audit_test.go`(3)、
+  `service_test.go`(3)、`pkg/broker/research_screen_test.go`(3)、`pkg/broker/product_capability_contracts_test.go`(2)、
+  `pkg/broker/broker_test.go`(7)、`pkg/broker/catalog_test.go`(5) 及同域余项。
+- 之后按体量推进：api_transport 478、strategy_pine 465、assistant_workflow 447、other 311、
+  backtest_calendar 262、storage_sqlite 178、marketdata_quotes 155、futu_opend 104、settings_watchlist 39。
+- 每批收口后立即设定下一批 codex 目标，直到 4451 行全部给出 `[x]`/partial/边界结论。
