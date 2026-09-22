@@ -2,7 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use jftrade_datamanagement::{
-    DatabaseDescriptor, DATABASE_ADK, DATABASE_ADK_SESSION, DATABASE_BACKTEST, DATABASE_STRATEGY,
+    DatabaseDescriptor, DATABASE_ADK, DATABASE_ADK_SESSION, DATABASE_BACKTEST, DATABASE_EXECUTION,
+    DATABASE_STRATEGY,
 };
 use jftrade_store_sqlite::{AdkSessionStore, AdkStore};
 use jftrade_owner_lock::{OwnerDiagnostic, WriterLease};
@@ -195,5 +196,46 @@ fn database_probes_use_the_provided_layout() {
     assert!(
         current_version_at(&adk).is_some(),
         "runtime database carries a pinned schema version after initialization"
+    );
+}
+
+// Parity: go:452dea11:internal/store/trading/startup_compatibility_test.go:14 TestExecutionOrderDatabasePathResolution
+#[test]
+fn execution_order_database_path_resolution_trims_override_and_derives_settings_sibling() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let configured = directory.path().join("configured-execution.db");
+    let settings_path = directory.path().join("settings.json");
+
+    let overridden = database_descriptors(&settings_path, |name| match name {
+        "JFTRADE_EXECUTION_ORDER_DB" => Some(format!("  {}  ", configured.display())),
+        _ => None,
+    })
+    .0;
+    assert_eq!(
+        descriptor(&overridden, DATABASE_EXECUTION).path,
+        configured.to_string_lossy().into_owned(),
+        "the override wins and is trimmed"
+    );
+
+    let blanked = database_descriptors(&settings_path, |name| match name {
+        "JFTRADE_EXECUTION_ORDER_DB" => Some("  \t ".to_owned()),
+        _ => None,
+    })
+    .0;
+    assert_eq!(
+        descriptor(&blanked, DATABASE_EXECUTION).path,
+        directory
+            .path()
+            .join("execution-orders.db")
+            .to_string_lossy()
+            .into_owned(),
+        "a blank override falls back to the settings sibling"
+    );
+
+    let bare = database_descriptors(Path::new("settings.json"), |_| None).0;
+    assert_eq!(
+        descriptor(&bare, DATABASE_EXECUTION).path,
+        "execution-orders.db",
+        "a settings path without a directory keeps the bare default filename"
     );
 }

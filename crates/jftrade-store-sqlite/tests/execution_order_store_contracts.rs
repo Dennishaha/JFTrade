@@ -715,3 +715,140 @@ fn execution_orders_store_rejects_directory_and_missing_parent_paths() {
         "a ledger under a missing parent directory must be rejected"
     );
 }
+
+// Parity: go:452dea11:internal/store/trading/startup_compatibility_test.go:87 TestExecutionOrderPersistenceRejectsPartialLegacySchema
+#[test]
+fn execution_orders_store_rejects_partial_legacy_schema_with_rebuild_guidance() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("partial-legacy.db");
+    let connection = Connection::open(&path).expect("create partial legacy fixture");
+    connection
+        .execute_batch("CREATE TABLE execution_orders (internal_order_id TEXT PRIMARY KEY);")
+        .expect("seed partial legacy table");
+    drop(connection);
+
+    let error =
+        ExecutionOrderTestCutoverStore::open_existing(&path, EXECUTION_ORDERS_TEST_CUTOVER_PROFILE)
+            .expect_err("a partial legacy schema must be rejected");
+    assert!(
+        error.to_string().contains("rebuild"),
+        "rejection must guide a rebuild: {error}"
+    );
+    assert!(
+        matches!(error, ExecutionOrderStoreError::Schema(_)),
+        "error = {error:?}"
+    );
+}
+
+// Parity: go:452dea11:internal/store/trading/startup_compatibility_test.go:105 TestExecutionOrderPersistenceRejectsWrongColumnLayout
+#[test]
+fn execution_orders_store_rejects_wrong_column_layout() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("wrong-columns.db");
+    let connection = Connection::open(&path).expect("create wrong-column fixture");
+    connection
+        .execute_batch(
+            "CREATE TABLE execution_orders (internal_order_id TEXT PRIMARY KEY);
+             CREATE TABLE execution_order_events (id TEXT PRIMARY KEY);
+             CREATE TABLE execution_seen_fills (fill_key TEXT PRIMARY KEY);
+             CREATE TABLE execution_sequences (name TEXT PRIMARY KEY);",
+        )
+        .expect("seed wrong column schema");
+    drop(connection);
+
+    let error =
+        ExecutionOrderTestCutoverStore::open_existing(&path, EXECUTION_ORDERS_TEST_CUTOVER_PROFILE)
+            .expect_err("a drifted column layout must be rejected");
+    assert!(
+        matches!(error, ExecutionOrderStoreError::Schema(_)),
+        "error = {error:?}"
+    );
+}
+
+// Parity: go:452dea11:internal/store/trading/startup_compatibility_test.go:156 TestExecutionOrderPersistenceLoadRejectsMissingRuntimeTables
+#[test]
+fn execution_orders_store_rejects_missing_runtime_tables() {
+    for table in [
+        "execution_orders",
+        "execution_order_events",
+        "execution_seen_fills",
+        "execution_sequences",
+    ] {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("missing-table.db");
+        seed_go_execution_orders_schema(&path);
+        let connection = Connection::open(&path).expect("open fixture for table drop");
+        connection
+            .execute_batch(&format!("DROP TABLE {table};"))
+            .expect("drop runtime table");
+        drop(connection);
+
+        let error = ExecutionOrderTestCutoverStore::open_existing(
+            &path,
+            EXECUTION_ORDERS_TEST_CUTOVER_PROFILE,
+        )
+        .expect_err("a ledger missing a runtime table must be rejected");
+        assert!(
+            matches!(error, ExecutionOrderStoreError::Schema(_)),
+            "{table} drop must surface a schema rejection: {error:?}"
+        );
+    }
+}
+
+// Parity: go:452dea11:internal/store/trading/persistence_failures_test.go:14 TestExecutionPersistenceConstructorDependencyFailures
+#[test]
+fn execution_orders_store_constructor_rejects_empty_missing_and_malformed_inputs() {
+    assert!(matches!(
+        ExecutionOrderTestCutoverStore::open_existing(
+            Path::new(""),
+            EXECUTION_ORDERS_TEST_CUTOVER_PROFILE
+        ),
+        Err(ExecutionOrderStoreError::EmptyPath)
+    ));
+
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let missing = directory.path().join("missing.db");
+    assert!(matches!(
+        ExecutionOrderTestCutoverStore::open_existing(
+            &missing,
+            EXECUTION_ORDERS_TEST_CUTOVER_PROFILE
+        ),
+        Err(ExecutionOrderStoreError::NotRegularFile(_))
+    ));
+
+    let malformed = directory.path().join("malformed-metadata.db");
+    let connection = Connection::open(&malformed).expect("create malformed metadata fixture");
+    connection
+        .execute_batch(
+            "CREATE TABLE jftrade_schema_meta (component_id TEXT PRIMARY KEY);
+             INSERT INTO jftrade_schema_meta (component_id) VALUES ('execution-orders');",
+        )
+        .expect("seed malformed metadata");
+    drop(connection);
+    let error = ExecutionOrderTestCutoverStore::open_existing(
+        &malformed,
+        EXECUTION_ORDERS_TEST_CUTOVER_PROFILE,
+    )
+    .expect_err("malformed component metadata must be rejected");
+    assert!(
+        matches!(error, ExecutionOrderStoreError::Schema(_)),
+        "error = {error:?}"
+    );
+
+    let dropped = directory.path().join("dropped-orders.db");
+    seed_go_execution_orders_schema(&dropped);
+    let connection = Connection::open(&dropped).expect("open dropped orders fixture");
+    connection
+        .execute_batch("DROP TABLE execution_orders;")
+        .expect("drop orders table");
+    drop(connection);
+    let error = ExecutionOrderTestCutoverStore::open_existing(
+        &dropped,
+        EXECUTION_ORDERS_TEST_CUTOVER_PROFILE,
+    )
+    .expect_err("a ledger without its orders table must be rejected");
+    assert!(
+        matches!(error, ExecutionOrderStoreError::Schema(_)),
+        "error = {error:?}"
+    );
+}

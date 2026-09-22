@@ -586,7 +586,62 @@ Rust `ExecutionOrderStore` 的 `execution_sequences.value` 是**已分配高水�
 | 锚点 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1396、unrecorded 0、stale 0、unknown 54 |
 | 格式 / 架构 / Clippy | `cargo fmt --all -- --check`、`pnpm run check:rust:architecture`、`pnpm run check:clippy` | 通过 |
 | 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked --no-fail-fast` | 见提交记录 |
-| 工作区测试 | `pnpm run test:rust` | 见提交记录 |
+| 工作区测试 | `pnpm run test:rust` | 3237 条通过（本片 +7，2 skipped） |
+| 兼容回放 / 生成物 / AI 上下文 / Zero-Go | `check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go` | 通过 |
+| 快速门禁 / 空白 | `pnpm run check:quick`、`git diff --check` | 通过 |
+| 依赖策略 | `pnpm run check:rust:policy` | **未通过（既有阻断）**：`RUSTSEC-2026-0285` + 8 条 `advisory-not-detected`，如实记录 |
+### 第一百二十六批 分片二 b-2：`internal/store/trading/` 剩余 26 行收口（6 升 `[x]`，10 partial，10 boundary）
+
+范围：分片二 b 剩余全部 26 行 —— `startup_compatibility_test.go` 5、`ledger_test.go` 5、
+`ledger_lifecycle_test.go` 5、`execution_composition_test.go` 4、`maintenance_concurrency_test.go` 1、
+`persistence_failures_test.go` 1、`snapshot_normalization_test.go` 2、`fill_retention_test.go` 1、
+`order_leg_merge_test.go` 1、`resource_test.go` 1。本片新增 7 条测试（无生产改动：差异均为结构差异或
+已由既有实现覆盖），并把不可迁移的行为逐条写清缺口、owner 与回归要求。至此
+`internal/store/trading/` 全量 45 行中 18 行 `[x]`，其余 27 行为结论明确的 partial/boundary（17 partial + 10 boundary）。
+
+#### 新增 Rust 测试（7 条）
+
+| Rust 测试 | Go 基线 | 断言要点 |
+| --- | --- | --- |
+| `product_data_management_batch_atomic_startup_tests.rs::execution_order_database_path_resolution_trims_override_and_derives_settings_sibling` | `startup_compatibility_test.go:14` | 覆盖值 trim 生效、空覆盖回落 settings 同级默认名、裸 settings.json 保留裸默认名 |
+| `execution_order_store_contracts.rs::execution_orders_store_rejects_partial_legacy_schema_with_rebuild_guidance` | `:87` | 残表被拒 → `Schema(_)` 且消息含 rebuild |
+| `...::execution_orders_store_rejects_wrong_column_layout` | `:105` | 四张运行时表错列布局 → `Schema(_)` |
+| `...::execution_orders_store_rejects_missing_runtime_tables` | `:156` | 逐张 DROP 四张运行时表 → 打开即拒（`Schema(_)`） |
+| `...::execution_orders_store_constructor_rejects_empty_missing_and_malformed_inputs` | `persistence_failures_test.go:14` | 空路径/缺失文件/畸形 metadata/缺表 四类构造失败分类 |
+| `...order_state_tests.rs::reconciliation_snapshot_keeps_preview_locked_product_and_quantity_mode` | `ledger_lifecycle_test.go:110` | 快照仍应用（FILLED、成交量 5）但 orderKind/productClass/quantityMode/previewId 不被降级 |
+| `...order_state_tests.rs::reconciliation_snapshot_repairs_sparse_order_identity_diagnostics_and_economics` | `ledger_test.go:150`（partial 证据） | 稀疏订单被快照补全（brokerOrderIDEx/symbol/side/type/数量/价格/均价/remark），清除 lastErrorCode；同时断言 Rust 保留下单来源（未做 broker 来源提升） |
+
+#### 结构差异结论（本片新增/收紧）
+
+- **持久化 worker/队列**（`ledger_test.go:236`、`ledger_lifecycle_test.go:131`）：Rust 无异步写队列与显式 Close，
+  写入在 store 互斥内同步事务提交 → boundary。
+- **placed-merge 家族**（`ledger_test.go:65`、`execution_composition_test.go:32/:313`）：Rust 以 clientOrderId 唯一索引 +
+  预留重放身份防重，没有合并/来源提升语义；`source` 恒由写入方标注（api/strategy）→ boundary/partial。
+- **seen-fill 持久化与保留期**（`ledger_test.go:330`、`fill_retention_test.go:8`）：Rust 去重只在单次对账扫描内，
+  `execution_seen_fills` 仅存在于 schema；保留期仅实现 settings 归一化（默认 90 / clamp 3650）→ partial，
+  owner `jftrade-store-sqlite` + `jftrade-engine`。
+- **快照归一化边界**（`snapshot_normalization_test.go:11/:44`、`ledger_lifecycle_test.go:12/:41`）：Rust 对账不写
+  orderKind/productClass/quantityMode 与 source/sourceDetail；`time_after` 对空/畸形时间戳返回 false（保守拒绝），
+  与 Go 的 merge 默认值/保守推进不同形 → partial/boundary。
+- **维护 busy 语义**（`maintenance_concurrency_test.go:13`）：Rust 维护为管理库级 `ManagedDatabaseMaintenanceStore` +
+  WriterLease 栅栏，未按执行订单终态计算 busy → partial，缺口（非终态订单不阻塞维护）已登记 owner。
+- **费用父单落账**（`ledger_lifecycle_test.go:73`）：Rust 订单级 fees 由 `apply_fee_snapshot` 写、无 leg 费用写入路径，
+  结构上不会虚构分摊；缺"1.25+0.75=2.00、重复快照 no-op、leg fees 为 NULL"三条等价断言 → partial。
+- **nil/序号后缀**（`startup_compatibility_test.go:131`）、**leg 合并**（`order_leg_merge_test.go:10`）、
+  **资源 Close**（`resource_test.go:10`）：Go 专属模型，Rust 分别以 Option/单事务/RAII 表达 → boundary。
+
+#### 分片二 b-2 验证记录与门禁
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增 store 用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --locked --test execution_order_store_contracts` | 13 条通过（本片 +4） |
+| 新增 engine 用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(execution_order_database_path_resolution) or test(reconciliation_snapshot_keeps_preview_locked_product) or test(reconciliation_snapshot_repairs_sparse_order_identity)'` | 3 条通过（本片 +3） |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b126s2b2_apply.json` | 26 行更新，`[x]` 1396 → 1402 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺少 function_exact、无重复 rust_entry |
+| 锚点 | `python3.12 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1403、unrecorded 0、stale 0、unknown 54 |
+| 格式 / 架构 / Clippy | `cargo fmt --all -- --check`、`pnpm run check:rust:architecture`、`pnpm run check:clippy` | 通过 |
+| 受影响 crate | `cargo-nextest -p jftrade-store-sqlite` / `-p jftrade-engine --all-targets` | 186 / 1821 条通过（引擎首轮命中已知抖动 `adk_session_detail_omits_resolved_approval_groups`，隔离复跑通过后整轮 1821 全绿） |
+| 工作区测试 | `pnpm run test:rust` | 3237 条通过（本片 +7，2 skipped） |
 | 兼容回放 / 生成物 / AI 上下文 / Zero-Go | `check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go` | 通过 |
 | 快速门禁 / 空白 | `pnpm run check:quick`、`git diff --check` | 通过 |
 | 依赖策略 | `pnpm run check:rust:policy` | **未通过（既有阻断）**：`RUSTSEC-2026-0285` + 8 条 `advisory-not-detected`，如实记录 |

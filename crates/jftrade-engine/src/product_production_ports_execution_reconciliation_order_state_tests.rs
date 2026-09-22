@@ -1019,3 +1019,89 @@ fn conformance_partial_full_fill_average_and_out_of_order_updates_hold() {
     assert_eq!(saved.filled_quantity, Some(10.0));
     drop(directory);
 }
+
+// Parity: go:452dea11:internal/store/trading/ledger_lifecycle_test.go:110 TestBrokerSnapshotDoesNotDowngradePreviewLockedProduct
+#[test]
+fn reconciliation_snapshot_keeps_preview_locked_product_and_quantity_mode() {
+    let (store, _directory) = reconciliation_store();
+    let mut order = pending_order("SUBMITTED");
+    order.order_kind = "option_combo".to_owned();
+    order.product_class = "option".to_owned();
+    order.quantity_mode = "contracts".to_owned();
+    order.preview_id = Some("preview-locked".to_owned());
+    store
+        .save_order(order, "2026-08-30T00:00:01Z")
+        .expect("save preview-locked order");
+
+    let reader = Arc::new(FixtureTradeReader {
+        accounts: vec![account()],
+        active_orders: vec![correlated_order_snapshot(11, Some(5.0))],
+        ..Default::default()
+    });
+    let port = production_port(Arc::clone(&store), reader);
+    assert_eq!(port.reconcile_pending_orders().expect("reconcile"), 1);
+
+    let saved = store
+        .get_order("rust-order-reconcile")
+        .expect("load order")
+        .expect("order exists");
+    assert_eq!(saved.status, "FILLED", "the snapshot is still applied: {saved:?}");
+    assert_eq!(saved.filled_quantity, Some(5.0));
+    assert_eq!(saved.order_kind, "option_combo");
+    assert_eq!(saved.product_class, "option");
+    assert_eq!(saved.quantity_mode, "contracts");
+    assert_eq!(saved.preview_id.as_deref(), Some("preview-locked"));
+}
+
+// Parity: go:452dea11:internal/store/trading/ledger_test.go:150 TestExecutionOrderStoreBrokerSyncPreservesMissingBrokerAndRepairsIncompleteSummary
+#[test]
+fn reconciliation_snapshot_repairs_sparse_order_identity_diagnostics_and_economics() {
+    let (store, _directory) = reconciliation_store();
+    let mut order = pending_order("SUBMITTED");
+    order.broker_order_id_ex = None;
+    order.symbol = None;
+    order.side = None;
+    order.order_type = None;
+    order.requested_quantity = None;
+    order.requested_price = None;
+    order.remark = None;
+    order.last_error_code = Some("LEGACY-ERROR".to_owned());
+    store
+        .save_order(order, "2026-08-30T00:00:01Z")
+        .expect("save sparse order");
+
+    let mut snapshot = correlated_order_snapshot(10, Some(2.0));
+    snapshot.fill_avg_price = Some(98.5);
+    snapshot.remark = Some("snapshot repaired sparse cache entry".to_owned());
+    let reader = Arc::new(FixtureTradeReader {
+        accounts: vec![account()],
+        active_orders: vec![snapshot],
+        ..Default::default()
+    });
+    let port = production_port(Arc::clone(&store), reader);
+    assert_eq!(port.reconcile_pending_orders().expect("reconcile"), 1);
+
+    let saved = store
+        .get_order("rust-order-reconcile")
+        .expect("load order")
+        .expect("order exists");
+    assert_eq!(saved.status, "PARTIALLY_FILLED", "{saved:?}");
+    assert_eq!(saved.broker_order_id_ex.as_deref(), Some("order-ex"));
+    assert_eq!(saved.symbol.as_deref(), Some("US.AAPL"));
+    assert_eq!(saved.side.as_deref(), Some("BUY"));
+    assert_eq!(saved.order_type.as_deref(), Some("LIMIT"));
+    assert_eq!(saved.requested_quantity, Some(5.0));
+    assert_eq!(saved.requested_price, Some(99.0));
+    assert_eq!(saved.filled_quantity, Some(2.0));
+    assert_eq!(saved.filled_average_price, Some(98.5));
+    assert_eq!(
+        saved.remark.as_deref(),
+        Some("snapshot repaired sparse cache entry")
+    );
+    assert!(saved.last_error_code.is_none(), "{saved:?}");
+    assert_ne!(saved.updated_at, "2026-08-30T00:00:01Z");
+    assert_eq!(
+        saved.source, "api",
+        "Rust keeps the original write source instead of promoting broker/current"
+    );
+}
