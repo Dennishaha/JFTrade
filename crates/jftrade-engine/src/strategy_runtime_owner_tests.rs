@@ -366,3 +366,127 @@ fn runtime_exit_converges_to_stopped_with_audit_notification_and_error_log() {
         "STOPPED"
     );
 }
+
+/// Router that can hold managed leases: an activated streaming Futu provider
+/// mirrors the production descriptor the runtime is composed with.
+fn lease_router() -> ProviderRouter {
+    use jftrade_marketdata::{
+        ActivationMode, HealthStatus, ProviderCapabilities, ProviderConstraints,
+        ProviderDescriptor, ProviderReadiness, ProviderRouter,
+    };
+    let mut router = ProviderRouter::new(32);
+    router
+        .register(
+            ProviderDescriptor {
+                selection_id: "futu".to_owned(),
+                provider_id: "futu-opend".to_owned(),
+                display_name: "Futu OpenD".to_owned(),
+                broker_id: Some("futu".to_owned()),
+                source: "bbgo:futu".to_owned(),
+                default_market: "HK".to_owned(),
+                supported_markets: vec!["HK".to_owned(), "US".to_owned()],
+                transports: vec!["opend-tcp".to_owned()],
+                capabilities: ProviderCapabilities {
+                    snapshots: true,
+                    streaming_quotes: true,
+                    streaming_candles: true,
+                    streaming_depth: true,
+                    historical_candles: true,
+                    tick_candles: true,
+                    order_book_depth: true,
+                    ..ProviderCapabilities::default()
+                },
+                constraints: ProviderConstraints::default(),
+                notes: Vec::new(),
+            },
+            HealthStatus {
+                connected: true,
+                stream_mode: "push-stream".to_owned(),
+                readiness: ProviderReadiness::Ready,
+                ..HealthStatus::default()
+            },
+        )
+        .expect("register futu descriptor");
+    router
+        .activate("futu", ActivationMode::Explicit)
+        .expect("activate futu");
+    router
+}
+
+/// Parity: go:452dea11:internal/app/apiserver/servercore/strategy_subscription_lifecycle_test.go:12 TestStrategyRuntimeHoldsExactKLineLeasesUntilStopAndClose
+///
+/// Go starts one runtime over `US.AAPL` and `HK.00700` at `5m`, keeps both
+/// exact KLINE leases while the runtime is live (a web-only clear must not
+/// drop them), and only releases them on stop and manager close.  Rust's
+/// manager runs the same acquire-then-release sequence against the shared
+/// demand book, so assert the exact lease set here; the web-clear half is
+/// pinned by `clear_route_preserves_running_strategy_lease`.
+#[test]
+fn strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown() {
+    let (_dir, store) = store();
+    let quotes = Arc::new(Quotes {
+        rows: Mutex::new(json!({"candles":[bar(0,true)]})),
+    });
+    let worker = Arc::new(Worker::default());
+    let router = Arc::new(Mutex::new(lease_router()));
+    let mut manager = StrategyRuntimeManager::new(
+        Some(Arc::clone(&router)),
+        None,
+        Some(quotes),
+        None,
+        Arc::new(ActiveProviderState::default()),
+    );
+    manager.worker = Some(worker.clone());
+    let binding = json!({
+        "script": "//@version=5\nindicator('lease')\nplot(close)",
+        "symbols": ["US.AAPL", "HK.00700"],
+        "interval": "5m",
+        "executeOrders": false
+    });
+
+    manager
+        .acquire_demand("one", &binding)
+        .expect("acquire exact K-line demand");
+    manager
+        .spawn_task("one".to_owned(), binding.clone(), Arc::clone(&store))
+        .expect("spawn runtime task");
+    wait_for(|| !worker.calls.lock().unwrap().is_empty());
+
+    let lease_keys = {
+        let router = router.lock().unwrap();
+        let demand = router.demand();
+        assert_eq!(demand.logical_count, 2, "strategy demand = {demand:?}");
+        let mut keys: Vec<_> = demand
+            .entries
+            .iter()
+            .map(|entry| {
+                assert_eq!(entry.consumers, vec!["one".to_owned()]);
+                assert_eq!(entry.channel, "KLINE");
+                assert_eq!(entry.interval.as_deref(), Some("5m"));
+                entry.key.clone()
+            })
+            .collect();
+        keys.sort();
+        keys
+    };
+    assert_eq!(lease_keys, vec!["KLINE:HK:00700:5m", "KLINE:US:AAPL:5m"]);
+
+    // The mutation owner releases the leases when the runtime stops; a
+    // stopped runtime must not keep its exact demand alive.
+    assert!(manager.cancel("one"));
+    manager.release_demand("one");
+    assert_eq!(router.lock().unwrap().demand().logical_count, 0);
+
+    // Restarting re-acquires the same exact set, and a manager close releases
+    // every lease it still owns.
+    manager
+        .acquire_demand("one", &binding)
+        .expect("re-acquire exact K-line demand");
+    manager
+        .spawn_task("one".to_owned(), binding, Arc::clone(&store))
+        .expect("restart runtime task");
+    wait_for(|| worker.calls.lock().unwrap().len() >= 2);
+    assert_eq!(router.lock().unwrap().demand().logical_count, 2);
+    manager.shutdown();
+    wait_for(|| router.lock().unwrap().demand().logical_count == 0);
+}

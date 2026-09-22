@@ -596,3 +596,67 @@ webaccess 24 + tradingapp 11、backtestapp 10 + datamigration 11 与 runtime/lif
 
 后续（分片三）：`internal/app/apiserver/servercore` 余 32 行，随后 servercoretest 52、marketdataapp 68、
 webaccess 24 + tradingapp 11、backtestapp 10 + datamigration 11 与 runtime/lifecycle/application/futuapp 余量。
+
+### 分片三：`internal/app/apiserver/servercore` 第 69–98 行与补审 2 行（共 32 条）
+
+范围与 owner：按文件与行号排序的第 69–98 条（日历边界 1、策略生命周期 2、系统与设置 option 回调 2、
+运行期副作用 3、服务器核心 4、回测 warmup 1、行情设置 1、策略运行时依赖边界 3、实盘语义 1、nil 边界 1、
+工作流回放 2、订阅生命周期 1、启动对账 1、撤单契约 2、自选股边界 3、WS 事件 2），并补审被分片二游标跳过的
+`server_business_test.go:292/:329`（sidecar runtime-config 与 broker 执行不复用策略行情 override）。owner 集中在
+`crates/jftrade-engine`（product_api 日历路由、strategy runtime 与 owner_tests、market-data subscription/quote lease、
+execution risk coordinator、runtime resources 与设置写入）、`crates/jftrade-api`（WS 心跳、浏览器访问）、
+`crates/jftrade-calendar`（manager 生命周期）与 `apps/desktop/src-tauri`（desktop_runtime_config）。
+
+本分片新增 Rust 证据 2 项：
+
+- `crates/jftrade-engine/src/strategy_runtime_owner_tests.rs::strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown`
+  （Go `strategy_subscription_lifecycle_test.go:12`）：两个标的（US.AAPL/HK.00700、5m）的精确 KLINE managed 租约随运行
+  持有、Stop（cancel+release）归零、重启后再次持有、`shutdown()` 全部释放；web-only 清空保留策略租约的半边由
+  `clear_route_preserves_running_strategy_lease` 断言，两侧同源租约注册表（Go 订阅快照 = Rust demand book）。
+- `crates/jftrade-engine/src/product_strategy_definition_write_port.rs::tests::instantiate_accepts_empty_body_but_rejects_malformed_json`
+  补 Go 锚点（`server_lifecycle_test.go:222`）：畸形绑定 JSON 在 instantiate 路由返回 400 BAD_REQUEST，与 Go 的
+  400 断言等价，同时保持空 body 接受为 `{}`。
+
+映射结果：32 行写入（2 行升 `[x]`：`server_lifecycle_test.go:222`、`strategy_subscription_lifecycle_test.go:12`；
+30 行复核并收紧为终值）。修正 4 处陈旧或含糊引用：execution risk 用例实际位于
+`product_execution_risk_coordinator_tests.rs`、quote snapshot 用例位于 `*_tests.rs`、租约帮助函数位于
+`product_production_ports_market_data_quote_lease.rs`、startup reconcile 测试名已替换为
+`startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances`。重写 8 行结论（日历空 registry 与取消域、
+Pine 实例参数、设置副作用、启动对账、WS 心跳 stale 语义、sidecar runtime-config 载体等）。
+计数：`[x]` 1514 → 1516；audit Rust 测试 3186；anchors 1528（unrecorded 0、stale 0、unknown 53）。
+
+关键事实与新登记缺口（P1/P2）：
+
+1. **Pine 实例化参数缺口（P2）**：Go 的实例视图 params 携带 interval/executionMode/brokerAccount/instruments 与
+   compiledRequirements（requiresTotalAccountValue、indicators）；Rust 实例视图 params 只含 definitionId/runtime/sourceFormat，
+   且没有“实例化产出编译计划”与 start/pause/stop 迁移联动断言。owner：`product_strategy_definition_write_port` /
+   `strategy_runtime_port`。
+2. **设置副作用未接线（P2）**：Go 的 settingsSideEffects 更新 seenFillRetentionDays、启停 Web 鉴权与
+   runtime-config.js authRequired、禁用 Pine worker 时关闭长驻 runner 并拒绝策略启动；Rust 的
+   `seen_fill_retention_days` 只在设置层归一化、无 engine 消费方；Pine worker 运行时来自桌面进程环境
+   （设置文件只贡献 node_binary_path）；sidecar 不产出 runtime-config.js（由 Tauri `desktop_runtime_config` 与
+   前端 runtimeConfig 模块承担）。owner：`crates/jftrade-engine` 设置写入与运行时装配。
+3. **WS 心跳 stale 语义差异（P2）**：Go 在订阅行情 tick 超过 liveHeartbeatStaleThreshold 时置 payload.stale=true
+   （provider 仍连接）；Rust `live_heartbeat_payload` 的 stale 取 provider 连接状态（staleReasons=[provider_unavailable]），
+   行情新鲜度只出现在系统状态投影。owner：`crates/jftrade-api` router.rs live_heartbeat。
+4. **结构性边界（保留）**：日历空 registry 在 Go 返回 200+accepted=false、Rust 503 fail-closed；日历操作上下文在
+   Rust 为同步调用（无独立取消域对象）；启动对账 Rust 为“启动即恢复”（RUNNING 仍运行）而 Go 一律重置 STOPPED；
+   `brokerExecutionExchangeFor`、`Ensure()`、nil option 回调等可空工厂在 Rust 由未装配端口/组合期构建替代。
+
+验证记录：
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增租约用例与锚点用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) \| test(instantiate_accepts_empty_body_but_rejects_malformed_json)'` | 通过（租约用例在两个测试目标各跑一次） |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/s127c_payload.json` 与 `/tmp/s127c_payload_extra.json` | 32 行更新，`[x]` 1514 → 1516 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；Rust 测试 3186 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1528、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1866/1866 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`（SQLite/backtest/provider/trading/assistant/api-transport 278 operations/18 组/desktop 3 profiles）、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`check:quick` | 全部通过 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 均在 cargo-deny advisories 阶段因 `deny.toml` 8 条 `advisory-not-detected` 失败（bans/licenses/sources ok），与本分片改动无关 |
+
+后续（分片四）：`internal/app/apiserver/servercoretest` 52 行（可拆 26+26），随后 marketdataapp 68、
+webaccess 24 + tradingapp 11、backtestapp 10 + datamigration 11 与 runtime/lifecycle/runtimes/application/futuapp 余量。
+
+补充说明：`internal/app/apiserver/servercore` 的 98 条待办在本分片后全部给出终值；后续复核不再按该目录推进。

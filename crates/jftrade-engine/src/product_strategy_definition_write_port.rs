@@ -443,6 +443,7 @@ mod tests {
         assert_eq!(update.body["data"]["definition"]["id"], "definition-1");
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/servercore/server_lifecycle_test.go:222 TestInstantiateStrategyDefinitionRejectsMalformedJSON
     #[test]
     fn instantiate_accepts_empty_body_but_rejects_malformed_json() {
         let port = Arc::new(RecordingPort);
