@@ -1,11 +1,13 @@
 # Trading 执行域第三批（第 117 批·分片一）
 
 本文件记录 `internal/trading/execution_test.go` 剩余 `partial` 行的逐条收口。该文件共 17 条
-`partial`，按“错误分类 / 校验时序 / 委派参数 / 风控时序 / 详情边界”分片推进；已完成**前四片**
+`partial`，按“错误分类 / 校验时序 / 委派参数 / 风控时序 / 详情边界”分片推进；**五片已全部完成**
 （分片一 `:285`、`:327`；分片二 `:173`、`:342`、`:470`；分片三 `:367`、`:397`、`:426`；
-分片四 `:496`、`:874`、`:939` 升为 `function_exact`，`:738` 补齐持久化往返但保留 `partial`）
-共 11 条收口、新增 12 条 Rust 测试，其余 5 行的分片计划见文末。四批均无生产语义变更，
-被探测的生产文件一律按字节回滚。
+分片四 `:496`、`:874`、`:939`；分片五 `:613`、`:718`、`:813`、`:1014`
+共 15 条升为 `[x]`/`function_exact`；`:738` 补齐持久化往返但保留 `partial`（hard-stop 拒绝事件投影仍缺），
+`:1047` 改判 `boundary`（读时刷新归后台对账 worker 所有））。五批累计新增 17 条 Rust 测试；分片五
+还修正了 `jftrade-trading/src/risk.rs` 的 amount 模式数量限额缺口（唯一一处生产语义修复），
+其余被探测的生产文件一律按字节回滚。
 
 ## 第一百一十七批（分片一）：facade 错误分类与校验时序（2 条）
 
@@ -256,19 +258,123 @@ Go 侧 4 条（同文件 `:496`、`:738`、`:874`、`:939`）：
   Rust 返回更明确的 500 `CONTROL_PLANE_UNAVAILABLE`；失败关闭语义一致。
 - **路径改写方式**：Go 直接改 `plane.path`，Rust 在模块内测试同样改 `coordinator.path`，两者都只影响持久化目标。
 
-### 后续待办（本文件剩余 5 条）
+### 后续待办（本文件已收口，转入下一文件）
 
-- 下批（第 117 批·分片五，最后 5 条）：`:613`（amount/quantity/notional 组合矩阵聚合断言）、`:718`（REAL 相关环境变量不得配置
-  预交易风控的负例）、`:813`（校验失败/禁用事件的审计事件流文本）、`:1014`（详情最近事件数量上界）、
-  `:1047`（返回前刷新目标订单历史的调用顺序）。
-- 分片四登记的功能差异：`snapshot().hard_stop_events` 未包含 hard-stop 拒绝审计（见保留差异），
-  需要产品决策后修复 `jftrade-trading` 投影并补回归测试。
-- 该文件清零后，继续 trading_broker 域其余 21 个文件（`order_updates_test.go` 15、
-  `execution_combo_lifecycle_test.go` 12、`pkg/broker/broker_test.go` 8 …），随后按
+- 下批（第 118 批）：trading_broker 域 `internal/trading/order_updates_test.go` 的 15 条 `partial`
+  （成交推送 / 断线重连 / 重启恢复），随后 `execution_combo_lifecycle_test.go` 12 条、
+  `pkg/broker/broker_test.go` 8 条、`catalog_test.go` 6 条等 21 个文件分片推进；之后按
   api_transport / strategy_pine / assistant_workflow / backtest_calendar / storage_sqlite /
   marketdata_quotes / futu_opend / settings_watchlist 顺序逐域收口。
+- 本文件遗留（两条，均已如实标注、非 function_exact）：
+  ① `:738` 保留 `partial`——`snapshot().hard_stop_events` 未包含 hard-stop 拒绝审计
+  （修复位置 `jftrade-trading/src/real_trade.rs` 的投影或把拒绝事件 action 归入 `HARD_STOP_` 前缀）；
+  ② `:1047` 改判 `boundary`——Rust 详情读路径为纯存储投影，刷新由
+  `ExecutionReconciliationWorker`（15s 节奏 + push wake）承担，读时刷新 seam 不存在
+  （修复位置与回归要求见分片五保留差异）。
 - 既有独立项：docs/history 尖括号占位符导致 `build:docs:generated` 失败；桌面周期性更新检查
-  （`startDesktopUpdateChecks` 24h 节奏）。
+  （`startDesktopUpdateChecks` 24h 节奏）；launcher SIGTERM 竞态抖动。
+
+## 第一百一十七批（分片五）：amount 模式风控矩阵、环境变量负例、审计事件流与详情上界（5 条）
+
+### 范围与分片
+
+Go 侧 5 条（同文件 17 条中的最后 5 行）：
+
+- P0 `internal/trading/execution_test.go:613`：`TestPreTradeRiskEnforcesAmountModeQuantityAndNotionalLimits`
+  （amount 模式的数量限额/名义限额、缺失金额、不依赖 caller 价、以及非事件合约夹带 amount 的形状拒绝）。
+- P1 `internal/trading/execution_test.go:718`：`TestRealTradeEnvVariablesDoNotConfigurePreTradeRisk`
+  （`JFTRADE_ALLOW_REAL_TRADING` 等 5 个环境变量不得配置运行期开关与限额）。
+- P1 `internal/trading/execution_test.go:813`：`TestRealTradeControlPlaneRuntimeRiskConfigValidationAndDisableEvents`
+  （无效配置失败、环境归一 `REAL`、`RISK_CONFIG_UPDATED`/`RISK_CONFIG_DISABLED` 事件、禁用归零、重载事件数）。
+- P1 `internal/trading/execution_test.go:1014`：`TestExecutionOrderDetailsReturnsOrderAndBoundedRecentEvents`
+  （详情返回订单 + 最近 10 条事件 + `checkedAt`，缺失订单 `ErrExecutionOrderNotFound`）。
+- P2 `internal/trading/execution_test.go:1047`：`TestExecutionOrderDetailsRefreshesTargetHistoryBeforeReturning`
+  （返回前对目标订单 scope 刷新历史并反映 raw broker status）。
+
+分类：4 条 `[x]`/`function_exact`（`:613`、`:718`、`:813`、`:1014`），1 条改判
+`[~]`/`boundary`（`:1047`）；全仓 `[x]` 1340 → **1344**、`partial` 2533 → **2528**、
+`boundary` 574 → **575**、`module_only` 4、`missing` 0；Rust 测试 3079 → **3084**。
+
+### 关键事实（本批 recon 与实测）
+
+- **`:613` 是真实功能缺口（生产修复）**：Go `commandUsesAmount` 对事件合约比较
+  `commandRiskAmount(command) > EffectiveMaxOrderQuantity`（`go:internal/trading/risk.go:99-118`），
+  而 Rust `evaluate_pre_trade_risk` 的数量限额分支写作 `if !is_amount_mode && let Some(maximum) = …`，
+  **amount 模式（事件合约）从不进入数量限额判断**——只配置 `RuntimeMaxOrderQty` 时，金额任意大的事件单可绕过；
+  同分支还负责组合腿数量。修复：amount 模式改比 `order.amount`，给出
+  `MAX_ORDER_QUANTITY_EXCEEDED`（消息 “order amount exceeds the configured real-trade quantity-mode limit”）。
+- **`:613` 的其余三条差异**：缺失/非正金额原报 `INVALID_ORDER_RISK_SHAPE`，Go 报
+  `RISK_AMOUNT_UNAVAILABLE`（`commandRiskAmount` 要求正有限值）→ 已对齐；非 amount 模式携带 `amount`
+  原被静默忽略（Go `commandRiskShapeError` 判 `INVALID_ORDER_RISK_SHAPE`：“amount quantity mode is supported
+  for event-contract orders only”）→ 已补形状拒绝，并把引擎夹具
+  `product_execution_risk_coordinator_tests.rs::test_order` 的 `amount` 归零（units 模式不允许携带）。
+  amount 模式不依赖 caller 价这一条 Rust 本就成立（`is_amount_mode` 分支只用 `amount`），本轮补断言。
+- **`:718` 的环境面无 Rust 对应实现**：`JFTRADE_ALLOW_REAL_TRADING`、`JFTRADE_REAL_TRADE_KILL_SWITCH`、
+  `JFTRADE_REAL_TRADE_MAX_ORDER_QUANTITY`、`JFTRADE_REAL_TRADE_MAX_ORDER_NOTIONAL`、
+  `JFTRADE_REAL_TRADE_APPROVAL_NOTIONAL` 在 crates/apps/workers/scripts/docs/tests 中出现 **0 次**；
+  本域唯一环境变量是 `JFTRADE_REAL_TRADE_CONTROL_PATH`（仅覆盖控制面文件路径，由
+  `product_runtime_resources_tests` 断言）。Rust 的运行期开关/限额只由控制面 JSON 派生
+  （`ExecutionRiskCoordinator::snapshot` → `RealTradeRiskSnapshot::from_control_state`）。
+- **`:813` 的所有权分层**：校验（enable 无限额、非正限额）在 wire 层 `dispatch_system_write` →
+  `validate_risk`（400 `BAD_REQUEST`，不落审计）；状态与事件在控制面层
+  `ProductionSystemWritePort::mutate` → `update_risk`/`disable_risk`（`product_production_ports_system.rs`），
+  投影 `riskEvents` 按 action 前缀 `RISK_CONFIG_` 过滤，禁用会 `take()` 掉 `risk_config`。
+- **`:1014` 读路径**：`product_production_ports_execution_orders.rs` 详情分支 `get_order` +
+  `list_order_events`，`len > 10` 时 `split_off(len - 10)` 保留最新 10 条（最旧在前），缺失订单返回
+  `ExecutionReadSnapshotError::NotFound`（wire 层 404 `ORDER_NOT_FOUND`）。
+- **`:1047` 是架构性保留边界**：Go 的服务自带 order-updates worker，详情返回前按目标 scope 主动
+  `GetHistoryOrders`；Rust 按唯一写入所有者把刷新放进后台 `ExecutionReconciliationWorker::start`
+  （`product_production_ports.rs:249`，15s 节奏 + trade runtime `reconciliation_wake()` 推送唤醒），
+  详情分支不发 broker RPC，因此“读时刷新时序”在 Rust 无对应 seam。
+
+### 新增测试（均带 `// Parity:` 锚点）
+
+- `crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_enforces_amount_mode_quantity_and_notional_limits`
+  （锚 `:613`）：amount 60 + 数量限额 50 → `MAX_ORDER_QUANTITY_EXCEEDED`；+ 名义限额 50 →
+  `MAX_ORDER_NOTIONAL_EXCEEDED`；缺失金额 → `RISK_AMOUNT_UNAVAILABLE`；无 caller 价且限额 100 →
+  允许（数量与名义两条路径各断言一次）。
+- `crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_rejects_amount_smuggled_into_non_amount_mode`
+  （锚 `:613`）：equity + units + `amount=1` + 数量 1e6 + 名义限额 50 → `INVALID_ORDER_RISK_SHAPE`
+  （形状检查先于名义计算，证明伪造 amount 不再被静默忽略）。
+- `crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_rejects_missing_or_negative_amount_in_amount_mode`
+  （改写既有断言，补锚 `risk_shape_boundaries_test.go:11`）：缺失与 0 金额均报 `RISK_AMOUNT_UNAVAILABLE`。
+- `crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::real_trade_gates_come_only_from_the_control_plane_file`
+  （锚 `:718`）：默认控制面文件 → `realTradingEnabled=false`、`killSwitchActive=false`、
+  `runtimeRiskConfigured=false`、无有效限额、`riskEntry=None`，REAL 单 403 `REAL_TRADING_DISABLED`。
+- `crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::runtime_risk_config_records_audit_events_and_survives_disable_reload`
+  （锚 `:813`）：PUT 无限额 / 负限额 → 400 `BAD_REQUEST` 且 `riskEvents` 仍为空；经
+  `ProductionSystemWritePort::mutate` 更新 → `riskEntry` 环境 `REAL`、`RISK_CONFIG_UPDATED`
+  （`realTradingEnabled=true`）、有效限额 25/5000；DELETE 禁用 → `RISK_CONFIG_DISABLED`
+  （`realTradingEnabled=false`）、`runtimeRiskConfigured=false`、`riskEntry=None`；重载后事件数保持 2。
+- `crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::execution_order_detail_returns_order_with_bounded_recent_events`
+  （锚 `:1014`）：12 条事件 → 详情 `order`/`recentEvents`/`checkedAt` 三键、最近 10 条
+  `evt-03…evt-12` 最旧在前、缺失订单 `NotFound`。
+
+### 生产修复与探针记录（破 → 红 → 按字节回滚）
+
+- 修复文件 `crates/jftrade-trading/src/risk.rs`（amount 模式数量限额 + 金额不可用码 + 形状拒绝），
+  修复后 sha `584011509fb112ecd6539b27157ef13626eb444903e124a8081e435516f21f7e`，三次探针后均按字节回滚一致：
+  - ①数量限额分支恢复 `if false && is_amount_mode` → `pre_trade_risk_enforces_amount_mode_quantity_and_notional_limits`
+    在 `assert!(!decision.allowed)` 转红（amount 60 被放行）。
+  - ②金额缺失码改回 `INVALID_ORDER_RISK_SHAPE` → `pre_trade_risk_rejects_missing_or_negative_amount_in_amount_mode`
+    转红（`left: INVALID_ORDER_RISK_SHAPE` / `right: RISK_AMOUNT_UNAVAILABLE`）。
+  - ③删除“非 amount 模式携带 amount”分支 → `pre_trade_risk_rejects_amount_smuggled_into_non_amount_mode`
+    转红（返回 `MAX_ORDER_QUANTITY_EXCEEDED` 而非 `INVALID_ORDER_RISK_SHAPE`）。
+- 探针（`:1014`）针对 `crates/jftrade-engine/src/product_production_ports_execution_orders.rs`
+  （sha `eae79748cbde15eeba184fc09026010a2b65e3971cb35b5f0d5b5d5c75d0f01c`）：
+  ① 截断阈值 10 → 10_000 → 返回 12 条转红；② 缺失订单改为返回 `{"order": null}` → 转红；两次均按字节回滚。
+- `:718`/`:813`/`:1047` 不涉及生产语义变更（`risk.rs` 之外的文件未改动逻辑）。
+
+### 保留差异
+
+- `:1047`（boundary）：读时不刷新。复现：OpenD 已回报 `FILLED_ALL` 而本地仍 `BROKER_ACCEPTED` 时立即
+  `GET /api/v1/execution/orders/{id}` → Rust 返回旧状态（等 worker 下一次扫描），Go 返回刷新后状态。
+  将来升级：在 `product_production_ports_execution_reconciliation.rs` 增加按目标 scope 的定向对账入口
+  （复用 `reconcile_order`/`header_from_order`），详情分支调用；回归要求：目标 scope 恰好一次历史拉取、
+  raw broker status 投影到详情、非目标订单不拉取、终端状态不重复写。
+- `:718`：因工作区禁止进程级 env 写入，未构造 env 注入用例；等价证据是“该环境面在 Rust 不存在 + 状态只来自控制面文件”。
+- `:813`：Go 在控制面内部校验，Rust 分层为 wire 校验 + 控制面变更；错误码/状态一致（400 `BAD_REQUEST`），
+  审计事件文本（`eventType`/`action`）与 Go 同名。
 
 验证：
 - 分片一定向 nextest（2 条新测试）EXIT=0：`invalid_order_payload_is_rejected_before_the_broker_is_called`
@@ -355,3 +461,21 @@ Go 侧 4 条（同文件 `:496`、`:738`、`:874`、`:939`）：
   31.9GiB）并复跑——`:target-health` / `:architecture` / `:production-policy` 通过，唯一失败阶段
   `check:rust:policy`（`cargo deny`）报 RUSTSEC-2026-0285 与陈旧 advisory 告警，与本仓既有基线同源。
   **不记为通过**；等价测试面由上面的全量 nextest 与 `check:quick` 覆盖。
+- 分片五修复与探针：`crates/jftrade-trading/src/risk.rs` amount 模式数量限额缺口修复后，
+  定向 nextest EXIT=0（`pre_trade_risk_enforces_amount_mode_quantity_and_notional_limits`、
+  `pre_trade_risk_rejects_amount_smuggled_into_non_amount_mode`、
+  `pre_trade_risk_rejects_missing_or_negative_amount_in_amount_mode` 等 18 条）；三次探针全部转红并按字节回滚
+  （`risk.rs` sha `584011509fb112ecd6539b27157ef13626eb444903e124a8081e435516f21f7e`）。
+- 分片五新增引擎测试 EXIT=0：`real_trade_gates_come_only_from_the_control_plane_file`、
+  `runtime_risk_config_records_audit_events_and_survives_disable_reload`、
+  `execution_order_detail_returns_order_with_bounded_recent_events`；详情两次探针（截断阈值、
+  缺失订单空详情）转红并按字节回滚（orders 文件 sha `eae79748cbde15eeba184fc09026010a2b65e3971cb35b5f0d5b5d5c75d0f01c`）。
+- 分片五门禁：`cargo fmt --all --check` EXIT=0；
+  `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-trading --all-targets --locked --no-fail-fast`
+  **1858 passed / 0 failed / 0 skipped**。
+- 分片五审计：`python3 scripts/compatibility/audit_test_parity.py` 4451 Go / **3084** Rust、
+  `[x]` 1340 → **1344**、`partial` 2533 → **2528**、`boundary` 574 → **575**、`missing` 0、
+  0 破坏引用、202 未锚定 function_exact、7 条 partial 无解析引用、2 条无断言（均既有基线）；
+  `python3.12 scripts/compatibility/parity_anchor_reconcile.py` 1347 唯一引用
+  （已记账 1284 → **1291**、unrecorded 0、unknown 55、stale 8 → **1**；含把 6 条 coordinator 测试
+  的 rust_entry 改写为真实承载锚点的 `product_execution_risk_coordinator_tests.rs`）。

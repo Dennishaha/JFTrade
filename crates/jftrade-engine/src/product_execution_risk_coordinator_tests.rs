@@ -1,4 +1,8 @@
 use super::*;
+use crate::product::product_production_ports::ProductionSystemWritePort;
+use crate::product::product_system_write_port::{
+    SystemWriteInput, SystemWriteOperation, SystemWritePort,
+};
 use jftrade_kernel::Decimal;
 use jftrade_trading::TradingEnvironment;
 use std::fs;
@@ -25,10 +29,9 @@ fn test_order(env: TradingEnvironment, qty: f64, price: f64) -> PreTradeRiskOrde
         quantity_mode: "units".to_owned(),
         quantity: Decimal::from_str(&qty.to_string()).unwrap_or_default(),
         price: Some(Decimal::from_str(&price.to_string()).unwrap_or_default()),
-        amount: Some(
-            Decimal::from_str(&qty.to_string()).unwrap_or_default()
-                * Decimal::from_str(&price.to_string()).unwrap_or_default(),
-        ),
+        // Units mode never carries an amount: the domain rejects a smuggled
+        // amount, matching Go's `commandRiskShapeError`.
+        amount: None,
         legs: Vec::new(),
     }
 }
@@ -679,5 +682,157 @@ fn unreadable_persisted_state_fails_closed_and_blocks_mutations() {
                 if code == "CONTROL_PLANE_READ_FAILED"
         ),
         "mutation error = {blocked:?}"
+    );
+}
+
+#[test]
+fn real_trade_gates_come_only_from_the_control_plane_file() {
+    // Parity: go:452dea11:internal/trading/execution_test.go:718 TestRealTradeEnvVariablesDoNotConfigurePreTradeRisk
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("real-trade-control.json");
+    let coordinator = ExecutionRiskCoordinator::new(path);
+    let snapshot = coordinator.snapshot();
+    assert!(!snapshot.real_trading_enabled);
+    assert!(!snapshot.kill_switch_active);
+    assert!(!snapshot.runtime_risk_configured);
+    assert!(!snapshot.risk_enabled);
+    assert!(snapshot.effective_max_order_quantity.is_none());
+    assert!(snapshot.effective_max_order_notional.is_none());
+    assert!(snapshot.risk_entry.is_none());
+
+    let rejected = coordinator
+        .execute_with_risk_guard(&test_order(TradingEnvironment::Real, 10.0, 150.0), || {
+            Ok("must-not-run")
+        })
+        .expect_err("REAL order with a default control plane");
+    assert!(
+        matches!(
+            rejected,
+            ExecutionWritePortError::Failed {
+                status: 403,
+                ref code,
+                ..
+            } if code == "REAL_TRADING_DISABLED"
+        ),
+        "REAL order error = {rejected:?}"
+    );
+}
+
+fn runtime_risk_command(
+    environment: &str,
+    real_trading_enabled: bool,
+    max_order_quantity: Option<f64>,
+    max_order_notional: Option<f64>,
+) -> crate::product::product_system_write_port::RealTradeRuntimeRiskCommand {
+    crate::product::product_system_write_port::RealTradeRuntimeRiskCommand {
+        trading_environment: environment.to_owned(),
+        real_trading_enabled,
+        max_order_quantity,
+        max_order_notional,
+        operator_id: "tester".to_owned(),
+        reason: "session open".to_owned(),
+    }
+}
+
+fn dispatch_risk_update(
+    port: &crate::product::product_production_ports::ProductionSystemWritePort,
+    method: &str,
+    body: &[u8],
+) -> crate::product::product_system_write_port::SystemWriteResponse {
+    crate::product::product_system_write_port::dispatch_system_write(
+        &crate::product::product_system_write_port::SystemWriteRequest {
+            method: method.to_owned(),
+            path: "/api/v1/system/real-trade-risk-limits".to_owned(),
+            body: body.to_vec(),
+        },
+        Some(port),
+        "2026-07-04T01:02:03Z",
+    )
+}
+
+#[test]
+fn runtime_risk_config_records_audit_events_and_survives_disable_reload() {
+    // Parity: go:452dea11:internal/trading/execution_test.go:813 TestRealTradeControlPlaneRuntimeRiskConfigValidationAndDisableEvents
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("real-trade-control.json");
+    let coordinator = std::sync::Arc::new(ExecutionRiskCoordinator::new(&path));
+    let port = ProductionSystemWritePort::with_coordinator(std::sync::Arc::clone(&coordinator));
+
+    // Enabling without limits and non-positive limits are rejected before the
+    // port mutates the control plane.
+    let without_limits = dispatch_risk_update(
+        &port,
+        "PUT",
+        br#"{"tradingEnvironment":"real","realTradingEnabled":true,"operatorId":"tester"}"#,
+    );
+    assert_eq!(without_limits.status, 400);
+    assert_eq!(without_limits.body["error"]["code"], "BAD_REQUEST");
+    let negative_limit = dispatch_risk_update(
+        &port,
+        "PUT",
+        br#"{"maxOrderQuantity":-1,"operatorId":"tester"}"#,
+    );
+    assert_eq!(negative_limit.status, 400);
+    assert_eq!(negative_limit.body["error"]["code"], "BAD_REQUEST");
+    assert!(
+        coordinator.snapshot().risk_events.is_empty(),
+        "rejected payloads must not append audit events"
+    );
+
+    let command = runtime_risk_command("real", true, Some(25.0), Some(5000.0));
+    port.mutate(&SystemWriteInput {
+        operation: SystemWriteOperation::UpdateRisk,
+        hard_stop_id: None,
+        kill_switch: None,
+        hard_stop: None,
+        risk: Some(command),
+    })
+    .expect("update runtime risk config");
+    let snapshot = coordinator.snapshot();
+    assert!(snapshot.real_trading_enabled);
+    assert!(snapshot.runtime_risk_configured);
+    assert_eq!(
+        snapshot.risk_entry.as_ref().map(|entry| (
+            entry.operator_id.as_str(),
+            entry.trading_environment.as_str()
+        )),
+        Some(("tester", "REAL"))
+    );
+    assert_eq!(snapshot.risk_events.len(), 1);
+    assert_eq!(snapshot.risk_events[0].action, "RISK_CONFIG_UPDATED");
+    assert_eq!(snapshot.risk_events[0].real_trading_enabled, Some(true));
+    assert_eq!(
+        snapshot.effective_max_order_quantity,
+        Some(Decimal::from_str("25").unwrap())
+    );
+    assert_eq!(
+        snapshot.effective_max_order_notional,
+        Some(Decimal::from_str("5000").unwrap())
+    );
+
+    port.mutate(&SystemWriteInput {
+        operation: SystemWriteOperation::DisableRisk,
+        hard_stop_id: None,
+        kill_switch: None,
+        hard_stop: None,
+        risk: Some(runtime_risk_command("", false, None, None)),
+    })
+    .expect("disable runtime risk config");
+    let snapshot = coordinator.snapshot();
+    assert!(!snapshot.real_trading_enabled);
+    assert!(!snapshot.runtime_risk_configured);
+    assert!(snapshot.risk_entry.is_none());
+    assert_eq!(snapshot.risk_events.len(), 2);
+    assert_eq!(snapshot.risk_events[0].action, "RISK_CONFIG_DISABLED");
+    assert_eq!(snapshot.risk_events[0].real_trading_enabled, Some(false));
+
+    let reloaded = ExecutionRiskCoordinator::new(&path);
+    let reloaded_snapshot = reloaded.snapshot();
+    assert!(!reloaded_snapshot.runtime_risk_configured);
+    assert!(reloaded_snapshot.risk_entry.is_none());
+    assert_eq!(
+        reloaded_snapshot.risk_events.len(),
+        snapshot.risk_events.len(),
+        "reload must preserve the audit event count"
     );
 }

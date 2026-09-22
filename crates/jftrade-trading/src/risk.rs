@@ -433,16 +433,13 @@ pub fn evaluate_pre_trade_risk(
 ) -> PreTradeRiskDecision {
     let is_amount_mode = order.quantity_mode.eq_ignore_ascii_case("amount");
     if is_amount_mode {
-        let Some(amount) = order.amount else {
+        // Go reports an unknown amount as RISK_AMOUNT_UNAVAILABLE instead of a
+        // generic shape error so callers can tell "size unknown" apart from
+        // "inconsistent command"; the limit checks below reuse the same code.
+        if order.amount.is_none_or(|amount| amount <= Decimal::ZERO) {
             return PreTradeRiskDecision::reject(
-                "INVALID_ORDER_RISK_SHAPE",
-                "order amount is required in amount mode",
-            );
-        };
-        if amount <= Decimal::ZERO {
-            return PreTradeRiskDecision::reject(
-                "INVALID_ORDER_RISK_SHAPE",
-                "order amount must be positive in amount mode",
+                "RISK_AMOUNT_UNAVAILABLE",
+                "a positive order amount is required for amount quantity mode",
             );
         }
     } else {
@@ -459,6 +456,14 @@ pub fn evaluate_pre_trade_risk(
                     "combo leg quantity must be positive",
                 );
             }
+        }
+        // Amount is the event-contract size unit.  A caller that smuggles it
+        // into a units/contracts command must not have it silently ignored.
+        if order.amount.is_some() {
+            return PreTradeRiskDecision::reject(
+                "INVALID_ORDER_RISK_SHAPE",
+                "amount is supported for event-contract orders only",
+            );
         }
     }
 
@@ -552,19 +557,38 @@ pub fn evaluate_pre_trade_risk(
         }
     }
 
-    if !is_amount_mode && let Some(maximum) = policy.effective_max_order_quantity {
-        if order.quantity > maximum {
-            return PreTradeRiskDecision::reject(
-                "MAX_ORDER_QUANTITY_EXCEEDED",
-                "order quantity exceeds the configured real-trade limit",
-            );
-        }
-        for leg in &order.legs {
-            if leg.quantity > maximum {
+    if let Some(maximum) = policy.effective_max_order_quantity {
+        if is_amount_mode {
+            // Amount mode carries its size in `amount`; OpenD builds the event
+            // command with Query.Quantity set to the amount, so the configured
+            // quantity limit must fence the amount.  Never derive risk from a
+            // caller-controlled limit price or RFQ display price.
+            let Some(amount) = order.amount else {
+                return PreTradeRiskDecision::reject(
+                    "RISK_AMOUNT_UNAVAILABLE",
+                    "order amount is required to enforce the configured real-trade quantity limit",
+                );
+            };
+            if amount > maximum {
                 return PreTradeRiskDecision::reject(
                     "MAX_ORDER_QUANTITY_EXCEEDED",
-                    "combo leg quantity exceeds the configured real-trade limit",
+                    "order amount exceeds the configured real-trade quantity-mode limit",
                 );
+            }
+        } else {
+            if order.quantity > maximum {
+                return PreTradeRiskDecision::reject(
+                    "MAX_ORDER_QUANTITY_EXCEEDED",
+                    "order quantity exceeds the configured real-trade limit",
+                );
+            }
+            for leg in &order.legs {
+                if leg.quantity > maximum {
+                    return PreTradeRiskDecision::reject(
+                        "MAX_ORDER_QUANTITY_EXCEEDED",
+                        "combo leg quantity exceeds the configured real-trade limit",
+                    );
+                }
             }
         }
     }

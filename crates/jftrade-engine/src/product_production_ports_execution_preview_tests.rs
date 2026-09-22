@@ -2676,3 +2676,101 @@ fn execution_read_decodes_percent_encoded_order_ids() {
         .expect_err("an id that decodes to a path separator stays not found");
     assert!(matches!(slash, ExecutionReadSnapshotError::NotFound));
 }
+
+/// Parity: go:452dea11:internal/trading/execution_test.go:1014 TestExecutionOrderDetailsReturnsOrderAndBoundedRecentEvents
+#[test]
+fn execution_order_detail_returns_order_with_bounded_recent_events() {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, false);
+    let port = preview_port(state, None, Some(false));
+    port.store
+        .save_order(
+            jftrade_store_sqlite::StoredExecutionOrder {
+                internal_order_id: "exec-1".to_owned(),
+                broker_id: "futu".to_owned(),
+                broker_order_id: Some("broker-exec-1".to_owned()),
+                broker_order_id_ex: None,
+                source: "api".to_owned(),
+                source_detail: "execution-detail-bound".to_owned(),
+                trading_environment: "SIMULATE".to_owned(),
+                account_id: "42".to_owned(),
+                market: "US".to_owned(),
+                symbol: Some("AAPL".to_owned()),
+                side: Some("BUY".to_owned()),
+                order_type: Some("LIMIT".to_owned()),
+                status: "BROKER_ACCEPTED".to_owned(),
+                raw_broker_status: None,
+                requested_quantity: Some(10.0),
+                requested_price: Some(100.0),
+                filled_quantity: None,
+                filled_average_price: None,
+                remark: None,
+                last_error: None,
+                last_error_code: None,
+                last_error_source: None,
+                submitted_at: None,
+                updated_at: "2026-09-01T00:00:00Z".to_owned(),
+                created_at: "2026-09-01T00:00:00Z".to_owned(),
+                order_kind: "single".to_owned(),
+                product_class: "equity".to_owned(),
+                quantity_mode: "units".to_owned(),
+                client_order_id: Some("client-exec-1".to_owned()),
+                preview_id: None,
+                normalized_request: "{}".to_owned(),
+                requested_amount: None,
+                payout: None,
+                fees: None,
+            },
+            "2026-09-01T00:00:00Z",
+        )
+        .expect("save order");
+
+    for index in 1..=12 {
+        let id = format!("evt-{index:02}");
+        let created_at = format!("2026-09-01T00:00:{index:02}Z");
+        port.store
+            .record_event(&jftrade_store_sqlite::StoredExecutionOrderEvent {
+                id: &id,
+                internal_order_id: "exec-1",
+                event_type: "STATUS",
+                previous_status: None,
+                next_status: "BROKER_ACCEPTED",
+                payload_json: "{}",
+                created_at: &created_at,
+            })
+            .expect("record order event");
+    }
+
+    let detail = port
+        .read("/api/v1/execution/orders/exec-1", "")
+        .expect("order detail");
+    assert_eq!(detail["order"]["internalOrderId"], "exec-1");
+    assert_eq!(detail["order"]["status"], "BROKER_ACCEPTED");
+    let events = detail["recentEvents"]
+        .as_array()
+        .expect("recentEvents array")
+        .iter()
+        .map(|event| event["id"].as_str().unwrap_or_default().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        events,
+        vec![
+            "evt-03", "evt-04", "evt-05", "evt-06", "evt-07", "evt-08", "evt-09", "evt-10",
+            "evt-11", "evt-12"
+        ],
+        "the newest ten events must be returned oldest-first"
+    );
+    assert!(
+        detail["checkedAt"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty()),
+        "checkedAt must be populated"
+    );
+
+    let missing = port
+        .read("/api/v1/execution/orders/exec-missing", "")
+        .expect_err("missing order must not resolve to an empty detail");
+    assert!(matches!(missing, ExecutionReadSnapshotError::NotFound));
+}

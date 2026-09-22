@@ -49,6 +49,7 @@ fn pre_trade_risk_rejects_non_positive_quantity_in_units_mode() {
 
 #[test]
 fn pre_trade_risk_rejects_missing_or_negative_amount_in_amount_mode() {
+    // Parity: go:452dea11:internal/trading/risk_shape_boundaries_test.go:11 TestCommandRiskShapeRejectsSpoofedAndIncompatibleFields
     let policy = valid_policy();
     let mut order = test_order(TradingEnvironment::Simulate);
     order.quantity_mode = "amount".to_owned();
@@ -57,7 +58,7 @@ fn pre_trade_risk_rejects_missing_or_negative_amount_in_amount_mode() {
     assert!(!decision.allowed);
     assert_eq!(
         decision.reason_code.as_deref(),
-        Some("INVALID_ORDER_RISK_SHAPE")
+        Some("RISK_AMOUNT_UNAVAILABLE")
     );
 
     order.amount = Some(Decimal::ZERO);
@@ -65,8 +66,82 @@ fn pre_trade_risk_rejects_missing_or_negative_amount_in_amount_mode() {
     assert!(!decision.allowed);
     assert_eq!(
         decision.reason_code.as_deref(),
+        Some("RISK_AMOUNT_UNAVAILABLE")
+    );
+}
+
+#[test]
+fn pre_trade_risk_rejects_amount_smuggled_into_non_amount_mode() {
+    // Parity: go:452dea11:internal/trading/execution_test.go:613 TestPreTradeRiskEnforcesAmountModeQuantityAndNotionalLimits
+    let mut policy = valid_policy();
+    policy.effective_max_order_notional = Some(Decimal::from_str("50").unwrap());
+
+    let mut spoofed = test_order(TradingEnvironment::Real);
+    spoofed.quantity = Decimal::from_str("1000000").unwrap();
+    spoofed.amount = Some(Decimal::from_str("1").unwrap());
+    spoofed.price = Some(Decimal::from_str("0.50").unwrap());
+
+    let decision = evaluate_pre_trade_risk(&policy, &spoofed);
+    assert!(!decision.allowed);
+    assert_eq!(
+        decision.reason_code.as_deref(),
         Some("INVALID_ORDER_RISK_SHAPE")
     );
+}
+
+#[test]
+fn pre_trade_risk_enforces_amount_mode_quantity_and_notional_limits() {
+    // Parity: go:452dea11:internal/trading/execution_test.go:613 TestPreTradeRiskEnforcesAmountModeQuantityAndNotionalLimits
+    let mut order = test_order(TradingEnvironment::Real);
+    order.product_class = "event_contract".to_owned();
+    order.order_kind = "event_single".to_owned();
+    order.quantity_mode = "amount".to_owned();
+    order.amount = Some(Decimal::from_str("60").unwrap());
+    order.price = Some(Decimal::from_str("0.50").unwrap());
+
+    let mut quantity_policy = valid_policy();
+    quantity_policy.effective_max_order_quantity = Some(Decimal::from_str("50").unwrap());
+    quantity_policy.effective_max_order_notional = None;
+    let decision = evaluate_pre_trade_risk(&quantity_policy, &order);
+    assert!(!decision.allowed);
+    assert_eq!(
+        decision.reason_code.as_deref(),
+        Some("MAX_ORDER_QUANTITY_EXCEEDED")
+    );
+
+    let mut notional_policy = valid_policy();
+    notional_policy.effective_max_order_quantity = None;
+    notional_policy.effective_max_order_notional = Some(Decimal::from_str("50").unwrap());
+    let decision = evaluate_pre_trade_risk(&notional_policy, &order);
+    assert!(!decision.allowed);
+    assert_eq!(
+        decision.reason_code.as_deref(),
+        Some("MAX_ORDER_NOTIONAL_EXCEEDED")
+    );
+
+    let mut missing_amount = order.clone();
+    missing_amount.amount = None;
+    let decision = evaluate_pre_trade_risk(&notional_policy, &missing_amount);
+    assert!(!decision.allowed);
+    assert_eq!(
+        decision.reason_code.as_deref(),
+        Some("RISK_AMOUNT_UNAVAILABLE")
+    );
+
+    // Amount is the risk size: the display price must never gate or shrink it.
+    let mut without_display_price = order.clone();
+    without_display_price.price = None;
+    let mut within_quantity = valid_policy();
+    within_quantity.effective_max_order_quantity = Some(Decimal::from_str("100").unwrap());
+    within_quantity.effective_max_order_notional = None;
+    let decision = evaluate_pre_trade_risk(&within_quantity, &without_display_price);
+    assert!(decision.allowed);
+
+    let mut within_notional = valid_policy();
+    within_notional.effective_max_order_quantity = None;
+    within_notional.effective_max_order_notional = Some(Decimal::from_str("100").unwrap());
+    let decision = evaluate_pre_trade_risk(&within_notional, &without_display_price);
+    assert!(decision.allowed);
 }
 
 #[test]
@@ -275,7 +350,11 @@ fn pre_trade_risk_combo_amount_mode_precedence_and_leg_bypass() {
 
     let mut policy = valid_policy();
     policy.effective_max_order_notional = Some(Decimal::from_str("10000").unwrap());
-    policy.effective_max_order_quantity = Some(Decimal::from_str("50").unwrap());
+    // Amount mode compares the amount against the quantity limit as well (Go
+    // `commandRiskAmount`), so keep the fixture above both amounts here and
+    // cover the amount-versus-quantity-limit rejection in
+    // `pre_trade_risk_enforces_amount_mode_quantity_and_notional_limits`.
+    policy.effective_max_order_quantity = Some(Decimal::from_str("20000").unwrap());
 
     let mut order = test_order(TradingEnvironment::Real);
     order.order_kind = "combo".to_owned();
