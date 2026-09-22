@@ -3689,11 +3689,11 @@
     "evidence_type": "partial"
   },
   "internal/app/apiserver/marketdataapp/runtime_health_test.go:167:TestWaitForProviderHealthRetriesUntilConnected": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::tests::readiness_retry_delay_is_exponential_and_capped; crates/jftrade-marketdata/src/router.rs::recovery_after_a_failed_health_check_publishes_a_healthy_provider",
-    "conclusion": "部分覆盖：Go 断言 health 探测在未连接时重试、第二次 connected 时返回成功且至少等待一个重试间隔。Rust 的 readiness_retry_delay_is_exponential_and_capped 断言 helper 就绪探测的退避序列 initial→2x→max→max；helper 进程的 restart_until_ready 负责在就绪前重试，但没有与 Go 相同形态的“第二次探测转 connected 即成功”的序列断言，故保留 partial。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-marketdata-helper/src/client.rs::retries_transient_readiness_and_sends_optional_bearer; crates/jftrade-marketdata/src/router.rs::recovery_after_a_failed_health_check_publishes_a_healthy_provider",
+    "conclusion": "[x]：Go 断言 wait-for-provider-health 在未连接时重试、第二次探测 connected 即返回成功且至少等待一个重试间隔。Rust 的两半都被逐条断言：client 用例用 mock 健康端点第一次 503、第二次 200，断言 readiness 请求恰好重试一次后成功（重试窗口由 retry_delay/退避阶梯决定）；router 用例断言失败的激活不发布、保留原 active provider，健康更新后再次激活成功且只发布一次、上报 provider 自身 stream mode。重试阶梯的具体常量（Go 100ms→1s 与 Rust 500ms→10s）差异单独登记在 runtime_health_test.go:222，不在本条宣称等价。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper -p jftrade-marketdata --all-targets --locked -E 'test(retries_transient_readiness_and_sends_optional_bearer) | test(recovery_after_a_failed_health_check_publishes_a_healthy_provider)'",
+    "evidence_type": "function_exact"
   },
   "internal/app/apiserver/marketdataapp/runtime_health_test.go:183:TestWaitForProviderHealthAllowsWarmingOnlyDuringStartupRestore": {
     "status": "[x]",

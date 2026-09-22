@@ -867,3 +867,64 @@ anchors 1535（unrecorded 0、stale 0、unknown 53）。
 `sidecar_process_test.go:61/:147/:190/:208/:261/:297`；`sidecar_signal_test.go:9/:24`；`unavailable_provider_test.go:12/:72`；
 `watchlist_source_test.go:15/:74/:100/:121`），随后 webaccess 24 + tradingapp 11、backtestapp 10 + datamigration 11 与
 runtime/lifecycle/runtimes/application/futuapp 余量。
+
+### 分片七：`internal/app/apiserver/marketdataapp` 余 33 行
+
+范围（按文件与行号升序）：`runtime_health_test.go:94/:114/:142/:167/:222`；
+`runtime_test.go:85/:191/:230/:370/:394/:476/:547/:570/:591/:633/:667/:704/:724`；`sidecar_os_process_test.go:146`；
+`sidecar_process_test.go:61/:147/:190/:208/:261/:297`；`sidecar_signal_test.go:9/:24`；`unavailable_provider_test.go:12/:72`；
+`watchlist_source_test.go:15/:74/:100/:121`。owner 集中在 `crates/jftrade-marketdata`（router 激活/readiness/恢复）、
+`crates/jftrade-integration-marketdata-helper`（进程启动、就绪重试、停止与超时）、`crates/jftrade-integration-futu`
+（订阅 reconciler 的延迟释放与重试阶梯）、`crates/jftrade-engine`（active provider state、runtime supervisor、helper
+health monitor、watchlist 读投影）。
+
+本分片新增 Rust 证据 1 项（1 行升 `[x]`）：
+
+- `crates/jftrade-integration-marketdata-helper/src/client.rs::retries_transient_readiness_and_sends_optional_bearer`
+  （新增 Parity 锚点）与 `crates/jftrade-marketdata/src/router.rs::recovery_after_a_failed_health_check_publishes_a_healthy_provider`
+  （既有锚点），对应 Go `runtime_health_test.go:167`：mock 健康端点第一次 503、第二次 200，readiness 恰好重试一次后成功；
+  router 侧断言失败的激活不发布、保留原 active provider，健康恢复后再次激活成功且只发布一次并上报 provider 自身 stream mode。
+  重试阶梯的具体常量差异（Go 100ms→1s 与 Rust 500ms→10s）仍由 `runtime_health_test.go:222` 单独登记，不在该行宣称等价。
+
+映射结果：33 行复核（1 行升 `[x]`；其余 32 行复核后确认原终值仍准确，其中 12 行是旧 Go 组合根/指针/信号计划模型的边界保留）。
+引用存在性校验通过。计数：`[x]` 1526 → 1527；audit Rust 测试 3194；anchors 1535（unrecorded 0、stale 0、unknown 53）。
+`marketdataapp` 的 68 行待办至此全部给出终值。
+
+关键事实与新登记缺口（P2 为主）：
+
+1. **组合根错误聚合缺失（P2）**：参照把 health 失败与 sidecar restore 失败合并返回、把激活失败与回滚释放失败合并返回、
+   把两次有界清理失败合并；Rust 是单点错误 + `ProductShutdownSupervisor` 聚合，错误形状与重试次数不同。owner：
+   `crates/jftrade-engine/src/product_runtime_supervisor.rs`、`crates/jftrade-integration-marketdata-helper`。
+2. **provider lease 引用计数模型缺失（P2）**：参照的 AcquireProvider/ProviderLease 支持同实例共享、Release 幂等、
+   最后一个租约释放才停 sidecar、切换后旧租约钉住旧实例；Rust 无此公共 API，生命周期由 HelperHealthMonitor、
+   ProductShutdownSupervisor 与 ActiveProviderState 分别拥有。属于需要产品决策的 owner 模型差异。
+3. **订阅释放延迟与激活耦合（P2）**：参照的“健康激活成功后 release 失败只延迟、后续 reconcile 暴露”与“非活动 provider
+   清理失败不影响前台 reconcile”在 Rust 拆到 SubscriptionReconciler 的延迟窗口/重试阶梯（已断言），缺组合级串联断言。
+   owner：`crates/jftrade-integration-futu/src/subscriptions*.rs` 与 provider runtime 装配。
+4. **取消与超时语义（P2）**：参照的 Activate 携带 ctx（排队期间取消不提交、退役 context 过期仍提交）；Rust 的 activate
+   是同步 Result，无取消点，超时/取消由调用方（settings 写路径）决定，active state 只保证“被拒绝的转换不发布、不推进
+   generation”。
+5. **不可用 provider 组合（P2）**：参照的 newUnavailableProvider 仍可读 Descriptor（selectionId/providerId=custom），
+   其余九类操作统一报 provider is unavailable、Health=failed 且 lastError 含 provider activation failed；Rust 无合成
+   unavailable provider，读路由在缺端口/不可用时 fail-closed（descriptor 不可读）。
+6. **watchlist source 选择器（P2）**：参照的 app 层 source 选择器按活动 provider 在 Futu 与 Python 之间路由并保留
+   missing/permission 错误且不回落；Rust 由装配期确定 watchlist read port 与 helper provider，缺逐条断言。
+7. **边界保留**：sidecar 停止信号计划（参照 SIGTERM→升级/立即强杀的可注入 plan，Rust 一律 start_kill + stop_timeout）、
+   旧 Go 源码模式的 PYTHONPATH 校验与 Python>=3.11/模块探针（Rust 由开发者 venv + /healthz 就绪探测承担）、
+   nil Runtime/lease 守卫（Rust 用 Option 与枚举表达）。
+
+验证记录：
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增与关联用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper -p jftrade-marketdata --all-targets --locked -E 'test(retries_transient_readiness_and_sends_optional_bearer) \| test(recovery_after_a_failed_health_check_publishes_a_healthy_provider)'` | 2/2 通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/s127j_payload.json` | 1 行更新，`[x]` 1526 → 1527 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；Rust 测试 3194 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1535、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1873/1873 通过 |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2943 files）、`pnpm run check:quick` | 全部通过 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 均在 cargo-deny advisories 阶段因 `deny.toml` 8 条 `advisory-not-detected` 失败（bans/licenses/sources ok） |
+
+后续（分片八）：`internal/app/apiserver/webaccess` 24 行 + `tradingapp` 11 行，随后 backtestapp 10 + datamigration 11 与
+runtime/lifecycle/runtimes/application/futuapp 余量。

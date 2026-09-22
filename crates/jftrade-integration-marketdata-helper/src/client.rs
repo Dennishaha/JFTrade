@@ -386,6 +386,10 @@ mod tests {
 
     #[tokio::test]
     async fn retries_transient_readiness_and_sends_optional_bearer() {
+        // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_health_test.go:167 TestWaitForProviderHealthRetriesUntilConnected
+        // The first readiness probe answers 503 and the second answers 200: the
+        // wait-for-health loop must retry and then report the connected sidecar,
+        // which is the Rust owner of the reference retry-until-connected path.
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
         let address = listener.local_addr().expect("address");
         let attempts = Arc::new(AtomicUsize::new(0));
