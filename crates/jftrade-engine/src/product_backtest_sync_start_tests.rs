@@ -93,7 +93,18 @@ fn sync_request_plans_intervals_like_go() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/api/backtest/routes_test.go:21 TestSyncRouteClassifiesRequestErrorsAsBadRequest
 fn sync_request_rejects_invalid_ranges_and_intervals() {
+    let malformed_since = json!({
+        "market": "HK",
+        "code": "00700",
+        "since": "bad"
+    });
+    assert!(matches!(
+        parse_sync_request(&malformed_since),
+        Err(BacktestsWritePortError::BadRequest(_))
+    ));
+
     let invalid_interval = json!({
         "market": "US",
         "code": "AAPL",
@@ -131,6 +142,7 @@ fn sync_request_defaults_match_public_contract_without_provider_success() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/api/backtest/routes_boundaries_test.go:78 TestBacktestSyncRouteRejectsObsoleteSessionScope
 fn sync_request_session_scope_parity_with_go() {
     // Parity: go:452dea11:internal/backtest/sync_test.go:412 TestParseSessionScope
     for (input, want) in [
@@ -280,6 +292,7 @@ async fn production_futu_sync_uses_opend_reader_and_persists_candles() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/api/backtest/routes_boundaries_test.go:53 TestBacktestSyncRouteReturnsTaskForValidRequest
 fn production_sync_read_projects_persisted_task() {
     let (port, _directory) = production_port();
     port.sync_tasks
@@ -541,6 +554,7 @@ fn production_backtest_start_without_worker_fails_before_persisting_run() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/api/backtest/routes_test.go:85 TestStartRoutePreservesQueuedResponseShape
 async fn production_backtest_start_executes_fixture_and_persists_terminal_result() {
     let (mut port, _directory) = production_port();
     port._market_data_store

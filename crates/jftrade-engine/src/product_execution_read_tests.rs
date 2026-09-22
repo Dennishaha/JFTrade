@@ -99,6 +99,10 @@ fn execution_read_fixture() -> ExecutionReadFixture {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/api/trading/execution_validation_contracts_test.go:52 TestExecutionRoutesValidatePayloadsAndMapHandlerErrors
+// Parity: go:452dea11:internal/api/trading/execution_test.go:110 TestHandleExecutionOrdersNormalizesScopeAndFilter
+// Parity: go:452dea11:internal/api/trading/execution_test.go:205 TestExecutionPlacePreviewAndEventsRoutes
+// Parity: go:452dea11:internal/api/trading/execution_test.go:249 TestHandleExecutionOrderDetailsReturnsCanonicalReceiptAndNotFound
 async fn execution_read_routes_match_group_fixture_in_cutover_only() {
     let fixture = execution_read_fixture();
     let directory = tempdir().expect("temporary directory");

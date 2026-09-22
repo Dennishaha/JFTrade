@@ -134,6 +134,9 @@ fn backtests_read_fixture() -> BacktestsReadFixture {
 
 #[tokio::test]
 // Parity: go:452dea11:internal/app/apiserver/servercoretest/contract_test.go:240 TestContractBacktests
+// Parity: go:452dea11:internal/api/backtest/routes_boundaries_test.go:19 TestBacktestListAndMissingResultRoutes
+// Parity: go:452dea11:internal/api/backtest/routes_progress_test.go:97 TestStatusResultAndDeleteRoutesCoverTerminalAndStoreFailures
+// Parity: go:452dea11:internal/api/backtest/routes_progress_test.go:143 TestResultAndDeleteRoutesMapRunStoreErrorsToInternalServerError
 async fn backtests_read_routes_match_group_fixture_in_cutover_only() {
     let fixture = backtests_read_fixture();
     for case in &fixture.cases {
@@ -187,6 +190,36 @@ async fn backtests_read_routes_match_group_fixture_in_cutover_only() {
         }
         handle.shutdown().await.expect("shutdown product");
     }
+}
+
+#[tokio::test]
+// Parity: go:452dea11:internal/api/backtest/routes_boundaries_test.go:19 TestBacktestListAndMissingResultRoutes
+async fn backtest_empty_list_serializes_null_runs_and_missing_result_is_not_found() {
+    let fixture = backtests_read_fixture();
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_backtest_read_snapshot_port(Arc::new(FixtureBacktestReadPort::from_fixture(
+                &fixture,
+                "list-empty",
+            )));
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+
+    let (status, response) =
+        request_json_with_status(address, "GET", "/api/v1/backtests", None, &[]).await;
+    assert_eq!(status, 200);
+    assert_eq!(response["ok"], true);
+    assert_eq!(response["data"]["runs"], Value::Null);
+
+    let (status, response) =
+        request_json_with_status(address, "GET", "/api/v1/backtests/missing-run", None, &[]).await;
+    assert_eq!(status, 404);
+    assert_eq!(response["ok"], false);
+    assert_eq!(response["error"]["code"], "NOT_FOUND");
+    handle.shutdown().await.expect("shutdown product");
 }
 
 #[tokio::test]

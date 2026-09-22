@@ -122,7 +122,13 @@ impl ExecutionWritePort for FixturePort {
 }
 
 #[test]
-// Parity: internal/api/trading/execution_test.go:205 TestExecutionPlacePreviewAndEventsRoutes
+// Parity: go:452dea11:internal/api/trading/execution_test.go:205 TestExecutionPlacePreviewAndEventsRoutes
+// Parity: go:452dea11:internal/api/trading/execution_test.go:47 TestHandleExecutionPlaceReturnsRiskRejectionEnvelope
+// Parity: go:452dea11:internal/api/trading/execution_test.go:79 TestHandleExecutionPlaceRejectsEquityAmountModeSpoof
+// Parity: go:452dea11:internal/api/trading/execution_test.go:148 TestHandleExecutionCancelReturnsMappedEnvelope
+// Parity: go:452dea11:internal/api/trading/execution_products_test.go:18 TestExecutionProductRoutesBuyingPowerComboLifecycle
+// Parity: go:452dea11:internal/api/trading/execution_products_test.go:73 TestExecutionProductRoutesValidationAndServiceErrors
+// Parity: go:452dea11:internal/api/trading/execution_validation_contracts_test.go:52 TestExecutionRoutesValidatePayloadsAndMapHandlerErrors
 // Verifies all 7 execution mutation routes (/orders, /previews, /combos, /buying-power) and checks legacy /orders/preview returns 404
 fn execution_write_fixture_replays_all_seven_go_owned_mutations() {
     let fixture = fixture();

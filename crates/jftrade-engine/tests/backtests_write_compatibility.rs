@@ -129,6 +129,11 @@ impl BacktestsWritePort for FixturePort {
 
 #[test]
 // Parity: go:452dea11:internal/app/apiserver/servercoretest/backtest_runs_test.go:127 TestBacktestRouteDeletesTerminalRuns
+// Parity: go:452dea11:internal/api/backtest/routes_test.go:52 TestSyncRouteRejectsMalformedJSON
+// Parity: go:452dea11:internal/api/backtest/routes_test.go:85 TestStartRoutePreservesQueuedResponseShape
+// Parity: go:452dea11:internal/api/backtest/routes_boundaries_test.go:53 TestBacktestSyncRouteReturnsTaskForValidRequest
+// Parity: go:452dea11:internal/api/backtest/routes_boundaries_test.go:78 TestBacktestSyncRouteRejectsObsoleteSessionScope
+// Parity: go:452dea11:internal/api/backtest/routes_progress_test.go:97 TestStatusResultAndDeleteRoutesCoverTerminalAndStoreFailures
 fn backtests_write_fixture_replays_all_four_go_owned_mutations() {
     let fixture = fixture();
     assert_eq!(fixture.version, "stage9.backtests-write.v1");
@@ -178,6 +183,87 @@ fn backtests_write_fixture_replays_all_four_go_owned_mutations() {
         port.assert_drained(&case.name);
         assert_effects_are_well_formed(case);
     }
+}
+
+fn replay_fixture_case(case_name: &str) -> (u16, Value) {
+    let fixture = fixture();
+    let case = fixture
+        .cases
+        .iter()
+        .find(|case| case.name == case_name)
+        .unwrap_or_else(|| panic!("missing backtests write fixture case {case_name}"));
+    let port = FixturePort::from_case(case);
+    let response = dispatch_backtests_write(
+        &to_request(&case.requests[0]),
+        Some(&port),
+        FIXTURE_TIMESTAMP,
+    );
+    assert_eq!(
+        port.calls.lock().expect("backtests write call list").len(),
+        case.expected
+            .iter()
+            .filter(|expected| expected.port_call)
+            .count(),
+        "case {case_name} port calls"
+    );
+    (response.status, response.body)
+}
+
+#[test]
+// Parity: go:452dea11:internal/api/backtest/routes_test.go:35 TestSyncRouteClassifiesAdapterFailureAsInternalServerError
+fn backtest_sync_route_maps_adapter_failure_to_sync_failed() {
+    let (status, body) = replay_fixture_case("sync-adapter-failure");
+    assert_eq!(status, 500);
+    assert_eq!(body["ok"], false);
+    assert_eq!(body["error"]["code"], "SYNC_FAILED");
+    assert_eq!(
+        body["error"]["message"],
+        "open kline sync adapter: sqlite unavailable"
+    );
+}
+
+#[test]
+// Parity: go:452dea11:internal/api/backtest/routes_test.go:58 TestStartRouteClassifiesRequestAndInternalErrors
+fn backtest_start_route_maps_request_and_provider_failures() {
+    let (status, body) = replay_fixture_case("start-invalid-instrument");
+    assert_eq!(status, 400);
+    assert_eq!(body["error"]["code"], "BAD_REQUEST");
+
+    let (status, body) = replay_fixture_case("start-strategy-provider-failure");
+    assert_eq!(status, 500);
+    assert_eq!(body["error"]["code"], "BACKTEST_START_FAILED");
+    assert_eq!(body["error"]["message"], "start backtest failed");
+}
+
+#[test]
+// Parity: go:452dea11:internal/api/backtest/routes_boundaries_test.go:32 TestBacktestStartRouteRejectsMalformedAndMissingStrategy
+fn backtest_start_route_rejects_malformed_json_and_missing_strategy() {
+    let (status, body) = replay_fixture_case("start-malformed-body");
+    assert_eq!(status, 400);
+    assert_eq!(body["error"]["code"], "BAD_REQUEST");
+
+    let (status, body) = replay_fixture_case("start-strategy-missing");
+    assert_eq!(status, 404);
+    assert_eq!(body["error"]["code"], "NOT_FOUND");
+    assert_eq!(body["error"]["message"], "strategy definition not found");
+}
+
+#[test]
+// Parity: go:452dea11:internal/api/backtest/routes_progress_test.go:143 TestResultAndDeleteRoutesMapRunStoreErrorsToInternalServerError
+fn backtest_delete_route_maps_run_store_failure_to_internal_server_error() {
+    let (status, body) = replay_fixture_case("delete-store-failure");
+    assert_eq!(status, 500);
+    assert_eq!(body["error"]["code"], "BACKTEST_RUN_STORE_FAILED");
+    assert_eq!(body["error"]["message"], "delete backtest run failed");
+}
+
+#[test]
+// Parity: go:452dea11:internal/api/backtest/routes_progress_test.go:160 TestDeleteRouteReturnsNotFoundWhenTerminalRunDisappearsBeforeDelete
+fn backtest_delete_route_reports_not_found_when_terminal_run_disappears() {
+    let (status, body) = replay_fixture_case("delete-status-delete-race");
+    assert_eq!(status, 404);
+    assert_eq!(body["error"]["code"], "NOT_FOUND");
+    assert_eq!(body["error"]["message"], "backtest run not found");
 }
 
 #[test]
@@ -269,6 +355,7 @@ fn backtests_write_leaf_fails_closed_without_a_test_port_after_shape_validation(
 }
 
 #[test]
+// Parity: go:452dea11:internal/api/backtest/routes_test.go:52 TestSyncRouteRejectsMalformedJSON
 fn backtests_write_leaf_preserves_trailing_json_and_error_precedence() {
     let fixture = fixture();
     let trailing = fixture

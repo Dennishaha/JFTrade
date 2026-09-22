@@ -67,8 +67,8 @@ fn real_order_fails_closed_when_control_plane_unavailable() {
 }
 
 #[test]
-// Parity: go:452dea11:internal/api/trading/execution_test.go:47 TestHandleExecutionPlaceReturnsRiskRejectionEnvelope
 // Verifies REAL trading environment pre-trade risk rejection blocks order placement and returns 403/409 risk envelope
+// Parity: go:452dea11:internal/api/trading/execution_test.go:47 TestHandleExecutionPlaceReturnsRiskRejectionEnvelope
 fn real_order_rejects_when_kill_switch_active() {
     let dir = TempDir::new().unwrap();
     let path = write_control_file(

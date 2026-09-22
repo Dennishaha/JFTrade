@@ -121,6 +121,7 @@ async fn execution_write_routes_register_only_with_explicit_test_port() {
 
 // Parity: go:452dea11:internal/app/apiserver/servercore/exec_writeback_test.go:11 TestExecutionPushHandlersWriteBackAndNotify
 // Parity: go:452dea11:internal/app/apiserver/strategyapp/runtime_ports_test.go:145 TestTradeCommandsMapPlaceCancelAndDefensiveFailures
+// Parity: go:452dea11:internal/api/trading/execution_test.go:148 TestHandleExecutionCancelReturnsMappedEnvelope
 #[tokio::test]
 async fn execution_write_product_replays_browser_boundary_failure_recovery_and_restart() {
     let directory = tempdir().expect("temporary directory");
@@ -319,6 +320,7 @@ async fn execution_write_product_replays_browser_boundary_failure_recovery_and_r
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/api/trading/execution_products_test.go:18 TestExecutionProductRoutesBuyingPowerComboLifecycle
 async fn execution_sqlite_test_cutover_replays_transport_and_restart() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
@@ -419,6 +421,8 @@ impl ExecutionReadSnapshotPort for FailedExecutionReadPort {
 /// fails closed as 503 EXECUTION_WRITE_UNAVAILABLE instead of masquerading as a
 /// request error.
 #[tokio::test]
+// Parity: go:452dea11:internal/api/trading/execution_validation_contracts_test.go:52 TestExecutionRoutesValidatePayloadsAndMapHandlerErrors
+// Parity: go:452dea11:internal/api/trading/execution_products_test.go:73 TestExecutionProductRoutesValidationAndServiceErrors
 async fn execution_error_envelopes_keep_request_errors_distinct_from_upstream_failures() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
