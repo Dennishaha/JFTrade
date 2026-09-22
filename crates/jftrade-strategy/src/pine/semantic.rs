@@ -1027,21 +1027,64 @@ fn request_security_named_argument(argument: &Expr) -> (&str, String) {
 /// `ticker.heikinashi(...)`, `ticker.standard(...)` and `ticker.inherit(...)`
 /// wrappers rooted at it. Anything else is a dynamic/external symbol.
 fn is_supported_request_security_ticker(symbol: &str) -> bool {
-    let normalized = symbol.trim().to_ascii_lowercase();
-    if normalized == "syminfo.tickerid" {
+    let trimmed = symbol.trim();
+    if trimmed == "syminfo.tickerid" {
         return true;
     }
-    let Some(inner) = normalized
-        .strip_prefix("ticker.heikinashi(")
-        .or_else(|| normalized.strip_prefix("ticker.standard("))
-        .or_else(|| normalized.strip_prefix("ticker.inherit("))
-        .and_then(|value| value.strip_suffix(')'))
-    else {
+    let Some(open) = trimmed.find('(') else {
         return false;
     };
-    inner
-        .split(',')
-        .any(|part| part.trim() == "syminfo.tickerid")
+    if !trimmed.ends_with(')') {
+        return false;
+    }
+    let name = trimmed[..open].trim().to_ascii_lowercase();
+    let arguments = split_top_level_arguments(&trimmed[open + 1..trimmed.len() - 1]);
+    match name.as_str() {
+        "ticker.heikinashi" => arguments.len() == 1 && arguments[0].trim() == "syminfo.tickerid",
+        "ticker.standard" => {
+            arguments.len() <= 1
+                && arguments
+                    .iter()
+                    .all(|item| item.trim() == "syminfo.tickerid")
+        }
+        "ticker.inherit" => {
+            arguments.len() == 2
+                && is_supported_request_security_ticker(&arguments[0])
+                && arguments[1].trim() == "syminfo.tickerid"
+        }
+        _ => false,
+    }
+}
+
+/// Split a call argument list on top-level commas so a nested call such as
+/// `ticker.inherit(ticker.heikinashi(syminfo.tickerid), syminfo.tickerid)`
+/// keeps its two arguments.
+fn split_top_level_arguments(inner: &str) -> Vec<String> {
+    if inner.trim().is_empty() {
+        return Vec::new();
+    }
+    let mut arguments = Vec::new();
+    let mut depth = 0usize;
+    let mut current = String::new();
+    for character in inner.chars() {
+        match character {
+            '(' | '[' | '{' => {
+                depth += 1;
+                current.push(character);
+            }
+            ')' | ']' | '}' => {
+                depth = depth.saturating_sub(1);
+                current.push(character);
+            }
+            ',' if depth == 0 => {
+                arguments.push(current.trim().to_owned());
+                current.clear();
+            }
+            _ => current.push(character),
+        }
+    }
+    arguments.push(current.trim().to_owned());
+    arguments
 }
 
 fn request_security_expression_has_side_effect(expression: &Expr) -> bool {

@@ -522,6 +522,7 @@ fn requirement_for_call(
             let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
             let length = argument_text(arguments.get(1))
                 .ok_or_else(|| invalid(line, format!("{callee} requires a length")))?;
+            ensure_positive_period(line, callee, &length)?;
             let label = lower
                 .strip_prefix("ta.")
                 .unwrap_or_default()
@@ -537,12 +538,14 @@ fn requirement_for_call(
         // passed for the window family (`mom:close:5`, `rising:close:3`).
         // Applying the close-only rule to every family turned `cci:20` into
         // `cci:hlc3:20` and `mom:close:5` into `mom:5`.
-        "ta.rsi" | "ta.cci" | "ta.mom" | "ta.roc" | "ta.range" | "ta.mode" | "ta.sum"
-        | "ta.rising" | "ta.falling" => {
-            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
-            let length = argument_text(arguments.get(1))
-                .or_else(|| argument_text(arguments.first()))
-                .ok_or_else(|| invalid(line, format!("{callee} requires a length")))?;
+        "ta.rsi" | "ta.cci" => {
+            let defaults = if lower == "ta.rsi" {
+                ("close", "14")
+            } else {
+                ("hlc3", "20")
+            };
+            let (source, length) = source_length_arguments(arguments, defaults);
+            ensure_positive_period(line, callee, &length)?;
             kind = lower.strip_prefix("ta.").unwrap_or_default();
             key_parts.extend([source.clone(), length]);
             if legacy_source_for(kind) == Some(source.as_str()) {
@@ -583,24 +586,17 @@ fn requirement_for_call(
                     .push(argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()));
             }
         }
-        "ta.highest" | "ta.lowest" | "ta.change" => {
+        "ta.highest" | "ta.lowest" | "ta.change" | "ta.mom" | "ta.roc" | "ta.range" | "ta.mode"
+        | "ta.sum" | "ta.rising" | "ta.falling" => {
             kind = lower.strip_prefix("ta.").unwrap_or_default();
-            let texts = arguments
-                .iter()
-                .map(|argument| {
-                    argument_text(Some(argument)).unwrap_or_else(|| argument.to_string())
-                })
-                .collect::<Vec<_>>();
-            // Go normalizes the one-argument window forms before planning
-            // (`ta.highest(20)` becomes `highest(high, 20)`, `ta.change(close)`
-            // becomes `change(close, 1)`), so the requirement keys keep the
-            // default source and length instead of dropping them.
-            match (kind, texts.len()) {
-                ("highest", 1) => key_parts.extend(["high".to_owned(), texts[0].clone()]),
-                ("lowest", 1) => key_parts.extend(["low".to_owned(), texts[0].clone()]),
-                ("change", 1) => key_parts.extend([texts[0].clone(), "1".to_owned()]),
-                _ => key_parts.extend(texts),
-            }
+            // Go normalizes the window family through
+            // `pkg/strategy/pine/lower_ta.go::pineWindowFunctionArgs` before
+            // planning: a lone argument is the source (except for
+            // highest/lowest, where it is the period) and missing argument
+            // lists fall back to the family defaults.
+            let (source, length) = window_arguments(kind, arguments);
+            ensure_positive_period(line, callee, &length)?;
+            key_parts.extend([source, length]);
         }
         // Advanced indicator bindings mirror
         // `pkg/strategy/ir/planner_indicator_adv.go` key construction so the
@@ -739,6 +735,17 @@ fn requirement_for_call(
             let symbol = argument_text(arguments.first()).unwrap_or_default();
             let timeframe = timeframe_text;
             let expression = argument_text(arguments.get(2)).unwrap_or_default();
+            // Go rejects a static timeframe string outside `pineTimeframeUnit`
+            // (`request.security(syminfo.tickerid, "2", ...)`), so the fallback
+            // key may not silently accept it.
+            if matches!(&arguments[1].kind, ExprKind::String { .. })
+                && indicator_time_unit(&timeframe).is_none()
+            {
+                return Err(invalid(
+                    line,
+                    "request.security() supports only static timeframe strings",
+                ));
+            }
             key_parts.extend([symbol, timeframe, expression]);
         }
         _ => return Ok(None),
@@ -914,6 +921,63 @@ fn source_period_parts(
 
 fn argument_text(expression: Option<&Expr>) -> Option<String> {
     expression.map(ToString::to_string)
+}
+
+/// Go rejects a non-positive literal period while planning (`ma() period must
+/// be a positive integer`). Rust keeps non-literal arguments such as alias
+/// identifiers untouched and only rejects literal values it can prove are not
+/// positive integers.
+fn ensure_positive_period(line: usize, callee: &str, period: &str) -> Result<(), PlannerError> {
+    if let Ok(value) = period.trim().parse::<f64>()
+        && value <= 0.0
+    {
+        return Err(invalid(
+            line,
+            format!("{callee} period must be a positive integer"),
+        ));
+    }
+    Ok(())
+}
+
+/// Mirror `pkg/strategy/pine/lower_ta.go::pineSourceLengthArgs`: a single
+/// argument is the period and the source keeps the family default.
+fn source_length_arguments(arguments: &[Expr], defaults: (&str, &str)) -> (String, String) {
+    let texts = argument_texts(arguments);
+    match texts.len() {
+        0 => (defaults.0.to_owned(), defaults.1.to_owned()),
+        1 => (defaults.0.to_owned(), texts[0].clone()),
+        _ => (texts[0].clone(), texts[1].clone()),
+    }
+}
+
+/// Mirror `pkg/strategy/pine/lower_ta.go::pineWindowFunctionArgs`: the window
+/// family keeps `high`/`low` defaults for the extrema calls and a 14-bar
+/// default for the momentum calls, while `highest`/`lowest` read a lone
+/// argument as the period instead of the source.
+fn window_arguments(kind: &str, arguments: &[Expr]) -> (String, String) {
+    let default_source = match kind {
+        "highest" => "high",
+        "lowest" => "low",
+        _ => "close",
+    };
+    let default_period = match kind {
+        "highest" | "lowest" | "mom" | "roc" | "rising" | "falling" => "14",
+        _ => "1",
+    };
+    let texts = argument_texts(arguments);
+    match texts.len() {
+        0 => (default_source.to_owned(), default_period.to_owned()),
+        1 if matches!(kind, "highest" | "lowest") => (default_source.to_owned(), texts[0].clone()),
+        1 => (texts[0].clone(), default_period.to_owned()),
+        _ => (texts[0].clone(), texts[1].clone()),
+    }
+}
+
+fn argument_texts(arguments: &[Expr]) -> Vec<String> {
+    arguments
+        .iter()
+        .map(|argument| argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()))
+        .collect()
 }
 /// Go records the runtime needs of an expression by scanning it for the
 /// position and account-value variables, so an assignment, an if condition or
