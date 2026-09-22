@@ -257,3 +257,42 @@ action 归入 HARD_STOP_ 前缀”），本批据此升为 `[x]`。
 | engine 证据 | `... -p jftrade-engine ... -E 'test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(futu_screen_write_errors_keep_their_transport_contract) or test(reviewed_tool_operation_schemas_are_catalog_backed) or test(capabilities_mark_declared_but_missing_readers_unavailable) or test(capabilities_filters_by_broker_market_and_feature_id) or test(every_catalog_protocol_maps_to_a_feature_with_one_stable_id) or test(prediction_readiness_is_independent_per_operation_adapter)'` | 8 条通过 |
 | 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b125s3_apply.json` | 4 行变更，`[x]` 1376 → 1377 |
 | 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 无重复 rust_entry、0 条 `[x]` 缺少 function_exact |
+
+### 分片四：服务/风控/端口边界 15 行复核（1 升 [x]、2 收敛为边界、12 复核保留）
+
+范围：`internal/trading/broker_test.go`(4)、`risk_status_broker_boundaries_test.go`(4)、
+`broker_account_read_failures_test.go`(2)、`risk_shape_boundaries_test.go`(2)、
+`broker_boundaries_test.go`(1)、`ports_test.go`(2)。触发点覆盖 30 条 Rust 证据用例（全部隔离复跑通过）。
+
+#### 结论变更
+
+| Go 行 | 变化 | 依据 |
+| --- | --- | --- |
+| `broker_account_read_failures_test.go:87` `TestFundsMapsMarketAssetsAlongsideCashBalances` | partial → `[x]` | `funds_projection_preserves_currency_and_market_asset_arrays` 逐条断言 2 条 currencyBalances（HKD/USD + cash/availableWithdrawalCash/netCashPower）与 2 条 marketAssets（HK/US + assets），与 Go 的同一 snapshot 双向映射一致；此前 partial 仅因该 Rust 用例 entry 已被 `pkg/futu/adapter_new_methods_test.go:112` 占用 |
+| `ports_test.go:50` `TestServiceUsesExplicitTradingPorts` | partial → boundary | Rust 无“默认端口可被显式覆盖”的服务对象：未提供 test port 时执行写路由不注册，生产组合根显式注入端口 |
+| `ports_test.go:82` `TestServiceDefaultTradingPortsFailExplicitly` | partial → boundary | 同上；缺端口的 fail-closed 不变量已由读路由 503 与控制面不可用拒绝覆盖 |
+
+#### 复核保留（12 行）
+
+- `broker_account_read_failures_test.go:11`（降级信封 vs fail-closed：**同一产品差异**，与 `responses_test.go:55/:107`、
+  `servercoretest/broker_routes_test.go:14` 同源；本批把结论改为显式交叉引用并保留 fail-closed 证据）。
+- `broker_test.go:186`（13 个读操作映射与查询透传：证据 9 条逐路由断言，缺口是无会话降级信封）、
+  `:453`（组合回退与 degraded 信封：证据 3 条，缺口同源）、
+  `:533`（写操作/超时矩阵：证据 3 条，缺口是读端口无 deadline/LastError 契约）、
+  `:735`（行情/运行期默认值与显式查询：证据 2 条，缺口是 runtime 缺 session 的降级投影）。
+- `risk_status_broker_boundaries_test.go:13`（审批决策/风险错误类型为 Go 对象；symbolMatches/hardStopMatches 矩阵已覆盖）、
+  `:124`（17 入口不匹配：12 读 + 2 组合 + 3 写已覆盖，缺口是无活动 broker 时 Runtime 回退投影）、
+  `:187`（低层 helper 与 withTimeout：函数适配器/nil 接收者为 Wails 期模式，deadline 契约缺口同 `:533`）、
+  `:228`（resolveBroker required/optional 语义：Rust 单 broker 模型下“无活动 broker”不可达）。
+- `risk_shape_boundaries_test.go:11`（伪造字段矩阵：Rust 在解析/风控层拒绝，未逐组合对照）、
+  `:78`（产品×价格必填矩阵：Rust 拆两条断言）。
+- `broker_boundaries_test.go:62`（上游失败分类矩阵：Rust 断言错误码/消息与快照回退规则，未逐读操作分类）。
+
+#### 分片四验证记录
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| `broker_test.go` 证据 | `... -p jftrade-engine -p jftrade-trading -p jftrade-broker ... -E 'test(broker_read_projects_futu_funds_from_neutral_client) or ... or test(broker_runtime_requires_real_projection_sources)'` | 14 条通过 |
+| 其余证据 | 同上 `-E 'test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or ... or test(unavailable_control_plane_fails_closed)'` | 16 条通过 |
+| 映射写入 | `python3.12 /tmp/b82_apply.py /tmp/b125s4_apply.json` | 4 行变更，`[x]` 1377 → 1378 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 无重复 rust_entry、0 条 `[x]` 缺少 function_exact |

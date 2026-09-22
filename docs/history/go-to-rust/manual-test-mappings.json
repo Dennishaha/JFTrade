@@ -30193,16 +30193,16 @@
   "internal/trading/broker_account_read_failures_test.go:11:TestBrokerReadFailuresRemainVisibleAcrossAccountDataViews": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_adapter_forwards_unavailable_opend_errors_on_every_read_route",
-    "conclusion": "partial：Rust 断言不可用错误在每个 broker 读路由上透传；差异：Go 断言账户数据视图（资金/持仓/账户列表）失败在多个视图上保持可见（不被吞成空），Rust 未按视图逐项断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial（差异登记与 shard 一同源）：Go 让 7 个读操作（funds/positions/current orders/current fills/cash flows/order fees/margin ratios）与 2 个组合视图（cash/positions）全部返回 200 降级信封——connectivity=disconnected、lastError=后端错误文本，且各自资源键仍在（summary/positions/orders/fills/cashFlows/fees/marginRatios/balances/positions），断言失败不会被吞成空成功。Rust 的对应证据 broker_adapter_forwards_unavailable_opend_errors_on_every_read_route 断言同一组读路由在 fail-closed 就绪门下**逐路返回错误**（不返回零值成功），并断言拒绝发生在触达读客户端之前；两边的共同不变量（失败必须可见、不得静默空成功）一致，但失败的表达形态不同：Go 是 200 + lastError，Rust 是错误状态（BROKER_READ_UNAVAILABLE/Unavailable），与 responses_test.go:55/:107 与 internal/app/apiserver/servercoretest/broker_routes_test.go:14 登记的是同一处产品差异。修复位置与回归要求：若要贴齐 Go，需要 broker 读端口为每条路由生成降级信封（connectivity=disconnected + lastError + 空资源数组/空 summary），并补“9 视图逐项断言 + 客户端调用数”的回归；本轮不翻转实现，保持 partial 并保留 fail-closed 证据。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route)'",
     "evidence_type": "partial"
   },
   "internal/trading/broker_account_read_failures_test.go:87:TestFundsMapsMarketAssetsAlongsideCashBalances": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::funds_projection_preserves_currency_and_market_asset_arrays；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_cash_balances_prefer_currency_rows_over_summary_fallback",
-    "conclusion": "partial：Rust 断言资金投影同时保留币种余额与市场资产数组、现金余额优先取币种行；差异：Go 断言 funds 同时映射市场资产与现金余额的组合输出，Rust 分散在两条测试中。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::funds_projection_preserves_currency_and_market_asset_arrays（与 pkg/futu/adapter_new_methods_test.go:112 行共享同一 Rust 用例：两条 Go 用例断言的是同一份 funds 投影输出）",
+    "conclusion": "已覆盖：Go 断言 funds 响应同时映射市场资产与现金余额（同一 snapshot 的 cashInfoList/marketInfoList 分别落到 currencyBalances 与 marketAssets，字段名与金额逐条对应）。Rust 的 funds_projection_preserves_currency_and_market_asset_arrays 用 FullFundsRead 夹具断言 2 条 currencyBalances（HKD/USD，含 cash/availableWithdrawalCash/netCashPower）与 2 条 marketAssets（HK/US，assets 金额），与 Go 的断言一一对应；本批新增的 broker_funds_response_serializes_the_contract_keys_with_null_last_error 另固定两个数组键始终存在。此前 partial 仅因该 Rust 用例的 entry 已被 pkg/futu/adapter_new_methods_test.go:112 占用，本批复核确认无缺口后按共享证据升 [x]。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(funds_projection_preserves_currency_and_market_asset_arrays)'",
+    "evidence_type": "function_exact"
   },
   "internal/trading/broker_boundaries_test.go:11:TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable": {
     "status": "[x]",
@@ -30836,17 +30836,17 @@
   },
   "internal/trading/ports_test.go:50:TestServiceUsesExplicitTradingPorts": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::broker_adapter_place_and_cancel_keep_server_order_identity_and_submitted_status；crates/jftrade-engine/src/product_execution_write_product_tests.rs::execution_write_routes_register_only_with_explicit_test_port",
-    "conclusion": "partial：Rust 断言执行写路由仅在显式测试端口下注册、下单/撤单保留服务端身份；差异：Go 断言服务使用显式注入的 trading ports（注入优于默认），Rust 以端口注册与接线断言表达。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "rust_entry": "不适用：Rust 无“默认 trading ports + 可被显式注入覆盖”的服务对象；执行写路由只在显式 test port 下注册（crates/jftrade-engine/src/product_execution_write_product_tests.rs::execution_write_routes_register_only_with_explicit_test_port），生产端口由组合根注入",
+    "conclusion": "保留边界：Go 断言注入的 trading ports 优先于默认实现（显式注入即生效）。Rust 没有可被覆盖的默认端口：ProductConfig 未提供 test port 时执行写路由根本不注册（execution_write_routes_register_only_with_explicit_test_port 断言注册面），生产组合根则显式注入 ProductionExecutionPort，服务端身份由端口保留（broker_adapter_place_and_cancel_keep_server_order_identity_and_submitted_status）。升级路径与回归要求：若引入可覆盖默认端口，需要补“注入优先于默认 + 默认方法 fail-closed”两条断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(execution_write_routes_register_only_with_explicit_test_port)'",
+    "evidence_type": "boundary"
   },
   "internal/trading/ports_test.go:82:TestServiceDefaultTradingPortsFailExplicitly": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_fail_closed_without_snapshot_port；crates/jftrade-trading/src/real_trade.rs::unavailable_control_plane_fails_closed",
-    "conclusion": "partial：Rust 断言缺端口时读路由 fail-closed、控制面不可用 fail-closed；差异：Go 断言默认 trading ports 每个方法显式返回错误（不可静默 no-op），Rust 以端口接线与 fail-closed 断言覆盖同类语义，未逐方法断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "rust_entry": "不适用：Rust 无默认 trading ports 对象；缺端口时读路由 fail-closed（crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_fail_closed_without_snapshot_port）、控制面不可用时 REAL 单被拒（crates/jftrade-trading/src/real_trade.rs::unavailable_control_plane_fails_closed）",
+    "conclusion": "保留边界：Go 断言每个默认 trading port 方法都显式返回错误（不静默 no-op），即“缺实现必须显式失败”。Rust 的等价不变量由两处 fail-closed 证据承担：读路由缺 snapshot port → 503（execution_read_routes_fail_closed_without_snapshot_port）；控制面不可用 → REAL 单被拒（unavailable_control_plane_fails_closed）。差异：Rust 没有“默认端口对象”，因此不存在逐方法默认实现可断言；缺端口在路由注册与端口解析层就被拒绝。升级路径与回归要求：若引入默认端口实现，需要逐方法断言返回显式错误且绝不 no-op。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(execution_read_routes_fail_closed_without_snapshot_port)'",
+    "evidence_type": "boundary"
   },
   "internal/trading/responses_test.go:12:TestBrokerRuntimeResponseJSONShape": {
     "status": "[x]",
