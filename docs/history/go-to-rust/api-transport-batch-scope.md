@@ -1185,7 +1185,8 @@ anchors 1545（unrecorded 0、stale 0、unknown 53）。**第 127 批 `internal/
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍在 cargo-deny advisories 阶段因 `deny.toml` 8 条 `advisory-not-detected` 失败（bans/licenses/sources ok） |
 
 第 127 批收尾结论：`internal/app/apiserver` 的 331 行待办全部给出终值（各分片提交 b858fc7f、386afddc、207f9211、
-8e89b643、a73e9af1、c43362e9、322e7445、3a0027f1 与本分片），域内已无占位/未复核行，未以数量比例宣称功能等价。
+8e89b643、7439b61f、a73e9af1、c43362e9、322e7445、3a0027f1 与本分片），域内已无占位/未复核行，
+未以数量比例宣称功能等价。
 
 后续（第 128 批）：进入 `strategy_pine` 465 行（Pine 运行时、catalog、order/indicator 行为与策略生命周期），
 随后 `assistant_workflow` 447 → `other` 311 → `backtest_calendar` 262 → `storage_sqlite` 178 → `marketdata_quotes` 155 →
