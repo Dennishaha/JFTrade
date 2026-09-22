@@ -30569,11 +30569,11 @@
     "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:496:TestKillSwitchActivationWaitsForInFlightRealPlacement": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator.rs::mutate_with_activates_kill_switch_atomically_blocking_orders；crates/jftrade-trading/src/real_trade.rs::unavailable_control_plane_fails_closed",
-    "conclusion": "partial：Rust 断言 kill switch 激活原子生效并阻塞真实单、控制面不可用时 fail-closed；差异：Go 断言激活操作会等待在途 REAL 下单完成（时序语义：激活完成前在途单仍成功、之后被拒绝），Rust 无同形在途等待断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator.rs::tests::kill_switch_activation_waits_for_the_in_flight_real_placement",
+    "conclusion": "function_exact：Go 让一笔 REAL 下单阻塞在券商网关内，随后要求 ActivateKillSwitch 在该笔完成前不得返回，完成后下一笔 REAL 单被 REAL_TRADE_KILL_SWITCH_ACTIVE 拒绝。Rust 用同一个 submission_gate 串行化 execute_with_risk_guard 与 mutate_with，新增测试用两个线程复刻该时序：放置线程进入券商闭包并阻塞，激活线程调用 mutate_with（写入 killSwitch）→ 断言 50ms 内未完成；放行后放置线程返回 `placed-before-kill`，激活线程随后成功；最后再提交 REAL 单 → Failed{403, REAL_TRADE_KILL_SWITCH_ACTIVE}。探针：把 mutate_with 的 submission_gate 获取换成 `let _gate = ();`（激活不再等待在途下单）→ 测试转红（kill switch activation must wait for the in-flight REAL placement），按字节回滚（product_execution_risk_coordinator.rs shasum 48307de8… 探测前后一致）。差异：Go 用 channel 计时观察，Rust 用 mpsc::recv_timeout 观察同一串行化语义。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:573:TestPreTradeRiskRejectsKillSwitchAndLimits": {
     "status": "[x]",
@@ -30612,9 +30612,9 @@
   },
   "internal/trading/execution_test.go:738:TestRealTradeControlPlanePersistsKillSwitchAndHardStop": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator.rs::mutate_with_activates_kill_switch_atomically_blocking_orders；crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_real_trade_control_plane_kill_switch_release_is_idempotent_and_audited",
-    "conclusion": "partial：Rust 覆盖 kill switch 激活持久化与幂等释放审计；差异：Go 断言 kill switch 与 hard stop 同时持久化（重启后仍生效）的完整往返，Rust 拆在两条测试中，重启往返断言未合并。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator.rs::tests::kill_switch_and_hard_stop_survive_a_restart_with_rejection_audit",
+    "conclusion": "partial（本轮已补齐持久化往返，仍缺 snapshot 事件投影等价）：新增测试覆盖 Go 的持久化主线——激活 kill switch → snapshot.kill_switch_active、kill_switch_source==RUNTIME → 从磁盘重载仍生效（REAL 单被拒）→ 释放 kill switch 并启用运行期风控（maxOrderQuantity=10）→ 激活 hard stop → 再次重载后 hard stop 生效，REAL 单被 Failed{403, REAL_TRADE_HARD_STOP_ACTIVE} 拒绝，且持久化文件内含 HARD_STOP_REJECT 审计事件（按 JSON 解析断言 event.eventType）。探针：让 mutate_with 跳过 persist_state（persist_result = Ok(())）→ 测试转红（重启后 kill switch 丢失），按字节回滚（shasum 48307de8… 一致）。**保留差异（功能差异，已登记）**：Go 断言 Snapshot().HardStopEvents[0].EventType == \"rejected\"；Rust 的审计事件写成 {eventType: \"HARD_STOP_REJECT\", action: \"REJECT\"}，而 snapshot.hard_stop_events 投影用 jftrade-trading/src/real_trade.rs::events_with_prefix(&state.events, \"HARD_STOP_\") 过滤 **action** 前缀，因此该拒绝事件不会出现在 hardStopEvents 列表里（只在持久化审计中可见）。复现：激活 hard stop 后提交匹配订单 → 读取文件可见 HARD_STOP_REJECT，而 snapshot().hard_stop_events 为空。修复位置：jftrade-trading/src/real_trade.rs 的 hard_stop_events 投影（改按 event_type 前缀过滤，或把拒绝事件的 action 归入 HARD_STOP_ 前缀）；回归要求：新增测试断言 hard-stop 拒绝后投影列表含该事件，且不改变既有激活/释放事件的对外形状。在该产品决策落地前，本行保持 partial，不冒充 function_exact。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:813:TestRealTradeControlPlaneRuntimeRiskConfigValidationAndDisableEvents": {
@@ -30625,18 +30625,18 @@
     "evidence_type": "partial"
   },
   "internal/trading/execution_test.go:874:TestRealTradeControlPlaneRollsBackFailedPersistence": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator.rs::mutate_with_persist_failure_fails_closed_and_preserves_memory_state；crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_control_plane_surfaces_hard_stop_rejection_audit_persistence_failure",
-    "conclusion": "partial：Rust 断言持久化失败时 fail-closed 并保留内存状态、硬停拒绝的审计持久化失败可上报；差异：Go 断言变更整体回滚（内存与磁盘一致），Rust 断言内存状态保留策略，语义方向一致但断言点不同。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator.rs::tests::failed_persistence_rolls_back_hard_stop_and_runtime_risk_changes",
+    "conclusion": "function_exact：Go 破坏状态文件路径后要求 kill switch 释放、hard stop 释放、运行期风控更新/禁用全部失败且内存状态不变，恢复路径后同一操作成功。Rust 的 mutate_with 在读取/持久化失败时只记录 control_plane_error 与 generation，不提交候选状态。新增测试以“父路径是普通文件”构造不可读/不可写状态路径：① 直接断言 persist_state(blocked_path, default) 失败（持久化分支证据）；② mutate_with 清空 hardStops 失败 → snapshot 的 hard_stop_entries 数量与失败前一致；③ mutate_with 清空 riskConfig 失败 → runtime_risk_configured 仍为 true、effective_max_order_quantity 与失败前相同；④ 恢复原路径后再次释放 hard stop 成功。探针：在读取失败分支里额外写入 guard.state = RealTradeControlState::default()（失败时清空内存）→ 测试转红（failed hard-stop release must keep the active entries），按字节回滚（shasum 48307de8… 一致）。差异：Go 直接改写 plane.path 字段，Rust 测试同样在模块内改写 coordinator.path；Go 断言错误非 nil，Rust 进一步断言错误码属于 CONTROL_PLANE_READ_FAILED / CONTROL_PLANE_PERSIST_FAILED。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:939:TestRealTradeControlPlaneFailsClosedWhenPersistedStateCannotLoad": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_control_plane_treats_empty_state_as_fresh_and_rejects_unavailable_mutations；crates/jftrade-trading/src/real_trade.rs::unavailable_control_plane_fails_closed",
-    "conclusion": "partial：Rust 断言空状态视为全新且不可用变更被拒绝、控制面不可用 fail-closed；差异：Go 断言持久化状态无法加载时控制面 fail-closed（拒绝交易），Rust 断言已覆盖不可用分支但未覆盖「读取失败」具体场景。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator.rs::tests::unreadable_persisted_state_fails_closed_and_blocks_mutations",
+    "conclusion": "function_exact：Go 用内容为 `{` 的状态文件构造控制面，要求构造函数返回可用但 fail-closed 的对象：REAL 单被拒、snapshot 报告 ControlPlaneAvailable=false 且带错误、变更被拒。Rust 对应两条路径：严格 open() 返回 Err，而 new() 保留可用协调器并把错误放进 control_plane_error。新增测试断言 ① ExecutionRiskCoordinator::open(&path).is_err()；② REAL 单经 execute_with_risk_guard 得到 Failed{500, CONTROL_PLANE_UNAVAILABLE}（未执行券商闭包）；③ snapshot.control_plane_available == false、control_plane_error.is_some()、kill_switch_active == true；④ mutate_with 被拒（CONTROL_PLANE_READ_FAILED）。探针：把逐次重读失败分支改为 (current_state, None)（吞掉控制面错误）→ 测试转红（fail-closed error = Failed{403, REAL_TRADING_DISABLED}），按字节回滚（shasum 48307de8… 一致）。差异：Go 的错误码是 REAL_TRADE_KILL_SWITCH_ACTIVE（其快照把不可用视为 kill switch 生效），Rust 使用更明确的 500 CONTROL_PLANE_UNAVAILABLE，但失败关闭语义一致（拒绝下单 + 拒绝变更 + 快照可见错误）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/trading/execution_test.go:965:TestNormalizeExecutionOrderUsesEnvFallbackAndSupportsNonLimitUSSessions": {
     "status": "[x]",

@@ -1,9 +1,10 @@
 # Trading 执行域第三批（第 117 批·分片一）
 
 本文件记录 `internal/trading/execution_test.go` 剩余 `partial` 行的逐条收口。该文件共 17 条
-`partial`，按“错误分类 / 校验时序 / 委派参数 / 风控时序 / 详情边界”分片推进；已完成**前三片**
-（分片一 `:285`、`:327`；分片二 `:173`、`:342`、`:470`；分片三 `:367`、`:397`、`:426`）
-共 8 条 → `function_exact`，新增 8 条 Rust 测试，其余 9 行的分片计划见文末。三批均无生产语义变更，
+`partial`，按“错误分类 / 校验时序 / 委派参数 / 风控时序 / 详情边界”分片推进；已完成**前四片**
+（分片一 `:285`、`:327`；分片二 `:173`、`:342`、`:470`；分片三 `:367`、`:397`、`:426`；
+分片四 `:496`、`:874`、`:939` 升为 `function_exact`，`:738` 补齐持久化往返但保留 `partial`）
+共 11 条收口、新增 12 条 Rust 测试，其余 5 行的分片计划见文末。四批均无生产语义变更，
 被探测的生产文件一律按字节回滚。
 
 ## 第一百一十七批（分片一）：facade 错误分类与校验时序（2 条）
@@ -193,14 +194,75 @@ Go 侧 3 条（同文件 `:367`、`:397`、`:426`）：
 - **控制面来源**：Go 用 `StaticPreTradeRiskGateway` 闭包；Rust 用磁盘控制面文件（每次提交重读），
   因此测试以 JSON 状态文件作为夹具，更接近生产路径。
 
-### 后续待办（本文件剩余 9 条）
+## 第一百一十七批（分片四）：控制面并发、持久化与失败关闭（4 条）
 
-- 下批（第 117 批·分片四）：`:496`（kill switch 激活等待在途 REAL 下单的时序）、
-  `:738`（kill switch + hard stop 重启往返）、
-  `:874`（持久化失败整体回滚：内存与磁盘一致）、`:939`（持久化状态读取失败 fail-closed）。
-- 分片五：`:613`（amount/quantity/notional 组合矩阵聚合断言）、`:718`（REAL 相关环境变量不得配置
+### 范围与分片
+
+Go 侧 4 条（同文件 `:496`、`:738`、`:874`、`:939`）：
+
+- P0 `:496`：kill switch 激活等待在途 REAL 下单（激活前进入的订单仍成功，之后被拒）。
+- P0 `:738`：kill switch + hard stop 持久化并在重启后生效，拒绝事件可审计。
+- P0 `:874`：持久化失败时内存状态整体回滚（kill switch / hard stop / 运行期风控）。
+- P0 `:939`：持久化状态无法加载时控制面 fail-closed（拒绝交易与变更）。
+
+分类：`:496`、`:874`、`:939` → `[x]`/`function_exact`；`:738` 保持 `partial`（新增持久化往返证据，
+但 snapshot 的 hard-stop 事件投影与 Go 不等价，见下）。
+
+### 关键事实
+
+- `ExecutionRiskCoordinator` 用 `submission_gate: Mutex<()>` 同时串行化 `execute_with_risk_guard`
+  与 `mutate_with`——这就是 Go「激活等待在途 REAL 下单」的等价机制。
+- `mutate_with` 先 `load_state_strict`、再在候选状态上跑 mutator、再 `persist_state`，**只有持久化成功才**
+  `guard.state = candidate`；读取或持久化失败时只记录 `control_plane_error` 与 `generation`。
+- `execute_with_risk_guard` 对 REAL 单逐次重读状态文件；读取失败 → 500 `CONTROL_PLANE_UNAVAILABLE`
+  （fail-closed）；`new()` 保留可用协调器并记录错误，`open()` 则直接返回 Err。
+- hard-stop 拒绝会写入审计事件 `{eventType: "HARD_STOP_REJECT", action: "REJECT"}` 并持久化；
+  但 `snapshot.hard_stop_events` 用 `events_with_prefix(..., "HARD_STOP_")` 过滤 **action** 前缀，
+  因此该事件不在投影列表内（见「保留差异」）。
+
+### 新增测试（均带 `// Parity:` 锚点，均在 `product_execution_risk_coordinator.rs::tests`）
+
+- `kill_switch_activation_waits_for_the_in_flight_real_placement`（锚 `:496`）：放置线程阻塞在券商闭包内，
+  激活线程 50ms 未完成 → 放行后放置成功、激活完成 → 后续 REAL 单 403 `REAL_TRADE_KILL_SWITCH_ACTIVE`。
+- `kill_switch_and_hard_stop_survive_a_restart_with_rejection_audit`（锚 `:738`）：kill switch 持久化并跨重启生效
+  → 释放并启用运行期风控 → 激活 hard stop → 再次重载后 403 `REAL_TRADE_HARD_STOP_ACTIVE`，
+  持久化文件内存在 `HARD_STOP_REJECT` 审计事件。
+- `failed_persistence_rolls_back_hard_stop_and_runtime_risk_changes`（锚 `:874`）：`persist_state` 对不可写路径失败；
+  hard-stop 释放与运行期风控禁用失败后内存状态与限额保持不变；恢复路径后同一操作成功。
+- `unreadable_persisted_state_fails_closed_and_blocks_mutations`（锚 `:939`）：`open()` 报错；
+  REAL 单 500 `CONTROL_PLANE_UNAVAILABLE`；snapshot `control_plane_available == false` 且带错误；
+  `mutate_with` 被拒。
+
+### 探针记录（破 → 红 → 按字节回滚）
+
+全部针对 `crates/jftrade-engine/src/product_execution_risk_coordinator.rs`，回滚后 shasum
+`48307de86bfd6eb8a35c158736a6598726ed1ff747c391f6af4f54a10af826eb` 与探测前一致：
+
+- ①（`:496`）`mutate_with` 不再获取 `submission_gate`（`let _gate = ();`）→ 激活不再等待在途下单，转红。
+- ②（`:738`）`mutate_with` 跳过 `persist_state`（`persist_result = Ok(())`）→ 重启后 kill switch 丢失，转红。
+- ③（`:874`）读取失败分支额外写入 `guard.state = RealTradeControlState::default()` → 失败变更清空内存，转红。
+  （过程记录：先尝试在**持久化失败**分支注入 `guard.state = candidate`，探针未转红——因为该测试的阻塞路径在读取阶段
+  就失败，属预期；改在读取失败分支验证后才转红。）
+- ④（`:939`）逐次重读失败分支改为返回 `None` 错误 → REAL 单退化为 403 `REAL_TRADING_DISABLED`，转红。
+
+### 保留差异
+
+- **hard-stop 拒绝事件投影**：Go 的 `Snapshot().HardStopEvents` 含 `EventType == "rejected"`；
+  Rust 把拒绝审计写为 `{eventType: "HARD_STOP_REJECT", action: "REJECT"}`，而投影按 **action** 前缀
+  `HARD_STOP_` 过滤，故 `hardStopEvents` 列表为空、拒绝事件只在持久化审计中可见。这是**功能差异**，
+  已登记为待办（修复位置 `jftrade-trading/src/real_trade.rs` 的 hard_stop_events 投影，或把拒绝事件 action
+  归入 `HARD_STOP_` 前缀；回归要求：断言拒绝后投影含该事件且不改变既有激活/释放事件形状）。
+- **错误码差异**：`:939` 场景 Go 返回 `REAL_TRADE_KILL_SWITCH_ACTIVE`（其快照把不可用视为 kill switch 生效），
+  Rust 返回更明确的 500 `CONTROL_PLANE_UNAVAILABLE`；失败关闭语义一致。
+- **路径改写方式**：Go 直接改 `plane.path`，Rust 在模块内测试同样改 `coordinator.path`，两者都只影响持久化目标。
+
+### 后续待办（本文件剩余 5 条）
+
+- 下批（第 117 批·分片五，最后 5 条）：`:613`（amount/quantity/notional 组合矩阵聚合断言）、`:718`（REAL 相关环境变量不得配置
   预交易风控的负例）、`:813`（校验失败/禁用事件的审计事件流文本）、`:1014`（详情最近事件数量上界）、
   `:1047`（返回前刷新目标订单历史的调用顺序）。
+- 分片四登记的功能差异：`snapshot().hard_stop_events` 未包含 hard-stop 拒绝审计（见保留差异），
+  需要产品决策后修复 `jftrade-trading` 投影并补回归测试。
 - 该文件清零后，继续 trading_broker 域其余 21 个文件（`order_updates_test.go` 15、
   `execution_combo_lifecycle_test.go` 12、`pkg/broker/broker_test.go` 8 …），随后按
   api_transport / strategy_pine / assistant_workflow / backtest_calendar / storage_sqlite /
@@ -250,6 +312,36 @@ Go 侧 3 条（同文件 `:367`、`:397`、`:426`）：
   `[x]` 1334 → **1337**、`partial` 2539 → **2536**、`missing` 0、0 破坏引用；
   `python3.12 scripts/compatibility/parity_anchor_reconcile.py` **1338** 唯一引用
   （已记账 1283、unrecorded 0、unknown 55、stale 0）。
+- 分片四定向 nextest（4 条新测试）EXIT=0：`kill_switch_activation_waits_for_the_in_flight_real_placement`、
+  `kill_switch_and_hard_stop_survive_a_restart_with_rejection_audit`、
+  `failed_persistence_rolls_back_hard_stop_and_runtime_risk_changes`、
+  `unreadable_persisted_state_fails_closed_and_blocks_mutations`；四次探针全部转红并按字节回滚
+  （含一次“探针未命中持久化分支”的过程记录，见分片四探针小节）。
+- 分片四结构调整：新增测试把 `product_execution_risk_coordinator.rs` 推到 1003 行，触发
+  `check:rust:architecture` 的 800 行生产文件上限；按仓库既有 `#[path = "..."] mod <tests>;` 约定，
+  把测试模块抽到 `crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs`
+  （生产文件回到 320 行、测试文件 683 行），`check:rust:architecture` 复跑 EXIT=0，
+  且 audit/reconcile 仍能解析四条 rust_entry（0 破坏引用、unrecorded 0）。
+- 分片四门禁：`cargo fmt --all --check` EXIT=0；`cargo clippy -p jftrade-engine -p jftrade-trading
+  --all-targets --locked` EXIT=0（首轮因测试里 `let released = ...expect(...)` 绑定 unit 触发
+  `let_unit_value`，改为直接调用后通过）；`node scripts/quality/cargo-nextest.mjs run
+  -p jftrade-engine -p jftrade-trading --all-targets --locked --no-fail-fast` **1853 passed / 0 failed**；
+  `pnpm run check:compatibility` EXIT=0；`node scripts/check-zero-go.mjs` EXIT=0（2931 tracked files）；
+  `pnpm run check:ai-context` EXIT=0；`git diff --check` 干净。
+- 分片四门禁续：`pnpm run check:quick` 首轮在 `check:rust:architecture` 报 800 行上限（已按上述抽取修复），
+  复跑时 `check:rust:target-health` 报 `.rcgu.o ≥ 50000` → 确认无 Cargo 进程后
+  `pnpm run clean:rust:artifacts`（Removed 141774 files / 33.0GiB）→ `pnpm run check:rust` 复跑
+  `:target-health`/`:architecture`/`:production-policy` 通过、仅 `:policy` 失败（RUSTSEC-2026-0285，
+  **不记为通过**）→ `check:quick` 复跑 EXIT=0。
+- 分片四已知抖动（与本批无关，已登记）：`product_api_launcher_lifecycle
+  api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal` 在负载下偶发
+  `status.code() == None`（SIGTERM 与 launcher 优雅退出竞态）：本轮全量 nextest 首跑 1852/1853 命中该条，
+  随后单独复跑 4 次中 3 次失败、1 次通过，最终全量复跑 1853/1853 通过。属既有 P1 抖动项，
+  建议后续单独排查 launcher 信号处理器安装时序并为其加去抖断言。
+- 分片四审计：`python3 scripts/compatibility/audit_test_parity.py` 4451 Go / **3079** Rust、
+  `[x]` 1337 → **1340**、`partial` 2536 → **2533**、`missing` 0、0 破坏引用、
+  7 条 partial 无解析引用（既有基线）；`python3.12 scripts/compatibility/parity_anchor_reconcile.py`
+  **1342** 唯一引用（已记账 1287、unrecorded 0、unknown 55、stale 0）。
 - `cargo fmt --all --check` EXIT=0（首轮 fmt 报测试文件一处换行，`cargo fmt --all` 后复检通过）；
   `cargo clippy -p jftrade-engine --all-targets --locked` EXIT=0。
 - 全量 `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked
