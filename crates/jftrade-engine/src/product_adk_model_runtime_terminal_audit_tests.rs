@@ -475,6 +475,8 @@ fn a_gated_call_parks_the_run_and_audits_awaiting_approval() {
 /// back to its transcript row.  The id now follows Go's
 /// `syntheticAssistantMessageID(runID, replyResult)` (kind defaults to `local`
 /// for a plain successful turn) and is shared by all three surfaces.
+/// Parity: go:452dea11:internal/assistant/engine/workflowexec/workflow_execution_persistence_test.go:14
+/// `TestWorkflowExecutorRunAndFinalizePersistence`.
 #[test]
 fn a_completed_run_links_its_final_assistant_message_across_the_transcript() {
     let (directory, store, session_store) = initialized_stores();

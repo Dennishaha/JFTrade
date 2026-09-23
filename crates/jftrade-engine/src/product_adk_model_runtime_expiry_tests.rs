@@ -205,6 +205,8 @@ fn expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls() {
 /// while the 300s run started at the same instant stays RUNNING.
 /// Parity: go:452dea11:internal/assistant/engine/store_test.go:1005
 /// `TestReconcileExpiredRunsUsesRunSpecificTimeout`.
+/// Parity: go:452dea11:internal/assistant/engine/workflowexec/workflow_child_finalization_boundaries_test.go:66
+/// `TestWorkflowChildrenSkipIdleOrApprovalBlockedFinalization`.
 #[test]
 fn expired_runs_use_each_runs_own_timeout_window() {
     let (directory, store, session_store) = initialized_stores();

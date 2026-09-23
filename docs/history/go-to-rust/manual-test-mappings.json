@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T17:41:45Z",
+  "generatedAt": "2026-09-23T17:49:17Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -108791,8 +108791,8 @@
     },
     "internal/assistant/engine/workflowexec/workflow_child_finalization_boundaries_test.go:66:TestWorkflowChildrenSkipIdleOrApprovalBlockedFinalization": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs::is_dormant_workflow_child_run",
-      "conclusion": "boundary（结构差异）：Go 断言空闲子运行、等待审批子运行、缺失子 agent 的最终答复补全都跳过。Rust 在过期对账里把尚未产生任何执行活动（无工具调用/审批/预工具文本）的子运行视为 dormant 并交给父运行预算（is_dormant_workflow_child_run），没有“补最终答复”的结清步骤。",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs::expired_runs_use_each_runs_own_timeout_window",
+      "conclusion": "boundary（结构差异，本批纠正引用）：Go 断言空闲子运行、等待审批子运行、缺失子 agent 的最终答复补全都跳过。原条目引用的是生产函数 is_dormant_workflow_child_run 而非测试；该 dormant 判定在实现侧存在但无独立测试覆盖。Rust 没有补最终答复的结清步骤，最接近的已测面是过期按各运行自有超时窗口执行。回归要求：补 dormant 子运行豁免断言或 finalize 结清契约后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -108803,8 +108803,8 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs",
-          "test": "is_dormant_workflow_child_run",
+          "file": "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs",
+          "test": "expired_runs_use_each_runs_own_timeout_window",
           "crate": "jftrade-engine",
           "anchor": null
         }
@@ -108812,7 +108812,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary（结构差异）：Go 断言空闲子运行、等待审批子运行、缺失子 agent 的最终答复补全都跳过。Rust 在过期对账里把尚未产生任何执行活动（无工具调用/审批/预工具文本）的子运行视为 dormant 并交给父运行预算（is_dormant_workflow_child_run），没有“补最终答复”的结清步骤。"
+          "boundary（结构差异，本批纠正引用）：Go 断言空闲子运行、等待审批子运行、缺失子 agent 的最终答复补全都跳过。原条目引用的是生产函数 is_dormant_workflow_child_run 而非测试；该 dormant 判定在实现侧存在但无独立测试覆盖。Rust 没有补最终答复的结清步骤，最接近的已测面是过期按各运行自有超时窗口执行。回归要求：补 dormant 子运行豁免断言或 finalize 结清契约后再升级。"
         ],
         "source": "legacy-conclusion"
       },
@@ -108827,7 +108827,7 @@
           "--locked"
         ],
         "testFilter": [
-          "is_dormant_workflow_child_run"
+          "expired_runs_use_each_runs_own_timeout_window"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -108847,9 +108847,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary（结构差异）：Go 断言空闲子运行、等待审批子运行、缺失子 agent 的最终答复补全都跳过。Rust 在过期对账里把尚未产生任何执行活动（无工具调用/审批/预工具文本）的子运行视为 dormant 并交给父运行预算（is_dormant_workflow_child_run），没有“补最终答复”的结清步骤。"
+        "boundary（结构差异，本批纠正引用）：Go 断言空闲子运行、等待审批子运行、缺失子 agent 的最终答复补全都跳过。原条目引用的是生产函数 is_dormant_workflow_child_run 而非测试；该 dormant 判定在实现侧存在但无独立测试覆盖。Rust 没有补最终答复的结清步骤，最接近的已测面是过期按各运行自有超时窗口执行。回归要求：补 dormant 子运行豁免断言或 finalize 结清契约后再升级。"
       ],
-      "boundaryReason": "boundary（结构差异）：Go 断言空闲子运行、等待审批子运行、缺失子 agent 的最终答复补全都跳过。Rust 在过期对账里把尚未产生任何执行活动（无工具调用/审批/预工具文本）的子运行视为 dormant 并交给父运行预算（is_dormant_workflow_child_run），没有“补最终答复”的结清步骤。"
+      "boundaryReason": "boundary（结构差异，本批纠正引用）：Go 断言空闲子运行、等待审批子运行、缺失子 agent 的最终答复补全都跳过。原条目引用的是生产函数 is_dormant_workflow_child_run 而非测试；该 dormant 判定在实现侧存在但无独立测试覆盖。Rust 没有补最终答复的结清步骤，最接近的已测面是过期按各运行自有超时窗口执行。回归要求：补 dormant 子运行豁免断言或 finalize 结清契约后再升级。"
     },
     "internal/assistant/engine/workflowexec/workflow_child_lifecycle_test.go:13:TestWorkflowChildLifecycleBranches": {
       "status": "[~]",
@@ -109101,8 +109101,8 @@
     },
     "internal/assistant/engine/workflowexec/workflow_execution_persistence_test.go:14:TestWorkflowExecutorRunAndFinalizePersistence": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_failure.rs::synthetic_assistant_message_id",
-      "conclusion": "boundary（结构差异）：Go 断言 Run 在缺 provider、起始运行保存失败、规划后任务保存失败时都不返回成功，且 FinalizePlannedWorkflow 设置循环迭代并在最终消息持久化失败时回退。Rust 的对应面是模型解析失败 fail-closed、终态持久化错误向上暴露，以及最终消息缺失时的合成消息 id 回退（synthetic_assistant_message_id），但没有 finalize/任务保存编排。",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_completed_run_links_its_final_assistant_message_across_the_transcript",
+      "conclusion": "boundary（结构差异，本批纠正引用）：Go 断言 Run 在缺 provider、起始运行保存失败、规划后任务保存失败时都不返回成功，且 FinalizePlannedWorkflow 设置循环迭代并在最终消息持久化失败时回退。原条目引用的是生产辅助函数 synthetic_assistant_message_id 而非测试；最终消息标识回退面实际由完成运行的 transcript 链接用例覆盖（finalMessageId 跨 transcript、timeline 与运行三面同一标识）。Rust 没有 finalize 与任务保存编排，持久化失败按端口错误向上暴露。回归要求：补 finalize 编排契约后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -109113,8 +109113,8 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_model_runtime_failure.rs",
-          "test": "synthetic_assistant_message_id",
+          "file": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs",
+          "test": "a_completed_run_links_its_final_assistant_message_across_the_transcript",
           "crate": "jftrade-engine",
           "anchor": null
         }
@@ -109122,7 +109122,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary（结构差异）：Go 断言 Run 在缺 provider、起始运行保存失败、规划后任务保存失败时都不返回成功，且 FinalizePlannedWorkflow 设置循环迭代并在最终消息持久化失败时回退。Rust 的对应面是模型解析失败 fail-closed、终态持久化错误向上暴露，以及最终消息缺失时的合成消息 id 回退（synthetic_assistant_message_id），但没有 finalize/任务保存编排。"
+          "boundary（结构差异，本批纠正引用）：Go 断言 Run 在缺 provider、起始运行保存失败、规划后任务保存失败时都不返回成功，且 FinalizePlannedWorkflow 设置循环迭代并在最终消息持久化失败时回退。原条目引用的是生产辅助函数 synthetic_assistant_message_id 而非测试；最终消息标识回退面实际由完成运行的 transcript 链接用例覆盖（finalMessageId 跨 transcript、timeline 与运行三面同一标识）。Rust 没有 finalize 与任务保存编排，持久化失败按端口错误向上暴露。回归要求：补 finalize 编排契约后再升级。"
         ],
         "source": "legacy-conclusion"
       },
@@ -109137,7 +109137,7 @@
           "--locked"
         ],
         "testFilter": [
-          "synthetic_assistant_message_id"
+          "a_completed_run_links_its_final_assistant_message_across_the_transcript"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -109157,9 +109157,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary（结构差异）：Go 断言 Run 在缺 provider、起始运行保存失败、规划后任务保存失败时都不返回成功，且 FinalizePlannedWorkflow 设置循环迭代并在最终消息持久化失败时回退。Rust 的对应面是模型解析失败 fail-closed、终态持久化错误向上暴露，以及最终消息缺失时的合成消息 id 回退（synthetic_assistant_message_id），但没有 finalize/任务保存编排。"
+        "boundary（结构差异，本批纠正引用）：Go 断言 Run 在缺 provider、起始运行保存失败、规划后任务保存失败时都不返回成功，且 FinalizePlannedWorkflow 设置循环迭代并在最终消息持久化失败时回退。原条目引用的是生产辅助函数 synthetic_assistant_message_id 而非测试；最终消息标识回退面实际由完成运行的 transcript 链接用例覆盖（finalMessageId 跨 transcript、timeline 与运行三面同一标识）。Rust 没有 finalize 与任务保存编排，持久化失败按端口错误向上暴露。回归要求：补 finalize 编排契约后再升级。"
       ],
-      "boundaryReason": "boundary（结构差异）：Go 断言 Run 在缺 provider、起始运行保存失败、规划后任务保存失败时都不返回成功，且 FinalizePlannedWorkflow 设置循环迭代并在最终消息持久化失败时回退。Rust 的对应面是模型解析失败 fail-closed、终态持久化错误向上暴露，以及最终消息缺失时的合成消息 id 回退（synthetic_assistant_message_id），但没有 finalize/任务保存编排。"
+      "boundaryReason": "boundary（结构差异，本批纠正引用）：Go 断言 Run 在缺 provider、起始运行保存失败、规划后任务保存失败时都不返回成功，且 FinalizePlannedWorkflow 设置循环迭代并在最终消息持久化失败时回退。原条目引用的是生产辅助函数 synthetic_assistant_message_id 而非测试；最终消息标识回退面实际由完成运行的 transcript 链接用例覆盖（finalMessageId 跨 transcript、timeline 与运行三面同一标识）。Rust 没有 finalize 与任务保存编排，持久化失败按端口错误向上暴露。回归要求：补 finalize 编排契约后再升级。"
     },
     "internal/assistant/engine/workflowexec/workflow_execution_persistence_test.go:123:TestWorkflowExecutorSaveAndCancelBranches": {
       "status": "[~]",
@@ -291505,9 +291505,8 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs::is_dormant_workflow_child_run": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
-        "internal/assistant/engine/workflowexec/workflow_child_finalization_boundaries_test.go:66:TestWorkflowChildrenSkipIdleOrApprovalBlockedFinalization",
         "internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go:69:TestTaskResumeUsesStoredRunningChildBeforeCompletingParent",
         "internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go:110:TestTaskResumeTerminatesParentForStoredTerminalChild",
         "internal/assistant/engine/workflowexec/workflow_reconcile_ignore_boundaries_test.go:9:TestReconcileWorkflowChildrenIgnoresMissingAndForeignRuns"
@@ -291534,12 +291533,13 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs::expired_runs_use_each_runs_own_timeout_window": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/assistant/engine/store_test.go:1005:TestReconcileExpiredRunsUsesRunSpecificTimeout"
+        "internal/assistant/engine/store_test.go:1005:TestReconcileExpiredRunsUsesRunSpecificTimeout",
+        "internal/assistant/engine/workflowexec/workflow_child_finalization_boundaries_test.go:66:TestWorkflowChildrenSkipIdleOrApprovalBlockedFinalization"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs::the_run_read_routes_reconcile_expired_runs_before_serving": {
       "referenceCount": 1,
@@ -291550,13 +291550,12 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_failure.rs::synthetic_assistant_message_id": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/engine/completion_review_test.go:35:TestCompletionReviewHighConfidenceAppendUsesSameRunAndSyntheticFinalMessage",
-        "internal/assistant/engine/workflowexec/workflow_execution_persistence_test.go:14:TestWorkflowExecutorRunAndFinalizePersistence"
+        "internal/assistant/engine/completion_review_test.go:35:TestCompletionReviewHighConfidenceAppendUsesSameRunAndSyntheticFinalMessage"
       ],
-      "allowed": false,
-      "reviewStatus": "unreviewed"
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_completion_barrier_high_concurrency_tokio_blocking": {
       "referenceCount": 1,
@@ -291989,10 +291988,11 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_completed_run_links_its_final_assistant_message_across_the_transcript": {
-      "referenceCount": 2,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/assistant/engine/execution_state_projection_contracts_test.go:234:TestDirectApprovalCompletionPersistsAssistantTimelineAndTerminalState",
-        "internal/assistant/engine/runner_chat_test.go:225:TestAttachFinalAssistantMessagePersistsMessageAndRunLink"
+        "internal/assistant/engine/runner_chat_test.go:225:TestAttachFinalAssistantMessagePersistsMessageAndRunLink",
+        "internal/assistant/engine/workflowexec/workflow_execution_persistence_test.go:14:TestWorkflowExecutorRunAndFinalizePersistence"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"

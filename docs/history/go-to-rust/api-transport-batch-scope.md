@@ -3031,3 +3031,36 @@ owner：目标暂停恢复缺口保留在暂停字段 CAS 与 pause/resume mutat
 | 已知失败（如实记录） | `check:rust:static`、`check:rust:policy` 本次均为 exit 0；失败项不记为通过 | /tmp/s25_static.log、s25_policy.log |
 
 后续：engine 第十六片完成（626 行中 560 行）；队列进入 engine 余量约 66 行，随后 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片二十六：`internal/assistant/engine` 第十七片 35 行（2 处引用纠正 + 2 锚点，无 verdict 变更）
+
+范围（账本 inventory 1637-1671，按账本顺序）：`workflowexec/goal_resume_failure_boundaries_test.go:86`、`goal_state_boundaries_test.go:16/:158`、`goal_turn_failure_boundaries_test.go:11/:84/:115`、`persistence_failure_boundaries_test.go:14/:111/:217`、`persistence_propagation_closeout_test.go:14/:51/:124/:165/:179/:193`、`taskset_biz_test.go:9`、`taskset_done_test.go:9/:107`、`workflow_approval_persistence_boundaries_test.go:12`、`workflow_approval_recovery_boundaries_test.go:11/:28`、`workflow_child_failure_persistence_test.go:10`、`workflow_child_finalization_boundaries_test.go:10/:66`、`workflow_child_lifecycle_test.go:13`、`workflow_execution_failure_boundaries_test.go:13/:73/:108`、`workflow_execution_persistence_test.go:14/:123`、`workflow_executor_boundary_branches_test.go:11/:85/:121`、`workflow_finalization_contracts_test.go:10/:65`。初值 `[x]` 0、partial 35。
+
+owner：workflowexec 编排层在 Rust 不存在（无 WorkflowExecutor、goal turn、finalize、子运行结清编排），缺口保留在运行负载持久化、暂停字段 CAS、端口 fail-closed 与调度边界三处 owner。
+
+复核方法：35 条 partial 全量扫描引用有效性（文件加函数须指向真实 `#[test]`），逐条抽查 Go 原文与缺口描述；重点找引用错位与可升级项。结论：33 条引用有效且缺口描述相符（工具面与 artifact 面边界均带无命中探针），2 处引用纠正，无升级项（最接近的 modelsList 两条缺工作流任务工具集包装层，仍为 partial）。
+
+纠正：其一是 `child_finalization:66` 条目引用生产函数 `is_dormant_workflow_child_run` 而非测试，改为过期自有超时窗口用例并重写结论（dormant 判定实现侧存在但无独立测试覆盖，回归要求补豁免断言）。其二是 `execution_persistence:14` 条目引用生产辅助函数 `synthetic_assistant_message_id` 而非测试，改为完成运行 transcript 链接用例并重写结论（最终消息标识三面链接已覆盖，finalize 与任务保存编排缺失）。两处 verdict 保持 boundary 不变，另补 2 处 :66/:14 锚点。
+
+新增证据：注释锚点 2 行，无新增用例，无生产实现改动。
+
+映射终值（35 行）：`[x]` 0、partial 35、boundary 0。全量：`[x]` 1566、partial 2248、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+门禁说明：本分片落在 `beb5174c` 门禁优化之后，账本 v2 信封，写入用 v2 写入器；`--strict` 全仓未达标，保持既有约定不单立制式。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条 partial 引用有效性全扫描加缺口抽查 | 2 引用纠正（:66、:14）加 2 锚点，无升级项 |
+| 账本写入 | 2 行变更（v2 写入器），其余不动 | `[x]` 1566 不变、partial 2248 不变、boundary 637 不变（合计 4451）；引用测试全部存在且有锚点 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 通过（exit 0）；0 条引用不存在 crate、0 条 `[x]` 缺 function_exact；缺锚点告警 120 不变；重复 `[x]` 唯一性检查通 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1712→1714、已记录 1664→1666、unrecorded 0、stale 0、unknown 48 |
+| 报告刷新 | `python3 scripts/compatibility/audit_test_parity.py --write-report` | exit 0；inventory 跟随 2 行变更 |
+| 静态与格式 | `cargo fmt --all -- --check`（FMT_OK，改动仅注释锚点）、`pnpm run check:clippy`（exit 0）、`check:rust:architecture`（passed） | /tmp/s26_clippy2.log |
+| 受影响 nextest | engine 引用 2 用例定向 2/2（过期自有窗口、transcript 链接） | /tmp/s26_targeted.log |
+| 整轮 nextest | engine 全轮 1911/1911 一次过，无抖动 | /tmp/s26_engine_full.log |
+| 兼容与门禁 | generated/ai-context/zero-go 均过；quick 完整计划 exit 0（rust 1941/1941、compat 7 项、pineworker 98/98） | /tmp/s26_quick.log、s26_gen.log、s26_aictx.log、s26_zerogo.log |
+| 已知失败（如实记录） | `check:rust:static`、`check:rust:policy` 本次均为 exit 0；失败项不记为通过 | /tmp/s26_static.log、s26_policy.log |
+
+后续：engine 第十七片完成（626 行中 595 行）；队列进入 engine 余量约 31 行，随后 apiserver 下 assistant/ADK 相关 14 行。
