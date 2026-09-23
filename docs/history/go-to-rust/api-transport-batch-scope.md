@@ -4207,3 +4207,31 @@ owner：Pine 表达式与编译拒绝由 jftrade-strategy 承接，无双写。
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 4084 起；尾部余 368 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
+
+### 第 129 批分片六十九：rows 4084-4118 Pine 版本化集合与请求 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 4084-4118，按写入顺序）：strategy pine parse_collection:330/:375/:400/:430/:477/:515/:554/:587/:628/:678/:724/:768、parse_object:10/:65/:103/:136/:173/:206/:249/:289/:313/:341/:410/:438、parse_request:10/:82/:97/:141/:183/:217/:263、parse_semantic:10/:55/:98/:180。初值 [x] 2、partial 33、boundary 0，终值不变。首键自检通过，无重叠。
+
+owner：Pine 版本化语言面由 jftrade-strategy 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（5 个去重后引用逐个核对 #[test]，0 缺失），2 条 [x] 逐条核对锚点归属与断言等价（全部 function_exact 且带锚点），partial 抽查缺口诚实度。结论：0 纠正、0 升级、0 降级。
+
+核查说明：多数 partial 共用框架语言特性用例作最近邻引用，结论内均如实记录 Go 场景脚本实测被拒的诊断码与未实现族，并给出回归要求，符合部分可共享引用的口径；dup-x 为 0。
+
+抽查证据：[x] 结论均为逐脚本/逐诊断码写法；partial 缺口诚实（含未实现语言族清单）。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 2、partial 33、boundary 0。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（5 去重引用）加 [x] 断言等价核对 | 0 纠正、0 升级、0 降级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新基线，inventory 无变化；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 4119 起；尾部余 333 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
