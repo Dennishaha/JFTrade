@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T19:25:25Z",
+  "generatedAt": "2026-09-23T19:26:32Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -221688,28 +221688,21 @@
     },
     "pkg/bbgo/types/series.go:83:TestUpdate": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds",
-      "conclusion": "部分覆盖：Go 断言序列 Update 后窗口值更新与长度语义。Rust 指标接收切片快照并按窗口计算（该用例覆盖窗口内指标性质）；差异是 Rust 没有可变序列容器。",
+      "rust_entry": "不适用：series.go:83 的 TestUpdate 不是 testing.T 测试，而是生产文件里的反射驱动助手（func TestUpdate(u UpdatableSeriesExtend, input float64)，用 MethodByName 转调），且在基线内无任何调用方",
+      "conclusion": "不适用/边界保留（分片四十八复核纠正：原 partial 把该键当成断言序列 Update 语义的测试，实际它是生产文件中的反射测试驱动助手，不含任何断言，也无调用方，属测试普查把非 _test 文件的 func TestX 误收录；借用的指标用例断言不能记在其名下，故由 partial 转 boundary）。Rust 无此类反射 harness：指标接收切片快照按窗口计算，无需 MethodByName 转调；序列更新语义见 jftrade-backtest 指标用例。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
-      "evidence_type": "partial",
+      "evidence_type": "boundary",
       "source": {
         "file": "pkg/bbgo/types/series.go",
         "line": 83,
         "test": "TestUpdate",
         "blobSha": "f1135439130590be8e0988101fe706a0cf6719c1"
       },
-      "rustEvidence": [
-        {
-          "file": "crates/jftrade-backtest/src/indicators.rs",
-          "test": "indicator_properties_stay_within_go_compatibility_bounds",
-          "crate": "jftrade-backtest",
-          "anchor": null
-        }
-      ],
+      "rustEvidence": [],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "部分覆盖：Go 断言序列 Update 后窗口值更新与长度语义。Rust 指标接收切片快照并按窗口计算（该用例覆盖窗口内指标性质）；差异是 Rust 没有可变序列容器。"
+          "不适用/边界保留（分片四十八复核纠正：原 partial 把该键当成断言序列 Update 语义的测试，实际它是生产文件中的反射测试驱动助手，不含任何断言，也无调用方，属测试普查把非 _test 文件的 func TestX 误收录；借用的指标用例断言不能记在其名下，故由 partial 转 boundary）。Rust 无此类反射 harness：指标接收切片快照按窗口计算，无需 MethodByName 转调；序列更新语义见 jftrade-backtest 指标用例。"
         ],
         "source": "legacy-conclusion"
       },
@@ -221723,9 +221716,7 @@
           "--all-targets",
           "--locked"
         ],
-        "testFilter": [
-          "indicator_properties_stay_within_go_compatibility_bounds"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "unverified",
@@ -221744,9 +221735,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "部分覆盖：Go 断言序列 Update 后窗口值更新与长度语义。Rust 指标接收切片快照并按窗口计算（该用例覆盖窗口内指标性质）；差异是 Rust 没有可变序列容器。"
+        "不适用/边界保留（分片四十八复核纠正：原 partial 把该键当成断言序列 Update 语义的测试，实际它是生产文件中的反射测试驱动助手，不含任何断言，也无调用方，属测试普查把非 _test 文件的 func TestX 误收录；借用的指标用例断言不能记在其名下，故由 partial 转 boundary）。Rust 无此类反射 harness：指标接收切片快照按窗口计算，无需 MethodByName 转调；序列更新语义见 jftrade-backtest 指标用例。"
       ],
-      "boundaryReason": null
+      "boundaryReason": "不适用/边界保留（分片四十八复核纠正：原 partial 把该键当成断言序列 Update 语义的测试，实际它是生产文件中的反射测试驱动助手，不含任何断言，也无调用方，属测试普查把非 _test 文件的 func TestX 误收录；借用的指标用例断言不能记在其名下，故由 partial 转 boundary）。Rust 无此类反射 harness：指标接收切片快照按窗口计算，无需 MethodByName 转调；序列更新语义见 jftrade-backtest 指标用例。"
     },
     "pkg/bbgo/types/series_float64_test.go:9:TestSeriesBaseFuncWithPushData": {
       "status": "[~]",
@@ -289982,7 +289973,7 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds": {
-      "referenceCount": 10,
+      "referenceCount": 9,
       "referenceKeys": [
         "pkg/bbgo/datatype/floats/slice_test.go:47:TestSub",
         "pkg/bbgo/datatype/floats/slice_test.go:56:TestTruncate",
@@ -289992,7 +289983,6 @@
         "pkg/bbgo/types/indicator_test.go:152:TestAdd",
         "pkg/bbgo/types/indicator_test.go:160:TestDiv",
         "pkg/bbgo/types/indicator_test.go:169:TestMul",
-        "pkg/bbgo/types/series.go:83:TestUpdate",
         "pkg/strategy/indicatorwarmup/spec_parse_invalid_test.go:137:TestMovingAverageAndRiskKeyParsingBoundaries"
       ],
       "allowed": false,
