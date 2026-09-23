@@ -396,6 +396,7 @@ fn pre_trade_risk_combo_amount_mode_precedence_and_leg_bypass() {
     );
 }
 
+/// Parity: go:452dea11:internal/trading/broker_test.go:648 TestPlaceBrokerOrderRunsPreTradeRiskBeforeBrokerSubmission
 #[test]
 fn test_place_broker_order_runs_pre_trade_risk_before_broker_submission() {
     // Parity: internal/trading/broker_test.go:648 TestPlaceBrokerOrderRunsPreTradeRiskBeforeBrokerSubmission
@@ -411,6 +412,7 @@ fn test_place_broker_order_runs_pre_trade_risk_before_broker_submission() {
     );
 }
 
+/// Parity: go:452dea11:internal/trading/broker_test.go:711 TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable
 #[test]
 fn test_place_broker_order_fails_closed_when_real_risk_gateway_is_unavailable() {
     // Parity: internal/trading/broker_test.go:711 TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable

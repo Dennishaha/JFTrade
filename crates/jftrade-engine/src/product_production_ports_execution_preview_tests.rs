@@ -903,6 +903,7 @@ fn pre_trade_risk_rejection_stops_the_real_order_before_the_broker_is_called() {
 }
 
 /// Parity: go:452dea11:internal/trading/execution_test.go:470
+/// Parity: go:452dea11:internal/trading/broker_test.go:711 TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable
 /// `TestPlaceExecutionOrderFailsClosedWithoutRealRiskGateway`. Go defaults the
 /// environment to REAL, injects no risk gateway, and requires the fail-closed
 /// `PRE_TRADE_RISK_UNAVAILABLE` rejection with no order-gateway call.
@@ -1055,7 +1056,8 @@ fn implicit_real_environment_is_risk_rejected_before_the_broker_is_called() {
 }
 
 /// Parity: go:452dea11:internal/trading/broker_test.go:680
-/// `TestPlaceBrokerOrderCannotBypassRiskWithImplicitRealEnvironment`. Go's
+/// `TestPlaceBrokerOrderCannotBypassRiskWithImplicitRealEnvironment`.
+/// Parity: go:452dea11:internal/trading/broker_test.go:648 TestPlaceBrokerOrderRunsPreTradeRiskBeforeBrokerSubmission Go's
 /// service resolves an omitted `tradingEnvironment` through the configured
 /// default (REAL) before the pre-trade risk gate, so an active kill switch
 /// rejects the placement with `REAL_TRADE_KILL_SWITCH_ACTIVE` and the broker
@@ -1250,6 +1252,188 @@ fn cancel_rejects_missing_terminal_and_unidentified_persisted_orders() {
     assert!(
         writer.modified.lock().expect("modified orders").is_empty(),
         "rejected cancellations must not reach the broker"
+    );
+}
+
+/// Write fixture whose every submission fails with the same upstream
+/// broker error, so write-path tests can prove the failure surfaces instead
+/// of being masked by the port.
+#[derive(Debug, Default)]
+struct UpstreamFailingTradeWriter {
+    placed: Mutex<usize>,
+    modified: Mutex<usize>,
+    unlocked: Mutex<usize>,
+}
+
+impl TradeWritePort for UpstreamFailingTradeWriter {
+    fn place_order(
+        &self,
+        _: TradePlaceOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+        *self.placed.lock().expect("placed calls") += 1;
+        Err(TradeSessionError::Unsupported("broker write failed".to_owned()))
+    }
+
+    fn place_combo_order(
+        &self,
+        _: TradePlaceComboOrderRequest,
+    ) -> Result<TradePlaceComboOrderResult, TradeSessionError> {
+        unsupported()
+    }
+
+    fn modify_order(
+        &self,
+        _: TradeModifyOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+        *self.modified.lock().expect("modified calls") += 1;
+        Err(TradeSessionError::Unsupported("broker write failed".to_owned()))
+    }
+
+    fn unlock_trade(&self, _: TradeUnlockRequest) -> Result<(), TradeSessionError> {
+        *self.unlocked.lock().expect("unlocked calls") += 1;
+        Err(TradeSessionError::Unsupported("broker write failed".to_owned()))
+    }
+
+    fn subscribe_trade_accounts(
+        &self,
+        _: TradeSubscribeAccountsRequest,
+    ) -> Result<(), TradeSessionError> {
+        unsupported()
+    }
+}
+
+/// Builds a write port over an explicit store so one test can seed ledger
+/// rows through a recording writer and then exercise them through another
+/// writer configuration.
+fn write_port_on_store(
+    store: Arc<jftrade_store_sqlite::ExecutionOrderStore>,
+    writer: Option<Arc<dyn TradeWritePort>>,
+) -> ProductionExecutionPort {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, false);
+    ProductionExecutionPort {
+        store,
+        active_provider_state: state,
+        trade_logged_in: Some(true),
+        trade_read_port: None,
+        trade_write_port: writer,
+        trade_runtime: None,
+        cancel_inflight: Arc::new(std::sync::Mutex::new(std::collections::BTreeSet::new())),
+        risk_coordinator: None,
+        default_trading_environment: None,
+        notification_projector: None,
+    }
+}
+
+/// Parity: go:452dea11:internal/trading/broker_boundaries_test.go:116 TestServiceBrokerWriteOperationsPropagateUpstreamFailures
+#[test]
+fn broker_write_operations_propagate_upstream_broker_failures() {
+    let (store, directory) = execution_store();
+    let _ = directory.keep();
+    let seed_writer = Arc::new(RecordingTradeWriter::default());
+    let seed_port = write_port_on_store(
+        Arc::clone(&store),
+        Some(Arc::clone(&seed_writer) as Arc<dyn TradeWritePort>),
+    );
+    let seeded = seed_port
+        .place_order(&cancel_contract_payload("upstream-fail-seed"))
+        .expect("seed order");
+    let seeded_id = seeded["internalOrderId"]
+        .as_str()
+        .expect("seeded order id")
+        .to_owned();
+
+    let failing_writer = Arc::new(UpstreamFailingTradeWriter::default());
+    let port = write_port_on_store(
+        Arc::clone(&store),
+        Some(Arc::clone(&failing_writer) as Arc<dyn TradeWritePort>),
+    );
+    let query = BrokersWriteQuery {
+        broker_id: "futu".to_owned(),
+        account_id: "42".to_owned(),
+        trading_environment: "SIMULATE".to_owned(),
+        market: "HK".to_owned(),
+    };
+
+    let mut place_payload = cancel_contract_payload("upstream-fail-place");
+    place_payload["tradingEnvironment"] = serde_json::json!("SIMULATE");
+    let place_error = BrokersWritePort::mutate(
+        &port,
+        &BrokersWriteInput {
+            operation: BrokersWriteOperation::PlaceOrder,
+            query: query.clone(),
+            payload: place_payload,
+            context: BrokersWriteContext::Normal,
+        },
+    )
+    .expect_err("place must propagate the broker failure");
+    assert!(
+        format!("{place_error:?}").contains("broker write failed"),
+        "place error = {place_error:?}",
+    );
+
+    let unlock_error = BrokersWritePort::mutate(
+        &port,
+        &BrokersWriteInput {
+            operation: BrokersWriteOperation::Unlock,
+            query: query.clone(),
+            payload: serde_json::json!({"unlock": true, "passwordMd5": "dummy-md5"}),
+            context: BrokersWriteContext::Normal,
+        },
+    )
+    .expect_err("unlock must propagate the broker failure");
+    assert!(
+        format!("{unlock_error:?}").contains("broker write failed"),
+        "unlock error = {unlock_error:?}",
+    );
+
+    let cancel_error = BrokersWritePort::mutate(
+        &port,
+        &BrokersWriteInput {
+            operation: BrokersWriteOperation::CancelOrders,
+            query,
+            payload: serde_json::json!({"orders": [{"internalOrderId": seeded_id}]}),
+            context: BrokersWriteContext::Normal,
+        },
+    )
+    .expect_err("cancel must propagate the broker failure");
+    assert!(
+        format!("{cancel_error:?}").contains("broker write failed"),
+        "cancel error = {cancel_error:?}",
+    );
+
+    assert_eq!(*failing_writer.placed.lock().expect("placed calls"), 1);
+    assert_eq!(*failing_writer.modified.lock().expect("modified calls"), 1);
+    assert_eq!(*failing_writer.unlocked.lock().expect("unlocked calls"), 1);
+}
+
+/// Parity: go:452dea11:internal/trading/broker_account_read_failures_test.go:87 TestFundsMapsMarketAssetsAlongsideCashBalances
+#[test]
+fn cancel_without_a_trade_writer_fails_closed_before_broker_call() {
+    let (store, directory) = execution_store();
+    let _ = directory.keep();
+    let seed_writer = Arc::new(RecordingTradeWriter::default());
+    let seed_port = write_port_on_store(
+        Arc::clone(&store),
+        Some(Arc::clone(&seed_writer) as Arc<dyn TradeWritePort>),
+    );
+    let seeded = seed_port
+        .place_order(&cancel_contract_payload("no-writer-seed"))
+        .expect("seed order");
+    let seeded_id = seeded["internalOrderId"]
+        .as_str()
+        .expect("seeded order id")
+        .to_owned();
+
+    let port = write_port_on_store(Arc::clone(&store), None);
+    let error = port
+        .cancel_order(&seeded_id)
+        .expect_err("cancel without a writer must fail closed");
+    assert!(
+        format!("{error:?}").contains("OpenD trade runtime is unavailable"),
+        "cancel error = {error:?}",
     );
 }
 

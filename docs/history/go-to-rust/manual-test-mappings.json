@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T20:38:37Z",
+  "generatedAt": "2026-09-23T20:59:12Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -279521,8 +279521,8 @@
     },
     "internal/trading/broker_account_read_failures_test.go:87:TestFundsMapsMarketAssetsAlongsideCashBalances": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::funds_projection_preserves_currency_and_market_asset_arrays（与 pkg/futu/adapter_new_methods_test.go:112 行共享同一 Rust 用例：两条 Go 用例断言的是同一份 funds 投影输出）",
-      "conclusion": "已覆盖：Go 断言 funds 响应同时映射市场资产与现金余额（同一 snapshot 的 cashInfoList/marketInfoList 分别落到 currencyBalances 与 marketAssets，字段名与金额逐条对应）。Rust 的 funds_projection_preserves_currency_and_market_asset_arrays 用 FullFundsRead 夹具断言 2 条 currencyBalances（HKD/USD，含 cash/availableWithdrawalCash/netCashPower）与 2 条 marketAssets（HK/US，assets 金额），与 Go 的断言一一对应；本批新增的 broker_funds_response_serializes_the_contract_keys_with_null_last_error 另固定两个数组键始终存在。此前 partial 仅因该 Rust 用例的 entry 已被 pkg/futu/adapter_new_methods_test.go:112 占用，本批复核确认无缺口后按共享证据升 [x]。",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::funds_projection_preserves_currency_and_market_asset_arrays + crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_cash_balances_prefer_currency_rows_over_summary_fallback + crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::cancel_without_a_trade_writer_fails_closed_before_broker_call",
+      "conclusion": "已覆盖（三测组合）：Go 断言三段：(a) funds 同时映射市场资产与现金余额；(b) PortfolioCashBalances 从同一 funds 快照映射 USD/250；(c) 无交易服务时 CancelBrokerOrders 报 ErrTradingUnsupported。Rust：(a) funds 用例以 FullFundsRead 夹具断言 2 条 currencyBalances 与 2 条 marketAssets（与 Go 一一对应）；(b) portfolio_cash_balances 用例在同一 portfolio_cash_balance_values 上断言币种行优先与缺省回退；(c) 本批新增 cancel_without_a_trade_writer 用例在 writer 缺失时断言 cancel 以 OpenD trade runtime is unavailable 失败关闭（Rust 无 ErrTradingUnsupported 哨兵，失败关闭即等价契约）。owner：crates/jftrade-engine。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(funds_projection_preserves_currency_and_market_asset_arrays)'",
       "evidence_type": "function_exact",
       "source": {
@@ -279536,12 +279536,39 @@
           "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
           "test": "funds_projection_preserves_currency_and_market_asset_arrays",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/broker_account_read_failures_test.go",
+            "goLine": 87,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 714
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+          "test": "portfolio_cash_balances_prefer_currency_rows_over_summary_fallback",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/broker_account_read_failures_test.go",
+            "goLine": 87,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 714
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
+          "test": "cancel_without_a_trade_writer_fails_closed_before_broker_call",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/broker_account_read_failures_test.go",
+            "goLine": 87,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
+            "rustLine": 1410
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "已覆盖：Go 断言 funds 响应同时映射市场资产与现金余额（同一 snapshot 的 cashInfoList/marketInfoList 分别落到 currencyBalances 与 marketAssets，字段名与金额逐条对应）。Rust 的 funds_projection_preserves_currency_and_market_asset_arrays 用 FullFundsRead 夹具断言 2 条 currencyBalances（HKD/USD，含 cash/availableWithdrawalCash/netCashPower）与 2 条 marketAssets（HK/US，assets 金额），与 Go 的断言一一对应；本批新增的 broker_funds_response_serializes_the_contract_keys_with_null_last_error 另固定两个数组键始终存在。此前 partial 仅因该 Rust 用例的 entry 已被 pkg/futu/adapter_new_methods_test.go:112 占用，本批复核确认无缺口后按共享证据升 [x]。"
+          "已覆盖（三测组合）：Go 断言三段：(a) funds 同时映射市场资产与现金余额；(b) PortfolioCashBalances 从同一 funds 快照映射 USD/250；(c) 无交易服务时 CancelBrokerOrders 报 ErrTradingUnsupported。Rust：(a) funds 用例以 FullFundsRead 夹具断言 2 条 currencyBalances 与 2 条 marketAssets（与 Go 一一对应）；(b) portfolio_cash_balances 用例在同一 portfolio_cash_balance_values 上断言币种行优先与缺省回退；(c) 本批新增 cancel_without_a_trade_writer 用例在 writer 缺失时断言 cancel 以 OpenD trade runtime is unavailable 失败关闭（Rust 无 ErrTradingUnsupported 哨兵，失败关闭即等价契约）。owner：crates/jftrade-engine。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -279559,7 +279586,9 @@
           "test(funds_projection_preserves_currency_and_market_asset_arrays)"
         ],
         "testFilter": [
-          "funds_projection_preserves_currency_and_market_asset_arrays"
+          "funds_projection_preserves_currency_and_market_asset_arrays",
+          "portfolio_cash_balances_prefer_currency_rows_over_summary_fallback",
+          "cancel_without_a_trade_writer_fails_closed_before_broker_call"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -279578,17 +279607,17 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已覆盖：Go 断言 funds 响应同时映射市场资产与现金余额（同一 snapshot 的 cashInfoList/marketInfoList 分别落到 currencyBalances 与 marketAssets，字段名与金额逐条对应）。Rust 的 funds_projection_preserves_currency_and_market_asset_arrays 用 FullFundsRead 夹具断言 2 条 currencyBalances（HKD/USD，含 cash/availableWithdrawalCash/netCashPower）与 2 条 marketAssets（HK/US，assets 金额），与 Go 的断言一一对应；本批新增的 broker_funds_response_serializes_the_contract_keys_with_null_last_error 另固定两个数组键始终存在。此前 partial 仅因该 Rust 用例的 entry 已被 pkg/futu/adapter_new_methods_test.go:112 占用，本批复核确认无缺口后按共享证据升 [x]。"
+        "已覆盖（三测组合）：Go 断言三段：(a) funds 同时映射市场资产与现金余额；(b) PortfolioCashBalances 从同一 funds 快照映射 USD/250；(c) 无交易服务时 CancelBrokerOrders 报 ErrTradingUnsupported。Rust：(a) funds 用例以 FullFundsRead 夹具断言 2 条 currencyBalances 与 2 条 marketAssets（与 Go 一一对应）；(b) portfolio_cash_balances 用例在同一 portfolio_cash_balance_values 上断言币种行优先与缺省回退；(c) 本批新增 cancel_without_a_trade_writer 用例在 writer 缺失时断言 cancel 以 OpenD trade runtime is unavailable 失败关闭（Rust 无 ErrTradingUnsupported 哨兵，失败关闭即等价契约）。owner：crates/jftrade-engine。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/trading/broker_boundaries_test.go:11:TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::test_service_broker_read_operations_return_fallback_when_market_data_unavailable",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+      "conclusion": "partial（本批降级，原 [x] 过宽）：Go 在完全无行情源时 13 条读路由全部成功并携带各键。Rust 的回退用例只覆盖同端口 8 条交易读路由的成功与键存在；quote/klines/securities 三条在 trade_runtime 缺失时按设计失败关闭（结构化 Unavailable 错误，由 broker_quote_fails_closed_without_market_data_runtime 等专用例锁定），与 Go 的降级成功载荷不同构；portfolio cash/positions 两条挂在 ProductionPortfolioPort 上，由 broker_test:453 行的 portfolio 用例覆盖。回归要求：三条市场路由的失败关闭契约已有专用例锁定，若未来要与 Go 对齐降级载荷，需在读端口补 fallback 形态并回归本行。owner：crates/jftrade-engine。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/trading/broker_boundaries_test.go",
         "line": 11,
@@ -279604,15 +279633,15 @@
             "goFile": "internal/trading/broker_boundaries_test.go",
             "goLine": 11,
             "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-            "rustLine": 1921
+            "rustLine": 1920
           }
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据"
+        "covered": [],
+        "uncovered": [
+          "partial（本批降级，原 [x] 过宽）：Go 在完全无行情源时 13 条读路由全部成功并携带各键。Rust 的回退用例只覆盖同端口 8 条交易读路由的成功与键存在；quote/klines/securities 三条在 trade_runtime 缺失时按设计失败关闭（结构化 Unavailable 错误，由 broker_quote_fails_closed_without_market_data_runtime 等专用例锁定），与 Go 的降级成功载荷不同构；portfolio cash/positions 两条挂在 ProductionPortfolioPort 上，由 broker_test:453 行的 portfolio 用例覆盖。回归要求：三条市场路由的失败关闭契约已有专用例锁定，若未来要与 Go 对齐降级载荷，需在读端口补 fallback 形态并回归本行。owner：crates/jftrade-engine。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -279637,15 +279666,15 @@
       "risk": "high",
       "owner": "trading_broker",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（本批降级，原 [x] 过宽）：Go 在完全无行情源时 13 条读路由全部成功并携带各键。Rust 的回退用例只覆盖同端口 8 条交易读路由的成功与键存在；quote/klines/securities 三条在 trade_runtime 缺失时按设计失败关闭（结构化 Unavailable 错误，由 broker_quote_fails_closed_without_market_data_runtime 等专用例锁定），与 Go 的降级成功载荷不同构；portfolio cash/positions 两条挂在 ProductionPortfolioPort 上，由 broker_test:453 行的 portfolio 用例覆盖。回归要求：三条市场路由的失败关闭契约已有专用例锁定，若未来要与 Go 对齐降级载荷，需在读端口补 fallback 形态并回归本行。owner：crates/jftrade-engine。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/trading/broker_boundaries_test.go:62:TestServiceBrokerReadOperationsClassifyUpstreamFailures": {
@@ -279719,8 +279748,8 @@
     },
     "internal/trading/broker_boundaries_test.go:116:TestServiceBrokerWriteOperationsPropagateUpstreamFailures": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::test_service_broker_write_operations_propagate_upstream_failures",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::broker_write_operations_propagate_upstream_broker_failures",
+      "conclusion": "已覆盖（本批补测）：Go 以同一上游错误驱动 place/cancel/unlock，要求原样透传。原引用的读端口用例只覆盖读失败关闭，与写透传不等价。本批新增 broker_write_operations_propagate_upstream_broker_failures，以全失败 writer 经 BrokersWritePort::mutate 走 place/unlock/cancel 三路，断言错误文本均含上游 broker write failed 且三路各实际调用 writer 一次；cancel 另由 accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel 覆盖 502/BROKER_UNAVAILABLE 形态。owner：crates/jftrade-engine。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
       "evidence_type": "function_exact",
       "source": {
@@ -279731,20 +279760,20 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-          "test": "test_service_broker_write_operations_propagate_upstream_failures",
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
+          "test": "broker_write_operations_propagate_upstream_broker_failures",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/trading/broker_boundaries_test.go",
             "goLine": 116,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-            "rustLine": 4132
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
+            "rustLine": 1328
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据"
+          "已覆盖（本批补测）：Go 以同一上游错误驱动 place/cancel/unlock，要求原样透传。原引用的读端口用例只覆盖读失败关闭，与写透传不等价。本批新增 broker_write_operations_propagate_upstream_broker_failures，以全失败 writer 经 BrokersWritePort::mutate 走 place/unlock/cancel 三路，断言错误文本均含上游 broker write failed 且三路各实际调用 writer 一次；cancel 另由 accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel 覆盖 502/BROKER_UNAVAILABLE 形态。owner：crates/jftrade-engine。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -279758,7 +279787,7 @@
           "jftrade-engine"
         ],
         "testFilter": [
-          "test_service_broker_write_operations_propagate_upstream_failures"
+          "broker_write_operations_propagate_upstream_broker_failures"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -279777,7 +279806,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据"
+        "已覆盖（本批补测）：Go 以同一上游错误驱动 place/cancel/unlock，要求原样透传。原引用的读端口用例只覆盖读失败关闭，与写透传不等价。本批新增 broker_write_operations_propagate_upstream_broker_failures，以全失败 writer 经 BrokersWritePort::mutate 走 place/unlock/cancel 三路，断言错误文本均含上游 broker write failed 且三路各实际调用 writer 一次；cancel 另由 accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel 覆盖 502/BROKER_UNAVAILABLE 形态。owner：crates/jftrade-engine。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -280301,8 +280330,8 @@
     },
     "internal/trading/broker_test.go:648:TestPlaceBrokerOrderRunsPreTradeRiskBeforeBrokerSubmission": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::test_place_broker_order_runs_pre_trade_risk_before_broker_submission",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+      "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::test_place_broker_order_runs_pre_trade_risk_before_broker_submission + crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::implicit_real_environment_hits_the_kill_switch_before_the_broker_is_called",
+      "conclusion": "已覆盖（双测组合）：Go 断言显式 REAL 下 kill switch 以 REAL_TRADE_KILL_SWITCH_ACTIVE 拒绝且 broker 未被调用。Rust：领域用例在显式 REAL 上锁定 kill-switch 决策与原因码；implicit_real_environment 端到端用例锁定 kill-switch 拒绝后 writer 空（拒绝即不触达网关的接线），环境缺省解析由同名 :680 行覆盖。两半合成与 Go 两断言等价。owner：crates/jftrade-trading（决策）+ crates/jftrade-engine（接线）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
       "evidence_type": "function_exact",
       "source": {
@@ -280320,13 +280349,24 @@
             "goFile": "internal/trading/broker_test.go",
             "goLine": 648,
             "rustFile": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
-            "rustLine": 401
+            "rustLine": 399
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
+          "test": "implicit_real_environment_hits_the_kill_switch_before_the_broker_is_called",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 648,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
+            "rustLine": 1060
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据"
+          "已覆盖（双测组合）：Go 断言显式 REAL 下 kill switch 以 REAL_TRADE_KILL_SWITCH_ACTIVE 拒绝且 broker 未被调用。Rust：领域用例在显式 REAL 上锁定 kill-switch 决策与原因码；implicit_real_environment 端到端用例锁定 kill-switch 拒绝后 writer 空（拒绝即不触达网关的接线），环境缺省解析由同名 :680 行覆盖。两半合成与 Go 两断言等价。owner：crates/jftrade-trading（决策）+ crates/jftrade-engine（接线）。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -280340,7 +280380,8 @@
           "jftrade-trading"
         ],
         "testFilter": [
-          "test_place_broker_order_runs_pre_trade_risk_before_broker_submission"
+          "test_place_broker_order_runs_pre_trade_risk_before_broker_submission",
+          "implicit_real_environment_hits_the_kill_switch_before_the_broker_is_called"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -280359,7 +280400,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据"
+        "已覆盖（双测组合）：Go 断言显式 REAL 下 kill switch 以 REAL_TRADE_KILL_SWITCH_ACTIVE 拒绝且 broker 未被调用。Rust：领域用例在显式 REAL 上锁定 kill-switch 决策与原因码；implicit_real_environment 端到端用例锁定 kill-switch 拒绝后 writer 空（拒绝即不触达网关的接线），环境缺省解析由同名 :680 行覆盖。两半合成与 Go 两断言等价。owner：crates/jftrade-trading（决策）+ crates/jftrade-engine（接线）。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -280435,8 +280476,8 @@
     },
     "internal/trading/broker_test.go:711:TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::test_place_broker_order_fails_closed_when_real_risk_gateway_is_unavailable",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+      "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::test_place_broker_order_fails_closed_when_real_risk_gateway_is_unavailable + crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::real_order_without_a_risk_gateway_fails_closed_before_the_broker_is_called",
+      "conclusion": "已覆盖（双测组合）：Go 断言无 REAL 风控网关时以 PRE_TRADE_RISK_UNAVAILABLE 失败关闭且 broker 未被调用。Rust：领域用例锁定网关缺失时的决策与原因码；real_order_without_a_risk_gateway 端到端用例在显式 REAL、无网关的端口上断言 403/PRE_TRADE_RISK_UNAVAILABLE 且 writer 空。两半合成与 Go 两断言等价。owner：crates/jftrade-trading（决策）+ crates/jftrade-engine（接线）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
       "evidence_type": "function_exact",
       "source": {
@@ -280454,13 +280495,24 @@
             "goFile": "internal/trading/broker_test.go",
             "goLine": 711,
             "rustFile": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
-            "rustLine": 416
+            "rustLine": 415
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
+          "test": "real_order_without_a_risk_gateway_fails_closed_before_the_broker_is_called",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 711,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
+            "rustLine": 906
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据"
+          "已覆盖（双测组合）：Go 断言无 REAL 风控网关时以 PRE_TRADE_RISK_UNAVAILABLE 失败关闭且 broker 未被调用。Rust：领域用例锁定网关缺失时的决策与原因码；real_order_without_a_risk_gateway 端到端用例在显式 REAL、无网关的端口上断言 403/PRE_TRADE_RISK_UNAVAILABLE 且 writer 空。两半合成与 Go 两断言等价。owner：crates/jftrade-trading（决策）+ crates/jftrade-engine（接线）。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -280474,7 +280526,8 @@
           "jftrade-trading"
         ],
         "testFilter": [
-          "test_place_broker_order_fails_closed_when_real_risk_gateway_is_unavailable"
+          "test_place_broker_order_fails_closed_when_real_risk_gateway_is_unavailable",
+          "real_order_without_a_risk_gateway_fails_closed_before_the_broker_is_called"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -280493,7 +280546,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据"
+        "已覆盖（双测组合）：Go 断言无 REAL 风控网关时以 PRE_TRADE_RISK_UNAVAILABLE 失败关闭且 broker 未被调用。Rust：领域用例锁定网关缺失时的决策与原因码；real_order_without_a_risk_gateway 端到端用例在显式 REAL、无网关的端口上断言 403/PRE_TRADE_RISK_UNAVAILABLE 且 writer 空。两半合成与 Go 两断言等价。owner：crates/jftrade-trading（决策）+ crates/jftrade-engine（接线）。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -296589,6 +296642,14 @@
       "allowed": false,
       "reviewStatus": "unreviewed"
     },
+    "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::broker_write_operations_propagate_upstream_broker_failures": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/broker_boundaries_test.go:116:TestServiceBrokerWriteOperationsPropagateUpstreamFailures"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
     "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::broker_write_routes_reject_an_inactive_broker_before_the_trade_writer": {
       "referenceCount": 2,
       "referenceKeys": [
@@ -296635,6 +296696,14 @@
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
+    },
+    "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::cancel_without_a_trade_writer_fails_closed_before_broker_call": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/broker_account_read_failures_test.go:87:TestFundsMapsMarketAssetsAlongsideCashBalances"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::combo_helper_branches_keep_go_risk_quantity_quantity_mode_and_gateway_contract": {
       "referenceCount": 1,
@@ -296769,12 +296838,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::implicit_real_environment_hits_the_kill_switch_before_the_broker_is_called": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
+        "internal/trading/broker_test.go:648:TestPlaceBrokerOrderRunsPreTradeRiskBeforeBrokerSubmission",
         "internal/trading/broker_test.go:680:TestPlaceBrokerOrderCannotBypassRiskWithImplicitRealEnvironment"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::implicit_real_environment_is_risk_rejected_before_the_broker_is_called": {
       "referenceCount": 1,
@@ -296866,12 +296936,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::real_order_without_a_risk_gateway_fails_closed_before_the_broker_is_called": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
+        "internal/trading/broker_test.go:711:TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable",
         "internal/trading/execution_test.go:470:TestPlaceExecutionOrderFailsClosedWithoutRealRiskGateway"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::runtime_enabled_real_trade_reaches_the_broker_after_risk_approval": {
       "referenceCount": 1,
@@ -299301,10 +299372,11 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_cash_balances_prefer_currency_rows_over_summary_fallback": {
-      "referenceCount": 3,
+      "referenceCount": 4,
       "referenceKeys": [
         "pkg/futu/exchange_business_boundary_test.go:18:TestBalanceMapFromBrokerFundsUsesCurrencyRowsBeforeAccountFallback",
         "pkg/futu/trade_proto_business_test.go:77:TestBalanceMapUsesFuturesAvailableFundsOverWithdrawalCash",
+        "internal/trading/broker_account_read_failures_test.go:87:TestFundsMapsMarketAssetsAlongsideCashBalances",
         "internal/trading/broker_test.go:453:TestServicePortfolioAndFallbackResponses"
       ],
       "allowed": false,
@@ -299377,14 +299449,6 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/trading/broker_boundaries_test.go:11:TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::test_service_broker_write_operations_propagate_upstream_failures": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/trading/broker_boundaries_test.go:116:TestServiceBrokerWriteOperationsPropagateUpstreamFailures"
       ],
       "allowed": true,
       "reviewStatus": "single"

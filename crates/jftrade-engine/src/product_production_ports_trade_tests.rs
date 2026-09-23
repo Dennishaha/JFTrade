@@ -711,6 +711,7 @@ fn funds_projection_keeps_missing_margin_fields_absent() {
     assert_eq!(value["currencyBalances"], json!([]));
 }
 
+/// Parity: go:452dea11:internal/trading/broker_account_read_failures_test.go:87 TestFundsMapsMarketAssetsAlongsideCashBalances
 #[test]
 fn funds_projection_preserves_currency_and_market_asset_arrays() {
     // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:112
@@ -1916,6 +1917,7 @@ fn portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is
     assert_eq!(balances[0]["cashBalance"], 2_500.0);
 }
 
+/// Parity: go:452dea11:internal/trading/broker_boundaries_test.go:11 TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable
 #[test]
 fn test_service_broker_read_operations_return_fallback_when_market_data_unavailable() {
     // Parity: internal/trading/broker_boundaries_test.go:11 TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable

@@ -4371,3 +4371,38 @@ owner：worker 池/进程/资产/传输由 jftrade-integration-pine 承接，输
 | 文档门禁 | ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 4294 起；尾部余约 158 行）；队列按账本实际顺序推进（策略尾部、行情、集成、设置）。
+
+### 第 129 批分片七十五：rows 4294-4328 pineworker 校验与 trading 券商 35 行（1 处降级、2 项补测、4 处占位改写）
+
+范围（账本 rows 4294-4328，按写入顺序）：strategy pineworker proto_mapping:15/:154/:182/:197/:212、runtime_boundaries:14/:39/:66/:79/:107/:134/:189、types:10/:21/:41/:92/:105/:147/:164/:171、trading broker_account_read_failures:11/:87、broker_boundaries:11/:62/:116、broker_conformance:15/:58/:107、broker:186/:453/:533/:648/:680/:711/:735。初值 [x] 11、partial 20、boundary 4；终值 [x] 10、partial 21、boundary 4。首键自检通过，无重叠。
+
+owner：worker 校验/传输由 jftrade-integration-pine 承接，券商读写/对账/风控接线由 jftrade-engine 承接，风控决策由 jftrade-trading 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（官方解析器 47 个去重引用逐个核对 #[test]/#[tokio::test]，0 缺失），11 条 [x] 逐条核对锚点归属与断言等价（逐段比对 Go 原文）。发现 3 处过宽判定并纠正，4 处占位结论按子例改写。
+
+纠正一（降级）：broker_boundaries:11 原 [x] 过宽——Go 在无行情源时 13 条路由全部成功携键，Rust 回退用例只覆盖同端口 8 条交易读路由；quote/klines/securities 在 trade_runtime 缺失时按设计失败关闭（读端口实现查证），与 Go 降级载荷不同构；portfolio 两条挂在另一端口，由 broker_test:453 行覆盖。降为 partial 并写清缺口与回归要求。
+
+纠正二（补测）：broker_boundaries:116 原引用的读端口用例与写透传不等价。新增 broker_write_operations_propagate_upstream_broker_failures，以全失败 writer 经 BrokersWritePort::mutate 走 place/unlock/cancel 三路，断言上游错误文本透传且三路各调 writer 一次；entry 指向新用例。
+
+纠正三（组合引用）：broker_test:648/:711 原引用领域决策用例，缺 broker 未被调用半。entry 改为双测组合（领域决策 + 端到端接线用例），并给端到端用例补对应行锚点；broker_account_read_failures:87 同理改为三测组合，并新增 cancel_without_a_trade_writer 用例覆盖无 writer 失败关闭（对应 Go 的 ErrTradingUnsupported 守卫）。
+
+占位改写：:11/:116/:648/:711 四行 partial→实质结论改写为逐段断言说明。
+
+抽查证据：pineworker 四条 [x]（types:41/:92/:105/:147）锚点齐全；:15 一致性主线四段与 Rust 实现逐项对应；dup-x 为 0（审计 exit 0）。
+
+新增证据：2 个新回归用例（均一次通过，实现本就透传，无需生产改动）；6 行账本刷新（8/8 相关 evidence 落锚）。
+
+映射终值（35 行）：[x] 10、partial 21、boundary 4。全量：[x] 1564、partial 2249、boundary 638（合计 4451）；Rust 测试 3295→3297（本片新增 2 个 engine 回归用例）。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（47 去重引用）加 [x] 断言等价核对 | 1 降级、2 补测、4 改写；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2 写入器 6 行（分三批） | [x] 1564、partial 2249、boundary 638（合计 4451） |
+| Rust 定向测试 | cargo-nextest -p jftrade-engine 相关 7 用例、-p jftrade-trading 整轮 | 7/7 通过；85/85 通过 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；缺锚点告警 116→115；report/inventory 刷新 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1728、已记录 1681、unrecorded 0、stale 0、unknown 47 |
+| 文档门禁 | fmt、ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 4329 起；尾部余约 123 行）；队列按账本实际顺序推进（策略尾部、行情、集成、设置）。
