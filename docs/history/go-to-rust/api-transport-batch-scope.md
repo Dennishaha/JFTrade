@@ -2588,3 +2588,30 @@ owner：engine 运行时装配由 engine composition root 承接，存储契约�
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected，advisories FAILED 其余 ok），与本分片无关 |
 
 后续：engine 首片完成；队列进入 engine 第二片（账本 1112 起约 35 行：`adk_tool_edges` 余量与后续文件），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片十一：`internal/assistant/engine` 第二片 35 行（结论收紧，无 verdict 翻转）
+
+范围（账本 inventory 1112-1146，按文件与行号升序）：`adk_tool_edges_test.go:235/:340`、`approval_persistence_failures_test.go:9/:75`、`approval_reconciliation_lifecycle_test.go:9/:65`、`approval_retry_sibling_cancellation_test.go:14/:68`、`approval_stage_boundaries_test.go:8/:75`、`approval_state_guard_test.go:9/:114`、`canvas_provider_model_overrides_test.go:8`、`chat_request_idempotency_test.go:17/:48`、`completion_review_test.go:17/:35/:79/:121/:153/:185/:227`、`completionreview/policy_test.go:10/:30/:68/:100`、`context_cache_test.go:61/:116/:187`、`error_identity_test.go:20/:49/:68`、`event_projection_boundaries_test.go:14/:72/:87`（35 行中 [x]1/partial34，含 boundary 13）。
+
+owner：审批/续跑资格由 ADK 运行生命周期与端口错误分类承接，审批/运行持久化由 `crates/jftrade-store-sqlite` 承接，completion review 在 Rust 无同形层（fail-open 等语义不存在），工具排序/错误哨兵属 Go 专属面。
+
+复核方法：35/35 参考行号签名一致；唯一 `[x]` 行（`chat_request_idempotency_test.go:48`）逐分支核对 Go 断言与 Rust 用例；13 条 boundary 行全仓无锚点（符合 boundary 不得挂锚点）；抽查 partial 行 Go 原文与结论对应关系（审批持久化失败注入、状态守卫）。
+
+结论：1 处结论收紧（verdict 不变）——`chat_request_idempotency_test.go:48` 保持 `[x]`，但原逐条对应表述只点名单条 Rust 用例，现按分支分布写明：并发首投单 run/单 lease/单会话事件由本 entry 用例锁定，重放同 run 与冲突拒绝由路由级 `adk_chat_idempotency_contract_matches_the_go_routes` 锁定（同 body 重放 200 同 run id、换 message 报 409），responses SSE 原生文案属 provider mock 细节无文案级断言。其余 34 行 verdict 维持：partial 行缺口均为真实结构差异（故障注入、审批专用资格函数、旧 handoff 字符串级断言、工具显式排序、哨兵往返表），boundary 行均为 Go 专属面（planner 草稿编译层、completion review 整层、哨兵 AST 守卫）并已登记升级路径或保留结论。
+
+映射终值（35 行）：`[x]` 1、partial 21、boundary 13。本分片无 Rust 生产/测试代码改动，无新增锚点，无探针。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 自建校验（参考行号签名 35/35、`[x]` 断言对应、boundary 无锚点 13/13、partial 抽查） | 35 行 0 verdict 问题，1 结论收紧 |
+| 账本写入 | `/tmp/s11_payload.json` 经 `/tmp/b82_apply.py` 应用 | `[x]` 1592 不变、partial 2222 不变、boundary 637 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；缺锚点告警 182 不变；Rust 测试 3293 不变 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1658 不变、已记录 1607、unrecorded 0、stale 0、unknown 51 不变 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | 全过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（engine 整轮） | 首轮 1910/1911（`adk_session_detail_omits_resolved_approval_groups` 抖动，隔离复跑 3/3 通过）→ 次轮 1910/1911（`api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal` 抖动，隔离复跑 2/2 通过）→ quick 内第三轮 1941/1941 通过 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | 全过：compat exit 0、generated 未改动工作树、ai-context 6 模块 8 指令文件、zero-go 2953 files、quick exit 0（nextest 1941/1941、pineworker 98/98） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected），与本分片无关 |
+
+后续：engine 第二片完成；队列进入 engine 第三片（账本 1147 起约 35 行），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。

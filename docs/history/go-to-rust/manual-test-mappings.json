@@ -7730,8 +7730,8 @@
   "internal/assistant/engine/chat_request_idempotency_test.go:48:TestConcurrentResponsesRequestReusesOneRunAndNativeAssistantEvent": {
     "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::concurrent_first_delivery_creates_one_durable_run_and_event",
-    "conclusion": "function_exact：Go 断言并发的同一 responses 请求复用同一个 run、只产生一条原生 assistant 事件，且重放返回同结果、冲突请求被拒。Rust 的 concurrent_first_delivery_creates_one_durable_run_and_event 断言并发首投只创建一个持久 run 与一条事件（其余调用复用同一结果），逐条对应“并发复用单 run/单事件”。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "function_exact（第 129 批分片十一复核收紧：原逐条对应表述只点名本用例，现按分支分布写明）。Go 覆盖并发同请求复用单 run（双响应同 run id、模型只调用一次）、持久 run 带 FinalMessageID、会话投影恰好一条原生 assistant 事件、重放返回同 run 且不新增模型调用、换 message 冲突被拒。Rust 侧：并发首投单 run/单 lease/单会话事件由本 entry 用例锁定（双投同 run id、恰好一个 lease、会话恰好一条事件）；重放同 run 与冲突拒绝由路由级 product_adk_chat_stream_product_tests.rs::adk_chat_idempotency_contract_matches_the_go_routes 锁定（同 body 重放 200 且同 run id、换 message 报 409）。Go 的 responses SSE 原生消息 content 文案（single answer）属 provider mock 细节，Rust 以失败分类终态与事件条数等价表达，无文案级断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(concurrent_first_delivery_creates_one_durable_run_and_event)'",
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/completion_review_test.go:17:TestCompletionReviewCompleteLeavesReplyUnchanged": {
