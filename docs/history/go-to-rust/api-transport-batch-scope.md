@@ -3238,3 +3238,28 @@ owner：Go 覆盖率 CLI 工具面已随 Go 运行时删除，Rust 侧无覆盖�
 | 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 | /tmp/s32_quick.log |
 
 后续：other 域本片完成（余 427 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+### 第 129 批分片三十三：other 域协议生成器 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 2852-2886，按写入顺序）：runner:97/:131/:142/:174/:188、generate-futu-proto/generator:18/:46/:60、main:14/:29/:37/:44、manifest:15/:25/:38/:60/:70、repository_verify:12/:41/:59、rewrite:12/:35/:42、generate-pineworker-proto/generator:17/:40/:54/:70/:87、main:14/:25/:33/:40、output:12/:26/:41。初值 [x] 4、partial 8、boundary 23。
+
+owner：生成器流水线（protoc 调用、暂存目录原子替换、CLI 参数与退出码）无 Rust 同形对象，Rust 侧以 build.rs 编译期冻结输入承担等价约束；覆盖率 runner 面已随 Go 运行时删除。
+
+复核方法：35 条全量枚举引用有效性，4 条 [x] 逐分支核对 Go 原文与 Rust 断言等价（含 Parity 锚点归属与全文唯一性）；partial 逐条核对缺口诚实度（命令未执行不可断言、replace/insert 分支不可区分、暂存替换无对应物均如实登记）；boundary 抽查 Go 原文确认无 Rust 同形对象。结论：引用全部有效、缺口描述相符，0 纠正、0 升级。
+
+抽查证据：repository_verify 三条 Rust 用例均携带对应行号 Parity 锚点，漂移、非法扩展名、平铺、清单失配与摘要解析失败分支与 Go 一致；pineworker 输入先验 равно Go 的缺失即失败且命令未执行；dup-x 为 0，partial 共享 [x] 引用符合口径。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 4、partial 8、boundary 23。全量：[x] 1566、partial 2248、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加缺口抽查，4 条 [x] 核对断言等价 | 0 纠正、0 升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1566、partial 2248、boundary 637（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新 Rust 基线，inventory 无变化 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 |
+
+后续：other 域本片完成（余 392 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
