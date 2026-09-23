@@ -236,6 +236,8 @@ fn pending_user_text() -> String {
     "pending input ".repeat(200)
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:341
+/// `TestMaybeAutoCompactSessionEmitsContextNoticeDeltas`.
 #[test]
 fn auto_compaction_emits_streaming_then_final_notice_and_context_delta() {
     let (directory, port) = context_port();
@@ -300,6 +302,8 @@ fn auto_compaction_emits_streaming_then_final_notice_and_context_delta() {
     assert_eq!(seen[0]["status"], "final", "{seen:?}");
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:446
+/// `TestMaybeAutoCompactSessionSkipsWhenSessionCompactionAlreadyRunning`.
 #[test]
 fn auto_compaction_skips_while_another_compaction_holds_the_session_gate() {
     let (directory, port) = context_port();
@@ -341,6 +345,8 @@ fn auto_compaction_skips_while_another_compaction_holds_the_session_gate() {
     assert!(!released.is_empty(), "release enables the compaction");
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:569
+/// `TestMaybeAutoCompactSessionDuringWorkflowAllowsActiveParent`.
 #[test]
 fn workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits() {
     let (directory, port) = context_port();
@@ -404,6 +410,8 @@ fn workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits() {
     );
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:506
+/// `TestSessionServiceAutoCompactionUsesSessionGate`.
 #[test]
 fn model_context_read_compacts_only_when_the_session_gate_is_free() {
     let (directory, port) = context_port();
@@ -437,6 +445,8 @@ fn model_context_read_compacts_only_when_the_session_gate_is_free() {
     );
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:703
+/// `TestModelContextReadAutoCompactsBeforeProviderPayload`.
 #[test]
 fn model_context_autocompacts_before_the_provider_payload() {
     let (directory, port) = context_port();
@@ -517,6 +527,8 @@ fn a_chat_turn_autocompacts_the_session_before_the_provider_payload() {
     );
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:287
+/// `TestCompactSessionContextWritesContextNotice`.
 #[test]
 fn manual_context_compaction_writes_the_done_notice_into_the_timeline() {
     let (_directory, port) = context_port();
@@ -639,6 +651,8 @@ fn a_rejected_compaction_records_the_failed_notice() {
     );
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:120
+/// `TestSessionContextUsesSessionProviderOverrideWindow`.
 #[test]
 fn session_context_window_follows_the_composer_provider_override() {
     let (_directory, port) = context_port();
@@ -690,6 +704,8 @@ fn session_context_window_follows_the_composer_provider_override() {
     );
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:651
+/// `TestSessionContextViewDoesNotAutoCompact`.
 #[test]
 fn session_context_read_reports_pressure_without_compacting() {
     let (_directory, port) = context_port();
@@ -729,6 +745,8 @@ fn session_context_read_reports_pressure_without_compacting() {
 }
 
 // Parity: go:452dea11:internal/assistant/engine/session_context_stale_test.go:315 TestSessionContextProjectionTrimsOversizedToolResponses
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:15
+/// `TestSessionContextCompactionShrinksSessionView`.
 #[test]
 fn context_compaction_shrinks_the_projected_session_view() {
     let (_directory, port) = context_port();
@@ -771,6 +789,8 @@ fn context_compaction_shrinks_the_projected_session_view() {
     assert_eq!(reread["activeHandoffCount"], 1, "{reread}");
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/session_context_test.go:183
+/// `TestSessionContextCompactionCreatesCurrentRevision`.
 #[test]
 fn each_context_compaction_creates_the_next_current_revision() {
     let (_directory, port) = context_port();

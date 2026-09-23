@@ -9527,11 +9527,11 @@
     "evidence_type": "partial"
   },
   "internal/assistant/engine/session_context_stale_test.go:106:TestAppendADKEventWithStaleRetrySerializesConcurrentStaleSession": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-store-sqlite/tests/adk_atomic_projection_events.rs::event_must_match_the_run_and_session_before_projection_changes",
-    "conclusion": "function_exact：Go 断言并发陈旧会话下追加事件的串行化（唯一成功、其余刷新后重试）。Rust 的 event_must_match_the_run_and_session_before_projection_changes 断言事件必须匹配运行与会话才改变投影（否则拒绝），等价于并发陈旧会话的串行化护栏。",
+    "conclusion": "partial：Go 断言 12 路并发追加全部成功（陈旧会话刷新后重试，最终事件数 12 且追加锁表清空）。Rust 的 event_must_match_the_run_and_session_before_projection_changes 只断言外来运行与会话事件被拒绝且投影不变（冲突不静默成功），没有陈旧刷新重试路径；Rust 事件写入没有 stale 语义（同文件 :868 边界项）。缺口：并发追加全部成功的串行化重试在 Rust 无等价入口；回归要求：在所属 store 层补并发追加测试后再升级。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-    "evidence_type": "function_exact"
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/session_context_stale_test.go:160:TestAppendADKEventWithStaleRetryReturnsNonStaleError": {
     "status": "[~]",
@@ -9562,11 +9562,11 @@
     "evidence_type": "boundary"
   },
   "internal/assistant/engine/session_context_stale_test.go:315:TestSessionContextProjectionTrimsOversizedToolResponses": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_adk_session_context_tests.rs::context_compaction_shrinks_the_projected_session_view; crates/jftrade-engine/src/product_adk_session_context_tests.rs::model_context_autocompacts_before_the_provider_payload",
-    "conclusion": "function_exact：Go 断言会话上下文投影会裁剪超大工具响应。Rust 的 context_compaction_shrinks_the_projected_session_view（压缩后视图变小）与 model_context_autocompacts_before_the_provider_payload（发送前自动压缩）逐条覆盖超长工具响应的裁剪。",
+    "conclusion": "partial：Go 断言超大工具响应按阈值裁剪（TrimmedToolResponseCount 为 1、truncated 标记与预览、raw token 大于有效 token、包装视图不暴露原始超大载荷）。Rust 的两个引用测试只断言通用压缩收缩（事件数变少、有 handoff 段），没有逐条工具响应裁剪计数、截断标记与 raw 和有效 token 对比断言。缺口与回归要求：补超大工具响应裁剪的直接断言后再升级。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "function_exact"
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/session_context_stale_test.go:420:TestSessionContextProjectionKeepsSmallToolResponsesUntouched": {
     "status": "[~]",
@@ -10542,11 +10542,11 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_test.go:792:TestApprovedPendingRunMarksFailureWhenToolExecutionFails": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::persist_success_marks_a_run_degraded_from_its_failed_tool_calls",
-    "conclusion": "function_exact（分段证据）：Go 断言被批准的工具执行失败后 run 仍 COMPLETED、errorCode/failureReason 为空、degraded=true、回复非空，并写出 run.completed 审计。Rust 的 persist_success_marks_a_run_degraded_from_its_failed_tool_calls 断言 COMPLETED、message=completed、失败字段被清空并从 wire 省略、degraded=true、toolCalls 保持 FAILED 且 toolSummaries 渲染失败行；run.completed 审计由同族 terminal audit 测试覆盖，批准门禁与释放执行由 gated_call_persists_the_go_approval_projection / released_calls_are_executed_by_the_tool_loop 覆盖。差异说明：Rust 的失败工具不改变 run 终态分类（与 Go 一致），回复文本由模型/本地兜底产生，不做逐字断言。",
+    "conclusion": "partial（纠正过宽）：Go 断言批准放行后工具执行失败的整条 resolving 路径——ResolveApproval 返回 COMPLETED 且 errorCode 与 failureReason 为空、degraded 为 true、resolution 带 assistant 汇总消息，并写出 run.completed 审计事件。Rust 的 persist_success 测试只覆盖落库段（COMPLETED、失败字段清空、degraded、toolCalls 与 toolSummaries），其 rust_entry 与 runner_chat_test.go:423 的 [x] 行完全重复，违反等价条目唯一性；批准解析入口、assistant 汇总消息与该路径的 run.completed 审计没有端到端直接断言（terminal audit 与批准门禁测试只覆盖同族分支）。缺口与回归要求：补批准放行后工具失败的端到端测试（resolution 汇总消息加 run.completed 审计）后再升级。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "function_exact"
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/store_test.go:862:TestGoogleADKExecutionRunHonorsContextDeadline": {
     "status": "[x]",
