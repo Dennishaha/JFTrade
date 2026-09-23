@@ -70,9 +70,8 @@ fn unready_adk_port() -> (ProductionAdkPort, tempfile::TempDir) {
         .iter()
         .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
         .collect::<BTreeMap<_, _>>();
-    let tool_catalog = Arc::new(
-        ProductionToolCatalog::from_bindings(&bindings).expect("complete tool bindings"),
-    );
+    let tool_catalog =
+        Arc::new(ProductionToolCatalog::from_bindings(&bindings).expect("complete tool bindings"));
     let port = ProductionAdkPort {
         store: adk_store,
         session_store,
@@ -125,9 +124,8 @@ fn ready_adk_port_with_fallback_provider() -> (Arc<ProductionAdkPort>, tempfile:
         .iter()
         .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
         .collect::<BTreeMap<_, _>>();
-    let tool_catalog = Arc::new(
-        ProductionToolCatalog::from_bindings(&bindings).expect("complete tool bindings"),
-    );
+    let tool_catalog =
+        Arc::new(ProductionToolCatalog::from_bindings(&bindings).expect("complete tool bindings"));
     // A configured provider is what makes the runtime ready; no agent points at
     // it, so the chat request itself still has to resolve an agent.
     // A closed loopback port keeps the fallback deterministic: the request
@@ -150,16 +148,13 @@ fn ready_adk_port_with_fallback_provider() -> (Arc<ProductionAdkPort>, tempfile:
             .to_string(),
         )
         .expect("persist provider");
-    let runtime =
-        crate::product::product_adk_model_runtime::ProductionAdkChatRuntime::new(
-            Arc::clone(&adk_store),
-            Arc::clone(&session_store),
-            &settings_path,
-            Arc::new(
-                crate::product::product_adk_model_runtime::RunCancellationRegistry::default(),
-            ),
-            Arc::clone(&tool_catalog),
-        );
+    let runtime = crate::product::product_adk_model_runtime::ProductionAdkChatRuntime::new(
+        Arc::clone(&adk_store),
+        Arc::clone(&session_store),
+        &settings_path,
+        Arc::new(crate::product::product_adk_model_runtime::RunCancellationRegistry::default()),
+        Arc::clone(&tool_catalog),
+    );
     assert!(runtime.runtime_ready(), "fixture runtime must be ready");
     let port = ProductionAdkPort {
         store: adk_store,
@@ -198,8 +193,17 @@ fn tool_catalog_marks_external_unavailable_tools_non_callable() {
 
     let catalog = ProductionToolCatalog::from_bindings(&bindings).expect("complete bindings");
     for tool in catalog.values() {
-        for field in ["name", "displayName", "description", "category", "permission"] {
-            assert!(tool[field].as_str().is_some_and(|value| !value.is_empty()), "{field}: {tool}");
+        for field in [
+            "name",
+            "displayName",
+            "description",
+            "category",
+            "permission",
+        ] {
+            assert!(
+                tool[field].as_str().is_some_and(|value| !value.is_empty()),
+                "{field}: {tool}"
+            );
         }
         assert!(tool["allowedModes"].is_array());
         assert!(tool["requiresApprovalIn"].is_array());
@@ -671,17 +675,15 @@ fn adk_respond_to_input_enriches_response_and_unblocks_run() {
         })
         .expect("create initial run in PENDING_INPUT");
 
-    let cancellation_registry = Arc::new(
-        crate::product::product_adk_model_runtime::RunCancellationRegistry::default(),
+    let cancellation_registry =
+        Arc::new(crate::product::product_adk_model_runtime::RunCancellationRegistry::default());
+    let adk_chat_runtime = crate::product::product_adk_model_runtime::ProductionAdkChatRuntime::new(
+        Arc::clone(&store),
+        Arc::clone(&session_store),
+        &settings_path,
+        Arc::clone(&cancellation_registry),
+        Arc::clone(&tool_catalog),
     );
-    let adk_chat_runtime =
-        crate::product::product_adk_model_runtime::ProductionAdkChatRuntime::new(
-            Arc::clone(&store),
-            Arc::clone(&session_store),
-            &settings_path,
-            Arc::clone(&cancellation_registry),
-            Arc::clone(&tool_catalog),
-        );
 
     let adk_port = ProductionAdkPort {
         store: Arc::clone(&store),
@@ -746,7 +748,9 @@ fn adk_respond_to_input_enriches_response_and_unblocks_run() {
     assert_eq!(answers[0]["optionId"], "q1-o1");
     assert_eq!(answers[0]["answer"], "不启用杠杆");
 
-    let tool_results = payload["toolResults"].as_array().expect("toolResults array");
+    let tool_results = payload["toolResults"]
+        .as_array()
+        .expect("toolResults array");
     assert_eq!(tool_results.len(), 1);
     assert_eq!(tool_results[0]["name"], "interaction.request_user");
     assert_eq!(tool_results[0]["callId"], call_id);
@@ -825,7 +829,10 @@ fn detached_adk_tool_executor_reports_domain_tools_as_unavailable() {
         "backtest.kline_sync_status",
         "backtest.result_view",
     ] {
-        assert!(!executor.supports(name), "{name} needs the production ports");
+        assert!(
+            !executor.supports(name),
+            "{name} needs the production ports"
+        );
         let error = executor
             .execute(name, &json!({"taskId": "sync-1", "runId": "run-1"}))
             .expect_err("a detached executor must not fabricate a payload");
@@ -857,8 +864,9 @@ fn adk_respond_to_input_strict_validation_idempotency_and_conflict() {
     let store = Arc::new(AdkStore::open(&adk_path).expect("open adk store"));
     let session_store =
         Arc::new(AdkSessionStore::open(&session_path).expect("open adk session store"));
-    let artifact_store =
-        Arc::new(jftrade_store_sqlite::AdkArtifactStore::open(&artifact_path).expect("artifact store"));
+    let artifact_store = Arc::new(
+        jftrade_store_sqlite::AdkArtifactStore::open(&artifact_path).expect("artifact store"),
+    );
     let bindings = PRODUCTION_TOOL_DEFINITIONS
         .iter()
         .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
@@ -898,17 +906,15 @@ fn adk_respond_to_input_strict_validation_idempotency_and_conflict() {
             .to_string(),
         )
         .expect("persist agent");
-    let cancellation_registry = Arc::new(
-        crate::product::product_adk_model_runtime::RunCancellationRegistry::default(),
+    let cancellation_registry =
+        Arc::new(crate::product::product_adk_model_runtime::RunCancellationRegistry::default());
+    let runtime = crate::product::product_adk_model_runtime::ProductionAdkChatRuntime::new(
+        Arc::clone(&store),
+        Arc::clone(&session_store),
+        &settings_path,
+        cancellation_registry,
+        Arc::clone(&tool_catalog),
     );
-    let runtime =
-        crate::product::product_adk_model_runtime::ProductionAdkChatRuntime::new(
-            Arc::clone(&store),
-            Arc::clone(&session_store),
-            &settings_path,
-            cancellation_registry,
-            Arc::clone(&tool_catalog),
-        );
 
     let run_id_str = format!(
         "test-strict-input-run-{}",
@@ -1005,7 +1011,9 @@ fn adk_respond_to_input_strict_validation_idempotency_and_conflict() {
         body: partial_answers,
         webhook_secret: None,
     };
-    let err = port.mutate(&input).expect_err("partial answers must be rejected");
+    let err = port
+        .mutate(&input)
+        .expect_err("partial answers must be rejected");
     assert!(format!("{err}").contains("submitted 1 answers but request has 2 questions"));
 
     // 2. Invalid option for q1 -> Rejected (400)
@@ -1022,7 +1030,9 @@ fn adk_respond_to_input_strict_validation_idempotency_and_conflict() {
         body: invalid_opt_answers,
         webhook_secret: None,
     };
-    let err = port.mutate(&input).expect_err("invalid option must be rejected");
+    let err = port
+        .mutate(&input)
+        .expect_err("invalid option must be rejected");
     assert!(format!("{err}").contains("invalid option for q1"));
 
     // 2b. Label used instead of optionId -> Rejected (400)
@@ -1039,7 +1049,9 @@ fn adk_respond_to_input_strict_validation_idempotency_and_conflict() {
         body: label_as_opt_answers,
         webhook_secret: None,
     };
-    let err = port.mutate(&input).expect_err("label as optionId must be rejected");
+    let err = port
+        .mutate(&input)
+        .expect_err("label as optionId must be rejected");
     assert!(format!("{err}").contains("invalid option for q1"));
 
     // 3. otherText on q1 which disallows other -> Rejected (400)
@@ -1056,7 +1068,9 @@ fn adk_respond_to_input_strict_validation_idempotency_and_conflict() {
         body: disallow_other_answers,
         webhook_secret: None,
     };
-    let err = port.mutate(&input).expect_err("otherText must be rejected when allowOther is false");
+    let err = port
+        .mutate(&input)
+        .expect_err("otherText must be rejected when allowOther is false");
     assert!(format!("{err}").contains("q1 does not allow other text"));
 
     // 4. Valid answers: q1 with option, q2 with otherText -> Accepted (200)
@@ -1078,7 +1092,9 @@ fn adk_respond_to_input_strict_validation_idempotency_and_conflict() {
     assert_eq!(result["run"]["status"], "RUNNING");
 
     // 5. Idempotent retry with identical answers -> 200 OK
-    let retry_result = port.mutate(&input).expect("identical answers must be idempotent 200 OK");
+    let retry_result = port
+        .mutate(&input)
+        .expect("identical answers must be idempotent 200 OK");
     assert_eq!(retry_result["request"]["status"], "ANSWERED");
 
     // 6. Second answer with conflicting answer -> 409 Conflict
@@ -1095,7 +1111,9 @@ fn adk_respond_to_input_strict_validation_idempotency_and_conflict() {
         body: conflict_answers,
         webhook_secret: None,
     };
-    let err = port.mutate(&input).expect_err("different answers must return 409 conflict");
+    let err = port
+        .mutate(&input)
+        .expect_err("different answers must return 409 conflict");
     assert!(format!("{err}").contains("ADK_INPUT_RESPONSE_CONFLICT"));
 
     // 7. Request with empty questions rejects non-empty answers (400)
@@ -1253,8 +1271,7 @@ fn adk_respond_to_input_concurrent_cas_winner_loser_semantics() {
     let store = Arc::new(AdkStore::open(&adk_path).expect("open adk store"));
     let session_store =
         Arc::new(AdkSessionStore::open(&session_path).expect("open adk session store"));
-    let artifact_store =
-        Arc::new(AdkArtifactStore::open(&artifact_path).expect("artifact store"));
+    let artifact_store = Arc::new(AdkArtifactStore::open(&artifact_path).expect("artifact store"));
     let bindings = PRODUCTION_TOOL_DEFINITIONS
         .iter()
         .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
@@ -1449,9 +1466,8 @@ fn adk_mcp_tool_executor_bundle_attachment_and_exact_schemas() {
     let active = Arc::new(crate::product::ActiveProviderState::new(Some(
         jftrade_settings::MarketDataProvider::Futu,
     )));
-    let runtime = Arc::new(
-        crate::product::product_production_ports::SharedTradeReadRuntime::default(),
-    );
+    let runtime =
+        Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
     let mut config = crate::product::ProductConfig::new(
         "127.0.0.1:0".parse().expect("bind address"),
         &settings_path,
@@ -1635,7 +1651,10 @@ impl jftrade_integration_futu::TradeReadPort for AdkTestTradeReadPort {
         _: u64,
         _: Option<i32>,
         _: Option<bool>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeAccountSnapshot>, jftrade_integration_futu::TradeSessionError> {
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeAccountSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         Ok(vec![jftrade_integration_futu::TradeAccountSnapshot {
             trd_env: 1,
             acc_id: 42,
@@ -1658,8 +1677,13 @@ impl jftrade_integration_futu::TradeReadPort for AdkTestTradeReadPort {
         _: Option<bool>,
         _: Option<i32>,
         _: Option<i32>,
-    ) -> Result<jftrade_integration_futu::TradeFundsSnapshot, jftrade_integration_futu::TradeSessionError> {
-        Err(jftrade_integration_futu::TradeSessionError::Unsupported("funds unsupported".into()))
+    ) -> Result<
+        jftrade_integration_futu::TradeFundsSnapshot,
+        jftrade_integration_futu::TradeSessionError,
+    > {
+        Err(jftrade_integration_futu::TradeSessionError::Unsupported(
+            "funds unsupported".into(),
+        ))
     }
 
     fn read_cash_flows(
@@ -1667,38 +1691,63 @@ impl jftrade_integration_futu::TradeReadPort for AdkTestTradeReadPort {
         _: jftrade_integration_futu::TradeHeader,
         _: String,
         _: Option<i32>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeCashFlowSnapshot>, jftrade_integration_futu::TradeSessionError> {
-        Err(jftrade_integration_futu::TradeSessionError::Unsupported("cash flows unsupported".into()))
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeCashFlowSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
+        Err(jftrade_integration_futu::TradeSessionError::Unsupported(
+            "cash flows unsupported".into(),
+        ))
     }
 
     fn read_order_fees(
         &self,
         _: jftrade_integration_futu::TradeHeader,
         _: Vec<String>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeOrderFeeSnapshot>, jftrade_integration_futu::TradeSessionError> {
-        Err(jftrade_integration_futu::TradeSessionError::Unsupported("fees unsupported".into()))
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeOrderFeeSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
+        Err(jftrade_integration_futu::TradeSessionError::Unsupported(
+            "fees unsupported".into(),
+        ))
     }
 
     fn read_margin_ratios(
         &self,
         _: jftrade_integration_futu::TradeHeader,
         _: Vec<jftrade_integration_futu::TradeSecurity>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeMarginRatioSnapshot>, jftrade_integration_futu::TradeSessionError> {
-        Err(jftrade_integration_futu::TradeSessionError::Unsupported("margin ratios unsupported".into()))
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeMarginRatioSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
+        Err(jftrade_integration_futu::TradeSessionError::Unsupported(
+            "margin ratios unsupported".into(),
+        ))
     }
 
     fn read_max_trade_quantity(
         &self,
         _: jftrade_integration_futu::TradeMaxTradeQuantityRequest,
-    ) -> Result<jftrade_integration_futu::TradeMaxTradeQuantitySnapshot, jftrade_integration_futu::TradeSessionError> {
-        Err(jftrade_integration_futu::TradeSessionError::Unsupported("quantity unsupported".into()))
+    ) -> Result<
+        jftrade_integration_futu::TradeMaxTradeQuantitySnapshot,
+        jftrade_integration_futu::TradeSessionError,
+    > {
+        Err(jftrade_integration_futu::TradeSessionError::Unsupported(
+            "quantity unsupported".into(),
+        ))
     }
 
     fn read_combo_max_trade_quantity(
         &self,
         _: jftrade_integration_futu::TradeComboMaxTradeQuantityRequest,
-    ) -> Result<jftrade_integration_futu::TradeComboMaxTradeQuantitySnapshot, jftrade_integration_futu::TradeSessionError> {
-        Err(jftrade_integration_futu::TradeSessionError::Unsupported("combo unsupported".into()))
+    ) -> Result<
+        jftrade_integration_futu::TradeComboMaxTradeQuantitySnapshot,
+        jftrade_integration_futu::TradeSessionError,
+    > {
+        Err(jftrade_integration_futu::TradeSessionError::Unsupported(
+            "combo unsupported".into(),
+        ))
     }
 
     fn read_positions(
@@ -1711,7 +1760,10 @@ impl jftrade_integration_futu::TradeReadPort for AdkTestTradeReadPort {
         _: Option<i32>,
         _: Option<i32>,
         _: Option<bool>,
-    ) -> Result<Vec<jftrade_integration_futu::TradePositionSnapshot>, jftrade_integration_futu::TradeSessionError> {
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradePositionSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         Ok(Vec::new())
     }
 
@@ -1721,7 +1773,10 @@ impl jftrade_integration_futu::TradeReadPort for AdkTestTradeReadPort {
         _: Option<jftrade_integration_futu::TradeFilter>,
         _: Vec<i32>,
         _: Option<bool>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeOrderSnapshot>, jftrade_integration_futu::TradeSessionError> {
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeOrderSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         Ok(Vec::new())
     }
 
@@ -1730,7 +1785,10 @@ impl jftrade_integration_futu::TradeReadPort for AdkTestTradeReadPort {
         _: jftrade_integration_futu::TradeHeader,
         _: Option<jftrade_integration_futu::TradeFilter>,
         _: Option<bool>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeFillSnapshot>, jftrade_integration_futu::TradeSessionError> {
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeFillSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         Ok(Vec::new())
     }
 }
@@ -1758,7 +1816,10 @@ impl jftrade_integration_futu::HistoricalKlineReadPort for AdkTestHistoricalKlin
     fn query(
         &self,
         query: &jftrade_integration_futu::HistoricalKlineQuery,
-    ) -> Result<jftrade_integration_futu::HistoricalKlineResult, jftrade_integration_futu::HistoricalKlineError> {
+    ) -> Result<
+        jftrade_integration_futu::HistoricalKlineResult,
+        jftrade_integration_futu::HistoricalKlineError,
+    > {
         Ok(jftrade_integration_futu::HistoricalKlineResult {
             security: jftrade_integration_futu::HistoricalSecurity {
                 market: query.market,
@@ -1771,8 +1832,7 @@ impl jftrade_integration_futu::HistoricalKlineReadPort for AdkTestHistoricalKlin
     }
 }
 
-fn setup_test_bundle_and_executor(
-) -> (
+fn setup_test_bundle_and_executor() -> (
     Arc<crate::product::product_production_ports::ProductionPortBundle>,
     crate::product::product_adk_model_runtime::ProductionAdkToolExecutor,
     tempfile::TempDir,
@@ -1817,9 +1877,8 @@ fn setup_test_bundle_and_executor(
     let active = Arc::new(crate::product::ActiveProviderState::new(Some(
         jftrade_settings::MarketDataProvider::Futu,
     )));
-    let runtime = Arc::new(
-        crate::product::product_production_ports::SharedTradeReadRuntime::default(),
-    );
+    let runtime =
+        Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
     runtime.set_historical_klines(Some(Arc::new(AdkTestHistoricalKlinePort)));
     let mut config = crate::product::ProductConfig::new(
         "127.0.0.1:0".parse().expect("bind address"),
@@ -1882,7 +1941,10 @@ async fn test_portfolio_and_research_backtest_execution_dispatch() {
 
     // Portfolio positions query succeeds
     let positions_res = executor
-        .execute("portfolio.positions", &json!({"tradingEnvironment": "REAL"}))
+        .execute(
+            "portfolio.positions",
+            &json!({"tradingEnvironment": "REAL"}),
+        )
         .expect("portfolio.positions");
     assert_eq!(positions_res["selection"]["status"], "resolved");
     assert!(positions_res["accountPositions"].is_array());
@@ -1912,7 +1974,11 @@ async fn test_portfolio_and_research_backtest_execution_dispatch() {
             "waitForCompletionMs": 0,
         }),
     );
-    assert!(valid_backtest.is_ok(), "research backtest start failed: {:?}", valid_backtest);
+    assert!(
+        valid_backtest.is_ok(),
+        "research backtest start failed: {:?}",
+        valid_backtest
+    );
     let backtest_res = valid_backtest.unwrap();
     assert_eq!(backtest_res["ok"], true);
     assert!(!backtest_res["runId"].as_str().unwrap().is_empty());
@@ -2014,7 +2080,7 @@ async fn test_research_backtest_data_readiness_and_sync_lifecycle() {
     assert!(derive_effective_since_time(base, "1d", 10).as_str() < base);
 
     // 6. Terminal state tracking prevents infinite retries
-    use crate::product::product_research_backtest_readiness::{build_sync_key, SyncStateTracker};
+    use crate::product::product_research_backtest_readiness::{SyncStateTracker, build_sync_key};
     let tracker = SyncStateTracker::global();
     let provider = sync_res["dataSync"]["marketDataProvider"]
         .as_str()
@@ -2096,7 +2162,8 @@ async fn test_portfolio_broker_settings_states_fail_closed() {
     assert_eq!(configured["managedAccounts"].as_array().unwrap().len(), 1);
 
     // State 3: Corrupted settings -> fail closed across all 3 tools: brokerEnabled false, partial true, warning present
-    std::fs::write(&settings_path, b"{corrupted_invalid_json: true").expect("write corrupt settings");
+    std::fs::write(&settings_path, b"{corrupted_invalid_json: true")
+        .expect("write corrupt settings");
 
     let corrupted_acc = executor
         .execute("portfolio.accounts", &json!({"tradingEnvironment": "REAL"}))
@@ -2108,7 +2175,10 @@ async fn test_portfolio_broker_settings_states_fail_closed() {
             .as_array()
             .unwrap()
             .iter()
-            .any(|w| w.as_str().unwrap_or("").contains("failed to load broker settings"))
+            .any(|w| w
+                .as_str()
+                .unwrap_or("")
+                .contains("failed to load broker settings"))
     );
 
     let corrupted_ovw = executor
@@ -2121,11 +2191,17 @@ async fn test_portfolio_broker_settings_states_fail_closed() {
             .as_array()
             .unwrap()
             .iter()
-            .any(|w| w.as_str().unwrap_or("").contains("failed to load broker settings"))
+            .any(|w| w
+                .as_str()
+                .unwrap_or("")
+                .contains("failed to load broker settings"))
     );
 
     let corrupted_pos = executor
-        .execute("portfolio.positions", &json!({"tradingEnvironment": "REAL"}))
+        .execute(
+            "portfolio.positions",
+            &json!({"tradingEnvironment": "REAL"}),
+        )
         .expect("portfolio.positions corrupted");
     assert_eq!(corrupted_pos["brokerEnabled"], false);
     assert_eq!(corrupted_pos["partial"], true);
@@ -2134,7 +2210,10 @@ async fn test_portfolio_broker_settings_states_fail_closed() {
             .as_array()
             .unwrap()
             .iter()
-            .any(|w| w.as_str().unwrap_or("").contains("failed to load broker settings"))
+            .any(|w| w
+                .as_str()
+                .unwrap_or("")
+                .contains("failed to load broker settings"))
     );
 }
 
@@ -2164,8 +2243,7 @@ fn setup_test_adk_mutation_port(
     let store = Arc::new(AdkStore::open(&adk_path).expect("open adk store"));
     let session_store =
         Arc::new(AdkSessionStore::open(&session_path).expect("open adk session store"));
-    let artifact_store =
-        Arc::new(AdkArtifactStore::open(&artifact_path).expect("artifact store"));
+    let artifact_store = Arc::new(AdkArtifactStore::open(&artifact_path).expect("artifact store"));
     let bindings = PRODUCTION_TOOL_DEFINITIONS
         .iter()
         .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
@@ -2421,9 +2499,8 @@ fn test_adk_respond_to_input_resume_failure_error_propagation_and_recovery() {
         fail_resume: AtomicBool::new(true),
     });
 
-    let (port, store, _dir) = setup_test_adk_mutation_port(Some(
-        Arc::clone(&mock_runtime) as Arc<dyn AdkChatStreamPort>
-    ));
+    let (port, store, _dir) =
+        setup_test_adk_mutation_port(Some(Arc::clone(&mock_runtime) as Arc<dyn AdkChatStreamPort>));
     let run_id = "run-fail-recovery";
     let request_id = "req-fail-recovery";
     let payload = json!({
@@ -2560,9 +2637,7 @@ async fn test_portfolio_market_isolation_and_suffix_resolution() {
 
 #[test]
 fn test_strategy_research_backtest_schema_properties() {
-    let schema = crate::product::product_mcp_protocol::schema_for(
-        "strategy.research_backtest",
-    );
+    let schema = crate::product::product_mcp_protocol::schema_for("strategy.research_backtest");
     let props = schema
         .get("properties")
         .and_then(Value::as_object)
@@ -2590,7 +2665,10 @@ fn test_strategy_research_backtest_schema_properties() {
         "resultView",
     ];
     for field in &expected_fields {
-        assert!(props.contains_key(*field), "missing field in schema: {field}");
+        assert!(
+            props.contains_key(*field),
+            "missing field in schema: {field}"
+        );
     }
 
     let required = schema["required"].as_array().expect("required array");
@@ -2681,19 +2759,37 @@ fn test_research_backtest_result_view_projection() {
     assert_eq!(summary_view["summary"]["realizedPnl"], "5000.0");
     assert_eq!(summary_view["summary"]["totalTrades"], 2);
     assert_eq!(summary_view["summary"]["winRate"], "0.50");
-    assert!(summary_view["summary"]["warnings"].as_array().unwrap().iter().any(|w| w == "slippage estimated"));
+    assert!(
+        summary_view["summary"]["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|w| w == "slippage estimated")
+    );
 
     // Orders view with limit 1
     let orders_options = json!({"view": "orders", "limit": 1});
     let orders_view = project_result_view(&real_corpus_payload, Some(&orders_options));
-    assert_eq!(orders_view["series"]["orderBook"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        orders_view["series"]["orderBook"].as_array().unwrap().len(),
+        1
+    );
 
     // Chart view includes pnlCurve, drawdownCurve, and trades derived from fills
     let chart_options = json!({"view": "chart"});
     let chart_view = project_result_view(&real_corpus_payload, Some(&chart_options));
     assert_eq!(chart_view["series"]["trades"].as_array().unwrap().len(), 2);
-    assert_eq!(chart_view["series"]["pnlCurve"].as_array().unwrap().len(), 2);
-    assert_eq!(chart_view["series"]["drawdownCurve"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        chart_view["series"]["pnlCurve"].as_array().unwrap().len(),
+        2
+    );
+    assert_eq!(
+        chart_view["series"]["drawdownCurve"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
 
     // 2. Legacy run payload compatibility
     let legacy_run_payload = json!({
@@ -2719,8 +2815,14 @@ fn test_research_backtest_result_view_projection() {
     });
 
     let legacy_chart = project_result_view(&legacy_run_payload, Some(&chart_options));
-    assert_eq!(legacy_chart["series"]["candles"].as_array().unwrap().len(), 2);
-    assert_eq!(legacy_chart["series"]["trades"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        legacy_chart["series"]["candles"].as_array().unwrap().len(),
+        2
+    );
+    assert_eq!(
+        legacy_chart["series"]["trades"].as_array().unwrap().len(),
+        1
+    );
 }
 
 #[test]
@@ -2734,9 +2836,7 @@ fn test_adk_resume_approval_cas_rejection() {
         let conn = rusqlite::Connection::open(path).expect("open db");
         jftrade_store_sqlite::initialize_current(&conn, comp).expect("init db");
     }
-    let store = Arc::new(
-        jftrade_store_sqlite::AdkStore::open(&adk_path).expect("open adk store"),
-    );
+    let store = Arc::new(jftrade_store_sqlite::AdkStore::open(&adk_path).expect("open adk store"));
     let session_store = Arc::new(
         jftrade_store_sqlite::AdkSessionStore::open(&session_path).expect("open session store"),
     );
@@ -2744,12 +2844,10 @@ fn test_adk_resume_approval_cas_rejection() {
         .iter()
         .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
         .collect::<BTreeMap<_, _>>();
-    let tool_catalog = Arc::new(
-        ProductionToolCatalog::from_bindings(&bindings).expect("catalog bindings"),
-    );
-    let cancellation_registry = Arc::new(
-        crate::product::product_adk_model_runtime::RunCancellationRegistry::default(),
-    );
+    let tool_catalog =
+        Arc::new(ProductionToolCatalog::from_bindings(&bindings).expect("catalog bindings"));
+    let cancellation_registry =
+        Arc::new(crate::product::product_adk_model_runtime::RunCancellationRegistry::default());
     let runtime = crate::product::product_adk_model_runtime::ProductionAdkChatRuntime::new(
         Arc::clone(&store),
         Arc::clone(&session_store),
@@ -2792,7 +2890,10 @@ fn test_adk_resume_approval_cas_rejection() {
 
     // resume_approval must detect the status transition and NOT spawn continuation
     let res = runtime.resume_approval(run_id);
-    assert!(res.is_ok(), "cancelled run is treated as ok without continuation");
+    assert!(
+        res.is_ok(),
+        "cancelled run is treated as ok without continuation"
+    );
 
     // A run that is no longer resumable is Go's silent no-op, not a failure:
     // `continueResolvedInput` returns nil unless the run is RUNNING with an
@@ -2842,7 +2943,10 @@ impl jftrade_integration_futu::TradeReadPort for AdkTestPortfolioFundsReadPort {
         _: u64,
         market: Option<i32>,
         _: Option<bool>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeAccountSnapshot>, jftrade_integration_futu::TradeSessionError> {
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeAccountSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         let auth = match market {
             Some(m) => vec![m],
             None => vec![1, 2],
@@ -2899,7 +3003,10 @@ impl jftrade_integration_futu::TradeReadPort for AdkTestPortfolioFundsReadPort {
         _: Option<bool>,
         _: Option<i32>,
         _: Option<i32>,
-    ) -> Result<jftrade_integration_futu::TradeFundsSnapshot, jftrade_integration_futu::TradeSessionError> {
+    ) -> Result<
+        jftrade_integration_futu::TradeFundsSnapshot,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         let cash = match header.acc_id {
             100 => 50000.0,
             101 => 10000.0,
@@ -2955,31 +3062,51 @@ impl jftrade_integration_futu::TradeReadPort for AdkTestPortfolioFundsReadPort {
         _: jftrade_integration_futu::TradeHeader,
         _: String,
         _: Option<i32>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeCashFlowSnapshot>, jftrade_integration_futu::TradeSessionError> {
-        Err(jftrade_integration_futu::TradeSessionError::Unsupported("cash flows unsupported".into()))
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeCashFlowSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
+        Err(jftrade_integration_futu::TradeSessionError::Unsupported(
+            "cash flows unsupported".into(),
+        ))
     }
 
     fn read_order_fees(
         &self,
         _: jftrade_integration_futu::TradeHeader,
         _: Vec<String>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeOrderFeeSnapshot>, jftrade_integration_futu::TradeSessionError> {
-        Err(jftrade_integration_futu::TradeSessionError::Unsupported("fees unsupported".into()))
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeOrderFeeSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
+        Err(jftrade_integration_futu::TradeSessionError::Unsupported(
+            "fees unsupported".into(),
+        ))
     }
 
     fn read_margin_ratios(
         &self,
         _: jftrade_integration_futu::TradeHeader,
         _: Vec<jftrade_integration_futu::TradeSecurity>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeMarginRatioSnapshot>, jftrade_integration_futu::TradeSessionError> {
-        Err(jftrade_integration_futu::TradeSessionError::Unsupported("margin ratios unsupported".into()))
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeMarginRatioSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
+        Err(jftrade_integration_futu::TradeSessionError::Unsupported(
+            "margin ratios unsupported".into(),
+        ))
     }
 
     fn read_max_trade_quantity(
         &self,
         _: jftrade_integration_futu::TradeMaxTradeQuantityRequest,
-    ) -> Result<jftrade_integration_futu::TradeMaxTradeQuantitySnapshot, jftrade_integration_futu::TradeSessionError> {
-        Err(jftrade_integration_futu::TradeSessionError::Unsupported("quantity unsupported".into()))
+    ) -> Result<
+        jftrade_integration_futu::TradeMaxTradeQuantitySnapshot,
+        jftrade_integration_futu::TradeSessionError,
+    > {
+        Err(jftrade_integration_futu::TradeSessionError::Unsupported(
+            "quantity unsupported".into(),
+        ))
     }
 
     fn read_positions(
@@ -2992,7 +3119,10 @@ impl jftrade_integration_futu::TradeReadPort for AdkTestPortfolioFundsReadPort {
         _: Option<i32>,
         _: Option<i32>,
         _: Option<bool>,
-    ) -> Result<Vec<jftrade_integration_futu::TradePositionSnapshot>, jftrade_integration_futu::TradeSessionError> {
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradePositionSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         Ok(Vec::new())
     }
 
@@ -3002,7 +3132,10 @@ impl jftrade_integration_futu::TradeReadPort for AdkTestPortfolioFundsReadPort {
         _: Option<jftrade_integration_futu::TradeFilter>,
         _: Vec<i32>,
         _: Option<bool>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeOrderSnapshot>, jftrade_integration_futu::TradeSessionError> {
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeOrderSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         Ok(Vec::new())
     }
 
@@ -3011,7 +3144,10 @@ impl jftrade_integration_futu::TradeReadPort for AdkTestPortfolioFundsReadPort {
         _: jftrade_integration_futu::TradeHeader,
         _: Option<jftrade_integration_futu::TradeFilter>,
         _: Option<bool>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeFillSnapshot>, jftrade_integration_futu::TradeSessionError> {
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeFillSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         Ok(Vec::new())
     }
 }
@@ -3034,9 +3170,8 @@ async fn test_portfolio_funds_overview_and_sorting_and_unsupported_market() {
     let active = Arc::new(crate::product::ActiveProviderState::new(Some(
         jftrade_settings::MarketDataProvider::Futu,
     )));
-    let runtime = Arc::new(
-        crate::product::product_production_ports::SharedTradeReadRuntime::default(),
-    );
+    let runtime =
+        Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
     let mut config = crate::product::ProductConfig::new(
         "127.0.0.1:0".parse().expect("bind address"),
         &settings_path,
@@ -3067,7 +3202,12 @@ async fn test_portfolio_funds_overview_and_sorting_and_unsupported_market() {
         &json!({"tradingEnvironment": "REAL", "market": "INVALID_MKT"}),
     );
     assert!(invalid_mkt_res.is_err());
-    assert!(invalid_mkt_res.unwrap_err().to_string().contains("unsupported market"));
+    assert!(
+        invalid_mkt_res
+            .unwrap_err()
+            .to_string()
+            .contains("unsupported market")
+    );
 
     // 2. Overview correctly detects funds and applies Go baseline stable sort
     let overview_res = executor
@@ -3544,9 +3684,7 @@ fn builtin_skill_uninstall_is_refused_and_the_projection_keeps_it() {
         }
         other => panic!("expected a failed uninstall, got {other:?}"),
     }
-    let AdkReadSnapshot::Json(listed) = port
-        .read("/api/v1/adk/skills", "")
-        .expect("skills read")
+    let AdkReadSnapshot::Json(listed) = port.read("/api/v1/adk/skills", "").expect("skills read")
     else {
         panic!("skills route must answer JSON");
     };
@@ -3805,10 +3943,7 @@ fn adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection() {
     let error = port
         .mutate(&AdkMutationInput {
             operation: AdkMutationOperation::DeleteProvider,
-            identifiers: BTreeMap::from([(
-                "providerId".to_owned(),
-                "provider-enabled".to_owned(),
-            )]),
+            identifiers: BTreeMap::from([("providerId".to_owned(), "provider-enabled".to_owned())]),
             body: Value::Null,
             webhook_secret: None,
         })
@@ -3850,10 +3985,7 @@ fn adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope() {
     let missing = port
         .mutate(&AdkMutationInput {
             operation: AdkMutationOperation::DeleteProvider,
-            identifiers: BTreeMap::from([(
-                "providerId".to_owned(),
-                "provider-missing".to_owned(),
-            )]),
+            identifiers: BTreeMap::from([("providerId".to_owned(), "provider-missing".to_owned())]),
             body: Value::Null,
             webhook_secret: None,
         })
@@ -4007,9 +4139,9 @@ fn adk_cancel_run_missing_uses_the_go_cancel_error_code() {
     }
 
     // The read route keeps the generic notification code for the same run id.
-    let read_error = port.read("/api/v1/adk/runs/run-missing", "").expect_err(
-        "reading a missing run must fail",
-    );
+    let read_error = port
+        .read("/api/v1/adk/runs/run-missing", "")
+        .expect_err("reading a missing run must fail");
     match read_error {
         AdkReadSnapshotError::Failed {
             status,
@@ -4053,8 +4185,7 @@ fn adk_respond_to_input_maps_the_go_error_codes_and_retries() {
         }
     }
 
-    let (port, store, directory) =
-        setup_test_adk_mutation_port(Some(Arc::new(ResumeRuntime)));
+    let (port, store, directory) = setup_test_adk_mutation_port(Some(Arc::new(ResumeRuntime)));
 
     // A missing run surfaces the wrapped `ErrInputRequestNotFound` message
     // under the generic code, exactly like Go's handler switch.
@@ -4191,7 +4322,11 @@ fn adk_skill_uninstall_removes_external_installs_and_reports_missing_files() {
     let install_dir = directory.path().join("skills/neodata-financial-search");
     std::fs::create_dir_all(&install_dir).expect("create install directory");
     let skill_document = install_dir.join("SKILL.md");
-    std::fs::write(&skill_document, "---\nname: neodata-financial-search\n---\n").expect("write skill");
+    std::fs::write(
+        &skill_document,
+        "---\nname: neodata-financial-search\n---\n",
+    )
+    .expect("write skill");
     port.store
         .upsert_skill(
             "neodata-financial-search",
@@ -4340,7 +4475,9 @@ fn adk_chat_route_reports_the_go_error_classification() {
     // answers with the failed-run projection instead of a port error.
     let projection = match dispatch_result(r#"{"message":"hello"}"#) {
         Ok(AdkChatPortOutput::Json(projection)) => projection,
-        other => panic!("the fallback provider failure must project a chat response, got {other:?}"),
+        other => {
+            panic!("the fallback provider failure must project a chat response, got {other:?}")
+        }
     };
     assert_eq!(projection["run"]["status"], "FAILED");
     assert_eq!(projection["run"]["errorCode"], "MODEL_CALL_FAILED");
@@ -4356,16 +4493,20 @@ fn adk_chat_route_reports_the_go_error_classification() {
     );
 
     assert_eq!(
-        failed(dispatch(
-            r#"{"agentId":"agent-1","message":"   "}"#
-        )),
-        (400, "ADK_CHAT_FAILED".to_owned(), "message is required".to_owned())
+        failed(dispatch(r#"{"agentId":"agent-1","message":"   "}"#)),
+        (
+            400,
+            "ADK_CHAT_FAILED".to_owned(),
+            "message is required".to_owned()
+        )
     );
     assert_eq!(
-        failed(dispatch(
-            r#"{"agentId":"agent-missing","message":"hello"}"#
-        )),
-        (400, "ADK_CHAT_FAILED".to_owned(), "agent not found".to_owned())
+        failed(dispatch(r#"{"agentId":"agent-missing","message":"hello"}"#)),
+        (
+            400,
+            "ADK_CHAT_FAILED".to_owned(),
+            "agent not found".to_owned()
+        )
     );
     // Parity: go:452dea11:internal/api/assistant/routes_test.go:348 TestChatRequestUsesDeclaredMessageFieldOnly
     // TestChatRequestUsesDeclaredMessageFieldOnly.  Go decodes the declared
@@ -4400,9 +4541,7 @@ fn adk_chat_route_reports_the_go_error_classification() {
     // Go checks the status before the soft-delete marker, so a row that is both
     // disabled and deleted reports "agent is disabled".
     assert_eq!(
-        failed(dispatch(
-            r#"{"agentId":"agent-deleted","message":"hello"}"#
-        )),
+        failed(dispatch(r#"{"agentId":"agent-deleted","message":"hello"}"#)),
         (
             400,
             "ADK_CHAT_FAILED".to_owned(),
@@ -4481,7 +4620,6 @@ fn adk_chat_route_reports_the_go_error_classification() {
             "agent provider API keys is not configured".to_owned()
         )
     );
-
 
     // A message at or below the Go rune limit reaches provider resolution; one
     // rune over the limit is rejected first with the Go wording.
@@ -4602,7 +4740,10 @@ fn agent_save_storage_failure_is_not_client_classified() {
         .expect("drop agents table");
     drop(connection);
 
-    let error = create_agent_error(&port, json!({"id": "agent-storage-failure", "name": "Agent"}));
+    let error = create_agent_error(
+        &port,
+        json!({"id": "agent-storage-failure", "name": "Agent"}),
+    );
     match error {
         AdkMutationPortError::Failed {
             status,
@@ -4715,7 +4856,9 @@ fn adk_chat_approval_is_listed_as_pending_and_denied_with_ok_envelope() {
     };
     let approvals = value["approvals"].as_array().expect("approvals array");
     assert!(
-        approvals.iter().all(|approval| approval["id"] != "approval-contract"),
+        approvals
+            .iter()
+            .all(|approval| approval["id"] != "approval-contract"),
         "a denied approval must not stay PENDING: {approvals:?}"
     );
 }
@@ -4869,8 +5012,12 @@ fn adk_approval_approve_returns_the_running_resolution_envelope() {
     let runtime = Arc::new(RecordingContinuationRuntime::default());
     let (port, store, _directory) =
         setup_test_adk_mutation_port(Some(Arc::clone(&runtime) as Arc<dyn AdkChatStreamPort>));
-    let (run_id, approval_id) =
-        seed_pending_approval_rows(&store, "approve-running", "call-approve-running", "contract.write");
+    let (run_id, approval_id) = seed_pending_approval_rows(
+        &store,
+        "approve-running",
+        "call-approve-running",
+        "contract.write",
+    );
 
     let resolution = port
         .mutate(&AdkMutationInput {
@@ -5054,10 +5201,7 @@ fn provider_default_contract_orders_the_default_first_and_keeps_the_route_code()
     // promoted row is listed first again.
     port.mutate(&AdkMutationInput {
         operation: AdkMutationOperation::DeleteProvider,
-        identifiers: BTreeMap::from([(
-            "providerId".to_owned(),
-            "provider-default-b".to_owned(),
-        )]),
+        identifiers: BTreeMap::from([("providerId".to_owned(), "provider-default-b".to_owned())]),
         body: Value::Null,
         webhook_secret: None,
     })
@@ -5183,7 +5327,10 @@ fn adk_session_negative_routes_keep_the_go_error_envelopes() {
     );
     assert_eq!(malformed.status, 400, "malformed rename: {malformed:?}");
     assert_eq!(malformed.body["error"]["code"], "BAD_REQUEST");
-    assert_eq!(malformed.body["error"]["message"], "invalid session payload");
+    assert_eq!(
+        malformed.body["error"]["message"],
+        "invalid session payload"
+    );
 }
 
 /// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:436
@@ -5251,16 +5398,16 @@ fn adk_approval_negative_and_idempotent_routes_match_the_go_envelopes() {
     let missing = port
         .mutate(&AdkMutationInput {
             operation: AdkMutationOperation::Approve,
-            identifiers: BTreeMap::from([(
-                "approvalId".to_owned(),
-                "approval-missing".to_owned(),
-            )]),
+            identifiers: BTreeMap::from([("approvalId".to_owned(), "approval-missing".to_owned())]),
             body: Value::Null,
             webhook_secret: None,
         })
         .expect("approving an unknown approval is idempotent in Go");
     assert_eq!(missing["approval"]["id"], "");
-    assert!(missing.get("run").is_none(), "missing resolution run: {missing}");
+    assert!(
+        missing.get("run").is_none(),
+        "missing resolution run: {missing}"
+    );
     assert!(
         missing.get("message").is_none(),
         "missing resolution message: {missing}"
@@ -5339,9 +5486,8 @@ fn adk_approval_wakeup_accepts_an_already_claimed_continuation() {
         }
     }
 
-    let (port, store, _directory) = setup_test_adk_mutation_port(Some(Arc::new(
-        ClaimedContinuationRuntime,
-    )));
+    let (port, store, _directory) =
+        setup_test_adk_mutation_port(Some(Arc::new(ClaimedContinuationRuntime)));
     let (run_id, approval_id) =
         seed_pending_approval_rows(&store, "claimed", "call-claimed", "contract.write");
 
@@ -5357,7 +5503,10 @@ fn adk_approval_wakeup_accepts_an_already_claimed_continuation() {
     assert_eq!(approval_resolution["approval"]["id"], approval_id);
     assert_eq!(approval_resolution["approval"]["status"], "APPROVED");
     let run = &approval_resolution["run"];
-    assert_eq!(run["id"], run_id, "resolution envelope: {approval_resolution}");
+    assert_eq!(
+        run["id"], run_id,
+        "resolution envelope: {approval_resolution}"
+    );
     assert_eq!(run["status"], "RUNNING");
     assert_eq!(run["resumeState"], "approval_resuming");
     assert_eq!(run["toolCalls"][0]["status"], "RUNNING");
@@ -5477,7 +5626,12 @@ fn adk_catalog_boundary_status_codes_match_the_go_matrix() {
         .expect("seed task");
 
     for (path, query, status, code) in [
-        ("/api/v1/adk/tasks", "status=BAD", 400, "ADK_TASK_LIST_FAILED"),
+        (
+            "/api/v1/adk/tasks",
+            "status=BAD",
+            400,
+            "ADK_TASK_LIST_FAILED",
+        ),
         (
             "/api/v1/adk/memory",
             "scope=private",
@@ -5578,10 +5732,7 @@ fn adk_catalog_boundary_status_codes_match_the_go_matrix() {
     // A referenced provider cannot be deleted; the built-in agent is protected.
     match port.mutate(&AdkMutationInput {
         operation: AdkMutationOperation::DeleteProvider,
-        identifiers: BTreeMap::from([(
-            "providerId".to_owned(),
-            "provider-enabled".to_owned(),
-        )]),
+        identifiers: BTreeMap::from([("providerId".to_owned(), "provider-enabled".to_owned())]),
         body: Value::Null,
         webhook_secret: None,
     }) {
@@ -5727,10 +5878,7 @@ fn adk_session_run_boundary_status_codes_match_the_go_matrix() {
     let missing = port
         .mutate(&AdkMutationInput {
             operation: AdkMutationOperation::Approve,
-            identifiers: BTreeMap::from([(
-                "approvalId".to_owned(),
-                "missing-approval".to_owned(),
-            )]),
+            identifiers: BTreeMap::from([("approvalId".to_owned(), "missing-approval".to_owned())]),
             body: Value::Null,
             webhook_secret: None,
         })
@@ -5763,11 +5911,7 @@ fn adk_session_run_boundary_status_codes_match_the_go_matrix() {
             "/api/v1/adk/sessions/missing-session/context/compact",
             b"{".to_vec(),
         ),
-        (
-            "PUT",
-            "/api/v1/adk/sessions/missing-session",
-            b"{".to_vec(),
-        ),
+        ("PUT", "/api/v1/adk/sessions/missing-session", b"{".to_vec()),
         (
             "PATCH",
             "/api/v1/adk/sessions/missing-session/composer-state",
@@ -5893,9 +6037,9 @@ fn adk_session_run_and_optimization_route_contracts_match_go() {
             body,
             webhook_secret: None,
         }) {
-            Err(AdkMutationPortError::Failed {
-                status: actual, ..
-            }) => assert_eq!(actual, status, "{operation:?}"),
+            Err(AdkMutationPortError::Failed { status: actual, .. }) => {
+                assert_eq!(actual, status, "{operation:?}")
+            }
             other => panic!("expected {status} for {operation:?}, got {other:?}"),
         }
     }
@@ -6340,21 +6484,33 @@ fn adk_catalog_session_and_observability_success_contracts_hold() {
         ("/api/v1/adk/providers", ""),
         ("/api/v1/adk/agents", "status=ENABLED&limit=1&offset=0"),
         ("/api/v1/adk/skills", ""),
-        ("/api/v1/adk/sessions", "agentId=success-agent&query=success"),
+        (
+            "/api/v1/adk/sessions",
+            "agentId=success-agent&query=success",
+        ),
         ("/api/v1/adk/sessions/success-session", ""),
-        ("/api/v1/adk/runs", "status=RUNNING&agentId=success-agent&sessionId=success-session"),
+        (
+            "/api/v1/adk/runs",
+            "status=RUNNING&agentId=success-agent&sessionId=success-session",
+        ),
         ("/api/v1/adk/runs/success-run", ""),
-        ("/api/v1/adk/approvals", "status=PENDING&agentId=success-agent"),
-        ("/api/v1/adk/tasks", "status=TODO&agentId=success-agent&runId=success-run"),
+        (
+            "/api/v1/adk/approvals",
+            "status=PENDING&agentId=success-agent",
+        ),
+        (
+            "/api/v1/adk/tasks",
+            "status=TODO&agentId=success-agent&runId=success-run",
+        ),
         ("/api/v1/adk/tasks/success-task", ""),
         ("/api/v1/adk/memory", "scope=workspace&key=success-note"),
-        ("/api/v1/adk/audit", "kind=provider_saved&subjectId=provider-enabled"),
+        (
+            "/api/v1/adk/audit",
+            "kind=provider_saved&subjectId=provider-enabled",
+        ),
         ("/api/v1/adk/metrics", ""),
         ("/api/v1/adk/optimization-tasks", ""),
-        (
-            "/api/v1/adk/optimization-tasks/success-optimization",
-            "",
-        ),
+        ("/api/v1/adk/optimization-tasks/success-optimization", ""),
     ] {
         match port.read(path, query) {
             Ok(AdkReadSnapshot::Json(value)) => {
@@ -6542,7 +6698,9 @@ fn adk_routes_surface_durable_store_failures_instead_of_empty_success() {
                     ),
                 }
             }
-            Ok(output) => panic!("GET {path} must fail closed after the store fault, got {output:?}"),
+            Ok(output) => {
+                panic!("GET {path} must fail closed after the store fault, got {output:?}")
+            }
         }
     }
 
@@ -6581,10 +6739,7 @@ fn adk_routes_surface_durable_store_failures_instead_of_empty_success() {
         ),
         (
             AdkMutationOperation::UpdateProvider,
-            BTreeMap::from([(
-                "providerId".to_owned(),
-                "provider-store-failure".to_owned(),
-            )]),
+            BTreeMap::from([("providerId".to_owned(), "provider-store-failure".to_owned())]),
             json!({"displayName": "After Fault"}),
         ),
     ] {
@@ -6596,9 +6751,9 @@ fn adk_routes_surface_durable_store_failures_instead_of_empty_success() {
         }) {
             Err(AdkMutationPortError::Failed { .. })
             | Err(AdkMutationPortError::Unavailable(_)) => {}
-            Ok(value) => panic!(
-                "{operation:?} must fail closed after the store fault, got {value}"
-            ),
+            Ok(value) => {
+                panic!("{operation:?} must fail closed after the store fault, got {value}")
+            }
         }
     }
 
@@ -6786,11 +6941,7 @@ fn wired_but_unavailable_adk_ports_fail_closed_on_every_route() {
     struct UnavailableSnapshotPort;
 
     impl AdkReadSnapshotPort for UnavailableSnapshotPort {
-        fn read(
-            &self,
-            _path: &str,
-            _query: &str,
-        ) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
+        fn read(&self, _path: &str, _query: &str) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
             Err(AdkReadSnapshotError::Unavailable(
                 "ADK runtime is unavailable".to_owned(),
             ))
@@ -6825,13 +6976,9 @@ fn wired_but_unavailable_adk_ports_fail_closed_on_every_route() {
         "/api/v1/adk/skills",
         "/api/v1/adk/streams/stream-1",
     ] {
-        let failure = crate::product::dispatch_adk_read(
-            Some(&UnavailableSnapshotPort),
-            "GET",
-            path,
-            "",
-        )
-            .expect_err("GET {path} must fail closed");
+        let failure =
+            crate::product::dispatch_adk_read(Some(&UnavailableSnapshotPort), "GET", path, "")
+                .expect_err("GET {path} must fail closed");
         assert_eq!(failure.status, 503, "GET {path}");
         assert_eq!(failure.code, "ADK_READ_UNAVAILABLE", "GET {path}");
     }
@@ -6842,10 +6989,7 @@ fn wired_but_unavailable_adk_ports_fail_closed_on_every_route() {
     struct UnavailableMutationPort;
 
     impl AdkMutationPort for UnavailableMutationPort {
-        fn mutate(
-            &self,
-            _input: &AdkMutationInput,
-        ) -> Result<Value, AdkMutationPortError> {
+        fn mutate(&self, _input: &AdkMutationInput) -> Result<Value, AdkMutationPortError> {
             Err(AdkMutationPortError::Unavailable(
                 "ADK runtime is unavailable".to_owned(),
             ))
@@ -6853,11 +6997,27 @@ fn wired_but_unavailable_adk_ports_fail_closed_on_every_route() {
     }
 
     for (method, path, body) in [
-        ("POST", "/api/v1/adk/workflows", r#"{"name":"Missing Runtime"}"#),
-        ("POST", "/api/v1/adk/workflows/workflow-1/run", r#"{"symbol":"US.AAPL"}"#),
+        (
+            "POST",
+            "/api/v1/adk/workflows",
+            r#"{"name":"Missing Runtime"}"#,
+        ),
+        (
+            "POST",
+            "/api/v1/adk/workflows/workflow-1/run",
+            r#"{"symbol":"US.AAPL"}"#,
+        ),
         ("POST", "/api/v1/adk/tasks", r#"{"title":"Task"}"#),
-        ("POST", "/api/v1/adk/memory", r#"{"key":"note","value":"v"}"#),
-        ("POST", "/api/v1/adk/providers", r#"{"displayName":"Provider"}"#),
+        (
+            "POST",
+            "/api/v1/adk/memory",
+            r#"{"key":"note","value":"v"}"#,
+        ),
+        (
+            "POST",
+            "/api/v1/adk/providers",
+            r#"{"displayName":"Provider"}"#,
+        ),
         ("POST", "/api/v1/adk/agents", r#"{"name":"Agent"}"#),
         ("POST", "/api/v1/adk/sessions", r#"{"agentId":"agent-1"}"#),
         ("POST", "/api/v1/adk/approvals/approval-1/approve", ""),
@@ -6958,10 +7118,7 @@ fn catalog_session_run_and_observability_routes_answer_ok() {
 
     port.mutate(&AdkMutationInput {
         operation: AdkMutationOperation::DeleteProvider,
-        identifiers: BTreeMap::from([(
-            "providerId".to_owned(),
-            "provider-disabled".to_owned(),
-        )]),
+        identifiers: BTreeMap::from([("providerId".to_owned(), "provider-disabled".to_owned())]),
         body: Value::Null,
         webhook_secret: None,
     })
@@ -6981,9 +7138,24 @@ fn catalog_session_run_and_observability_routes_answer_ok() {
 #[test]
 fn catalog_read_faults_expose_the_go_resource_error_codes() {
     for (table, path, status, code) in [
-        ("adk_tasks", "/api/v1/adk/tasks", 500, "ADK_TASK_LIST_FAILED"),
-        ("adk_memory", "/api/v1/adk/memory", 400, "ADK_MEMORY_LIST_FAILED"),
-        ("adk_agents", "/api/v1/adk/agents", 500, "ADK_AGENT_LIST_FAILED"),
+        (
+            "adk_tasks",
+            "/api/v1/adk/tasks",
+            500,
+            "ADK_TASK_LIST_FAILED",
+        ),
+        (
+            "adk_memory",
+            "/api/v1/adk/memory",
+            400,
+            "ADK_MEMORY_LIST_FAILED",
+        ),
+        (
+            "adk_agents",
+            "/api/v1/adk/agents",
+            500,
+            "ADK_AGENT_LIST_FAILED",
+        ),
         (
             "adk_providers",
             "/api/v1/adk/providers",
@@ -7031,7 +7203,8 @@ fn catalog_read_faults_expose_the_go_resource_error_codes() {
         }
         other => panic!("expected 400 ADK_MEMORY_LIST_FAILED, got {other:?}"),
     }
-}/// Go's `StoreCore.DeleteAgent` is a soft delete: the row stays addressable,
+}
+/// Go's `StoreCore.DeleteAgent` is a soft delete: the row stays addressable,
 /// `status` becomes `DISABLED` and `deletedAt` is stamped instead of removing
 /// the SQLite row.
 ///
@@ -7050,10 +7223,7 @@ fn adk_agent_delete_soft_deletes_the_historical_row() {
 
     port.mutate(&AdkMutationInput {
         operation: AdkMutationOperation::DeleteAgent,
-        identifiers: BTreeMap::from([(
-            "agentId".to_owned(),
-            "agent-soft-delete".to_owned(),
-        )]),
+        identifiers: BTreeMap::from([("agentId".to_owned(), "agent-soft-delete".to_owned())]),
         body: Value::Null,
         webhook_secret: None,
     })
@@ -7087,7 +7257,10 @@ fn adk_agent_delete_soft_deletes_the_historical_row() {
 #[test]
 fn adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history() {
     let (port, store, _directory) = setup_test_adk_mutation_port(None);
-    for (id, name) in [("agent-older", "Older Agent"), ("agent-newer", "Newer Agent")] {
+    for (id, name) in [
+        ("agent-older", "Older Agent"),
+        ("agent-newer", "Newer Agent"),
+    ] {
         port.mutate(&AdkMutationInput {
             operation: AdkMutationOperation::CreateAgent,
             identifiers: BTreeMap::new(),
@@ -7276,7 +7449,10 @@ fn cancelling_a_run_denies_its_pending_approvals() {
         .resolve_and_stage_approval("approval-cancel", "APPROVED")
         .expect("resolve denied approval")
         .expect("resolution row present");
-    assert!(!resolution.changed, "a denied approval cannot be re-approved");
+    assert!(
+        !resolution.changed,
+        "a denied approval cannot be re-approved"
+    );
     assert_eq!(resolution.approval.status, "DENIED");
     let stored_run = store
         .get_run("run-cancel-approval")
@@ -7284,7 +7460,6 @@ fn cancelling_a_run_denies_its_pending_approvals() {
         .expect("run present");
     assert_eq!(stored_run.status, "CANCELLED");
 }
-
 
 /// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:844
 /// TestADKTaskUpdateDeleteAndValidation.
@@ -7384,7 +7559,9 @@ fn adk_task_normalization_and_validation_match_go() {
             body,
             webhook_secret: None,
         }) {
-            Err(AdkMutationPortError::Failed { status, message, .. }) => {
+            Err(AdkMutationPortError::Failed {
+                status, message, ..
+            }) => {
                 assert_eq!(status, 400, "{expected}");
                 assert!(
                     message.contains(expected),
@@ -7397,7 +7574,10 @@ fn adk_task_normalization_and_validation_match_go() {
 
     // The filtered page narrows by the normalized status and agent.
     let AdkReadSnapshot::Json(listed) = port
-        .read("/api/v1/adk/tasks", "status=IN_PROGRESS&agentId=agent-normalize")
+        .read(
+            "/api/v1/adk/tasks",
+            "status=IN_PROGRESS&agentId=agent-normalize",
+        )
         .expect("task list")
     else {
         panic!("task list must answer JSON");
@@ -7508,8 +7688,16 @@ fn adk_memory_filters_and_agent_validation_match_go() {
         2,
         "an agent-scoped listing keeps workspace plus its own rows: {prompt_entries}"
     );
-    assert!(entries.iter().any(|entry| entry["id"] == workspace_id.as_str()));
-    assert!(entries.iter().any(|entry| entry["id"] == agent_entry_id.as_str()));
+    assert!(
+        entries
+            .iter()
+            .any(|entry| entry["id"] == workspace_id.as_str())
+    );
+    assert!(
+        entries
+            .iter()
+            .any(|entry| entry["id"] == agent_entry_id.as_str())
+    );
 
     port.mutate(&AdkMutationInput {
         operation: AdkMutationOperation::DeleteMemory,
@@ -7526,7 +7714,6 @@ fn adk_memory_filters_and_agent_validation_match_go() {
         "a deleted memory entry is gone"
     );
 }
-
 
 /// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:788
 /// TestMultipleApprovalsExecuteOnlyAfterAllApproved.
@@ -7659,9 +7846,11 @@ fn adk_multiple_approvals_continue_only_after_all_are_approved() {
         .enumerate()
     {
         assert_eq!(call["status"], "RUNNING", "call {index} was released");
-        assert_eq!(call["requiresUser"], false, "call {index} clears requiresUser");
+        assert_eq!(
+            call["requiresUser"], false,
+            "call {index} clears requiresUser"
+        );
     }
-
 }
 
 /// Parity: go:452dea11:internal/assistant/engine/runner_continuation_boundaries_test.go:136
@@ -7777,8 +7966,14 @@ fn adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projec
         .iter()
         .enumerate()
     {
-        assert_eq!(call["status"], "DENIED", "call {index} was closed by the denial");
-        assert_eq!(call["requiresUser"], false, "call {index} clears requiresUser");
+        assert_eq!(
+            call["status"], "DENIED",
+            "call {index} was closed by the denial"
+        );
+        assert_eq!(
+            call["requiresUser"], false,
+            "call {index} clears requiresUser"
+        );
     }
     let sibling = store
         .list_approvals()
@@ -7915,8 +8110,18 @@ fn adk_run_listing_filters_and_sorts_newest_first() {
     for (id, session, status, created_at) in [
         ("run-older", "session-a", "FAILED", "2024-01-01T00:00:00Z"),
         ("run-newer", "session-a", "FAILED", "2024-01-02T00:00:00Z"),
-        ("run-other-session", "session-b", "FAILED", "2024-01-03T00:00:00Z"),
-        ("run-other-status", "session-a", "COMPLETED", "2024-01-04T00:00:00Z"),
+        (
+            "run-other-session",
+            "session-b",
+            "FAILED",
+            "2024-01-03T00:00:00Z",
+        ),
+        (
+            "run-other-status",
+            "session-a",
+            "COMPLETED",
+            "2024-01-04T00:00:00Z",
+        ),
     ] {
         let payload = json!({
             "id": id,
@@ -7974,7 +8179,6 @@ fn adk_run_listing_filters_and_sorts_newest_first() {
         vec!["run-newer", "run-older"],
         "store listing keeps newest-first order"
     );
-
 }
 
 /// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:426
@@ -8023,7 +8227,6 @@ fn adk_cancel_run_missing_is_the_dedicated_cancel_failure() {
         other => panic!("expected 404 NOT_FOUND, got {other:?}"),
     }
 }
-
 
 /// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:21
 /// TestStoreBuiltinSkillsSplitStrategySkill,
@@ -8108,8 +8311,7 @@ fn builtin_skill_catalog_stays_registered_alongside_external_installs() {
             .to_string(),
         )
         .expect("persist installed skill");
-    let AdkReadSnapshot::Json(merged) = port.read("/api/v1/adk/skills", "").expect("skills")
-    else {
+    let AdkReadSnapshot::Json(merged) = port.read("/api/v1/adk/skills", "").expect("skills") else {
         panic!("skills route must answer JSON");
     };
     let merged_skills = merged["skills"].as_array().expect("skills array");
@@ -8145,7 +8347,8 @@ use std::sync::Mutex as OptimizeWriterMutex;
 /// enqueue order and the rollback calls of `strategy.optimize` are visible.
 #[derive(Debug)]
 struct OptimizeBacktestsWriter {
-    calls: OptimizeWriterMutex<Vec<crate::product::product_backtests_write_port::BacktestsWriteInput>>,
+    calls:
+        OptimizeWriterMutex<Vec<crate::product::product_backtests_write_port::BacktestsWriteInput>>,
     fail_definition: Option<&'static str>,
 }
 
@@ -8189,9 +8392,7 @@ impl OptimizeBacktestsWriter {
     }
 }
 
-impl crate::product::product_backtests_write_port::BacktestsWritePort
-    for OptimizeBacktestsWriter
-{
+impl crate::product::product_backtests_write_port::BacktestsWritePort for OptimizeBacktestsWriter {
     fn mutate(
         &self,
         input: &crate::product::product_backtests_write_port::BacktestsWriteInput,
@@ -8221,12 +8422,10 @@ impl crate::product::product_backtests_write_port::BacktestsWritePort
                     "status": "queued",
                 })))
             }
-            BacktestsWriteInput::Cancel { run_id } => {
-                Ok(BacktestsWritePortResult::Data(json!({
-                    "id": run_id,
-                    "cancelled": true,
-                })))
-            }
+            BacktestsWriteInput::Cancel { run_id } => Ok(BacktestsWritePortResult::Data(json!({
+                "id": run_id,
+                "cancelled": true,
+            }))),
             other => Err(BacktestsWritePortError::Failed(format!(
                 "unexpected backtest mutation {other:?}"
             ))),
@@ -8318,7 +8517,7 @@ fn optimize_bundle(
     (bundle, executor, directory)
 }
 
-/// Parity: go:452dea11:internal/assistant/assembly/adk_strategy_test.go:636
+/// Parity: go:452dea11:internal/assistant/assembly/adk_strategy_test.go:605
 /// `TestADKStrategyOptimizePersistsTasksAndCancelsQueuedRunsOnFailure`.
 ///
 /// The success half: one real backtest run per candidate definition, and one
@@ -8393,7 +8592,7 @@ fn strategy_optimize_enqueues_every_candidate_and_persists_the_task() {
     assert_eq!(stored["runs"].as_array().map(Vec::len), Some(2));
 }
 
-/// Parity: go:452dea11:internal/assistant/assembly/adk_strategy_test.go:636
+/// Parity: go:452dea11:internal/assistant/assembly/adk_strategy_test.go:605
 /// (failure half) and `:587` (single `definitionId` fallback plus the
 /// candidate limit).
 #[test]
@@ -8447,8 +8646,7 @@ fn strategy_optimize_rolls_back_candidates_and_validates_the_request() {
         .execute("strategy.optimize", &json!({"definitionIds": oversized}))
         .expect_err("the candidate limit is enforced");
     assert_eq!(
-        error,
-        "at most 12 optimization candidates are allowed",
+        error, "at most 12 optimization candidates are allowed",
         "the reference caps one optimization call"
     );
     assert_eq!(
@@ -8604,7 +8802,11 @@ async fn research_backtest_pending_data_sync_returns_the_sync_task_without_start
         .expect("data ready must start one run");
     let run_id = ready["runId"].as_str().expect("started run id").to_owned();
     let before = backtest_run_ids(&ports);
-    assert_eq!(before, vec![run_id.clone()], "one run exists before the sync");
+    assert_eq!(
+        before,
+        vec![run_id.clone()],
+        "one run exists before the sync"
+    );
 
     let pending = executor
         .execute(
@@ -8851,7 +9053,10 @@ fn tool_declarations_stay_complete_for_every_callable_tool() {
 
     let mut strict = 0;
     for declaration in &declarations {
-        assert_eq!(declaration["type"], "function", "declaration = {declaration}");
+        assert_eq!(
+            declaration["type"], "function",
+            "declaration = {declaration}"
+        );
         assert!(
             declaration["name"]
                 .as_str()

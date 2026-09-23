@@ -1944,6 +1944,7 @@ async fn us_regular_only_bounded_window_re_filters_the_merged_page() {
 /// `none`) are accepted, everything else is an invalid query. Rust's candle
 /// route previously never read the parameter at all, so `adjustment=split`
 /// returned 200 with candles and every request reached OpenD as forward(1).
+/// Parity: go:452dea11:internal/assistant/assembly/application_adapter_test.go:164 TestApplicationAdapterRejectsAdvancedCandleInputsBeforeProviderCall
 #[tokio::test]
 async fn candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type() {
     let reader = Arc::new(PagedHistory::default());

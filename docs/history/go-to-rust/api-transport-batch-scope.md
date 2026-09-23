@@ -2475,3 +2475,33 @@ owner：规则层是领域助手的纯函数面（cron 计算、阈值评估、�
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
 
 后续：队列进入 `internal/assistant/assembly` 104 行，随后 engine 626 与 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片七：`internal/assistant/assembly` 前 35 行（1 处锚点行号纠正 + 3 行补锚点）
+
+范围（按文件与行号升序）：`adk_backtest_adapter_test.go:8`、`adk_capability_contracts_test.go:12/:94`、`adk_closure_contracts_test.go:12/:73`、`adk_product_catalog_test.go:13/:29/:77/:138`、`adk_runtime_contracts_test.go:13/:113/:156`、`adk_strategy_input_validation_test.go:10`、`adk_strategy_test.go:19/:32/:77/:194/:308/:397/:449/:605/:699/:774`、`adk_summary_contracts_test.go:9/:33`、`adk_tool_failure_contracts_test.go:19`、`application_adapter_boundaries_test.go:20/:71/:128`、`application_adapter_test.go:16/:123/:138/:164/:185/:226`（35 行中 [x]12/partial23）。
+
+owner：组装层是领域工具与适配器的组合面，写入 owner 在领域 crate——策略/回测工具与执行器由 `crates/jftrade-engine` 的 MCP 生产执行器承接，Pine 校验由 `crates/jftrade-strategy` 承接，行情与自选由市场数据端口承接。
+
+复核方法：35/35 参考行号签名一致；账本引用逐段解析（含 `+` 组合的各自文件前缀）全部指向真实测试；12 条 `[x]` 逐条核对锚点在位；4 条复杂 `[x]` 与 6 条 partial 抽查 Go 原文与结论对应关系。
+
+修正（无 verdict 翻转，本分片 35 行终值不变）：
+
+1. 锚点行号笔误纠正：`adk_strategy_test.go:605 TestADKStrategyOptimizePersistsTasksAndCancelsQueuedRunsOnFailure` 的两处锚点（成功半与失败半测试）误写为 `:636`，实际定义在 `:605`，已纠正。reconcile unknown 52 → 51。
+2. 补 3 行 `[x]` 缺失锚点：`application_adapter_boundaries_test.go:71`（组装目录测试）、`application_adapter_test.go:164`（路由校验与 MCP 工具测试各一处）。缺锚点告警 188 → 185。
+3. 其余 `[x]` 结论经抽查可信（订阅错误原样传播、定义版本不可变快照、优化入队与失败回滚均有探针证据）；partial 行结论与缺口记录准确（如视觉模型归一化、脚本预览与关联实例数、写入助手工具缺失等），维持 partial。
+
+映射终值（35 行）：`[x]` 12、partial 23、boundary 0，无升级无降级。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 自建校验（参考行号签名 35/35、引用逐段可解析 35/35、`[x]` 锚点在位 12/12） | 35 行 0 verdict 问题（含 1 处行号笔误纠正与 3 行补锚点） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；缺锚点告警 188 → 185；Rust 测试 3293 不变 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1654 → 1656、unrecorded 0、stale 0、unknown 52 → 51 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 首轮 1911/1911 通过（本分片无抖动） |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compatibility 全 replay 通过；generated 未改动工作树；ai-context 6 模块 8 指令文件；zero-go 2953 files；`check:quick` 首轮在 nextest 段已知抖动项 `api_launcher_reports_startup_failure_when_the_configured_address_is_taken` 失败一次（隔离复跑 2/2 通过）→ 次轮 nextest 1941/1941、node 98 pass 全过 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
+
+后续：队列进入 `internal/assistant/assembly` 余 69 行，随后 engine 626 与 apiserver 下 assistant/ADK 相关 14 行。

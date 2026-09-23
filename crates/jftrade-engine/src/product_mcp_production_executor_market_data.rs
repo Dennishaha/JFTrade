@@ -322,6 +322,7 @@ fn subscription_projection(payload: Value) -> Result<Value, McpToolFailure> {
 mod tests {
     use super::*;
 
+    /// Parity: go:452dea11:internal/assistant/assembly/application_adapter_test.go:164 TestApplicationAdapterRejectsAdvancedCandleInputsBeforeProviderCall
     #[test]
     fn market_candles_maps_instrument_and_advanced_query() {
         let (path, query) = candle_request(&json!({

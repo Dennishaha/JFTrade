@@ -5415,6 +5415,7 @@ mod product_production_assembly_tests {
     }
 
     /// Parity: go:452dea11:internal/api/assistant/adk_ops_test.go:468 TestADKSnapshotAndToolsRoutesReturnCatalogData
+    /// Parity: go:452dea11:internal/assistant/assembly/application_adapter_boundaries_test.go:71 TestApplicationAdapterUsesConfiguredRuntimeAndSettings
     /// TestADKSnapshotAndToolsRoutesReturnCatalogData.
     ///
     /// Go's snapshot handler returns the whole ADK catalog in one payload:
