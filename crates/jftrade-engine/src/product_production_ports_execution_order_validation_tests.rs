@@ -1,6 +1,7 @@
 use super::execution_order_hash::preview_request_hash;
 use super::execution_order_parse::{parse_combo, parse_order, parse_order_with_defaults};
 use serde_json::{Value, json};
+use std::str::FromStr;
 
 /// Go hands the normalized order type to the Futu adapter, which resolves it
 /// through `trdOrderTypeFromBBGOOrderType` onto OpenD's `Trd_Common.OrderType`
@@ -45,7 +46,12 @@ fn parsed_order_type_matches_the_opend_wire_enum() {
     }
     // Go's `normalizeExecutionOrderType` accepts LIMIT/MARKET/STOP/STOP_LIMIT
     // only, so BBGO-only aliases stay rejected on the execution route.
-    for raw in ["ICEBERG", "LIMIT_MAKER", "TAKE_PROFIT", "TRAILING_STOP_MARKET"] {
+    for raw in [
+        "ICEBERG",
+        "LIMIT_MAKER",
+        "TAKE_PROFIT",
+        "TRAILING_STOP_MARKET",
+    ] {
         let unsupported = json!({
             "accountId": "1001",
             "market": "US",
@@ -58,7 +64,10 @@ fn parsed_order_type_matches_the_opend_wire_enum() {
             "clientOrderId": "wire-order-type",
         });
         let error = parse_order(&unsupported).expect_err(raw);
-        assert!(error.contains("unsupported orderType"), "{raw} error = {error:?}");
+        assert!(
+            error.contains("unsupported orderType"),
+            "{raw} error = {error:?}"
+        );
     }
 }
 
@@ -277,7 +286,10 @@ fn event_single_rejects_negative_amount_and_invalid_prediction_side() {
         })
     };
     let error = parse_order(&base(json!(-1.0), "YES")).expect_err("negative amount");
-    assert!(error.contains("quantity must be positive"), "error = {error:?}");
+    assert!(
+        error.contains("quantity must be positive"),
+        "error = {error:?}"
+    );
 
     let error = parse_order(&base(json!(20.0), "MAYBE")).expect_err("invalid prediction side");
     assert!(error.contains("predictionSide"), "error = {error:?}");
@@ -334,7 +346,11 @@ fn test_execution_normalization_helpers_reject_unsupported_inputs() {
         "price": 100,
     });
     let err = parse_order(&unsupported_session).expect_err("pre-open session must be rejected");
-    assert!(err.to_lowercase().contains("session") || err.to_lowercase().contains("unsupported") || err.to_lowercase().contains("invalid"));
+    assert!(
+        err.to_lowercase().contains("session")
+            || err.to_lowercase().contains("unsupported")
+            || err.to_lowercase().contains("invalid")
+    );
 }
 
 #[test]
@@ -349,7 +365,11 @@ fn test_normalize_execution_order_rejects_invalid_instrument() {
         "price": 100,
     });
     let err = parse_order(&missing_symbol).expect_err("missing symbol must be rejected");
-    assert!(err.to_lowercase().contains("symbol") || err.to_lowercase().contains("instrument") || err.to_lowercase().contains("code"));
+    assert!(
+        err.to_lowercase().contains("symbol")
+            || err.to_lowercase().contains("instrument")
+            || err.to_lowercase().contains("code")
+    );
 }
 
 #[test]
@@ -492,7 +512,10 @@ fn us_limit_route_orders_keep_price_session_and_explicit_market_code() {
     // the preview/place routes answer 400 before any broker call.
     // Parity: go:452dea11:internal/app/apiserver/servercoretest/exec_validate_test.go:211 TestExecutionOrderRoutesRejectBareSymbolWithoutMarket
     let mut bare_symbol = rth.clone();
-    bare_symbol.as_object_mut().expect("object").remove("market");
+    bare_symbol
+        .as_object_mut()
+        .expect("object")
+        .remove("market");
     let error = parse_order(&bare_symbol).expect_err("bare symbol without market must fail");
     assert_eq!(error, "market is required when symbol has no market prefix");
 }
@@ -544,8 +567,7 @@ fn execution_order_rejects_non_us_fill_outside_rth_and_normalizes_the_remark() {
         "price": 320,
         "fillOutsideRTH": true,
     });
-    let error =
-        parse_order(&hk_fill_flag).expect_err("non-US fillOutsideRTH must be rejected");
+    let error = parse_order(&hk_fill_flag).expect_err("non-US fillOutsideRTH must be rejected");
     assert!(
         error.contains("fillOutsideRTH is supported for US orders only"),
         "error = {error:?}"
@@ -640,10 +662,7 @@ fn test_normalize_execution_order_rejects_business_rule_violations() {
         "session": "ETH",
     });
     let error = parse_order(&hk_session).expect_err("HK session must be rejected");
-    assert!(
-        error.contains("US market orders only"),
-        "error = {error:?}"
-    );
+    assert!(error.contains("US market orders only"), "error = {error:?}");
 
     let fok = json!({
         "accountId": "1001",
@@ -702,8 +721,8 @@ fn test_futu_security_from_symbol_uses_market_parser() {
         ("SH.600519", "CN", "600519", "SH.600519"),
         ("SZ.000001", "CN", "000001", "SZ.000001"),
     ] {
-        let (market, canonical, code) = normalize_instrument(None, raw, None)
-            .unwrap_or_else(|error| panic!("{raw}: {error}"));
+        let (market, canonical, code) =
+            normalize_instrument(None, raw, None).unwrap_or_else(|error| panic!("{raw}: {error}"));
         assert_eq!(market, want_market, "market for {raw}");
         assert_eq!(canonical, want_canonical, "canonical for {raw}");
         assert_eq!(code, want_code, "code for {raw}");
@@ -713,10 +732,7 @@ fn test_futu_security_from_symbol_uses_market_parser() {
     // matching Go's "requires an exchange-qualified symbol" error.
     let error = normalize_instrument(None, "CN.600519", None)
         .expect_err("aggregate CN prefix must fail closed");
-    assert!(
-        error.contains("exchange-qualified"),
-        "error = {error:?}"
-    );
+    assert!(error.contains("exchange-qualified"), "error = {error:?}");
 }
 
 /// Parity: go:452dea11:internal/trading/execution_combo_lifecycle_test.go:150
@@ -811,7 +827,10 @@ fn option_combo_validation_rejects_incomplete_risk_shape_matrix() {
     ];
     for (name, mutate, want) in cases {
         let mut payload = option_combo_payload("combo-shape");
-        payload.as_object_mut().expect("object").remove("optionStrategy");
+        payload
+            .as_object_mut()
+            .expect("object")
+            .remove("optionStrategy");
         mutate(&mut payload);
         let error = parse_combo(&payload).expect_err(name);
         assert!(
@@ -853,4 +872,31 @@ fn combo_order_quantity_mode_maps_event_parlays_to_amount_and_option_combos_to_c
     });
     let parlay = parse_combo(&parlay).expect("event parlay");
     assert_eq!(parlay.order.quantity_mode, "amount");
+}
+
+#[test]
+fn parsed_stop_order_carries_stop_price_into_pre_trade_risk_order() {
+    // Parity: go:452dea11:internal/trading/execution_test.go:573 TestPreTradeRiskRejectsKillSwitchAndLimits
+    let payload = json!({
+        "accountId": "1001",
+        "market": "US",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "orderType": "STOP",
+        "quantity": 6,
+        "stopPrice": 10,
+        "clientOrderId": "stop-risk-mapping",
+    });
+    let parsed = parse_order(&payload).expect("STOP order without limit price parses");
+    assert_eq!(parsed.price, None);
+    assert_eq!(parsed.stop_price, Some(10.0));
+    let risk_order =
+        super::execution_order_helpers::build_pre_trade_risk_order(
+            &parsed,
+        );
+    assert_eq!(risk_order.price, None);
+    assert_eq!(
+        risk_order.stop_price,
+        Some(jftrade_kernel::Decimal::from_str("10").unwrap())
+    );
 }

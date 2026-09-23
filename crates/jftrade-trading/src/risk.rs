@@ -360,6 +360,9 @@ pub struct PreTradeRiskOrder {
     pub quantity_mode: String,
     pub quantity: Decimal,
     pub price: Option<Decimal>,
+    // Parity: go:452dea11:internal/trading/execution.go:26 PlaceOrderQuery.StopPrice feeds commandRiskPrice.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop_price: Option<Decimal>,
     pub amount: Option<Decimal>,
     #[serde(default)]
     pub legs: Vec<PreTradeRiskComboLeg>,
@@ -473,6 +476,12 @@ pub fn evaluate_pre_trade_risk(
             "order price must be positive",
         );
     }
+    if order.stop_price.is_some_and(|price| price <= Decimal::ZERO) {
+        return PreTradeRiskDecision::reject(
+            "INVALID_ORDER_RISK_SHAPE",
+            "order stop price must be positive",
+        );
+    }
     for leg in &order.legs {
         if leg.price.is_some_and(|price| price <= Decimal::ZERO) {
             return PreTradeRiskDecision::reject(
@@ -540,6 +549,7 @@ pub fn evaluate_pre_trade_risk(
             quantity_mode: order.quantity_mode.clone(),
             quantity: leg.quantity,
             price: leg.price,
+            stop_price: None,
             amount: None,
             legs: Vec::new(),
         };
@@ -602,7 +612,8 @@ pub fn evaluate_pre_trade_risk(
                 Err(decision) => return decision,
             }
         } else {
-            let Some(price) = order.price else {
+            // Parity: go:452dea11:internal/trading/risk.go:218 commandRiskPrice falls back to StopPrice.
+            let Some(price) = order.price.or(order.stop_price) else {
                 return PreTradeRiskDecision::reject(
                     "RISK_PRICE_UNAVAILABLE",
                     "order price is required to enforce the configured real-trade notional limit",

@@ -4583,3 +4583,29 @@ owner：能力目录与路由投影由 jftrade-engine 承接，市场规则与�
 | 快速门禁 | pnpm run check:quick | 通过 exit 0（engine 1949 用例、兼容 replay、web/桌面检查全过；中途 target-health 因 rcgu 过多失败一次，按规矩确认无 Cargo 进程后清理产物重跑通过）|
 
 后续：第 130 批分片三取 execution:573 止损价回退。
+
+### 第 130 批分片三：execution:573 止损价回退闭环（2 处生产修复、1 行升 [x]）
+
+范围：internal/trading/execution_test.go:573 TestPreTradeRiskRejectsKillSwitchAndLimits。owner：预交易风控由 jftrade-trading 领域 crate 承接，engine 只做建单映射，无双写。
+
+缺口复述：Go 四分支中 kill switch、quantity、notional 在 Rust 有等价断言，唯独止损单分支缺失。Go 的 commandRiskPrice 按 Price、无则 StopPrice 回退计算名义金额（6 手乘 10 得 60 越过 40 报 MAX_ORDER_NOTIONAL_EXCEEDED）。Rust 的 PreTradeRiskOrder 无止损价字段，build_pre_trade_risk_order 只传现价，止损市价单在名义限额下得 RISK_PRICE_UNAVAILABLE。
+
+生产修复：jftrade-trading risk.rs 给 PreTradeRiskOrder 加 stopPrice 字段（缺省缺席、wire 省略，公开契约不变），units 名义分支按 Go 顺序回退到止损价，非正止损价沿用领域 INVALID 规则，combo 腿投影为 None；engine helpers 建单映射 parsed.stopPrice，combo 建单为 None。另补普通 equity-units 名义超限形状（既有 notional 证据是 option 乘数变体）。
+
+回归测试：2 个领域新用例（止损回退拒绝加放行、普通 equity 超限拒绝加放行）加 1 个 engine 映射用例（STOP 无现价单经 parse 到建单保留止损价）。探针分两段：加字段前新用例编译失败 E0609；只加字段不加回退时运行时 RISK_PRICE_UNAVAILABLE 对 MAX_ORDER_NOTIONAL_EXCEEDED；恢复后按字节一致。kill 与 quantity 分支沿用既有等价证据一并列入本行。
+
+映射终值：该行 partial→[x]，5 证据全锚定且行间唯一（option 乘数用例仍归属其 partial 行，未共享）。全量：[x] 1564、partial 2249、boundary 638（合计 4451）；Rust 测试 3303→3306（本批新增 3 个用例）。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 回归先红后绿 | 加字段前 E0609，回退缺席时 RISK_PRICE_UNAVAILABLE 对 MAX_ORDER_NOTIONAL_EXCEEDED，修复后通过 | 红绿确认 |
+| Rust 定向测试 | trading 整 crate 87 用例、engine 相关 48 用例 | 87/87 通过；48/48 通过 |
+| 账本写入 | v2 写入器 1 行 | [x] 1564、partial 2249、boundary 638（合计 4451） |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过 exit 0；dup 校验通过；report/inventory 刷新；Rust 测试 3306 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1734、已记录 1688、unrecorded 0、stale 0、unknown 46 |
+| 文档门禁 | fmt、ai-context、migration-manifest、zero-go、diff check | 全过 |
+| 快速门禁 | pnpm run check:quick | 通过 exit 0（engine 2579 用例、trading 87 用例、兼容 replay、web 与桌面检查全过）|
+
+后续：第 130 批分片四待定（trading 域余量或按对齐建议取 strategy 回测域）。

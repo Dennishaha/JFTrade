@@ -29,6 +29,7 @@ fn test_order(env: TradingEnvironment, qty: f64, price: f64) -> PreTradeRiskOrde
         quantity_mode: "units".to_owned(),
         quantity: Decimal::from_str(&qty.to_string()).unwrap_or_default(),
         price: Some(Decimal::from_str(&price.to_string()).unwrap_or_default()),
+        stop_price: None,
         // Units mode never carries an amount: the domain rejects a smuggled
         // amount, matching Go's `commandRiskShapeError`.
         amount: None,

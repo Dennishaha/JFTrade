@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T22:23:44Z",
+  "generatedAt": "2026-09-23T22:47:56Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -283441,11 +283441,11 @@
       "boundaryReason": null
     },
     "internal/trading/execution_test.go:573:TestPreTradeRiskRejectsKillSwitchAndLimits": {
-      "status": "[~]",
-      "evidence_type": "partial",
-      "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_fails_when_kill_switch_active + crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_enforces_quantity_limit + crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_enforces_notional_limit_with_option_multiplier",
-      "conclusion": "部分覆盖：Go 四分支中三支在 Rust 有等价断言——kill switch 分支（pre_trade_risk_fails_when_kill_switch_active，REAL_TRADE_KILL_SWITCH_ACTIVE）、quantity 分支（pre_trade_risk_enforces_quantity_limit，qty 10 越过上限 5 得 MAX_ORDER_QUANTITY_EXCEEDED）、notional 超限原因码（同一 live seam 的 option/amount/combo 变体断言 MAX_ORDER_NOTIONAL_EXCEEDED，同一比较路径；缺普通 equity-units 形状的超限用例）。未覆盖：止损单分支——Go 用 StopPrice 回退计算名义金额（6 手乘 10 得 60 越过 40 → MAX_ORDER_NOTIONAL_EXCEEDED），Rust 的 PreTradeRiskOrder 无 stop price 字段，build_pre_trade_risk_order 只传 parsed.price，止损市价单在名义限额下得 RISK_PRICE_UNAVAILABLE。生产确认：risk.rs 的 evaluate_pre_trade_risk 只认 order.price（现价回退只存在于旧 evaluate_runtime_risk）。回归要求：在所属领域 crate 补止损价回退的失败回归测试（STOP 市价单 price 缺失、stopPrice 10、qty 6、notional 40，期望 MAX_ORDER_NOTIONAL_EXCEEDED），再定 engine 侧 stopPrice 到 risk price 的映射或领域侧回退语义；普通 equity 超限形状可一并补。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
+      "status": "[x]",
+      "evidence_type": "function_exact",
+      "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_fails_when_kill_switch_active; crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_enforces_quantity_limit; crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_falls_back_to_stop_price_for_notional_limit; crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_enforces_notional_limit_for_plain_equity_units_orders; crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::parsed_stop_order_carries_stop_price_into_pre_trade_risk_order",
+      "conclusion": "全覆盖：kill switch 与 quantity 分支沿用既有等价证据；notional 分支补普通 equity-units 形状；止损单分支补齐：PreTradeRiskOrder 加 stopPrice 字段（缺省缺席、wire 省略），units 名义分支按 Go commandRiskPrice 回退到止损价（6 手乘 10 得 60 越过 40 报 MAX_ORDER_NOTIONAL_EXCEEDED），非正止损价沿用领域 INVALID 规则；engine 建单映射 parsed.stopPrice，combo 为 None。生产修复 2 处：jftrade-trading risk.rs（字段、回退、shape 守卫、combo 腿投影），engine helpers（建单映射止损价）。红测分两段：加字段前编译失败 E0609，回退缺席时运行时 RISK_PRICE_UNAVAILABLE 对 MAX_ORDER_NOTIONAL_EXCEEDED；恢复后按字节一致，trading 87/87、engine 相关 48/48。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked && node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(parsed_stop_order_carries_stop_price_into_pre_trade_risk_order)'",
       "source": {
         "file": "internal/trading/execution_test.go",
         "line": 573,
@@ -283461,7 +283461,7 @@
             "goFile": "internal/trading/execution_test.go",
             "goLine": 573,
             "rustFile": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
-            "rustLine": 187
+            "rustLine": 188
           }
         },
         {
@@ -283472,26 +283472,48 @@
             "goFile": "internal/trading/execution_test.go",
             "goLine": 573,
             "rustFile": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
-            "rustLine": 187
+            "rustLine": 188
           }
         },
         {
           "file": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
-          "test": "pre_trade_risk_enforces_notional_limit_with_option_multiplier",
+          "test": "pre_trade_risk_falls_back_to_stop_price_for_notional_limit",
           "crate": "jftrade-trading",
           "anchor": {
             "goFile": "internal/trading/execution_test.go",
             "goLine": 573,
             "rustFile": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
-            "rustLine": 187
+            "rustLine": 188
+          }
+        },
+        {
+          "file": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
+          "test": "pre_trade_risk_enforces_notional_limit_for_plain_equity_units_orders",
+          "crate": "jftrade-trading",
+          "anchor": {
+            "goFile": "internal/trading/execution_test.go",
+            "goLine": 573,
+            "rustFile": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
+            "rustLine": 188
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs",
+          "test": "parsed_stop_order_carries_stop_price_into_pre_trade_risk_order",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/execution_test.go",
+            "goLine": 573,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs",
+            "rustLine": 879
           }
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "部分覆盖：Go 四分支中三支在 Rust 有等价断言——kill switch 分支（pre_trade_risk_fails_when_kill_switch_active，REAL_TRADE_KILL_SWITCH_ACTIVE）、quantity 分支（pre_trade_risk_enforces_quantity_limit，qty 10 越过上限 5 得 MAX_ORDER_QUANTITY_EXCEEDED）、notional 超限原因码（同一 live seam 的 option/amount/combo 变体断言 MAX_ORDER_NOTIONAL_EXCEEDED，同一比较路径；缺普通 equity-units 形状的超限用例）。未覆盖：止损单分支——Go 用 StopPrice 回退计算名义金额（6 手乘 10 得 60 越过 40 → MAX_ORDER_NOTIONAL_EXCEEDED），Rust 的 PreTradeRiskOrder 无 stop price 字段，build_pre_trade_risk_order 只传 parsed.price，止损市价单在名义限额下得 RISK_PRICE_UNAVAILABLE。生产确认：risk.rs 的 evaluate_pre_trade_risk 只认 order.price（现价回退只存在于旧 evaluate_runtime_risk）。回归要求：在所属领域 crate 补止损价回退的失败回归测试（STOP 市价单 price 缺失、stopPrice 10、qty 6、notional 40，期望 MAX_ORDER_NOTIONAL_EXCEEDED），再定 engine 侧 stopPrice 到 risk price 的映射或领域侧回退语义；普通 equity 超限形状可一并补。"
+        "covered": [
+          "全覆盖：kill switch 与 quantity 分支沿用既有等价证据；notional 分支补普通 equity-units 形状；止损单分支补齐：PreTradeRiskOrder 加 stopPrice 字段（缺省缺席、wire 省略），units 名义分支按 Go commandRiskPrice 回退到止损价（6 手乘 10 得 60 越过 40 报 MAX_ORDER_NOTIONAL_EXCEEDED），非正止损价沿用领域 INVALID 规则；engine 建单映射 parsed.stopPrice，combo 为 None。生产修复 2 处：jftrade-trading risk.rs（字段、回退、shape 守卫、combo 腿投影），engine helpers（建单映射止损价）。红测分两段：加字段前编译失败 E0609，回退缺席时运行时 RISK_PRICE_UNAVAILABLE 对 MAX_ORDER_NOTIONAL_EXCEEDED；恢复后按字节一致，trading 87/87、engine 相关 48/48。"
         ],
+        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -283500,12 +283522,26 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-trading"
+          "jftrade-trading",
+          "--all-targets",
+          "--locked",
+          "&&",
+          "node",
+          "scripts/quality/cargo-nextest.mjs",
+          "run",
+          "-p",
+          "jftrade-engine",
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(parsed_stop_order_carries_stop_price_into_pre_trade_risk_order)"
         ],
         "testFilter": [
           "pre_trade_risk_fails_when_kill_switch_active",
           "pre_trade_risk_enforces_quantity_limit",
-          "pre_trade_risk_enforces_notional_limit_with_option_multiplier"
+          "pre_trade_risk_falls_back_to_stop_price_for_notional_limit",
+          "pre_trade_risk_enforces_notional_limit_for_plain_equity_units_orders",
+          "parsed_stop_order_carries_stop_price_into_pre_trade_risk_order"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -283518,15 +283554,15 @@
       "risk": "normal",
       "owner": "trading_broker",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "record_receipt_and_review_assertions",
       "blockedBy": [
-        "behavioral-parity-review"
+        "verification-receipt"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
-      "uncoveredAssertions": [
-        "部分覆盖：Go 四分支中三支在 Rust 有等价断言——kill switch 分支（pre_trade_risk_fails_when_kill_switch_active，REAL_TRADE_KILL_SWITCH_ACTIVE）、quantity 分支（pre_trade_risk_enforces_quantity_limit，qty 10 越过上限 5 得 MAX_ORDER_QUANTITY_EXCEEDED）、notional 超限原因码（同一 live seam 的 option/amount/combo 变体断言 MAX_ORDER_NOTIONAL_EXCEEDED，同一比较路径；缺普通 equity-units 形状的超限用例）。未覆盖：止损单分支——Go 用 StopPrice 回退计算名义金额（6 手乘 10 得 60 越过 40 → MAX_ORDER_NOTIONAL_EXCEEDED），Rust 的 PreTradeRiskOrder 无 stop price 字段，build_pre_trade_risk_order 只传 parsed.price，止损市价单在名义限额下得 RISK_PRICE_UNAVAILABLE。生产确认：risk.rs 的 evaluate_pre_trade_risk 只认 order.price（现价回退只存在于旧 evaluate_runtime_risk）。回归要求：在所属领域 crate 补止损价回退的失败回归测试（STOP 市价单 price 缺失、stopPrice 10、qty 6、notional 40，期望 MAX_ORDER_NOTIONAL_EXCEEDED），再定 engine 侧 stopPrice 到 risk price 的映射或领域侧回退语义；普通 equity 超限形状可一并补。"
+      "coveredAssertions": [
+        "全覆盖：kill switch 与 quantity 分支沿用既有等价证据；notional 分支补普通 equity-units 形状；止损单分支补齐：PreTradeRiskOrder 加 stopPrice 字段（缺省缺席、wire 省略），units 名义分支按 Go commandRiskPrice 回退到止损价（6 手乘 10 得 60 越过 40 报 MAX_ORDER_NOTIONAL_EXCEEDED），非正止损价沿用领域 INVALID 规则；engine 建单映射 parsed.stopPrice，combo 为 None。生产修复 2 处：jftrade-trading risk.rs（字段、回退、shape 守卫、combo 腿投影），engine helpers（建单映射止损价）。红测分两段：加字段前编译失败 E0609，回退缺席时运行时 RISK_PRICE_UNAVAILABLE 对 MAX_ORDER_NOTIONAL_EXCEEDED；恢复后按字节一致，trading 87/87、engine 相关 48/48。"
       ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/trading/execution_test.go:613:TestPreTradeRiskEnforcesAmountModeQuantityAndNotionalLimits": {
@@ -296651,6 +296687,14 @@
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
+    },
+    "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::parsed_stop_order_carries_stop_price_into_pre_trade_risk_order": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/execution_test.go:573:TestPreTradeRiskRejectsKillSwitchAndLimits"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::single_equity_rejects_event_only_fields": {
       "referenceCount": 3,
@@ -310248,14 +310292,21 @@
       "allowed": true,
       "reviewStatus": "single"
     },
-    "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_enforces_notional_limit_with_option_multiplier": {
-      "referenceCount": 2,
+    "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_enforces_notional_limit_for_plain_equity_units_orders": {
+      "referenceCount": 1,
       "referenceKeys": [
-        "pkg/bbgo/types/market_test.go:270:TestMarket_AdjustQuantityToContractSize",
         "internal/trading/execution_test.go:573:TestPreTradeRiskRejectsKillSwitchAndLimits"
       ],
-      "allowed": false,
-      "reviewStatus": "unreviewed"
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_enforces_notional_limit_with_option_multiplier": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/bbgo/types/market_test.go:270:TestMarket_AdjustQuantityToContractSize"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_enforces_quantity_limit": {
       "referenceCount": 1,
@@ -310266,6 +310317,14 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_fails_when_kill_switch_active": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/execution_test.go:573:TestPreTradeRiskRejectsKillSwitchAndLimits"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_falls_back_to_stop_price_for_notional_limit": {
       "referenceCount": 1,
       "referenceKeys": [
         "internal/trading/execution_test.go:573:TestPreTradeRiskRejectsKillSwitchAndLimits"

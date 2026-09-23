@@ -18,6 +18,7 @@ fn test_order(environment: TradingEnvironment) -> PreTradeRiskOrder {
         quantity_mode: "units".to_owned(),
         quantity: Decimal::from_str("10").unwrap(),
         price: Some(Decimal::from_str("150").unwrap()),
+        stop_price: None,
         amount: None,
         legs: Vec::new(),
     }
@@ -582,4 +583,49 @@ fn pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broke
         evaluate_pre_trade_risk(&empty, &order).allowed,
         "an empty hard-stop policy must not block real orders"
     );
+}
+
+#[test]
+fn pre_trade_risk_falls_back_to_stop_price_for_notional_limit() {
+    // Parity: go:452dea11:internal/trading/execution_test.go:573 TestPreTradeRiskRejectsKillSwitchAndLimits
+    let mut policy = valid_policy();
+    policy.effective_max_order_notional = Some(Decimal::from_str("40").unwrap());
+    let mut order = test_order(TradingEnvironment::Real);
+    order.order_type = "STOP".to_owned();
+    order.quantity = Decimal::from_str("6").unwrap();
+    order.price = None;
+    order.stop_price = Some(Decimal::from_str("10").unwrap());
+    // 6 contracts/units * $10 stop price = $60 notional > $40 limit.
+    let decision = evaluate_pre_trade_risk(&policy, &order);
+    assert!(!decision.allowed);
+    assert_eq!(
+        decision.reason_code.as_deref(),
+        Some("MAX_ORDER_NOTIONAL_EXCEEDED")
+    );
+
+    // A within-limit stop order stays allowed.
+    order.quantity = Decimal::from_str("3").unwrap();
+    let decision = evaluate_pre_trade_risk(&policy, &order);
+    assert!(decision.allowed, "{decision:?}");
+}
+
+#[test]
+fn pre_trade_risk_enforces_notional_limit_for_plain_equity_units_orders() {
+    // Parity: go:452dea11:internal/trading/execution_test.go:573 TestPreTradeRiskRejectsKillSwitchAndLimits
+    let mut policy = valid_policy();
+    policy.effective_max_order_notional = Some(Decimal::from_str("40").unwrap());
+    let mut order = test_order(TradingEnvironment::Real);
+    order.quantity = Decimal::from_str("6").unwrap();
+    order.price = Some(Decimal::from_str("10").unwrap());
+    // 6 units * $10 = $60 notional > $40 limit.
+    let decision = evaluate_pre_trade_risk(&policy, &order);
+    assert!(!decision.allowed);
+    assert_eq!(
+        decision.reason_code.as_deref(),
+        Some("MAX_ORDER_NOTIONAL_EXCEEDED")
+    );
+
+    order.quantity = Decimal::from_str("3").unwrap();
+    let decision = evaluate_pre_trade_risk(&policy, &order);
+    assert!(decision.allowed, "{decision:?}");
 }

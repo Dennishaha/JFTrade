@@ -586,6 +586,7 @@ pub(crate) fn build_pre_trade_risk_order(
         quantity_mode: parsed.quantity_mode.clone(),
         quantity: decimal_from_f64(parsed.quantity),
         price: optional_decimal_from_f64(parsed.price),
+        stop_price: optional_decimal_from_f64(parsed.stop_price),
         amount: optional_decimal_from_f64(parsed.amount),
         legs: Vec::new(),
     }
@@ -665,6 +666,7 @@ pub(crate) fn build_pre_trade_risk_combo_order(
         quantity_mode: parsed.order.quantity_mode.clone(),
         quantity: decimal_from_f64(combo_qty),
         price: optional_decimal_from_f64(parsed.order.price),
+        stop_price: None,
         amount: optional_decimal_from_f64(parsed.order.amount),
         legs: risk_legs,
     }
@@ -685,12 +687,16 @@ pub(crate) fn prefetch_combo_leg_quotes(
             quote_expires_at,
             &time::format_description::well_known::Rfc3339,
         )
-        .map_err(|error| failed(400, "BAD_REQUEST", format!("quoteExpiresAt is invalid: {error}")))?;
-        let now_time = time::OffsetDateTime::parse(
-            now,
-            &time::format_description::well_known::Rfc3339,
-        )
-        .map_err(|error| failed(500, "EXECUTION_TIME_ERROR", error.to_string()))?;
+        .map_err(|error| {
+            failed(
+                400,
+                "BAD_REQUEST",
+                format!("quoteExpiresAt is invalid: {error}"),
+            )
+        })?;
+        let now_time =
+            time::OffsetDateTime::parse(now, &time::format_description::well_known::Rfc3339)
+                .map_err(|error| failed(500, "EXECUTION_TIME_ERROR", error.to_string()))?;
         if quote_time <= now_time {
             return Err(failed(
                 403,
@@ -717,9 +723,13 @@ pub(crate) fn prefetch_combo_leg_quotes(
             market: qot_market,
             code: leg.symbol.clone(),
         };
-        let snapshots = runtime
-            .security_snapshots(&[security])
-            .map_err(|error| failed(403, "PRE_TRADE_RISK_REJECTED", format!("quote prefetch failed: {error}")))?;
+        let snapshots = runtime.security_snapshots(&[security]).map_err(|error| {
+            failed(
+                403,
+                "PRE_TRADE_RISK_REJECTED",
+                format!("quote prefetch failed: {error}"),
+            )
+        })?;
         let price = snapshots
             .first()
             .and_then(|s| s.get("lastPrice").or_else(|| s.get("curPrice")))
