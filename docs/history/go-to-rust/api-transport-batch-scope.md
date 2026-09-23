@@ -4017,3 +4017,29 @@ owner：绑定归一与错误分类由 jftrade-strategy 承接，实例视图/�
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 3839 起；尾部余 613 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
+
+### 第 129 批分片六十二：rows 3839-3873 实盘风控与 Pine 会话 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 3839-3873，按写入顺序）：strategy liveruntime nil_boundaries:10/:43、order_risk_business:18/:67/:135/:216/:235、pineworker_live_business:226/:270/:305/:368/:404/:527、product_lifecycle_business:18/:56/:96/:151、runtime_boundaries:21/:48/:116/:180/:258/:277、runtime_risk_evidence:18、subscription_lifecycle:14/:58/:81、symbol_failure_business:14/:57、pine_live_command:16/:36/:60/:76/:93/:130。初值 [x] 3、partial 30、boundary 2，终值不变。首键自检通过，无重叠。
+
+owner：实盘意图执行与风控由 jftrade-engine 承接，运行时风控原因码由 jftrade-trading 承接，Pine 远端会话由 jftrade-integration-pine 承接，订阅租约由 jftrade-engine 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（28 个去重后引用逐个核对 #[test]，0 缺失），3 条 [x] 逐条核对锚点归属与断言等价（全部 function_exact 且带锚点），partial 与 boundary 抽查缺口诚实度。结论：0 纠正、0 升级、0 降级。
+
+抽查证据：[x] 结论均为逐字段/逐原因码写法（含新增用例与探针记录）；partial 缺口诚实且带 P1 标记与跨行引用（扩展时段交易日边界差异、异常路径租约释放）；boundary 均为结构差异（含升级路径）；dup-x 为 0。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 3、partial 30、boundary 2。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（28 去重引用）加 [x] 断言等价核对 | 0 纠正、0 升级、0 降级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新基线，inventory 无变化；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 3874 起；尾部余 578 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
