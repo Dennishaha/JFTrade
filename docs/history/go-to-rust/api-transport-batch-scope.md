@@ -4095,3 +4095,29 @@ owner：运行时风控由 jftrade-trading 承接，持仓投影由 jftrade-trad
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 3944 起；尾部余 508 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
+
+### 第 129 批分片六十五：rows 3944-3978 策略服务与指标绑定 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 3944-3978，按写入顺序）：strategy service:236/:255/:278/:304、types:8/:42、definition source_format:8/:17、source_format_validation:8/:16、indicatorbinding parse_semantics:8/:20/:46/:114/:155、parse:10/:93/:152/:176/:212/:235/:283/:304/:347/:384/:395/:425/:433/:467/:475/:501/:509/:542/:574/:609。初值 [x] 0、partial 26、boundary 9，终值不变。首键自检通过，无重叠。
+
+owner：策略服务语义由 jftrade-engine 承接，源码格式与指标绑定由 jftrade-strategy 承接（Pine 官方解析器路径），定义存储由 jftrade-store-sqlite 承接，信号校验由 jftrade-strategy 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（21 个去重后引用逐个核对 #[test]，0 缺失），[x] 为空无需断言等价核对，partial 与 boundary 逐条核对缺口诚实度。结论：0 纠正、0 升级。
+
+抽查证据：boundary 均为结构差异（含升级路径，DSL 助手类无 Rust 同形实现）；partial 缺口诚实（逐字段快照、wire 契约等未复刻）；dup-x 为 0。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 0、partial 26、boundary 9。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（21 去重引用）加缺口诚实度抽查 | 0 纠正、0 升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新基线，inventory 无变化；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 3979 起；尾部余 473 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
