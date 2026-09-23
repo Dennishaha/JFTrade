@@ -1751,7 +1751,7 @@ owner：`crates/jftrade-strategy`（Pine 解析、语义诊断、降级元数据
 
 探针先红证据（修复前状态）：新增用例首轮 5/5 失败（`compile_rejects_ambiguous_order_metadata_and_missing_ids`、`compile_accepts_supported_order_positional_metadata`、`request_security_rejects_impure_member_and_visual_side_effects`、`request_security_tuple_diagnostics_match_go_codes`、`history_reference_overflow_is_rejected`），修复后 7/7 通过；`request_security_merge_flags_are_rejected_in_named_and_positional_form` 由第三轮探针（positional `barmerge.gaps_on`/`barmerge.lookahead_on` 与 `calc_bars_count=` 均 ok=true）复现先红。生产文件 shasum：`semantic.rs` `9f435e5c…` → `6d6d109f…`、`lexer.rs` `e570b4b0…` → `5eb838a3…`、`parser.rs` `c13a22ef…` → `609e8bf0…`。
 
-映射终值：3 条 `[x]`（`language_failure_contracts_test.go:239`、`order_command_security_rejection_test.go:11`、`parse_test.go:763`）、17 条 partial、7 条 boundary。`[x]` 由 1566 升至 1569，partial 2256 降至 2248，boundary 保持 629。
+映射终值：3 条 `[x]`（`language_failure_contracts_test.go:239`、`order_command_security_rejection_test.go:11`、`parse_test.go:763`）、17 条 partial、7 条 boundary。跨类型迁移：三例 partial 升 `function_exact`、七例 partial 转 boundary（对象/集合族）、`parse_test.go:977` 由 boundary 转 partial（switch 缺口如实登记）。计数因此为 `[x]` 1566 升至 1569、partial 2256 降至 2247、boundary 629 升至 635，合计 4451 不变。
 
 缺口登记（本批新增）：
 
@@ -1770,8 +1770,8 @@ owner：`crates/jftrade-strategy`（Pine 解析、语义诊断、降级元数据
 | 新增用例 | 同上（修复后） | 7/7 通过 |
 | 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast` | 87/87 通过 |
 | 探针回滚校验 | `shasum -a 256 crates/jftrade-strategy/src/pine/semantic.rs crates/jftrade-strategy/src/pine/lexer.rs crates/jftrade-strategy/src/pine/parser.rs` | 修复前 `9f435e5c…`、`e570b4b0…`、`c13a22ef…`；修复后 `6d6d109f…`、`5eb838a3…`、`609e8bf0…` |
-| 映射写入 | payload `/tmp/s130l_payload.json` 经 `/tmp/b82_apply.py` 应用 | 27 行给出终值，`[x]` 1566 → 1569、partial 2256 → 2248、boundary 保持 629 |
-| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3255（Strategy 域 234） |
+| 映射写入 | payload `/tmp/s130l_payload.json` 经 `/tmp/b82_apply.py` 应用 | 27 行给出终值，`[x]` 1566 → 1569、partial 2256 → 2247、boundary 629 → 635（合计仍为 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3255（Strategy 域 234）；汇总 4451 |
 | 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1597、unrecorded 0、stale 0、unknown 53 |
 | 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
 | 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1895/1895 通过（首轮即绿） |
