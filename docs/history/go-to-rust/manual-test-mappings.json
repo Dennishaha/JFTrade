@@ -26770,77 +26770,77 @@
   "internal/strategy/liveruntime/manager_boundaries_test.go:16:TestManagerMaintenanceStateAndPollingConfiguration": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/strategy_runtime_lifecycle_bounded_tests.rs::test_strategy_runtime_idempotent_lifecycle_operations",
-    "conclusion": "partial：Go 断言 nil manager 的防御（SetExchangeProvider/SetPineWorkerRunner/Stop 不 panic）、closedKLineSyncInterval 默认与自定义（nil→0 禁用）、MaintenanceBusyReason 在启动中/运行中返回 存在活动策略实例。Rust 的运行时管理器以所有权与停止标志表达维护态（stopping/tasks 集合），引用用例断言未启动实例的 cancel 是无操作、重复 cancel 与重复 shutdown 都是安全无操作；缺口：没有维护忙原因字符串、没有 closedKLineSyncInterval 轮询间隔配置（Rust 由每任务事件循环推进）、也没有 nil 接收者分支（语言层不存在）。owner：crates/jftrade-engine/src/strategy_runtime.rs。回归要求：若产品需要维护忙原因对外文案，先建四态（nil/空闲/启动中/运行中）用例。",
+    "conclusion": "partial：参考实现断言轮询间隔可配置（默认值、设置后生效）、维护忙碌原因在启动中/运行中非空、空闲为空，以及 nil Manager 上的设置与查询都是安全空操作。Rust 侧行情轮询间隔由运行时任务参数与引擎配置决定（没有 currentClosedKLineSyncInterval 这类读写），生命周期用例锁定幂等启停；没有“轮询间隔默认值与生效”和“维护忙碌原因”的同形断言。缺口（P2）：维护忙碌判定与轮询配置缺少回归。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/manager_boundaries_test.go:54:TestManagerCompatibilityResolversAndCommandBoundariesFailClosed": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/src/service.rs::notify_only_never_calls_trading_port_or_dispatches_notification",
-    "conclusion": "partial：Go 断言兼容解析器在缺交易端口时拒绝 place/cancel、账户解析回退顺序（stub→nil→缺失→nil manager）以及能力回调错误原样返回。Rust 的交易能力由 ExecutionWritePort 必填端口与 execution_binding_is_real 判定表达（通知/模拟模式不调用端口），引用用例断言 notify-only 不调用交易端口也不派发通知；缺口：Rust 无 resolveAccount 兼容回退链（账户来自实例 binding 的 brokerId/accountId，缺失即报错），也没有能力回调错误透传的同形断言。owner：crates/jftrade-engine（执行绑定解析）+ crates/jftrade-strategy。",
+    "conclusion": "partial：参考实现断言兼容解析器（ExchangeProvider/AccountResolver）在缺失或 nil 时返回空、无交易命令时下单与撤单失败关闭、行情能力回调报错原样上抛、只有 StreamingCandles 才放行。Rust 对应物是端口注入与路由校验：端口缺失即失败关闭（引用用例锁定仅通知模式不触达交易端口），行情能力门在 provider 装配与路由校验层。缺“每个依赖缺失各自报错”的逐项断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/manager_boundaries_test.go:94:TestStrategyRuntimeRequiresStreamingCandlesForLiveAndNotifyOnly": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_candles.rs::test_parse_strategy_candles_computes_close_time_and_honors_explicit_closed",
-    "conclusion": "partial：Go 断言 live 与 notify_only 启动在缺 streaming candles 能力时报错。Rust 的 ProviderCapabilities.streaming_candles 只出现在测试夹具（strategy_runtime_owner_tests.rs 的 futu 描述符、订阅用例），生产启动路径不做该能力校验；引用用例断言的是 K 线解析的 close 时间与显式 closed 语义（流式输入契约）。缺口：缺“未声明 streaming_candles 的 provider 拒绝启动策略”的实现与用例。owner：crates/jftrade-engine/src/strategy_runtime.rs + crates/jftrade-marketdata（能力矩阵）。回归要求：先建能力拒绝失败用例再补启动前校验。",
+    "conclusion": "partial：参考实现断言 live 与 notify_only 两种模式在提供商只有历史 K 线、没有流式 K 线能力时都拒绝启动（错误含 streaming candles）。Rust 的运行时依赖流式行情（引用用例锁定 K 线解析与 closed 语义），能力门在 provider 能力与运行时装配处；没有“仅历史能力 → 两种模式都拒绝”的同形断言。缺口（P1，启动前置校验）：能力门需要回归。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/manager_boundaries_test.go:116:TestStrategyRuntimeRejectsUnhealthyActiveProviderUnlessExchangeOverrideOwnsHealth": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::futu_switch_without_physical_probe_does_not_claim_opend_ready",
-    "conclusion": "partial：Go 断言非健康活动 provider 被拒（ReadinessFailed 透传 LastError、健康回调错误透传、通用 unhealthy 文案），且显式 exchange provider 覆盖时完全跳过健康回调（healthCalls==0）。Rust 用 ActiveProviderState 的就绪标志判定（futu 需 opend_ready，缺物理探针不声称 ready，见引用用例）；缺口：策略启动路径没有“活动 provider 非健康即拒绝”的调用点，也没有显式 exchange 覆盖时零健康调用的断言。owner：crates/jftrade-engine/src/product_active_provider_state.rs 与 strategy_runtime 启动路径。",
+    "conclusion": "partial：参考实现断言活动提供商不健康时拒绝启动并带上 LastError、健康回调报错原样上抛、空健康体视为不健康，但显式 Exchange 覆盖时完全跳过健康探测（探测调用数为 0）。Rust 的活动提供商状态与就绪判定在引用用例中锁定（未做物理探针不得宣称 OpenD 就绪），health 门在 provider 路由；缺“显式覆盖跳过健康探测（零调用）”的断言。缺口（P1，启动前置校验）：健康覆盖语义需要回归。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/manager_boundaries_test.go:155:TestStrategyRuntimeResolvesExactBoundBrokerWithoutLegacyFallback": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback",
-    "conclusion": "partial：Go 断言绑定中的精确 broker 通过 ExchangeResolver 解析且不使用旧回退（解析器收到 paper-broker，随后输入加载失败也不落回默认 provider）。Rust 引用用例断言显式 broker 非活动 provider 时被拒且不回退；缺口：Rust 无 ExchangeResolver 回调形态，精确绑定由执行绑定的 brokerId/accountId 与活动 provider 比对表达，缺“解析器收到精确 brokerId”的同形断言。owner：crates/jftrade-engine（执行绑定解析）。",
+    "conclusion": "partial：参考实现断言绑定指定券商时按精确 ID 解析且不回落到兼容 Exchange（解析器被调用时拿到 paper-broker，随后因解析失败而报错）。Rust 的等价约束是显式券商与活动提供商不一致即拒绝且不回落（引用用例），解析路径在 provider 选择层；没有“解析器收到精确 brokerId”的调用断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/manager_boundaries_test.go:182:TestLiveStrategyRequiresExplicitBrokerAccountBinding": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback",
-    "conclusion": "partial：Go 断言 live 策略必须显式绑定券商账户，五条缺失分支分别报 explicit broker account、brokerId、accountId、tradingEnvironment、market。Rust 侧 live 执行绑定校验要求 brokerId/accountId/tradingEnvironment 且显式非活动 broker 被拒（引用用例）；缺口：Rust 的校验是逐字段解析执行绑定，没有与 Go 五条分支逐字对照的用例，也没有 market 字段缺失分支（market 由实例 binding 提供）。owner：crates/jftrade-engine/src/strategy_runtime_execution.rs（strategy_execution_binding）。回归要求：按五分支补齐失败用例。",
+    "conclusion": "partial：参考实现断言 live 绑定缺 brokerId/accountId/tradingEnvironment/market 或整体缺失时各自报错并指出缺失字段。Rust 的券商绑定校验在策略绑定归一层与执行绑定解析（引用用例锁定显式券商必须匹配活动提供商）；缺“逐字段缺失提示”的断言。缺口（P1，交易安全）：live 绑定的逐字段校验需要回归。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/manager_boundaries_test.go:216:TestNotifyOnlyLoadsRealtimeMarketDataWithoutBrokerAccount": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-strategy/src/service.rs::notify_only_never_calls_trading_port_or_dispatches_notification",
-    "conclusion": "partial：Go 断言 notify_only 输入加载返回实时行情、账户为 nil、不调用账户解析器，且 markets 非空。Rust 的 notify-only 路径由实例 binding 的 executeOrders=false 表达（策略运行时不解析券商账户，见 strategy_runtime_activity.rs 的 executionMode 归一与冲突拒绝），引用用例断言 notify-only 不调用交易端口、不派发交易计划；缺口：没有“notify-only 启动后输入加载不读账户且行情可用”的直接断言，也没有账户解析器零调用的探针。owner：crates/jftrade-engine（运行时输入加载）+ crates/jftrade-strategy。",
+    "conclusion": "partial：参考实现断言仅通知模式加载实时行情与市场元数据成功、不解析券商账户（账户解析器零调用）、账户/资金/持仓为空。Rust 的仅通知模式不触达交易端口（引用用例）且不要求券商账户；没有“账户解析零调用 + 资金/持仓为空”的同形断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/manager_boundaries_test.go:241:TestManagerInputLoadingReportsEachUnavailableDependency": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_port.rs::recovery_failure_converges_the_running_instance_to_stopped",
-    "conclusion": "partial：Go 断言输入加载对每个不可用依赖给出明确错误（market-data 缺失、markets 失败、funds 失败、positions 失败，逐条错误前缀）。Rust 以 trait 端口与 Result 链表达依赖失败（引用用例断言恢复失败把运行实例收敛为 STOPPED 并写审计）；缺口：Rust 无“四个依赖各自失败→四类错误”的逐项用例，错误来源是端口返回 Err 后的错误串联。owner：crates/jftrade-engine/src/strategy_runtime_task.rs 与 strategy_runtime_port.rs。回归要求：按四类依赖各自注入失败建用例。",
+    "conclusion": "partial：参考实现逐一断言输入加载的四类依赖失败（行情源为 nil、markets、funds、positions 各自报错且错误含依赖名）。Rust 的输入加载分散在运行时装配与端口层（引用用例锁定运行期失败收敛为 stopped），缺“每个依赖缺失各自报错并点名”的逐项断言。缺口（P2）：依赖缺失报错的可诊断性需要回归。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/manager_boundaries_test.go:275:TestManagerActivationReservationAndUnknownTradeBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/strategy_runtime_lifecycle_bounded_tests.rs::test_strategy_runtime_idempotent_lifecycle_operations",
-    "conclusion": "partial：Go 断言重复激活失败且取消已注册运行时、运行中预留报错、未知 symbol 的成交事件被忽略、空 manager Close 后无残留。Rust 侧对应语义：重复 spawn/cancel 的幂等与安全无操作（引用用例）、未知 symbol 的成交不会命中任务（按实例/symbol 索引）；缺口：没有“重复激活返回错误且触发 cancel”“运行中预留失败”“未知 symbol 成交忽略”的逐条断言（Rust 用任务表所有权与 stopping 标志替代预留结构）。owner：crates/jftrade-engine/src/strategy_runtime.rs。",
+    "conclusion": "partial：参考实现断言重复激活会取消失败运行、重复预留被拒、未知标的成交被忽略、空管理器关闭后状态清空。Rust 的等价约束由生命周期幂等用例（引用）与运行时任务的所有权模型承担：重复启动由实例状态与预留拒绝，未知标的成交不进运行时（按 symbol 路由）。缺“重复激活时失败实例被取消”的显式断言（P2）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/manager_boundaries_test.go:302:TestManagerBuildSymbolRequiresMarketAndPineWorker": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_strategy_runtime_write_port.rs::malformed_input_precedes_missing_port_and_non_mutations_are_isolated",
-    "conclusion": "partial：Go 断言 buildSymbolRuntime 需要市场元数据与 Pine worker（缺市场报错、缺 worker 报错、nil stream 报错、非 emitter 流报 kline emission 错误）。Rust 的等价边界由策略运行时写端口与执行端口必填表达（引用用例断言畸形输入先于缺端口失败且不改状态）；缺口：Rust 没有 symbol runtime 构建器与“流必须能发射 K 线”的显式断言，K 线发射能力由 worker 会话契约保证。owner：crates/jftrade-engine（运行时任务构建）+ crates/jftrade-integration-pine。",
+    "conclusion": "partial：参考实现断言构建符号运行时分别要求市场元数据、Pine worker、非 nil 行情流、且行情流必须能发出 K 线（否则报 kline emission）。Rust 的等价校验在执行写端口与运行时会话构造（引用用例锁定输入校验优先于端口缺失）；缺“逐项前置条件缺失报错”的断言。缺口（P1，启动前置校验）：构建前置条件需要回归。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/manager_boundaries_test.go:356:TestRuntimeBuildCallbacksRecordErrorsAndIgnoredOrders": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_notify_strategy_intents_delivers_and_records_audit",
-    "conclusion": "partial：Go 断言运行时回调把空白错误忽略、真实错误写 runtime_error 事件、被忽略订单写 order_ignored 事件，且 symbol runtime 名去空白并记录 exchange 名。Rust 侧对应审计事件为 RUNTIME_EXITED/SESSION_CLOSE_FAILED/INTENT_SKIPPED/ORDER_SUBMITTED 等（引用用例断言 notify 意图写审计）；缺口：Rust 无 runtime_error/order_ignored 事件类型与空白错误忽略规则，也没有 symbol runtime 名称去空白断言。owner：crates/jftrade-engine/src/strategy_runtime.rs。回归要求：若需前端事件对齐，先补事件类型与空白忽略用例。",
+    "conclusion": "partial：参考实现断言符号运行时构建保留裁剪后的显示名、K 线回调与错误回调记录事件（空白错误被忽略、真实错误记 runtime_error）、忽略单记 order_ignored。Rust 的通知/审计路径由引用用例覆盖（仅通知决策写审计事件），错误回调经由运行时日志与审计；缺“空白回调消息被忽略”和 order_ignored 事件的同形断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -26896,133 +26896,133 @@
   "internal/strategy/liveruntime/order_risk_business_test.go:135:TestLiveCancelOnlyRemovesSuccessfullyCancelledTrackedOrders": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders",
-    "conclusion": "partial：Go 断言只有取消成功的跟踪订单从 activeOrders 移除，网关失败时保留跟踪且再次取消，未跟踪订单忽略。Rust 的跟踪状态在 ExecutionOrderStore（source/sourceDetail 归属本实例且状态活跃才可取消），取消成功写 ORDER_CANCELLED、失败写 ORDER_CANCEL_FAILED 并返回错误（引用用例断言 cancel_all 查询并取消活动订单且写 ORDER_CANCELLED 审计）；缺口：没有“失败保留跟踪订单”“未跟踪订单被忽略”的断言，订单状态迁移由执行写端口持有。owner：crates/jftrade-engine/src/strategy_runtime_execution.rs + jftrade-store-sqlite 执行订单库。",
+    "conclusion": "partial：参考实现断言三件事——只对已跟踪订单发起撤单（未跟踪订单不触达网关）、成功撤单后移除跟踪、网关失败时保留跟踪。Rust 的撤单路径按执行存储中的活动订单取消（引用用例锁定 cancel_all 查询并取消活动订单），跟踪状态落在执行存储而非内存映射；缺“网关失败保留跟踪”与“未跟踪订单被忽略”的显式断言。缺口（P1，交易安全）：撤单失败后的跟踪一致性需要回归。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/order_risk_business_test.go:216:TestMarketDayStartUsesOrderSymbolTimezone": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-calendar/src/manager_session.rs::session_context_handles_us_holidays_early_close_and_sunday_overnight",
-    "conclusion": "partial：Go 断言市场日起点按标的时区（US/HK/美东隔夜各自的市场日边界）。Rust 有等价 helper（jftrade-calendar::market_day_start_for_market 与 market_local_midnight），引用用例断言美股假日/提前收盘/周日夜盘的会话上下文；缺口：没有按市场逐条的 UTC 边界值断言（helper 无直接单测），且运行时风险计数用的是 UTC 零点而非市场日。owner：crates/jftrade-calendar（market_day_start_for_market）+ crates/jftrade-engine/src/strategy_runtime_execution.rs（计数窗口）。回归要求：补 US/HK 市场日边界逐值用例并把计数窗口接到市场日 helper。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::strategy_market_day_start_follows_the_order_market_timezone",
+    "conclusion": "partial：与 runtimecontrol 的同名用例同一语义（该包的 marketDayStartUTC 直接转调 runtimecontrol）。Rust 现按市场本地午夜切分（US 05:00Z、HK 16:00Z，未知市场回落 UTC 午夜），与参考实现的本地午夜分支一致；但参考实现在扩展时段用“交易日边界起点”（美股上一本地日 20:00 延续），夜盘时刻两者不同（参考 2026-06-15T00:00Z，Rust 2026-06-14T04:00Z）。缺口（P1）与修复位置见 runtimecontrol/policy_test.go:83 行。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/order_risk_business_test.go:235:TestSubmittedOrderCountKeepsInstanceScopeWithinMarketDay": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-store-sqlite/src/strategy_runtime_observation.rs::test_reserve_daily_order_no_double_counting_and_safe_reclaim",
-    "conclusion": "partial：Go 断言已提交订单计数按实例与市场日范围查询（其他实例不计入）。Rust 的 count_daily_orders(instance_id, since_ms) 按实例过滤，引用用例断言配额预留无重复计数与安全回收（count_daily_orders 报 2），压力用例断言多实例互不干扰；缺口：since_ms 由运行时按 UTC 零点计算（today_midnight_ms = OffsetDateTime::new_utc(date, MIDNIGHT)），未接入 market_day_start_for_market 的按标的市场日边界。owner：crates/jftrade-engine/src/strategy_runtime_execution.rs（窗口）+ jftrade-calendar。回归要求：先补按市场日窗口的失败用例再改窗口来源。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::submitted_order_count_keeps_instance_scope_within_the_market_day",
+    "conclusion": "partial→已覆盖：参考实现断言当日已提交订单计数按实例 + 订单符号市场日窗口统计（同一时刻 US 计 2、HK 计 1）。Rust 的计数查询按实例与日界毫秒过滤（store 侧只统计 ORDER_SUBMITTED），本分片新增用例在同一实例里写入两条跨市场日界的订单审计，断言 US 计 2、HK 计 1、其它实例计 0，并带 Parity 锚点。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "function_exact"
   },
   "internal/strategy/liveruntime/pineworker_live_business_test.go:226:TestPineWorkerLiveUsesStatefulSessionAfterWarmup": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_mutation.rs::pine_runtime_checkpoint_restores_latest_bar_and_intent_keys",
-    "conclusion": "partial：Go 断言预热后使用有状态会话——openSession 携带 2 根预热 K 线且 session id 为 strategy:<instance>:<symbol>、下根收盘 K 线只走一次增量 append（1 根）、全量 RunScript 调用为 0、关闭恰好一次。Rust 的会话契约在 jftrade-integration-pine（open/append/close + expected_revision，append 要求正修订、close 允许零修订幂等），引擎按实例/符号恢复检查点（引用用例断言检查点恢复最新 bar 与 intent）。缺口：没有 warmup→open（携带 N 根）→append（恰好 1 根）→close（恰好 1 次）的计数断言，session id 形状也未断言。owner：crates/jftrade-integration-pine/src/execution.rs 与 crates/jftrade-engine/src/strategy_runtime.rs。回归要求：先建会话计数用例。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
+    "conclusion": "partial：参考实现断言预热后使用有状态会话（open/append 复用同一 worker 会话、revision 递增、预热请求带历史 K 线）。Rust 的等价物是执行端口的 live 会话契约（open/append/close 与 revision 递增，见 jftrade-integration-pine 的执行契约用例）与运行时检查点恢复（引用用例断言恢复最新 K 线与意图键）；没有“同一会话复用 + 预热载荷”的单点断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/pineworker_live_business_test.go:270:TestPineWorkerLiveRemainingConstructorAndWarmupErrors": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::run_script_maps_remote_unavailable_timeout_and_cancellation",
-    "conclusion": "partial：Go 断言构造器与预热失败路径——空白源、nil executor、nil symbol runtime 拒绝，非 Pine 源与预热查询失败报错，worker 错误在收盘 K 线处理时透传。Rust 由 PineRunRequest 校验（源大小/蜡烛合法性、append 修订）与 worker 错误映射（远端不可用/超时/取消→分类错误，引用用例）表达。缺口：Rust 无“空白源/nil 协作者”构造器分支（类型必填），也没有预热查询失败的专用用例。owner：crates/jftrade-integration-pine + crates/jftrade-engine/src/strategy_runtime_task.rs。",
+    "conclusion": "partial：参考实现断言构造与预热阶段的错误映射（远程不可用、超时、取消分别归类）。Rust 由执行端口的错误映射用例覆盖（引用用例），运行时侧把错误冒泡为运行失败；缺“预热失败 → 实例状态与审计”的同形断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/pineworker_live_business_test.go:305:TestPineWorkerLiveRemainingMarketAndSizerBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/strategy_simulate_closed_loop.rs::test_strategy_simulate_cash_and_position_limits",
-    "conclusion": "partial：Go 断言市场解析器只解析匹配 symbol、nil sizer 的 QuantityForCommand 报错且 NetPosition 为 0、不匹配 K 线不更新 lastPrice、非法 quantityPct 与不支持 kind 被拒。Rust 的数量归一在 strategy_runtime_execution.rs（百分比需现金/价格或持仓，否则明确报错）与模拟撮合限额（引用用例断言资金/持仓限额）。缺口：Rust 无 market resolver/sizer 对象与“不匹配 K 线不更新价格”的断言，非法 pct 的错误文案亦不同。owner：crates/jftrade-engine/src/strategy_runtime_execution.rs 与 strategy_runtime_simulate.rs。",
+    "conclusion": "partial：参考实现断言市场元数据与 sizing 边界（现金不足、仓位上限、最小手数等）下的数量决策。Rust 的等价断言在策略模拟闭环用例（引用）与数量解析（quantity/percent_of_equity）里；缺逐条 sizing 边界的同形断言。缺口（P2）：sizing 边界需要回归。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/pineworker_live_business_test.go:368:TestPineWorkerLiveRemainingEquityPriceAndParamBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_account_tests.rs::simulated_broker_account_supplies_real_balance_and_sellable_positions",
-    "conclusion": "partial：Go 断言权益/价格/参数边界——nil equity、空币种、限价与止损价透传、当前价截断。Rust 的账户投影来自模拟账户或执行端口（引用用例断言模拟券商账户提供真实余额与可卖持仓），止损价透传已有分片三新增用例断言（stopPrice/orderType=STOP）。缺口：Rust 无 nil equity 与空币种分支（类型化），也没有当前价截断的断言。owner：crates/jftrade-engine/src/strategy_runtime_account.rs 与 strategy_runtime_execution.rs。",
+    "conclusion": "partial：参考实现断言权益、价格与参数边界（可用资金/持仓缺失、价格为零或非有限、参数类型异常）下的行为。Rust 由模拟账户与策略运行时的账户输入（引用用例）承担，价格与参数校验在解析层；缺同一组边界的同形断言。缺口（P2）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/pineworker_live_business_test.go:404:TestPineWorkerLiveSessionFailureBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::close_rejects_a_different_session_or_a_stale_explicit_revision",
-    "conclusion": "partial：Go 断言会话失败边界——nil close、非法修订、未关闭前重复打开。Rust 会话契约断言关闭拒绝不同会话或陈旧显式修订、零修订关闭幂等、append 需要正修订（引用用例）。缺口：Rust 无“未关闭前重复打开”的重复 open 断言（会话由任务持有，open 只在启动时发生）。owner：crates/jftrade-integration-pine/src/execution.rs。",
+    "conclusion": "partial：参考实现断言 live 会话失败边界（会话缺失/过期 revision/worker 不匹配等）。Rust 的执行端口会话契约用例覆盖 revision 与 session 匹配（引用用例），运行时会话失败走错误冒泡；缺运行时层的会话失败断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/pineworker_live_business_test.go:527:TestLiveWarningSinkRecordsOnlyActionableOrderWarnings": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::market_rules_ignore_missing_non_positive_and_non_finite_constraints",
-    "conclusion": "partial：Go 断言 warning sink 只记录可操作订单告警（可操作集合与忽略原因）。Rust 无执行器 warning sink；可操作订单判定散落在风险/数量归一（低于最小、数量取整为 0 时写 INTENT_SKIPPED 审计）。缺口：没有告警汇聚结构与“只记录可操作告警”的断言。owner：crates/jftrade-engine/src/strategy_runtime_execution.rs。",
+    "conclusion": "partial：参考实现断言实盘告警汇聚只记录可执行的订单告警（忽略空值与无意义告警）。Rust 的告警/日志路径由运行时日志与券商市场规则校验（引用用例断言忽略缺失/非正/非有限约束）承担；缺“只记录可执行告警”的过滤断言。缺口（P2）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/product_lifecycle_business_test.go:18:TestRuntimeSnapshotIdentityAndAccountHelpers": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_account_tests.rs::simulated_broker_account_supplies_real_balance_and_sellable_positions",
-    "conclusion": "partial：Go 断言运行时快照身份与账户助手——实例展示名、交易 K 线、nil funds 克隆、回退币种余额。Rust 的实例身份/展示名由实例视图投影断言，账户余额由模拟券商账户用例断言（引用用例）。缺口：Rust 无“nil funds 克隆”概念（值语义），回退币种规则未逐值断言。owner：crates/jftrade-engine/src/strategy_runtime_account.rs 与实例视图投影。",
+    "conclusion": "partial：参考实现断言成交价量换算（QuoteVolume = 价×量、LastTradeID 透传）、nil 资金快照克隆为空、账户回落到市场基础币种。Rust 的成交/账户投影由运行时账户输入与撮合承担（引用用例断言模拟账户提供真实余额与可卖持仓）；缺“成交转 K 线价量”与“账户币种回落”的同形断言。缺口（P2）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/product_lifecycle_business_test.go:56:TestRuntimeRejectsBeforeAnyBrokerSubmission": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::test_place_broker_order_runs_pre_trade_risk_before_broker_submission",
-    "conclusion": "partial：Go 断言风险拒绝发生在任何券商提交之前并写生命周期事件。Rust 引用用例断言下单前先跑 pre-trade 风险拦截，引擎侧另有风险拒绝阻断券商下单并写 RUNTIME_RISK_REJECTED 审计的用例（strategy_runtime_execution_tests.rs）。缺口：没有把“零券商提交 + 生命周期事件”两个断言合并到同一用例的对照。owner：crates/jftrade-trading（pre-trade 风险）与 crates/jftrade-engine/src/strategy_runtime_execution.rs。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：参考实现断言风控拒绝时先返回错误、不产生任何券商提交，并写一条 risk_rejected 生命周期事件；观测持久化失败不影响该路径。Rust 的等价断言是下单前先过交易前风控（引用用例）与运行时风控拒绝（写 RUNTIME_RISK_REJECTED、不触达券商）；缺“观测持久化失败可容忍”的同形断言（Rust 在计数查询失败时失败关闭）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/product_lifecycle_business_test.go:96:TestRuntimePropagatesGatewayFailureAndSortsObservations": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::broker_unavailability_does_not_create_a_virtual_fill",
-    "conclusion": "partial：Go 断言网关失败被传播且观测按时间排序。Rust 引用用例断言券商不可用不产生虚拟成交（失败不伪造结果）；观测排序由观测归一键值/时间字段用例覆盖。缺口：Rust 引擎当前把执行失败作为错误返回（halt/审计），没有“失败后观测排序”的合并断言。owner：crates/jftrade-engine/src/strategy_runtime_execution.rs 与 jftrade-store-sqlite 观测投影。",
+    "conclusion": "partial：参考实现断言网关失败原样上抛、写 order_submit_failed 事件、且运行时摘要按实例 ID 排序。Rust 的券商不可用路径由引用用例覆盖（不下单不产生虚拟成交），运行时摘要排序在状态投影层；缺“失败事件种类 + 摘要排序”的同形断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/product_lifecycle_business_test.go:151:TestRuntimeAccountAcceptsBlankCurrencyBalance": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_account_tests.rs::simulated_broker_account_supplies_real_balance_and_sellable_positions",
-    "conclusion": "partial：Go 断言空币种余额仍被接受（不返回 nil 账户）。Rust 的账户来自模拟账户/执行端口，币种为字符串字段（空串不阻断投影，引用用例断言余额与可卖持仓）。缺口：没有空币种余额的专门断言。owner：crates/jftrade-engine/src/strategy_runtime_account.rs。",
+    "conclusion": "partial：参考实现断言币种为空白字符串的余额快照仍能构造出账户（不 panic、不丢弃账户）。Rust 的账户构造对空白币种的处理在账户输入层（引用用例覆盖模拟账户的余额与可卖持仓）；缺“空白币种余额被接受”的同形断言。缺口（P2）：空值/非法输入的宽容度需要回归。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/runtime_boundaries_test.go:21:TestStrategyRuntimeManagerUsesExplicitDependenciesInsteadOfServerOwnership": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/strategy_runtime_port.rs::recovery_failure_converges_the_running_instance_to_stopped",
-    "conclusion": "partial：Go 断言运行时管理器使用显式依赖而非持有 Server（架构性断言）。Rust 侧由显式端口注入 + workspace 架构策略（check:rust:architecture）保证；该用例断言依赖失败时运行实例收敛 stopped。",
+    "rust_entry": "不适用：Go 用反射断言 Manager/执行器不持有 Server 字段、依赖结构字段类型固定",
+    "conclusion": "boundary：参考实现用反射检查结构体字段（不得重新持有 Server、TransitionInstance 只返回 error、审计计数与观测写入必须用 runtimeactivity 类型）。Rust 的依赖以显式参数/端口 trait 表达，不存在 Server 字段与反射检查对象；该断言属于 Go 内部结构约束，无法也不应移植。升级路径：Rust 侧对应的架构约束由 crates/AGENTS.md 的依赖方向与 check:rust:architecture 门禁保证。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "boundary"
   },
   "internal/strategy/liveruntime/runtime_boundaries_test.go:48:TestStrategyRuntimeManagerStartValidationAndReservationBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_strategy_runtime_write_port.rs::malformed_input_precedes_missing_port_and_non_mutations_are_isolated",
-    "conclusion": "partial：Go 断言启动校验与预留边界（非法间隔、空符号、缺脚本、重复启动、预留占用）。Rust 该用例断言畸形输入先于缺端口返回且不产生非变更（校验优先）。",
+    "conclusion": "partial：参考实现断言活动标的去重排序、预留创建/重复预留报 already starting/释放清空预留。Rust 的启动预留与校验在策略运行时写端口（引用用例锁定输入校验优先与路由隔离），活动标的集合由运行时注册表维护；缺“预留重复与释放”的同形断言。缺口（P1，并发 fencing）：启动预留语义需要回归。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/runtime_boundaries_test.go:116:TestStrategySymbolRuntimeTradeBucketsAndOrderSignals": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/strategy_runtime_candle_lifecycle_tests.rs::test_in_progress_candle_updates_cache_without_triggering_pine_or_orders",
-    "conclusion": "partial：Go 断言成交分桶与订单信号（同桶合并价格、桶翻转产生收盘 K 线、非正成交不建桶）。Rust 该用例断言进行中 K 线更新缓存但不触发 Pine/下单（桶语义）。",
+    "conclusion": "partial：参考实现断言成交桶合并与滚动（同桶更新现价、跨桶收盘回调一次、非正成交量不开桶）、nil 运行时回落到后台上下文、仅通知信号文案包含策略名/方向/数量/价格与市价。Rust 的进行中 K 线只更新缓存不触发 Pine/下单（引用用例），通知文案在通知端口用例里断言（语言与格式不同）；缺“同桶合并与跨桶收盘一次”的桶级断言。缺口（P1，行情正确性）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/runtime_boundaries_test.go:180:TestStrategyRuntimeAccountAndFormattingBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_account_tests.rs::simulated_broker_account_supplies_real_balance_and_sellable_positions",
-    "conclusion": "partial：Go 断言账户与格式化边界（默认 brokerId、显示名、卖出标签、零价格显示 \"-\"）。Rust 该用例断言账户余额与可卖持仓投影；显示名/标签格式化在 Rust 无同名助手。",
+    "conclusion": "partial：参考实现断言显示名优先级（定义 ID → runner 名 → 实例 ID）、券商 ID 归一去空白小写、方向中文标签、零价格显示为 '-'。Rust 的账户/名称投影由运行时账户输入与状态投影承担（引用用例），格式化为通知/页面文案；缺逐项格式化断言。缺口（P2）：文案与格式化边界需要回归。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/runtime_boundaries_test.go:258:TestStrategyRuntimeSymbolMarketAndStartErrorBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_strategy.rs::start_request_accepts_explicit_market_and_code_without_symbol",
-    "conclusion": "partial：Go 断言 symbol→market 推导（点号/冒号/回退）与启动错误码。Rust 该用例断言启动请求接受显式 market+code（无 symbol）的市场推导语义。",
+    "conclusion": "partial：参考实现断言符号解析市场（点号/冒号/回落到绑定市场并裁剪空白）与启动错误映射（缺依赖 → 400 BAD_REQUEST，网关故障 → 502 STRATEGY_RUNTIME_START_FAILED）。Rust 的启动失败映射已固定（写端口把 Start 失败映射为 502 STRATEGY_RUNTIME_START_FAILED，校验类错误映射为 400，引用用例覆盖显式市场与代码的启动请求）；缺“从符号解析市场”的归一断言。缺口（P2）：符号 → 市场的归一需要回归。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/liveruntime/runtime_boundaries_test.go:277:TestStrategyRuntimeRefreshAndSyncErrorBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/strategy_runtime_candle_lifecycle_tests.rs::test_duplicate_polls_on_same_closed_bar_are_idempotent",
-    "conclusion": "partial：Go 断言账户刷新与收盘 K 线同步错误边界（重复同步不重复记错）。Rust 该用例断言同一收盘 bar 的重复轮询幂等。",
+    "conclusion": "partial：参考实现断言资金/持仓刷新失败分别报错、同步已收盘 K 线时进行中 K 线只更新现价不报错、随后刷新失败要作为运行错误上报。Rust 的闭合 K 线程幂等由引用用例覆盖（同一收盘 K 线重复轮询不重复触发），刷新失败经由运行时错误日志/审计；缺“刷新失败上报为运行错误”的同形断言。缺口（P2）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
@@ -27524,11 +27524,11 @@
     "evidence_type": "function_exact"
   },
   "internal/strategy/runtimecontrol/policy_test.go:83:TestMarketDayStartUTCUsesOrderSymbolTimezone": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::strategy_market_day_start_follows_the_order_market_timezone + crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::strategy_market_day_start_follows_dst_transition",
-    "conclusion": "partial→已覆盖（含功能修复）：参考实现要求美股按 America/New_York、港股按 Asia/Hong_Kong 的本地午夜切分交易日（含跨夏令时夜盘）。修复前 Rust 的每日订单窗口用 UTC 午夜（strategy_runtime_execution.rs 的 today_midnight_ms），与参考实现的按市场时区切分不一致；本分片抽出 strategy_market_day_start_ms（US/HK/CN/SH/SZ 走 jftrade-calendar 的市场午夜，其它市场回落到 UTC 午夜，日历失败不阻断下单），并新增两条用例断言 US=2025-12-31T05:00Z、HK=2025-12-31T16:00Z、未知市场回落 UTC 午夜、以及 2026-06-14 美东夏令时夜盘的日界为 2026-06-14T04:00Z。探针（把函数改回恒返回 UTC 午夜）令两条用例先红，回滚后恢复绿。",
+    "conclusion": "partial（分片二十的 [x] 判定过宽，本分片纠正）：参考实现先问日历要“交易日边界起点”（含扩展时段时，美股用上一本地日 20:00 的夜盘延续边界），拿不到才回落到市场本地午夜。Rust 的 strategy_market_day_start_ms 只用市场本地午夜，因此 US 05:00Z / HK 16:00Z 两个本地午夜用例等价，而夜盘时刻不等价：参考实现在 2026-06-14 20:30 纽约时间给出 2026-06-15T00:00Z，Rust 给出 2026-06-14T04:00Z（本地午夜）。新增的两条用例仍然保留，用于固定 Rust 现有行为；缺口（P1，交易日/限额边界）与修复位置：在 crates/jftrade-calendar 暴露“交易日边界起点（含扩展时段）”API（manager_session 已建模美股 20:00 延续），再由 strategy_market_day_start_ms 改调该 API，并按参考用例补 2026-06-14 夜盘断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "function_exact"
+    "evidence_type": "partial"
   },
   "internal/strategy/runtimecontrol/policy_test.go:102:TestObservationFromSnapshotFormatsTimesAndDefaultsStatus": {
     "status": "[~]",

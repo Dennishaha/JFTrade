@@ -1287,9 +1287,72 @@ fn strategy_market_day_start_follows_dst_transition() {
     )
     .expect("instant");
     // 2026-06-14T20:30 in New York (EDT), so the US day started at
-    // 2026-06-14T04:00Z, not at the previous UTC midnight.
+    // 2026-06-14T04:00Z (New York local midnight), not at the previous UTC
+    // midnight. The reference implementation still differs here: with
+    // extended hours it uses the trading-day boundary start, which for a US
+    // symbol at that instant is 2026-06-15T00:00Z.
     assert_eq!(
         strategy_market_day_start_ms("US", overnight),
         1_781_409_600_000
+    );
+}
+
+// Parity: go:452dea11:internal/strategy/liveruntime/order_risk_business_test.go:235 TestSubmittedOrderCountKeepsInstanceScopeWithinMarketDay
+#[test]
+fn submitted_order_count_keeps_instance_scope_within_the_market_day() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("strategy.db");
+    seed_strategy_test_db(&path);
+
+    let def_store = Arc::new(
+        StrategyDefinitionStore::open_existing(&path, STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE)
+            .expect("open def store"),
+    );
+    let store = StrategyRuntimeStore::from_definition_store(&def_store);
+    store
+        .seed_instance("multi-market-instance", "RUNNING", "2025-12-31T00:00:00Z")
+        .expect("seed instance");
+    for (index, at_ms) in [1_767_160_800_000_i64, 1_767_200_400_000]
+        .into_iter()
+        .enumerate()
+    {
+        store
+            .append_audit_event(
+                "multi-market-instance",
+                "ORDER_SUBMITTED",
+                &format!("US.AAPL BUY 1 (clientOrderId: client-{index})"),
+                at_ms,
+            )
+            .expect("append order audit");
+    }
+
+    let now = time::OffsetDateTime::parse(
+        "2026-01-01T02:00:00Z",
+        &time::format_description::well_known::Rfc3339,
+    )
+    .expect("instant");
+    assert_eq!(
+        store
+            .count_daily_orders(
+                "multi-market-instance",
+                strategy_market_day_start_ms("US", now)
+            )
+            .expect("US count"),
+        2
+    );
+    assert_eq!(
+        store
+            .count_daily_orders(
+                "multi-market-instance",
+                strategy_market_day_start_ms("HK", now)
+            )
+            .expect("HK count"),
+        1
+    );
+    assert_eq!(
+        store
+            .count_daily_orders("another-instance", strategy_market_day_start_ms("US", now))
+            .expect("scoped count"),
+        0
     );
 }
