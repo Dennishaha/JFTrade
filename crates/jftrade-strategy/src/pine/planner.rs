@@ -515,6 +515,12 @@ fn requirement_for_call(
     if lower == "ta.crossover" || lower == "ta.crossunder" || lower == "ta.cross" {
         return Ok(None);
     }
+    // Go tracks `ta.barssince`/`ta.valuewhen` as state series without a
+    // catalog requirement (`pkg/strategy/ir` has no planner entry for either),
+    // so the calls are accepted and planned as plain runtime expressions.
+    if lower == "ta.barssince" || lower == "ta.valuewhen" {
+        return Ok(None);
+    }
     let mut key_parts = Vec::new();
     let kind;
     match lower.as_str() {
@@ -586,8 +592,8 @@ fn requirement_for_call(
                     .push(argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()));
             }
         }
-        "ta.highest" | "ta.lowest" | "ta.change" | "ta.mom" | "ta.roc" | "ta.range" | "ta.mode"
-        | "ta.sum" | "ta.rising" | "ta.falling" => {
+        "ta.highest" | "ta.lowest" | "ta.highestbars" | "ta.lowestbars" | "ta.change"
+        | "ta.mom" | "ta.roc" | "ta.range" | "ta.mode" | "ta.sum" | "ta.rising" | "ta.falling" => {
             kind = lower.strip_prefix("ta.").unwrap_or_default();
             // Go normalizes the window family through
             // `pkg/strategy/pine/lower_ta.go::pineWindowFunctionArgs` before
@@ -694,6 +700,48 @@ fn requirement_for_call(
                 )
             })?;
             key_parts.extend([source, length, percentage]);
+        }
+        // Go's `parseCumulativeBinding` keeps a single source (`cum:close`).
+        "ta.cum" => {
+            kind = "cum";
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            key_parts.push(source);
+        }
+        // Go's `parseStochBinding` requires literal `high`/`low` arguments and
+        // keys the requirement as `stoch:<source>:<length>[:<time unit>]`.
+        "ta.stoch" => {
+            kind = "stoch";
+            if arguments.len() != 4 && arguments.len() != 5 {
+                return Err(invalid(
+                    line,
+                    format!(
+                        "{callee} requires source, high, low, length, and optional time unit arguments"
+                    ),
+                ));
+            }
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let high = argument_text(arguments.get(1)).unwrap_or_default();
+            let low = argument_text(arguments.get(2)).unwrap_or_default();
+            if !high.eq_ignore_ascii_case("high") || !low.eq_ignore_ascii_case("low") {
+                return Err(invalid(
+                    line,
+                    format!("{callee} currently supports literal high and low arguments only"),
+                ));
+            }
+            let length = argument_text(arguments.get(3)).ok_or_else(|| {
+                invalid(line, format!("{callee} length must be a positive integer"))
+            })?;
+            ensure_positive_period(line, callee, &length)?;
+            key_parts.extend([source, length]);
+            if let Some(unit) = argument_text(arguments.get(4)) {
+                let unit = indicator_time_unit(&unit).ok_or_else(|| {
+                    invalid(
+                        line,
+                        format!("{callee} time unit {unit:?} is not supported"),
+                    )
+                })?;
+                key_parts.push(unit.to_owned());
+            }
         }
         "ta.swma" => {
             kind = "swma";

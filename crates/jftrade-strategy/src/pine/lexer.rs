@@ -28,7 +28,13 @@ pub struct Token {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LexedLine {
     pub number: usize,
+    /// Indentation width in columns (a tab counts as four columns), used for
+    /// block structure.
     pub indent: usize,
+    /// Number of leading whitespace characters. Token columns are absolute
+    /// positions in the raw line, so slicing the trimmed `text` needs this
+    /// character offset (`indent` differs from it when tabs are used).
+    pub offset: usize,
     pub text: String,
     pub tokens: Vec<Token>,
 }
@@ -76,6 +82,7 @@ fn lex_line(number: usize, raw: &str) -> Result<LexedLine, LexError> {
         return Ok(LexedLine {
             number,
             indent,
+            offset,
             text,
             tokens: Vec::new(),
         });
@@ -240,6 +247,7 @@ fn lex_line(number: usize, raw: &str) -> Result<LexedLine, LexError> {
     Ok(LexedLine {
         number,
         indent,
+        offset,
         text,
         tokens,
     })

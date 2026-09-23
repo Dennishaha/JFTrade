@@ -1781,3 +1781,46 @@ owner：`crates/jftrade-strategy`（Pine 解析、语义诊断、降级元数据
 分片十一更正（本批发现）：`crates/jftrade-strategy/tests/pine_expression_and_security_boundaries.rs:203` 的注释里出现 `Go test` 字样，命中 `scripts/check-zero-go.mjs` 的 active pattern（`\bgo\s+(?:run|build|test|generate|vet)\b`，大小写不敏感），导致分片十一记录为通过的 `check:zero-go` 实际会在该行失败。本批把该注释改写为 `reference case`，`check:zero-go` 复跑通过（exit 0）。后续分片在 Rust 源码与测试注释中不要书写 `Go test` 这类会命中 active pattern 的措辞。
 
 后续：分片十三继续 `pkg/strategy/pine` 剩余 29 行（`request_security_diagnostics_test.go:52`、`request_security_object_contracts_test.go` 2、`runtime_and_parser_boundaries_test.go` 5、`semantic_helper_boundaries_test.go` 4、`shared_structure_corpus_test.go` 1、`strategy_business_test.go` 3、`strategy_call_bounds_test.go` 3、`udf_expansion_contracts_test.go` 2、`validation_semantics_boundaries_test.go` 8 等），再到 `pkg/strategy/pineengine`、`pineworker` 与 `pinespec`，直至 `strategy_pine` 域清空。
+
+### 分片十三：`pkg/strategy/pine` 的 risk/order/语料/声明缺省族 29 行
+
+范围：`request_security_diagnostics_test.go:52`、`request_security_object_contracts_test.go:11`/`:86`、`runtime_and_parser_boundaries_test.go:9`/`:46`/`:62`/`:94`/`:134`、`semantic_helper_boundaries_test.go:8`/`:58`/`:99`/`:128`、`shared_structure_corpus_test.go:35`、`strategy_business_test.go:11`/`:95`/`:130`、`strategy_call_bounds_test.go:11`/`:98`/`:120`、`udf_expansion_contracts_test.go:8`/`:37`、`validation_semantics_boundaries_test.go:8`/`:29`/`:43`/`:57`/`:70`/`:86`/`:96`/`:108`。
+
+owner：`crates/jftrade-strategy`（Pine 词法、解析、语义与 planner）；对照方 `workers/pineworker`（typed order intents、UDT/集合运行时）。
+
+复核方式：先读 Go 用例源码，再跑统一支持矩阵探针（逐例打印 ok、诊断码、行号、metadata、requirements 与逐例结构计数），最后把可观察契约写成 `crates/jftrade-strategy/tests/pine_risk_and_block_parity.rs` 的 10 条回归；共享语料探针直接消费 `tests/fixtures/pine-structure-corpus.json`。Go 内部助手（`analyzeSemantics`、`semanticCollectionOperations`、`expandUDFCalls`、`lowerSupportedRequestSecurity`、`replaceTA*` 等）在 Rust 无同形对象，按 boundary 或 partial 记录。
+
+修复（5 处功能差异，全部先红后绿）：
+
+1. 缩进块内赋值与重赋值解析失败：`if`/`else`/`for` 块内 `x = close` 报 `PINE_EXPRESSION_REQUIRED`、`armed := true` 报 `PINE_EXPRESSION_INVALID: unexpected token ":="`，而块内长赋值因切片偏移偶然成功（共享语料 `stateful-nested-reversal` 因此失败）。修复：`crates/jftrade-strategy/src/pine/lexer.rs` 的 `LexedLine` 新增 `offset`（前导空白字符数，与 `indent` 的 tab 列宽区分），`parser.rs::split_assignment` 与 `expression_from_text` 按 `offset` 切片与过滤 token。
+2. `strategy.risk.*` 声明无校验（对应 `strategy_business_test.go:130`）：`allow_entry_in(strategy.direction.both)`、`max_drawdown(10, strategy.fixed)`、`max_intraday_filled_orders(0)`、`max_position_size(1, 2)` 与 6 个空参调用原先全部编译通过。修复：`semantic.rs::strategy_risk_diagnostic` 按 Go 的 `parseStrategyRiskAmountArgs`/`parseStrategyRiskCountArgs`/`parseStrategyRiskPositionSize`/`normalizeStrategyAllowedEntryDirection` 给出 `PINE_COMPILE_ERROR` 与同文案（direction、not supported、positive constant integer、requires one argument、requires at least two arguments）。
+3. trail 退出缺少 `trail_offset`：`strategy.exit("NoOffset", "Long", trail_points=10)` 与 `trail_price` 单用原先通过，Go 报 `trailing stop requires trail_offset`。修复：`semantic.rs::strategy_order_diagnostic` 在 bracket 冲突判定之后补该检查（对应 `strategy_call_bounds_test.go:98` 的第 8 条边界）。
+4. 声明标题与缺省常量（对应 `validation_semantics_boundaries_test.go:70`/`:86`）：`strategy()`、`strategy(title="Risk managed")`、`strategy(overlay=true)` 原先因缺位置标题被 `PINE_STRATEGY_NAME_REQUIRED` 拒绝；非法常量回退时 Rust `warnings` 为空。修复：`parser.rs::strategy_declaration_title` 采用 Go 的默认名 `Pine Strategy` 并支持命名 `title=`，`lower.rs::lower_metadata` 改用 `arguments.iter().skip(1)`，`semantic.rs::strategy_declaration_diagnostics` 输出 7 条 Go 同文案告警。
+5. TA 目录补齐（共享语料 `nested-series-signal-confirmation`）：`semantic.rs::is_supported_call` 补 `ta.cum`/`ta.highestbars`/`ta.lowestbars`/`ta.stoch`/`ta.barssince`/`ta.valuewhen`；`planner.rs` 新增 `ta.cum`（键 `cum:<source>`）、`ta.stoch`（键 `stoch:<source>:<length>[:<unit>]`，校验 4/5 参、literal high/low、正周期）、window 族 `ta.highestbars`/`ta.lowestbars`，`ta.barssince`/`ta.valuewhen` 归状态序列返回 `Ok(None)`。
+
+映射终值（29 行）：`[x]` 9 行（`strategy_business_test.go:11`/`:130`、`strategy_call_bounds_test.go:98`/`:120`、`validation_semantics_boundaries_test.go:43`/`:70`/`:86`/`:96`/`:108`）；partial 15 行；boundary 5 行（`request_security_object_contracts_test.go:86`、`semantic_helper_boundaries_test.go:8`/`:58`/`:128`、`udf_expansion_contracts_test.go:37`）。共享语料 8 例中 7 例通过，第 8 例 `mtf-derived-and-collection-state` 钉为已知失败（见下）。
+
+缺口登记：
+
+1. **`request.security` TA 白名单未对齐（P1）**：Go 的 `requestSecurityExpressionHasUnsupportedTACall`/`lowerRequestSecurityTACall` 拒绝白名单外调用，Rust 只判纯度。复现：`x = request.security(syminfo.tickerid, "D", ta.sum(close, 5))` 在 Rust 编译通过；期望：`PINE_REQUEST_SECURITY_EXPRESSION_UNSUPPORTED`。修复位置：`semantic.rs::request_security_diagnostic`；回归要求：security TA 子集矩阵（ma/rsi/macd/atr/bb/supertrend/stoch 与高级族 + 白名单外拒绝）。
+2. **集合命名空间缺失（P1）**：`array.from(close, open, high).median()` 报 `PINE_CALL_INVALID`、`array.new_float(...)` 报 `PINE_CALL_UNSUPPORTED`，共享语料第 3 例与 `semantic_helper_boundaries_test.go:58` 因此挂起；Go 由 `parse_collection.go` 与运行时承担。修复位置：worker 运行时或 Rust 集合命名空间层，需同步 corpus 期望。
+3. **多行 UDF 定义不支持（P1）**：`f(x) =>` 换行缩进体报 `PINE_EXPRESSION_INVALID`（仅单行 `f(x) => x + 1` 可用），Go 支持并把展开错误（递归、实参个数、超深）作为可行动诊断。修复位置：`parser.rs::parse_function_header` 与 `LoweredFunction.body` 的块体支持。
+4. **重复 tuple 别名未检（P2）**：`[fast, fast] = ta.macd(close, 12, 26, 9)` 在 Rust 通过，Go 报 `tuple assignment repeats fast`（`semantic_helper_boundaries_test.go:99`）。
+5. **诊断码与文案差异（P2）**：未闭合 `request.security(` 在 Rust 报 `PINE_EXPRESSION_INVALID`（Go `PINE_REQUEST_SECURITY_UNSUPPORTED`）、security 内重赋值报 `PINE_EXPRESSION_INVALID`（Go `PINE_REQUEST_SECURITY_SIDE_EFFECT`）、截断表达式报 `PINE_STATEMENT_UNSUPPORTED`（Go 映射 `PINE_COMPILE_ERROR`）、`runtime.error("risk limit exceeded")` 未透传原文、`array.unsupported` 未使用 collection 措辞。
+6. **`by int(close)` 动态步长（P2）**：Go 走 `errStaticForRuntimeFallback` 运行时回退，Rust 报 `PINE_CALL_UNSUPPORTED`（`int()` 转换缺失）。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 修复前先红 | 探针 `crates/jftrade-strategy/tests/zz_scratch_probe.rs`（已删除） | 缩进块赋值：`if_let_short`/`if_reassign_short` 报 `PINE_EXPRESSION_REQUIRED`、`else_reassign` 报 `PINE_EXPRESSION_INVALID`；risk 4 条边界与 trail 缺 offset 全部 ok=true；共享语料 4/8 失败 |
+| 新增用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --test pine_risk_and_block_parity --locked --no-fail-fast` | 10/10 通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast` | 97/97 通过 |
+| 共享语料探针 | 同上（语料断言并入新增用例） | 7/8 通过，`mtf-derived-and-collection-state` 钉为 `PINE_CALL_INVALID` |
+| 生产文件摘要 | `shasum -a 256 crates/jftrade-strategy/src/pine/{lexer,parser,semantic,planner,lower}.rs` | 修复后 `c72c8ebe…`、`8d4463bf…`、`8cc2249d…`、`3487d617…`、`429a8fc4…`（分片十二前值 `5eb838a3…`、`609e8bf0…`、`6d6d109f…`） |
+| 映射写入 | 29 行 payload 经 `/tmp/b75_writer.py` 应用，另 2 行按唯一性修正 | `[x]` 1569 → 1578、partial 2247 → 2235、boundary 635 → 638（合计仍为 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2（既定缺口）；Rust 测试 3265（Strategy 域 244）；汇总 4451 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1606、unrecorded 0、stale 0、unknown 53 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1895/1895 通过（首轮即绿） |
+
+后续：分片十四进入 `pkg/strategy/pine` 剩余族（`parse_request_test.go`、`parse_semantic_test.go`、`parse_object_test.go` 等）并越过 `pkg/strategy/pineengine`、`pineworker`、`pinespec`，随后按序推进 assistant_workflow 560 → other 503 → api_transport 439 等域，直至 4451 行清单全部给出终值。

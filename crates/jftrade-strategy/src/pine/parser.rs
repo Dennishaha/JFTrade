@@ -522,18 +522,8 @@ fn parse_strategy(line: &LexedLine) -> Result<StrategyDeclaration, ParseError> {
             column: 1,
         });
     }
-    let name = arguments
-        .first()
-        .and_then(|argument| match &argument.kind {
-            ExprKind::String { value } => Some(value.clone()),
-            _ => None,
-        })
-        .ok_or_else(|| ParseError {
-            code_name: "PINE_STRATEGY_NAME_REQUIRED",
-            message: "strategy() requires a string title".to_owned(),
-            line: line.number,
-            column: 1,
-        })?;
+    let name =
+        strategy_declaration_title(&arguments).unwrap_or_else(|| DEFAULT_STRATEGY_NAME.to_owned());
     let arguments = arguments
         .into_iter()
         .map(|value| {
@@ -570,6 +560,36 @@ fn parse_strategy(line: &LexedLine) -> Result<StrategyDeclaration, ParseError> {
         arguments,
         range: range_for_line(line),
     })
+}
+
+/// Go's default title for a declaration that does not open with one.
+pub(crate) const DEFAULT_STRATEGY_NAME: &str = "Pine Strategy";
+
+/// Parity: `pkg/strategy/pine/validate.go::applyStrategyDeclarationTitle`.
+///
+/// Go reads the title from the first argument only: a positional string is
+/// unquoted, a named `title=` keeps its value and any other first argument
+/// leaves the default `Pine Strategy` name in place. Rust used to require a
+/// positional string title, so `strategy()`, `strategy(title="Risk managed")`
+/// and `strategy(overlay=true)` were rejected before validation started.
+fn strategy_declaration_title(arguments: &[Expr]) -> Option<String> {
+    match &arguments.first()?.kind {
+        ExprKind::String { value } => Some(value.clone()),
+        ExprKind::Binary {
+            left,
+            op: BinaryOp::Equal,
+            right,
+        } => match &left.kind {
+            ExprKind::Identifier { name } if name.eq_ignore_ascii_case("title") => {
+                match &right.kind {
+                    ExprKind::String { value } => Some(value.clone()),
+                    _ => None,
+                }
+            }
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 fn parse_for_header(
@@ -678,7 +698,15 @@ fn split_assignment(line: &LexedLine) -> Option<AssignmentSplit<'_>> {
     }
     let (index, operator) = operator?;
     let lhs = &tokens[..index];
-    let rhs_start = tokens[index].end_column.saturating_sub(1);
+    // Token columns are absolute positions in the raw line while `text` is
+    // trimmed, so the leading whitespace characters must be subtracted before
+    // slicing the right-hand side. Without this an indented assignment such as
+    // `    total = close + 1` inside an `if` block slices the wrong substring
+    // and fails as an invalid expression.
+    let rhs_start = tokens[index]
+        .end_column
+        .saturating_sub(1)
+        .saturating_sub(line.offset);
     let rhs = line.text.get(rhs_start..)?.trim();
     if lhs.first().is_some_and(|token| token.lexeme == "var") {
         let name = lhs.get(1)?.lexeme.clone();
@@ -908,7 +936,7 @@ fn expression_from_text(line: &LexedLine, text: &str) -> Result<Expr, ParseError
     let tokens = line
         .tokens
         .iter()
-        .filter(|token| token.column > line.indent + token_start)
+        .filter(|token| token.column > line.offset + token_start)
         .cloned()
         .collect::<Vec<_>>();
     expression_from_tokens(line, &tokens)

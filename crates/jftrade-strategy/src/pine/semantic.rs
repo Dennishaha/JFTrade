@@ -2,7 +2,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Serialize;
 
-use super::parser::{BinaryOp, Expr, ExprKind, Program, SourceRange, Statement, UnaryOp};
+use super::parser::{
+    BinaryOp, Expr, ExprKind, Program, SourceRange, Statement, StrategyDeclaration, UnaryOp,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -117,6 +119,11 @@ pub fn analyze(program: &Program) -> SemanticSummary {
             "a strategy(...) declaration is required",
             1,
         ));
+    }
+    if let Some(strategy) = program.strategy.as_ref() {
+        summary
+            .diagnostics
+            .extend(strategy_declaration_diagnostics(strategy));
     }
     let mut context = SemanticContext {
         summary: &mut summary,
@@ -541,6 +548,12 @@ impl SemanticContext<'_> {
             });
             return ValueType::Unknown;
         }
+        if lower.starts_with("strategy.risk.")
+            && let Some(diagnostic) = strategy_risk_diagnostic(&lower, arguments, range)
+        {
+            self.summary.diagnostics.push(diagnostic);
+            return ValueType::Unknown;
+        }
         if lower.starts_with("strategy.")
             && let Some(diagnostic) = strategy_order_diagnostic(&lower, arguments, range)
         {
@@ -650,6 +663,12 @@ fn is_supported_call(callee: &str) -> bool {
             | "ta.crossover"
             | "ta.crossunder"
             | "ta.cross"
+            | "ta.cum"
+            | "ta.highestbars"
+            | "ta.lowestbars"
+            | "ta.stoch"
+            | "ta.barssince"
+            | "ta.valuewhen"
             | "request.security"
             | "nz"
             | "timestamp"
@@ -1082,6 +1101,13 @@ fn strategy_order_diagnostic(
                 range.start_line,
             ));
         }
+        if (trail_points || trail_price) && !has("trail_offset") {
+            return Some(Diagnostic::error(
+                "PINE_COMPILE_ERROR",
+                "strategy.exit trailing stop requires trail_offset",
+                range.start_line,
+            ));
+        }
         let has_trigger = bracket || trail_points || trail_price;
         if !has_trigger {
             return Some(Diagnostic::error(
@@ -1092,6 +1118,285 @@ fn strategy_order_diagnostic(
         }
     }
     None
+}
+
+/// Parity: `pkg/strategy/pine/validate.go::applyStrategyNamedArg`.
+///
+/// Go keeps the documented default for every strategy declaration constant and
+/// appends a warning that names the offending argument. Rust silently ignored
+/// unsupported constants, so `validate_script` reported ok without the warnings
+/// the Go payload carried.
+fn strategy_declaration_diagnostics(strategy: &StrategyDeclaration) -> Vec<Diagnostic> {
+    let line = strategy.range.start_line;
+    let mut diagnostics = Vec::new();
+    let mut warn = |message: String| {
+        diagnostics.push(Diagnostic::warning(
+            "PINE_STRATEGY_DECLARATION_FALLBACK",
+            message,
+            line,
+        ));
+    };
+    for argument in strategy.arguments.iter().skip(1) {
+        let Some(name) = argument.name.as_deref() else {
+            continue;
+        };
+        let raw = constant_text(&argument.value);
+        let value = raw.trim();
+        match name.to_ascii_lowercase().as_str() {
+            "default_qty_type" if normalize_strategy_default_qty_mode(value).is_none() => {
+                warn(format!(
+                    "pine strategy default_qty_type {value:?} is not supported by JFTrade; using strategy.fixed"
+                ))
+            }
+            "pyramiding" if !is_non_negative_int_text(value) => warn(format!(
+                "pine strategy pyramiding {value:?} is not a supported constant integer; using 1"
+            )),
+            "initial_capital" if !is_positive_float_text(value) => warn(format!(
+                "pine strategy initial_capital {value:?} must be a positive constant number"
+            )),
+            "commission_type" if normalize_strategy_commission_type(value).is_none() => warn(
+                format!("pine strategy commission_type {value:?} is not supported by JFTrade"),
+            ),
+            "commission_value" if !is_non_negative_float_text(value) => warn(format!(
+                "pine strategy commission_value {value:?} must be a non-negative constant number"
+            )),
+            "slippage" if !is_non_negative_int_text(value) => warn(format!(
+                "pine strategy slippage {value:?} must be a non-negative constant integer"
+            )),
+            "process_orders_on_close" if !is_bool_text(value) => warn(format!(
+                "pine strategy process_orders_on_close {value:?} must be true or false"
+            )),
+            _ => {}
+        }
+    }
+    diagnostics
+}
+
+fn normalize_strategy_default_qty_mode(raw: &str) -> Option<&'static str> {
+    let normalized = raw.trim().to_ascii_lowercase();
+    let normalized = normalized
+        .strip_prefix("strategy.")
+        .unwrap_or(normalized.as_str());
+    match normalized {
+        "" | "fixed" => Some("fixed"),
+        "cash" => Some("cash"),
+        "percent_of_equity" => Some("percent_of_equity"),
+        _ => None,
+    }
+}
+
+fn normalize_strategy_commission_type(raw: &str) -> Option<&'static str> {
+    let normalized = raw.trim().to_ascii_lowercase();
+    let normalized = normalized
+        .strip_prefix("strategy.commission.")
+        .unwrap_or(normalized.as_str());
+    match normalized {
+        "percent" => Some("percent"),
+        "cash_per_order" => Some("cash_per_order"),
+        "cash_per_contract" => Some("cash_per_contract"),
+        _ => None,
+    }
+}
+
+fn is_positive_float_text(raw: &str) -> bool {
+    raw.trim().parse::<f64>().is_ok_and(|value| value > 0.0)
+}
+
+fn is_non_negative_float_text(raw: &str) -> bool {
+    raw.trim().parse::<f64>().is_ok_and(|value| value >= 0.0)
+}
+
+fn is_non_negative_int_text(raw: &str) -> bool {
+    raw.trim().parse::<i64>().is_ok_and(|value| value >= 0)
+}
+
+fn is_bool_text(raw: &str) -> bool {
+    matches!(raw.trim().to_ascii_lowercase().as_str(), "true" | "false")
+}
+
+/// Parity: `pkg/strategy/pine/parse_strategy.go` risk entry points and
+/// `pkg/strategy/pine/strategy_call_helpers.go` risk argument parsers.
+///
+/// Go validates every `strategy.risk.*` declaration while parsing: the
+/// direction must normalise to all/long/short, drawdown-style limits need a
+/// positive constant plus a `cash`/`percent_of_equity` type, count limits need
+/// a positive integer, and `max_position_size` takes exactly one positive
+/// constant. Rust only projected the metadata into the lowered program and
+/// silently accepted invalid declarations, so `validate_script` reported ok
+/// for scripts Go rejects.
+fn strategy_risk_diagnostic(
+    callee: &str,
+    arguments: &[Expr],
+    range: SourceRange,
+) -> Option<Diagnostic> {
+    let positional: Vec<&Expr> = arguments
+        .iter()
+        .filter(|argument| !is_named_argument(argument))
+        .collect();
+    let named = order_named_arguments(arguments);
+    let extra_named = |allowed: &[&str]| {
+        named
+            .iter()
+            .any(|(name, _)| !allowed.iter().any(|candidate| name == candidate))
+    };
+    let error = |message: String| {
+        Some(Diagnostic::error(
+            "PINE_COMPILE_ERROR",
+            message,
+            range.start_line,
+        ))
+    };
+    match callee {
+        "strategy.risk.allow_entry_in" => {
+            if positional.len() + named.len() != 1 {
+                return error(
+                    "strategy.risk.allow_entry_in(direction) requires one argument".to_owned(),
+                );
+            }
+            let Some(direction) = positional.first() else {
+                let (name, value) = &named[0];
+                return error(format!(
+                    "strategy.risk.allow_entry_in direction {name}={value} is not supported"
+                ));
+            };
+            let raw = direction.to_string();
+            if normalize_allowed_entry_direction(&raw).is_none() {
+                return error(format!(
+                    "strategy.risk.allow_entry_in direction {raw:?} is not supported"
+                ));
+            }
+        }
+        "strategy.risk.max_drawdown" | "strategy.risk.max_intraday_loss" => {
+            if positional.len() < 2 {
+                return error(format!(
+                    "{callee}(value, type[, alert_message]) requires at least two arguments"
+                ));
+            }
+            if !is_positive_float_constant(positional[0]) {
+                return error(format!(
+                    "{callee} value {:?} must be a positive constant number",
+                    constant_text(positional[0])
+                ));
+            }
+            let amount_type = positional[1].to_string();
+            if normalize_risk_amount_type(&amount_type).is_none() {
+                return error(format!("{callee} type {amount_type:?} is not supported"));
+            }
+            if positional.len() > 3 || extra_named(&["alert_message"]) {
+                return error(format!(
+                    "{callee} supports only value, type, and optional alert_message"
+                ));
+            }
+        }
+        "strategy.risk.max_intraday_filled_orders" | "strategy.risk.max_cons_loss_days" => {
+            if positional.is_empty() {
+                return error(format!(
+                    "{callee}(count[, alert_message]) requires at least one argument"
+                ));
+            }
+            if !is_positive_int_constant(positional[0]) {
+                return error(format!(
+                    "{callee} count {:?} must be a positive constant integer",
+                    constant_text(positional[0])
+                ));
+            }
+            if positional.len() > 2 || extra_named(&["alert_message"]) {
+                return error(format!(
+                    "{callee} supports only count and optional alert_message"
+                ));
+            }
+        }
+        "strategy.risk.max_position_size" => {
+            if positional.len() + named.len() != 1 {
+                return error(
+                    "strategy.risk.max_position_size(contracts) requires one argument".to_owned(),
+                );
+            }
+            if !positional
+                .first()
+                .is_some_and(|expr| is_positive_float_constant(expr))
+            {
+                let text = positional
+                    .first()
+                    .map(|expr| constant_text(expr))
+                    .or_else(|| named.first().map(|(name, value)| format!("{name}={value}")))
+                    .unwrap_or_default();
+                return error(format!(
+                    "strategy.risk.max_position_size contracts {text:?} must be a positive constant number"
+                ));
+            }
+        }
+        _ => {}
+    }
+    None
+}
+
+/// Go trims and strips the `strategy.direction.`/`strategy.` prefixes before it
+/// accepts an `allow_entry_in` direction.
+fn normalize_allowed_entry_direction(raw: &str) -> Option<&'static str> {
+    let normalized = raw.trim().to_ascii_lowercase();
+    let normalized = normalized
+        .strip_prefix("strategy.direction.")
+        .or_else(|| normalized.strip_prefix("strategy."))
+        .unwrap_or(normalized.as_str());
+    match normalized {
+        "" | "all" => Some("all"),
+        "long" => Some("long"),
+        "short" => Some("short"),
+        _ => None,
+    }
+}
+
+fn normalize_risk_amount_type(raw: &str) -> Option<&'static str> {
+    let normalized = raw.trim().to_ascii_lowercase();
+    let normalized = normalized
+        .strip_prefix("strategy.")
+        .unwrap_or(normalized.as_str());
+    match normalized {
+        "percent_of_equity" => Some("percent_of_equity"),
+        "cash" => Some("cash"),
+        _ => None,
+    }
+}
+
+fn is_positive_float_constant(expression: &Expr) -> bool {
+    match &expression.kind {
+        ExprKind::Number { value } => value.parse::<f64>().is_ok_and(|parsed| parsed > 0.0),
+        _ => false,
+    }
+}
+
+/// Go reports the raw constant text, so a negative literal keeps its sign
+/// instead of the parser's `Negate` debug form.
+fn constant_text(expression: &Expr) -> String {
+    match &expression.kind {
+        ExprKind::Unary {
+            op: UnaryOp::Negate,
+            expression: inner,
+        } => match &inner.kind {
+            ExprKind::Number { value } => format!("-{value}"),
+            _ => expression.to_string(),
+        },
+        _ => expression.to_string(),
+    }
+}
+
+fn is_positive_int_constant(expression: &Expr) -> bool {
+    match &expression.kind {
+        ExprKind::Number { value } => value.parse::<i64>().is_ok_and(|parsed| parsed > 0),
+        _ => false,
+    }
+}
+
+fn is_named_argument(argument: &Expr) -> bool {
+    matches!(
+        &argument.kind,
+        ExprKind::Binary {
+            left,
+            op: BinaryOp::Equal,
+            ..
+        } if matches!(&left.kind, ExprKind::Identifier { .. })
+    )
 }
 
 /// Go's parser entry points require ids and directions before any metadata is

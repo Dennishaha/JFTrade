@@ -284,7 +284,7 @@ fn lower_metadata(strategy: &StrategyDeclaration) -> StrategyMetadata {
         ..StrategyMetadata::default()
     };
     let mut named = BTreeMap::new();
-    for argument in &strategy.arguments[1..] {
+    for argument in strategy.arguments.iter().skip(1) {
         if let Some(name) = &argument.name {
             named.insert(name.to_ascii_lowercase(), argument.value.clone());
         }
