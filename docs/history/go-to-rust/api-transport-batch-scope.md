@@ -3465,3 +3465,28 @@ owner：yfinance 提供商面由 helper 与 engine 研究面承接；日历设�
 | 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 |
 
 后续：other 域本片完成（余 112 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+### 第 129 批分片四十二：other 域 productfeatures 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 3167-3201，按写入顺序）：candle_query:8/:18、capabilities:11/:64/:99/:118、earnings_calendar:11/:35/:72、market_data_reads:12/:116/:134/:226/:245/:307/:371/:418/:470、prediction_bridge:13/:61/:137/:202、capability_alignment:9、facade_calendar:33/:147/:205/:237/:262、facade_company:51/:148/:170/:183/:207/:226、facade_interception:180。初值 [x] 34、partial 1、boundary 0。
+
+owner：查询归一、能力投影、研究日历、行情读取、预测组合均由 engine 领域 crate 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性，34 条 [x] 逐条核对 Go 原文与 Rust 断言等价（含组合引用全文唯一性与锚点归属）；1 条 partial 核对缺口诚实度。结论：引用全部有效，其中多条 [x] 记录真实功能修复与探针过程，0 纠正、0 升级。
+
+抽查证据：adjustment 归一两条组合引用全文不同；预测组合服务端过期、新闻显式 broker 两条断言逐项一致；dup-x 为 0。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 34、partial 1、boundary 0。全量：[x] 1566、partial 2248、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加断言等价抽查 | 0 纠正、0 升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1566、partial 2248、boundary 637（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新 Rust 基线，inventory 无变化 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 |
+
+后续：other 域本片完成（余 77 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
