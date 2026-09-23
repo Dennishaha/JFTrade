@@ -3653,3 +3653,31 @@ owner：红黑树与序列容器无 Rust 对应物（深度以数组档位、指
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick 完整计划 | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0 |
 
 后续：api_transport 域继续（余约 264 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+
+### 第 129 批分片四十九：api_transport 域可观测与目录家族 35 行（1 处纠正：chart:5 去掉生产函数引用）
+
+范围（账本 rows 3419-3453，按写入顺序）：trade_stat:40/:46、trade_stats:29、trade:6、value_map:10/:37/:59/:75/:91/:100/:118、besteffort:11/:33、chart_type:5、observability context_detach:10/:37、observability:14/:45/:62/:94/:113/:148/:163/:215、catalog_edges:8/:82/:138、catalog_embedded:31/:80/:99/:121/:149、catalog:9/:45/:77。初值 [x] 8、partial 13、boundary 14，终值不变。
+
+owner：尽力审计由 engine 模型运行时承接，图表归一化由 engine 回测解析与 pine worker 分头承接，可观测快照由 jftrade-api 承接，目录语义由 jftrade-research 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性，[x] 逐条核对锚点与断言等价，partial 与 boundary 抽查缺口诚实度。结论：1 处引用纠正、0 verdict 变更。
+
+纠正证据：chart TestNormalizeChartType 的 [x] 条目混入了两处生产函数引用（backtest_parse.rs::with_normalized_chart_type、execution.rs::normalize_chart_type），审计解析器不认且规则禁止引用生产函数；去掉后保留两条真实测试（engine 侧与 pine 侧同表断言，均为 anchored），verdict 保持 [x]。
+
+抽查证据：besteffort 两条一次上报与无错静默、可观测快照空数组与错误上界、目录三条形态与编辑器契约均有专用锚点且断言一致；partial 缺口诚实（slog JSON 字段、生成期 helper 全表、松散时间回退等）；value_map 与统计边界成立；dup-x 为 0。
+
+新增证据：无 Rust 改动；账本 1 行 entry 引用纠正（去掉 2 处生产函数，evidence 2 且 anchored 2），无新增锚点。
+
+映射终值（35 行）：[x] 8、partial 13、boundary 14。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加断言等价抽查 | 1 引用纠正（chart:5 去生产函数）、0 verdict 变更；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2_writer 1 行 entry 纠正 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；inventory 与 report 同步；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick 完整计划 | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0 |
+
+后续：api_transport 域继续（余约 229 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
