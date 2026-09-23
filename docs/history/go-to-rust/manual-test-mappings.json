@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T20:20:36Z",
+  "generatedAt": "2026-09-23T20:24:30Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -272407,13 +272407,23 @@
           "file": "crates/jftrade-strategy/tests/pine_risk_and_block_parity.rs",
           "test": "compile_keeps_valid_risk_declarations_and_projects_their_limits",
           "crate": "jftrade-strategy",
-          "anchor": null
+          "anchor": {
+            "goFile": "pkg/strategy/pine/strategy_business_test.go",
+            "goLine": 11,
+            "rustFile": "crates/jftrade-strategy/tests/pine_risk_and_block_parity.rs",
+            "rustLine": 49
+          }
         },
         {
           "file": "crates/jftrade-strategy/tests/pine_risk_and_block_parity.rs",
           "test": "compile_rejects_invalid_risk_declarations",
           "crate": "jftrade-strategy",
-          "anchor": null
+          "anchor": {
+            "goFile": "pkg/strategy/pine/strategy_business_test.go",
+            "goLine": 11,
+            "rustFile": "crates/jftrade-strategy/tests/pine_risk_and_block_parity.rs",
+            "rustLine": 49
+          }
         }
       ],
       "assertionCoverage": {
@@ -272683,14 +272693,19 @@
             "goFile": "pkg/strategy/pine/strategy_call_bounds_test.go",
             "goLine": 98,
             "rustFile": "crates/jftrade-strategy/tests/pine_risk_and_block_parity.rs",
-            "rustLine": 148
+            "rustLine": 152
           }
         },
         {
           "file": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
           "test": "compile_rejects_ambiguous_order_metadata_and_missing_ids",
           "crate": "jftrade-strategy",
-          "anchor": null
+          "anchor": {
+            "goFile": "pkg/strategy/pine/strategy_call_bounds_test.go",
+            "goLine": 98,
+            "rustFile": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
+            "rustLine": 46
+          }
         }
       ],
       "assertionCoverage": {
@@ -273175,7 +273190,12 @@
           "file": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
           "test": "request_security_tuple_diagnostics_match_go_codes",
           "crate": "jftrade-strategy",
-          "anchor": null
+          "anchor": {
+            "goFile": "pkg/strategy/pine/validation_semantics_boundaries_test.go",
+            "goLine": 43,
+            "rustFile": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
+            "rustLine": 335
+          }
         }
       ],
       "assertionCoverage": {
@@ -273424,7 +273444,12 @@
           "file": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
           "test": "history_reference_overflow_is_rejected",
           "crate": "jftrade-strategy",
-          "anchor": null
+          "anchor": {
+            "goFile": "pkg/strategy/pine/validation_semantics_boundaries_test.go",
+            "goLine": 96,
+            "rustFile": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
+            "rustLine": 371
+          }
         }
       ],
       "assertionCoverage": {
@@ -273490,14 +273515,19 @@
             "goFile": "pkg/strategy/pine/validation_semantics_boundaries_test.go",
             "goLine": 108,
             "rustFile": "crates/jftrade-strategy/tests/pine_risk_and_block_parity.rs",
-            "rustLine": 353
+            "rustLine": 357
           }
         },
         {
           "file": "crates/jftrade-strategy/src/pine/mod.rs",
           "test": "analyze_script_reports_public_internal_helper_diagnostics",
           "crate": "jftrade-strategy",
-          "anchor": null
+          "anchor": {
+            "goFile": "pkg/strategy/pine/validation_semantics_boundaries_test.go",
+            "goLine": 108,
+            "rustFile": "crates/jftrade-strategy/src/pine/mod.rs",
+            "rustLine": 164
+          }
         }
       ],
       "assertionCoverage": {

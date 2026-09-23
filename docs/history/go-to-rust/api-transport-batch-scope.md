@@ -4291,3 +4291,31 @@ owner：Pine 解析恢复与请求安全由 jftrade-strategy 承接，无双写�
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 4189 起；尾部余 263 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
+
+### 第 129 批分片七十二：rows 4189-4223 Pine 请求安全/风险声明/元组与 worker 客户端 35 行（5 行补锚点，无 verdict 变更）
+
+范围（账本 rows 4189-4223，按写入顺序）：strategy pine request_security_object_contracts:86、runtime_and_parser_boundaries:9/:46/:62/:94/:134、security_lowering:9/:92/:168、semantic_helper_boundaries:8/:58/:99/:128、shared_structure_corpus:35、strategy_business:11/:95/:130、strategy_call_bounds:11/:98/:120、tuple_assignment_contracts:11、tuple_switch_reject:8、udf_expansion_contracts:8/:37、validation_semantics_boundaries:8/:29/:43/:57/:70/:86/:96/:108、pineengine pine_ts_client:10/:20/:56。初值 [x] 10、partial 19、boundary 6，终值不变。首键自检通过，无重叠。
+
+owner：Pine 请求安全/风险声明/语义校验由 jftrade-strategy 承接，pine_ts worker 客户端由对应集成归属承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（22 个去重后引用逐个核对 #[test] 与嵌套模块归属，0 缺失），10 条 [x] 逐条核对锚点归属与断言等价（全部 function_exact；其中 5 行所引 Rust 用例缺行级锚点，属既有缺锚点告警类），partial 与 boundary 抽查缺口诚实度。结论：0 升级、0 降级；5 行补锚点（只加注释，不改行为）。
+
+补锚点（6 条 // Parity: 注释，覆盖 5 账本行 8 个 evidence 全落锚）：strategy_business:11 → pine_risk_and_block_parity.rs compile_rejects_invalid_risk_declarations 与 compile_keeps_valid_risk_declarations_and_projects_their_limits；strategy_call_bounds:98 → pine_order_metadata_and_security_rejections.rs compile_rejects_ambiguous_order_metadata_and_missing_ids；validation_semantics_boundaries:43 → 同文件 request_security_tuple_diagnostics_match_go_codes；:96 → 同文件 history_reference_overflow_is_rejected；:108 → pine/mod.rs analyze_script_reports_public_internal_helper_diagnostics。账本 5 行经 v2 写入器刷新派生字段（entry/concl/cmd 沿用原文），rustEvidence anchor 全 True。
+
+抽查证据：[x] 结论均为逐脚本/逐诊断码写法；partial 缺口诚实；dup-x 为 0。
+
+映射终值（35 行）：[x] 10、partial 19、boundary 6。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（22 去重引用）加 [x] 断言等价核对 | 5 行补锚点；0 升级、0 降级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2 写入器 5 行 | rows touched 5，8/8 evidence anchored；[x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| Rust 定向测试 | cargo-nextest -p jftrade-strategy 相关用例 | 6/6 通过（仅注释改动，无行为变更） |
+| 工作树 quick | pnpm run check:quick | 未整体通过：434/435，1 失败为 engine 的 adk_session_detail_omits_resolved_approval_groups（满载并行下 timeline 仍引用已解决审批的断言抖动；本片改动为 strategy 注释/账本/文档，与该行为无关）。抖动隔离复跑：该用例单独 5/5 通过，邻近 2 用例通过，所属 adk 模块 134/134 通过；不记为通过，登记待 owner 跟进 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 刷新基线；缺锚点告警 119→116 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1727、已记录 1680、unrecorded 0、stale 0、unknown 47 |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 4224 起；尾部余约 228 行）；队列按账本实际顺序推进（策略尾部、行情、集成、设置）。

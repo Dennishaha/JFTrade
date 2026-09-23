@@ -45,6 +45,8 @@ fn assert_error(body: &str, code: &str, message: &str) {
 /// Parity: go:452dea11:pkg/strategy/pine/strategy_business_test.go:130 TestValidateScriptReportsRiskDeclarationBoundaryErrors
 ///
 /// Parity: go:452dea11:pkg/strategy/pine/strategy_call_bounds_test.go:120 TestParseStrategyCallRejectsInvalidTradingExpressions
+///
+/// Parity: go:452dea11:pkg/strategy/pine/strategy_business_test.go:11 TestStrategyRiskArgumentParsersCoverBusinessBoundaries
 #[test]
 fn compile_rejects_invalid_risk_declarations() {
     for (body, message) in [
@@ -112,6 +114,8 @@ fn compile_rejects_invalid_risk_declarations() {
 }
 
 /// Parity: go:452dea11:pkg/strategy/pine/strategy_call_bounds_test.go:11 TestParseStrategyCallCoversOrderLifecycleBusinessBoundaries
+///
+/// Parity: go:452dea11:pkg/strategy/pine/strategy_business_test.go:11 TestStrategyRiskArgumentParsersCoverBusinessBoundaries
 #[test]
 fn compile_keeps_valid_risk_declarations_and_projects_their_limits() {
     let body = "strategy.risk.allow_entry_in(strategy.direction.long)\n\

@@ -160,6 +160,8 @@ mod public_helper_guard_tests {
     /// replacement when a script calls a JFTrade-internal helper or the
     /// `ta.adx` shortcut. Rust must fail the compile with the same codes
     /// instead of silently analysing the call.
+    ///
+    /// Parity: go:452dea11:pkg/strategy/pine/validation_semantics_boundaries_test.go:108 TestPublicHelperGuardReturnsActionableMigrationErrors
     #[test]
     fn analyze_script_reports_public_internal_helper_diagnostics() {
         for (line, code, wanted) in [

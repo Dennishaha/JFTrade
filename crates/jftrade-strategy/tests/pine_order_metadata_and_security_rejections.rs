@@ -42,6 +42,8 @@ fn assert_error(body: &str, code: &str, message: &str) {
 /// Parity: go:452dea11:pkg/strategy/pine/order_metadata_contracts_test.go:8 TestOrderMetadataRejectsAmbiguousInputsAndKeepsSupportedPositionals
 ///
 /// Parity: go:452dea11:pkg/strategy/pine/language_failure_contracts_test.go:239 TestOrderAndTupleHelperContractsKeepTradeInstructionsUnambiguous
+///
+/// Parity: go:452dea11:pkg/strategy/pine/strategy_call_bounds_test.go:98 TestParseStrategyCallRejectsUnsupportedOrderBoundaries
 #[test]
 fn compile_rejects_ambiguous_order_metadata_and_missing_ids() {
     for (body, code, message) in [
@@ -329,6 +331,8 @@ fn request_security_merge_flags_are_rejected_in_named_and_positional_form() {
 /// Parity: go:452dea11:pkg/strategy/pine/language_failure_contracts_test.go:149 TestRequestSecurityAndTupleContractsRejectUnsafeExpressions
 ///
 /// Parity: go:452dea11:pkg/strategy/pine/order_command_security_rejection_test.go:82 TestRequestSecurityTupleValidationKeepsParserBoundaries
+///
+/// Parity: go:452dea11:pkg/strategy/pine/validation_semantics_boundaries_test.go:43 TestRequestSecurityTupleAliasExtractionPreservesAssignmentContract
 #[test]
 fn request_security_tuple_diagnostics_match_go_codes() {
     assert_error(
@@ -363,6 +367,8 @@ fn request_security_tuple_diagnostics_match_go_codes() {
 }
 
 /// Parity: go:452dea11:pkg/strategy/pine/language_failure_contracts_test.go:149 TestRequestSecurityAndTupleContractsRejectUnsafeExpressions
+///
+/// Parity: go:452dea11:pkg/strategy/pine/validation_semantics_boundaries_test.go:96 TestExpressionAndHistoryValidationRejectsInvalidBoundaries
 #[test]
 fn history_reference_overflow_is_rejected() {
     assert_error(
