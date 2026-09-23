@@ -3905,3 +3905,31 @@ owner：schema 清单与迁移语义由 jftrade-store-sqlite 承接，策略定�
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 3699 起；尾部余 753 行）；队列按账本实际顺序推进（交易、存储、行情、集成、交易、设置）。
+
+### 第 129 批分片五十八：rows 3699-3733 交易执行账本 35 行（1 处引用纠正，无 verdict 变更）
+
+范围（账本 rows 3699-3733，按写入顺序）：trading broker_ledger:10/:50/:65、execution_composition:32/:70/:153/:313、fill_retention:8、ledger_lifecycle:12/:41/:73/:110/:131、ledger:12/:65/:150/:236/:330、maintenance_concurrency:13/:43、order_leg_merge:10、out_of_order_reconciliation:43/:96/:140/:178/:227、persistence_failures:14/:58、persistence_query_plan:12、resource:10、snapshot_normalization:11/:44、startup_compatibility:14/:31/:73。初值 [x] 14、partial 12、boundary 9，终值不变。首键自检通过，无重叠。
+
+owner：成交对账语义由 jftrade-engine 承接，执行订单持久化与并发语义由 jftrade-store-sqlite 承接，启动路径解析由 jftrade-engine 的 batch atomic startup 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（25 个去重后引用逐个核对 #[test]），14 条 [x] 逐条核对锚点归属与断言等价（全部带锚点），partial 与 boundary 抽查缺口诚实度。结论：1 处引用纠正，0 升级、0 降级。
+
+纠正：broker_ledger:65 的首引用文件名写错（provider_tests 实际无此用例），正主为 product_production_ports_execution_reconciliation_tests.rs:619 的同名用例（带 #[test]），经 v2 写入器纠正；verdict 保持 partial（否定断言缺口仍成立）。
+
+抽查证据：[x] 结论均为逐分支断言（信用边界四值、时间戳四边界、终态幂等、序号高水位、查询计划命中索引等）；partial/boundary 缺口诚实（seen-fill 跨重启去重缺失、placed-merge 路径不存在、lastErrorSource 映射差异等）；dup-x 为 0。
+
+新增证据：无 Rust 改动；账本 1 行纠正；无新增锚点。
+
+映射终值（35 行）：[x] 14、partial 12、boundary 9。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（25 去重引用）加 [x] 断言等价核对 | 1 引用纠正；0 升级、0 降级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2 写入器 1 行 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；inventory 随纠正行更新，report 刷新基线；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 3734 起；尾部余 718 行）；队列按账本实际顺序推进（交易、存储、行情、集成、设置）。

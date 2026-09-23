@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T19:35:08Z",
+  "generatedAt": "2026-09-23T20:03:51Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -240983,7 +240983,7 @@
     },
     "internal/store/trading/broker_ledger_test.go:65:TestBrokerFeeNilAndMissingOrderBoundaries": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_provider_tests.rs::reconciliation_fee_amount_falls_back_to_fee_items; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_retries_fees_after_terminal_order_projection",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_fee_amount_falls_back_to_fee_items; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_retries_fees_after_terminal_order_projection",
       "conclusion": "partial：Go 断言空费用结果与“未知订单费用”都不产生事件/变更。Rust 已断言费用金额回退（feeItems 求和）、费用在订单终态后重试写入；缺口：`fee_amount == None` 或 orderIdEx 缺失时不应写事件/不应变账本的否定断言（owner：`product_production_ports_execution_reconciliation.rs` 的费用应用路径，`matches_fee`/`fee_amount` 守卫）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
@@ -240995,7 +240995,7 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_provider_tests.rs",
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs",
           "test": "reconciliation_fee_amount_falls_back_to_fee_items",
           "crate": "jftrade-engine",
           "anchor": null
@@ -297000,14 +297000,6 @@
       "allowed": true,
       "reviewStatus": "single"
     },
-    "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_provider_tests.rs::reconciliation_fee_amount_falls_back_to_fee_items": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/store/trading/broker_ledger_test.go:65:TestBrokerFeeNilAndMissingOrderBoundaries"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_push_worker_tests.rs::reconciliation_polling_throttles_scans_until_a_push_wake_forces_one": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -297096,6 +297088,14 @@
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
+    },
+    "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_fee_amount_falls_back_to_fee_items": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/store/trading/broker_ledger_test.go:65:TestBrokerFeeNilAndMissingOrderBoundaries"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_keeps_external_unavailable_as_retryable_without_unknown_write": {
       "referenceCount": 1,
