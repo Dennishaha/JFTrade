@@ -290,4 +290,195 @@ mod tests {
         ));
         assert_eq!(pool.snapshot()[0].restarts, 1);
     }
+
+    /// Parity: go:452dea11:pkg/strategy/pineworker/manager_test.go:46 TestWorkerManagerRunScriptRoundRobinsHealthyWorkers
+    ///
+    /// Parity: go:452dea11:pkg/strategy/pineworker/manager_test.go:200 TestWorkerManagerRunScriptRejectsWhenBusyIfConfigured
+    #[test]
+    fn healthy_workers_are_selected_in_rotation() {
+        let mut pool = WorkerPool::new([
+            ("pineworker-1".to_owned(), "127.0.0.1:50051".to_owned()),
+            ("pineworker-2".to_owned(), "127.0.0.1:50052".to_owned()),
+        ])
+        .expect("pool");
+        pool.record_health("pineworker-1", Ok(healthy()))
+            .expect("health");
+        pool.record_health("pineworker-2", Err("worker crashed".to_owned()))
+            .expect("health");
+
+        // An unhealthy worker never receives work, and a busy pool refuses the
+        // request instead of queueing it (the engine owns capacity waiting).
+        let first = pool.reserve(SessionOperation::None, None).expect("first");
+        assert_eq!(first.worker_id, "pineworker-1");
+        assert!(matches!(
+            pool.reserve(SessionOperation::None, None),
+            Err(PoolError::CapacityExceeded)
+        ));
+        pool.release(first, true).expect("release");
+
+        // Once every worker is healthy the picker alternates.
+        pool.record_health("pineworker-2", Ok(healthy()))
+            .expect("health");
+        let second = pool.reserve(SessionOperation::None, None).expect("second");
+        assert_eq!(second.worker_id, "pineworker-2");
+        pool.release(second, true).expect("release");
+        let third = pool.reserve(SessionOperation::None, None).expect("third");
+        assert_eq!(third.worker_id, "pineworker-1");
+        pool.release(third, true).expect("release");
+    }
+
+    /// Parity: go:452dea11:pkg/strategy/pineworker/manager_test.go:119 TestWorkerManagerReservesLiveSessionBeforeOpenCompletes
+    #[test]
+    fn reserving_an_open_session_blocks_a_second_open() {
+        let mut pool = WorkerPool::new([("pineworker-1".to_owned(), "127.0.0.1:50051".to_owned())])
+            .expect("pool");
+        pool.record_health("pineworker-1", Ok(healthy()))
+            .expect("health");
+        assert!(matches!(
+            pool.reserve(SessionOperation::Open, None),
+            Err(PoolError::MissingSession)
+        ));
+
+        // The session is pinned while the open request is still running, so a
+        // second open for the same id and an append against the busy worker are
+        // both rejected.
+        let open = pool
+            .reserve(SessionOperation::Open, Some("live-1"))
+            .expect("open");
+        assert_eq!(open.session_id.as_deref(), Some("live-1"));
+        assert!(matches!(
+            pool.reserve(SessionOperation::Open, Some("live-1")),
+            Err(PoolError::SessionAlreadyOpen(id)) if id == "live-1"
+        ));
+        assert!(matches!(
+            pool.reserve(SessionOperation::Append, Some("live-1")),
+            Err(PoolError::CapacityExceeded)
+        ));
+        assert!(matches!(
+            pool.reserve(SessionOperation::Append, Some("unknown")),
+            Err(PoolError::SessionNotFound(id)) if id == "unknown"
+        ));
+        pool.release(open, true).expect("release");
+    }
+
+    /// Parity: go:452dea11:pkg/strategy/pineworker/manager_test.go:74 TestWorkerManagerPinsLiveSessionAndClearsItOnClose
+    #[test]
+    fn closing_a_live_session_releases_its_pin() {
+        let mut pool = WorkerPool::new([
+            ("pineworker-1".to_owned(), "127.0.0.1:50051".to_owned()),
+            ("pineworker-2".to_owned(), "127.0.0.1:50052".to_owned()),
+        ])
+        .expect("pool");
+        for id in ["pineworker-1", "pineworker-2"] {
+            pool.record_health(id, Ok(healthy())).expect("health");
+        }
+        let open = pool
+            .reserve(SessionOperation::Open, Some("live-1"))
+            .expect("open");
+        let pinned = open.worker_id.clone();
+        pool.release(open, true).expect("release");
+
+        // An ordinary request still round-robins while the session stays pinned.
+        let ordinary = pool
+            .reserve(SessionOperation::None, None)
+            .expect("ordinary");
+        assert_ne!(ordinary.worker_id, pinned);
+        pool.release(ordinary, true).expect("release");
+
+        let append = pool
+            .reserve(SessionOperation::Append, Some("live-1"))
+            .expect("append");
+        assert_eq!(append.worker_id, pinned);
+        pool.release(append, true).expect("release");
+
+        let close = pool
+            .reserve(SessionOperation::Close, Some("live-1"))
+            .expect("close");
+        assert_eq!(close.worker_id, pinned);
+        pool.release(close, true).expect("release");
+        assert!(matches!(
+            pool.reserve(SessionOperation::Append, Some("live-1")),
+            Err(PoolError::SessionNotFound(id)) if id == "live-1"
+        ));
+    }
+
+    /// Parity: go:452dea11:pkg/strategy/pineworker/manager_test.go:236 TestWorkerManagerCheckHealthRestartsFailedWorker
+    ///
+    /// Parity: go:452dea11:pkg/strategy/pineworker/manager_test.go:262 TestWorkerManagerCheckHealthReportsRestartFailure
+    #[test]
+    fn health_results_and_restarts_project_into_the_snapshot() {
+        let mut pool = WorkerPool::new([("pineworker-1".to_owned(), "127.0.0.1:51000".to_owned())])
+            .expect("pool");
+        let initial = &pool.snapshot()[0];
+        assert!(!initial.healthy && !initial.busy && initial.restarts == 0);
+        assert!(initial.last_error.is_none());
+        assert_eq!(initial.address, "127.0.0.1:51000");
+
+        pool.record_health(
+            "pineworker-1",
+            Ok(WorkerHealth {
+                ok: false,
+                ..healthy()
+            }),
+        )
+        .expect("health");
+        let failed = &pool.snapshot()[0];
+        assert!(!failed.healthy);
+        assert!(
+            failed
+                .last_error
+                .as_deref()
+                .unwrap_or_default()
+                .contains("ok=false")
+        );
+
+        pool.record_health("pineworker-1", Err("worker crashed".to_owned()))
+            .expect("health");
+        assert_eq!(
+            pool.snapshot()[0].last_error.as_deref(),
+            Some("worker crashed")
+        );
+
+        pool.record_health("pineworker-1", Ok(healthy()))
+            .expect("health");
+        let recovered = &pool.snapshot()[0];
+        assert!(recovered.healthy);
+        assert!(recovered.last_error.is_none());
+        assert_eq!(recovered.pine_ts_version, "fixture");
+        assert_eq!(recovered.capabilities.len(), 2);
+
+        pool.record_restart("pineworker-1").expect("restart");
+        assert_eq!(pool.snapshot()[0].restarts, 1);
+        assert!(matches!(
+            pool.record_restart("missing"),
+            Err(PoolError::WorkerNotFound(id)) if id == "missing"
+        ));
+    }
+
+    /// Parity: go:452dea11:pkg/strategy/pineworker/manager_test.go:359 TestWorkerManagerRequiresDependenciesAndStart
+    #[test]
+    fn empty_pools_and_unknown_workers_fail_closed() {
+        assert!(matches!(WorkerPool::new([]), Err(PoolError::Empty)));
+
+        let mut pool = WorkerPool::new([("pineworker-1".to_owned(), "127.0.0.1:50051".to_owned())])
+            .expect("pool");
+        // An unregistered worker cannot be addressed through any entry point.
+        assert!(matches!(
+            pool.record_health("pineworker-9", Ok(healthy())),
+            Err(PoolError::WorkerNotFound(id)) if id == "pineworker-9"
+        ));
+        assert!(matches!(
+            pool.record_restart("pineworker-9"),
+            Err(PoolError::WorkerNotFound(id)) if id == "pineworker-9"
+        ));
+        let reservation = WorkerReservation {
+            worker_id: "pineworker-9".to_owned(),
+            session_id: None,
+            operation: SessionOperation::None,
+        };
+        assert!(matches!(
+            pool.release(reservation, true),
+            Err(PoolError::WorkerNotFound(id)) if id == "pineworker-9"
+        ));
+    }
 }

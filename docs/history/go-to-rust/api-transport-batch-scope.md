@@ -1963,3 +1963,50 @@ owner：`crates/jftrade-integration-pine`（执行端口校验、进程/就绪/�
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 失败 |
 
 后续：分片十七进入 `pkg/strategy/pineworker` 余量约 40 行（`manager_test.go` 13、`process_launcher_boundaries_test.go` 5、`process_launcher_test.go` 7、`runtime_boundaries_test.go` 7、`payload_size_test.go` 3、`process_smoke_test.go` 2、`hardcut_audit_test.go` 1、`manager_readiness_recovery_test.go` 1、`proto_contract_test.go` 1）；之后 `internal/strategy/pineruntime` 25 → `internal/strategy` 其余子域，直至 strategy_pine 域清空。
+
+### 分片十七：`pkg/strategy/pineworker` 余量 40 行（管理器生命周期、进程启动边界、体积与恢复）
+
+范围：`manager_test.go` 13 行（`:14`/`:46`/`:74`/`:119`/`:158`/`:200`/`:236`/`:262`/`:281`/`:299`/`:324`/`:341`/`:359`）、`payload_size_test.go` 3 行（`:9`/`:26`/`:49`）、`process_launcher_boundaries_test.go` 5 行（`:19`/`:70`/`:94`/`:118`/`:165`）、`process_launcher_test.go` 7 行（`:16`/`:72`/`:88`/`:107`/`:114`/`:133`/`:141`）、`runtime_boundaries_test.go` 7 行（`:14`/`:39`/`:66`/`:79`/`:107`/`:134`/`:189`）、`process_smoke_test.go` 2 行（`:20`/`:34`）、`hardcut_audit_test.go:12`、`manager_readiness_recovery_test.go:15`、`proto_contract_test.go:14`。
+
+owner：`crates/jftrade-integration-pine`（`pool.rs` worker 池与预留、`process.rs` 进程启停、`readiness.rs` 就绪监视、`asset.rs` 与 `runtime_dependencies.rs` 资产/依赖解析）、`crates/jftrade-engine`（运行时装配、排队与背压）、`crates/jftrade-settings`（worker 运行时配置）。
+
+队列说明：该族在更早批次已给过终值，本分片做二次核对——重点是 Go `WorkerManager` 的池语义（健康轮转、open 前预留、live pin、健康/重启投影、失败关闭）在 Rust `WorkerPool` 上是否有逐条回归。核对发现 `pool.rs` 过去只有 pin 与重启释放两条用例，轮转、并发 open 预留、close 释放、健康快照投影与空池/未知 worker 失败关闭这五类语义没有被回归锁定。
+
+新增证据（`crates/jftrade-integration-pine/src/pool.rs`，5 条用例）：
+
+1. `healthy_workers_are_selected_in_rotation`：不健康 worker 永不接单；池内全忙时返回 `PoolError::CapacityExceeded`；恢复健康后按 1→2→1 轮转（Go 断言 3 次请求 2/1 分布）。
+2. `reserving_an_open_session_blocks_a_second_open`：同一 session 的二次 open 报 `SessionAlreadyOpen`；未完成 open 期间的 append 报 `CapacityExceeded`；未知 session 报 `SessionNotFound`；缺 session id 报 `MissingSession`。
+3. `closing_a_live_session_releases_its_pin`：live 会话固定首个 worker、普通请求取另一 worker、close 后 append 报 `SessionNotFound`。
+4. `health_results_and_restarts_project_into_the_snapshot`：逐字段断言初始快照（id/地址/healthy/busy/restarts/lastError）与健康投影（`pine_ts_version`、capabilities、`last_error` 清空）、重启计数递增、未知 worker 重启报 `WorkerNotFound`。
+5. `empty_pools_and_unknown_workers_fail_closed`：空池构造报 `PoolError::Empty`；未注册 worker 在 `record_health`/`record_restart`/`release` 三个入口统一报 `WorkerNotFound`。
+
+映射终值（40 行）：`[x]` 3 行、partial 36 行、boundary 1 行；其中 8 行结论与证据刷新。
+
+- **升级为 `[x]`（3 行）**：`:46 TestWorkerManagerRunScriptRoundRobinsHealthyWorkers`、`:74 TestWorkerManagerPinsLiveSessionAndClearsItOnClose`、`:119 TestWorkerManagerReservesLiveSessionBeforeOpenCompletes`。
+- **boundary 转 partial（1 行）**：`:200 TestWorkerManagerRunScriptRejectsWhenBusyIfConfigured`——Rust 无 RejectWhenBusy 开关，池满一律 `CapacityExceeded`，容量与背压由 engine 侧持有，错误体不带 worker 数；拒绝路径已由轮转用例锁定，故从 boundary 收回到 partial。
+- **刷新证据（4 行）**：`:14 TestWorkerManagerStartStopAndSnapshot`（Start/Stop/Snapshot 三层拆分）、`:236 TestWorkerManagerCheckHealthRestartsFailedWorker`、`:262 TestWorkerManagerCheckHealthReportsRestartFailure`（两条均落到健康/重启投影用例）、`:359 TestWorkerManagerRequiresDependenciesAndStart`（依赖注入在 Rust 无 nil 注入点，改由空池与未知 worker 失败关闭证据承担）。
+- **保持终值（32 行）**：`:158` 队列语义（boundary）、dial 失败清理与诊断（`:281`/`:299`）、dial 重试直到就绪（`:324`）、Stop 返回首个 close 错误（`:341`）、就绪监视退出（`manager_readiness_recovery_test.go:15`）、体积边界（`payload_size_test.go` 3 行）、进程启动边界（`process_launcher_boundaries_test.go` 5 行）、进程启动器（`process_launcher_test.go` 7 行）、运行时边界（`runtime_boundaries_test.go` 7 行）、冒烟（`process_smoke_test.go` 2 行）、硬切审计（`hardcut_audit_test.go:12`）、proto 契约（`proto_contract_test.go:14`）——既有结论与当前代码一致，本分片未改动。
+
+剩余缺口：
+
+1. **队列语义无 Rust 同形对象（P1）**：Go `TestWorkerManagerQueuesWhenAllWorkersBusy`（`manager_test.go:158`）断言池满且未开 RejectWhenBusy 时请求排队等待释放；Rust 的 `WorkerPool` 池满即拒（`CapacityExceeded`），排队由 engine 的并发/背压层承担，没有“池内排队 + 等待超时”的逐条断言。升级路径：若 engine 侧背压层要覆盖该语义，应在 `crates/jftrade-engine` 补“池满→排队→释放后放行→超时拒绝”的集成用例，而不是把队列塞回 `pool.rs`。
+2. **dial 失败清理与诊断字段（P1）**：`manager_test.go:281`/`:299` 断言的清理顺序与诊断字符串拼接由 `crates/jftrade-integration-pine/src/process.rs` 与 `readiness.rs` 的现有用例部分覆盖，Rust 侧没有等价的“启动失败后 worker 列表回滚”单点断言。
+3. **dial 重试直到就绪（P1）**：`manager_test.go:324` 的重试直到成功语义在 Rust 由 `readiness.rs` 的健康门与 engine 装配承担，缺少“先失败 N 次后成功”的计数断言。
+4. **Stop 错误聚合（P2）**：`manager_test.go:341` 断言 Stop 返回首个 close 错误并清空快照；Rust 的 `PineProcessPool`/engine 关闭路径记录错误但不逐条比对“首个错误”的选取。
+5. **体积估算入口缺失（P2）**：`payload_size_test.go` 的 `jsonSize` 估算在 Rust 没有同形函数，边界改由 `execution/tests.rs` 的编码上限用例（`grpc_request_message_limit_has_exact_encoded_boundaries`）承担。
+6. **真实进程冒烟默认忽略（P2）**：`process_smoke_test.go:20`/`:34` 对应的 Rust 冒烟（`tests/real_worker_smoke.rs`）需环境变量并标记 ignored。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked` | 50/50 通过（1 条真实进程冒烟 skipped），5 条新用例全绿 |
+| 映射写入 | 7 + 1 行 payload（`/tmp/s128s17_payload.json`、`/tmp/s128s17_payload2.json`）经 `/tmp/b82_apply.py` 应用 | `[x]` 1584 → 1587、partial 2230 → 2228、boundary 637 → 636（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3281 + 5 = 3286 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1626、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1899/1899 通过 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | 见提交前记录 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 失败 |
+
+后续：分片十八进入 `internal/strategy/pineruntime` 25 行（`runtime_test.go` 13、`runtime_failure_contracts_test.go` 7、`runner_lifecycle_test.go` 4、`recovery_contracts_test.go` 1）；之后按 `internal/strategy` 族余量继续推进，直至 strategy_pine 域清空。
