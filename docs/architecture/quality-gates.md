@@ -16,6 +16,9 @@ JFTrade 的质量门禁面向当前 Rust/Tauri 产品，不使用迁移阶段作
 - `check:web`、`check:pine`、`check:python`、`check:desktop`：各运行时独立验证。
 - `check:quick`、`check:affected`、`check:all`：工作树快速反馈、merge-base affected 和完整本地入口。
 
+`check:migration-manifest` 只校验发布资格使用的迁移 manifest 与已发布基线绑定；它不把
+synthetic 迁移证据当作 release qualification，也不改变当前产品门禁的 affected 调度。
+
 ## 本地选择与副作用
 
 命令从仓库根目录运行。先执行目标模块的最窄测试，再运行 `pnpm run check:quick`；可用 `pnpm run check:quick -- --print` 预览计划。`pnpm run test:affected -- --print` 预览 merge-base 测试集合，不执行检查。

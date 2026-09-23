@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jftrade.local/schemas/go-rust-parity-mappings.v2.json",
+  "title": "JFTrade Go to Rust parity mapping inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "baseline", "generatorVersion", "generatedAt", "mappings", "reuse"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": "jftrade.go-rust-parity-mappings.v2" },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceRef", "commit", "treeSha"],
+      "properties": {
+        "sourceRef": { "type": "string", "minLength": 1 },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "treeSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+      }
+    },
+    "generatorVersion": { "type": "string", "minLength": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "mappings": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/mapping" }
+    },
+    "reuse": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/reuse" }
+    }
+  },
+  "$defs": {
+    "mapping": {
+      "type": "object",
+      "required": [
+        "status", "rust_entry", "conclusion", "command", "evidence_type",
+        "source", "rustEvidence", "assertionCoverage", "coveredAssertions", "uncoveredAssertions", "boundaryReason", "verification",
+        "risk", "owner", "priority", "nextAction", "blockedBy", "waiverExpiresAt"
+      ],
+      "properties": {
+        "status": { "enum": ["[x]", "[~]"] },
+        "rust_entry": { "type": "string" },
+        "conclusion": { "type": "string" },
+        "command": { "type": "string" },
+        "evidence_type": { "enum": ["function_exact", "partial", "boundary", "missing", "module_only"] },
+        "source": {
+          "type": "object",
+          "required": ["file", "line", "test", "blobSha"],
+          "properties": {
+            "file": { "type": "string" },
+            "line": { "type": "integer", "minimum": 1 },
+            "test": { "type": "string" },
+            "blobSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+          }
+        },
+        "rustEvidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["file", "test", "crate", "anchor"],
+            "properties": {
+              "file": { "type": "string" },
+              "test": { "type": "string" },
+              "crate": { "type": "string" },
+              "anchor": { "type": ["object", "null"] }
+            }
+          }
+        },
+        "assertionCoverage": {
+          "type": "object",
+          "required": ["covered", "uncovered", "source"],
+          "properties": {
+            "covered": { "type": "array", "items": { "type": "string" } },
+            "uncovered": { "type": "array", "items": { "type": "string" } },
+            "source": { "enum": ["legacy-conclusion", "reviewed"] }
+          }
+        },
+        "coveredAssertions": { "type": "array", "items": { "type": "string" } },
+        "uncoveredAssertions": { "type": "array", "items": { "type": "string" } },
+        "boundaryReason": { "type": ["string", "null"] },
+        "verification": {
+          "type": "object",
+          "required": ["argv", "testFilter", "runnerVersion", "toolchain", "status", "exitCode", "verifiedCommit", "verifiedAt", "receiptDigest"],
+          "properties": {
+            "argv": { "type": "array", "items": { "type": "string" } },
+            "testFilter": { "type": "array", "items": { "type": "string" } },
+            "runnerVersion": { "type": ["string", "null"] },
+            "toolchain": { "type": ["string", "null"] },
+            "status": { "enum": ["passed", "failed", "unverified"] },
+            "exitCode": { "type": ["integer", "null"] },
+            "verifiedCommit": { "type": ["string", "null"] },
+            "verifiedAt": { "type": ["string", "null"], "format": "date-time" },
+            "receiptDigest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" }
+          }
+        },
+        "risk": { "enum": ["high", "normal"] },
+        "owner": { "type": "string", "minLength": 1 },
+        "priority": { "enum": ["P1", "P2", "P3"] },
+        "nextAction": { "type": "string", "minLength": 1 },
+        "blockedBy": { "type": "array", "items": { "type": "string" } },
+        "waiverExpiresAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "reuse": {
+      "type": "object",
+      "required": ["referenceCount", "referenceKeys", "allowed", "reviewStatus"],
+      "properties": {
+        "referenceCount": { "type": "integer", "minimum": 1 },
+        "referenceKeys": { "type": "array", "items": { "type": "string" } },
+        "allowed": { "type": "boolean" },
+        "reviewStatus": { "enum": ["single", "unreviewed", "reviewed"] }
+      }
+    }
+  }
+}

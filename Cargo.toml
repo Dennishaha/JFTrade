@@ -71,7 +71,7 @@ serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
 rusqlite = { version = "=0.40.2", default-features = false, features = ["backup", "bundled"] }
 rust_decimal = { version = "=1.43.0", default-features = false, features = ["maths", "serde", "serde-arbitrary-precision", "serde-float", "std"] }
-rustls = { version = "=0.23.44", default-features = false, features = ["ring", "std"] }
+rustls = { version = "=0.23.45", default-features = false, features = ["ring", "std"] }
 sha1 = { version = "=0.11.0", default-features = false }
 sha2 = { version = "=0.11.0", default-features = false }
 subtle = "=2.6.1"

@@ -86,6 +86,7 @@
     "test:rust:archive": "node scripts/quality/cargo-nextest.mjs archive --workspace --all-targets --locked",
     "test:rust:archive-shard": "node scripts/quality/cargo-nextest.mjs run",
     "check:release-source": "node scripts/release/check-release-source-admission.mjs",
+    "check:migration-manifest": "node scripts/release/check-migration-manifest.mjs",
     "check:desktop:release-policy": "node scripts/check-desktop-release-policy.mjs --operation candidate",
     "check:route-contracts": "node scripts/quality/check-contracts.mjs",
     "check:web": "pnpm run test:coverage:web && pnpm run typecheck:web",

@@ -208,11 +208,7 @@ fn workflow_manager_failures_surface_verbatim_on_every_workflow_route() {
 
     let mutation_port = FailingWorkflowMutationPort;
     let routes: [(&str, &str, Value); 8] = [
-        (
-            "POST",
-            "/api/v1/adk/workflows",
-            json!({"name": "Failing"}),
-        ),
+        ("POST", "/api/v1/adk/workflows", json!({"name": "Failing"})),
         (
             "PUT",
             "/api/v1/adk/workflows/workflow-1",
@@ -252,7 +248,8 @@ fn workflow_manager_failures_surface_verbatim_on_every_workflow_route() {
             body: Some(body.to_string().into_bytes()),
             headers: BTreeMap::new(),
         };
-        let response = dispatch_adk_mutation(&request, Some(&mutation_port), "2026-01-01T00:00:00Z");
+        let response =
+            dispatch_adk_mutation(&request, Some(&mutation_port), "2026-01-01T00:00:00Z");
         assert_eq!(
             response.status, MUTATION_FAILURE_STATUS,
             "{method} {path} must keep the port status: {response:?}"

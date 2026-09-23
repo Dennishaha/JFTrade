@@ -1,0 +1,113 @@
+{
+  "$schema": "./migration-manifest.schema.json",
+  "schemaVersion": "jftrade.migration-manifest.v1",
+  "status": "synthetic_verified_release_unverified",
+  "source": {
+    "release": "v0.27.0",
+    "commit": "452dea115ca75c51361e8876c2aefd7c009839b8",
+    "upgradeBaselines": "./upgrade-baselines.json",
+    "checksumManifestSha256": "af2791fb672e8853f8b268b2156fa6ffc2abacb62b9f15a3085e6e4d22210e55",
+    "packageDigests": [
+      { "platform": "linux-x64", "kind": "appimage", "name": "JFTrade-0.27.0-linux-x64.AppImage", "sha256": "1755d65485e11c1ccc3955e90caa4154d4575bc688c0f305fcb51b03632dc009" },
+      { "platform": "linux-x64", "kind": "deb", "name": "JFTrade-0.27.0-linux-x64.deb", "sha256": "e587673ed0424e30c8ee032b7218107f829436b6a6221fb9d1caa4789ac4aa65" },
+      { "platform": "linux-x64", "kind": "rpm", "name": "JFTrade-0.27.0-linux-x64.rpm", "sha256": "5ca3a6de3d76edca5244d8132aadfcd6ecac84c69206f78af315cd05adf031a5" },
+      { "platform": "macos-arm64", "kind": "dmg", "name": "JFTrade-0.27.0-macos-arm64-unsigned.dmg", "sha256": "89bfbfa0e44f36fe502bfe6010989ad4bd79404dfd527992ae59b97c39853e32" },
+      { "platform": "windows-x64", "kind": "nsis", "name": "JFTrade-0.27.0-windows-x64-unsigned-setup.exe", "sha256": "8b5884c08d6e5a316bd90eab49de2bd973efa5f62ad6b987d0928baa83fae462" },
+      { "platform": "windows-arm64", "kind": "nsis", "name": "JFTrade-0.27.0-windows-arm64-unsigned-setup.exe", "sha256": "8de3197d0bd0d2d6b8ba5b22ebbcf82d4d26f762229a87b0fe9c918f480bb0e6" }
+    ]
+  },
+  "target": { "release": "v0.29.0" },
+  "components": [
+    {
+      "component": "strategy",
+      "fromVersion": 1,
+      "toVersion": 2,
+      "precondition": { "schemaVersion": 1, "sha256": null },
+      "postcondition": { "schemaVersion": 2, "sha256": null },
+      "invariants": [
+        "definition history is backfilled without changing source definitions",
+        "immutable history trigger and saved-at index exist"
+      ],
+      "backup": { "required": true, "status": "passed", "evidence": ["crates/jftrade-store-sqlite/tests/schema_migrations.rs::strategy_v1_migration_creates_definition_history_objects"] },
+      "restore": { "required": true, "status": "passed", "evidence": ["crates/jftrade-store-sqlite/tests/schema_migrations.rs::strategy_v1_migration_creates_definition_history_objects"] },
+      "rollback": { "required": true, "supported": true, "status": "passed", "evidence": ["crates/jftrade-store-sqlite/tests/schema_migrations.rs::strategy_v1_migration_creates_definition_history_objects"] },
+      "idempotency": { "required": true, "status": "passed", "evidence": ["crates/jftrade-store-sqlite/tests/schema_migrations.rs::strategy_v1_migration_creates_definition_history_objects"] },
+      "failureRecovery": { "status": "passed", "evidence": ["crates/jftrade-store-sqlite/tests/schema_migrations.rs::strategy_v1_migration_creates_definition_history_objects"] },
+      "verification": {
+        "scope": "synthetic",
+        "status": "passed",
+        "test": "crates/jftrade-store-sqlite/tests/schema_migrations.rs::strategy_v1_migration_creates_definition_history_objects",
+        "platforms": ["linux-x64"],
+        "runner": "cargo-nextest",
+        "receipt": null,
+        "receiptDigest": null,
+        "verifiedAt": null
+      }
+    },
+    {
+      "component": "adk",
+      "fromVersion": 2,
+      "toVersion": 4,
+      "precondition": { "schemaVersion": 2, "sha256": null },
+      "postcondition": { "schemaVersion": 4, "sha256": null },
+      "invariants": [
+        "run payloads survive the table rebuild",
+        "client request and session indexes are restored"
+      ],
+      "backup": { "required": true, "status": "passed", "evidence": ["crates/jftrade-store-sqlite/tests/schema_migrations.rs::adk_v2_migration_rebuilds_runs_without_losing_payload"] },
+      "restore": { "required": true, "status": "passed", "evidence": ["crates/jftrade-store-sqlite/tests/schema_migrations.rs::adk_v2_migration_rebuilds_runs_without_losing_payload"] },
+      "rollback": { "required": true, "supported": true, "status": "passed", "evidence": ["crates/jftrade-store-sqlite/tests/schema_migrations.rs::adk_v2_migration_rebuilds_runs_without_losing_payload"] },
+      "idempotency": { "required": true, "status": "passed", "evidence": ["crates/jftrade-store-sqlite/tests/schema_migrations.rs::adk_v2_migration_rebuilds_runs_without_losing_payload"] },
+      "failureRecovery": { "status": "passed", "evidence": ["crates/jftrade-store-sqlite/tests/schema_migrations.rs::adk_v2_migration_rebuilds_runs_without_losing_payload"] },
+      "verification": {
+        "scope": "synthetic",
+        "status": "passed",
+        "test": "crates/jftrade-store-sqlite/tests/schema_migrations.rs::adk_v2_migration_rebuilds_runs_without_losing_payload",
+        "platforms": ["linux-x64"],
+        "runner": "cargo-nextest",
+        "receipt": null,
+        "receiptDigest": null,
+        "verifiedAt": null
+      }
+    },
+    {
+      "component": "backtest",
+      "fromVersion": 2,
+      "toVersion": 3,
+      "precondition": { "schemaVersion": 2, "sha256": null },
+      "postcondition": { "schemaVersion": 3, "sha256": null },
+      "invariants": [
+        "legacy K-line tables rename only when the symbol hash is recoverable",
+        "candle rows remain readable under the canonical provider table name"
+      ],
+      "backup": { "required": true, "status": "passed", "evidence": ["crates/jftrade-store-sqlite/tests/schema_migrations.rs::backtest_v2_migration_preserves_legacy_symbol_data_under_go_table_name"] },
+      "restore": { "required": true, "status": "passed", "evidence": ["crates/jftrade-store-sqlite/tests/schema_migrations.rs::backtest_v2_migration_preserves_legacy_symbol_data_under_go_table_name"] },
+      "rollback": { "required": true, "supported": true, "status": "passed", "evidence": ["crates/jftrade-store-sqlite/tests/schema_migrations.rs::backtest_v2_migration_preserves_legacy_symbol_data_under_go_table_name"] },
+      "idempotency": { "required": true, "status": "passed", "evidence": ["crates/jftrade-store-sqlite/tests/schema_migrations.rs::backtest_v2_migration_preserves_legacy_symbol_data_under_go_table_name"] },
+      "failureRecovery": { "status": "passed", "evidence": ["crates/jftrade-store-sqlite/tests/schema_migrations.rs::backtest_v2_migration_preserves_legacy_symbol_data_under_go_table_name"] },
+      "verification": {
+        "scope": "synthetic",
+        "status": "passed",
+        "test": "crates/jftrade-store-sqlite/tests/schema_migrations.rs::backtest_v2_migration_preserves_legacy_symbol_data_under_go_table_name",
+        "platforms": ["linux-x64"],
+        "runner": "cargo-nextest",
+        "receipt": null,
+        "receiptDigest": null,
+        "verifiedAt": null
+      }
+    }
+  ],
+  "releaseVerification": {
+    "status": "not_verified",
+    "requiredEvidence": [
+      "published v0.27.0 package bytes installed without rebuilding the Go baseline",
+      "four-platform install, upgrade, rollback and runtime smoke",
+      "cross-process crash receipt and backup restore receipt"
+    ],
+    "platforms": [],
+    "runner": null,
+    "receipt": null,
+    "receiptDigest": null,
+    "verifiedAt": null
+  }
+}

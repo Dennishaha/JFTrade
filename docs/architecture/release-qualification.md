@@ -11,6 +11,12 @@
 
 滚动升级基线记录在 `tests/fixtures/release/upgrade-baselines.json`。`0.29.0` 使用线上原样发布的 `v0.27.0` 安装包和 checksum；禁止从历史源码重建基线。
 
+迁移路径与证据状态记录在 `tests/fixtures/release/migration-manifest.json`，结构由
+`tests/fixtures/release/migration-manifest.schema.json` 固定，并由
+`pnpm run check:migration-manifest` 校验。该检查可以确认 synthetic 迁移与旧发布基线绑定，
+不会把 `synthetic_verified_release_unverified` 误报为正式发布资格；只有每个组件都有 release
+receipt 且 `releaseVerification.status=passed` 时才能升级为 `release_qualified`。
+
 ## 操作入口与授权
 
 [Desktop Release workflow](../../.github/workflows/desktop-release.yml) 通过 `workflow_dispatch` 显式选择 `rehearsal`、`candidate` 或 `publish`，不由推送 tag 自动触发。`publish` 要求已有 tag 指向经验证的同一 SHA，并提供正式 qualification run/artifact；不能以重新构建或 unsigned artifact 替代 sealed candidate。

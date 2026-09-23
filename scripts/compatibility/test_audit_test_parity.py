@@ -526,5 +526,84 @@ class RustTestInventoryTest(unittest.TestCase):
         self.assertEqual(by_name["native_shell_test"]["domain"], "other")
 
 
+class VersionedInventoryTest(unittest.TestCase):
+    """The repository inventory is versioned and strict evidence is explicit."""
+
+    def base_document(self) -> dict:
+        return {
+            "schemaVersion": AUDIT.SCHEMA_VERSION,
+            "baseline": {
+                "sourceRef": "go",
+                "commit": "a" * 40,
+                "treeSha": "b" * 40,
+            },
+            "generatorVersion": "test",
+            "generatedAt": "2026-09-23T00:00:00Z",
+            "mappings": {
+                "internal/api/routes_test.go:1:TestCase": {
+                    "status": "[x]",
+                    "rust_entry": "crates/demo/src/lib.rs::case",
+                    "conclusion": "case",
+                    "command": "cargo test case",
+                    "evidence_type": "function_exact",
+                    "source": {
+                        "file": "internal/api/routes_test.go",
+                        "line": 1,
+                        "test": "TestCase",
+                        "blobSha": "c" * 40,
+                    },
+                    "rustEvidence": [{
+                        "file": "crates/demo/src/lib.rs",
+                        "test": "case",
+                        "crate": "demo",
+                        "anchor": {"goFile": "internal/api/routes_test.go", "goLine": 1},
+                    }],
+                    "assertionCoverage": {"covered": ["case"], "uncovered": [], "source": "reviewed"},
+                    "coveredAssertions": ["case"],
+                    "uncoveredAssertions": [],
+                    "boundaryReason": None,
+                    "verification": {
+                        "argv": ["cargo", "test", "case"],
+                        "testFilter": ["case"],
+                        "runnerVersion": "test",
+                        "toolchain": "test",
+                        "status": "passed",
+                        "exitCode": 0,
+                        "verifiedCommit": "d" * 40,
+                        "verifiedAt": "2026-09-23T00:00:00Z",
+                        "receiptDigest": "sha256:" + "e" * 64,
+                    },
+                    "risk": "normal",
+                    "owner": "api_transport",
+                    "priority": "P2",
+                    "nextAction": "none",
+                    "blockedBy": [],
+                    "waiverExpiresAt": None,
+                },
+            },
+            "reuse": {
+                "crates/demo/src/lib.rs::case": {
+                    "referenceCount": 1,
+                    "referenceKeys": ["internal/api/routes_test.go:1:TestCase"],
+                    "allowed": True,
+                    "reviewStatus": "single",
+                },
+            },
+        }
+
+    def test_versioned_document_validates(self) -> None:
+        document = self.base_document()
+        errors = AUDIT.validate_document(document)
+        self.assertEqual([], errors)
+        self.assertEqual([], AUDIT.strict_errors(document["mappings"], document["reuse"]))
+
+    def test_strict_mode_rejects_unverified_exact_rows(self) -> None:
+        document = self.base_document()
+        document["mappings"]["internal/api/routes_test.go:1:TestCase"]["verification"]["status"] = "unverified"
+        errors = AUDIT.strict_errors(document["mappings"], document["reuse"])
+        self.assertEqual(1, len(errors))
+        self.assertIn("passed verification receipt", errors[0])
+
+
 if __name__ == "__main__":
     unittest.main()

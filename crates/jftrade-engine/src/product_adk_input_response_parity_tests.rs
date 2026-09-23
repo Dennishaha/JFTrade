@@ -249,11 +249,7 @@ fn pending_input_payload(run_id: &str, request_id: &str) -> Value {
     })
 }
 
-fn seed_pending_input_run(
-    store: &AdkStore,
-    run_id: &str,
-    request_id: &str,
-) -> Value {
+fn seed_pending_input_run(store: &AdkStore, run_id: &str, request_id: &str) -> Value {
     let mut payload = pending_input_payload(run_id, request_id);
     payload["inputRequests"] = json!([payload["inputRequest"].clone()]);
     store
@@ -361,7 +357,9 @@ fn input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rej
             json!({"requestId": request_id, "answers": answers}),
         );
         match error {
-            AdkMutationPortError::Failed { status, message, .. } => {
+            AdkMutationPortError::Failed {
+                status, message, ..
+            } => {
                 assert_eq!(status, 400, "invalid answer status for {expected}");
                 assert!(
                     message.contains(expected),
@@ -620,16 +618,14 @@ fn restarted_cluster_with_provider(
             .to_string(),
         )
         .expect("persist agent");
-    let runtime = Arc::new(
-        ProductionAdkChatRuntime::with_tool_executor_for_test(
-            Arc::clone(&store),
-            Arc::clone(&fixture_port.session_store),
-            &fixture_port.settings_path,
-            Arc::new(RunCancellationRegistry::default()),
-            Arc::clone(&fixture_port.tool_catalog),
-            tool_executor,
-        ),
-    );
+    let runtime = Arc::new(ProductionAdkChatRuntime::with_tool_executor_for_test(
+        Arc::clone(&store),
+        Arc::clone(&fixture_port.session_store),
+        &fixture_port.settings_path,
+        Arc::new(RunCancellationRegistry::default()),
+        Arc::clone(&fixture_port.tool_catalog),
+        tool_executor,
+    ));
     let port = Arc::new(ProductionAdkPort {
         store: Arc::clone(&store),
         session_store: Arc::clone(&fixture_port.session_store),
@@ -739,7 +735,11 @@ fn a_restarted_runtime_resumes_a_pending_input_run() {
     let response = resume_pending_input_run(&cluster, "run-input-restart", "request-input-restart");
     assert_eq!(response["run"]["status"], "RUNNING");
     assert_eq!(
-        cluster.provider.join().expect("scripted provider thread").len(),
+        cluster
+            .provider
+            .join()
+            .expect("scripted provider thread")
+            .len(),
         1,
         "the resumed run must call the provider exactly once"
     );
@@ -761,11 +761,7 @@ fn a_restarted_runtime_resumes_a_pending_input_run() {
 #[test]
 fn a_resumed_input_run_replays_the_original_request_anchor_to_the_provider() {
     let cluster = restarted_cluster(vec![scripted_text("已完成原始请求")]);
-    seed_pending_input_run(
-        &cluster.store,
-        "run-input-anchor",
-        "request-input-anchor",
-    );
+    seed_pending_input_run(&cluster.store, "run-input-anchor", "request-input-anchor");
 
     resume_pending_input_run(&cluster, "run-input-anchor", "request-input-anchor");
     let requests = cluster.provider.join().expect("scripted provider thread");
@@ -826,7 +822,10 @@ fn sequential_questions_in_one_run_keep_both_answered_requests() {
         panic!("chat must answer with the projected JSON envelope");
     };
     assert_eq!(first["run"]["status"], "PENDING_INPUT");
-    let run_id = first["run"]["id"].as_str().expect("first run id").to_owned();
+    let run_id = first["run"]["id"]
+        .as_str()
+        .expect("first run id")
+        .to_owned();
     let first_request = first["inputRequest"]["id"]
         .as_str()
         .expect("first input request id")
@@ -853,7 +852,10 @@ fn sequential_questions_in_one_run_keep_both_answered_requests() {
                 .payload_json,
         )
         .expect("run payload");
-        let candidate = payload["inputRequest"]["id"].as_str().unwrap_or_default().to_owned();
+        let candidate = payload["inputRequest"]["id"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned();
         if !candidate.is_empty() && candidate != first_request {
             break candidate;
         }
@@ -896,7 +898,11 @@ fn sequential_questions_in_one_run_keep_both_answered_requests() {
     assert_eq!(requests[0]["answers"][0]["optionId"], "q1-o1");
     assert_eq!(requests[1]["answers"][0]["otherText"], "custom");
     assert_eq!(
-        cluster.provider.join().expect("scripted provider thread").len(),
+        cluster
+            .provider
+            .join()
+            .expect("scripted provider thread")
+            .len(),
         3,
         "the run must reach the provider for the initial turn and both resumes"
     );
@@ -974,7 +980,10 @@ fn simultaneous_input_request_calls_fail_the_run_instead_of_parking() {
         "no question is staged durably: {payload}"
     );
     assert_eq!(
-        payload["toolCalls"].as_array().map(Vec::len).unwrap_or_default(),
+        payload["toolCalls"]
+            .as_array()
+            .map(Vec::len)
+            .unwrap_or_default(),
         0,
         "neither conflicting call is staged as an executable tool call: {payload}"
     );
@@ -1096,7 +1105,9 @@ fn an_answered_input_request_can_transition_into_an_approval_wait() {
             .expect("run exists");
         let payload: Value = serde_json::from_str(&stored.payload_json).expect("run payload");
         if stored.status == "PENDING"
-            && payload["pendingApprovals"].as_array().is_some_and(|rows| rows.len() == 1)
+            && payload["pendingApprovals"]
+                .as_array()
+                .is_some_and(|rows| rows.len() == 1)
         {
             break payload;
         }
@@ -1144,7 +1155,11 @@ fn an_answered_input_request_can_transition_into_an_approval_wait() {
     // `adk_confirmation_resolved` even though it started from an answer.
     assert_eq!(payload["resumeState"], "adk_confirmation_resolved");
     assert_eq!(
-        cluster.provider.join().expect("scripted provider thread").len(),
+        cluster
+            .provider
+            .join()
+            .expect("scripted provider thread")
+            .len(),
         3,
         "the run reaches the provider for the initial turn, the resumed turn and the approved call"
     );

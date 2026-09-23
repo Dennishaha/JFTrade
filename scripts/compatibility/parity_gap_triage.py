@@ -43,6 +43,12 @@ import os
 import re
 import sys
 
+_SCRIPT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPT_DIRECTORY not in sys.path:
+    sys.path.insert(0, _SCRIPT_DIRECTORY)
+
+from parity_inventory import load_inventory, validate_document
+
 
 DEFAULT_INVENTORY = "docs/history/go-to-rust/manual-test-mappings.json"
 
@@ -281,8 +287,13 @@ def main() -> int:
     if not os.path.exists(args.inventory):
         print(f"inventory not found: {args.inventory}", file=sys.stderr)
         return 2
-    with open(args.inventory, "r", encoding="utf-8") as handle:
-        inventory = json.load(handle)
+    inventory, document = load_inventory(args.inventory)
+    metadata_errors = validate_document(document, require_v2=True)
+    if metadata_errors:
+        print("invalid parity inventory metadata:", file=sys.stderr)
+        for error in metadata_errors:
+            print(f"- {error}", file=sys.stderr)
+        return 2
 
     index = rust_test_index()
     if args.self_check:

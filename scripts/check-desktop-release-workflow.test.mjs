@@ -24,6 +24,8 @@ test("desktop workflow separates rehearsal, candidate, and manual publish operat
   assert.doesNotMatch(workflow, /push:\s*\n\s*tags:/);
   assert.match(workflow, /Verify release source admission/);
   assert.match(workflow, /check-release-source-admission\.mjs/);
+  assert.match(workflow, /Verify migration manifest binding/);
+  assert.match(workflow, /check-migration-manifest\.mjs/);
   assert.match(workflow, /check-release-candidate\.mjs/);
   assert.match(workflow, /candidate_evidence_config/);
   assert.match(workflow, /run_path/);

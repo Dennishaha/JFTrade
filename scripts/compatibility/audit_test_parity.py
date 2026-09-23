@@ -10,12 +10,35 @@ import re
 import glob
 import json
 import sys
+import argparse
+import tempfile
+
+_SCRIPT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPT_DIRECTORY not in sys.path:
+    sys.path.insert(0, _SCRIPT_DIRECTORY)
+
+from parity_inventory import SCHEMA_VERSION, load_inventory, strict_errors, validate_document
 
 
 def branch_revision(branch: str) -> str:
     """Return a stable short revision for report provenance."""
     result = subprocess.run(
         ["git", "rev-parse", "--short", branch], capture_output=True, text=True
+    )
+    return result.stdout.strip() if result.returncode == 0 else "unknown"
+
+
+def branch_tree(branch: str) -> str:
+    """Return the immutable tree SHA used to pin the parity source."""
+    result = subprocess.run(
+        ["git", "rev-parse", f"{branch}^{{tree}}"], capture_output=True, text=True
+    )
+    return result.stdout.strip() if result.returncode == 0 else "unknown"
+
+
+def branch_full_revision(branch: str) -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", branch], capture_output=True, text=True
     )
     return result.stdout.strip() if result.returncode == 0 else "unknown"
 
@@ -557,7 +580,19 @@ def extract_rust_tests():
             })
     return tests
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--write-report",
+        action="store_true",
+        help="write the generated report and inventory into docs/history/go-to-rust",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="fail when function_exact rows lack reviewed assertions and receipts",
+    )
+    args = parser.parse_args(argv)
     print("Extracting Go tests from branch 'go'...")
     go_tests = extract_go_tests()
     print(f"Total Go tests: {len(go_tests)}")
@@ -623,8 +658,17 @@ def main():
     print(f"{'TOTAL':<40} | {total_go:<10} | {total_go_hr:<12} | {total_rust:<10} | {total_ratio:<8}")
     print("="*90)
 
+    # Generate reports in a disposable directory by default. A historical audit
+    # must not mutate tracked files merely because a gate was inspected.
+    report_root = tempfile.TemporaryDirectory(prefix="jftrade-parity-audit-")
+    if args.write_report:
+        report_path = "docs/history/go-to-rust/test-parity-report.md"
+        inventory_path = "docs/history/go-to-rust/test-parity-inventory.md"
+    else:
+        report_path = os.path.join(report_root.name, "test-parity-report.md")
+        inventory_path = os.path.join(report_root.name, "test-parity-inventory.md")
+
     # Write detailed markdown report
-    report_path = "docs/history/go-to-rust/test-parity-report.md"
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
     with open(report_path, "w", encoding="utf-8") as fp:
         fp.write("# Go 与 Rust 测试用例全景对齐审计报告\n\n")
@@ -657,12 +701,26 @@ def main():
     # Keep a machine-generated, one-row-per-test inventory separate from the
     # curated high-value checklist. This makes the full Go baseline auditable
     # without pretending that filename-level matching proves behavior parity.
-    inventory_path = "docs/history/go-to-rust/test-parity-inventory.md"
     manual_path = "docs/history/go-to-rust/manual-test-mappings.json"
     manual_details = {}
+    manual_document = {"reuse": {}}
     if os.path.exists(manual_path):
-        import json
-        manual_details = json.load(open(manual_path, encoding="utf-8"))
+        manual_details, manual_document = load_inventory(manual_path)
+        metadata_errors = validate_document(manual_document)
+        if metadata_errors:
+            raise ValueError(
+                "invalid parity inventory metadata:\n"
+                + "\n".join(f"- {error}" for error in metadata_errors)
+            )
+        baseline = manual_document["baseline"]
+        current_commit = branch_full_revision(baseline["sourceRef"])
+        current_tree = branch_tree(baseline["sourceRef"])
+        if baseline["commit"] != current_commit or baseline["treeSha"] != current_tree:
+            raise ValueError(
+                "parity baseline drifted: "
+                f"recorded {baseline['commit']} / {baseline['treeSha']}, "
+                f"current {current_commit} / {current_tree}"
+            )
 
     mapping_values = list(manual_details.values())
     partial_count = sum(item.get("status") == "[~]" for item in mapping_values)
@@ -830,5 +888,20 @@ def main():
     print(f"\nReport written to {report_path}")
     print(f"Inventory written to {inventory_path}")
 
+    if args.strict:
+        errors = strict_errors(manual_details, manual_document["reuse"])
+        if errors:
+            print(
+                f"STRICT: {len(errors)} function_exact evidence gaps remain; "
+                "reviewed assertions, anchors, reuse relations and passed receipts are required"
+            )
+            for error in errors[:20]:
+                print(f"  - {error}")
+            if len(errors) > 20:
+                print(f"  ... {len(errors) - 20} more")
+            return 1
+        print("STRICT: all function_exact rows have reviewed assertions and receipts")
+    return 0
+
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

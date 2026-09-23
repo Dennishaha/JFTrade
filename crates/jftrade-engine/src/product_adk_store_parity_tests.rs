@@ -271,8 +271,7 @@ fn adk_optimization_task_page_orders_by_latest_update() {
             .update_optimization_task_if_revision(
                 "opt-older",
                 &older.updated_at,
-                &json!({"id": "opt-older", "objective": "older", "status": "RUNNING"})
-                    .to_string(),
+                &json!({"id": "opt-older", "objective": "older", "status": "RUNNING"}).to_string(),
             )
             .expect("refresh older task")
     );
@@ -337,7 +336,10 @@ fn adk_composer_state_truncates_trim_and_rejects_invalid_modes() {
         match error {
             AdkMutationPortError::Failed { status, code, .. } => {
                 assert_eq!(status, 400, "{key} status");
-                assert_eq!(code, "ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED", "{key} code");
+                assert_eq!(
+                    code, "ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED",
+                    "{key} code"
+                );
             }
             other => panic!("expected a failed composer write for {key}, got {other:?}"),
         }
@@ -369,10 +371,7 @@ fn adk_session_delete_missing_is_reported_with_the_session_error_code() {
     let error = port
         .mutate(&AdkMutationInput {
             operation: AdkMutationOperation::DeleteSession,
-            identifiers: BTreeMap::from([(
-                "sessionId".to_owned(),
-                "session-missing".to_owned(),
-            )]),
+            identifiers: BTreeMap::from([("sessionId".to_owned(), "session-missing".to_owned())]),
             body: Value::Null,
             webhook_secret: None,
         })
@@ -493,9 +492,15 @@ fn adk_builtin_strategy_skills_publish_the_curated_tool_split() {
             "research skill must publish {tool}: {research_tools:?}"
         );
     }
-    for forbidden in ["strategy.save_draft", "strategy.save_definition", "strategy.optimize"] {
+    for forbidden in [
+        "strategy.save_draft",
+        "strategy.save_definition",
+        "strategy.optimize",
+    ] {
         assert!(
-            !research_tools.iter().any(|candidate| candidate == forbidden),
+            !research_tools
+                .iter()
+                .any(|candidate| candidate == forbidden),
             "research skill must not publish {forbidden}: {research_tools:?}"
         );
     }
@@ -606,7 +611,10 @@ fn goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields() {
 
     // A stale snapshot written against the pre-pause revision cannot clear the
     // pending pause request.
-    let current = store.get_run("run-goal-guard").expect("read run").expect("run");
+    let current = store
+        .get_run("run-goal-guard")
+        .expect("read run")
+        .expect("run");
     let stale_payload = json!({
         "id": "run-goal-guard",
         "sessionId": "session-pause-guard",
@@ -629,9 +637,14 @@ fn goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields() {
             )
             .expect("stale pause guard")
     );
-    let guarded: Value =
-        serde_json::from_str(&store.get_run("run-goal-guard").unwrap().unwrap().payload_json)
-            .expect("guarded payload");
+    let guarded: Value = serde_json::from_str(
+        &store
+            .get_run("run-goal-guard")
+            .unwrap()
+            .unwrap()
+            .payload_json,
+    )
+    .expect("guarded payload");
     assert_eq!(guarded["resumeState"], "user_pause_requested");
     assert_eq!(
         guarded["pauseRequestedAt"], paused["pauseRequestedAt"],
@@ -797,10 +810,7 @@ fn workflow_management_catalog_keeps_the_skill_and_approval_boundaries() {
     assert_eq!(skill["builtin"], true);
     assert_eq!(skill["source"], "builtin");
     let tools = skill["tools"].as_array().expect("skill tools array");
-    let names = tools
-        .iter()
-        .filter_map(Value::as_str)
-        .collect::<Vec<_>>();
+    let names = tools.iter().filter_map(Value::as_str).collect::<Vec<_>>();
     assert!(
         names.contains(&"workflow.wait"),
         "the skill publishes the workflow-category tool: {skill}"
@@ -895,7 +905,9 @@ fn workflow_updates_keep_omitted_fields_and_apply_explicit_clears() {
     let workflow_id = created["id"].as_str().expect("workflow id").to_owned();
     assert_eq!(created["description"], "old");
     assert!(
-        created.get("canvasGraph").is_some_and(|graph| !graph.is_null()),
+        created
+            .get("canvasGraph")
+            .is_some_and(|graph| !graph.is_null()),
         "the created workflow keeps its canvas graph: {created}"
     );
 
@@ -919,12 +931,13 @@ fn workflow_updates_keep_omitted_fields_and_apply_explicit_clears() {
         "omitted default inputs are preserved"
     );
     assert_eq!(updated["agentId"], agent_id);
-    assert_eq!(updated["description"], "", "the empty description clears it");
+    assert_eq!(
+        updated["description"], "",
+        "the empty description clears it"
+    );
     assert_eq!(updated["tags"], json!([]), "the empty tag list clears tags");
     assert!(
-        updated
-            .get("canvasGraph")
-            .is_none_or(Value::is_null),
+        updated.get("canvasGraph").is_none_or(Value::is_null),
         "the null canvas graph clears the stored graph: {updated}"
     );
 
@@ -956,7 +969,9 @@ fn workflow_updates_keep_omitted_fields_and_apply_explicit_clears() {
         .expect("trigger id")
         .to_owned();
     assert!(
-        trigger["secret"].as_str().is_some_and(|secret| !secret.is_empty()),
+        trigger["secret"]
+            .as_str()
+            .is_some_and(|secret| !secret.is_empty()),
         "creating a webhook trigger returns its one-time secret: {trigger}"
     );
     assert_eq!(trigger["trigger"]["hasSecret"], true);
@@ -1172,8 +1187,7 @@ fn workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocatio
     assert_eq!(logs.len(), 1, "the rejected run is still audited: {logs:?}");
     assert_eq!(logs[0].status, "FAILED");
     assert_eq!(logs[0].workflow_id, workflow_id);
-    let payload: Value =
-        serde_json::from_str(&logs[0].payload_json).expect("trigger log payload");
+    let payload: Value = serde_json::from_str(&logs[0].payload_json).expect("trigger log payload");
     assert_eq!(payload["errorCode"], "ADK_WORKFLOW_RUNTIME_UNAVAILABLE");
     assert_eq!(
         payload["error"], "assistant model runtime is unavailable",
@@ -1238,7 +1252,11 @@ fn workflow_bridge_pages_lists_and_rejects_unknown_run_targets() {
     assert_eq!(page["page"]["limit"], 5, "{page}");
     assert_eq!(page["page"]["offset"], 0, "{page}");
     assert_eq!(page["page"]["total"], 1, "{page}");
-    assert_eq!(page["workflows"].as_array().map(Vec::len), Some(1), "{page}");
+    assert_eq!(
+        page["workflows"].as_array().map(Vec::len),
+        Some(1),
+        "{page}"
+    );
     assert_eq!(page["workflows"][0]["id"], workflow_id, "{page}");
 
     // Go's `GetWorkflow` reads one definition by id.
@@ -1258,7 +1276,11 @@ fn workflow_bridge_pages_lists_and_rejects_unknown_run_targets() {
             r#"{"id":"bridge-run","status":"SUCCEEDED","runId":"run-bridge"}"#,
         )
         .expect("create trigger log");
-    let runs = read_json(&port, "/api/v1/adk/workflow-trigger-logs", "limit=10&offset=0");
+    let runs = read_json(
+        &port,
+        "/api/v1/adk/workflow-trigger-logs",
+        "limit=10&offset=0",
+    );
     assert_eq!(runs["page"]["limit"], 10, "{runs}");
     assert_eq!(runs["page"]["offset"], 0, "{runs}");
     assert_eq!(runs["page"]["total"], 1, "{runs}");
@@ -1284,10 +1306,7 @@ fn workflow_bridge_pages_lists_and_rejects_unknown_run_targets() {
         let error = port
             .mutate(&AdkMutationInput {
                 operation,
-                identifiers: BTreeMap::from([(
-                    identifier.0.to_owned(),
-                    identifier.1.to_owned(),
-                )]),
+                identifiers: BTreeMap::from([(identifier.0.to_owned(), identifier.1.to_owned())]),
                 body: json!({"inputs": {"symbol": "US.AAPL"}}),
                 webhook_secret: None,
             })

@@ -262,6 +262,9 @@ jobs:
         if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         run: pnpm run check:zero-go
 
+      - name: Verify migration manifest binding
+        run: node scripts/release/check-migration-manifest.mjs
+
       - name: Verify release source admission
         if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         run: |

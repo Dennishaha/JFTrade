@@ -63,7 +63,9 @@ impl AdkPortfolioFixtureRead {
     fn with_orders(mut self, acc_id: u64, count: u64) -> Self {
         self.orders.insert(
             acc_id,
-            (1..=count).map(|id| adk_fixture_order(acc_id, id)).collect(),
+            (1..=count)
+                .map(|id| adk_fixture_order(acc_id, id))
+                .collect(),
         );
         self
     }
@@ -106,8 +108,10 @@ impl jftrade_integration_futu::TradeReadPort for AdkPortfolioFixtureRead {
         _: u64,
         _: Option<i32>,
         _: Option<bool>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeAccountSnapshot>, jftrade_integration_futu::TradeSessionError>
-    {
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeAccountSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         self.record("read_accounts".to_owned());
         match &self.accounts_error {
             Some(message) => Err(jftrade_integration_futu::TradeSessionError::Unsupported(
@@ -123,8 +127,10 @@ impl jftrade_integration_futu::TradeReadPort for AdkPortfolioFixtureRead {
         _: Option<bool>,
         _: Option<i32>,
         _: Option<i32>,
-    ) -> Result<jftrade_integration_futu::TradeFundsSnapshot, jftrade_integration_futu::TradeSessionError>
-    {
+    ) -> Result<
+        jftrade_integration_futu::TradeFundsSnapshot,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         self.record(format!("read_funds:{}", header.acc_id));
         if self.fail_funds.contains(&header.acc_id) {
             return Err(Self::fail("funds"));
@@ -142,8 +148,10 @@ impl jftrade_integration_futu::TradeReadPort for AdkPortfolioFixtureRead {
         _: jftrade_integration_futu::TradeHeader,
         _: String,
         _: Option<i32>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeCashFlowSnapshot>, jftrade_integration_futu::TradeSessionError>
-    {
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeCashFlowSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         Err(Self::fail("cash flows"))
     }
 
@@ -151,8 +159,10 @@ impl jftrade_integration_futu::TradeReadPort for AdkPortfolioFixtureRead {
         &self,
         _: jftrade_integration_futu::TradeHeader,
         _: Vec<String>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeOrderFeeSnapshot>, jftrade_integration_futu::TradeSessionError>
-    {
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeOrderFeeSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         Err(Self::fail("order fees"))
     }
 
@@ -160,16 +170,20 @@ impl jftrade_integration_futu::TradeReadPort for AdkPortfolioFixtureRead {
         &self,
         _: jftrade_integration_futu::TradeHeader,
         _: Vec<jftrade_integration_futu::TradeSecurity>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeMarginRatioSnapshot>, jftrade_integration_futu::TradeSessionError>
-    {
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeMarginRatioSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         Err(Self::fail("margin ratios"))
     }
 
     fn read_max_trade_quantity(
         &self,
         _: jftrade_integration_futu::TradeMaxTradeQuantityRequest,
-    ) -> Result<jftrade_integration_futu::TradeMaxTradeQuantitySnapshot, jftrade_integration_futu::TradeSessionError>
-    {
+    ) -> Result<
+        jftrade_integration_futu::TradeMaxTradeQuantitySnapshot,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         Err(Self::fail("max trade quantity"))
     }
 
@@ -183,8 +197,10 @@ impl jftrade_integration_futu::TradeReadPort for AdkPortfolioFixtureRead {
         _: Option<i32>,
         _: Option<i32>,
         _: Option<bool>,
-    ) -> Result<Vec<jftrade_integration_futu::TradePositionSnapshot>, jftrade_integration_futu::TradeSessionError>
-    {
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradePositionSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         self.record(format!("read_positions:{}", header.acc_id));
         if self.fail_positions.contains(&header.acc_id) {
             return Err(Self::fail("positions"));
@@ -202,8 +218,10 @@ impl jftrade_integration_futu::TradeReadPort for AdkPortfolioFixtureRead {
         _: Option<jftrade_integration_futu::TradeFilter>,
         _: Vec<i32>,
         _: Option<bool>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeOrderSnapshot>, jftrade_integration_futu::TradeSessionError>
-    {
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeOrderSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         self.record(format!("read_orders:{}", header.acc_id));
         if self.fail_orders.contains(&header.acc_id) {
             return Err(Self::fail("orders"));
@@ -216,8 +234,10 @@ impl jftrade_integration_futu::TradeReadPort for AdkPortfolioFixtureRead {
         _: jftrade_integration_futu::TradeHeader,
         _: Option<jftrade_integration_futu::TradeFilter>,
         _: Option<bool>,
-    ) -> Result<Vec<jftrade_integration_futu::TradeFillSnapshot>, jftrade_integration_futu::TradeSessionError>
-    {
+    ) -> Result<
+        Vec<jftrade_integration_futu::TradeFillSnapshot>,
+        jftrade_integration_futu::TradeSessionError,
+    > {
         Err(Self::fail("fills"))
     }
 }
@@ -358,10 +378,7 @@ fn adk_fixture_position(
     }
 }
 
-fn adk_fixture_order(
-    _acc_id: u64,
-    order_id: u64,
-) -> jftrade_integration_futu::TradeOrderSnapshot {
+fn adk_fixture_order(_acc_id: u64, order_id: u64) -> jftrade_integration_futu::TradeOrderSnapshot {
     jftrade_integration_futu::TradeOrderSnapshot {
         trd_side: 1,
         order_type: 1,
@@ -416,7 +433,10 @@ impl crate::product::ExecutionReadSnapshotPort for AdkPortfolioFixtureOrders {
         query: &str,
     ) -> Result<Value, crate::product::ExecutionReadSnapshotError> {
         assert_eq!(path, "/api/v1/execution/orders");
-        self.queries.lock().expect("order queries").push(query.to_owned());
+        self.queries
+            .lock()
+            .expect("order queries")
+            .push(query.to_owned());
         Ok(json!({
             "orders": [{
                 "internalOrderId": "order-1",
@@ -450,9 +470,8 @@ fn portfolio_fixture_ports(
     let active = Arc::new(crate::product::ActiveProviderState::new(Some(
         jftrade_settings::MarketDataProvider::Futu,
     )));
-    let runtime = Arc::new(
-        crate::product::product_production_ports::SharedTradeReadRuntime::default(),
-    );
+    let runtime =
+        Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
     let mut config = crate::product::ProductConfig::new(
         "127.0.0.1:0".parse().expect("bind address"),
         &settings_path,
@@ -507,10 +526,7 @@ async fn portfolio_layered_tools_keep_discovery_overview_and_positions_separate(
     let executor = portfolio_fixture_executor(&ports);
 
     let accounts = executor
-        .execute(
-            "portfolio.accounts",
-            &json!({"tradingEnvironment": "REAL"}),
-        )
+        .execute("portfolio.accounts", &json!({"tradingEnvironment": "REAL"}))
         .expect("portfolio.accounts");
     assert_eq!(accounts["discoveredAccounts"].as_array().unwrap().len(), 1);
     assert_eq!(accounts["selection"]["selectedAccountIds"][0], "8240");
@@ -518,10 +534,7 @@ async fn portfolio_layered_tools_keep_discovery_overview_and_positions_separate(
     assert_eq!(reader.recorded(), ["read_accounts"]);
 
     let overview = executor
-        .execute(
-            "portfolio.overview",
-            &json!({"tradingEnvironment": "REAL"}),
-        )
+        .execute("portfolio.overview", &json!({"tradingEnvironment": "REAL"}))
         .expect("portfolio.overview");
     let overviews = overview["accountOverviews"].as_array().unwrap();
     assert_eq!(overviews.len(), 1);
@@ -593,7 +606,8 @@ async fn portfolio_layered_tools_report_discovery_failure_and_partial_read_state
     }
 
     let failing_reads = Arc::new(
-        AdkPortfolioFixtureRead::new(vec![adk_fixture_account(8240, 1, vec![2])]).failing_reads(8240),
+        AdkPortfolioFixtureRead::new(vec![adk_fixture_account(8240, 1, vec![2])])
+            .failing_reads(8240),
     );
     let (_directory, ports) = portfolio_fixture_ports(
         Arc::clone(&failing_reads) as Arc<dyn jftrade_integration_futu::TradeReadPort>,
@@ -602,10 +616,7 @@ async fn portfolio_layered_tools_report_discovery_failure_and_partial_read_state
     let executor = portfolio_fixture_executor(&ports);
 
     let overview = executor
-        .execute(
-            "portfolio.overview",
-            &json!({"tradingEnvironment": "REAL"}),
-        )
+        .execute("portfolio.overview", &json!({"tradingEnvironment": "REAL"}))
         .expect("portfolio.overview with failing reads");
     let item = &overview["accountOverviews"][0];
     assert_eq!(overview["partial"], true);
@@ -630,11 +641,14 @@ async fn portfolio_layered_tools_report_discovery_failure_and_partial_read_state
         )
         .expect("portfolio.positions with failing reads");
     assert_eq!(positions["partial"], true);
-    assert_eq!(positions["accountPositions"][0]["errors"].as_array().unwrap().len(), 1);
     assert_eq!(
-        positions["accountPositions"][0]["positions"],
-        json!([])
+        positions["accountPositions"][0]["errors"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
     );
+    assert_eq!(positions["accountPositions"][0]["positions"], json!([]));
     assert_eq!(positions["warnings"].as_array().unwrap().len(), 1);
 }
 
@@ -726,16 +740,10 @@ async fn portfolio_account_resolution_matches_the_go_exact_suffix_and_isolation_
     }
 
     let unfiltered = executor
-        .execute(
-            "portfolio.accounts",
-            &json!({"tradingEnvironment": "REAL"}),
-        )
+        .execute("portfolio.accounts", &json!({"tradingEnvironment": "REAL"}))
         .expect("portfolio.accounts all matching");
     assert_eq!(unfiltered["selection"]["status"], "resolved");
-    assert_eq!(
-        unfiltered["selection"]["mode"],
-        "all_matching_accounts"
-    );
+    assert_eq!(unfiltered["selection"]["mode"], "all_matching_accounts");
     assert_eq!(
         unfiltered["selection"]["selectedAccountIds"]
             .as_array()
@@ -877,10 +885,7 @@ async fn portfolio_overview_reports_partial_reads_without_classifying_empty_fund
         );
         let executor = portfolio_fixture_executor(&ports);
         executor
-            .execute(
-                "portfolio.overview",
-                &json!({"tradingEnvironment": "REAL"}),
-            )
+            .execute("portfolio.overview", &json!({"tradingEnvironment": "REAL"}))
             .expect("portfolio.overview")
     }
 
@@ -891,15 +896,13 @@ async fn portfolio_overview_reports_partial_reads_without_classifying_empty_fund
 
     let currency_balance = overview_for(adk_fixture_currency_balance_funds(10.0)).await;
     assert_eq!(
-        currency_balance["accountOverviews"][0]["hasAssetsOrPositions"],
-        true,
+        currency_balance["accountOverviews"][0]["hasAssetsOrPositions"], true,
         "a currency balance is an asset"
     );
 
     let market_asset = overview_for(adk_fixture_market_asset_funds(20.0)).await;
     assert_eq!(
-        market_asset["accountOverviews"][0]["hasAssetsOrPositions"],
-        true,
+        market_asset["accountOverviews"][0]["hasAssetsOrPositions"], true,
         "a market asset is an asset"
     );
 
@@ -914,10 +917,7 @@ async fn portfolio_overview_reports_partial_reads_without_classifying_empty_fund
     );
     let executor = portfolio_fixture_executor(&ports);
     let payload = executor
-        .execute(
-            "portfolio.overview",
-            &json!({"tradingEnvironment": "REAL"}),
-        )
+        .execute("portfolio.overview", &json!({"tradingEnvironment": "REAL"}))
         .expect("portfolio.overview with an incomplete funds response");
     let item = &payload["accountOverviews"][0];
     assert_eq!(payload["partial"], true);
