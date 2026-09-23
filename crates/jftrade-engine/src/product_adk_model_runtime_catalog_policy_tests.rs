@@ -451,6 +451,7 @@ fn gated_call_persists_the_go_approval_projection() {
 /// `live_trading` descriptor stays selectable in every permission mode and
 /// still requires approval even in `all`.  The runtime must therefore park such
 /// a call instead of executing it or rejecting it as unavailable.
+/// Parity: go:452dea11:internal/assistant/engine/tools_test.go:700 TestLiveTradingToolsAreAvailableInAllModesWithApproval
 #[test]
 fn live_trading_call_is_gated_in_every_mode() {
     let catalog =

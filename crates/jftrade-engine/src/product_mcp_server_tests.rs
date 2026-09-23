@@ -3518,6 +3518,7 @@ fn local_executor() -> ProductionMcpToolExecutor {
 /// is a `read_internal`/low-risk tool that waits for the requested duration and
 /// reports why.  The catalog must project it as automatically executable so
 /// the ADK loop runs it instead of asking the operator.
+/// Parity: go:452dea11:internal/assistant/engine/tools_test.go:163 TestWorkflowWaitToolWaitsAndDoesNotRequireApproval
 #[test]
 fn workflow_wait_tool_waits_and_does_not_require_approval() {
     // The ADK catalog is the one that exposes `workflow.wait`; the extension
@@ -3568,6 +3569,7 @@ fn workflow_wait_tool_waits_and_does_not_require_approval() {
 
 /// Go's `TestWorkflowWaitToolRejectsTooLongDuration`: anything above the 25s
 /// cap is rejected with the reference error text.
+/// Parity: go:452dea11:internal/assistant/engine/tools_test.go:195 TestWorkflowWaitToolRejectsTooLongDuration
 #[test]
 fn workflow_wait_tool_rejects_too_long_duration() {
     let executor = local_executor();
@@ -3583,6 +3585,7 @@ fn workflow_wait_tool_rejects_too_long_duration() {
 }
 
 /// Go's `TestWorkflowWaitDurationParsesMultipleInputForms`.
+/// Parity: go:452dea11:internal/assistant/engine/tools_test.go:219 TestWorkflowWaitDurationParsesMultipleInputForms
 #[test]
 fn workflow_wait_duration_parses_multiple_input_forms() {
     let duration = |value: serde_json::Value| {
@@ -3604,9 +3607,11 @@ fn workflow_wait_duration_parses_multiple_input_forms() {
         duration(serde_json::json!({"seconds": "0.25"})).expect("string seconds"),
         Duration::from_millis(250)
     );
+    let blank = duration(serde_json::json!({"seconds": "   "})).expect_err("blank is rejected");
     assert!(
-        duration(serde_json::json!({"seconds": "   "})).is_err(),
-        "a blank string carries no duration"
+        blank.message.contains("greater than 0"),
+        "unexpected error for blank seconds: {}",
+        blank.message
     );
     assert_eq!(
         duration(serde_json::json!({"seconds": 25})).expect("25s is the boundary"),
@@ -3635,6 +3640,7 @@ fn workflow_wait_duration_parses_multiple_input_forms() {
 
 /// Go's `TestWorkflowWaitToolReturnsContextCancellation`: a cancelled context
 /// aborts the wait immediately and surfaces the cancellation to the caller.
+/// Parity: go:452dea11:internal/assistant/engine/tools_test.go:206 TestWorkflowWaitToolReturnsContextCancellation
 #[test]
 fn workflow_wait_tool_returns_context_cancellation() {
     let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -3661,6 +3667,7 @@ fn workflow_wait_tool_returns_context_cancellation() {
 }
 
 /// Go's `TestHTTPFetchToolRejectsInvalidAndUnsafeTargets`.
+/// Parity: go:452dea11:internal/assistant/engine/tools_test.go:275 TestHTTPFetchToolRejectsInvalidAndUnsafeTargets
 #[test]
 fn http_fetch_tool_rejects_invalid_and_unsafe_targets() {
     use crate::product::product_mcp_production_executor::http_fetch;
@@ -3707,6 +3714,7 @@ fn http_fetch_tool_rejects_invalid_and_unsafe_targets() {
 }
 
 /// Go's `TestRejectUnsafeHostAndUnsafeAddrClassification`.
+/// Parity: go:452dea11:internal/assistant/engine/tools_test.go:315 TestRejectUnsafeHostAndUnsafeAddrClassification
 #[test]
 fn reject_unsafe_host_and_unsafe_addr_classification() {
     use crate::product::product_mcp_production_executor::{reject_unsafe_host, unsafe_address};
@@ -3765,6 +3773,7 @@ fn reject_unsafe_host_blocks_the_reference_host_table() {
 /// envelope carries status, body, byte accounting and truncation.  The
 /// responses are served by a loopback server, so the URL itself uses the
 /// public-address bypass the reference exposes for tests.
+/// Parity: go:452dea11:internal/assistant/engine/tools_test.go:342 TestHTTPFetchToolHandlesResponsesWithoutRealNetwork
 #[test]
 fn http_fetch_tool_handles_responses_without_real_network() {
     // A loopback server is exactly what the SSRF guard blocks, so the guard is

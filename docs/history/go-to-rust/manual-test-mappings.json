@@ -6,8 +6,8 @@
     "commit": "452dea115ca75c51361e8876c2aefd7c009839b8",
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
-  "generatorVersion": "upgrade_parity_inventory.py@1",
-  "generatedAt": "2026-09-23T15:12:02Z",
+  "generatorVersion": "v2_writer.py@slice23",
+  "generatedAt": "2026-09-23T16:44:44Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -101631,11 +101631,11 @@
       "boundaryReason": null
     },
     "internal/assistant/engine/tools_test.go:61:TestModelsListToolRegisteredWithSafeSchema": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_mcp_protocol_tests.rs::models_list_schema_is_safe_and_complete",
-      "conclusion": "function_exact（结论收紧，分支无变化）：models.list 的审查 schema 含 query/providerId/callableOnly/limit，additionalProperties 为 false，schema 文本不泄露 key 材料，注册存在由 schema 可解析隐含。范围说明：Go 的 Permission 为 read_internal、RiskLevel 为 low、免审批三分支在 Rust 无同形断言，Rust 以模型暴露 allowlist 表达可见性，无逐工具权限元数据。",
+      "conclusion": "partial（本批纠正过宽）：Go 断言 models.list 已注册、Permission 为 read_internal 且 RiskLevel 为 low、approval 模式免审批、schema 含 query/providerId/callableOnly/limit 且文本不泄露 key 材料。Rust 的 models_list_schema_is_safe_and_complete 只覆盖 schema 字段面、additionalProperties 为 false 与无 key 泄露（注册存在由 schema 可解析隐含）；Permission 与 RiskLevel 元数据分支、approval 模式免审批分支在 Rust 无同形断言（Rust 以模型暴露 allowlist 表达可见性，无逐工具权限元数据）。回归要求：若引入逐工具权限元数据，补 Permission、RiskLevel、免审批三分支断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/tools_test.go",
         "line": 61,
@@ -101656,10 +101656,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact（结论收紧，分支无变化）：models.list 的审查 schema 含 query/providerId/callableOnly/limit，additionalProperties 为 false，schema 文本不泄露 key 材料，注册存在由 schema 可解析隐含。范围说明：Go 的 Permission 为 read_internal、RiskLevel 为 low、免审批三分支在 Rust 无同形断言，Rust 以模型暴露 allowlist 表达可见性，无逐工具权限元数据。"
+        "covered": [],
+        "uncovered": [
+          "partial（本批纠正过宽）：Go 断言 models.list 已注册、Permission 为 read_internal 且 RiskLevel 为 low、approval 模式免审批、schema 含 query/providerId/callableOnly/limit 且文本不泄露 key 材料。Rust 的 models_list_schema_is_safe_and_complete 只覆盖 schema 字段面、additionalProperties 为 false 与无 key 泄露（注册存在由 schema 可解析隐含）；Permission 与 RiskLevel 元数据分支、approval 模式免审批分支在 Rust 无同形断言（Rust 以模型暴露 allowlist 表达可见性，无逐工具权限元数据）。回归要求：若引入逐工具权限元数据，补 Permission、RiskLevel、免审批三分支断言后再升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -101686,15 +101686,15 @@
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact（结论收紧，分支无变化）：models.list 的审查 schema 含 query/providerId/callableOnly/limit，additionalProperties 为 false，schema 文本不泄露 key 材料，注册存在由 schema 可解析隐含。范围说明：Go 的 Permission 为 read_internal、RiskLevel 为 low、免审批三分支在 Rust 无同形断言，Rust 以模型暴露 allowlist 表达可见性，无逐工具权限元数据。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（本批纠正过宽）：Go 断言 models.list 已注册、Permission 为 read_internal 且 RiskLevel 为 low、approval 模式免审批、schema 含 query/providerId/callableOnly/limit 且文本不泄露 key 材料。Rust 的 models_list_schema_is_safe_and_complete 只覆盖 schema 字段面、additionalProperties 为 false 与无 key 泄露（注册存在由 schema 可解析隐含）；Permission 与 RiskLevel 元数据分支、approval 模式免审批分支在 Rust 无同形断言（Rust 以模型暴露 allowlist 表达可见性，无逐工具权限元数据）。回归要求：若引入逐工具权限元数据，补 Permission、RiskLevel、免审批三分支断言后再升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/engine/tools_test.go:87:TestTaskWriteToolsMarkedLowRiskCanSkipApproval": {
@@ -102161,7 +102161,7 @@
     "internal/assistant/engine/tools_test.go:219:TestWorkflowWaitDurationParsesMultipleInputForms": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::workflow_wait_duration_parses_multiple_input_forms",
-      "conclusion": "function_exact：durationMs 优先于 seconds；seconds 接受 int/float/数字字符串（1.5→1500ms、2→2s、字符串 0.25→250ms）；25s 为边界；空串/不可解析/0/25001ms 均以 greater than 0 或 25s 拒绝。",
+      "conclusion": "function_exact：durationMs 优先于 seconds；seconds 接受 int/float/数字字符串（1.5→1500ms、2→2s、字符串 0.25→250ms）；25s 为边界；空串/不可解析/0/25001ms 均以 greater than 0 或 25s 拒绝。本批把空串分支由仅判错补为 greater than 0 文本断言，并补 tools:219 机器锚点。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -102175,12 +102175,17 @@
           "file": "crates/jftrade-engine/src/product_mcp_server_tests.rs",
           "test": "workflow_wait_duration_parses_multiple_input_forms",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/assistant/engine/tools_test.go",
+            "goLine": 219,
+            "rustFile": "crates/jftrade-engine/src/product_mcp_server_tests.rs",
+            "rustLine": 3588
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：durationMs 优先于 seconds；seconds 接受 int/float/数字字符串（1.5→1500ms、2→2s、字符串 0.25→250ms）；25s 为边界；空串/不可解析/0/25001ms 均以 greater than 0 或 25s 拒绝。"
+          "function_exact：durationMs 优先于 seconds；seconds 接受 int/float/数字字符串（1.5→1500ms、2→2s、字符串 0.25→250ms）；25s 为边界；空串/不可解析/0/25001ms 均以 greater than 0 或 25s 拒绝。本批把空串分支由仅判错补为 greater than 0 文本断言，并补 tools:219 机器锚点。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -102215,7 +102220,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：durationMs 优先于 seconds；seconds 接受 int/float/数字字符串（1.5→1500ms、2→2s、字符串 0.25→250ms）；25s 为边界；空串/不可解析/0/25001ms 均以 greater than 0 或 25s 拒绝。"
+        "function_exact：durationMs 优先于 seconds；seconds 接受 int/float/数字字符串（1.5→1500ms、2→2s、字符串 0.25→250ms）；25s 为边界；空串/不可解析/0/25001ms 均以 greater than 0 或 25s 拒绝。本批把空串分支由仅判错补为 greater than 0 文本断言，并补 tools:219 机器锚点。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -102746,9 +102751,9 @@
     },
     "internal/assistant/engine/tools_test.go:775:TestChatContinuesAfterToolFailure": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime.rs::tool_failure_tests::a_failed_tool_result_is_persisted_on_the_call_not_the_run",
-      "conclusion": "completed：工具执行失败只写 ToolCall（FAILED + error 原文 + errorCode），不写 run 级 failureReason/errorCode，也不把 run 落为 FAILED；分类表（TOOL_EXECUTION_FAILED/TIMEOUT/CANCELLED/SUBMISSION_UNKNOWN/RUN_LEASE_LOST）由同文件 tool_failure_classification_matches_the_reference_table 覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(tool_failure) | test(first_tool_call_failure) | test(persist_success_marks)'",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_failed_tool_result_is_persisted_on_the_call_not_the_run; crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::persist_success_marks_a_run_degraded_from_its_failed_tool_calls",
+      "conclusion": "function_exact（本批纠正条目并补锚点）：原条目误指生产文件 product_adk_model_runtime.rs（该测试实际位于 product_adk_model_runtime_tool_failure_tests.rs），且单条目只覆盖落库投影。Go 端到端断言 Chat 落 COMPLETED 加 degraded 为 true、1 条 FAILED 调用带 disk full 原文、非空 assistant 回复。组合覆盖：persist_success_marks_a_run_degraded_from_its_failed_tool_calls 断言 COMPLETED、degraded、运行级失败字段清空、FAILED 调用可见（含 disk full 与 TOOL_EXECUTION_FAILED）与非空回复；a_failed_tool_result_is_persisted_on_the_call_not_the_run 断言失败只写调用、不写运行。两测试均已补 tools:775 锚点；与 runner_chat:423 的单条目引用全文不同，不违反唯一性。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(tool_failure) | test(first_tool_call_failure) | test(persist_success_marks) | test(a_failed_tool_result)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/tools_test.go",
@@ -102761,12 +102766,28 @@
           "file": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs",
           "test": "a_failed_tool_result_is_persisted_on_the_call_not_the_run",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/assistant/engine/tools_test.go",
+            "goLine": 775,
+            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs",
+            "rustLine": 52
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs",
+          "test": "persist_success_marks_a_run_degraded_from_its_failed_tool_calls",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/tools_test.go",
+            "goLine": 775,
+            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs",
+            "rustLine": 52
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "completed：工具执行失败只写 ToolCall（FAILED + error 原文 + errorCode），不写 run 级 failureReason/errorCode，也不把 run 落为 FAILED；分类表（TOOL_EXECUTION_FAILED/TIMEOUT/CANCELLED/SUBMISSION_UNKNOWN/RUN_LEASE_LOST）由同文件 tool_failure_classification_matches_the_reference_table 覆盖。"
+          "function_exact（本批纠正条目并补锚点）：原条目误指生产文件 product_adk_model_runtime.rs（该测试实际位于 product_adk_model_runtime_tool_failure_tests.rs），且单条目只覆盖落库投影。Go 端到端断言 Chat 落 COMPLETED 加 degraded 为 true、1 条 FAILED 调用带 disk full 原文、非空 assistant 回复。组合覆盖：persist_success_marks_a_run_degraded_from_its_failed_tool_calls 断言 COMPLETED、degraded、运行级失败字段清空、FAILED 调用可见（含 disk full 与 TOOL_EXECUTION_FAILED）与非空回复；a_failed_tool_result_is_persisted_on_the_call_not_the_run 断言失败只写调用、不写运行。两测试均已补 tools:775 锚点；与 runner_chat:423 的单条目引用全文不同，不违反唯一性。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -102782,10 +102803,11 @@
           "--locked",
           "--no-fail-fast",
           "-E",
-          "test(tool_failure) | test(first_tool_call_failure) | test(persist_success_marks)"
+          "test(tool_failure) | test(first_tool_call_failure) | test(persist_success_marks) | test(a_failed_tool_result)"
         ],
         "testFilter": [
-          "a_failed_tool_result_is_persisted_on_the_call_not_the_run"
+          "a_failed_tool_result_is_persisted_on_the_call_not_the_run",
+          "persist_success_marks_a_run_degraded_from_its_failed_tool_calls"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -102804,7 +102826,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "completed：工具执行失败只写 ToolCall（FAILED + error 原文 + errorCode），不写 run 级 failureReason/errorCode，也不把 run 落为 FAILED；分类表（TOOL_EXECUTION_FAILED/TIMEOUT/CANCELLED/SUBMISSION_UNKNOWN/RUN_LEASE_LOST）由同文件 tool_failure_classification_matches_the_reference_table 覆盖。"
+        "function_exact（本批纠正条目并补锚点）：原条目误指生产文件 product_adk_model_runtime.rs（该测试实际位于 product_adk_model_runtime_tool_failure_tests.rs），且单条目只覆盖落库投影。Go 端到端断言 Chat 落 COMPLETED 加 degraded 为 true、1 条 FAILED 调用带 disk full 原文、非空 assistant 回复。组合覆盖：persist_success_marks_a_run_degraded_from_its_failed_tool_calls 断言 COMPLETED、degraded、运行级失败字段清空、FAILED 调用可见（含 disk full 与 TOOL_EXECUTION_FAILED）与非空回复；a_failed_tool_result_is_persisted_on_the_call_not_the_run 断言失败只写调用、不写运行。两测试均已补 tools:775 锚点；与 runner_chat:423 的单条目引用全文不同，不违反唯一性。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -292082,10 +292104,11 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::persist_success_marks_a_run_degraded_from_its_failed_tool_calls": {
-      "referenceCount": 2,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/assistant/engine/runner_chat_test.go:423:TestCompleteChatRunKeepsFailedToolCallsVisibleWithoutFailingRun",
-        "internal/assistant/engine/store_test.go:792:TestApprovedPendingRunMarksFailureWhenToolExecutionFails"
+        "internal/assistant/engine/store_test.go:792:TestApprovedPendingRunMarksFailureWhenToolExecutionFails",
+        "internal/assistant/engine/tools_test.go:775:TestChatContinuesAfterToolFailure"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"

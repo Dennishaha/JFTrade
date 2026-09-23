@@ -49,6 +49,7 @@ fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStor
 }
 
 // Parity: go:452dea11:internal/assistant/engine/exec_bounds_test.go:57 TestGoogleADKExecutionToolCallReuseAndCompletionBoundaries
+/// Parity: go:452dea11:internal/assistant/engine/tools_test.go:775 TestChatContinuesAfterToolFailure
 /// Go persists the tool failure as a visible `ToolCall` instead of a run-level
 /// error, and `FirstToolCallFailure` is what later sets `degraded`.  The call
 /// carries the raw error text (`disk full`), not the model-facing envelope
@@ -542,6 +543,7 @@ fn completed_tool_failure_response(run_id: &str, client_request_id: &str, route:
 /// derive `degraded` from the durable tool calls, clear the run-level failure
 /// projection, and keep the failed `ToolCall` visible on the completed run.
 /// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:423 TestCompleteChatRunKeepsFailedToolCallsVisibleWithoutFailingRun
+/// Parity: go:452dea11:internal/assistant/engine/tools_test.go:775 TestChatContinuesAfterToolFailure
 #[test]
 fn persist_success_marks_a_run_degraded_from_its_failed_tool_calls() {
     let (_directory, store, session_store) = initialized_stores();

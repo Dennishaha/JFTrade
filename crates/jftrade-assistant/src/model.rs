@@ -510,8 +510,8 @@ mod tool_policy_tests {
         assert!(tool_requires_approval(&padded, PERMISSION_MODE_APPROVAL));
     }
 
-    /// Parity: go:452dea11:internal/assistant/engine/tools_test.go:16
-    /// TestApprovalRequiresLiveTradingAndStrategyInstanceAlways.
+    /// Parity: go:452dea11:internal/assistant/engine/tools_test.go:145
+    /// TestResearchBacktestExplicitlySkipsApproval.
     ///
     /// `live_trading` is gated in every mode, `create_strategy_instance` in
     /// every mode except `all`, and an explicit `requiresApprovalIn` entry wins

@@ -1028,6 +1028,7 @@ fn agent_tool_scope_follows_the_go_access_mode_normalization() {
 /// Go's `TestBacktestToolsIncludeRequiredKLineSyncStatusCompanion`: an agent
 /// that selects `strategy.research_backtest` (or `strategy.optimize`) must also
 /// receive `backtest.kline_sync_status`, while an unrelated selection must not.
+/// Parity: go:452dea11:internal/assistant/engine/tools_test.go:726 TestBacktestToolsIncludeRequiredKLineSyncStatusCompanion
 #[test]
 fn selected_backtest_tools_gain_the_kline_sync_companion() {
     let scope = ProductionAdkChatRuntime::agent_tool_scope;
@@ -1067,6 +1068,7 @@ fn selected_backtest_tools_gain_the_kline_sync_companion() {
 /// modes project exactly the declared descriptor sets.  `tools.search` backs
 /// the reference test, but the projection rule is the access mode itself, so
 /// this asserts the mode matrix directly.
+/// Parity: go:452dea11:internal/assistant/engine/tools_test.go:743 TestToolDescriptorsRespectExplicitAccessModes
 #[test]
 fn explicit_access_modes_project_their_declared_tool_sets() {
     let scope = ProductionAdkChatRuntime::agent_tool_scope;

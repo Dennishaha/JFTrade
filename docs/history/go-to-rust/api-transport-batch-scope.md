@@ -2932,3 +2932,36 @@ owner：legacy 库拒绝与 schema 收敛由 SQLite 存储层承接，provider �
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | static/policy 均 exit 1，失败原因与预期一致（deny advisory-not-detected），与本分片无关 |
 
 后续：engine 第十三片完成（626 行中 455 行）；队列进入 engine 第十四片（账本 1532 起约 35 行），随后 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片二十三：`internal/assistant/engine` 第十四片 35 行（1 处过宽降级 + 1 条目纠正转组合 + 1 测试断言补强 + 12 锚点，无新增实现）
+
+范围（账本 inventory 1532-1566，按账本顺序）：`store_test.go:947/:1005`、`task_runner_test.go:13/:79`、`taskset_biz_test.go:9`、`timeline_projection_helpers_test.go:11`、`tool_artifact_materialization_test.go:24/:52/:73`、`tool_registry_change_test.go:8`、`tool_schema_workflow_test.go:10/:35`、`tools_net_transport_boundaries_test.go:12`、`tools_security_test.go:11/:33`、`tools_test.go:25/:44/:61/:87/:106/:129/:145/:163/:195/:206/:219/:275/:315/:342/:468/:605/:700/:726/:743/:775`。初值 `[x]` 21、partial/boundary 14。
+
+owner：过期回收与超时窗口由运行时 reconcile 承接，任务扇出缺口保留在调度边界，artifact 物化缺口保留在存储语义边界，工具 schema 与豁免谓词由 MCP 目录与 assistant 模型层承接，执行有界性与失败投影由运行时工具循环承接。
+
+复核方法：21 条原 [x] 逐条对照 Go 基线分支与 Rust 断言，14 条 partial/boundary 抽查 Go 原文与缺口描述。保留的 19 条 [x] 分支相符：run 粒度超时窗口（:1005）、过期 run 终局字段群（:947）、目录空审批数组序列化（:25）、tasks 写豁免按名生效（:87）、memory 与 draft 写豁免（:106 组合）、高中风险审批门（:129）、research_backtest 显式跳过（:145）、workflow.wait 等待与免审批（:163）、25 秒上限（:195）、取消中断（:206）、多形态时长解析（:219）、http.fetch 非法目标拒绝（:275）、主机地址分类（:315）、响应封装与截断（:342）、有界执行不挂起（:468）、慢 portfolio 不阻塞（:605）、live_trading 全模式门控（:700 组合）、kline 伴随工具（:726）、显式访问模式投影（:743）。
+
+结论：1 处 verdict 纠正（过宽降级）+ 1 处条目纠正转组合 + 1 处测试断言补强 + 1 处陈旧锚点纠正 + 12 行规范锚点。其一是 `tools_test.go:61` 由 [x] 降为 partial：Go 断言 models.list 的 Permission 为 read_internal、RiskLevel 为 low、approval 模式免审批三分支，Rust 的 schema 审查测试只覆盖字段面与无 key 泄露，Rust 无逐工具权限元数据，免审批分支无同形断言。其二是 `tools_test.go:775` 条目纠正：原条目误指生产文件且单条目只覆盖落库投影，改为落库投影测试加终局降级测试的双条目组合（COMPLETED、degraded、FAILED 可见调用、disk 全文、非空回复全覆盖），与 runner_chat:423 的单条目引用全文不同。其三是 `workflow_wait_duration` 空串分支由仅判错补为 greater than 0 文本断言。其四是 model.rs 的 `permission_classes` 锚点纠正：原锚点所指 `tools_test.go:16 TestApprovalRequiresLiveTradingAndStrategyInstanceAlways` 在基线中不存在，改为 `tools_test.go:145`（显式跳过分支的真实覆盖）。
+
+新增证据（注释与单断言 only）：12 行规范锚点（mcp_server 7 处 :163/:195/:206/:219/:275/:315/:342，catalog policy :700，gate :726/:743，failure :775 双处），model.rs 锚点纠正 1 处，duration 空串文本断言 1 行。
+
+映射终值（35 行）：`[x]` 20、partial 10、boundary 5。全量：`[x]` 1576、partial 2238、boundary 637（合计 4451）；Rust 测试 3293 不变。
+
+门禁说明：本分片落在 `beb5174c` 门禁优化之后。账本已迁入 v2 信封（schemaVersion jftrade.go-rust-parity-mappings.v2），审计默认只写临时目录，需 `--write-report` 刷新跟踪报告；旧 `/tmp/b75_writer.py` 只懂扁平结构，本批改用按升级脚本同源逻辑重算 rustEvidence 与 reuse 的 v2 写入器。`--strict` 要求全部 function_exact 行具备已评审断言与 passed 回执，全仓当前仍是 legacy-conclusion 加 unverified，本分片保持仓内既有约定，不单立新制式。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 21 条原 [x] 逐分支核对、14 条 partial/boundary 抽查 | 1 verdict 纠正（:61）加 1 组合修正（:775）加 1 断言补强（:219）加 1 锚点纠正（model :145），12 锚点补齐 |
+| 账本写入 | 3 行变更（v2 写入器），其余不动 | `[x]` 1577→1576、partial 2237→2238、boundary 637 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 通过（exit 0）；0 条引用不存在 crate、0 条 `[x]` 缺 function_exact；缺锚点告警 131→120；Rust 测试 3293 不变；重复 `[x]` 唯一性检查通 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1702→1712、已记录 1653→1664、unrecorded 0、stale 0、unknown 49→48 |
+| 报告刷新 | `python3 scripts/compatibility/audit_test_parity.py --write-report` | exit 0；report 基线刷为 beb5174c，inventory 跟随 3 行变更（:61 降级、:775 条目纠正、计数 1576/2238/637） |
+| 静态与格式 | `cargo fmt --all -- --check`（exit 0）、`pnpm run check:clippy`（exit 0）、`check:rust:architecture`（passed） | fmt/clippy/arch 全过，见 /tmp/s23_fmt.log、s23_clippy.log、s23_arch.log |
+| 受影响 nextest | engine 定向 20 表达式（初轮编译锚点错误修复后 20/20）、assistant 41/41 | engine 定向 20/20（/tmp/s23_run5.log），assistant 41/41（/tmp/s23_assistant.log）；中间态 E0277 已修复，不隐瞒 |
+| 整轮 nextest | engine 全轮首轮 1910/1911（`runtime_exit_converges` 策略时序抖动，隔离复跑 2/2 通过）、第二轮 1911/1911 | /tmp/s23_engine_full.log、s23_engine_full2.log、s23_isolate2.log |
+| 兼容与门禁 | compat 7 项全过、generated（--check 不改工作树）过、ai-context 过、zero-go 过、migration-manifest 过；quick 前两轮分别倒在 node 并行抖动（隔离 1/1 过）与 target-health（清 35GB 伪影后重跑），第三轮（/tmp/s23_quick3.log）中途随会话结束而中断后，以完整前台重跑 /tmp/s23_quick4.log 收官：rust 1982/1982、compat 7 项、pineworker 98/98、desktop 48/48，QUICK4_EXIT=0 | /tmp/s23_quick4.log |
+| 已知失败（如实记录） | `check:rust:static`、`check:rust:policy` 本次均为 exit 0（advisories/bans/licenses/sources ok，与既往 advisory-not-detected 失败预期不同） | /tmp/s23_static2.log、s23_policy2.log；失败项不记为通过 |
+
+后续：engine 第十四片完成（626 行中 490 行）；队列进入 engine 第十五片（账本 1567 起约 35 行：tools:837、usageprojection、workflow 族），随后 apiserver 下 assistant/ADK 相关 14 行。
