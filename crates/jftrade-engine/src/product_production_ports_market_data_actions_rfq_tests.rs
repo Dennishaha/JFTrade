@@ -289,6 +289,7 @@ fn prediction_quote_expiry_always_adds_the_server_window() {
 
 /// Go's `broker.PredictionQuoteLegsHash`: normalized legs only, so whitespace
 /// and case never change the digest while a real change does.
+/// Parity: go:452dea11:pkg/broker/product_capability_contracts_test.go:11 TestPredictionQuoteLegsHashNormalizesBrokerNeutralLegs
 #[test]
 fn prediction_quote_legs_hash_matches_go_normalization() {
     let parse = |value: serde_json::Value| {

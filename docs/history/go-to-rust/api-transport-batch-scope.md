@@ -4503,3 +4503,32 @@ owner：对账 worker 诊断由 jftrade-engine 承接，风控与状态机由 jf
 | 文档门禁 | fmt、ai-context、migration-manifest、zero-go、quick、diff check | 全过（fmt 过；ai-context 过；migration-manifest 过；zero-go 过；quick 全过，engine 2495/2495 加 clippy 与兼容 replay；diff check 过） |
 
 后续：继续步调（rows 4434 起；尾部余约 18 行）；队列按账本实际顺序推进。
+
+### 第 129 批分片七十九（收尾）：rows 4434-4451 broker 目录与能力契约 18 行（1 处 entry 修正、1 处补锚）
+
+范围（账本 rows 4434-4451，按写入顺序）：pkg/broker catalog:75/:98/:141/:195/:233、market_rules_snapshot_errors:14/:33/:43/:63/:85、product_capability_contracts:11/:26/:89/:159/:174、research_screen:11/:31/:46。初值 [x] 9、partial 7、boundary 2；终值不变。第 129 批至此收口，4451 行全量均有 verdict。首键自检通过，无重叠。
+
+owner：能力目录与路由投影由 jftrade-engine 承接，市场规则与快照错误由 jftrade-broker 承接，研究定义归一化由 jftrade-research 承接，无双写。
+
+复核方法：18 条全量枚举引用有效性（去重引用逐个核对 #[test]，0 缺失），9 条 [x] 逐条核对锚点归属与断言等价（逐段比对 Go 原文）。结论：0 降级、0 升级；1 处 entry 修正并补锚。
+
+修正：product_capability_contracts:11 原 entry 首段指向生产函数 legs_hash（非测试证据），断言本身等价（空白与大小写归一相等、mvc 与 predictionSide 改动不等，且 Rust 断言 64 位十六进制形状）。entry 收敛为单一测试引用 prediction_quote_legs_hash_matches_go_normalization，补 :11 锚点并经 v2 写入器刷新落锚；该测试仅被本行引用，无复用冲突。
+
+抽查证据：market_rules 五条逐项等价（含 nil 接收者等 Go-only 分支声明）；:26 路由表 10 条逐条对齐（含本批生产修复记录）；:75 只读面全量 feature 不变量强于 Go 单例；:159 声明缺 reader 的 fail-closed 投影与 Go 解析失败同语义；partial 行缺口诚实（回退列表、评估器 reason 优先级、哈希串形状、毫秒文本归一）；boundary 两行（:141、:89）升级路径完整。
+
+新增证据：1 处测试注释锚点（无生产改动）；1 行账本刷新（:11 entry 修正）。
+
+映射终值（18 行）：[x] 9、partial 7、boundary 2。全量：[x] 1561、partial 2252、boundary 638（合计 4451）；Rust 测试 3297 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 18 条全量枚举引用有效性加 [x] 断言等价核对 | 1 entry 修正、1 补锚；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2 写入器 1 行 | [x] 1561、partial 2252、boundary 638（合计 4451）不变 |
+| Rust 定向测试 | engine legs_hash 归一化 1 用例 | 1/1 通过 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；缺锚点告警 109→108；report/inventory 刷新 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1734、已记录 1688、unrecorded 0、stale 0、unknown 46 |
+| 文档门禁 | fmt、ai-context、migration-manifest、zero-go、quick、diff check | 全过（fmt 过；ai-context 过；migration-manifest 过；zero-go 过；quick 全过，engine 1943/1943 加 clippy 与兼容 replay；diff check 过） |
+
+后续：第 129 批收口；4451 行全量终值 [x] 1561、partial 2252、boundary 638。已登记缺口按 P0→P1→P2 进入补测与功能修复阶段（含 control_plane_state_audit:99/:250、execution:573 等 trading 域回归要求）。

@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T21:31:48Z",
+  "generatedAt": "2026-09-23T21:44:07Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -288366,8 +288366,8 @@
     },
     "pkg/broker/product_capability_contracts_test.go:11:TestPredictionQuoteLegsHashNormalizesBrokerNeutralLegs": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_prediction_combo_quote.rs::PredictionComboQuoteRequest::legs_hash; crates/jftrade-engine/src/product_production_ports_market_data_actions_rfq_tests.rs::prediction_quote_legs_hash_matches_go_normalization",
-      "conclusion": "function_exact：Go 对归一化后的 leg 计算 broker-neutral 摘要，空白/大小写不影响结果、真实改动改变结果。Rust `legs_hash` 是 64 位十六进制 sha256，测试断言大小写与空白差异下摘要相等，mvc 改变、predictionSide 改变或 leg 变更时摘要不等。历史 Go fixture 只作为冻结输入/输出证据，未重新生成。",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_actions_rfq_tests.rs::prediction_quote_legs_hash_matches_go_normalization",
+      "conclusion": "function_exact：Go 对归一化后的 leg 计算 broker-neutral 摘要，空白/大小写不影响结果、真实改动改变结果。Rust `legs_hash` 是 64 位十六进制 sha256，测试断言大小写与空白差异下摘要相等，mvc 改变、predictionSide 改变或 leg 变更时摘要不等。历史 Go fixture 只作为冻结输入/输出证据，未重新生成。 本批修正 entry：旧 entry 首段指向生产函数 legs_hash（非测试证据），收敛为单一测试引用并补 :11 锚点；断言覆盖不变（空白与大小写归一相等、mvc 与 predictionSide 改动不等）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(prediction_quote_legs_hash_matches_go_normalization)'",
       "evidence_type": "function_exact",
       "source": {
@@ -288378,21 +288378,20 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_prediction_combo_quote.rs",
-          "test": "legs_hash",
-          "crate": "jftrade-engine",
-          "anchor": null
-        },
-        {
           "file": "crates/jftrade-engine/src/product_production_ports_market_data_actions_rfq_tests.rs",
           "test": "prediction_quote_legs_hash_matches_go_normalization",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "pkg/broker/product_capability_contracts_test.go",
+            "goLine": 11,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_market_data_actions_rfq_tests.rs",
+            "rustLine": 292
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 对归一化后的 leg 计算 broker-neutral 摘要，空白/大小写不影响结果、真实改动改变结果。Rust `legs_hash` 是 64 位十六进制 sha256，测试断言大小写与空白差异下摘要相等，mvc 改变、predictionSide 改变或 leg 变更时摘要不等。历史 Go fixture 只作为冻结输入/输出证据，未重新生成。"
+          "function_exact：Go 对归一化后的 leg 计算 broker-neutral 摘要，空白/大小写不影响结果、真实改动改变结果。Rust `legs_hash` 是 64 位十六进制 sha256，测试断言大小写与空白差异下摘要相等，mvc 改变、predictionSide 改变或 leg 变更时摘要不等。历史 Go fixture 只作为冻结输入/输出证据，未重新生成。 本批修正 entry：旧 entry 首段指向生产函数 legs_hash（非测试证据），收敛为单一测试引用并补 :11 锚点；断言覆盖不变（空白与大小写归一相等、mvc 与 predictionSide 改动不等）。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -288408,7 +288407,6 @@
           "test(prediction_quote_legs_hash_matches_go_normalization)"
         ],
         "testFilter": [
-          "legs_hash",
           "prediction_quote_legs_hash_matches_go_normalization"
         ],
         "runnerVersion": null,
@@ -288428,7 +288426,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 对归一化后的 leg 计算 broker-neutral 摘要，空白/大小写不影响结果、真实改动改变结果。Rust `legs_hash` 是 64 位十六进制 sha256，测试断言大小写与空白差异下摘要相等，mvc 改变、predictionSide 改变或 leg 变更时摘要不等。历史 Go fixture 只作为冻结输入/输出证据，未重新生成。"
+        "function_exact：Go 对归一化后的 leg 计算 broker-neutral 摘要，空白/大小写不影响结果、真实改动改变结果。Rust `legs_hash` 是 64 位十六进制 sha256，测试断言大小写与空白差异下摘要相等，mvc 改变、predictionSide 改变或 leg 变更时摘要不等。历史 Go fixture 只作为冻结输入/输出证据，未重新生成。 本批修正 entry：旧 entry 首段指向生产函数 legs_hash（非测试证据），收敛为单一测试引用并补 :11 锚点；断言覆盖不变（空白与大小写归一相等、mvc 与 predictionSide 改动不等）。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -295166,14 +295164,6 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/app/apiserver/servercoretest/portfolio_routes_test.go:71:TestPortfolioRoutesReturnDegradedEmptyStateWithoutConfiguredBroker"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_prediction_combo_quote.rs::legs_hash": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "pkg/broker/product_capability_contracts_test.go:11:TestPredictionQuoteLegsHashNormalizesBrokerNeutralLegs"
       ],
       "allowed": true,
       "reviewStatus": "single"
