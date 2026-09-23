@@ -2505,3 +2505,33 @@ owner：组装层是领域工具与适配器的组合面，写入 owner 在领�
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
 
 后续：队列进入 `internal/assistant/assembly` 余 69 行，随后 engine 626 与 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片八：`internal/assistant/assembly` 中段 35 行（补 2 处锚点，无 verdict 翻转）
+
+范围（按文件与行号升序）：`application_adapter_test.go:58/:81/:253/:278/:308`、`application_strategy_lifecycle_test.go:84/:122/:141`、`maintenance_test.go:12/:77`、`market_index_constituents_tools_test.go:14/:60/:69`、`market_news_tools_test.go:15/:93/:104`、`mcp_server_lifecycle_authorization_test.go:27/:74/:95`、`mcp_server_test.go:22/:76/:106/:181/:203/:257/:280`、`portfolio_tools_test.go:15/:85/:155/:255/:288/:338/:376/:444`、`product_adapters_test.go:155`（35 行中 [x]21/partial14）。
+
+owner：组装中段覆盖 MCP 服务管理、市场指数/新闻工具、组合分层工具与策略实例生命周期；写入 owner 在领域 crate——MCP 监听与授权由 engine 的 MCP 服务端口承接，市场工具由研究/行情端口承接，组合读取由券商组合端口承接。
+
+复核方法：35/35 参考行号签名一致；账本引用逐段解析（含 `+` 组合各自文件前缀）全部指向真实测试；21 条 `[x]` 逐条核对锚点在位（宽松匹配含省略修订前缀的既有锚点）；partial 行抽查 Go 原文与结论对应关系。
+
+修正（无 verdict 翻转，本分片 35 行终值不变）：
+
+1. 补 2 行 `[x]` 缺失锚点：`mcp_server_test.go:181`（端口冲突保留旧监听）与 `:280`（回环策略），锚点写在对应测试的 `#[test]` 紧邻处（该文件既有锚点省略修订前缀，新锚点用完整格式；rustfmt 对属性与函数间的注释强制去缩进，保持 fmt 稳定形态）。缺锚点告警 185 → 183。
+2. `:76` 与 `:106` 的锚点以省略修订前缀形态早已在位，复核确认为有效锚点（对账脚本允许省略），无需改动。
+3. partial 行结论经抽查准确（视觉模型归一化、回测态投影差异、实例生命周期写工具缺失、新闻措辞差异、组合 partial 语义等缺口均已登记），维持 partial。
+
+映射终值（35 行）：`[x]` 21、partial 14、boundary 0，无升级无降级。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 自建校验（参考行号签名 35/35、引用逐段可解析 35/35、`[x]` 锚点在位 21/21） | 35 行 0 verdict 问题（含 2 行补锚点） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；缺锚点告警 185 → 183；Rust 测试 3293 不变 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1656 → 1658、unrecorded 0、stale 0、unknown 51 不变 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 首轮 1911/1911 通过（本分片无抖动） |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compatibility 全 replay 通过；generated 未改动工作树；ai-context 6 模块 8 指令文件；zero-go 2953 files；`check:quick` 首轮全过（nextest 1941/1941 含既往抖动项 launcher、node 98 pass，本分片无抖动） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
+
+后续：队列进入 `internal/assistant/assembly` 末段 34 行，随后 engine 626 与 apiserver 下 assistant/ADK 相关 14 行。

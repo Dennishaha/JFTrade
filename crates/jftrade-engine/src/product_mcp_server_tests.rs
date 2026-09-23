@@ -3194,6 +3194,7 @@ fn modern_production_pine_tool_executes_without_pine_worker() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/assistant/assembly/mcp_server_test.go:280 TestMCPServerManagerUsesLoopbackOnly
 fn loopback_policy_rejects_non_loopback_peer_addresses() {
     assert!(is_loopback_remote(
         "127.0.0.1:1".parse().expect("IPv4 peer")
@@ -3259,6 +3260,7 @@ fn host_rebinding_and_missing_host_are_rejected() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/assistant/assembly/mcp_server_test.go:181 TestMCPServerManagerListenerFailurePreservesRunningState
 fn port_conflict_keeps_previous_listener_and_reset_rebinds() {
     let runtime = runtime();
     let first = available_port();
