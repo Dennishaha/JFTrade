@@ -2285,3 +2285,50 @@ owner：`crates/jftrade-engine`（`product_production_ports_adk_*`、`product_ad
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
 
 后续：分片二进入 `internal/api/assistant` 余 52 行（`adk_routes_test.go:911` 起、`adk_sessions_test.go`、`adk_transport_contracts_test.go`、`chat_helpers_test.go`、`chat_stream_lifecycle_test.go`、`routes_resource_contracts_test.go`、`routes_test.go`、`workflow_routes_test.go` 等），其中 9 行尚缺锚点（`adk_sessions_test.go:15`、`adk_transport_contracts_test.go:10`、`chat_helpers_test.go:167/:216/:260`、`chat_stream_lifecycle_test.go:9`、`routes_resource_contracts_test.go:159`、`routes_test.go:136`、`workflow_routes_test.go:14`），随后按队列进入 `internal/assistant/model` 10 行。
+
+### 分片二：`internal/api/assistant` 余 52 行（补 6 处锚点 + 3 行判定收紧）
+
+范围（按文件与行号升序）：`adk_routes_test.go:911`；`adk_sessions_test.go:15`；`adk_transport_contracts_test.go:10`；`adk_workflow_routes_test.go:15/:262`；`catalog_failure_contracts_test.go:17`；`chat_helpers_test.go:13/:49/:59/:87/:151/:167/:216/:260`；`chat_stream_lifecycle_test.go:9`；`chat_stream_recovery_contracts_test.go:12/:41`；`chat_transport_disconnect_test.go:55/:110`；`input_response_test.go:12`；`query_encoding_contracts_test.go:13`；`routes_boundary_contracts_test.go:15/:92/:178/:278/:329/:369`；`routes_error_contracts_test.go:14/:98`；`routes_identifier_validation_test.go:12`；`routes_payload_pagination_test.go:12/:27/:65/:80/:134`；`routes_resource_contracts_test.go:15/:115/:159/:261/:295/:410`；`routes_test.go:29/:92/:101/:136/:180/:265/:301/:348/:366`；`workflow_routes_test.go:14/:185`。
+
+owner：`crates/jftrade-engine`（ADK 读/写与 chat-stream 端口、生产装配、会话与工件端口、supervisor 生命周期）、`crates/jftrade-api`（Bearer 认证与 SSE 写失败传播）、`crates/jftrade-store-sqlite`（ADK 会话/工件表）。
+
+队列说明：本分片清空 `internal/api/assistant`（82 行）。核对方式与分片一一致：按 `git show 452dea11:<path>` 逐行读参考测试断言，再对照 Rust 证据与四条不变式（参考行号落在同名测试函数上、锚点文件出现在 rust_entry 内、锚点名与参考名一致、boundary 行不挂锚点）；52 行 0 违规。
+
+新增证据：
+
+1. 6 处缺失锚点补齐：`product_production_assembly_tests.rs`（公开会话 CRUD 与过滤路由）、`product_adk_read_tests.rs`（流快照保留事件 id 与 payload）、`tests/adk_chat_stream_compatibility.rs`（无效请求的终局 error 帧）、`product_adk_model_runtime_fencing_tests.rs`（supervisor 关停等待全部任务）、`product_adk_model_runtime_recovery_tests.rs`（恢复终帧带 replay 标记）、`tests/adk_workflow_canvas_contracts.rs` 2 处（webhook secret 生命周期与多节点 canvas 运行）。
+2. 32 处既有锚点补全参考测试名（`product_production_ports_adk_tests.rs` 22、`tests/adk_workflow_canvas_contracts.rs` 2、`product_adk_model_runtime_recovery_tests.rs` 2、`product_adk_read_tests.rs` 2、`tests/adk_mutations_compatibility.rs` 2、`product_adk_mutation_product_tests.rs` 1、`product_production_assembly_tests.rs` 1），使锚点可从代码侧自证到参考测试名。
+
+判定收紧（3 行 `[x]` → partial，记录原因）：
+
+1. `chat_helpers_test.go:167`（原引用「重启后重放保留终帧」）：该证据只能证明终帧保留/重放，不能证明参考用例的 hub delta 分类与 publishFinal 裁剪；Rust 终帧直接回放持久化 response，未发现 toolCalls 输出裁剪证据，故收紧为 partial。
+2. `chat_helpers_test.go:260`：校验错误白名单已覆盖，但参考的 bearerToken 边界表无断言，且 Rust 只接受精确 Bearer 前缀（参考大小写不敏感），故收紧为 partial。
+3. `routes_resource_contracts_test.go:159`：agent 校验文案与 provider 删除语义已覆盖，但 provider `/test` 的 mode 语义无 wire 断言，且未知 provider 的状态码与参考不一致，故收紧为 partial。
+
+另：`chat_helpers_test.go:216` 保持 `[x]`，但引用改写为 wire fixture 用例（stream-invalid-json → 终局 error 帧）+ 端口 isolation 用例，并把 `sessionSent`/missing-agent 预览半明确归入 hub-helper 边界族（与 `:13/:49/:59/:87/:151` 同族）。`chat_transport_disconnect_test.go:110` 的 partial 行原有锚点点明其已覆盖半（断线后保留终态与重放过滤），本分片保留该安排并在工具校验中放行。
+
+映射终值（52 行）：`[x]` 42、partial 4（本分片新增 3 + 既有 `chat_transport_disconnect_test.go:110`）、boundary 6（`chat_helpers_test.go:13/:49/:59/:87/:151`、`chat_stream_recovery_contracts_test.go:12`）。
+
+**`internal/api/assistant` 域状态**：82 行全部持有终值（`[x]` 71、partial 4、boundary 7；module_only 0、missing 0、缺 command 0），其中 30 行在分片一复核、52 行在本分片复核；本批为该目录新增 16 处锚点与 1 条专属回归测试。
+
+剩余缺口（本分片新增/细化，按优先级）：
+
+1. **provider `/test` 状态码与 mode 语义（P1，公开路由）**：参考对未知 provider 返回 502 且消息为 provider not found，Rust 的 `test_provider` 返回 404 `ADK_PROVIDER_NOT_FOUND`；复现：`POST /api/v1/adk/providers/provider-missing/test`（无 body 与 `{"mode":"full"}`、`{"mode":"slow"}` 三种输入）。期望：quick 默认 + `requestField: reasoning.effort` 回显、full 回显、slow → 400、未知 provider → 502。修复位置：`crates/jftrade-engine/src/product_production_ports_adk_mutation_runtime.rs::test_provider`。回归要求：先按参考对齐状态码并更新 `product_adk_store_parity_tests.rs::snapshot_and_provider_test_boundaries_fail_closed` 的 port 断言，再补路由级 wire 用例。
+2. **Bearer 前缀大小写（P2，认证边界）**：参考 `bearerToken` 大小写不敏感且容忍多余空白，Rust `request_bearer_token` 只接受精确 `Bearer `。修复位置：`crates/jftrade-api/src/auth.rs::request_bearer_token`。回归要求：表驱动边界用例（空串、`Basic token`、`bearer secret`、`BEARER secret`、多空白、仅前缀）。
+3. **终帧 tool 输出裁剪（P2，wire 形状）**：参考 Hub 的 publishFinal 会清空 `toolCalls[].output`，Rust 无对应断言与证据。修复位置：`crates/jftrade-engine/src/product_adk_model_runtime_stream.rs`（终帧投影）。回归要求：断言 final 帧 `response.run.toolCalls[].output` 为空，或明确记录不裁剪的产品决策。
+4. **hub helper 边界族（P2，边界保留）**：delta 分类、`sessionSent`/missing-agent 预览、2000 事件上限与 30 分钟 TTL、timeline clone 兜底在 Rust 无同形对象，维持 boundary 并保留升级路径（改为 durable stream event 断言）。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 映射写入 | 4 行 payload `/tmp/b129s2_payload.json` 经 `/tmp/b82_apply.py` 应用 | `[x]` 1591 → 1588、partial 2222 → 2225、boundary 638 不变（合计 4451） |
+| 逐行复核 | 自建校验（参考行号签名、锚点文件与 rust_entry 一致性、锚点名一致性、boundary 无锚点） | 52 行 0 问题 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；缺锚点告警 198 → 189；Rust 测试 3291 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1643 → 1649、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 首轮 1909/1910（`adk_session_detail_omits_resolved_approval_groups` 抖动，隔离复跑 3/3 通过）→ 次轮 1909/1910（`api_launcher_reports_startup_failure_when_the_configured_address_is_taken` 抖动，隔离复跑 2/2 通过）→ 三轮 1910/1910 通过 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compatibility exit 0（278 OpenAPI 操作、18 路由组、19 探针；desktop 3 平台档 6 link case 10 facade 4 event）；generated 未改动工作树；ai-context 6 模块 8 指令文件；zero-go 2953 files；`check:quick` exit 0 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
+
+后续：`internal/api/assistant` 已清空，队列进入 `internal/assistant/model` 10 行，随后 `internal/assistant` 顶层 32 行、`internal/assistant/workflow` 38 行、`internal/assistant/assembly` 104 行、`internal/assistant/engine` 626 行与 `internal/app/apiserver` 下 8 行 assistant 用例；本分片登记的 provider `/test` 状态码缺口（P1）列为下一批优先修复项。

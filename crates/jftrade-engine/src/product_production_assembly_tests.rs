@@ -2428,7 +2428,7 @@ mod product_production_assembly_tests {
         assert_eq!(external_http["tools"], json!(["http.fetch"]));
     }
 
-    /// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:115
+    /// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:115 TestCatalogSnapshotToolsTemplatesAndDeleteAgentContracts
     /// TestCatalogSnapshotToolsTemplatesAndDeleteAgentContracts.
     ///
     /// Go requires `GET /api/v1/adk` to expose `runtimeSettings`,
@@ -2561,6 +2561,7 @@ mod product_production_assembly_tests {
         handle.shutdown().await.expect("shutdown cleanly");
     }
 
+    // Parity: go:452dea11:internal/api/assistant/adk_sessions_test.go:15 TestADKSessionsCRUDAndFilteringRoutes
     #[tokio::test]
     async fn production_adk_public_sessions_use_main_store_and_support_crud() {
         let (_temp_dir, _settings_path, config, _security) = setup_test_env();

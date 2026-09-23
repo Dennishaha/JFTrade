@@ -82,6 +82,7 @@ fn fixture() -> Fixture {
 }
 
 // Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:552 TestADKChatStreamReturnsErrorEventForInvalidPayload
+// Parity: go:452dea11:internal/api/assistant/chat_helpers_test.go:216 TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest
 #[test]
 fn adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases() {
     let fixture = fixture();

@@ -449,7 +449,7 @@ async fn optimization_task_negative_routes_match_the_reference_matrix() {
 /// run (`parentRunId` set) is rejected with `400`, while resume of a missing
 /// run is `404 NOT_FOUND`.  The child branch is what stops a workflow child
 /// from pausing itself out of its parent's control.
-/// Parity: go:452dea11:internal/api/assistant/routes_payload_pagination_test.go:80
+/// Parity: go:452dea11:internal/api/assistant/routes_payload_pagination_test.go:80 TestAssistantRunMutationRoutesEnforceGoalLifecycleRules
 /// TestAssistantRunMutationRoutesEnforceGoalLifecycleRules.
 ///
 /// The same production port accepts a goal pause (`RUNNING` loop run returns

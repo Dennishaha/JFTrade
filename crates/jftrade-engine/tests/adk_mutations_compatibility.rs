@@ -248,7 +248,7 @@ fn adk_mutation_leaf_preserves_trailing_json_and_webhook_secret_precedence() {
     assert_eq!(response.body["data"]["webhookSecret"], "legacy-secret");
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_identifier_validation_test.go:12
+/// Parity: go:452dea11:internal/api/assistant/routes_identifier_validation_test.go:12 TestAssistantRoutesRejectBlankDecodedIdentifiers
 /// TestAssistantRoutesRejectBlankDecodedIdentifiers.
 ///
 /// Go decodes URL parameters before the handler runs, so `%20` must never
@@ -384,7 +384,7 @@ fn adk_provider_save_rejects_the_truncated_payload_with_the_reference_message() 
     );
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:369
+/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:369 TestAssistantMutationRoutesRejectMalformedJSON
 /// TestAssistantMutationRoutesRejectMalformedJSON.
 ///
 /// Go's boundary matrix pins six mutation routes that must answer

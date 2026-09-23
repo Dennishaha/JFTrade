@@ -319,6 +319,7 @@ fn adk_read_dynamic_routes_validate_suffixes_and_identifiers() {
     }
 }
 
+// Parity: go:452dea11:internal/api/assistant/adk_transport_contracts_test.go:10 TestADKChatStreamTransportPreservesEventIdentityAndPayload
 #[test]
 fn adk_read_streams_preserve_event_ids_and_payloads() {
     let output = dispatch_adk_read(
@@ -855,7 +856,7 @@ fn adk_approvals_route_filters_by_status_and_agent_id() {
     assert_eq!(value["page"]["total"], 1, "filtered approvals total");
 }
 
-/// Parity: go:452dea11:internal/api/assistant/query_encoding_contracts_test.go:13
+/// Parity: go:452dea11:internal/api/assistant/query_encoding_contracts_test.go:13 TestAssistantQueryRoutesRejectMalformedEncoding
 /// TestAssistantQueryRoutesRejectMalformedEncoding.
 ///
 /// `net/url` silently drops malformed percent escapes, so Go validates the raw
@@ -888,7 +889,7 @@ fn adk_read_routes_reject_malformed_query_encoding() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_identifier_validation_test.go:12
+/// Parity: go:452dea11:internal/api/assistant/routes_identifier_validation_test.go:12 TestAssistantRoutesRejectBlankDecodedIdentifiers
 /// TestAssistantRoutesRejectBlankDecodedIdentifiers (read endpoints).
 ///
 /// URL parameters are decoded before the handler runs, so `%20` must never be

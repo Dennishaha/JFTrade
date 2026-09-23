@@ -1166,7 +1166,7 @@ async fn request_sse_until(
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_test.go:301
+/// Parity: go:452dea11:internal/api/assistant/routes_test.go:301 TestChatRequestIdempotencyContracts
 /// TestChatRequestIdempotencyContracts.
 ///
 /// Go requires the UUID identity rules to run before the runtime is touched

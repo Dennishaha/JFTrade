@@ -200,7 +200,7 @@ fn non_resumable_running_run_does_not_make_runtime_unready() {
     runtime.shutdown();
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:410
+/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:410 TestStreamReconnectAndSkillContracts
 /// TestStreamReconnectAndSkillContracts.
 ///
 /// Go's reconnect handlers serve retained history through
@@ -238,6 +238,7 @@ fn replayed_stream_payloads_carry_the_go_replay_marker() {
 
 /// The synthesized `final` frame for a terminal run whose terminal event append
 /// was lost is replayed history as well, so the reconnect marker still applies.
+// Parity: go:452dea11:internal/api/assistant/routes_test.go:136 TestChatStreamHubReplayAndCleanupBoundaries
 #[test]
 fn recovered_terminal_stream_frame_carries_the_replay_marker() {
     let output = super::super::stream_from_payload(
@@ -262,7 +263,7 @@ fn recovered_terminal_stream_frame_carries_the_replay_marker() {
     assert_eq!(data["replay"], true);
 }
 
-/// Parity: go:452dea11:internal/api/assistant/chat_stream_recovery_contracts_test.go:41
+/// Parity: go:452dea11:internal/api/assistant/chat_stream_recovery_contracts_test.go:41 TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun
 /// TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun.
 ///
 /// Go's `publishTerminalError` first asks `RecoverTerminalChatResponse` for the

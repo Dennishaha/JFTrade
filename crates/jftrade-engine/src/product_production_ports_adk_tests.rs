@@ -3558,7 +3558,7 @@ fn builtin_skill_uninstall_is_refused_and_the_projection_keeps_it() {
     );
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_error_contracts_test.go:14
+/// Parity: go:452dea11:internal/api/assistant/routes_error_contracts_test.go:14 TestAssistantRoutesRejectInvalidQueriesPayloadsAndMissingResources
 /// TestAssistantRoutesRejectInvalidQueriesPayloadsAndMissingResources.
 ///
 /// Go classifies the query/payload/missing-resource table by route: a malformed
@@ -3641,7 +3641,7 @@ fn adk_read_and_mutation_routes_keep_the_go_error_classification() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_error_contracts_test.go:98
+/// Parity: go:452dea11:internal/api/assistant/routes_error_contracts_test.go:98 TestAssistantRoutesEnforceBusinessValidationOnUpdates
 /// TestAssistantRoutesEnforceBusinessValidationOnUpdates.
 ///
 /// Go keeps a dedicated route code per update resource: a blank session title is
@@ -3729,7 +3729,7 @@ fn adk_session_and_run_update_routes_keep_the_go_business_error_codes() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/workflow_routes_test.go:185
+/// Parity: go:452dea11:internal/api/assistant/workflow_routes_test.go:185 TestWorkflowRoutesClassifyInvalidPayloadsAndUnavailableRuns
 /// TestWorkflowRoutesClassifyInvalidPayloadsAndUnavailableRuns and
 /// internal/api/assistant/adk_workflow_routes_test.go:262
 /// TestADKWorkflowRoutesRejectInvalidInputs.
@@ -3872,7 +3872,7 @@ fn adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope() {
     assert_eq!(deleted, json!({"deleted": true, "id": "provider-disabled"}));
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_test.go:101
+/// Parity: go:452dea11:internal/api/assistant/routes_test.go:101 TestRunInputResponseContract
 /// TestRunInputResponseContract.
 ///
 /// The route contract only needs a single question with `allowOther: true`:
@@ -4023,7 +4023,7 @@ fn adk_cancel_run_missing_uses_the_go_cancel_error_code() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/input_response_test.go:12
+/// Parity: go:452dea11:internal/api/assistant/input_response_test.go:12 TestRunInputResponseErrorAndRetryContracts
 /// TestRunInputResponseErrorAndRetryContracts and
 /// internal/api/assistant/routes_test.go:101 TestRunInputResponseContract.
 ///
@@ -4245,7 +4245,7 @@ fn adk_skill_uninstall_removes_external_installs_and_reports_missing_files() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_payload_pagination_test.go:12
+/// Parity: go:452dea11:internal/api/assistant/routes_payload_pagination_test.go:12 TestAssistantChatRoutesRejectMalformedOrUnresolvableRequests
 /// TestAssistantChatRoutesRejectMalformedOrUnresolvableRequests and
 /// go:452dea11:internal/api/assistant/routes_payload_pagination_test.go:65
 /// TestAssistantRoutesClampPaginationBeyondAvailableItems.
@@ -4365,7 +4365,7 @@ fn adk_chat_route_reports_the_go_error_classification() {
         )),
         (400, "ADK_CHAT_FAILED".to_owned(), "agent not found".to_owned())
     );
-    // Parity: go:452dea11:internal/api/assistant/routes_test.go:348
+    // Parity: go:452dea11:internal/api/assistant/routes_test.go:348 TestChatRequestUsesDeclaredMessageFieldOnly
     // TestChatRequestUsesDeclaredMessageFieldOnly.  Go decodes the declared
     // `ADKChatRequest` fields, so the legacy `prompt`/`text` aliases never
     // populate the message: a payload carrying only those aliases is a blank
@@ -4521,7 +4521,7 @@ fn adk_chat_route_reports_the_go_error_classification() {
     );
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_test.go:180
+/// Parity: go:452dea11:internal/api/assistant/routes_test.go:180 TestSessionTimelineFailureKeepsLegacyErrorCode
 /// TestSessionTimelineFailureKeepsLegacyErrorCode.
 ///
 /// Go wraps a transcript-read failure in `ErrSessionTimelineFailed`, and
@@ -4574,7 +4574,7 @@ fn session_timeline_failure_keeps_the_legacy_messages_error_code() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_test.go:92
+/// Parity: go:452dea11:internal/api/assistant/routes_test.go:92 TestAgentSaveErrorClassification
 /// TestAgentSaveErrorClassification.
 ///
 /// Go's `isADKAgentValidationError` splits an agent save failure into two
@@ -4631,7 +4631,7 @@ fn agent_save_storage_failure_is_not_client_classified() {
     );
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_test.go:366
+/// Parity: go:452dea11:internal/api/assistant/routes_test.go:366 TestApprovalContract
 /// TestApprovalContract.
 ///
 /// Go registers an `approval`-gated write tool, chats `@contract.write save`,
@@ -4983,7 +4983,7 @@ fn adk_approval_deny_returns_the_resolution_envelope_without_a_sync_message() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:261
+/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:261 TestProviderDefaultContract
 /// TestProviderDefaultContract.
 ///
 /// Go creates two providers, promotes the second to default, and requires the
@@ -5233,7 +5233,7 @@ fn adk_resolve_approval_missing_returns_the_idempotent_empty_envelope() {
     );
 }
 
-/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:911
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:911 TestADKApprovalNegativeAndIdempotentRoutes
 /// TestADKApprovalNegativeAndIdempotentRoutes.
 ///
 /// An unknown approval is idempotent in Go: approving a missing id answers
@@ -5447,7 +5447,7 @@ fn adk_session_detail_omits_resolved_approval_groups() {
     );
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:278
+/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:278 TestAssistantCatalogBoundaryStatusCodes
 /// TestAssistantCatalogBoundaryStatusCodes.
 ///
 /// The catalog boundary matrix keeps one status per branch: `400` for an
@@ -5633,7 +5633,7 @@ fn adk_catalog_boundary_status_codes_match_the_go_matrix() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:329
+/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:329 TestAssistantSessionRunBoundaryStatusCodes
 /// TestAssistantSessionRunBoundaryStatusCodes.
 ///
 /// The session/run boundary matrix fixes one status per branch: `400` for a
@@ -5792,7 +5792,7 @@ fn adk_session_run_boundary_status_codes_match_the_go_matrix() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:295
+/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:295 TestSessionRunAndOptimizationRouteContracts
 /// TestSessionRunAndOptimizationRouteContracts.
 ///
 /// Go seeds a disabled and an enabled agent, then walks the session/run/
@@ -6027,7 +6027,7 @@ fn adk_session_run_and_optimization_route_contracts_match_go() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:15
+/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:15 TestTaskAndMemoryCRUDContracts
 /// TestTaskAndMemoryCRUDContracts.
 ///
 /// Go creates a task with `childProviderId`/`childModel`, filters the list by
@@ -6176,7 +6176,7 @@ fn adk_task_and_memory_crud_contracts_match_go() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_payload_pagination_test.go:134
+/// Parity: go:452dea11:internal/api/assistant/routes_payload_pagination_test.go:134 TestAssistantRoutesClassifyMissingMutationTargets
 /// TestAssistantRoutesClassifyMissingMutationTargets.
 ///
 /// Go classifies three distinct missing-target failures at the route edge: a
@@ -6253,7 +6253,7 @@ fn adk_missing_mutation_targets_keep_the_go_classification() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:178
+/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:178 TestAssistantCatalogSessionAndObservabilitySuccessContracts
 /// TestAssistantCatalogSessionAndObservabilitySuccessContracts.
 ///
 /// Go seeds a provider, an enabled agent, a session, a loop run, a pending
@@ -6438,7 +6438,7 @@ fn adk_catalog_session_and_observability_success_contracts_hold() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:92
+/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:92 TestAssistantRoutesSurfaceStoreFailuresAfterRuntimeClose
 /// TestAssistantRoutesSurfaceStoreFailuresAfterRuntimeClose.
 ///
 /// Go closes the Assistant runtime while the router stays registered and then
@@ -6639,7 +6639,7 @@ fn adk_routes_surface_durable_store_failures_instead_of_empty_success() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_test.go:348
+/// Parity: go:452dea11:internal/api/assistant/routes_test.go:348 TestChatRequestUsesDeclaredMessageFieldOnly
 /// TestChatRequestUsesDeclaredMessageFieldOnly.
 ///
 /// Go decodes `ADKChatRequest` with its declared fields only, so the legacy
@@ -6695,7 +6695,7 @@ fn adk_chat_request_uses_only_the_declared_message_field() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:410
+/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:410 TestStreamReconnectAndSkillContracts
 /// TestStreamReconnectAndSkillContracts.
 ///
 /// Go's reconnect handlers stream retained history through
@@ -6767,7 +6767,7 @@ fn adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:15
+/// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:15 TestAssistantRoutesReturnUnavailableWhenRuntimeMissing
 /// TestAssistantRoutesReturnUnavailableWhenRuntimeMissing.
 ///
 /// Go registers every ADK route even when the runtime is nil and answers `503`
@@ -6879,7 +6879,7 @@ fn wired_but_unavailable_adk_ports_fail_closed_on_every_route() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/routes_test.go:29
+/// Parity: go:452dea11:internal/api/assistant/routes_test.go:29 TestCatalogSessionRunAndObservabilityContracts
 /// TestCatalogSessionRunAndObservabilityContracts.
 ///
 /// Go seeds a provider, an enabled agent, a session, a completed run, one
@@ -6966,7 +6966,7 @@ fn catalog_session_run_and_observability_routes_answer_ok() {
     .expect("DELETE provider must succeed");
 }
 
-/// Parity: go:452dea11:internal/api/assistant/catalog_failure_contracts_test.go:17
+/// Parity: go:452dea11:internal/api/assistant/catalog_failure_contracts_test.go:17 TestCatalogReadFaultsExposeStableAPIContracts
 /// TestCatalogReadFaultsExposeStableAPIContracts.
 ///
 /// Go drops one ADK table at a time while the runtime stays up and requires

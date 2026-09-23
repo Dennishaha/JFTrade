@@ -184,6 +184,7 @@ impl EngineTestCluster {
 }
 
 // Parity: go:452dea11:internal/assistant/engine/workflow_canvas_test.go:11 TestWorkflowCanvasCompilerSequentialFanOutAndJoin
+// Parity: go:452dea11:internal/api/assistant/workflow_routes_test.go:14 TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts
 #[test]
 fn test_canvas_workflow_multi_node_execution_and_context_propagation() {
     let cluster = EngineTestCluster::new();
@@ -749,7 +750,7 @@ fn test_workflow_tools_missing_session_and_empty_payload_boundaries() {
     assert!(!workflow_id.is_empty());
 }
 
-/// Parity: go:452dea11:internal/api/assistant/adk_workflow_routes_test.go:262
+/// Parity: go:452dea11:internal/api/assistant/adk_workflow_routes_test.go:262 TestADKWorkflowRoutesRejectInvalidInputs
 /// TestADKWorkflowRoutesRejectInvalidInputs and
 /// :15 TestADKWorkflowDefinitionTriggerAndRunRoutes.
 ///
@@ -900,7 +901,7 @@ fn disabled_workflow_and_webhook_routes_keep_the_go_error_codes() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/workflow_routes_test.go:185
+/// Parity: go:452dea11:internal/api/assistant/workflow_routes_test.go:185 TestWorkflowRoutesClassifyInvalidPayloadsAndUnavailableRuns
 /// TestWorkflowRoutesClassifyInvalidPayloadsAndUnavailableRuns and
 /// `internal/api/assistant/workflow.go` `writeWorkflowError`.
 ///
@@ -1009,7 +1010,7 @@ fn workflow_mutation_routes_keep_the_go_not_found_codes() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/adk_workflow_routes_test.go:15
+/// Parity: go:452dea11:internal/api/assistant/adk_workflow_routes_test.go:15 TestADKWorkflowDefinitionTriggerAndRunRoutes
 /// TestADKWorkflowDefinitionTriggerAndRunRoutes and
 /// internal/api/assistant/workflow_routes_test.go:14
 /// TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts.
@@ -1018,6 +1019,7 @@ fn workflow_mutation_routes_keep_the_go_not_found_codes() {
 /// trigger: `hasSecret` is true while the stored `secretHash` is never
 /// returned.  A wrong secret is a `401 ADK_WORKFLOW_WEBHOOK_FAILED` while the
 /// correct secret runs the workflow under a `workflow.webhook` trigger log.
+// Parity: go:452dea11:internal/api/assistant/workflow_routes_test.go:14 TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts
 #[test]
 fn workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated() {
     let cluster = EngineTestCluster::new();

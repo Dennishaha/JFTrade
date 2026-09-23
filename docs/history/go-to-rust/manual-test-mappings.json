@@ -357,25 +357,25 @@
     "evidence_type": "boundary"
   },
   "internal/api/assistant/chat_helpers_test.go:167:TestChatStreamExecutionPublishesDeltaAndFinalVariants": {
-    "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
-    "conclusion": "function_exact：Go 的 delta→timeline/run 投影与 final 终帧在 Rust 由 durable streamEvents + 终帧恢复承接：本测试断言重放保留的终局事件后 ADK read 仍返回 final 帧、且终帧 response.run.id 正确；Go 的「final 前裁剪 tool output」由 persisted_terminal_run_is_published_as_final_instead_of_a_second_error 覆盖（终态 run 只产生一个 final、无第二个 error）。live delta 顺序的端到端断言见 production_live_chat_stream_emits_session_run_and_final_events。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "function_exact"
+    "status": "[~]",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart（终帧保留与重放）；crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error（终态只出 final）",
+    "conclusion": "partial：已覆盖终帧保留/重放与终态只产生一个 final（不伪造第二个 error）。缺口：参考实现 Hub 侧的 delta 分类（空 delta 不消费、仅 timeline 才算 timeline-only、混合不算、仅 run 才算 run delta）与 publishFinal 对 toolCalls[].output 的裁剪在 Rust 无对应断言——Rust 终帧直接回放持久化 response，未发现裁剪逻辑。修复位置：crates/jftrade-engine/src/product_adk_model_runtime_stream.rs（终帧投影）与 product_adk_model_runtime_events.rs（delta 投影）。回归要求：新增断言 final 帧 response.run.toolCalls[].output 为空（或明确记录不裁剪的产品决策），并为 delta 分类补表驱动用例。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error)'",
+    "evidence_type": "partial"
   },
   "internal/api/assistant/chat_helpers_test.go:216:TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_routes_are_isolated_without_port",
-    "conclusion": "function_exact：无效请求的终局错误帧、缺端口时的 fail-closed SSE 与 missing-agent 不产生 preview frame 由 adk_chat_stream_routes_register_only_with_explicit_test_port / adk_chat_stream_routes_are_isolated_without_port 覆盖；Go 的 `executeADKChatStream` 是进程内 hub helper，Rust 用 durable run + 终局 error 帧表达同一行为。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases（stream-invalid-json → 终局 error 帧）；crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_routes_are_isolated_without_port（缺端口 fail-closed）",
+    "conclusion": "function_exact：无效请求的终局 error 帧由 wire fixture 用例锁定（stream-invalid-json 的期望体为 retry: 3000 加 data: {\"message\":\"invalid chat payload: unexpected EOF\",\"type\":\"error\"}），缺端口时的 fail-closed 404 由 adk_chat_stream_routes_are_isolated_without_port 断言。Go 的 executeADKChatStream/previewSession 是进程内 hub helper（sessionSent、missing-agent 不产生帧），Rust 按同一 hub-helper 边界族处理，等价保证落在 durable 终局 error 帧与路由 isolation 上。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test adk_chat_stream_compatibility --locked",
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/chat_helpers_test.go:260:TestAssistantRequestHelpersCoverInvalidAndBoundaryInputs": {
-    "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_reports_the_go_validation_messages",
-    "conclusion": "function_exact：Go 的 `bearerToken` 解析与 `isADKAgentValidationError` 白名单在 Rust 分别由 api 层 Bearer 解析与 validate_agent_write 的 400 分类承接，对应行为由本测试逐条断言（provider not found / provider is disabled / 内置 agent 保护 / unknown ADK tool / unknown ADK skill 均为 400）。非校验文本不得 client-classified 的反向分支由 agent_save_storage_failure_is_not_client_classified 覆盖（500 ADK_MUTATION_FAILED）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "function_exact"
+    "status": "[~]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_reports_the_go_validation_messages（校验错误分类）；crates/jftrade-api/src/auth.rs::request_bearer_token（Bearer 解析，当前无断言）",
+    "conclusion": "partial：参考的 isADKAgentValidationError 白名单（provider not found、provider is disabled、provider API key is not configured、内置 agent 保护、unknown ADK tool、unknown ADK skill 均为 400，非校验错误不得归类）由 adk_agent_write_reports_the_go_validation_messages 逐条断言。缺口：参考的 bearerToken 边界表（空串、Basic token、小写 bearer、仅前缀加空白）在 Rust 无表驱动断言，且 crates/jftrade-api/src/auth.rs 的 request_bearer_token 只接受精确的 Bearer 前缀（区分大小写），与参考的大小写不敏感不一致。修复位置：crates/jftrade-api/src/auth.rs::request_bearer_token。回归要求：补表驱动用例覆盖上述边界，并先决定是否接受大小写变体。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(bearer) or test(authorization)'",
+    "evidence_type": "partial"
   },
   "internal/api/assistant/chat_stream_lifecycle_test.go:9:TestHandlerCloseCancelsAndJoinsBackgroundExecutions": {
     "status": "[x]",
@@ -539,11 +539,11 @@
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/routes_resource_contracts_test.go:159:TestProviderAndAgentValidationContracts": {
-    "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_entities.rs::CreateProvider/DeleteProvider；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_reports_the_go_validation_messages、adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection、adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope",
-    "conclusion": "function_exact：missing/disabled/no-key provider 与 unknown tool 的 400 BAD_REQUEST 文案、被 agent 引用的 provider 删除 409 ADK_PROVIDER_DELETE_FAILED（消息含 used by agent 与引用 agent 名）、未知 provider 删除幂等 200 {deleted,id} 均有独立断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "function_exact"
+    "status": "[~]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_reports_the_go_validation_messages、adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection、adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope；crates/jftrade-engine/src/product_adk_store_parity_tests.rs::snapshot_and_provider_test_boundaries_fail_closed",
+    "conclusion": "partial：已覆盖 agent 写入 400 BAD_REQUEST 文案（missing/disabled/no-key provider、unknown tool）、被引用 provider 删除 409（含 used by agent 与引用 agent 名）、未知 provider 删除幂等 200。缺口：参考同一用例还断言 POST /api/v1/adk/providers/{id}/test 的 mode 语义（无 body → quick 与 requestField reasoning.effort、mode=full 回显、mode=slow → 400、已移除的 reasoning 路由 404、未知 provider → 502 provider not found）；Rust 的 test_provider 对未知 provider 返回 404 ADK_PROVIDER_NOT_FOUND（参考为 502 provider not found，属公开路由状态码差异），且 quick/full/invalid mode 无 wire 断言。修复位置：crates/jftrade-engine/src/product_production_ports_adk_mutation_runtime.rs::test_provider。回归要求：先按参考把未知 provider 对齐为 502 并更新 port 断言，再补 quick/full/invalid 的 wire 用例。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(provider)'",
+    "evidence_type": "partial"
   },
   "internal/api/assistant/routes_resource_contracts_test.go:261:TestProviderDefaultContract": {
     "status": "[x]",

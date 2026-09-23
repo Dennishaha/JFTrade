@@ -708,6 +708,7 @@ async fn challenge_continuation_supervisor_shutdown_cancels_in_flight_and_reject
     }
 }
 
+// Parity: go:452dea11:internal/api/assistant/chat_stream_lifecycle_test.go:9 TestHandlerCloseCancelsAndJoinsBackgroundExecutions
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn challenge_continuation_supervisor_shutdown_blocks_for_all_tasks() {
     let supervisor = Arc::new(super::ContinuationSupervisor::default());
