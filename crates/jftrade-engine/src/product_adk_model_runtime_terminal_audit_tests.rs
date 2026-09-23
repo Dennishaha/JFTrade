@@ -55,6 +55,8 @@ fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStor
 ///
 /// Reference: go:452dea11:internal/assistant/engine/store_test.go
 /// `TestApprovalDenialCreatesAssistantSummary`.
+/// Parity: go:452dea11:internal/assistant/engine/store_test.go:670
+/// `TestApprovalDenialCreatesAssistantSummary`.
 #[test]
 fn denied_approval_summary_renders_the_go_denial_reply_text() {
     let with_approval = json!({
@@ -946,6 +948,8 @@ fn a_continuation_for_a_missing_run_is_a_silent_no_op() {
     );
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/store_test.go:720
+/// `TestApprovalDenialRecordsResumedAndDeniedAuditEvents`.
 #[test]
 fn a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state() {
     let (directory, store, session_store) = initialized_stores();

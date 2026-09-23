@@ -424,6 +424,8 @@ fn orphaned_pending_approval_runs_are_failed_on_startup_reconcile() {
 ///
 /// Reference: go:452dea11:internal/assistant/engine/store_test.go
 /// `TestStartRunUsesConfiguredRuntimeTimeout`.
+/// Parity: go:452dea11:internal/assistant/engine/store_test.go:881
+/// `TestStartRunUsesConfiguredRuntimeTimeout`.
 #[test]
 fn run_start_freezes_the_configured_run_timeout_from_settings() {
     let (directory, store, session_store) = initialized_stores();
@@ -516,6 +518,8 @@ fn run_start_freezes_the_configured_run_timeout_from_settings() {
 /// plus the cancellation poll and reports `504 MODEL_CALL_TIMEOUT`.
 ///
 /// Reference: go:452dea11:internal/assistant/engine/store_test.go
+/// `TestGoogleADKExecutionRunHonorsContextDeadline`.
+/// Parity: go:452dea11:internal/assistant/engine/store_test.go:862
 /// `TestGoogleADKExecutionRunHonorsContextDeadline`.
 #[test]
 fn a_hanging_provider_is_bounded_by_the_request_timeout() {

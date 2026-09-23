@@ -2903,3 +2903,32 @@ owner：技能与模板目录由组装层承接，agent 软删与恢复由生产
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | static/policy 均 exit 1，失败原因与预期一致（deny advisory-not-detected），与本分片无关 |
 
 后续：engine 第十二片完成（626 行中 420 行）；队列进入 engine 第十三片（账本 1497 起约 35 行），随后 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片二十二：`internal/assistant/engine` 第十三片 35 行（1 处过宽纠正 + 1 组合修正 + 1 结论收紧 + 1 锚点行号纠正，无新增实现）
+
+范围（账本 inventory 1497-1531，按账本顺序）：`store_test.go:254/:295/:373/:385/:437/:471/:538/:607/:670/:720/:792/:862/:881/:898/:947/:1005`、`task_runner_test.go:13/:79`、`taskset_biz_test.go:9`、`timeline_projection_helpers_test.go:11`、`tool_artifact_materialization_test.go:24/:52/:73`、`tool_registry_change_test.go:8`、`tool_schema_workflow_test.go:10/:35`、`tools_net_transport_boundaries_test.go:12`、`tools_security_test.go:11/:33`、`tools_test.go:25/:44/:61/:87/:106/:129`（35 行中 [x]19、partial16、boundary0）。
+
+owner：legacy 库拒绝与 schema 收敛由 SQLite 存储层承接，provider 密钥与超时归一化由生产端口层承接，审批门禁/续跑/终局由运行时与存储 CAS 层承接，超时与过期回收由运行时 reconcile 承接，工具 schema 与豁免谓词由 MCP 目录与 assistant 模型层承接，任务扇出与 artifact 物化由执行器层承接（partial 结论已划界）。
+
+复核方法：20 条原 [x] 逐条对照 Go 基线分支与 Rust 断言。保留的 18 条 [x] 分支相符：legacy 库拒绝且字节不变（:254）、24 并发确认单赢家（:295）、无遗留消息表（:373）、密钥不回显且入 sidecar（:385）、超时默认与钳制（:437）、存储幂等三段（:452 同族已验）、run 分页（:486 同族已验）、重复批准单续跑（:527 同族已验）、重启恢复（:621 同族已验）、孤立回收（:745 同族已验）、双审批门禁（:788 同族已验）、任务与记忆归一化（:844/:899 同族已验）、记忆注入开关（:939 同族已验）、拒绝摘要与审计（:670/:720）、 deadline 与超时冻结（:862/:881）、目标续跑新窗口（:898）、过期回收两则（:947/:1005）、目录投影数组形状（:25）、任务与低风险豁免谓词（:87/:106/:129）。16 条 partial 的缺口描述与 Go 原文相符（任务扇出、artifact 物化、schema 严格性、网络与安全边界等均无逐条断言或属已登记结构差异）。
+
+结论：1 处 verdict 纠正（过宽降级）+ 1 处组合修正 + 1 处结论收紧 + 1 处锚点行号纠正。其一是 `tools_test.go:44` 由 [x] 降为 partial：原条目引用的审查测试只覆盖 workflow.wait 与 http.fetch 的 schema，与 tasks.create/update 的 10 个 planner 字段无关（结论误系他证），条目已改指 mutation 往返测试；其二是 `store_test.go:471` 保持 [x] 但由单条目扩展为四段组合（gated 投影、tool loop 执行一次、审批唤醒 continuation、续跑终局），原单条目只覆盖第一段；其三是 `tools_test.go:61` 保持 [x]，结论收紧（Permission/Risk/免审批三分支在 Rust 无同形断言的结构性说明）；其四是 `tools_test.go:129` 的模型层锚点行号误写 :100，已纠正为 :129（:100 行在 Go 侧根本不是测试起始行）。组合条目在 [x] 行间唯一。
+
+新增证据（注释 only）：15 行规范锚点（:385/:437 归 provider mutation 测试，:471 三处分段锚点，:106 归 catalog policy 测试，:670/:720 归 terminal audit 测试，:862/:881 归 lifecycle 测试，:25/:898 归 ports 测试，:61 归 MCP protocol 测试，:947/:1005 归 expiry 测试）加 1 行锚点纠正，无生产实现改动，无探针。
+
+映射终值（35 行）：`[x]` 19、partial 16、boundary 0。全量：`[x]` 1577、partial 2237、boundary 637（合计 4451）；Rust 测试 3293 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 20 条原 [x] 逐分支核对、15 条 partial 结论抽查 | 1 verdict 纠正（:44）加 1 组合修正（:471）加 1 结论收紧（:61）加 1 锚点纠正（:129），15 锚点补齐 |
+| 账本写入 | 3 行变更（b82_apply），其余不动 | `[x]` 1578→1577、partial 2236→2237、boundary 637 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 通过（exit 0）；0 条引用不存在 crate、0 条 `[x]` 缺 function_exact；缺锚点告警 144→131；unknown 行 50→49；Rust 测试 3293 不变；重复 `[x]` 唯一性检查通过 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1691→1702、已记录 1641→1653、unrecorded 0、stale 0、unknown 49 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`check:rust:architecture` | fmt exit 0、clippy exit 0、architecture 通过；改动仅注释锚点加账本结论（含 1 行锚点行号纠正） |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` 及 assistant/sqlite 受影响定向 | engine 整轮首轮 1910/1911（launcher 已知抖动，见下），assistant 41/41 exit 0、sqlite 整轮 188/188 exit 0 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compat/generated/ai-context/zero-go 均 exit 0；quick exit 0（rust 1982/1982、pineworker 98/98；engine 整轮抖动经隔离复跑 1/1 后由本轮 quick 整轮确认，launcher 两例均过） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | static/policy 均 exit 1，失败原因与预期一致（deny advisory-not-detected），与本分片无关 |
+
+后续：engine 第十三片完成（626 行中 455 行）；队列进入 engine 第十四片（账本 1532 起约 35 行），随后 apiserver 下 assistant/ADK 相关 14 行。

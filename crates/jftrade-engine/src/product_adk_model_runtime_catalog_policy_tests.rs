@@ -203,6 +203,8 @@ fn run_payload(store: &AdkStore, run_id: &str) -> Value {
 /// Go's `ToolRequiresApproval` treats `read_internal`/low descriptors as
 /// automatically executable in `approval` mode, so a `system.status` call runs
 /// immediately instead of producing `pendingApprovals`.
+/// Parity: go:452dea11:internal/assistant/engine/tools_test.go:106
+/// `TestLowRiskWriteToolsCanSkipApproval`.
 #[test]
 fn read_tool_runs_without_approval_in_approval_mode() {
     let (directory, store, session_store) = initialized_stores();
@@ -342,6 +344,8 @@ fn unknown_tool_stays_unavailable() {
 
 /// The released-call path really executes the tool: the loop must claim and run
 /// every `RUNNING` call and persist its durable result.
+/// Parity: go:452dea11:internal/assistant/engine/store_test.go:471
+/// `TestApprovalModeCreatesPendingApprovalForWriteTool`.
 #[test]
 fn released_calls_are_executed_by_the_tool_loop() {
     let (directory, store, session_store) = initialized_stores();
@@ -383,6 +387,8 @@ fn released_calls_are_executed_by_the_tool_loop() {
 /// `resumeState=waiting_approval` and the fixed user-facing message.  A gated
 /// call has to produce the same durable projection so the console can tell an
 /// approval wait from a provider retry.
+/// Parity: go:452dea11:internal/assistant/engine/store_test.go:471
+/// `TestApprovalModeCreatesPendingApprovalForWriteTool`.
 #[test]
 fn gated_call_persists_the_go_approval_projection() {
     let (directory, store, session_store) = initialized_stores();

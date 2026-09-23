@@ -488,7 +488,7 @@ mod tool_policy_tests {
         }
     }
 
-    /// Parity: go:452dea11:internal/assistant/engine/tools_test.go:100
+    /// Parity: go:452dea11:internal/assistant/engine/tools_test.go:129
     /// TestApprovalModeRequiresMediumAndHigherRiskApproval.
     #[test]
     fn medium_and_higher_risk_require_approval_only_in_approval_mode() {

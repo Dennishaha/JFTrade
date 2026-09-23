@@ -180,6 +180,8 @@ fn chat_dispatch_rejects_an_installed_but_unready_runtime() {
     assert!(matches!(error, AdkChatPortError::Unavailable(_)));
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/tools_test.go:25
+/// `TestToolRegistrySerializesEmptyApprovalModesAsArray`.
 #[test]
 fn tool_catalog_marks_external_unavailable_tools_non_callable() {
     let mut bindings = PRODUCTION_TOOL_DEFINITIONS
@@ -4988,6 +4990,8 @@ fn seed_pending_approval_rows(
 /// (a real provider call would immediately overwrite `resumeState`); the live
 /// model-call path is covered end to end by
 /// `production_live_chat_stream_emits_session_run_and_final_events`.
+/// Parity: go:452dea11:internal/assistant/engine/store_test.go:471
+/// `TestApprovalModeCreatesPendingApprovalForWriteTool`.
 #[test]
 fn adk_approval_approve_returns_the_running_resolution_envelope() {
     #[derive(Debug, Default)]
@@ -8970,6 +8974,8 @@ fn strategy_optimize_is_gated_in_approval_mode_only() {
 /// terminal field while keeping the paused-run branches on the same CAS.
 ///
 /// Reference: go:452dea11:internal/assistant/engine/store_test.go
+/// `TestResumeGoalRunAllowsTimedOutGoalWithFreshTimeoutWindow`.
+/// Parity: go:452dea11:internal/assistant/engine/store_test.go:898
 /// `TestResumeGoalRunAllowsTimedOutGoalWithFreshTimeoutWindow`.
 #[test]
 fn resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window() {

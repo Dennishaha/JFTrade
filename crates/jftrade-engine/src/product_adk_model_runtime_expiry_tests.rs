@@ -129,6 +129,8 @@ fn audit_rows(store: &AdkStore) -> Vec<(String, String, Value)> {
 /// `run timed out`, `run exceeded maximum duration of 30m0s`,
 /// `RUN_TIMED_OUT`, `degraded=true` and `completedAt`, and the lifecycle audit
 /// row lands alongside.
+/// Parity: go:452dea11:internal/assistant/engine/store_test.go:947
+/// `TestReconcileExpiredRunsMarksHungRunTimedOut`.
 #[test]
 fn expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls() {
     let (directory, store, session_store) = initialized_stores();
@@ -201,6 +203,8 @@ fn expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls() {
 
 /// Each run is measured against its own frozen budget: the 60s run expires
 /// while the 300s run started at the same instant stays RUNNING.
+/// Parity: go:452dea11:internal/assistant/engine/store_test.go:1005
+/// `TestReconcileExpiredRunsUsesRunSpecificTimeout`.
 #[test]
 fn expired_runs_use_each_runs_own_timeout_window() {
     let (directory, store, session_store) = initialized_stores();

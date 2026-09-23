@@ -328,6 +328,8 @@ fn alerts_and_research_tools_have_exact_production_adapters() {
 /// Go's `TestModelsListToolRegisteredWithSafeSchema`: `models.list` exposes
 /// `query`/`providerId`/`callableOnly`/`limit` and never leaks key material
 /// into its schema.
+/// Parity: go:452dea11:internal/assistant/engine/tools_test.go:61
+/// `TestModelsListToolRegisteredWithSafeSchema`.
 #[test]
 fn models_list_schema_is_safe_and_complete() {
     let schema = crate::product::product_mcp_protocol::try_schema_for("models.list")

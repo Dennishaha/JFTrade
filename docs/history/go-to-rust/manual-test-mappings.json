@@ -10508,8 +10508,8 @@
   },
   "internal/assistant/engine/store_test.go:471:TestApprovalModeCreatesPendingApprovalForWriteTool": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_catalog_policy_tests.rs::gated_call_persists_the_go_approval_projection",
-    "conclusion": "function_exact（分段证据）：Go 一次流程断言四件事——approval 模式下写工具进入 PENDING 且未执行；审批通过后工具恰好执行一次；run 变 COMPLETED；回复为模型重新生成的最终答复（含工具摘要）。Rust 侧：gated_call_persists_the_go_approval_projection 覆盖“gated 调用写入 Go 形状的审批投影且未执行”；released_calls_are_executed_by_the_tool_loop 覆盖“释放后恰好执行一次并落 toolResults/SUCCEEDED”；product_production_ports_adk_tests::adk_approval_approve_returns_the_running_resolution_envelope 覆盖审批路由唤醒 continuation；a_resumed_approval_run_completes_with_the_confirmation_resolved_state 覆盖续跑落 COMPLETED+adk_confirmation_resolved。差异说明：Rust 的审批响应先返回 RUNNING（异步续跑），Go 用例在同步续跑后直接读到 COMPLETED 与最终回复文本，故回复文本断言由续跑路径测试承担。",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_catalog_policy_tests.rs::gated_call_persists_the_go_approval_projection; crates/jftrade-engine/src/product_adk_model_runtime_catalog_policy_tests.rs::released_calls_are_executed_by_the_tool_loop; crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_approval_approve_returns_the_running_resolution_envelope; crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_resumed_approval_run_completes_with_the_confirmation_resolved_state",
+    "conclusion": "function_exact（分段组合，修正单条目过窄）：Go 一次流程断言四件事——approval 模式下写工具进入 PENDING 且未执行；审批通过后工具恰好执行一次；run 变 COMPLETED；回复为最终答复。按顺序由四例覆盖：gated 投影写入、tool loop 恰好执行一次并落 SUCCEEDED、审批路由唤醒 continuation（RUNNING 加 approval_resuming）、续跑落 COMPLETED 加 adk_confirmation_resolved。差异说明：Rust 审批响应先返回 RUNNING（异步续跑），Go 同步读到 COMPLETED 与最终回复文本，故回复文本与工具摘要的呈现分支按异步形状记录，未逐字冻结。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "function_exact"
   },
@@ -10682,16 +10682,16 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/tools_test.go:44:TestDefaultTaskToolSchemaIncludesPlannerProjectionFields": {
-    "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_mcp_protocol_tests.rs::local_tool_schemas_are_reviewed",
-    "conclusion": "partial→function_exact：Rust 没有 tasks.create/update 的 registry descriptor（该写工具属 Rust 未实现边界），但 planner 投影字段在 mutation 路径逐字段校验（product_production_ports_adk_tests.rs::adk_task_normalization_and_validation_match_go 断言 order/modeHint/agentRole/plannerStepId/planSource/workflowMode/objective/plannerWarnings 全部往返保留）。本行按字典化 Rust schema 证据记为已覆盖：schema 中被 Go 强制的字段集合在 Rust 侧由 mutation 输入校验与往返测试等价守护。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(adk_task_normalization_and_validation_match_go) | test(local_tool_schemas_are_reviewed)'",
-    "evidence_type": "function_exact"
+    "status": "[~]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_task_normalization_and_validation_match_go",
+    "conclusion": "partial（纠正过宽并修正条目）：Go 断言 tasks.create/update 的 DefaultToolInputSchema 含 10 个 planner 投影字段。原 [x] 条目引用的审查测试只覆盖 workflow.wait 与 http.fetch 的 schema，与本用例无关；Rust 没有 registry descriptor 对象，字段集合实际由 mutation 输入校验与往返测试（:844 同族行）守护。缺口与回归要求：补 tasks schema 字段面断言后再升级。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/tools_test.go:61:TestModelsListToolRegisteredWithSafeSchema": {
     "status": "[x]",
     "rust_entry": "crates/jftrade-engine/src/product_mcp_protocol_tests.rs::models_list_schema_is_safe_and_complete",
-    "conclusion": "function_exact：models.list 的审查 schema 含 query/providerId/callableOnly/limit，additionalProperties=false，且 schema 文本不含 apiKey。此前 Rust 走通用占位 schema，缺这些具体字段。",
+    "conclusion": "function_exact（结论收紧，分支无变化）：models.list 的审查 schema 含 query/providerId/callableOnly/limit，additionalProperties 为 false，schema 文本不泄露 key 材料，注册存在由 schema 可解析隐含。范围说明：Go 的 Permission 为 read_internal、RiskLevel 为 low、免审批三分支在 Rust 无同形断言，Rust 以模型暴露 allowlist 表达可见性，无逐工具权限元数据。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "function_exact"
   },

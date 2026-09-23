@@ -472,6 +472,8 @@ mod tests {
     ///
     /// Reference: go:452dea11:internal/assistant/engine/store_test.go
     /// `TestProviderSecretIsNotEchoed`.
+/// Parity: go:452dea11:internal/assistant/engine/store_test.go:385
+/// `TestProviderSecretIsNotEchoed`.
     #[test]
     fn saved_provider_hides_the_credential_from_the_row_and_projection() {
         let (port, directory) = production_port();
@@ -528,6 +530,8 @@ mod tests {
     ///
     /// Reference: go:452dea11:internal/assistant/engine/store_test.go
     /// `TestProviderRequestTimeoutDefaultsAndClamp`.
+/// Parity: go:452dea11:internal/assistant/engine/store_test.go:437
+/// `TestProviderRequestTimeoutDefaultsAndClamp`.
     #[test]
     fn saved_provider_normalizes_the_request_timeout_on_write() {
         let (port, _directory) = production_port();
