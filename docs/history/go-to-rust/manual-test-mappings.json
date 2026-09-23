@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T20:59:12Z",
+  "generatedAt": "2026-09-23T21:10:35Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -280982,11 +280982,11 @@
       "boundaryReason": null
     },
     "internal/trading/control_plane_state_audit_test.go:99:TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_control_plane_treats_empty_state_as_fresh_and_rejects_unavailable_mutations",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+      "conclusion": "部分覆盖：Rust 用例仅断言 RealTradeControlState::default() 无 kill switch 且 hard stops 为空，这是 Go 断言的极小子集。未覆盖：空白文件→fresh 可用平面且 kill switch 未激活、目录路径→unavailable 平面加 load error、6 种 mutation（activate/release kill switch、update/disable risk、activate/release hard stop）全报 unavailable、非法 notional 报 maxOrderNotional、释放缺失 hard stop 报 not found、PAPER 单放行且无审计副作用。交叉覆盖：PAPER 放行语义由 control_plane_executes_simulated_orders_through_the_risk_guard_without_audit 覆盖。缺口位置：jftrade-trading 控制面文件加载与不可用平面语义在 Rust 侧无对应行为测试。回归要求：在所属领域 crate 补空白状态、不可用平面 mutation 矩阵、非法 notional 与缺失 hard stop 释放的测试后再升 [x]。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/trading/control_plane_state_audit_test.go",
         "line": 99,
@@ -281007,10 +281007,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Rust 用例仅断言 RealTradeControlState::default() 无 kill switch 且 hard stops 为空，这是 Go 断言的极小子集。未覆盖：空白文件→fresh 可用平面且 kill switch 未激活、目录路径→unavailable 平面加 load error、6 种 mutation（activate/release kill switch、update/disable risk、activate/release hard stop）全报 unavailable、非法 notional 报 maxOrderNotional、释放缺失 hard stop 报 not found、PAPER 单放行且无审计副作用。交叉覆盖：PAPER 放行语义由 control_plane_executes_simulated_orders_through_the_risk_guard_without_audit 覆盖。缺口位置：jftrade-trading 控制面文件加载与不可用平面语义在 Rust 侧无对应行为测试。回归要求：在所属领域 crate 补空白状态、不可用平面 mutation 矩阵、非法 notional 与缺失 hard stop 释放的测试后再升 [x]。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -281035,15 +281035,15 @@
       "risk": "high",
       "owner": "trading_broker",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Rust 用例仅断言 RealTradeControlState::default() 无 kill switch 且 hard stops 为空，这是 Go 断言的极小子集。未覆盖：空白文件→fresh 可用平面且 kill switch 未激活、目录路径→unavailable 平面加 load error、6 种 mutation（activate/release kill switch、update/disable risk、activate/release hard stop）全报 unavailable、非法 notional 报 maxOrderNotional、释放缺失 hard stop 报 not found、PAPER 单放行且无审计副作用。交叉覆盖：PAPER 放行语义由 control_plane_executes_simulated_orders_through_the_risk_guard_without_audit 覆盖。缺口位置：jftrade-trading 控制面文件加载与不可用平面语义在 Rust 侧无对应行为测试。回归要求：在所属领域 crate 补空白状态、不可用平面 mutation 矩阵、非法 notional 与缺失 hard stop 释放的测试后再升 [x]。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/trading/control_plane_state_audit_test.go:190:TestControlPlaneKeepsStateWhenAtomicPersistenceCannotComplete": {
@@ -281063,7 +281063,12 @@
           "file": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
           "test": "mutate_with_persist_failure_fails_closed_and_preserves_memory_state",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/control_plane_state_audit_test.go",
+            "goLine": 190,
+            "rustFile": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
+            "rustLine": 241
+          }
         }
       ],
       "assertionCoverage": {
@@ -281111,11 +281116,11 @@
       "boundaryReason": null
     },
     "internal/trading/control_plane_state_audit_test.go:250:TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_control_plane_surfaces_hard_stop_rejection_audit_persistence_failure",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+      "conclusion": "部分覆盖：Rust 用例仅断言风控拒绝的原因码为 REAL_TRADE_HARD_STOP_ACTIVE。未覆盖：降级快照字段（available=false、ControlPlaneError 含 persist hard-stop rejection audit、matched hard stop 保留且 AccountID 为 ACC-1、reason 文案含 hard-stop audit unavailable）、失败审计无内存事件泄漏（events 长度不变）、后续 mutation 报 unavailable。生产侧 Rust 已有该文案（product_execution_risk_coordinator.rs:315）但无测试覆盖。回归要求：用阻塞审计持久化驱动等价 seam（ExecutionRiskCoordinator::execute_with_risk_guard）提交 REAL 单，断言降级快照字段、事件无泄漏与后续 mutation 不可用后再升 [x]。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/trading/control_plane_state_audit_test.go",
         "line": 250,
@@ -281136,10 +281141,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Rust 用例仅断言风控拒绝的原因码为 REAL_TRADE_HARD_STOP_ACTIVE。未覆盖：降级快照字段（available=false、ControlPlaneError 含 persist hard-stop rejection audit、matched hard stop 保留且 AccountID 为 ACC-1、reason 文案含 hard-stop audit unavailable）、失败审计无内存事件泄漏（events 长度不变）、后续 mutation 报 unavailable。生产侧 Rust 已有该文案（product_execution_risk_coordinator.rs:315）但无测试覆盖。回归要求：用阻塞审计持久化驱动等价 seam（ExecutionRiskCoordinator::execute_with_risk_guard）提交 REAL 单，断言降级快照字段、事件无泄漏与后续 mutation 不可用后再升 [x]。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -281164,15 +281169,15 @@
       "risk": "high",
       "owner": "trading_broker",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Rust 用例仅断言风控拒绝的原因码为 REAL_TRADE_HARD_STOP_ACTIVE。未覆盖：降级快照字段（available=false、ControlPlaneError 含 persist hard-stop rejection audit、matched hard stop 保留且 AccountID 为 ACC-1、reason 文案含 hard-stop audit unavailable）、失败审计无内存事件泄漏（events 长度不变）、后续 mutation 报 unavailable。生产侧 Rust 已有该文案（product_execution_risk_coordinator.rs:315）但无测试覆盖。回归要求：用阻塞审计持久化驱动等价 seam（ExecutionRiskCoordinator::execute_with_risk_guard）提交 REAL 单，断言降级快照字段、事件无泄漏与后续 mutation 不可用后再升 [x]。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/trading/execution_combo_lifecycle_test.go:15:TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower": {

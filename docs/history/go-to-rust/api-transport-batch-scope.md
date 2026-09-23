@@ -4406,3 +4406,36 @@ owner：worker 校验/传输由 jftrade-integration-pine 承接，券商读写/�
 | 文档门禁 | fmt、ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 4329 起；尾部余约 123 行）；队列按账本实际顺序推进（策略尾部、行情、集成、设置）。
+
+### 第 129 批分片七十六：rows 4329-4363 trading 控制面与执行组合 35 行（2 处降级、1 处补锚）
+
+范围（账本 rows 4329-4363，按写入顺序）：trading control_plane_idempotency:12/:65/:99、control_plane_state_audit:13/:75/:99/:190/:250、execution_combo_lifecycle:15/:83/:110/:150/:172/:205/:237/:319/:412/:441/:571/:635、execution_products:12/:48/:85/:128/:149/:193、execution:16/:47/:71/:96/:159/:173/:285/:327/:342。初值 [x] 32、partial 3；终值 [x] 30、partial 5。首键自检通过，无重叠。
+
+owner：真实交易控制面由 jftrade-engine 经 ExecutionRiskCoordinator 承接，风控决策由 jftrade-trading 承接，执行端口读写由 jftrade-engine 生产端口承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（38 个去重引用逐个核对 #[test]/#[tokio::test]，0 缺失），32 条 [x] 逐条核对锚点归属与断言等价（逐段比对 Go 原文）。发现 2 处过宽判定并降级，1 处缺锚补齐。
+
+纠正一（降级）：control_plane_state_audit:99 原 [x] 过宽——Rust 用例仅断言 RealTradeControlState::default 无 kill switch，是 Go 断言的极小子集；Go 还要求空白文件 fresh 可用平面、目录路径 unavailable 加 load error、6 种 mutation 全报 unavailable、非法 notional 报 maxOrderNotional、释放缺失 hard stop 报 not found、PAPER 单放行。降为 partial 并写清缺口与回归要求；PAPER 放行语义由 control_plane_executes_simulated_orders 行交叉覆盖。
+
+纠正二（降级）：control_plane_state_audit:250 原 [x] 过宽——Rust 用例仅断言原因码 REAL_TRADE_HARD_STOP_ACTIVE；Go 还要求降级快照字段（available 为 false、ControlPlaneError 含 persist hard-stop rejection audit、matched hard stop 保留、reason 文案、无内存事件泄漏、后续 mutation 报 unavailable）。生产侧 Rust 已有该文案（product_execution_risk_coordinator.rs:315）但无测试覆盖。降为 partial 并登记回归要求。
+
+补锚：control_plane_state_audit:190 所引 mutate_with_persist_failure 用例缺 Parity 锚点，已补单行锚点并经 v2 写入器刷新落锚。
+
+抽查证据：短结论 [x] 行为实质逐项断言（如 execution:16 归一化默认值逐字段一致）；dup-x 为 0（审计 exit 0）。
+
+新增证据：1 处测试注释锚点（无生产改动）；3 行账本刷新（:99/:250 降级改写结论，:190 刷新落锚）。
+
+映射终值（35 行）：[x] 30、partial 5、boundary 0。全量：[x] 1562、partial 2251、boundary 638（合计 4451）；Rust 测试 3297 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（38 去重引用）加 [x] 断言等价核对 | 2 降级、1 补锚；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2 写入器 3 行 | [x] 1562、partial 2251、boundary 638（合计 4451） |
+| Rust 定向测试 | engine mutate_with_persist 用例、trading hard_stop_environment_scope 2 用例 | 1/1 通过；2/2 通过 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；缺锚点告警 115→114；report/inventory 刷新 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1729、已记录 1682、unrecorded 0、stale 0、unknown 47 |
+| 文档门禁 | fmt、ai-context、migration-manifest、zero-go、quick、diff check | 全过（fmt 过；ai-context 过；migration-manifest 过；zero-go 过；quick 全过，engine 1943/1943，兼容 replay 全过；diff check 过；中途 target 健康拦截按标准清产物后重跑通过） |
+
+后续：继续 35 行步调（rows 4364 起；尾部余约 88 行）；队列按账本实际顺序推进。

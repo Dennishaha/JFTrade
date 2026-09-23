@@ -238,6 +238,7 @@ fn external_file_modification_reflected_immediately() {
     }
 }
 
+/// Parity: go:452dea11:internal/trading/control_plane_state_audit_test.go:190 TestControlPlaneKeepsStateWhenAtomicPersistenceCannotComplete.
 #[test]
 fn mutate_with_persist_failure_fails_closed_and_preserves_memory_state() {
     let dir = TempDir::new().unwrap();
