@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T19:12:30Z",
+  "generatedAt": "2026-09-23T19:21:16Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -213384,11 +213384,11 @@
       "boundaryReason": null
     },
     "internal/productfeatures/service_test.go:443:TestProductFeatureDirectAdapterCacheAndEligibilityBranches": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_prediction_tests.rs::prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority；crates/jftrade-engine/src/product_production_ports_market_data_quote_read_tests.rs::snapshot_route_force_refresh_bypasses_the_cache；crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::tick_candles_use_fresh_cache_without_querying_the_provider",
-      "conclusion": "function_exact（按 Rust 架构等价重写）：Go 的矩阵含四组——(1) 12 个 adapter interface 在 bare broker 上 queryResolvedFeature 都必须失败；(2) 账户资格三种失败输入（discovery 错误、nil firm、FUTUINC+HK authority）都失败，且 containsFold([\"HK\"],\"US\")==false / containsFold([\"us\"],\"US\")==true；(3) 缓存三态：missing 返回 nil、expired 返回 nil、未过期返回副本且 metadata.fromCache=true，并断言 cloneResult(nil)==nil、boolParam(nil,\"missing\")==false；(4) batchSnapshotResult 的 asOf 取 observedAt 较晚者。Rust 侧等价证据：prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority 逐项断言 discovery 失败、nil firm、错误 authority 三种不合格并在 authority 列表为空时信任（对应 containsFold 的大小写不敏感语义，Rust 用 eq_ignore_ascii_case(\"US\")）；缓存三态由 snapshot_route_force_refresh_bypasses_the_cache（强制刷新绕开新鲜缓存）与 tick_candles_use_fresh_cache_without_querying_the_provider（新鲜缓存不触达 provider）覆盖；batchSnapshotResult 的 asOf 取 observedAt 已由本批 batch snapshots 用例的 observedAt 透传与 entries 断言覆盖。「12 个 adapter interface 全部失败」在 Rust 由 adapter bindings 矩阵 + 各端口 fail-closed 检查承担（无 bare-broker 反射接口概念），cloneResult/boolParam 属 Go 辅助函数形态，归边界保留。",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_prediction_tests.rs::prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority",
+      "conclusion": "partial（分片四十四复核纠正：原[x]条目借用了三区别处断言——snapshot_route_force_refresh_bypasses_the_cache 系 market_http_test.go:330 的已覆盖断言且原路径已过期（文件现为 product_market_data_quote_read_tests.rs），tick_candles_use_fresh_cache_without_querying_the_provider 系 routes_test.go:407/market_http_test.go:382 的已覆盖断言，prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority 系 service_test.go:12 的已覆盖断言；跨 Go 用例借用不能记为本用例等价，降为 partial 更诚实）。Go 矩阵四组实际覆盖：(2) 账户资格三种失败输入由共享引用覆盖（discovery 失败、nil firm、错误 authority，Rust 用 eq_ignore_ascii_case(\"US\") 对应 containsFold 大小写不敏感语义）；(1) 12 个 adapter 在 bare broker 上全部失败——Rust 无 bare 反射概念，由 adapter bindings 矩阵与各端口 fail-closed 承担，无逐项等价；(3) 缓存三态 missing/expired 返回 nil、未过期返回副本且 fromCache=true——Rust 只有相邻属性断言（强制刷新绕开、鲜缓存不触达 provider），无三态专用等价；(4) batchSnapshotResult 取较晚 observedAt 为 asOf——由 batch snapshots observedAt 透传断言相邻覆盖；cloneResult/boolParam 属 Go 辅助函数形态，归边界保留。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/productfeatures/service_test.go",
         "line": 443,
@@ -213406,25 +213406,13 @@
             "rustFile": "crates/jftrade-engine/src/product_production_ports_market_data_prediction_tests.rs",
             "rustLine": 284
           }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_production_ports_market_data_quote_read_tests.rs",
-          "test": "snapshot_route_force_refresh_bypasses_the_cache",
-          "crate": "jftrade-engine",
-          "anchor": null
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs",
-          "test": "tick_candles_use_fresh_cache_without_querying_the_provider",
-          "crate": "jftrade-engine",
-          "anchor": null
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact（按 Rust 架构等价重写）：Go 的矩阵含四组——(1) 12 个 adapter interface 在 bare broker 上 queryResolvedFeature 都必须失败；(2) 账户资格三种失败输入（discovery 错误、nil firm、FUTUINC+HK authority）都失败，且 containsFold([\"HK\"],\"US\")==false / containsFold([\"us\"],\"US\")==true；(3) 缓存三态：missing 返回 nil、expired 返回 nil、未过期返回副本且 metadata.fromCache=true，并断言 cloneResult(nil)==nil、boolParam(nil,\"missing\")==false；(4) batchSnapshotResult 的 asOf 取 observedAt 较晚者。Rust 侧等价证据：prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority 逐项断言 discovery 失败、nil firm、错误 authority 三种不合格并在 authority 列表为空时信任（对应 containsFold 的大小写不敏感语义，Rust 用 eq_ignore_ascii_case(\"US\")）；缓存三态由 snapshot_route_force_refresh_bypasses_the_cache（强制刷新绕开新鲜缓存）与 tick_candles_use_fresh_cache_without_querying_the_provider（新鲜缓存不触达 provider）覆盖；batchSnapshotResult 的 asOf 取 observedAt 已由本批 batch snapshots 用例的 observedAt 透传与 entries 断言覆盖。「12 个 adapter interface 全部失败」在 Rust 由 adapter bindings 矩阵 + 各端口 fail-closed 检查承担（无 bare-broker 反射接口概念），cloneResult/boolParam 属 Go 辅助函数形态，归边界保留。"
+        "covered": [],
+        "uncovered": [
+          "partial（分片四十四复核纠正：原[x]条目借用了三区别处断言——snapshot_route_force_refresh_bypasses_the_cache 系 market_http_test.go:330 的已覆盖断言且原路径已过期（文件现为 product_market_data_quote_read_tests.rs），tick_candles_use_fresh_cache_without_querying_the_provider 系 routes_test.go:407/market_http_test.go:382 的已覆盖断言，prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority 系 service_test.go:12 的已覆盖断言；跨 Go 用例借用不能记为本用例等价，降为 partial 更诚实）。Go 矩阵四组实际覆盖：(2) 账户资格三种失败输入由共享引用覆盖（discovery 失败、nil firm、错误 authority，Rust 用 eq_ignore_ascii_case(\"US\") 对应 containsFold 大小写不敏感语义）；(1) 12 个 adapter 在 bare broker 上全部失败——Rust 无 bare 反射概念，由 adapter bindings 矩阵与各端口 fail-closed 承担，无逐项等价；(3) 缓存三态 missing/expired 返回 nil、未过期返回副本且 fromCache=true——Rust 只有相邻属性断言（强制刷新绕开、鲜缓存不触达 provider），无三态专用等价；(4) batchSnapshotResult 取较晚 observedAt 为 asOf——由 batch snapshots observedAt 透传断言相邻覆盖；cloneResult/boolParam 属 Go 辅助函数形态，归边界保留。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -213438,9 +213426,7 @@
           "--locked"
         ],
         "testFilter": [
-          "prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority",
-          "snapshot_route_force_refresh_bypasses_the_cache",
-          "tick_candles_use_fresh_cache_without_querying_the_provider"
+          "prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -213453,15 +213439,15 @@
       "risk": "high",
       "owner": "marketdata_quotes",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact（按 Rust 架构等价重写）：Go 的矩阵含四组——(1) 12 个 adapter interface 在 bare broker 上 queryResolvedFeature 都必须失败；(2) 账户资格三种失败输入（discovery 错误、nil firm、FUTUINC+HK authority）都失败，且 containsFold([\"HK\"],\"US\")==false / containsFold([\"us\"],\"US\")==true；(3) 缓存三态：missing 返回 nil、expired 返回 nil、未过期返回副本且 metadata.fromCache=true，并断言 cloneResult(nil)==nil、boolParam(nil,\"missing\")==false；(4) batchSnapshotResult 的 asOf 取 observedAt 较晚者。Rust 侧等价证据：prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority 逐项断言 discovery 失败、nil firm、错误 authority 三种不合格并在 authority 列表为空时信任（对应 containsFold 的大小写不敏感语义，Rust 用 eq_ignore_ascii_case(\"US\")）；缓存三态由 snapshot_route_force_refresh_bypasses_the_cache（强制刷新绕开新鲜缓存）与 tick_candles_use_fresh_cache_without_querying_the_provider（新鲜缓存不触达 provider）覆盖；batchSnapshotResult 的 asOf 取 observedAt 已由本批 batch snapshots 用例的 observedAt 透传与 entries 断言覆盖。「12 个 adapter interface 全部失败」在 Rust 由 adapter bindings 矩阵 + 各端口 fail-closed 检查承担（无 bare-broker 反射接口概念），cloneResult/boolParam 属 Go 辅助函数形态，归边界保留。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（分片四十四复核纠正：原[x]条目借用了三区别处断言——snapshot_route_force_refresh_bypasses_the_cache 系 market_http_test.go:330 的已覆盖断言且原路径已过期（文件现为 product_market_data_quote_read_tests.rs），tick_candles_use_fresh_cache_without_querying_the_provider 系 routes_test.go:407/market_http_test.go:382 的已覆盖断言，prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority 系 service_test.go:12 的已覆盖断言；跨 Go 用例借用不能记为本用例等价，降为 partial 更诚实）。Go 矩阵四组实际覆盖：(2) 账户资格三种失败输入由共享引用覆盖（discovery 失败、nil firm、错误 authority，Rust 用 eq_ignore_ascii_case(\"US\") 对应 containsFold 大小写不敏感语义）；(1) 12 个 adapter 在 bare broker 上全部失败——Rust 无 bare 反射概念，由 adapter bindings 矩阵与各端口 fail-closed 承担，无逐项等价；(3) 缓存三态 missing/expired 返回 nil、未过期返回副本且 fromCache=true——Rust 只有相邻属性断言（强制刷新绕开、鲜缓存不触达 provider），无三态专用等价；(4) batchSnapshotResult 取较晚 observedAt 为 asOf——由 batch snapshots observedAt 透传断言相邻覆盖；cloneResult/boolParam 属 Go 辅助函数形态，归边界保留。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/productfeatures/typed_queries_test.go:12:TestDocumentResultPreservesFeatureWireShape": {
@@ -293820,15 +293806,14 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::tick_candles_use_fresh_cache_without_querying_the_provider": {
-      "referenceCount": 7,
+      "referenceCount": 6,
       "referenceKeys": [
         "internal/api/marketdata/routes_test.go:407:TestCandlesRouteTickAndStrictBeforePagination",
         "internal/app/apiserver/marketdataapp/market_http_test.go:382:TestMarketCandlesTickResponseUsesFreshCache",
         "internal/marketdata/cache_test.go:301:TestServiceUsesSingleCacheForSnapshotCandlesAndLatest",
         "internal/marketdata/provider_switch_boundaries_test.go:123:TestProviderSwitchCacheUtilitiesCoverConcreteValuesAndCNRejection",
         "internal/marketdata/service_facade_test.go:162:TestServiceTickCandlesProviderAndFallbackBoundaries",
-        "internal/productfeatures/service_test.go:143:TestProductFeatureServiceRoutesEveryOptionalInterfaceAndCaches",
-        "internal/productfeatures/service_test.go:443:TestProductFeatureDirectAdapterCacheAndEligibilityBranches"
+        "internal/productfeatures/service_test.go:143:TestProductFeatureServiceRoutesEveryOptionalInterfaceAndCaches"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -297702,14 +297687,6 @@
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
-    },
-    "crates/jftrade-engine/src/product_production_ports_market_data_quote_read_tests.rs::snapshot_route_force_refresh_bypasses_the_cache": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/productfeatures/service_test.go:443:TestProductFeatureDirectAdapterCacheAndEligibilityBranches"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs::read_candles": {
       "referenceCount": 1,

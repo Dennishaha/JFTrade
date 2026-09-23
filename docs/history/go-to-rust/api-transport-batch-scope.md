@@ -3515,3 +3515,31 @@ owner：公司行动拦截、榜单、筛选、研究投影均由 engine 领域 
 | 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 |
 
 后续：other 域本片完成（余 42 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+
+### 第 129 批分片四十四：other 域收尾 42 行（1 处纠正：service_test.go:443 [x] 降为 partial）
+
+范围（账本 rows 3237-3278，按写入顺序）：provider_projection:421/:486/:530/:547、service_routing_and_validation:14/:187/:289/:346、service:12/:30/:46/:82/:99/:143/:210/:243/:321/:404/:443、typed_queries:12/:41、presets:85/:111/:146/:202、retry do_attempts:8/:26、retry:10/:40/:57/:76、passwordhash:9/:25/:32、service_status_defaults:10/:41/:61/:109/:137/:151、system service:13/:59。初值 [x] 36、partial 5、boundary 1。
+
+owner：产品特性投影与服务路由、重试、密码哈希、系统状态均由 engine 领域 crate 与 jftrade-integration-futu、jftrade-settings 承接，无双写。
+
+复核方法：42 条全量枚举引用有效性，[x] 逐分支核对 Go 原文与 Rust 断言等价（含全文唯一性与锚点归属），partial 与 boundary 核对缺口诚实度。结论：1 处纠正、0 升级。
+
+纠正证据：service_test.go:443 原 [x] 条目借用了三处他处断言——snapshot_route_force_refresh_bypasses_the_cache 系 market_http_test.go:330 的已覆盖断言且原引用路径已过期（文件现为 product_market_data_quote_read_tests.rs），tick_candles_use_fresh_cache_without_querying_the_provider 系 routes_test.go:407 与 market_http_test.go:382 的已覆盖断言，prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority 系 service_test.go:12 的已覆盖断言；跨 Go 用例借用不能记为本用例等价，且修复路径会制造重复 [x]，故降为 partial 并保留唯一共享引用。引用存在不等于断言等价口径保持。
+
+抽查证据：retry 三条 [x] 均为同行为映射（Do 重试至成功对 reconnect 重放、零退避对 BACKOFF.is_zero 加 2 次尝试、不可重试对 0 重连加原错误）；passwordhash 三条逐项覆盖隐藏明文、超界参数前置拒绝、畸形 verifier 表；system status 五条字段与动态值一致；partial 五条缺口诚实（负重试归一无对应 Config、确定性退避阶梯仅相邻覆盖、限流文本谓词拆为结构化分类、日历零值分支无回调注入、运行时依赖改自身探测）；boundary 一条保留成立（Rust 组合根始终装配 owner，无空默认分支）。
+
+新增证据：无 Rust 改动；账本 1 行 verdict 变更（[x] 转 partial），无新增锚点。
+
+映射终值（42 行）：[x] 35、partial 6、boundary 1。全量：[x] 1565、partial 2249、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 42 条全量枚举引用有效性加断言等价抽查 | 1 纠正（443 降 partial）、0 升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2_writer 1 行 verdict 变更 | [x] 1566 到 1565、partial 2248 到 2249、boundary 637 不变（合计 4451） |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；0 不存在 crate、0 缺 function_exact、缺锚点告警 120 不变、dup-x 为 0 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick 完整计划 | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0 |
+
+后续：other 域收尾完成（余 0 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
