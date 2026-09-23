@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T20:08:16Z",
+  "generatedAt": "2026-09-23T20:13:24Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -259688,7 +259688,7 @@
     "pkg/strategy/indicatorwarmup/warmup_internal_test.go:142:TestResolveIntervalMinutesSupportsBrokerIntervalsAndSafeFallbacks": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-strategy/src/pine/planner.rs::test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+      "conclusion": "function_exact：Go 断言间隔解析支持券商档位并安全回退。Rust 用例带本行 Parity 锚点，逐条锁定（day_minutes=390）：空串与 1min 回退 1；5m→5；2h→120；2d→2 倍日分钟；2w→2 倍日分钟乘 5；2mo→2 倍日分钟乘 20；非法值 bad/0m/xm 全部回退 1。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy",
       "evidence_type": "function_exact",
       "source": {
@@ -259712,7 +259712,7 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据"
+          "function_exact：Go 断言间隔解析支持券商档位并安全回退。Rust 用例带本行 Parity 锚点，逐条锁定（day_minutes=390）：空串与 1min 回退 1；5m→5；2h→120；2d→2 倍日分钟；2w→2 倍日分钟乘 5；2mo→2 倍日分钟乘 20；非法值 bad/0m/xm 全部回退 1。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -259745,7 +259745,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据"
+        "function_exact：Go 断言间隔解析支持券商档位并安全回退。Rust 用例带本行 Parity 锚点，逐条锁定（day_minutes=390）：空串与 1min 回退 1；5m→5；2h→120；2d→2 倍日分钟；2w→2 倍日分钟乘 5；2mo→2 倍日分钟乘 20；非法值 bad/0m/xm 全部回退 1。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null

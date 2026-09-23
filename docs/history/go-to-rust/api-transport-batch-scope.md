@@ -4121,3 +4121,31 @@ owner：策略服务语义由 jftrade-engine 承接，源码格式与指标绑�
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 3979 起；尾部余 473 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
+
+### 第 129 批分片六十六：rows 3979-4013 指标预热与 IR 规划 35 行（1 处占位结论改写，无 verdict 变更）
+
+范围（账本 rows 3979-4013，按写入顺序）：strategy indicatorbinding parse:666/:720、indicatorwarmup parser_validation:5/:55、risk_specification_rejection:5、spec_parse_business:11/:135/:198/:215、spec_parse_invalid:8/:60/:137/:203、spec_sort_business:8/:66、warmup_internal:10/:38/:50/:62/:110/:142、warmup_plan:12/:40/:74/:98/:121、warmup_script:14/:51/:67/:96/:103、ir planner_branch:9/:100、planner_business_boundary:10/:42。初值 [x] 8、partial 19、boundary 8，终值不变。首键自检通过，无重叠。
+
+owner：指标预热与规划由 jftrade-strategy 承接，指标兼容由 jftrade-backtest 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（19 个去重后引用逐个核对 #[test]，0 缺失），8 条 [x] 逐条核对锚点归属与断言等价（全部 function_exact 且带锚点），partial 与 boundary 抽查缺口诚实度。结论：1 处占位结论改写，0 升级、0 降级。
+
+改写：warmup_internal:142 的结论为占位写法（已找到证据），Rust 用例实质逐档齐全且带本行锚点，verdict 保持 [x]，结论按子例改写为空串/分钟/小时/天/周/月/非法回退七条。
+
+抽查证据：[x] 结论多为逐值写法（含探针与 shasum 记录）；boundary 均为结构差异（含升级路径）；dup-x 为 0。
+
+新增证据：无 Rust 改动；账本 1 行结论改写；无新增锚点。
+
+映射终值（35 行）：[x] 8、partial 19、boundary 8。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（19 去重引用）加 [x] 断言等价核对 | 1 占位结论改写；0 升级、0 降级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2 写入器 1 行 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；inventory 随改写行更新，report 刷新基线；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 4014 起；尾部余 438 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
