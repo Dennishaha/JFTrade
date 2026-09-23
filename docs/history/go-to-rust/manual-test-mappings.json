@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T18:58:03Z",
+  "generatedAt": "2026-09-23T19:02:16Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -184973,8 +184973,8 @@
     },
     "pkg/market/sh/sh_test.go:20:TestLoadLocationFallsBackToUTC": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-calendar/src/manager_policy.rs::market_local_midnight",
-      "conclusion": "boundary：同 HK 的 loadLocation 静默回退 UTC；Rust 改为显式错误（fail-closed），保留该边界差异。",
+      "rust_entry": "不适用：Rust 时区加载失败返回错误（fail-closed），无静默回退 UTC 的 loadLocation",
+      "conclusion": "boundary（本批纠正引用）：Go 的 loadLocation 在时区数据库缺失时静默回退 UTC。原条目引用的是生产函数 market_local_midnight 而非测试；Rust 用 jiff::tz::TimeZone::get 并在失败时返回错误（fail-closed，不静默降级），属 SH 的保留边界差异，不迁就 Go 的静默回退。回归要求：若引入离线时区兜底，需补“未知时区名 → UTC 且打标降级来源”的断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -184983,18 +184983,11 @@
         "test": "TestLoadLocationFallsBackToUTC",
         "blobSha": "4924af903e547263f9e02aa1d80718e129e28ac2"
       },
-      "rustEvidence": [
-        {
-          "file": "crates/jftrade-calendar/src/manager_policy.rs",
-          "test": "market_local_midnight",
-          "crate": "jftrade-calendar",
-          "anchor": null
-        }
-      ],
+      "rustEvidence": [],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary：同 HK 的 loadLocation 静默回退 UTC；Rust 改为显式错误（fail-closed），保留该边界差异。"
+          "boundary（本批纠正引用）：Go 的 loadLocation 在时区数据库缺失时静默回退 UTC。原条目引用的是生产函数 market_local_midnight 而非测试；Rust 用 jiff::tz::TimeZone::get 并在失败时返回错误（fail-closed，不静默降级），属 SH 的保留边界差异，不迁就 Go 的静默回退。回归要求：若引入离线时区兜底，需补“未知时区名 → UTC 且打标降级来源”的断言后再升级。"
         ],
         "source": "legacy-conclusion"
       },
@@ -185008,9 +185001,7 @@
           "--all-targets",
           "--locked"
         ],
-        "testFilter": [
-          "market_local_midnight"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "unverified",
@@ -185029,9 +185020,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary：同 HK 的 loadLocation 静默回退 UTC；Rust 改为显式错误（fail-closed），保留该边界差异。"
+        "boundary（本批纠正引用）：Go 的 loadLocation 在时区数据库缺失时静默回退 UTC。原条目引用的是生产函数 market_local_midnight 而非测试；Rust 用 jiff::tz::TimeZone::get 并在失败时返回错误（fail-closed，不静默降级），属 SH 的保留边界差异，不迁就 Go 的静默回退。回归要求：若引入离线时区兜底，需补“未知时区名 → UTC 且打标降级来源”的断言后再升级。"
       ],
-      "boundaryReason": "boundary：同 HK 的 loadLocation 静默回退 UTC；Rust 改为显式错误（fail-closed），保留该边界差异。"
+      "boundaryReason": "boundary（本批纠正引用）：Go 的 loadLocation 在时区数据库缺失时静默回退 UTC。原条目引用的是生产函数 market_local_midnight 而非测试；Rust 用 jiff::tz::TimeZone::get 并在失败时返回错误（fail-closed，不静默降级），属 SH 的保留边界差异，不迁就 Go 的静默回退。回归要求：若引入离线时区兜底，需补“未知时区名 → UTC 且打标降级来源”的断言后再升级。"
     },
     "pkg/market/sz/sz_test.go:8:TestSZProfileUsesChinaMarketAndTimezone": {
       "status": "[~]",
@@ -185097,8 +185088,8 @@
     },
     "pkg/market/sz/sz_test.go:20:TestLoadLocationFallsBackToUTC": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-calendar/src/manager_policy.rs::market_local_midnight",
-      "conclusion": "boundary：同 HK/SH 的 loadLocation 静默回退 UTC；Rust 改为显式错误（fail-closed），保留该边界差异。",
+      "rust_entry": "不适用：Rust 时区加载失败返回错误（fail-closed），无静默回退 UTC 的 loadLocation",
+      "conclusion": "boundary（本批纠正引用）：Go 的 loadLocation 在时区数据库缺失时静默回退 UTC。原条目引用的是生产函数 market_local_midnight 而非测试；Rust 用 jiff::tz::TimeZone::get 并在失败时返回错误（fail-closed，不静默降级），属 SZ 的保留边界差异，不迁就 Go 的静默回退。回归要求：若引入离线时区兜底，需补“未知时区名 → UTC 且打标降级来源”的断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -185107,18 +185098,11 @@
         "test": "TestLoadLocationFallsBackToUTC",
         "blobSha": "1e37036a6e07e7270fa819b6a96884db40fb26ea"
       },
-      "rustEvidence": [
-        {
-          "file": "crates/jftrade-calendar/src/manager_policy.rs",
-          "test": "market_local_midnight",
-          "crate": "jftrade-calendar",
-          "anchor": null
-        }
-      ],
+      "rustEvidence": [],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary：同 HK/SH 的 loadLocation 静默回退 UTC；Rust 改为显式错误（fail-closed），保留该边界差异。"
+          "boundary（本批纠正引用）：Go 的 loadLocation 在时区数据库缺失时静默回退 UTC。原条目引用的是生产函数 market_local_midnight 而非测试；Rust 用 jiff::tz::TimeZone::get 并在失败时返回错误（fail-closed，不静默降级），属 SZ 的保留边界差异，不迁就 Go 的静默回退。回归要求：若引入离线时区兜底，需补“未知时区名 → UTC 且打标降级来源”的断言后再升级。"
         ],
         "source": "legacy-conclusion"
       },
@@ -185132,9 +185116,7 @@
           "--all-targets",
           "--locked"
         ],
-        "testFilter": [
-          "market_local_midnight"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "unverified",
@@ -185153,9 +185135,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary：同 HK/SH 的 loadLocation 静默回退 UTC；Rust 改为显式错误（fail-closed），保留该边界差异。"
+        "boundary（本批纠正引用）：Go 的 loadLocation 在时区数据库缺失时静默回退 UTC。原条目引用的是生产函数 market_local_midnight 而非测试；Rust 用 jiff::tz::TimeZone::get 并在失败时返回错误（fail-closed，不静默降级），属 SZ 的保留边界差异，不迁就 Go 的静默回退。回归要求：若引入离线时区兜底，需补“未知时区名 → UTC 且打标降级来源”的断言后再升级。"
       ],
-      "boundaryReason": "boundary：同 HK/SH 的 loadLocation 静默回退 UTC；Rust 改为显式错误（fail-closed），保留该边界差异。"
+      "boundaryReason": "boundary（本批纠正引用）：Go 的 loadLocation 在时区数据库缺失时静默回退 UTC。原条目引用的是生产函数 market_local_midnight 而非测试；Rust 用 jiff::tz::TimeZone::get 并在失败时返回错误（fail-closed，不静默降级），属 SZ 的保留边界差异，不迁就 Go 的静默回退。回归要求：若引入离线时区兜底，需补“未知时区名 → UTC 且打标降级来源”的断言后再升级。"
     },
     "pkg/market/us/us_test.go:8:TestUSProfileUsesNewYorkTimezoneAndRegularSession": {
       "status": "[~]",
@@ -290558,15 +290540,6 @@
         "pkg/market/calendar/builtin_test.go:8:TestBuiltinResolverUSHolidayAndEarlyClose",
         "pkg/market/calendar/helpers_boundaries_test.go:87:TestBuiltinUSChristmasEveEarlyCloseAndTemplateCopies",
         "pkg/market/us/us_test.go:17:TestUSTradingDayAndEarlyCloseRules"
-      ],
-      "allowed": false,
-      "reviewStatus": "unreviewed"
-    },
-    "crates/jftrade-calendar/src/manager_policy.rs::market_local_midnight": {
-      "referenceCount": 2,
-      "referenceKeys": [
-        "pkg/market/sh/sh_test.go:20:TestLoadLocationFallsBackToUTC",
-        "pkg/market/sz/sz_test.go:20:TestLoadLocationFallsBackToUTC"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"

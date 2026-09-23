@@ -3180,3 +3180,34 @@ owner：交易日历面在 Rust 由 `jftrade-calendar`（manager_policy/manager_
 | 已知失败（如实记录） | `check:rust:static`、`check:rust:policy` 结果见日志；`--strict` 全仓缺口未达标（非本分片阻塞）；失败项不记为通过 | static exit 0、policy exit 0 | /tmp/s30_static.log、/tmp/s30_policy.log |
 
 后续：other 域 market/calendar 片完成（余 497 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+
+### 第 129 批分片三十一：other 域 market 会话与覆盖工具 35 行（2 处引用纠正，无 verdict 变更）
+
+范围（账本 rows 2782-2816，按写入顺序）：pkg/market/market_test.go:174/:193/:225/:239/:260、session_boundaries_test.go:10/:51/:67/:102、session_calendar_refresh_contract_test.go:36、session_window_test.go:8/:50/:80/:126/:142、sh_test.go:8/:20、sz_test.go:8/:20、us_test.go:8/:17/:56、cmd/check-go-coverage/changed_lines_analysis_test.go:42/:64/:71/:82/:96/:102/:112/:122/:142/:150/:203/:242/:275。初值 [x] 0、partial 21、boundary 14。
+
+owner：交易会话与日历边界在 Rust 由 jftrade-calendar（manager_session/manager_policy/manager_boundaries/candle_completion/fetch_window_timezone）与 jftrade-marketdata（catalog/catalog_tests/cache_extended_sessions）持有；覆盖率工具面 Go 已随运行时删除，等价 owner 为 Node 覆盖门禁脚本，无 Rust 双写。
+
+复核方法：35 条全量枚举引用有效性（条目须指向真实测试函数，生产函数与裸生产文件一律视为错位；[x] 行间 rust_entry 全文唯一），逐条抽查 Go 原文与缺口描述；高风险面为 DST、隔夜 carry、早收、午休、自定义窗口与缺日历 fail-closed。本片 0 条 [x]，无需断言等价升级判断；partial 逐条核对缺口诚实度（引用存在不等于断言等价）。
+
+纠正：2798（sh:20）与 2800（sz:20）与已纠正的 hk:20 同题，原引用均为生产函数 market_local_midnight 而非测试；Rust 时区加载失败 fail-closed，无静默回退语义，改为不适用 prose 边界保留并重写结论。verdict 保持 boundary 不变，无新增锚点。纠正后 market_local_midnight 的 reuse 引用归零，符合生产函数零引用预期。
+
+其余结论：21 条 partial 引用全部指向真实 Rust 测试（manager_session 内模块测试、catalog_tests、calendar tests/marketdata tests 均逐条确认），缺口描述相符，无升级项；14 条 boundary 中 13 条 Go 专用覆盖工具 prose 保留与 1 条改名 partial 例外（changed_lines_analysis:71，Node 脚本等价）维持原判。
+
+新增证据：无 Rust 改动、无新增用例、无新增锚点；账本 2 行变更（v2 写入器）。
+
+映射终值（35 行）：[x] 0、partial 21、boundary 14。全量：[x] 1566、partial 2248、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加缺口抽查，0 条 [x] | 2 引用纠正，无升级项；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 2 行变更（v2 写入器），其余不动 | [x] 1566 不变、partial 2248 不变、boundary 637 不变（合计 4451） |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；0 条引用不存在 crate、0 条 [x] 缺 function_exact；缺锚点告警 120 不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 静态与格式 | cargo fmt --all -- --check（过，无 Rust 改动）、pnpm run check:clippy（exit 0）、check:rust:architecture（passed）、check:migration-manifest（passed） | /tmp/s31_quick.log、/tmp/s31_static.log、/tmp/s31_policy.log |
+| 受影响 nextest | calendar 89/89 全绿、marketdata 61/61 全绿 | 前台直跑 |
+| 兼容与门禁 | generated/ai-context/zero-go 均过；quick 完整计划 | quick exit 0 |
+| 已知失败（如实记录） | check:rust:static、check:rust:policy 结果见日志；--strict 全仓缺口未达标（非本分片阻塞）；失败项不记为通过 | static exit 0、policy exit 0 |
+
+后续：other 域本片完成（余 462 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。另：对齐审计线程提醒的 runner_chat:423 与 store:792 重复 [x] 本工作树已为 [x]+partial（审计唯一性通过），本次提交不改动该结论；strategy 15.5% 与 backtest 6.3% 仍为关键域缺口，按排期处理。
