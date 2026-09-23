@@ -1339,3 +1339,194 @@ fn control_plane_executes_simulated_orders_through_the_risk_guard_without_audit(
     assert!(snapshot.hard_stop_events.is_empty(), "{snapshot:?}");
     assert!(snapshot.risk_events.is_empty(), "{snapshot:?}");
 }
+
+/// Parity: go:452dea11:internal/trading/control_plane_state_audit_test.go:99
+/// `TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations`
+/// (blank state). Go's `load` treats a whitespace-only state file as a fresh
+/// plane: construction succeeds and the snapshot reports an available plane
+/// with no kill switch.
+#[test]
+fn blank_persisted_state_loads_as_available_fresh_plane() {
+    let dir = TempDir::new().unwrap();
+    let path = write_control_file(dir.path(), " \n\t ");
+    let opened = ExecutionRiskCoordinator::open(&path);
+    assert!(
+        opened.is_ok(),
+        "blank state must open as a fresh plane: {opened:?}"
+    );
+    let coordinator = ExecutionRiskCoordinator::new(&path);
+    let snapshot = coordinator.snapshot();
+    assert!(
+        snapshot.control_plane_available,
+        "blank state snapshot must be available: {snapshot:?}"
+    );
+    assert!(
+        !snapshot.kill_switch_active,
+        "blank state snapshot must not report a kill switch: {snapshot:?}"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/control_plane_state_audit_test.go:99
+/// `TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations`
+/// (directory path). Go returns both an unavailable plane and a load error
+/// when the state path is a directory.
+#[test]
+fn directory_state_path_reports_unavailable_plane_with_load_error() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().to_path_buf();
+    assert!(
+        ExecutionRiskCoordinator::open(&path).is_err(),
+        "strict open must report the directory state path"
+    );
+    let coordinator = ExecutionRiskCoordinator::new(&path);
+    let snapshot = coordinator.snapshot();
+    assert!(
+        !snapshot.control_plane_available,
+        "directory state snapshot must be unavailable: {snapshot:?}"
+    );
+    assert!(
+        snapshot.control_plane_error.is_some(),
+        "directory state snapshot must carry the load error: {snapshot:?}"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/control_plane_state_audit_test.go:99
+/// `TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations`
+/// (unavailable mutations). Go rejects all six control-plane mutations with
+/// an `unavailable` error while the persisted state cannot be read.
+#[test]
+fn unavailable_plane_mutations_report_control_plane_unavailable() {
+    let dir = TempDir::new().unwrap();
+    let coordinator = std::sync::Arc::new(ExecutionRiskCoordinator::new(dir.path()));
+    assert!(
+        !coordinator.snapshot().control_plane_available,
+        "the directory-backed plane must start unavailable"
+    );
+    let port = ProductionSystemWritePort::with_coordinator(std::sync::Arc::clone(&coordinator));
+    let mutations = [
+        (
+            "activate kill switch",
+            kill_switch_input(SystemWriteOperation::ActivateKillSwitch, "tester", "audit"),
+        ),
+        (
+            "release kill switch",
+            kill_switch_input(SystemWriteOperation::ReleaseKillSwitch, "tester", "audit"),
+        ),
+        (
+            "update risk configuration",
+            SystemWriteInput {
+                operation: SystemWriteOperation::UpdateRisk,
+                hard_stop_id: None,
+                kill_switch: None,
+                hard_stop: None,
+                risk: Some(runtime_risk_command("real", true, Some(1.0), None)),
+            },
+        ),
+        (
+            "disable risk configuration",
+            SystemWriteInput {
+                operation: SystemWriteOperation::DisableRisk,
+                hard_stop_id: None,
+                kill_switch: None,
+                hard_stop: None,
+                risk: Some(runtime_risk_command("", false, None, None)),
+            },
+        ),
+        (
+            "activate hard stop",
+            hard_stop_input(
+                SystemWriteOperation::ActivateHardStop,
+                None,
+                account_hard_stop_command("halt"),
+            ),
+        ),
+        (
+            "release hard stop",
+            hard_stop_input(
+                SystemWriteOperation::ReleaseHardStop,
+                Some("missing"),
+                account_hard_stop_command("halt"),
+            ),
+        ),
+    ];
+    for (name, input) in mutations {
+        let rejected = port
+            .mutate(&input)
+            .expect_err("mutation on an unavailable plane must fail");
+        let rendered = format!("{rejected}");
+        assert!(
+            rendered.contains("unavailable"),
+            "{name} error = {rendered}, want an unavailable control-plane error"
+        );
+    }
+}
+
+/// Parity: go:452dea11:internal/trading/control_plane_state_audit_test.go:99
+/// `TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations`
+/// (invalid notional). Go validates runtime risk limits at the engine level
+/// before the availability gate, mirroring `validateRuntimeRiskLimit`, so the
+/// port must reject non-positive limits without mutating the plane.
+#[test]
+fn port_update_risk_validates_limits_before_mutating() {
+    let dir = TempDir::new().unwrap();
+    let (coordinator, port) = control_plane_port(&dir);
+    let invalid = [
+        (
+            "non-positive notional",
+            runtime_risk_command("real", false, None, Some(-1.0)),
+            "maxOrderNotional",
+        ),
+        (
+            "non-positive quantity",
+            runtime_risk_command("real", false, Some(0.0), None),
+            "maxOrderQuantity",
+        ),
+        (
+            "enabling without limits",
+            runtime_risk_command("real", true, None, None),
+            "at least one positive runtime risk limit",
+        ),
+    ];
+    for (name, command, expected) in invalid {
+        let rejected = port
+            .mutate(&SystemWriteInput {
+                operation: SystemWriteOperation::UpdateRisk,
+                hard_stop_id: None,
+                kill_switch: None,
+                hard_stop: None,
+                risk: Some(command),
+            })
+            .expect_err("invalid runtime risk config must be rejected");
+        let rendered = format!("{rejected}");
+        assert!(
+            rendered.contains(expected),
+            "{name} error = {rendered}, want {expected} validation"
+        );
+    }
+    assert!(
+        coordinator.snapshot().risk_events.is_empty(),
+        "rejected risk updates must not append audit events"
+    );
+}
+
+/// Parity: go:452dea11:internal/trading/control_plane_state_audit_test.go:99
+/// `TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations`
+/// (missing hard stop). Releasing an unknown hard stop on an available plane
+/// reports a not-found error.
+#[test]
+fn port_release_missing_hard_stop_reports_not_found() {
+    let dir = TempDir::new().unwrap();
+    let (_coordinator, port) = control_plane_port(&dir);
+    let rejected = port
+        .mutate(&hard_stop_input(
+            SystemWriteOperation::ReleaseHardStop,
+            Some("not-present"),
+            account_hard_stop_command("halt"),
+        ))
+        .expect_err("releasing a missing hard stop must fail");
+    let rendered = format!("{rejected}");
+    assert!(
+        rendered.contains("not found"),
+        "missing hard-stop release error = {rendered}, want a not-found error"
+    );
+}

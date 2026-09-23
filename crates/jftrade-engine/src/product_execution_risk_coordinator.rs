@@ -153,10 +153,13 @@ impl ExecutionRiskCoordinator {
                 })?;
                 guard.control_plane_error = Some(error.clone());
                 guard.generation = guard.generation.wrapping_add(1);
+                // Parity: go:452dea11:internal/trading/control_plane.go:583
+                // RealTradeControlPlane.availabilityErrorLocked reports read failures as
+                // unavailable. The status code stays CONTROL_PLANE_READ_FAILED.
                 return Err(SystemWritePortError::Failed {
                     status: 500,
                     code: "CONTROL_PLANE_READ_FAILED".to_owned(),
-                    message: error,
+                    message: format!("real-trade control plane is unavailable: {error}"),
                 });
             }
         };

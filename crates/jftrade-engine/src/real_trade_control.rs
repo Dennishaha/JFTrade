@@ -61,8 +61,10 @@ pub fn load_state(path: &Path) -> Result<RealTradeControlState, String> {
 pub fn load_state_strict(path: &Path) -> Result<RealTradeControlState, String> {
     let bytes =
         fs::read(path).map_err(|error| format!("read real-trade control state: {error}"))?;
+    // Parity: go:452dea11:internal/trading/control_plane.go:545 RealTradeControlPlane.load treats a
+    // blank persisted file as a fresh plane instead of a load failure.
     if bytes.iter().all(u8::is_ascii_whitespace) {
-        return Err("real-trade control state file is empty".to_owned());
+        return Ok(RealTradeControlState::default());
     }
     serde_json::from_slice(&bytes)
         .map_err(|error| format!("decode real-trade control state: {error}"))

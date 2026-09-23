@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T21:57:11Z",
+  "generatedAt": "2026-09-23T22:23:44Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -280982,11 +280982,11 @@
       "boundaryReason": null
     },
     "internal/trading/control_plane_state_audit_test.go:99:TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_control_plane_treats_empty_state_as_fresh_and_rejects_unavailable_mutations",
-      "conclusion": "部分覆盖：Rust 用例仅断言 RealTradeControlState::default() 无 kill switch 且 hard stops 为空，这是 Go 断言的极小子集。未覆盖：空白文件→fresh 可用平面且 kill switch 未激活、目录路径→unavailable 平面加 load error、6 种 mutation（activate/release kill switch、update/disable risk、activate/release hard stop）全报 unavailable、非法 notional 报 maxOrderNotional、释放缺失 hard stop 报 not found、PAPER 单放行且无审计副作用。交叉覆盖：PAPER 放行语义由 control_plane_executes_simulated_orders_through_the_risk_guard_without_audit 覆盖。缺口位置：jftrade-trading 控制面文件加载与不可用平面语义在 Rust 侧无对应行为测试。回归要求：在所属领域 crate 补空白状态、不可用平面 mutation 矩阵、非法 notional 与缺失 hard stop 释放的测试后再升 [x]。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::blank_persisted_state_loads_as_available_fresh_plane; crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::directory_state_path_reports_unavailable_plane_with_load_error; crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::unavailable_plane_mutations_report_control_plane_unavailable; crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::port_update_risk_validates_limits_before_mutating; crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::port_release_missing_hard_stop_reports_not_found",
+      "conclusion": "全覆盖：空白文件按 Go load 语义视为 fresh 可用平面且无 kill switch；目录路径 open 报错且 new 降级为不可用平面；不可用平面 6 种 mutation 全报 unavailable（CONTROL_PLANE_READ_FAILED 码保持，消息加 unavailable 前缀）；port 级 UpdateRisk 在可用性门之前按 Go 顺序校验（非法 notional 报 maxOrderNotional、非法 quantity 报 maxOrderQuantity、无限额启用被拒）；缺失 hard stop 释放报 not found；PAPER 放行由 control_plane_executes_simulated_orders_through_the_risk_guard_without_audit 交叉覆盖。生产修复 3 处：real_trade_control.rs 空白改 Ok default、coordinator 读失败消息加 unavailable 前缀、ports 加 Go 同序引擎级校验。红测 3/3 失败（修复前非法 notional 被持久化），恢复后 5/5 通过、同模块 25/25 通过。旧 jftrade-trading 极小子集证据被替代。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(blank_persisted_state_loads_as_available_fresh_plane) | test(directory_state_path_reports_unavailable_plane_with_load_error) | test(unavailable_plane_mutations_report_control_plane_unavailable) | test(port_update_risk_validates_limits_before_mutating) | test(port_release_missing_hard_stop_reports_not_found)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/trading/control_plane_state_audit_test.go",
         "line": 99,
@@ -280995,22 +280995,66 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs",
-          "test": "test_control_plane_treats_empty_state_as_fresh_and_rejects_unavailable_mutations",
-          "crate": "jftrade-trading",
+          "file": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
+          "test": "blank_persisted_state_loads_as_available_fresh_plane",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/trading/control_plane_state_audit_test.go",
             "goLine": 99,
-            "rustFile": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs",
-            "rustLine": 167
+            "rustFile": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
+            "rustLine": 1343
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
+          "test": "directory_state_path_reports_unavailable_plane_with_load_error",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/control_plane_state_audit_test.go",
+            "goLine": 99,
+            "rustFile": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
+            "rustLine": 1343
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
+          "test": "unavailable_plane_mutations_report_control_plane_unavailable",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/control_plane_state_audit_test.go",
+            "goLine": 99,
+            "rustFile": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
+            "rustLine": 1343
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
+          "test": "port_update_risk_validates_limits_before_mutating",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/control_plane_state_audit_test.go",
+            "goLine": 99,
+            "rustFile": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
+            "rustLine": 1343
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
+          "test": "port_release_missing_hard_stop_reports_not_found",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/control_plane_state_audit_test.go",
+            "goLine": 99,
+            "rustFile": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
+            "rustLine": 1343
           }
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "部分覆盖：Rust 用例仅断言 RealTradeControlState::default() 无 kill switch 且 hard stops 为空，这是 Go 断言的极小子集。未覆盖：空白文件→fresh 可用平面且 kill switch 未激活、目录路径→unavailable 平面加 load error、6 种 mutation（activate/release kill switch、update/disable risk、activate/release hard stop）全报 unavailable、非法 notional 报 maxOrderNotional、释放缺失 hard stop 报 not found、PAPER 单放行且无审计副作用。交叉覆盖：PAPER 放行语义由 control_plane_executes_simulated_orders_through_the_risk_guard_without_audit 覆盖。缺口位置：jftrade-trading 控制面文件加载与不可用平面语义在 Rust 侧无对应行为测试。回归要求：在所属领域 crate 补空白状态、不可用平面 mutation 矩阵、非法 notional 与缺失 hard stop 释放的测试后再升 [x]。"
+        "covered": [
+          "全覆盖：空白文件按 Go load 语义视为 fresh 可用平面且无 kill switch；目录路径 open 报错且 new 降级为不可用平面；不可用平面 6 种 mutation 全报 unavailable（CONTROL_PLANE_READ_FAILED 码保持，消息加 unavailable 前缀）；port 级 UpdateRisk 在可用性门之前按 Go 顺序校验（非法 notional 报 maxOrderNotional、非法 quantity 报 maxOrderQuantity、无限额启用被拒）；缺失 hard stop 释放报 not found；PAPER 放行由 control_plane_executes_simulated_orders_through_the_risk_guard_without_audit 交叉覆盖。生产修复 3 处：real_trade_control.rs 空白改 Ok default、coordinator 读失败消息加 unavailable 前缀、ports 加 Go 同序引擎级校验。红测 3/3 失败（修复前非法 notional 被持久化），恢复后 5/5 通过、同模块 25/25 通过。旧 jftrade-trading 极小子集证据被替代。"
         ],
+        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -281019,10 +281063,18 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-trading"
+          "jftrade-engine",
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(blank_persisted_state_loads_as_available_fresh_plane) | test(directory_state_path_reports_unavailable_plane_with_load_error) | test(unavailable_plane_mutations_report_control_plane_unavailable) | test(port_update_risk_validates_limits_before_mutating) | test(port_release_missing_hard_stop_reports_not_found)"
         ],
         "testFilter": [
-          "test_control_plane_treats_empty_state_as_fresh_and_rejects_unavailable_mutations"
+          "blank_persisted_state_loads_as_available_fresh_plane",
+          "directory_state_path_reports_unavailable_plane_with_load_error",
+          "unavailable_plane_mutations_report_control_plane_unavailable",
+          "port_update_risk_validates_limits_before_mutating",
+          "port_release_missing_hard_stop_reports_not_found"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -281035,15 +281087,15 @@
       "risk": "high",
       "owner": "trading_broker",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "record_receipt_and_review_assertions",
       "blockedBy": [
-        "behavioral-parity-review"
+        "verification-receipt"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
-      "uncoveredAssertions": [
-        "部分覆盖：Rust 用例仅断言 RealTradeControlState::default() 无 kill switch 且 hard stops 为空，这是 Go 断言的极小子集。未覆盖：空白文件→fresh 可用平面且 kill switch 未激活、目录路径→unavailable 平面加 load error、6 种 mutation（activate/release kill switch、update/disable risk、activate/release hard stop）全报 unavailable、非法 notional 报 maxOrderNotional、释放缺失 hard stop 报 not found、PAPER 单放行且无审计副作用。交叉覆盖：PAPER 放行语义由 control_plane_executes_simulated_orders_through_the_risk_guard_without_audit 覆盖。缺口位置：jftrade-trading 控制面文件加载与不可用平面语义在 Rust 侧无对应行为测试。回归要求：在所属领域 crate 补空白状态、不可用平面 mutation 矩阵、非法 notional 与缺失 hard stop 释放的测试后再升 [x]。"
+      "coveredAssertions": [
+        "全覆盖：空白文件按 Go load 语义视为 fresh 可用平面且无 kill switch；目录路径 open 报错且 new 降级为不可用平面；不可用平面 6 种 mutation 全报 unavailable（CONTROL_PLANE_READ_FAILED 码保持，消息加 unavailable 前缀）；port 级 UpdateRisk 在可用性门之前按 Go 顺序校验（非法 notional 报 maxOrderNotional、非法 quantity 报 maxOrderQuantity、无限额启用被拒）；缺失 hard stop 释放报 not found；PAPER 放行由 control_plane_executes_simulated_orders_through_the_risk_guard_without_audit 交叉覆盖。生产修复 3 处：real_trade_control.rs 空白改 Ok default、coordinator 读失败消息加 unavailable 前缀、ports 加 Go 同序引擎级校验。红测 3/3 失败（修复前非法 notional 被持久化），恢复后 5/5 通过、同模块 25/25 通过。旧 jftrade-trading 极小子集证据被替代。"
       ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/trading/control_plane_state_audit_test.go:190:TestControlPlaneKeepsStateWhenAtomicPersistenceCannotComplete": {
@@ -293537,6 +293589,14 @@
       "allowed": false,
       "reviewStatus": "unreviewed"
     },
+    "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::blank_persisted_state_loads_as_available_fresh_plane": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/control_plane_state_audit_test.go:99:TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
     "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::control_plane_executes_simulated_orders_through_the_risk_guard_without_audit": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -293573,6 +293633,14 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/trading/control_plane_state_audit_test.go:13:TestControlPlaneRetainsActivationAndBoundsRepeatedAuditEvents"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::directory_state_path_reports_unavailable_plane_with_load_error": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/control_plane_state_audit_test.go:99:TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations"
       ],
       "allowed": true,
       "reviewStatus": "single"
@@ -293618,6 +293686,22 @@
       "allowed": true,
       "reviewStatus": "single"
     },
+    "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::port_release_missing_hard_stop_reports_not_found": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/control_plane_state_audit_test.go:99:TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::port_update_risk_validates_limits_before_mutating": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/control_plane_state_audit_test.go:99:TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
     "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::real_order_rejects_when_kill_switch_active": {
       "referenceCount": 2,
       "referenceKeys": [
@@ -293639,6 +293723,14 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/trading/execution_test.go:813:TestRealTradeControlPlaneRuntimeRiskConfigValidationAndDisableEvents"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::unavailable_plane_mutations_report_control_plane_unavailable": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/control_plane_state_audit_test.go:99:TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations"
       ],
       "allowed": true,
       "reviewStatus": "single"
@@ -310088,14 +310180,6 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/trading/risk_status_broker_boundaries_test.go:13:TestRiskDecisionAndHardStopBoundarySemantics"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_control_plane_treats_empty_state_as_fresh_and_rejects_unavailable_mutations": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/trading/control_plane_state_audit_test.go:99:TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations"
       ],
       "allowed": true,
       "reviewStatus": "single"

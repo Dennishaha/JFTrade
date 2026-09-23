@@ -4557,3 +4557,29 @@ owner：能力目录与路由投影由 jftrade-engine 承接，市场规则与�
 | 文档门禁 | fmt、ai-context、migration-manifest、zero-go、quick、diff check | 全过（fmt 过；ai-context 过；migration-manifest 过；zero-go 过；quick 全过，engine 1944/1944 加 clippy 与兼容 replay；diff check 过） |
 
 后续：第 130 批分片二取 control_plane_state_audit:99（空白与不可用平面 mutation 矩阵）。
+
+### 第 130 批分片二：control_plane_state_audit:99 空白与不可用平面矩阵闭环（3 处生产修复、1 行升 [x]）
+
+范围：internal/trading/control_plane_state_audit_test.go:99 TestControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations。owner：真实交易控制面由 jftrade-engine 经 ExecutionRiskCoordinator 承接，无双写。
+
+缺口复述：Go 要求空白文件视为 fresh 可用平面且无 kill switch；目录路径返回不可用平面加 load error；不可用平面 6 种 mutation 全报 unavailable；可用平面非法 notional 报 maxOrderNotional；缺失 hard stop 释放报 not found；PAPER 放行无审计副作用。Rust 原先空白文件直接 load 失败，可用平面非法限额被静默吞掉并持久化（红测抓到 maxOrderNotional 存入 -1），不可用平面 mutation 报裸 IO 文案。
+
+生产修复：real_trade_control.rs 的 load_state_strict 空白改 Ok default，对标 Go load；product_execution_risk_coordinator.rs 的 mutate_with 读失败消息加 unavailable 前缀，code 保持 CONTROL_PLANE_READ_FAILED；product_production_ports_system.rs 的 mutate_state 在进 mutate_with 之前按 Go 顺序先校验限额（enable 需至少一个正限额、quantity、notional），文案与 Go 一字对齐。另含该文件预置 fmt drift 归一化（HEAD 在 pinned 工具链下本就不 clean）。
+
+回归测试：5 个新用例覆盖空白 fresh、目录不可用、6 mutation 矩阵、port 级三项限额校验、缺失释放 not found。探针做法：stash 三个生产文件并记录前后 shasum，按字节回滚；修复前 3/3 失败 EXIT=100，恢复后字节一致，5/5 通过；同模块 25/25 通过（含 874、939、190、250 邻居回归）。PAPER 放行由既有用例交叉覆盖。
+
+映射终值：该行 partial→[x]，5 证据全锚定，旧 jftrade-trading 极小子集证据被替代。全量：[x] 1563、partial 2250、boundary 638（合计 4451）；Rust 测试 3298→3303（本批新增 5 个 engine 回归用例）。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 回归先红后绿 | 修复前 3/3 失败 EXIT=100，修复后 5/5 通过 | 红绿确认 |
+| Rust 定向测试 | engine 协调器模块 25 用例 | 25/25 通过 |
+| 账本写入 | v2 写入器 1 行 | [x] 1563、partial 2250、boundary 638（合计 4451） |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过 exit 0；dup 校验通过；report/inventory 刷新；Rust 测试 3303 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1734、已记录 1688、unrecorded 0、stale 0、unknown 46 |
+| 文档门禁 | fmt、ai-context、migration-manifest、zero-go、diff check | 全过 |
+| 快速门禁 | pnpm run check:quick | 通过 exit 0（engine 1949 用例、兼容 replay、web/桌面检查全过；中途 target-health 因 rcgu 过多失败一次，按规矩确认无 Cargo 进程后清理产物重跑通过）|
+
+后续：第 130 批分片三取 execution:573 止损价回退。

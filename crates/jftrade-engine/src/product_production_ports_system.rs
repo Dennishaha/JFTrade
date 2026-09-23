@@ -11,8 +11,7 @@ use jftrade_settings::{
 };
 use jftrade_store_settings_file::SettingsFileStore;
 use jftrade_store_sqlite::{
-    AdkStore, BacktestRunStore, BacktestSyncTaskStore, ExecutionOrderStore,
-    StrategyRuntimeStore,
+    AdkStore, BacktestRunStore, BacktestSyncTaskStore, ExecutionOrderStore, StrategyRuntimeStore,
 };
 use jftrade_trading::{
     RealTradeControlEvent, RealTradeControlState, RealTradeHardStopEntry, RealTradeKillSwitchEntry,
@@ -20,17 +19,17 @@ use jftrade_trading::{
 };
 use serde_json::{Value, json};
 
+use super::product_production_ports_execution::ExecutionReconciliationWorker;
 use super::provider_now_rfc3339;
+use crate::product::ExecutionRiskCoordinator;
 use crate::product::product_system_write_port::{
     RealTradeHardStopCommand, RealTradeKillSwitchCommand, RealTradeRuntimeRiskCommand,
     SystemWriteInput, SystemWriteOperation, SystemWritePort, SystemWritePortError,
 };
-use super::product_production_ports_execution::ExecutionReconciliationWorker;
 use crate::product::{
     MarketDataRuntimeStatusPort, ProductionRuntimeStatus, SystemReadSnapshotError,
     SystemReadSnapshotPort,
 };
-use crate::product::ExecutionRiskCoordinator;
 pub(crate) struct ProductionSystemPort {
     pub(crate) active_provider_state: Arc<super::ActiveProviderState>,
     pub(crate) trade_runtime: Option<Arc<super::SharedTradeReadRuntime>>,
@@ -245,9 +244,7 @@ impl ProductionSystemPort {
         })
         .join()
         .map_err(|_| {
-            SystemReadSnapshotError::Unavailable(
-                "runtime dependency worker panicked".to_owned(),
-            )
+            SystemReadSnapshotError::Unavailable("runtime dependency worker panicked".to_owned())
         })??;
         serde_json::to_value(dependencies)
             .map_err(|error| SystemReadSnapshotError::Unavailable(error.to_string()))
@@ -304,6 +301,11 @@ impl ProductionSystemWritePort {
 
     fn mutate_state(&self, input: &SystemWriteInput) -> Result<Value, SystemWritePortError> {
         let now = SystemClock.now_rfc3339();
+        // Parity: go:452dea11:internal/trading/control_plane.go:269
+        // RealTradeControlPlane.UpdateRuntimeRiskConfig validates limits before the availability gate.
+        if input.operation == SystemWriteOperation::UpdateRisk {
+            validate_runtime_risk(required_risk(input)?)?;
+        }
         self.coordinator.mutate_with(|state| {
             match input.operation {
                 SystemWriteOperation::ManualRetry => {
@@ -317,13 +319,24 @@ impl ProductionSystemWritePort {
                     }
                     return Ok(json!({ "accepted": true }));
                 }
-                SystemWriteOperation::ActivateKillSwitch => activate_kill_switch(state, required_kill_switch(input)?, &now),
-                SystemWriteOperation::ReleaseKillSwitch => release_kill_switch(state, required_kill_switch(input)?, &now),
+                SystemWriteOperation::ActivateKillSwitch => {
+                    activate_kill_switch(state, required_kill_switch(input)?, &now)
+                }
+                SystemWriteOperation::ReleaseKillSwitch => {
+                    release_kill_switch(state, required_kill_switch(input)?, &now)
+                }
                 SystemWriteOperation::UpdateRisk => update_risk(state, required_risk(input)?, &now),
-                SystemWriteOperation::DisableRisk => disable_risk(state, required_risk(input)?, &now),
-                SystemWriteOperation::ActivateHardStop => activate_hard_stop(state, required_hard_stop(input)?, &now),
+                SystemWriteOperation::DisableRisk => {
+                    disable_risk(state, required_risk(input)?, &now)
+                }
+                SystemWriteOperation::ActivateHardStop => {
+                    activate_hard_stop(state, required_hard_stop(input)?, &now)
+                }
                 SystemWriteOperation::ReleaseHardStop => {
-                    let hard_stop_id = input.hard_stop_id.as_deref().ok_or_else(|| control_failed("real-trade hard stop id is missing"))?;
+                    let hard_stop_id = input
+                        .hard_stop_id
+                        .as_deref()
+                        .ok_or_else(|| control_failed("real-trade hard stop id is missing"))?;
                     release_hard_stop(state, hard_stop_id, required_hard_stop(input)?, &now)?;
                 }
             }
@@ -447,6 +460,35 @@ fn update_risk(
             ..RealTradeControlEvent::default()
         },
     );
+}
+
+fn has_positive_limit(value: Option<f64>) -> bool {
+    value.is_some_and(|limit| limit > 0.0 && limit.is_finite())
+}
+
+fn validate_runtime_risk_limit(value: Option<f64>, name: &str) -> Result<(), SystemWritePortError> {
+    if has_positive_limit(value) || value.is_none() {
+        return Ok(());
+    }
+    Err(control_failed(&format!(
+        "{name} must be positive when provided"
+    )))
+}
+
+fn validate_runtime_risk(
+    command: &RealTradeRuntimeRiskCommand,
+) -> Result<(), SystemWritePortError> {
+    if command.real_trading_enabled
+        && !has_positive_limit(command.max_order_quantity)
+        && !has_positive_limit(command.max_order_notional)
+    {
+        return Err(control_failed(
+            "at least one positive runtime risk limit is required before enabling real trading",
+        ));
+    }
+    validate_runtime_risk_limit(command.max_order_quantity, "maxOrderQuantity")?;
+    validate_runtime_risk_limit(command.max_order_notional, "maxOrderNotional")?;
+    Ok(())
 }
 
 fn disable_risk(
@@ -645,11 +687,15 @@ fn optional_trimmed(value: &str) -> Option<String> {
 }
 
 fn opt_f64_dec(value: Option<f64>) -> Option<Decimal> {
-    value.filter(|v| v.is_finite()).and_then(|v| Decimal::from_str(&v.to_string()).ok())
+    value
+        .filter(|v| v.is_finite())
+        .and_then(|v| Decimal::from_str(&v.to_string()).ok())
 }
 
 fn next_id(prefix: &str) -> String {
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_nanos());
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos());
     format!("{prefix}-{nanos}")
 }
 
