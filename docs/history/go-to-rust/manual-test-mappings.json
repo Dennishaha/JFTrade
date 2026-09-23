@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T19:24:19Z",
+  "generatedAt": "2026-09-23T19:25:25Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -220112,7 +220112,7 @@
     "pkg/bbgo/types/market_test.go:220:TestMarket_TruncateQuantity": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-kernel/src/fixed8.rs::checked_arithmetic_preserves_eight_decimal_truncation",
-      "conclusion": "部分覆盖：Go 断言数量按 StepSize 向下截断（1.239→1.23 等）。Rust 该用例断言 truncate_to_increment(\"1.239\", 0.01)→1.23 与 ceil_to_increment→1.01，语义一致；差异是方法挂在 Fixed8/Decimal 上而非 Market。",
+      "conclusion": "部分覆盖：Go 断言数量按 StepSize=0.0001 向下截断（0.00573961→0.0057、0.00579961→0.0057、0.0057→0.0057）。Rust 该用例断言 truncate_to_increment 按增量截断（如 0.01 档）与 ceil_to_increment 上取，语义一致；差异是方法挂在 Fixed8/Decimal 上而非 Market。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-kernel --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -220132,7 +220132,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "部分覆盖：Go 断言数量按 StepSize 向下截断（1.239→1.23 等）。Rust 该用例断言 truncate_to_increment(\"1.239\", 0.01)→1.23 与 ceil_to_increment→1.01，语义一致；差异是方法挂在 Fixed8/Decimal 上而非 Market。"
+          "部分覆盖：Go 断言数量按 StepSize=0.0001 向下截断（0.00573961→0.0057、0.00579961→0.0057、0.0057→0.0057）。Rust 该用例断言 truncate_to_increment 按增量截断（如 0.01 档）与 ceil_to_increment 上取，语义一致；差异是方法挂在 Fixed8/Decimal 上而非 Market。"
         ],
         "source": "legacy-conclusion"
       },
@@ -220167,7 +220167,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "部分覆盖：Go 断言数量按 StepSize 向下截断（1.239→1.23 等）。Rust 该用例断言 truncate_to_increment(\"1.239\", 0.01)→1.23 与 ceil_to_increment→1.01，语义一致；差异是方法挂在 Fixed8/Decimal 上而非 Market。"
+        "部分覆盖：Go 断言数量按 StepSize=0.0001 向下截断（0.00573961→0.0057、0.00579961→0.0057、0.0057→0.0057）。Rust 该用例断言 truncate_to_increment 按增量截断（如 0.01 档）与 ceil_to_increment 上取，语义一致；差异是方法挂在 Fixed8/Decimal 上而非 Market。"
       ],
       "boundaryReason": null
     },

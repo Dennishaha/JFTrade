@@ -3597,3 +3597,31 @@ owner：账户与余额语义由 jftrade-trading 承接，指标序列算术由 
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick 完整计划 | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0 |
 
 后续：api_transport 域继续（余约 334 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+
+### 第 129 批分片四十七：api_transport 域市场与持仓家族 35 行（1 处结论勘误，无 verdict 变更）
+
+范围（账本 rows 3349-3383，按写入顺序）：indicator:220/:235/:244/:255/:265、interval:10/:23/:31、kline:10/:37/:61、market_store:9、market:16/:41/:53/:63/:106/:163/:220/:242/:270、omega:11、orderbook:99、position:13/:57/:106/:156/:357/:369、price_volume_heartbeat:12、price_volume_slice:11/:33、rbtorderbook:10/:21/:43。初值 partial 26、boundary 9，终值不变。
+
+owner：K 线窗口与深度档位由 jftrade-marketdata 承接，周期别名由 jftrade-integration-futu 承接，数量规则与持仓快照由 jftrade-kernel、jftrade-trading 与 jftrade-broker 承接，费用规则由 jftrade-backtest 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性，partial 与 boundary 逐条核对缺口诚实度，并抽查 Go 原文核对结论用例值。结论：引用全部有效，verdict 0 变更；1 处 partial 结论用例值与 Go 原文对不齐，仅做文字勘误。
+
+纠正证据：market TestMarket_TruncateQuantity 结论曾写按步长截断 1.239 到 1.23，Go 原文 StepSize=0.0001、用例为 0.00573961 到 0.0057 等三组；Rust 侧 truncate_to_increment 语义对照不变，verdict 与 entry 不变。
+
+抽查证据：interval 桶截断与别名秒数换算、K 线 Tail 与容量截断、最小数量与名义金额上调、持仓 ROI 与费用、价量心跳去重、深度档位投影的缺口描述均与实现一致；boundary 侧 Rust 无对应对象（点积、OLS、Omega、字符串组合时长、OrderBook 类型等）成立；dup-x 为 0。
+
+新增证据：无 Rust 改动；账本 1 行结论文字勘误，无新增锚点。
+
+映射终值（35 行）：[x] 0、partial 26、boundary 9。全量：[x] 1565、partial 2249、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加缺口诚实度抽查 | 0 verdict 变更、1 处结论文字勘误；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2_writer 1 行结论勘误 | [x] 1565、partial 2249、boundary 637（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；inventory 与 report 同步结论文本；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick 完整计划 | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0 |
+
+后续：api_transport 域继续（余约 299 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
