@@ -3365,3 +3365,28 @@ owner：日历告警与探针由 calendar 承接；前端资源由桌面壳构�
 | 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 |
 
 后续：other 域本片完成（余 252 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+### 第 129 批分片三十八：other 域 akshare 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 3027-3061，按写入顺序）：client_news:101/:121/:139/:159、provider_calendar_macro:12/:81/:157/:183/:241/:256、provider_company:14/:72/:106/:142/:172/:193/:220/:238/:254/:298/:316/:335、provider_index:23/:48/:65/:80/:97、provider_news:14/:41/:71/:100/:114/:134、provider_rankings:29/:53。初值 [x] 0、partial 35、boundary 0。
+
+owner：akshare 客户端编码与转换由 marketdata helper 与 engine 研究面承接，无双写。
+
+复核方法：35 条全量枚举引用有效性，逐条抽查 Go 原文与缺口描述；高风险面为重试、退避、分页、能力错误与回测兼容。结论：引用全部存在且指向真实 Rust 测试，缺口描述诚实（必填区间、可选编码、默认 limit 归属均如实登记），0 纠正、0 升级。
+
+抽查证据：公司行动缺省区间、端点路径编码、成分默认 limit 三条缺口均为真实设计差异；其余引用逐条确认存在。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 0、partial 35、boundary 0。全量：[x] 1566、partial 2248、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加缺口抽查，0 条 [x] | 0 纠正、0 升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1566、partial 2248、boundary 637（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新 Rust 基线，inventory 无变化 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 |
+
+后续：other 域本片完成（余 217 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
