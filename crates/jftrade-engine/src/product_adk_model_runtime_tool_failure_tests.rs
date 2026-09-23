@@ -541,6 +541,7 @@ fn completed_tool_failure_response(run_id: &str, client_request_id: &str, route:
 /// `persist_success` is the Rust port of Go's `MarkCompletedChatRun`.  It must
 /// derive `degraded` from the durable tool calls, clear the run-level failure
 /// projection, and keep the failed `ToolCall` visible on the completed run.
+/// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:423 TestCompleteChatRunKeepsFailedToolCallsVisibleWithoutFailingRun
 #[test]
 fn persist_success_marks_a_run_degraded_from_its_failed_tool_calls() {
     let (_directory, store, session_store) = initialized_stores();

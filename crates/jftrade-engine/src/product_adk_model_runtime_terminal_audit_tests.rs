@@ -707,8 +707,7 @@ fn run_terminal_state_classifies_unsupported_input_before_the_status_switch() {
 /// `Message`/`FailureReason`, and only the cancellation also stamps
 /// `CancelledAt`.
 ///
-/// Reference: go:452dea11:internal/assistant/engine/runner_chat_test.go:156
-/// `TestMarkFailedChatRunMapsContextToTerminalState`.
+/// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:156 TestMarkFailedChatRunMapsContextToTerminalState.
 #[test]
 fn terminal_failure_mapping_matches_the_reference_table() {
     let (directory, store, session_store) = initialized_stores();

@@ -2729,3 +2729,32 @@ owner：provider 探针/推理传输/模型请求面由 provider 适配层承接
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected），与本分片无关 |
 
 后续：engine 第六片完成；队列进入 engine 第七片（账本 1287 起约 35 行），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片十六：`internal/assistant/engine` 第七片 35 行（1 处过宽纠正为 partial，5 处缺锚点补齐）
+
+范围（账本 inventory 1287-1321，按账本顺序）：`runner_chat_test.go:69/:102/:127/:156/:181/:225/:267/:325/:376/:423/:490/:541/:552/:609/:670/:737/:846/:891/:978/:1043/:1079/:1124`、`runner_continuation_boundaries_test.go:11/:63/:87/:136/:188/:207/:242/:275/:314/:347/:406/:427`、`runner_goal_test.go:11`（35 行原结论 [x]30/partial4/boundary1，本批纠正后 [x]29/partial5/boundary1）。
+
+owner：聊天投影/终态/审计由 engine 模型运行时承接，快照与默认选择由 gate 层承接，continuation 认领与 fencing 由 supervisor 层承接，目标暂停/恢复路由由 ADK 变更端口承接。
+
+复核方法：30 条原 [x] 逐条核对锚点行号与名字（基线函数行号全部一致；:63/:314/:347 为双行锚点，名字在次行，已核对）；5 条缺锚点（:156 只有 Reference 行、:423/:670/:978/:207 无锚点）逐分支核对 Go 原文与 Rust 证据后补齐，其中 :978 与 :207 的 entry 按组合规则补成组合形式（:978=状态优先级用例+聊天错误分类用例，覆盖缺省 agent/禁用/删除/provider 禁用/无密钥全部分支；:207=已认领唤醒用例+CAS 拒绝用例，覆盖同步回 staged 与后台不动 foreign owner 两半）；:423 的 entry 由模块路径写法改为真实文件路径写法（此前写法导致对账报 stale）。其余已锚定 [x] 抽查结论与证据对应关系（:225 的 sha256 摘要 id、:891 的关流后续跑、:1043 的会话复用等）。
+
+结论：1 处 verdict 翻转（纠正过宽）：`runner_continuation_boundaries_test.go:275` 由 [x] 降为 partial。原因：Go 断言后台目标续跑的两条租约路径（fresh foreign lease 不夺取、租约存储错误落 FAILED 且原因真实），而 Rust 的目标续跑是同步 ResumeRun 路由（不认领执行租约），原 entry 的终态不可续跑守卫用例与租约无关；approval continuation 的 foreign lease 证据属于另一条路径，不能作为目标续跑的等价证据。缺口与回归要求已写入该行结论。partial/boundary 行结论与 Go 原文相符（租约错误码、逐表错误文本、goBackground 兜底、pause-requested 幂等等缺口均为真实结构差异）。
+
+新增证据（注释 only）：6 行规范锚点（terminal_audit :156 把 Reference 行升级为 Parity 锚点、tool_failure :423、gate :670/:978、ports_adk :207 双测），无生产实现改动，无探针。
+
+映射终值（35 行）：`[x]` 29、partial 5、boundary 1。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 30 条原 [x] 锚点与行为核对、partial/boundary 抽查 Go 原文 | 1 verdict 纠正（:275→partial），5 锚点补齐，2 entry 组合化，1 entry 文件路径修正 |
+| 账本写入 | 3 行 entry 调整 + 1 行 verdict 变更（b82_apply），其余不动 | `[x]` 1586、partial 2228、boundary 637（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact；缺锚点告警 173→168；Rust 测试 3293 不变 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1666→1671、已记录 1616→1621、unrecorded 0、stale 0、unknown 50 不变 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | fmt 通过、clippy exit 0、architecture 通过；相关 6 测全过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1911/1911 passed，exit 0，一次通过无抖动 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compat/generated/ai-context/zero-go 均 exit 0；quick exit 0（nextest 1941/1941、pineworker 98/98） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected），与本分片无关 |
+
+后续：engine 第七片完成；队列进入 engine 第八片（账本 1322 起约 35 行），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。

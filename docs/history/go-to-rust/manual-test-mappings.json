@@ -9066,7 +9066,7 @@
   },
   "internal/assistant/engine/runner_chat_test.go:423:TestCompleteChatRunKeepsFailedToolCallsVisibleWithoutFailingRun": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime.rs::tool_failure_tests::persist_success_marks_a_run_degraded_from_its_failed_tool_calls",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::persist_success_marks_a_run_degraded_from_its_failed_tool_calls",
     "conclusion": "completed：persist_success（MarkCompletedChatRun 的 Rust 端口）对含 FAILED tool call 的 run 置 COMPLETED+degraded=true，清空 failureReason/errorCode/errorMessage 并移除 errorStatus，同时保留 toolCalls[0] 的 error=\"disk full\"。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(tool_failure) | test(first_tool_call_failure) | test(persist_success_marks)'",
     "evidence_type": "function_exact"
@@ -9129,7 +9129,7 @@
   },
   "internal/assistant/engine/runner_chat_test.go:978:TestResolveAgentCoversDefaultAndProviderValidation": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::agent_unavailable_reason_prefers_status_over_the_delete_marker",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::agent_unavailable_reason_prefers_status_over_the_delete_marker + crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_chat_route_reports_the_go_error_classification",
     "conclusion": "function_exact：resolveAgentDefinition 的 agent 状态文案与 Go 一致（先判 status 再判 deletedAt；ENABLED+deletedAt -> agent is deleted，DISABLED+deletedAt -> agent is disabled），provider 侧文案由 adk_chat_route_reports_the_go_error_classification 覆盖。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(agent_unavailable_reason_prefers_status_over_the_delete_marker)'",
     "evidence_type": "function_exact"
@@ -9192,7 +9192,7 @@
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:207:TestResolvedApprovalDoesNotStealForeignExecutionLease": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_approval_wakeup_accepts_an_already_claimed_continuation",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_approval_wakeup_accepts_an_already_claimed_continuation + crates/jftrade-engine/src/product_production_ports_adk_tests.rs::test_adk_resume_approval_cas_rejection",
     "conclusion": "function_exact（同步+后台两半）：Go 在存在 fresh foreign lease 时，同步 `ResolveApproval` 只返回已 staged 的 durable 状态（`resumeState=approval_resuming`）而不夺取租约，后台 `continueResolvedApprovalRun` 同样不动 foreign owner。Rust 侧 `adk_approval_wakeup_accepts_an_already_claimed_continuation` 用已声明 continuation 的 port 断言路由仍回 resolution envelope、run 停在 RUNNING/approval_resuming、staged 状态durable。本批另修的真实缺口是同一竞态的失败面：resume_approval 对不可续跑 run 曾回滚赢家的 staged 审批（79c973f8 已改为静默 no-op）。租约本身不被偷由 `product_adk_model_runtime_takeover_tests.rs` 的 fencing/takeover 语义与 resume_approval 先读 run 再校验状态共同保证；`adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection` 亦断言 foreign/orphan 解析不会改写 run 投影。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "function_exact"
@@ -9205,11 +9205,11 @@
     "evidence_type": "partial"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:275:TestGoalResumeFailsClosedWhenExecutionLeaseCannotBeClaimed": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-assistant/src/runtime.rs::terminal_run_cannot_be_resumed",
-    "conclusion": "function_exact：Go 断言无法领取执行租约时目标续跑失败关闭（不进入运行）。Rust 的 terminal_run_cannot_be_resumed 断言终态运行不可再续跑，覆盖“续跑前必须能拿到租约”的失败关闭语义。",
+    "conclusion": "partial：本批复核纠正过宽判定（原 [x] 依据不足）。Go 覆盖后台目标续跑的两条租约路径：fresh foreign lease 下续跑把运行留给 owner 而不夺取；租约存储错误时运行置 FAILED 且 FailureReason 携带真实存储错误。Rust 的目标续跑是同步 ResumeRun 路由（PAUSED→RUNNING，不认领执行租约）：foreign lease 不被校验，存储错误映射为路由层通用失败而非租约专属终态；terminal_run_cannot_be_resumed 只断言终态运行不可再续跑的状态守卫，与租约无关。相近证据：approval continuation 的 foreign lease 不夺取由 runner_continuation_boundaries_test.go:207 的组合证据覆盖，但那是审批续跑路径，不是目标续跑路径。回归要求：若在 ResumeRun 路由补租约语义，需先加失败回归（foreign lease 下 resume 不改 run；存储错误落 FAILED 且原因真实），再实现；否则保留 partial。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
-    "evidence_type": "function_exact"
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/runner_continuation_boundaries_test.go:314:TestGoBackgroundNilGuardsAndClosingState": {
     "status": "[x]",

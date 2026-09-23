@@ -214,6 +214,7 @@ fn provider_list_reports_the_repaired_default_selection() {
 /// `Runtime.effectiveProvider(ctx, "")` -> `StoreCore.DefaultProvider`, so the
 /// provider used by a run follows the *current* default selection rather than
 /// anything frozen on the agent.
+/// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:670 TestAgentWithoutProviderDynamicallyUsesDefaultProvider
 #[test]
 fn resolve_provider_follows_the_default_selection_and_its_repair() {
     let (directory, store, session_store) = initialized_stores();
@@ -629,6 +630,7 @@ fn run_snapshot_freezes_provider_name_model_and_permission_mode() {
 
 /// Go's `resolveAgentDefinition` checks `status` before the soft-delete marker,
 /// so a row that is both disabled and deleted reports "agent is disabled".
+/// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:978 TestResolveAgentCoversDefaultAndProviderValidation
 #[test]
 fn agent_unavailable_reason_prefers_status_over_the_delete_marker() {
     assert_eq!(

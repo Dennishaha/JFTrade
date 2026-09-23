@@ -2826,6 +2826,7 @@ fn test_research_backtest_result_view_projection() {
     );
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/runner_continuation_boundaries_test.go:207 TestResolvedApprovalDoesNotStealForeignExecutionLease
 #[test]
 fn test_adk_resume_approval_cas_rejection() {
     let bundle_dir = tempfile::tempdir().expect("tempdir");
@@ -5454,6 +5455,7 @@ fn adk_approval_negative_and_idempotent_routes_match_the_go_envelopes() {
 }
 
 /// Parity: go:452dea11:internal/assistant/engine/runner_approval_concurrency_test.go:119 TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation.
+/// Parity: go:452dea11:internal/assistant/engine/runner_continuation_boundaries_test.go:207 TestResolvedApprovalDoesNotStealForeignExecutionLease.
 ///
 /// Go claims the continuation before starting it, so a second wakeup for a run
 /// whose continuation is already in flight returns the resolution envelope
