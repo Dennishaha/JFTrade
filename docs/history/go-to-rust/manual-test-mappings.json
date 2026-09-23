@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T23:02:57Z",
+  "generatedAt": "2026-09-23T23:35:59Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -279457,9 +279457,9 @@
     },
     "internal/trading/broker_account_read_failures_test.go:11:TestBrokerReadFailuresRemainVisibleAcrossAccountDataViews": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_adapter_forwards_unavailable_opend_errors_on_every_read_route",
-      "conclusion": "partial（差异登记与 shard 一同源）：Go 让 7 个读操作（funds/positions/current orders/current fills/cash flows/order fees/margin ratios）与 2 个组合视图（cash/positions）全部返回 200 降级信封——connectivity=disconnected、lastError=后端错误文本，且各自资源键仍在（summary/positions/orders/fills/cashFlows/fees/marginRatios/balances/positions），断言失败不会被吞成空成功。Rust 的对应证据 broker_adapter_forwards_unavailable_opend_errors_on_every_read_route 断言同一组读路由在 fail-closed 就绪门下**逐路返回错误**（不返回零值成功），并断言拒绝发生在触达读客户端之前；两边的共同不变量（失败必须可见、不得静默空成功）一致，但失败的表达形态不同：Go 是 200 + lastError，Rust 是错误状态（BROKER_READ_UNAVAILABLE/Unavailable），与 responses_test.go:55/:107 与 internal/app/apiserver/servercoretest/broker_routes_test.go:14 登记的是同一处产品差异。修复位置与回归要求：若要贴齐 Go，需要 broker 读端口为每条路由生成降级信封（connectivity=disconnected + lastError + 空资源数组/空 summary），并补“9 视图逐项断言 + 客户端调用数”的回归；本轮不翻转实现，保持 partial 并保留 fail-closed 证据。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route)'",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_adapter_forwards_unavailable_opend_errors_on_every_read_route；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_routes_keep_upstream_failures_visible_with_backend_detail",
+      "conclusion": "partial：Rust 端口级失败保持可见——后端文本经 session_error 原样进入 Unavailable，wire 上为 503 BROKER_READ_UNAVAILABLE；Go 同场景返回 200 降级信封（connectivity=disconnected、lastError），wire 形状差异保留，行为差已登记。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
         "file": "internal/trading/broker_account_read_failures_test.go",
@@ -279472,13 +279472,29 @@
           "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
           "test": "broker_adapter_forwards_unavailable_opend_errors_on_every_read_route",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/broker_account_read_failures_test.go",
+            "goLine": 11,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 4793
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+          "test": "broker_read_routes_keep_upstream_failures_visible_with_backend_detail",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/broker_account_read_failures_test.go",
+            "goLine": 11,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 4793
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial（差异登记与 shard 一同源）：Go 让 7 个读操作（funds/positions/current orders/current fills/cash flows/order fees/margin ratios）与 2 个组合视图（cash/positions）全部返回 200 降级信封——connectivity=disconnected、lastError=后端错误文本，且各自资源键仍在（summary/positions/orders/fills/cashFlows/fees/marginRatios/balances/positions），断言失败不会被吞成空成功。Rust 的对应证据 broker_adapter_forwards_unavailable_opend_errors_on_every_read_route 断言同一组读路由在 fail-closed 就绪门下**逐路返回错误**（不返回零值成功），并断言拒绝发生在触达读客户端之前；两边的共同不变量（失败必须可见、不得静默空成功）一致，但失败的表达形态不同：Go 是 200 + lastError，Rust 是错误状态（BROKER_READ_UNAVAILABLE/Unavailable），与 responses_test.go:55/:107 与 internal/app/apiserver/servercoretest/broker_routes_test.go:14 登记的是同一处产品差异。修复位置与回归要求：若要贴齐 Go，需要 broker 读端口为每条路由生成降级信封（connectivity=disconnected + lastError + 空资源数组/空 summary），并补“9 视图逐项断言 + 客户端调用数”的回归；本轮不翻转实现，保持 partial 并保留 fail-closed 证据。"
+          "partial：Rust 端口级失败保持可见——后端文本经 session_error 原样进入 Unavailable，wire 上为 503 BROKER_READ_UNAVAILABLE；Go 同场景返回 200 降级信封（connectivity=disconnected、lastError），wire 形状差异保留，行为差已登记。"
         ],
         "source": "legacy-conclusion"
       },
@@ -279490,12 +279506,11 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked",
-          "-E",
-          "test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route)"
+          "--locked"
         ],
         "testFilter": [
-          "broker_adapter_forwards_unavailable_opend_errors_on_every_read_route"
+          "broker_adapter_forwards_unavailable_opend_errors_on_every_read_route",
+          "broker_read_routes_keep_upstream_failures_visible_with_backend_detail"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -279515,7 +279530,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial（差异登记与 shard 一同源）：Go 让 7 个读操作（funds/positions/current orders/current fills/cash flows/order fees/margin ratios）与 2 个组合视图（cash/positions）全部返回 200 降级信封——connectivity=disconnected、lastError=后端错误文本，且各自资源键仍在（summary/positions/orders/fills/cashFlows/fees/marginRatios/balances/positions），断言失败不会被吞成空成功。Rust 的对应证据 broker_adapter_forwards_unavailable_opend_errors_on_every_read_route 断言同一组读路由在 fail-closed 就绪门下**逐路返回错误**（不返回零值成功），并断言拒绝发生在触达读客户端之前；两边的共同不变量（失败必须可见、不得静默空成功）一致，但失败的表达形态不同：Go 是 200 + lastError，Rust 是错误状态（BROKER_READ_UNAVAILABLE/Unavailable），与 responses_test.go:55/:107 与 internal/app/apiserver/servercoretest/broker_routes_test.go:14 登记的是同一处产品差异。修复位置与回归要求：若要贴齐 Go，需要 broker 读端口为每条路由生成降级信封（connectivity=disconnected + lastError + 空资源数组/空 summary），并补“9 视图逐项断言 + 客户端调用数”的回归；本轮不翻转实现，保持 partial 并保留 fail-closed 证据。"
+        "partial：Rust 端口级失败保持可见——后端文本经 session_error 原样进入 Unavailable，wire 上为 503 BROKER_READ_UNAVAILABLE；Go 同场景返回 200 降级信封（connectivity=disconnected、lastError），wire 形状差异保留，行为差已登记。"
       ],
       "boundaryReason": null
     },
@@ -279614,9 +279629,9 @@
     },
     "internal/trading/broker_boundaries_test.go:11:TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::test_service_broker_read_operations_return_fallback_when_market_data_unavailable",
-      "conclusion": "partial（本批降级，原 [x] 过宽）：Go 在完全无行情源时 13 条读路由全部成功并携带各键。Rust 的回退用例只覆盖同端口 8 条交易读路由的成功与键存在；quote/klines/securities 三条在 trade_runtime 缺失时按设计失败关闭（结构化 Unavailable 错误，由 broker_quote_fails_closed_without_market_data_runtime 等专用例锁定），与 Go 的降级成功载荷不同构；portfolio cash/positions 两条挂在 ProductionPortfolioPort 上，由 broker_test:453 行的 portfolio 用例覆盖。回归要求：三条市场路由的失败关闭契约已有专用例锁定，若未来要与 Go 对齐降级载荷，需在读端口补 fallback 形态并回归本行。owner：crates/jftrade-engine。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::test_service_broker_read_operations_return_fallback_when_market_data_unavailable；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_views_return_fallback_keys_when_market_data_runtime_is_absent",
+      "conclusion": "partial：Rust 在 trade_runtime 缺席时 8 条交易读路由回退成功并携带各键，另补 portfolio cash-balances 与 positions 回退键（10/13）；残留 quote/klines/securities 在 trade_runtime 缺失时按设计失败关闭（结构化 Unavailable，需行情运行时），按边界保留。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
         "file": "internal/trading/broker_boundaries_test.go",
@@ -279635,12 +279650,23 @@
             "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
             "rustLine": 1920
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+          "test": "portfolio_views_return_fallback_keys_when_market_data_runtime_is_absent",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/broker_boundaries_test.go",
+            "goLine": 11,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 1920
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial（本批降级，原 [x] 过宽）：Go 在完全无行情源时 13 条读路由全部成功并携带各键。Rust 的回退用例只覆盖同端口 8 条交易读路由的成功与键存在；quote/klines/securities 三条在 trade_runtime 缺失时按设计失败关闭（结构化 Unavailable 错误，由 broker_quote_fails_closed_without_market_data_runtime 等专用例锁定），与 Go 的降级成功载荷不同构；portfolio cash/positions 两条挂在 ProductionPortfolioPort 上，由 broker_test:453 行的 portfolio 用例覆盖。回归要求：三条市场路由的失败关闭契约已有专用例锁定，若未来要与 Go 对齐降级载荷，需在读端口补 fallback 形态并回归本行。owner：crates/jftrade-engine。"
+          "partial：Rust 在 trade_runtime 缺席时 8 条交易读路由回退成功并携带各键，另补 portfolio cash-balances 与 positions 回退键（10/13）；残留 quote/klines/securities 在 trade_runtime 缺失时按设计失败关闭（结构化 Unavailable，需行情运行时），按边界保留。"
         ],
         "source": "legacy-conclusion"
       },
@@ -279650,10 +279676,13 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-engine"
+          "jftrade-engine",
+          "--all-targets",
+          "--locked"
         ],
         "testFilter": [
-          "test_service_broker_read_operations_return_fallback_when_market_data_unavailable"
+          "test_service_broker_read_operations_return_fallback_when_market_data_unavailable",
+          "portfolio_views_return_fallback_keys_when_market_data_runtime_is_absent"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -279673,14 +279702,14 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial（本批降级，原 [x] 过宽）：Go 在完全无行情源时 13 条读路由全部成功并携带各键。Rust 的回退用例只覆盖同端口 8 条交易读路由的成功与键存在；quote/klines/securities 三条在 trade_runtime 缺失时按设计失败关闭（结构化 Unavailable 错误，由 broker_quote_fails_closed_without_market_data_runtime 等专用例锁定），与 Go 的降级成功载荷不同构；portfolio cash/positions 两条挂在 ProductionPortfolioPort 上，由 broker_test:453 行的 portfolio 用例覆盖。回归要求：三条市场路由的失败关闭契约已有专用例锁定，若未来要与 Go 对齐降级载荷，需在读端口补 fallback 形态并回归本行。owner：crates/jftrade-engine。"
+        "partial：Rust 在 trade_runtime 缺席时 8 条交易读路由回退成功并携带各键，另补 portfolio cash-balances 与 positions 回退键（10/13）；残留 quote/klines/securities 在 trade_runtime 缺失时按设计失败关闭（结构化 Unavailable，需行情运行时），按边界保留。"
       ],
       "boundaryReason": null
     },
     "internal/trading/broker_boundaries_test.go:62:TestServiceBrokerReadOperationsClassifyUpstreamFailures": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_preserve_the_port_failure_code_and_message；crates/jftrade-broker/tests/foundation_corpus.rs::preserves_broker_error_display_and_snapshot_fallback_rules",
-      "conclusion": "partial：Rust 覆盖端口失败码/消息保留与 broker 错误分类；差异：Go 断言 broker 读操作对上游失败分类（可重试/不可用）的矩阵，Rust 侧未逐读操作断言分类结果。",
+      "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_preserve_the_port_failure_code_and_message；crates/jftrade-broker/tests/foundation_corpus.rs::preserves_broker_error_display_and_snapshot_fallback_rules；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_routes_keep_upstream_failures_visible_with_backend_detail",
+      "conclusion": "partial：Rust 新增逐路由上游失败可见性行测——7 条交易读加 max-qty 与 2 个 portfolio 视图在后端失败时均返回携带后端文本的 Unavailable；残留 klines/securities 需行情运行时（边界），Go 的 connected 标记矩阵在 Rust 以 fail-closed 错误形状承载。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -279701,12 +279730,23 @@
           "test": "preserves_broker_error_display_and_snapshot_fallback_rules",
           "crate": "jftrade-broker",
           "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+          "test": "broker_read_routes_keep_upstream_failures_visible_with_backend_detail",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/broker_boundaries_test.go",
+            "goLine": 62,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 4794
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Rust 覆盖端口失败码/消息保留与 broker 错误分类；差异：Go 断言 broker 读操作对上游失败分类（可重试/不可用）的矩阵，Rust 侧未逐读操作断言分类结果。"
+          "partial：Rust 新增逐路由上游失败可见性行测——7 条交易读加 max-qty 与 2 个 portfolio 视图在后端失败时均返回携带后端文本的 Unavailable；残留 klines/securities 需行情运行时（边界），Go 的 connected 标记矩阵在 Rust 以 fail-closed 错误形状承载。"
         ],
         "source": "legacy-conclusion"
       },
@@ -279722,7 +279762,8 @@
         ],
         "testFilter": [
           "execution_read_routes_preserve_the_port_failure_code_and_message",
-          "preserves_broker_error_display_and_snapshot_fallback_rules"
+          "preserves_broker_error_display_and_snapshot_fallback_rules",
+          "broker_read_routes_keep_upstream_failures_visible_with_backend_detail"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -279742,7 +279783,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Rust 覆盖端口失败码/消息保留与 broker 错误分类；差异：Go 断言 broker 读操作对上游失败分类（可重试/不可用）的矩阵，Rust 侧未逐读操作断言分类结果。"
+        "partial：Rust 新增逐路由上游失败可见性行测——7 条交易读加 max-qty 与 2 个 portfolio 视图在后端失败时均返回携带后端文本的 Unavailable；残留 klines/securities 需行情运行时（边界），Go 的 connected 标记矩阵在 Rust 以 fail-closed 错误形状承载。"
       ],
       "boundaryReason": null
     },
@@ -299342,6 +299383,15 @@
       "allowed": true,
       "reviewStatus": "single"
     },
+    "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_routes_keep_upstream_failures_visible_with_backend_detail": {
+      "referenceCount": 2,
+      "referenceKeys": [
+        "internal/trading/broker_account_read_failures_test.go:11:TestBrokerReadFailuresRemainVisibleAcrossAccountDataViews",
+        "internal/trading/broker_boundaries_test.go:62:TestServiceBrokerReadOperationsClassifyUpstreamFailures"
+      ],
+      "allowed": false,
+      "reviewStatus": "unreviewed"
+    },
     "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_routes_reject_a_broker_that_is_not_active": {
       "referenceCount": 2,
       "referenceKeys": [
@@ -299610,6 +299660,14 @@
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
+    },
+    "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_views_return_fallback_keys_when_market_data_runtime_is_absent": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/broker_boundaries_test.go:11:TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback": {
       "referenceCount": 8,

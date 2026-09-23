@@ -4789,3 +4789,208 @@ fn broker_read_routes_reject_a_broker_that_is_not_active() {
         "an inactive broker must never reach the trade read client"
     );
 }
+
+// Parity: go:452dea11:internal/trading/broker_account_read_failures_test.go:11 TestBrokerReadFailuresRemainVisibleAcrossAccountDataViews
+// Parity: go:452dea11:internal/trading/broker_boundaries_test.go:62 TestServiceBrokerReadOperationsClassifyUpstreamFailures
+#[derive(Debug)]
+struct FailingTradeRead;
+
+impl FailingTradeRead {
+    fn error() -> TradeSessionError {
+        TradeSessionError::Response(ResponseError::ReturnCode {
+            ret_type: -1,
+            err_code: 1,
+            message: "broker connection unavailable".to_owned(),
+        })
+    }
+}
+
+impl TradeReadPort for FailingTradeRead {
+    fn read_accounts(
+        &self,
+        user_id: u64,
+        category: Option<i32>,
+        general: Option<bool>,
+    ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_accounts(user_id, category, general)
+    }
+    fn read_funds(
+        &self,
+        _: TradeHeader,
+        _: Option<bool>,
+        _: Option<i32>,
+        _: Option<i32>,
+    ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+        Err(Self::error())
+    }
+    fn read_cash_flows(
+        &self,
+        _: TradeHeader,
+        _: String,
+        _: Option<i32>,
+    ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+        Err(Self::error())
+    }
+    fn read_order_fees(
+        &self,
+        _: TradeHeader,
+        _: Vec<String>,
+    ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+        Err(Self::error())
+    }
+    fn read_margin_ratios(
+        &self,
+        _: TradeHeader,
+        _: Vec<TradeSecurity>,
+    ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+        Err(Self::error())
+    }
+    fn read_max_trade_quantity(
+        &self,
+        _: TradeMaxTradeQuantityRequest,
+    ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+        Err(Self::error())
+    }
+    fn read_positions(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Option<f64>,
+        _: Option<f64>,
+        _: Option<bool>,
+        _: Option<i32>,
+        _: Option<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+        Err(Self::error())
+    }
+    fn read_orders(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Vec<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        Err(Self::error())
+    }
+    fn read_fills(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        Err(Self::error())
+    }
+}
+
+// Parity: go:452dea11:internal/trading/broker_boundaries_test.go:11 TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable
+#[test]
+fn portfolio_views_return_fallback_keys_when_market_data_runtime_is_absent() {
+    let (store, _directory) = execution_store();
+    let port = ProductionPortfolioPort {
+        active_provider_state: ready_state(),
+        _execution_store: store,
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let cash = port
+        .read(
+            "/api/v1/portfolio/futu/cash-balances",
+            "accountId=42&tradingEnvironment=REAL&market=US",
+        )
+        .expect("portfolio cash fallback succeeds without market-data runtime");
+    assert!(
+        cash.get("balances").is_some(),
+        "portfolio cash must contain balances key"
+    );
+    let positions = port
+        .read(
+            "/api/v1/portfolio/futu/positions",
+            "accountId=42&tradingEnvironment=REAL&market=US",
+        )
+        .expect("portfolio positions fallback succeeds without market-data runtime");
+    assert!(
+        positions.get("positions").is_some(),
+        "portfolio positions must contain positions key"
+    );
+}
+
+// Parity: go:452dea11:internal/trading/broker_boundaries_test.go:62 TestServiceBrokerReadOperationsClassifyUpstreamFailures
+// Parity: go:452dea11:internal/trading/broker_account_read_failures_test.go:11 TestBrokerReadFailuresRemainVisibleAcrossAccountDataViews
+#[test]
+fn broker_read_routes_keep_upstream_failures_visible_with_backend_detail() {
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FailingTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    for (path, query) in [
+        ("/api/v1/brokers/futu/funds", "accountId=42&market=US"),
+        ("/api/v1/brokers/futu/positions", "accountId=42&market=US"),
+        ("/api/v1/brokers/futu/orders", "accountId=42&market=US"),
+        (
+            "/api/v1/brokers/futu/orders",
+            "accountId=42&market=US&scope=HISTORY",
+        ),
+        ("/api/v1/brokers/futu/fills", "accountId=42&market=US"),
+        (
+            "/api/v1/brokers/futu/fills",
+            "accountId=42&market=US&scope=HISTORY",
+        ),
+        (
+            "/api/v1/brokers/futu/cash-flows",
+            "accountId=42&market=US&clearingDate=2026-08-21",
+        ),
+        (
+            "/api/v1/brokers/futu/order-fees",
+            "accountId=42&market=US&orderIdEx=o-1",
+        ),
+        (
+            "/api/v1/brokers/futu/margin-ratios",
+            "accountId=42&market=US&symbols=US.AAPL",
+        ),
+        (
+            "/api/v1/brokers/futu/max-trade-qtys",
+            "accountId=42&market=US&symbol=US.AAPL&orderType=LIMIT&price=100",
+        ),
+    ] {
+        let error = port
+            .read(path, query)
+            .expect_err(&format!("{path} must surface the upstream failure"));
+        let message = format!("{error:?}");
+        assert!(
+            message.contains("broker connection unavailable"),
+            "{path} error must preserve the backend detail, got {message}"
+        );
+    }
+
+    let (store, _directory) = execution_store();
+    let portfolio = ProductionPortfolioPort {
+        active_provider_state: ready_state(),
+        _execution_store: store,
+        trade_read_port: Some(Arc::new(FailingTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    for (path, query) in [
+        (
+            "/api/v1/portfolio/futu/cash-balances",
+            "accountId=42&tradingEnvironment=REAL&market=US",
+        ),
+        (
+            "/api/v1/portfolio/futu/positions",
+            "accountId=42&tradingEnvironment=REAL&market=US",
+        ),
+    ] {
+        let error = portfolio
+            .read(path, query)
+            .expect_err(&format!("{path} must surface the upstream failure"));
+        let message = format!("{error:?}");
+        assert!(
+            message.contains("broker connection unavailable"),
+            "{path} error must preserve the backend detail, got {message}"
+        );
+    }
+}

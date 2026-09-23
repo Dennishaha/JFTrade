@@ -4637,3 +4637,29 @@ owner：能力目录与路由投影由 jftrade-engine 承接，市场规则与�
 | 快速门禁 | pnpm run check:quick | 通过 exit 0（首轮与自查重叠跑并行导致 launcher 端到端 1 例抖动失败，隔离复跑一次失败一次通过确认为抖动；另遇 target-health rcgu 堆积，按规矩确认无 Cargo 进程后清理产物；清理后单实例整轮重跑通过）|
 
 后续：第 130 批分片五取 trading_broker 余量读失败可见性与上游失败分类（broker_boundaries 11/62 起）。
+
+### 第 130 批分片五之一：broker 读回退与上游失败可见性（测试-only，无生产变更）
+
+范围：internal/trading/broker_boundaries_test.go:11（13 条读路由无行情源回退）、:62（上游失败分类）、broker_account_read_failures_test.go:11（9 视图失败可见性）。owner：读投影归 jftrade-engine 生产端口，wire 错误映射归 product_wire_brokers，API 层不复制业务逻辑。
+
+缺口复述：:11 的 Rust 行测只覆盖 8 条交易读路由，缺 portfolio cash-balances 与 positions 回退键；:62 与 account:11 缺逐路由后端失败可见性断言。另确认结构差异：Rust 把 Unavailable 映射为 503 BROKER_READ_UNAVAILABLE（后端文本保留），Go 同场景返回 200 降级信封（connectivity=disconnected、lastError），wire 形状差异保留为 partial。
+
+补测：trade_tests 新增 FailingTradeRead（除 read_accounts 外全返回后端不可用）与 2 个用例。portfolio_views_return_fallback_keys_when_market_data_runtime_is_absent 锁定 2 个组合视图回退键（:11 达 10/13，残留 quote/klines/securities 按设计需行情运行时，边界保留）。broker_read_routes_keep_upstream_failures_visible_with_backend_detail 锁定 10 条交易读加 2 个组合视图的后端文本保留（:62 与 account:11 的端口级可见性）。
+
+探针：生产文件均按字节回滚（trade.rs shasum 5bfd38da 前后一致，trade_projection.rs 与 HEAD 无 diff）。探针一把 balances 键改坏后新用例转红，恢复后通过；探针二把 session_error 文本剥离后新用例转红，恢复后通过。
+
+映射终值：三行均保留 partial，缺口收窄并写清残留。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3308 到 3310（本批新增 2 个用例）。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 回归先红后绿 | 两段探针各转红一次，恢复后通过 | 红绿确认 |
+| Rust 定向测试 | jftrade-engine trade 端口相关用例 | 新用例 2/2 通过 |
+| 账本写入 | v2 写入器 3 行 | [x] 1565、partial 2248、boundary 638（合计 4451） |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过 exit 0；dup 校验通过；report/inventory 刷新 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1737、已记录 1691、unrecorded 0、stale 0、unknown 46 |
+| 文档门禁 | fmt、ai-context、migration-manifest、zero-go、diff check | 全过 |
+| 快速门禁 | pnpm run check:quick | 通过 exit 0（单实例整轮，1954 用例段无失败，含 launcher 端到端）|
+
+后续：第 130 批分片五之二取 broker_test 186/453/533/735 与 broker_conformance/account 余量。
