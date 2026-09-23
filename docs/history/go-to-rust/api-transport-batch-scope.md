@@ -2370,3 +2370,36 @@ owner：`crates/jftrade-assistant`（模型层的任务图、计划与审批作�
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
 
 后续：队列进入 `internal/assistant`（顶层 service/workflow 用例）32 行，随后 `internal/assistant/workflow` 38 行、`internal/assistant/assembly` 104 行、`internal/assistant/engine` 626 行与 `internal/app/apiserver` 下 8 行 assistant 用例。
+
+### 分片四：`internal/assistant/service_*` 32 行（复核后细化 + 1 处锚点行号纠正）
+
+范围（按文件与行号升序）：`service_audit_pagination_test.go:9`、`service_builtin_agent_edit_test.go:10`、`service_business_helpers_test.go:22/:105/:145/:189`、`service_business_test.go:12/:117/:169/:230/:433`、`service_contract_boundaries_test.go:12/:133/:224/:312`、`service_lifecycle_boundaries_test.go:10/:25/:71/:95`、`service_persistence_runtime_boundaries_test.go:12/:119/:164/:180/:228`、`service_recovery_test.go:10`、`service_skill_state_recovery_test.go:19/:61/:119`、`service_test.go:9/:24/:38/:49`。
+
+owner：service 层是领域行为的组装面，状态写入 owner 在领域 crate——审批、会话与运行状态由 `crates/jftrade-engine` 的 ADK 端口与存储承接，任务图与画布模型由 `crates/jftrade-assistant` 承接，不在 API handler 复制业务逻辑。
+
+复核方法：逐条用参考提交的 Go 源码核对测试定义行（32/32 行号签名一致），再核对账本每行 rust_entry 首段用例在 Rust 侧存在（全部可解析），并核对 `[x]` 行锚点文件出现在该行 rust_entry 内。结论：除下述两处细化外，其余 30 行既有 partial 结论准确，无需改动。
+
+修正与细化：
+
+1. 锚点行号笔误纠正：`service_business_test.go:12 TestServiceSaveAgentValidationScenarios` 的更新路径锚点误写为 `:29`，实际定义在 `:12`，已改为 `:12`。该野锚点是此前缺锚点告警中的一条，纠正后 reconcile 的 unknown 由 53 降为 52。
+2. 同一行结论改写为双测试组合：创建路径 7 个失败场景与 disabled/enabled 保存由 `adk_agent_write_reports_the_go_validation_messages` 断言，更新路径对合并后 payload 复用同一校验 owner 由 `adk_agent_update_revalidates_the_merged_payload` 断言，两处各挂一处同行锚点，保持 `[x]`。
+3. `service_test.go:9` 结论细化并新登记一个 P2 wire 差异：参考要求错误文本为带前缀的时间线失败文案且双向 errors.Is 成立；Rust 侧时间线读取失败走 500 `ADK_MESSAGES_GET_FAILED`，message 直接透传底层存储错误文本，没有前缀包装。修复位置与回归要求见下。
+
+映射终值（32 行）：`[x]` 1、partial 31、boundary 0。
+
+新登记缺口（P2，wire 文案）：时间线失败错误文本前缀包装（`service_test.go:9`）。复现：会话时间线存储失败时读取时间线。期望：message 含底层 cause 文本并以前缀标明时间线失败，或明确记录不加前缀的产品决策。修复位置：`crates/jftrade-engine/src/product_production_ports_adk_read.rs` 的时间线失败映射。回归要求：补断言 message 含底层 cause 文本。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 映射写入 | 2 行 payload 经账本写入脚本应用 | `[x]` 1588 不变、partial 2226 不变、boundary 637 不变（合计 4451） |
+| 逐行复核 | 自建校验（参考行号签名 32/32、rust_entry 可解析 32/32、锚点文件与名一致性） | 32 行 0 问题（含 1 处行号笔误纠正） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；缺锚点告警 189 → 188；Rust 测试 3292 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1649、unrecorded 0、stale 0、unknown 52 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 首轮 1910/1910 通过（本分片无抖动） |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compatibility exit 0（278 OpenAPI 操作、18 路由组、19 探针；assistant-runtime 9 状态 12 迁移；desktop 3 平台档 6 link case 10 facade 4 event）；generated 未改动工作树；ai-context 6 模块 8 指令文件；zero-go 2953 files；`check:quick` 全命令跑通（顺序失败即停，末条 pineworker 98/98，nextest 1940/1940、node 98 pass） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
+
+后续：队列进入 `internal/assistant/workflow*` 顶层 33 行，随后 workflow 目录 5、assembly 104、engine 626 与 apiserver 下 assistant/ADK 相关 14 行。

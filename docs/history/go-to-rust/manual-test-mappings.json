@@ -11880,9 +11880,9 @@
   },
   "internal/assistant/service_business_test.go:12:TestServiceSaveAgentValidationScenarios": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_agent_validation.rs::validate_agent_write；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_update_revalidates_the_merged_payload",
-    "conclusion": "function_exact：更新路径对合并后的 payload 复用同一校验 owner；引入未知 tool 的 PUT 被 400 BAD_REQUEST 拒绝且不落库（保留原 providerId、不产生部分 tools 写入）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_reports_the_go_validation_messages（创建路径 7 失败场景 + disabled/enabled 保存）；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_update_revalidates_the_merged_payload（更新路径复用同一校验 owner）",
+    "conclusion": "function_exact：创建路径的 7 个失败场景（invalid status/work mode/loop iterations、missing/disabled/no-key provider、unknown tool）与 disabled/enabled 保存由 adk_agent_write_reports_the_go_validation_messages 逐条断言；更新路径对合并后的 payload 复用同一校验 owner，引入未知 tool 的 PUT 被 400 拒绝且不落库（保留原 providerId、不产生部分 tools 写入），由 adk_agent_update_revalidates_the_merged_payload 断言。两处锚点分别写在对应测试上方（此前 :29 行号笔误已纠正为 :12）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(adk_agent_write_reports_the_go_validation_messages) or test(adk_agent_update_revalidates_the_merged_payload)'",
     "evidence_type": "function_exact"
   },
   "internal/assistant/service_business_test.go:117:TestServicePreviewSessionScenarios": {
@@ -12035,8 +12035,8 @@
   "internal/assistant/service_test.go:9:TestWrapSessionTimelineErrorPreservesErrorChain": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::session_timeline_failure_keeps_the_legacy_messages_error_code",
-    "conclusion": "partial：Go 断言时间线包装错误保留 `ErrSessionTimelineFailed` 哨兵与原始 cause（errors.Is 双向成立）并保持错误文本。Rust 的读端口用例断言时间线失败保留 legacy `ADK_MESSAGES_GET_FAILED` 错误码；Rust 没有哨兵错误链（错误以带码枚举表达），逐层展开断言不适用。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：参考断言 wrapSessionTimelineError 同时保留哨兵（ErrSessionTimelineFailed）与 cause，文本为 adk session timeline failed: <cause>。Rust 的等价面是时间线读取失败走 500 ADK_MESSAGES_GET_FAILED（遗留码不断言为通用失败），且 message 直接透传底层存储错误文本（product_production_ports_adk_read.rs），没有 adk session timeline failed: 前缀包装。缺口：错误文本前缀包装与链式保留的断言（P2，wire 文案）。修复位置：product_production_ports_adk_read.rs 的时间线失败映射。回归要求：补断言 message 含底层 cause 文本（或明确记录不加前缀的产品决策）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(session_timeline_failure_keeps_the_legacy_messages_error_code)'",
     "evidence_type": "partial"
   },
   "internal/assistant/service_test.go:24:TestServiceUnavailableWithoutRuntime": {

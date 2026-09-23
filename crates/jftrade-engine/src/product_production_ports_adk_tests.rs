@@ -3174,6 +3174,7 @@ fn assert_bad_request(error: AdkMutationPortError, expected: &str) {
 }
 
 /// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:634 TestADKAgentSaveValidationFailures
+/// Parity: go:452dea11:internal/assistant/service_business_test.go:12 TestServiceSaveAgentValidationScenarios
 /// TestADKAgentSaveValidationFailures
 ///
 /// The agent write contract classifies provider lifecycle, unknown catalogue
@@ -3337,11 +3338,12 @@ fn adk_agent_write_accepts_preinstalled_external_and_builtin_skills() {
     );
 }
 
-/// Parity: go:452dea11:internal/assistant/service_business_test.go:29
-/// TestServiceSaveAgentValidationScenarios
+/// Parity: go:452dea11:internal/assistant/service_business_test.go:12 TestServiceSaveAgentValidationScenarios
 ///
 /// Update goes through the same validation owner, so a PUT that introduces an
-/// unknown tool is rejected instead of persisting an unusable agent.
+/// unknown tool is rejected instead of persisting an unusable agent. The
+/// create-path scenarios of the same reference test are covered by
+/// `adk_agent_write_reports_the_go_validation_messages`.
 #[test]
 fn adk_agent_update_revalidates_the_merged_payload() {
     let (port, _directory) = agent_validation_port();
