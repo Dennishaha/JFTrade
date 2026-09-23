@@ -3126,3 +3126,28 @@ owner：apiserver 装配面在 Rust 由组合根与领域 crate 持有——Assi
 | 已知失败（如实记录） | `check:rust:static`、`check:rust:policy` 结果见日志；`--strict` 全仓缺口未达标（非本分片阻塞）；失败项不记为通过 | static 首轮因 target-health（.rcgu.o 超 50000，构建残留）失败；确认无 Cargo 进程后 clean（115999 文件/32.8GiB）重跑全绿；policy exit 0 | /tmp/s28_static.log、/tmp/s28_policy.log、/tmp/s28_clean.log |
 
 后续：apiserver 相关 14 行完成；队列进入 other 503、api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+
+### 第 129 批分片二十九：other 域首片 marketdataassets 家族 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 2712-2746）：`marketdataassets/asset_selection_boundaries_test.go:15/:30/:58/:80/:91/:126/:151/:192/:204/:218/:231/:271/:287/:298/:315`、`assets_dev_test.go:14/:34/:44`、`assets_release_test.go:14/:49/:72`、`assets_test.go:8`、`cache_test.go:15/:45/:83/:118/:159/:185/:193/:207/:218/:229/:249/:310/:336`。初值 `[x]` 3、partial 24、boundary 8。
+
+owner：marketdata sidecar 资产面在 Rust 由 `jftrade-integration-marketdata-helper` 的 AssetBundle（单文件内容寻址）与桌面端资源完整性/打包脚本持有；Go 的 PyInstaller onedir 包模型（多文件遍历、缓存目录、prune、私有目录模式）无同形对象，差异按行保留。
+
+复核方法：35 条全量枚举 rustEvidence（有引用的 22 条逐条确认指向 `asset.rs` 内真实 `#[test]`，非生产函数），逐条抽查 Go 原文与缺口描述；3 条 `[x]`（:204 摘要失配、:218 越界路径、cache:15 缓存复用）核对断言等价；prose-only 的 13 条核对结论诚实度与散文引用存在性（`release_marketdata_helper_path`、`verify_release_resources`、`runtime_plan_rejects_missing_duplicate_and_unsafe_assets`、desktop-release-inputs 命名断言均存在）。结论：35 条引用全部有效、缺口描述相符，无升级项——partial 行的差异（onedir 多文件模型、可用性三元组 vs 错误、symlink/并发赢家/prune 概念缺失）均为真实结构差异；3 条 `[x]` 按约定不写代码锚点（check-zero-go 禁止退休包路径字样），证据在 `marketdata-assets-batch-scope.md`。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：`[x]` 3、partial 24、boundary 8。全量：`[x]` 1566、partial 2248、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加缺口抽查，3 条 `[x]` 核对断言等价 | 0 纠正、0 升级；重复 `[x]` 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | `[x]` 1566、partial 2248、boundary 637（合计 4451）不变 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py --write-report` | 通过（exit 0）；report 仅刷新 Rust 基线到 `bb4040b7`，inventory 无变化 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 受影响 nextest | helper asset 5 用例定向 5/5 | /tmp/s29_t1.log |
+| 文档门禁 | `check:ai-context`、quick 完整计划 | ai-context 过；quick 文档计划 exit 0（policy 9 项并行全过） | /tmp/s29_aictx.log、/tmp/s29_quick.log |
+
+后续：other 域首片完成（余 532 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
