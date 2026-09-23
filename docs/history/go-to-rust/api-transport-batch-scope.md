@@ -3737,3 +3737,29 @@ owner：目录与定义由 jftrade-research 承接，提供商设置与 MCP 回�
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick 完整计划 | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0 |
 
 后续：api_transport 域继续（rows 3489 起；余约 159 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+
+### 第 129 批分片五十二：rows 3489-3523 设置与自选家族 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 3489-3523，按写入顺序）：service_managed_accounts:35/:58/:84/:99/:111/:120、settings service:153/:232/:242/:268/:318/:344/:361/:435/:446/:480/:565、watchlist futu source_boundaries:51/:99/:137/:181、futu source:44/:83/:174/:221/:267/:316/:357/:396/:418/:445/:459/:470、quote_preview_boundaries:12/:37。初值 [x] 15、partial 20、boundary 0。首键自检通过，与之前分片无重叠。
+
+owner：设置各领域服务（security、mcp_server、broker、execution、onboarding）各自持有 port，由 engine 组合投影到运行时；自选读取与快照由 jftrade-integration-futu 与 jftrade-watchlist 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性，[x] 逐条核对锚点与断言等价（含全文唯一性），partial 抽查缺口诚实度。结论：引用全部有效，0 纠正、0 升级。
+
+抽查证据：MCP token 一次性返回与旧 token 失效、Web 密码端口校验与回滚、并发保存最新密码、通知窄发布失败关闭、别名双码分离（brokerCode 与 securityID 不等）、缺席数据显式等 [x] 均有专用锚点且断言逐项一致；partial 缺口诚实（SideEffects 回调结构不存在、单一委托点不存在、single-flight 预约机制不存在、watchlist 端到端批量断言缺失等，均写清差异）；dup-x 为 0。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 15、partial 20、boundary 0。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加断言等价抽查 | 0 纠正、0 升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新基线，inventory 无变化；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick 完整计划 | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0 |
+
+后续：api_transport 域继续（rows 3524 起；余约 124 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
