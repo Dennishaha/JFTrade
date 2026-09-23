@@ -3927,6 +3927,8 @@ fn adk_read_resource_misses_keep_the_go_route_error_codes() {
 ///
 /// Go's store wraps `ErrProviderInUse` with the referencing agent name and
 /// `handleADKDeleteProvider` reports it as `409 ADK_PROVIDER_DELETE_FAILED`.
+/// Parity: go:452dea11:internal/assistant/engine/store_lifecycle_test.go:17
+/// `TestDeleteProviderFailsWhenReferencedByAgent`.
 #[test]
 fn adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection() {
     let (port, _directory) = agent_validation_port();
@@ -4318,6 +4320,8 @@ fn adk_respond_to_input_maps_the_go_error_codes_and_retries() {
 /// An installed external skill is removed together with its install directory,
 /// and a second uninstall reports the frozen missing-file projection instead of
 /// a synthetic 404.
+/// Parity: go:452dea11:internal/assistant/engine/store_lifecycle_test.go:735
+/// `TestExternalSkillUninstallRemovesInstallDir`.
 #[test]
 fn adk_skill_uninstall_removes_external_installs_and_reports_missing_files() {
     let (port, directory) = agent_validation_port();

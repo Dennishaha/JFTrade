@@ -378,6 +378,8 @@ fn seed_full_session(cluster: &TestCluster, session_id: &str, agent_id: &str, ru
         .expect("put artifact 2");
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/store_lifecycle_test.go:110
+/// `TestDeleteSessionRemovesApprovals`.
 #[test]
 fn test_adk_cascade_cleanup_removes_all_entities_across_three_databases() {
     let cluster = TestCluster::new();

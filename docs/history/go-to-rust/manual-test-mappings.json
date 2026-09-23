@@ -10003,11 +10003,11 @@
     "evidence_type": "partial"
   },
   "internal/assistant/engine/store_business_test.go:22:TestStoreProviderLifecycleMaintainsDefaultAndSecrets": {
-    "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_entities.rs::DeleteProvider；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope",
-    "conclusion": "function_exact：未知 provider 删除保持 Go 的幂等语义（200 deleted/id 而非 404），未知 replacement 不再触发索引 panic。",
+    "status": "[~]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope",
+    "conclusion": "partial（纠正过宽并修正条目形态）：Go 是 provider 全生命周期用例（保存默认项、密钥读写、列表默认排序、能力更新、引用中删除拒绝、删默认后替代、密钥删除），原 [x] 条目引用生产函数且只覆盖未知删除幂等一支。Rust 的引用测试只断言未知删除幂等包络；默认选择与删默认提升由 :17 与 :45 同族行覆盖，密钥落盘与读取、能力更新在 Rust 没有逐条断言。缺口与回归要求：补密钥轮转与能力更新的直接断言后再升级。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "function_exact"
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/store_business_test.go:108:TestStoreAgentSessionCascadeAndTaskMemoryBoundaries": {
     "status": "[~]",
@@ -10081,17 +10081,17 @@
   },
   "internal/assistant/engine/store_lifecycle_test.go:17:TestDeleteProviderFailsWhenReferencedByAgent": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_entities.rs::DeleteProvider（store 层 ErrProviderInUse 等价分支）；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection",
-    "conclusion": "function_exact：provider 被 agent 引用时删除按 Go 的 ErrProviderInUse 语义被拒绝（409 ADK_PROVIDER_DELETE_FAILED + used by agent + agent 名），且不产生 durable 变更。",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection",
+    "conclusion": "function_exact（修正条目形态，分支无变化）：provider 被 agent 引用时删除按 Go 的 ErrProviderInUse 语义被拒绝（409 ADK_PROVIDER_DELETE_FAILED + used by agent + agent 名），且不产生 durable 变更；原条目首段误引生产函数，已收敛为单一真实测试，锚点已补。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_lifecycle_test.go:45:TestProvidersMaintainDefaultSelectionAndCreatedOrder": {
-    "status": "[x]",
-    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::provider_delete_promotes_the_replacement_and_keeps_one_default",
-    "conclusion": "function_exact：Go 按 created_at 升序列出 provider、把默认项排在最前、删除默认后原子提升替代者并保持唯一默认；Rust 新增 store 测试断言默认（较新）排第一、删除默认后替代者成为唯一默认，另有引擎测试覆盖 SetDefaultProvider 的默认优先与 404 契约。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(provider_delete_promotes_the_replacement_and_keeps_one_default)'",
-    "evidence_type": "function_exact"
+    "status": "[~]",
+    "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::provider_delete_promotes_the_replacement_and_keeps_one_default; crates/jftrade-engine/src/product_production_ports_adk_tests.rs::provider_default_contract_orders_the_default_first_and_keeps_the_route_code",
+    "conclusion": "partial（纠正过宽）：Go 断言创建时间排序、默认优先、密钥可见性、SetDefaultProvider 切换、删默认提升替代者、空白与缺失删除语义。Rust 的 store 测试覆盖排序与删默认提升，引擎测试覆盖切换与默认优先路由码；列表密钥可见性与空白删除的 store 语义在 Rust 没有逐条断言。缺口与回归要求：补密钥可见性与空白删除断言后再升级。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/store_lifecycle_test.go:110:TestDeleteSessionRemovesApprovals": {
     "status": "[x]",
