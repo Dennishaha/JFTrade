@@ -236,6 +236,7 @@ fn run_payload(store: &AdkStore, run_id: &str) -> Value {
     serde_json::from_str(&run.payload_json).expect("decode run payload")
 }
 
+/// Parity: go:452dea11:internal/assistant/model/timeline_helper_test.go:5 TestTimelineHelperBoundaries
 /// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:490
 /// `TestProjectedChatResponseAppliesProjectionToRunFields`.
 ///

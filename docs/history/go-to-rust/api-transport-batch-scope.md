@@ -3064,3 +3064,35 @@ owner：workflowexec 编排层在 Rust 不存在（无 WorkflowExecutor、goal t
 | 已知失败（如实记录） | `check:rust:static`、`check:rust:policy` 本次均为 exit 0；失败项不记为通过 | /tmp/s26_static.log、s26_policy.log |
 
 后续：engine 第十七片完成（626 行中 595 行）；队列进入 engine 余量约 31 行，随后 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片二十七：engine 尾片加 model 35 行（8 处引用纠正 + 8 锚点，无 verdict 变更）
+
+范围（账本 rows 1651-1685，按账本顺序）：`workflowexec/goal_pause_boundaries_test.go:11/:55`、`goal_terminal_helpers_test.go:12`、`workflow_helpers_test.go:11`、`workflow_pending_input_contract_test.go:10`、`workflow_persistence_test.go:12/:35/:67/:96`、`workflow_reconcile_executor_boundaries_test.go:9/:69/:110/:164`、`workflow_reconcile_ignore_boundaries_test.go:9`、`workflow_resume_approval_boundaries_test.go:13`、`workflow_resume_executor_boundaries_test.go:10/:35/:106/:173`、`workflow_task_limit_boundaries_test.go:11`、`workflow_task_state_contracts_test.go:11/:49`、`workflow_task_tools_boundaries_test.go:13/:69`、`workflow_task_tools_goal_test.go:7`、`workflow_task_tools_lookup_test.go:10/:135`、`workflow_task_tools_persistence_test.go:13/:112`、`workflowruntime/runtime_test.go:11/:48`、`model/provider_reasoning_config_test.go:8/:27/:65`、`model/timeline_helper_test.go:5`。初值 `[x]` 0、partial 35。（注：交接记录的 1672-1706 为旧行号，账本按 Go 路径字母序排列，本片实际为 1651-1685；内容一致，均为 35 行。）
+
+owner：workflowexec 编排层在 Rust 不存在（无 WorkflowExecutor、goal turn、迭代上限暂停、子运行 dormant 豁免），缺口保留在过期自有超时窗口、端口 fail-closed 与任务工具集边界三处 owner。
+
+复核方法：35 条全量枚举 rustEvidence（文件加函数须指向真实 `#[test]`，生产函数引用一律视为错位），逐条抽查 Go 原文与缺口描述；重点找引用错位与可升级项。结论：27 条引用有效且缺口描述相符，8 处引用纠正，无升级项。抽查确认：`task_limit:11`、`task_tools_boundaries:13`、`task_tools_goal:7` 的“不适用”条目是刻意保留的 prose-only boundary（Rust 无对应工具/上限），非坏引用；`provider_reasoning:8/:27` 与 `resume_executor:35` 所指符号经查均为真实 `#[test]`（生产文件内单元测试），审计 stale 检查全仓仅 2 处且均在本片之外（marketdataapp sidecar 两条）。
+
+纠正：`helpers:11` 原引用 `TaskGraph::new` 构造器，改指图排序与故障用例；`persistence:96` 原引用生产校验函数 `validate_loop_iterations`，改指 agent 写入校验用例；`reconcile:69/:110` 与 `ignore:9` 三条原引用 `is_dormant_workflow_child_run`（dormant 判定实现存在但无独立测试），改指过期自有超时窗口用例；`lookup:135` 原引用 `TaskGraph::complete`，改指单 deterministic ready 任务用例；`persistence:13` 原引用 `dispatch`（非测试），改指端口 durable 失败面用例；`timeline:5` 移除第二引用生产函数 `merge_session_timeline`，仅保留工具轮投影用例。8 处 verdict 保持 boundary/partial 不变，另补 8 处锚点（workflow.rs 用 `//` 以贴合该文件零 `///` 惯例，其余沿用 `/// Parity:`）。
+
+新增证据：注释锚点 8 行，无新增用例，无生产实现改动。
+
+映射终值（35 行）：`[x]` 0、partial 35、boundary 0。全量：`[x]` 1566、partial 2248、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+门禁说明：本分片落在 `beb5174c` 门禁优化之后——审计默认只写临时目录，需 `--write-report` 落盘；基线漂移检查通过；`--strict` 全仓未达标（4360 处 function_exact 证据缺口，既有约定不单立制式）；`check:migration-manifest` 新增通过。账本 v2 信封，写入用 v2 写入器；写入后重跑回填锚点。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加缺口抽查 | 8 引用纠正加 8 锚点，无升级项 |
+| 账本写入 | 8 行变更（v2 写入器重跑回填锚点），其余不动 | `[x]` 1566 不变、partial 2248 不变、boundary 637 不变（合计 4451）；引用测试全部存在且有锚点 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py --write-report` | 通过（exit 0）；基线漂移检查过；0 条引用不存在 crate、0 条 `[x]` 缺 function_exact；缺锚点告警 120 不变；重复 `[x]` 唯一性检查通 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1714→1722、已记录 1666→1674、unrecorded 0、stale 0、unknown 48 |
+| 静态与格式 | `cargo fmt --all -- --check`（过，改动仅注释锚点）、`pnpm run check:clippy`（exit 0）、`check:rust:architecture`（passed）、`check:migration-manifest`（passed） | /tmp/s27_clippy.log |
+| 受影响 nextest | assistant 引用 2 用例定向 2/2；engine 引用 4 用例定向 4/4 | /tmp/s27_t1.log、/tmp/s27_t2.log |
+| 整轮 nextest | engine 全轮一次过，无抖动 | engine 全轮第一轮 1859 passed/1 failed（launcher address_taken 端口竞争抖动）+51 未跑（fail-fast 取消）；launcher 双用例隔离复跑 2/2；第二轮 --no-fail-fast 1910/1911（另一 launcher 用例抖动，首轮失败项通过）。两轮失败均为 launcher 端口竞争抖动，与本片注释改动无关 | /tmp/s27_engine_full.log、/tmp/s27_flaky1.log、/tmp/s27_engine_full2.log |
+| 兼容与门禁 | generated/ai-context/zero-go/migration-manifest 均过；quick 完整计划 exit 0 | quick 完整计划 exit 0（rust 1984/1984 含两 launcher 用例、compat 7 项、pineworker 98/98） | /tmp/s27_quick.log |
+| 已知失败（如实记录） | `check:rust:static`、`check:rust:policy` 结果见日志；`--strict` 全仓 4360 缺口未达标（非本分片阻塞）；失败项不记为通过 | static exit 0、policy exit 0 | /tmp/s27_static.log、/tmp/s27_policy.log |
+
+后续：engine 收口（626 行完成）；队列进入 apiserver 下 assistant/ADK 相关 14 行，随后 other 503、api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。

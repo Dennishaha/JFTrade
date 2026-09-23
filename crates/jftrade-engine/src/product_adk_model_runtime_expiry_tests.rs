@@ -207,6 +207,9 @@ fn expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls() {
 /// `TestReconcileExpiredRunsUsesRunSpecificTimeout`.
 /// Parity: go:452dea11:internal/assistant/engine/workflowexec/workflow_child_finalization_boundaries_test.go:66
 /// `TestWorkflowChildrenSkipIdleOrApprovalBlockedFinalization`.
+/// Parity: go:452dea11:internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go:69 TestTaskResumeUsesStoredRunningChildBeforeCompletingParent
+/// Parity: go:452dea11:internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go:110 TestTaskResumeTerminatesParentForStoredTerminalChild
+/// Parity: go:452dea11:internal/assistant/engine/workflowexec/workflow_reconcile_ignore_boundaries_test.go:9 TestReconcileWorkflowChildrenIgnoresMissingAndForeignRuns
 #[test]
 fn expired_runs_use_each_runs_own_timeout_window() {
     let (directory, store, session_store) = initialized_stores();

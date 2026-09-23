@@ -175,6 +175,7 @@ mod tests {
         }
     }
 
+    // Parity: go:452dea11:internal/assistant/engine/workflowexec/workflow_helpers_test.go:11 TestWorkflowHelperBranches
     #[test]
     fn graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults() {
         // Go's `SortWorkflowTasks` breaks an equal `Order` tie with the task id,
@@ -215,6 +216,7 @@ mod tests {
         );
     }
 
+    // Parity: go:452dea11:internal/assistant/engine/workflowexec/workflow_task_tools_lookup_test.go:135 TestWorkflowTaskToolsetMethodErrorAndFallbackBranches
     #[test]
     fn graph_exposes_one_deterministic_ready_task() {
         let mut graph = TaskGraph::new(vec![

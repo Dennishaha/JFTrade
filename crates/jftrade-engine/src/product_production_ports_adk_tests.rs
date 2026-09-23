@@ -3317,6 +3317,7 @@ fn assert_bad_request(error: AdkMutationPortError, expected: &str) {
     }
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/workflowexec/workflow_persistence_test.go:96 TestGoalWorkflowFailsWhenIterationLimitPauseCannotBePersisted
 /// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:634 TestADKAgentSaveValidationFailures
 /// Parity: go:452dea11:internal/assistant/service_business_test.go:12 TestServiceSaveAgentValidationScenarios
 /// TestADKAgentSaveValidationFailures
@@ -6606,6 +6607,7 @@ fn adk_catalog_session_and_observability_success_contracts_hold() {
     }
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/workflowexec/workflow_task_tools_persistence_test.go:13 TestWorkflowTaskToolsReturnParentPlanPersistenceFailures
 /// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:92 TestAssistantRoutesSurfaceStoreFailuresAfterRuntimeClose
 /// TestAssistantRoutesSurfaceStoreFailuresAfterRuntimeClose.
 ///

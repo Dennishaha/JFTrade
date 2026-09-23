@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T17:49:17Z",
+  "generatedAt": "2026-09-23T18:03:09Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -109721,8 +109721,8 @@
     },
     "internal/assistant/engine/workflowexec/workflow_helpers_test.go:11:TestWorkflowHelperBranches": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-assistant/src/workflow.rs::TaskGraph::new",
-      "conclusion": "boundary（结构差异）：Go 覆盖 plan/描述回退字段、运行期任务校验/环检测/发射错误、子运行状态与审批过滤的空操作分支。Rust 的 TaskGraph 只提供依赖校验、环检测与 ready/claim/complete；plan 投影、描述裁剪、运行期任务与审批过滤 helper 不存在。",
+      "rust_entry": "crates/jftrade-assistant/src/workflow.rs::graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults",
+      "conclusion": "boundary（结构差异，本批纠正引用）：Go 覆盖 plan与描述回退字段、运行期任务校验与环检测与发射错误、子运行状态与审批过滤的空操作分支。原条目引用的是 TaskGraph 构造器而非测试；依赖校验与环检测面实际由图排序与故障用例覆盖。plan 投影、描述裁剪、运行期任务与审批过滤 helper 不存在。回归要求：补 helper 契约后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -109734,15 +109734,20 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-assistant/src/workflow.rs",
-          "test": "new",
+          "test": "graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults",
           "crate": "jftrade-assistant",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/assistant/engine/workflowexec/workflow_helpers_test.go",
+            "goLine": 11,
+            "rustFile": "crates/jftrade-assistant/src/workflow.rs",
+            "rustLine": 178
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary（结构差异）：Go 覆盖 plan/描述回退字段、运行期任务校验/环检测/发射错误、子运行状态与审批过滤的空操作分支。Rust 的 TaskGraph 只提供依赖校验、环检测与 ready/claim/complete；plan 投影、描述裁剪、运行期任务与审批过滤 helper 不存在。"
+          "boundary（结构差异，本批纠正引用）：Go 覆盖 plan与描述回退字段、运行期任务校验与环检测与发射错误、子运行状态与审批过滤的空操作分支。原条目引用的是 TaskGraph 构造器而非测试；依赖校验与环检测面实际由图排序与故障用例覆盖。plan 投影、描述裁剪、运行期任务与审批过滤 helper 不存在。回归要求：补 helper 契约后再升级。"
         ],
         "source": "legacy-conclusion"
       },
@@ -109757,7 +109762,7 @@
           "--locked"
         ],
         "testFilter": [
-          "new"
+          "graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -109777,9 +109782,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary（结构差异）：Go 覆盖 plan/描述回退字段、运行期任务校验/环检测/发射错误、子运行状态与审批过滤的空操作分支。Rust 的 TaskGraph 只提供依赖校验、环检测与 ready/claim/complete；plan 投影、描述裁剪、运行期任务与审批过滤 helper 不存在。"
+        "boundary（结构差异，本批纠正引用）：Go 覆盖 plan与描述回退字段、运行期任务校验与环检测与发射错误、子运行状态与审批过滤的空操作分支。原条目引用的是 TaskGraph 构造器而非测试；依赖校验与环检测面实际由图排序与故障用例覆盖。plan 投影、描述裁剪、运行期任务与审批过滤 helper 不存在。回归要求：补 helper 契约后再升级。"
       ],
-      "boundaryReason": "boundary（结构差异）：Go 覆盖 plan/描述回退字段、运行期任务校验/环检测/发射错误、子运行状态与审批过滤的空操作分支。Rust 的 TaskGraph 只提供依赖校验、环检测与 ready/claim/complete；plan 投影、描述裁剪、运行期任务与审批过滤 helper 不存在。"
+      "boundaryReason": "boundary（结构差异，本批纠正引用）：Go 覆盖 plan与描述回退字段、运行期任务校验与环检测与发射错误、子运行状态与审批过滤的空操作分支。原条目引用的是 TaskGraph 构造器而非测试；依赖校验与环检测面实际由图排序与故障用例覆盖。plan 投影、描述裁剪、运行期任务与审批过滤 helper 不存在。回归要求：补 helper 契约后再升级。"
     },
     "internal/assistant/engine/workflowexec/workflow_pending_input_contract_test.go:10:TestWorkflowExecutorProjectsPendingInputAndPersistsChildState": {
       "status": "[~]",
@@ -110031,8 +110036,8 @@
     },
     "internal/assistant/engine/workflowexec/workflow_persistence_test.go:96:TestGoalWorkflowFailsWhenIterationLimitPauseCannotBePersisted": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_agent_validation.rs::validate_loop_iterations",
-      "conclusion": "boundary（功能缺失，保留）：Go 断言 iteration_limit 暂停写入失败时 ContinueADKGoalWorkflow 返回显式失败。Rust 只校验 loopMaxIterations 范围（1..20），没有迭代上限暂停/持久化路径。",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_reports_the_go_validation_messages",
+      "conclusion": "boundary（功能缺失，保留，本批纠正引用）：Go 断言 iteration_limit 暂停写入失败时返回显式失败。原条目引用的是生产校验函数而非测试；loopMaxIterations 范围校验面实际由 agent 写入校验用例覆盖。迭代上限暂停与持久化路径没有实现。回归要求：实现迭代上限暂停路径后再补断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -110043,16 +110048,21 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_adk_mutation_agent_validation.rs",
-          "test": "validate_loop_iterations",
+          "file": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
+          "test": "adk_agent_write_reports_the_go_validation_messages",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/assistant/engine/workflowexec/workflow_persistence_test.go",
+            "goLine": 96,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
+            "rustLine": 3320
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary（功能缺失，保留）：Go 断言 iteration_limit 暂停写入失败时 ContinueADKGoalWorkflow 返回显式失败。Rust 只校验 loopMaxIterations 范围（1..20），没有迭代上限暂停/持久化路径。"
+          "boundary（功能缺失，保留，本批纠正引用）：Go 断言 iteration_limit 暂停写入失败时返回显式失败。原条目引用的是生产校验函数而非测试；loopMaxIterations 范围校验面实际由 agent 写入校验用例覆盖。迭代上限暂停与持久化路径没有实现。回归要求：实现迭代上限暂停路径后再补断言。"
         ],
         "source": "legacy-conclusion"
       },
@@ -110067,7 +110077,7 @@
           "--locked"
         ],
         "testFilter": [
-          "validate_loop_iterations"
+          "adk_agent_write_reports_the_go_validation_messages"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -110087,9 +110097,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary（功能缺失，保留）：Go 断言 iteration_limit 暂停写入失败时 ContinueADKGoalWorkflow 返回显式失败。Rust 只校验 loopMaxIterations 范围（1..20），没有迭代上限暂停/持久化路径。"
+        "boundary（功能缺失，保留，本批纠正引用）：Go 断言 iteration_limit 暂停写入失败时返回显式失败。原条目引用的是生产校验函数而非测试；loopMaxIterations 范围校验面实际由 agent 写入校验用例覆盖。迭代上限暂停与持久化路径没有实现。回归要求：实现迭代上限暂停路径后再补断言。"
       ],
-      "boundaryReason": "boundary（功能缺失，保留）：Go 断言 iteration_limit 暂停写入失败时 ContinueADKGoalWorkflow 返回显式失败。Rust 只校验 loopMaxIterations 范围（1..20），没有迭代上限暂停/持久化路径。"
+      "boundaryReason": "boundary（功能缺失，保留，本批纠正引用）：Go 断言 iteration_limit 暂停写入失败时返回显式失败。原条目引用的是生产校验函数而非测试；loopMaxIterations 范围校验面实际由 agent 写入校验用例覆盖。迭代上限暂停与持久化路径没有实现。回归要求：实现迭代上限暂停路径后再补断言。"
     },
     "internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go:9:TestTaskResumeUsesStoredPendingChildBeforeCompletingParent": {
       "status": "[~]",
@@ -110155,8 +110165,8 @@
     },
     "internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go:69:TestTaskResumeUsesStoredRunningChildBeforeCompletingParent": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs::is_dormant_workflow_child_run",
-      "conclusion": "boundary（结构差异）：Go 断言子运行仍为 RUNNING 时父运行保持运行、步骤 IN_PROGRESS、不写完成时间。Rust 中子运行是独立 ADK 运行，父运行不由 reconcile 收口；dormant 判定区分“未活动的子运行交父预算”。",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs::expired_runs_use_each_runs_own_timeout_window",
+      "conclusion": "boundary（结构差异，本批纠正引用）：Go 断言子运行仍为 RUNNING 时父运行保持运行、步骤 IN_PROGRESS、不写完成时间。原条目引用的是生产函数 is_dormant_workflow_child_run 而非测试，该 dormant 判定无独立测试覆盖。Rust 中子运行是独立 ADK 运行，父运行不由 reconcile 收口；最接近的已测面是过期按各运行自有超时窗口执行。回归要求：补子运行豁免或父子同步断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -110167,16 +110177,21 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs",
-          "test": "is_dormant_workflow_child_run",
+          "file": "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs",
+          "test": "expired_runs_use_each_runs_own_timeout_window",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go",
+            "goLine": 69,
+            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs",
+            "rustLine": 210
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary（结构差异）：Go 断言子运行仍为 RUNNING 时父运行保持运行、步骤 IN_PROGRESS、不写完成时间。Rust 中子运行是独立 ADK 运行，父运行不由 reconcile 收口；dormant 判定区分“未活动的子运行交父预算”。"
+          "boundary（结构差异，本批纠正引用）：Go 断言子运行仍为 RUNNING 时父运行保持运行、步骤 IN_PROGRESS、不写完成时间。原条目引用的是生产函数 is_dormant_workflow_child_run 而非测试，该 dormant 判定无独立测试覆盖。Rust 中子运行是独立 ADK 运行，父运行不由 reconcile 收口；最接近的已测面是过期按各运行自有超时窗口执行。回归要求：补子运行豁免或父子同步断言后再升级。"
         ],
         "source": "legacy-conclusion"
       },
@@ -110191,7 +110206,7 @@
           "--locked"
         ],
         "testFilter": [
-          "is_dormant_workflow_child_run"
+          "expired_runs_use_each_runs_own_timeout_window"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -110211,14 +110226,14 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary（结构差异）：Go 断言子运行仍为 RUNNING 时父运行保持运行、步骤 IN_PROGRESS、不写完成时间。Rust 中子运行是独立 ADK 运行，父运行不由 reconcile 收口；dormant 判定区分“未活动的子运行交父预算”。"
+        "boundary（结构差异，本批纠正引用）：Go 断言子运行仍为 RUNNING 时父运行保持运行、步骤 IN_PROGRESS、不写完成时间。原条目引用的是生产函数 is_dormant_workflow_child_run 而非测试，该 dormant 判定无独立测试覆盖。Rust 中子运行是独立 ADK 运行，父运行不由 reconcile 收口；最接近的已测面是过期按各运行自有超时窗口执行。回归要求：补子运行豁免或父子同步断言后再升级。"
       ],
-      "boundaryReason": "boundary（结构差异）：Go 断言子运行仍为 RUNNING 时父运行保持运行、步骤 IN_PROGRESS、不写完成时间。Rust 中子运行是独立 ADK 运行，父运行不由 reconcile 收口；dormant 判定区分“未活动的子运行交父预算”。"
+      "boundaryReason": "boundary（结构差异，本批纠正引用）：Go 断言子运行仍为 RUNNING 时父运行保持运行、步骤 IN_PROGRESS、不写完成时间。原条目引用的是生产函数 is_dormant_workflow_child_run 而非测试，该 dormant 判定无独立测试覆盖。Rust 中子运行是独立 ADK 运行，父运行不由 reconcile 收口；最接近的已测面是过期按各运行自有超时窗口执行。回归要求：补子运行豁免或父子同步断言后再升级。"
     },
     "internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go:110:TestTaskResumeTerminatesParentForStoredTerminalChild": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs::is_dormant_workflow_child_run",
-      "conclusion": "boundary（结构差异）：Go 断言 reconcile 遇到已存储的终态子运行时终止父运行（写入 BLOCKED 步骤与终态时间戳）。Rust 的子运行由过期/租约规则处理（dormant 子运行交给父预算），没有 reconcile 终止父运行的路径。",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs::expired_runs_use_each_runs_own_timeout_window",
+      "conclusion": "boundary（结构差异，本批纠正引用）：Go 断言 reconcile 遇到已存储的终态子运行时终止父运行。原条目引用的是生产函数而非测试；dormant 判定无独立测试覆盖。Rust 的子运行由过期与租约规则处理，没有 reconcile 终止父运行的路径。回归要求：补父子终态同步断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -110229,16 +110244,21 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs",
-          "test": "is_dormant_workflow_child_run",
+          "file": "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs",
+          "test": "expired_runs_use_each_runs_own_timeout_window",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go",
+            "goLine": 110,
+            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs",
+            "rustLine": 211
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary（结构差异）：Go 断言 reconcile 遇到已存储的终态子运行时终止父运行（写入 BLOCKED 步骤与终态时间戳）。Rust 的子运行由过期/租约规则处理（dormant 子运行交给父预算），没有 reconcile 终止父运行的路径。"
+          "boundary（结构差异，本批纠正引用）：Go 断言 reconcile 遇到已存储的终态子运行时终止父运行。原条目引用的是生产函数而非测试；dormant 判定无独立测试覆盖。Rust 的子运行由过期与租约规则处理，没有 reconcile 终止父运行的路径。回归要求：补父子终态同步断言后再升级。"
         ],
         "source": "legacy-conclusion"
       },
@@ -110253,7 +110273,7 @@
           "--locked"
         ],
         "testFilter": [
-          "is_dormant_workflow_child_run"
+          "expired_runs_use_each_runs_own_timeout_window"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -110273,9 +110293,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary（结构差异）：Go 断言 reconcile 遇到已存储的终态子运行时终止父运行（写入 BLOCKED 步骤与终态时间戳）。Rust 的子运行由过期/租约规则处理（dormant 子运行交给父预算），没有 reconcile 终止父运行的路径。"
+        "boundary（结构差异，本批纠正引用）：Go 断言 reconcile 遇到已存储的终态子运行时终止父运行。原条目引用的是生产函数而非测试；dormant 判定无独立测试覆盖。Rust 的子运行由过期与租约规则处理，没有 reconcile 终止父运行的路径。回归要求：补父子终态同步断言后再升级。"
       ],
-      "boundaryReason": "boundary（结构差异）：Go 断言 reconcile 遇到已存储的终态子运行时终止父运行（写入 BLOCKED 步骤与终态时间戳）。Rust 的子运行由过期/租约规则处理（dormant 子运行交给父预算），没有 reconcile 终止父运行的路径。"
+      "boundaryReason": "boundary（结构差异，本批纠正引用）：Go 断言 reconcile 遇到已存储的终态子运行时终止父运行。原条目引用的是生产函数而非测试；dormant 判定无独立测试覆盖。Rust 的子运行由过期与租约规则处理，没有 reconcile 终止父运行的路径。回归要求：补父子终态同步断言后再升级。"
     },
     "internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go:164:TestCompleteResumedWorkflowClearsTerminalPendingApprovals": {
       "status": "[~]",
@@ -110341,8 +110361,8 @@
     },
     "internal/assistant/engine/workflowexec/workflow_reconcile_ignore_boundaries_test.go:9:TestReconcileWorkflowChildrenIgnoresMissingAndForeignRuns": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs::is_dormant_workflow_child_run",
-      "conclusion": "boundary（结构差异）：Go 断言仅剩缺失/外来子运行时 reconcile 不阻塞、父运行与步骤状态不变。Rust 没有 reconcile 子运行层，缺失/外来运行在读取时按不存在处理，dormant 子运行规则只影响过期判定。",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs::expired_runs_use_each_runs_own_timeout_window",
+      "conclusion": "boundary（结构差异，本批纠正引用）：Go 断言仅剩缺失与外来子运行时 reconcile 不阻塞、父运行与步骤状态不变。原条目引用的是生产函数而非测试；dormant 判定无独立测试覆盖。Rust 没有 reconcile 子运行层，缺失与外来运行在读取时按不存在处理。回归要求：补缺失与外来运行读取断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -110353,16 +110373,21 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs",
-          "test": "is_dormant_workflow_child_run",
+          "file": "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs",
+          "test": "expired_runs_use_each_runs_own_timeout_window",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/assistant/engine/workflowexec/workflow_reconcile_ignore_boundaries_test.go",
+            "goLine": 9,
+            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs",
+            "rustLine": 212
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary（结构差异）：Go 断言仅剩缺失/外来子运行时 reconcile 不阻塞、父运行与步骤状态不变。Rust 没有 reconcile 子运行层，缺失/外来运行在读取时按不存在处理，dormant 子运行规则只影响过期判定。"
+          "boundary（结构差异，本批纠正引用）：Go 断言仅剩缺失与外来子运行时 reconcile 不阻塞、父运行与步骤状态不变。原条目引用的是生产函数而非测试；dormant 判定无独立测试覆盖。Rust 没有 reconcile 子运行层，缺失与外来运行在读取时按不存在处理。回归要求：补缺失与外来运行读取断言后再升级。"
         ],
         "source": "legacy-conclusion"
       },
@@ -110377,7 +110402,7 @@
           "--locked"
         ],
         "testFilter": [
-          "is_dormant_workflow_child_run"
+          "expired_runs_use_each_runs_own_timeout_window"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -110397,9 +110422,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary（结构差异）：Go 断言仅剩缺失/外来子运行时 reconcile 不阻塞、父运行与步骤状态不变。Rust 没有 reconcile 子运行层，缺失/外来运行在读取时按不存在处理，dormant 子运行规则只影响过期判定。"
+        "boundary（结构差异，本批纠正引用）：Go 断言仅剩缺失与外来子运行时 reconcile 不阻塞、父运行与步骤状态不变。原条目引用的是生产函数而非测试；dormant 判定无独立测试覆盖。Rust 没有 reconcile 子运行层，缺失与外来运行在读取时按不存在处理。回归要求：补缺失与外来运行读取断言后再升级。"
       ],
-      "boundaryReason": "boundary（结构差异）：Go 断言仅剩缺失/外来子运行时 reconcile 不阻塞、父运行与步骤状态不变。Rust 没有 reconcile 子运行层，缺失/外来运行在读取时按不存在处理，dormant 子运行规则只影响过期判定。"
+      "boundaryReason": "boundary（结构差异，本批纠正引用）：Go 断言仅剩缺失与外来子运行时 reconcile 不阻塞、父运行与步骤状态不变。原条目引用的是生产函数而非测试；dormant 判定无独立测试覆盖。Rust 没有 reconcile 子运行层，缺失与外来运行在读取时按不存在处理。回归要求：补缺失与外来运行读取断言后再升级。"
     },
     "internal/assistant/engine/workflowexec/workflow_resume_approval_boundaries_test.go:13:TestRunChildBlocksDelegatedApprovalTask": {
       "status": "[~]",
@@ -111120,8 +111145,8 @@
     },
     "internal/assistant/engine/workflowexec/workflow_task_tools_lookup_test.go:135:TestWorkflowTaskToolsetMethodErrorAndFallbackBranches": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-assistant/src/workflow.rs::TaskGraph::complete",
-      "conclusion": "boundary（结构差异）：Go 断言任务工具集方法在已完成/缺失任务上的结果与 resultSummary 回退。Rust 的 TaskGraph::complete 只接受 ready 任务并写入结果摘要，缺失任务与回退文案分支不存在。",
+      "rust_entry": "crates/jftrade-assistant/src/workflow.rs::graph_exposes_one_deterministic_ready_task",
+      "conclusion": "boundary（结构差异，本批纠正引用）：Go 断言任务工具集方法在已完成与缺失任务上的结果与 resultSummary 回退。原条目引用的是 TaskGraph::complete 生产方法而非测试；ready 与认领执行面实际由确定性 ready 任务用例覆盖。缺失任务与回退文案分支不存在。回归要求：补缺失任务分支断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -111133,15 +111158,20 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-assistant/src/workflow.rs",
-          "test": "complete",
+          "test": "graph_exposes_one_deterministic_ready_task",
           "crate": "jftrade-assistant",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/assistant/engine/workflowexec/workflow_task_tools_lookup_test.go",
+            "goLine": 135,
+            "rustFile": "crates/jftrade-assistant/src/workflow.rs",
+            "rustLine": 219
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary（结构差异）：Go 断言任务工具集方法在已完成/缺失任务上的结果与 resultSummary 回退。Rust 的 TaskGraph::complete 只接受 ready 任务并写入结果摘要，缺失任务与回退文案分支不存在。"
+          "boundary（结构差异，本批纠正引用）：Go 断言任务工具集方法在已完成与缺失任务上的结果与 resultSummary 回退。原条目引用的是 TaskGraph::complete 生产方法而非测试；ready 与认领执行面实际由确定性 ready 任务用例覆盖。缺失任务与回退文案分支不存在。回归要求：补缺失任务分支断言后再升级。"
         ],
         "source": "legacy-conclusion"
       },
@@ -111156,7 +111186,7 @@
           "--locked"
         ],
         "testFilter": [
-          "complete"
+          "graph_exposes_one_deterministic_ready_task"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -111176,14 +111206,14 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary（结构差异）：Go 断言任务工具集方法在已完成/缺失任务上的结果与 resultSummary 回退。Rust 的 TaskGraph::complete 只接受 ready 任务并写入结果摘要，缺失任务与回退文案分支不存在。"
+        "boundary（结构差异，本批纠正引用）：Go 断言任务工具集方法在已完成与缺失任务上的结果与 resultSummary 回退。原条目引用的是 TaskGraph::complete 生产方法而非测试；ready 与认领执行面实际由确定性 ready 任务用例覆盖。缺失任务与回退文案分支不存在。回归要求：补缺失任务分支断言后再升级。"
       ],
-      "boundaryReason": "boundary（结构差异）：Go 断言任务工具集方法在已完成/缺失任务上的结果与 resultSummary 回退。Rust 的 TaskGraph::complete 只接受 ready 任务并写入结果摘要，缺失任务与回退文案分支不存在。"
+      "boundaryReason": "boundary（结构差异，本批纠正引用）：Go 断言任务工具集方法在已完成与缺失任务上的结果与 resultSummary 回退。原条目引用的是 TaskGraph::complete 生产方法而非测试；ready 与认领执行面实际由确定性 ready 任务用例覆盖。缺失任务与回退文案分支不存在。回归要求：补缺失任务分支断言后再升级。"
     },
     "internal/assistant/engine/workflowexec/workflow_task_tools_persistence_test.go:13:TestWorkflowTaskToolsReturnParentPlanPersistenceFailures": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_tasks.rs::dispatch",
-      "conclusion": "boundary（结构差异）：Go 断言任务工具在父计划保存失败时保持已提交的当前任务状态并把错误返回给调用方。Rust 的任务 mutation 逐条落库、失败即路由错误，没有父计划保存这一层。",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_routes_surface_durable_store_failures_instead_of_empty_success",
+      "conclusion": "boundary（结构差异，本批纠正引用）：Go 断言任务工具在父计划保存失败时保持已提交的当前任务状态并把错误返回给调用方。原条目引用的 dispatch 不是测试函数；任务与存储失败面实际由路由持久化失败用例覆盖（失败即路由错误而非空成功）。Rust 没有父计划保存这一层。回归要求：补父计划层契约后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -111194,16 +111224,21 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_adk_mutation_tasks.rs",
-          "test": "dispatch",
+          "file": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
+          "test": "adk_routes_surface_durable_store_failures_instead_of_empty_success",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/assistant/engine/workflowexec/workflow_task_tools_persistence_test.go",
+            "goLine": 13,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
+            "rustLine": 6610
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary（结构差异）：Go 断言任务工具在父计划保存失败时保持已提交的当前任务状态并把错误返回给调用方。Rust 的任务 mutation 逐条落库、失败即路由错误，没有父计划保存这一层。"
+          "boundary（结构差异，本批纠正引用）：Go 断言任务工具在父计划保存失败时保持已提交的当前任务状态并把错误返回给调用方。原条目引用的 dispatch 不是测试函数；任务与存储失败面实际由路由持久化失败用例覆盖（失败即路由错误而非空成功）。Rust 没有父计划保存这一层。回归要求：补父计划层契约后再升级。"
         ],
         "source": "legacy-conclusion"
       },
@@ -111218,7 +111253,7 @@
           "--locked"
         ],
         "testFilter": [
-          "dispatch"
+          "adk_routes_surface_durable_store_failures_instead_of_empty_success"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -111238,9 +111273,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary（结构差异）：Go 断言任务工具在父计划保存失败时保持已提交的当前任务状态并把错误返回给调用方。Rust 的任务 mutation 逐条落库、失败即路由错误，没有父计划保存这一层。"
+        "boundary（结构差异，本批纠正引用）：Go 断言任务工具在父计划保存失败时保持已提交的当前任务状态并把错误返回给调用方。原条目引用的 dispatch 不是测试函数；任务与存储失败面实际由路由持久化失败用例覆盖（失败即路由错误而非空成功）。Rust 没有父计划保存这一层。回归要求：补父计划层契约后再升级。"
       ],
-      "boundaryReason": "boundary（结构差异）：Go 断言任务工具在父计划保存失败时保持已提交的当前任务状态并把错误返回给调用方。Rust 的任务 mutation 逐条落库、失败即路由错误，没有父计划保存这一层。"
+      "boundaryReason": "boundary（结构差异，本批纠正引用）：Go 断言任务工具在父计划保存失败时保持已提交的当前任务状态并把错误返回给调用方。原条目引用的 dispatch 不是测试函数；任务与存储失败面实际由路由持久化失败用例覆盖（失败即路由错误而非空成功）。Rust 没有父计划保存这一层。回归要求：补父计划层契约后再升级。"
     },
     "internal/assistant/engine/workflowexec/workflow_task_tools_persistence_test.go:112:TestWorkflowTaskToolsReturnParentPlanRefreshFailures": {
       "status": "[~]",
@@ -111622,9 +111657,9 @@
     },
     "internal/assistant/model/timeline_helper_test.go:5:TestTimelineHelperBoundaries": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::a_tool_round_projects_the_pre_tool_reply_and_session_timeline；crates/jftrade-engine/src/product_production_ports_adk_notices.rs::merge_session_timeline（排序实现，无独立断言）",
-      "conclusion": "partial：参考断言五组时间线助手边界：前缀剥离（精确/空白）、键比较（有效时间戳优先、无效时间戳排后、同时间戳按 order、再按 id）、首个非空值、首个工具时间、首个审批时间。Rust 的等价面是 merge_session_timeline（product_production_ports_adk_notices.rs:167）按 createdAt→id 排序并重排 sequence；没有前缀剥离、首个非空、首个工具/审批时间助手，也没有 order 次级键。缺口：排序规则（无效时间戳兜底、order 次级键）与四个助手均无断言（P2）；新增断言需先确认是否要补 order 次级键。修复位置：product_production_ports_adk_notices.rs::merge_session_timeline 与 run 投影。回归要求：补乱序/无效时间戳/同键 tie-break 的表驱动断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(session_timeline) or test(notice)'",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::a_tool_round_projects_the_pre_tool_reply_and_session_timeline",
+      "conclusion": "partial（本批纠正引用）：参考断言五组时间线助手边界：前缀剥离、键比较、首个非空值、首个工具时间、首个审批时间。原条目第二引用是生产函数 merge_session_timeline 而非测试（该排序实现无独立断言），已移除；等价面由工具轮投影用例覆盖。排序规则与四个助手均无断言。修复位置：product_production_ports_adk_notices.rs::merge_session_timeline 与 run 投影。回归要求：补乱序与无效时间戳与同键 tie-break 的表驱动断言。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/model/timeline_helper_test.go",
@@ -111637,19 +111672,18 @@
           "file": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs",
           "test": "a_tool_round_projects_the_pre_tool_reply_and_session_timeline",
           "crate": "jftrade-engine",
-          "anchor": null
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_production_ports_adk_notices.rs",
-          "test": "merge_session_timeline",
-          "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/assistant/model/timeline_helper_test.go",
+            "goLine": 5,
+            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs",
+            "rustLine": 239
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：参考断言五组时间线助手边界：前缀剥离（精确/空白）、键比较（有效时间戳优先、无效时间戳排后、同时间戳按 order、再按 id）、首个非空值、首个工具时间、首个审批时间。Rust 的等价面是 merge_session_timeline（product_production_ports_adk_notices.rs:167）按 createdAt→id 排序并重排 sequence；没有前缀剥离、首个非空、首个工具/审批时间助手，也没有 order 次级键。缺口：排序规则（无效时间戳兜底、order 次级键）与四个助手均无断言（P2）；新增断言需先确认是否要补 order 次级键。修复位置：product_production_ports_adk_notices.rs::merge_session_timeline 与 run 投影。回归要求：补乱序/无效时间戳/同键 tie-break 的表驱动断言。"
+          "partial（本批纠正引用）：参考断言五组时间线助手边界：前缀剥离、键比较、首个非空值、首个工具时间、首个审批时间。原条目第二引用是生产函数 merge_session_timeline 而非测试（该排序实现无独立断言），已移除；等价面由工具轮投影用例覆盖。排序规则与四个助手均无断言。修复位置：product_production_ports_adk_notices.rs::merge_session_timeline 与 run 投影。回归要求：补乱序与无效时间戳与同键 tie-break 的表驱动断言。"
         ],
         "source": "legacy-conclusion"
       },
@@ -111661,13 +111695,10 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked",
-          "-E",
-          "test(session_timeline) or test(notice)"
+          "--locked"
         ],
         "testFilter": [
-          "a_tool_round_projects_the_pre_tool_reply_and_session_timeline",
-          "merge_session_timeline"
+          "a_tool_round_projects_the_pre_tool_reply_and_session_timeline"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -111687,7 +111718,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：参考断言五组时间线助手边界：前缀剥离（精确/空白）、键比较（有效时间戳优先、无效时间戳排后、同时间戳按 order、再按 id）、首个非空值、首个工具时间、首个审批时间。Rust 的等价面是 merge_session_timeline（product_production_ports_adk_notices.rs:167）按 createdAt→id 排序并重排 sequence；没有前缀剥离、首个非空、首个工具/审批时间助手，也没有 order 次级键。缺口：排序规则（无效时间戳兜底、order 次级键）与四个助手均无断言（P2）；新增断言需先确认是否要补 order 次级键。修复位置：product_production_ports_adk_notices.rs::merge_session_timeline 与 run 投影。回归要求：补乱序/无效时间戳/同键 tie-break 的表驱动断言。"
+        "partial（本批纠正引用）：参考断言五组时间线助手边界：前缀剥离、键比较、首个非空值、首个工具时间、首个审批时间。原条目第二引用是生产函数 merge_session_timeline 而非测试（该排序实现无独立断言），已移除；等价面由工具轮投影用例覆盖。排序规则与四个助手均无断言。修复位置：product_production_ports_adk_notices.rs::merge_session_timeline 与 run 投影。回归要求：补乱序与无效时间戳与同键 tie-break 的表驱动断言。"
       ],
       "boundaryReason": null
     },
@@ -289768,22 +289799,22 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-assistant/src/workflow.rs::complete": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/engine/adk_tool_edges_test.go:177:TestWorkflowTaskLocalHelperBoundaryBranches",
-        "internal/assistant/engine/workflowexec/workflow_task_tools_lookup_test.go:135:TestWorkflowTaskToolsetMethodErrorAndFallbackBranches"
+        "internal/assistant/engine/adk_tool_edges_test.go:177:TestWorkflowTaskLocalHelperBoundaryBranches"
       ],
-      "allowed": false,
-      "reviewStatus": "unreviewed"
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-assistant/src/workflow.rs::graph_exposes_one_deterministic_ready_task": {
-      "referenceCount": 7,
+      "referenceCount": 8,
       "referenceKeys": [
         "internal/assistant/engine/runner_lifecycle_reconciliation_test.go:146:TestWorkflowParentReferenceAndReconcileHelpersBoundaries",
         "internal/assistant/engine/workflow_agent_native_integration_test.go:122:TestGoogleADKWorkflowNativeAgentNodePreservesBranchAndIsolation",
         "internal/assistant/engine/workflow_agent_test.go:176:TestNewGoogleADKWorkflowAgentUsesNativeWorkflowAgentWithoutConcurrencyCap",
         "internal/assistant/engine/workflowexec/taskset_biz_test.go:9:TestWorkflowTaskToolsetBusinessLifecycle",
         "internal/assistant/engine/workflowexec/taskset_done_test.go:9:TestWorkflowTaskToolsetCompleteHonorsTaskAndChildRunBoundaries",
+        "internal/assistant/engine/workflowexec/workflow_task_tools_lookup_test.go:135:TestWorkflowTaskToolsetMethodErrorAndFallbackBranches",
         "internal/assistant/model/workflow_plan_test.go:8:TestWorkflowPlanPresentationKeepsDeterministicHumanState",
         "internal/assistant/model/workflow_task_tools_test.go:8:TestWorkflowGoalDecisionAndUtilityContracts"
       ],
@@ -289791,8 +289822,9 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-assistant/src/workflow.rs::graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults": {
-      "referenceCount": 2,
+      "referenceCount": 3,
       "referenceKeys": [
+        "internal/assistant/engine/workflowexec/workflow_helpers_test.go:11:TestWorkflowHelperBranches",
         "internal/assistant/model/workflow_plan_test.go:8:TestWorkflowPlanPresentationKeepsDeterministicHumanState",
         "internal/assistant/model/workflow_plan_test.go:31:TestWorkflowPlanBoundaryFormattingAndGraphSemantics"
       ],
@@ -289800,13 +289832,12 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-assistant/src/workflow.rs::new": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/engine/planner_toolset_test.go:167:TestWorkflowPlannerArgumentAndDependencyHelpers",
-        "internal/assistant/engine/workflowexec/workflow_helpers_test.go:11:TestWorkflowHelperBranches"
+        "internal/assistant/engine/planner_toolset_test.go:167:TestWorkflowPlannerArgumentAndDependencyHelpers"
       ],
-      "allowed": false,
-      "reviewStatus": "unreviewed"
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-assistant/src/workflow_canvas.rs::CanvasCompiler": {
       "referenceCount": 2,
@@ -291504,16 +291535,6 @@
       "allowed": true,
       "reviewStatus": "single"
     },
-    "crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs::is_dormant_workflow_child_run": {
-      "referenceCount": 3,
-      "referenceKeys": [
-        "internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go:69:TestTaskResumeUsesStoredRunningChildBeforeCompletingParent",
-        "internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go:110:TestTaskResumeTerminatesParentForStoredTerminalChild",
-        "internal/assistant/engine/workflowexec/workflow_reconcile_ignore_boundaries_test.go:9:TestReconcileWorkflowChildrenIgnoresMissingAndForeignRuns"
-      ],
-      "allowed": false,
-      "reviewStatus": "unreviewed"
-    },
     "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs::a_fresh_foreign_run_lease_shields_a_run_from_expiry": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -291533,10 +291554,13 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs::expired_runs_use_each_runs_own_timeout_window": {
-      "referenceCount": 2,
+      "referenceCount": 5,
       "referenceKeys": [
         "internal/assistant/engine/store_test.go:1005:TestReconcileExpiredRunsUsesRunSpecificTimeout",
-        "internal/assistant/engine/workflowexec/workflow_child_finalization_boundaries_test.go:66:TestWorkflowChildrenSkipIdleOrApprovalBlockedFinalization"
+        "internal/assistant/engine/workflowexec/workflow_child_finalization_boundaries_test.go:66:TestWorkflowChildrenSkipIdleOrApprovalBlockedFinalization",
+        "internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go:69:TestTaskResumeUsesStoredRunningChildBeforeCompletingParent",
+        "internal/assistant/engine/workflowexec/workflow_reconcile_executor_boundaries_test.go:110:TestTaskResumeTerminatesParentForStoredTerminalChild",
+        "internal/assistant/engine/workflowexec/workflow_reconcile_ignore_boundaries_test.go:9:TestReconcileWorkflowChildrenIgnoresMissingAndForeignRuns"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -295424,14 +295448,6 @@
       "allowed": true,
       "reviewStatus": "single"
     },
-    "crates/jftrade-engine/src/product_production_ports_adk_mutation_agent_validation.rs::validate_loop_iterations": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/assistant/engine/workflowexec/workflow_persistence_test.go:96:TestGoalWorkflowFailsWhenIterationLimitPauseCannotBePersisted"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-engine/src/product_production_ports_adk_mutation_entities.rs::DeleteProvider": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -295553,14 +295569,6 @@
       "allowed": false,
       "reviewStatus": "unreviewed"
     },
-    "crates/jftrade-engine/src/product_production_ports_adk_mutation_tasks.rs::dispatch": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/assistant/engine/workflowexec/workflow_task_tools_persistence_test.go:13:TestWorkflowTaskToolsReturnParentPlanPersistenceFailures"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-engine/src/product_production_ports_adk_mutation_workflow_runtime.rs::failure_cas_loser_distinguishes_missing_durable_winner": {
       "referenceCount": 2,
       "referenceKeys": [
@@ -295587,14 +295595,6 @@
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
-    },
-    "crates/jftrade-engine/src/product_production_ports_adk_notices.rs::merge_session_timeline": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/assistant/model/timeline_helper_test.go:5:TestTimelineHelperBoundaries"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_adk_read.rs::approvals": {
       "referenceCount": 1,
@@ -295656,11 +295656,12 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_reports_the_go_validation_messages": {
-      "referenceCount": 4,
+      "referenceCount": 5,
       "referenceKeys": [
         "internal/api/assistant/adk_routes_test.go:634:TestADKAgentSaveValidationFailures",
         "internal/api/assistant/chat_helpers_test.go:260:TestAssistantRequestHelpersCoverInvalidAndBoundaryInputs",
         "internal/api/assistant/routes_resource_contracts_test.go:159:TestProviderAndAgentValidationContracts",
+        "internal/assistant/engine/workflowexec/workflow_persistence_test.go:96:TestGoalWorkflowFailsWhenIterationLimitPauseCannotBePersisted",
         "internal/assistant/service_business_test.go:12:TestServiceSaveAgentValidationScenarios"
       ],
       "allowed": false,
@@ -295867,11 +295868,12 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_routes_surface_durable_store_failures_instead_of_empty_success": {
-      "referenceCount": 4,
+      "referenceCount": 5,
       "referenceKeys": [
         "internal/api/assistant/routes_boundary_contracts_test.go:92:TestAssistantRoutesSurfaceStoreFailuresAfterRuntimeClose",
         "internal/assistant/engine/workflowexec/workflow_execution_failure_boundaries_test.go:13:TestWorkflowTaskStorageFailuresFailClosed",
         "internal/assistant/engine/workflowexec/workflow_persistence_test.go:12:TestGoalWorkflowFailsWhenInitialStateCannotBePersisted",
+        "internal/assistant/engine/workflowexec/workflow_task_tools_persistence_test.go:13:TestWorkflowTaskToolsReturnParentPlanPersistenceFailures",
         "internal/assistant/engine/workflowexec/workflow_task_tools_persistence_test.go:112:TestWorkflowTaskToolsReturnParentPlanRefreshFailures"
       ],
       "allowed": false,
