@@ -3851,3 +3851,29 @@ owner：设置文件持久化与回滚由 jftrade-store-settings-file 与 jftrad
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0（文档账本类改动，空受影响计划）；diff check 过 |
 
 后续：api_transport 域收尾（rows 3629 起；余约 19 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+
+### 第 129 批分片五十六：rows 3629-3663 连接协调与 schema 目录 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围更正：分片五十五预估尾部余约 19 行有误，实际账本尾部 rows 3629-4451 共 823 行（sqliteconn/sqliteschema 起，后接回测、存储、行情、集成、交易、设置各域）；本片按既有 35 行步调取 rows 3629-3663。内容：sqliteconn coordinator:11/:44/:58/:83/:94/:112/:156、db_api:12/:109/:178/:218、db_concurrency:10/:46/:80/:113、maintenance:8、sqliteschema catalog:14/:60/:79/:98/:130/:155/:198/:232/:253/:266/:289/:308/:329/:344/:359/:375/:383、schema_boundaries:30。初值 partial 24、boundary 11，终值不变。首键自检通过，无重叠。
+
+owner：写协调与连接语义由 jftrade-owner-lock 的 WriterLease 与 jftrade-store-sqlite 单连接互斥承接，schema 清单由 jftrade-store-sqlite 静态表承接，无双写。
+
+复核方法：35 条全量枚举引用有效性，partial 与 boundary 逐条核对缺口诚实度。结论：引用全部有效，0 纠正、0 升级。
+
+抽查证据：写者串行化与锁文件保留、防御性副本由值类型表达、漂移检测同语义等成立；读屏障重叠、读写池分离、恢复上下文字段等缺口诚实；dup-x 为 0。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 0、partial 24、boundary 11。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加缺口诚实度抽查 | 0 纠正、0 升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新基线，inventory 无变化；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0（文档账本类改动，空受影响计划）；diff check 过 |
+
+后续：继续 35 行步调（rows 3664 起；尾部余 788 行）；队列按账本实际顺序推进（sqliteschema 余量、回测、存储、行情、集成、交易、设置）。
