@@ -4043,3 +4043,29 @@ owner：实盘意图执行与风控由 jftrade-engine 承接，运行时风控�
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 3874 起；尾部余 578 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
+
+### 第 129 批分片六十三：rows 3874-3908 实盘执行器与 Pine 运行器 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 3874-3908，按写入顺序）：strategy pine_live_command:180/:194/:227/:257/:267、pine_live_executor:14/:36/:66/:80/:93/:119/:150/:180/:198/:226/:255/:284/:314/:349/:383/:428/:443/:462/:474/:508/:532/:556/:601/:648、pineruntime recovery_contracts:9、runner_lifecycle:41/:59/:110/:157、runtime_failure_contracts:16。初值 [x] 4、partial 25、boundary 6，终值不变。首键自检通过，无重叠。
+
+owner：实盘意图执行由 jftrade-engine 承接，原子括号语义由 jftrade-backtest 承接，市场规则由 jftrade-broker 承接，Pine 会话池与资产由 jftrade-integration-pine 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（21 个去重后引用逐个核对 #[test]，0 缺失），4 条 [x] 逐条核对锚点归属与断言等价（全部 function_exact 且带锚点），partial 与 boundary 抽查缺口诚实度。结论：0 纠正、0 升级、0 降级。
+
+抽查证据：[x] 结论均为逐值写法（数量算式、错误文案、零调用）；partial 缺口诚实（含回归要求与 owner）；boundary 均为对象迁移或无同形实现；dup-x 为 0。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 4、partial 25、boundary 6。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（21 去重引用）加 [x] 断言等价核对 | 0 纠正、0 升级、0 降级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新基线，inventory 无变化；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 3909 起；尾部余 543 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
