@@ -3288,3 +3288,28 @@ owner：仓库根探测由桌面端资源完整性承接；更新通道开关由
 | 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 |
 
 后续：other 域本片完成（余 357 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+### 第 129 批分片三十五：other 域桌面日志与日历 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 2922-2956，按写入顺序）：desktop main:261/:271/:317/:335/:375/:395/:426/:464/:506/:523/:533、buildinfo:8、datamanagement maintenance:9/:33/:46、service:44/:71/:101、notification_policy:10/:35、runtime_path_matching:5/:13、runtime_path:8/:41、exchangecalendar http_source_boundaries:30/:89/:156/:179/:229/:278/:298、http_source:21/:40/:55/:88。初值 [x] 16、partial 15、boundary 4。
+
+owner：桌面日志与链接由 Tauri 适配层承接；数据维护由 datamanagement 领域 crate 承接；通知策略由 settings 承接；平台路径由桌面端承接；日历 HTTP 源与解析由 integration-calendar 与 calendar 承接。
+
+复核方法：35 条全量枚举引用有效性，16 条 [x] 逐条核对 Go 原文与 Rust 断言等价（含 Parity 锚点归属与全文唯一性）；partial 逐条核对缺口诚实度；boundary 抽查 Go 原文确认无同形对象。结论：引用全部有效、缺口描述相符，0 纠正、0 升级。
+
+抽查证据：通知策略七分支与 Rust 逐条一致；日历六种失败身份中 nil 与非法 URL 在 Rust 不可达但结论如实登记，可达的传输、读取、解析、校验分支逐字透传；dup-x 为 0。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 16、partial 15、boundary 4。全量：[x] 1566、partial 2248、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加缺口抽查，16 条 [x] 核对断言等价 | 0 纠正、0 升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1566、partial 2248、boundary 637（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新 Rust 基线，inventory 无变化 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 |
+
+后续：other 域本片完成（余 322 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
