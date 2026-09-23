@@ -1727,3 +1727,57 @@ owner：`crates/jftrade-strategy`（Pine 解析、planner 键形与诊断、`cra
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 沿用分片六至十结论：cargo-deny advisories 阶段 8 条 `advisory-not-detected` 阻断（本分片未改动依赖） |
 
 后续：分片十二进入 `pkg/strategy/pine` 剩余文件（`language_failure_contracts_test.go` 3、`object_collect_bounds_test.go` 3、`object_collect_reject_test.go` 1、`object_declaration_contracts_test.go` 2、`order_command_security_rejection_test.go` 2、`order_metadata_contracts_test.go` 1、`parse_benchmark_business_test.go` 1、`request_security_ast_contracts_test.go` 2、`request_security_diagnostics_test.go` 2、`request_security_object_contracts_test.go` 2、`runtime_and_parser_boundaries_test.go` 5、`semantic_helper_boundaries_test.go` 4、`shared_structure_corpus_test.go` 1、`strategy_business_test.go` 3、`strategy_call_bounds_test.go` 3、`udf_expansion_contracts_test.go` 2、`validation_semantics_boundaries_test.go` 8 等），再到 `pkg/strategy/pineengine`、`pineworker` 与 `pinespec`，直至 `strategy_pine` 域清空。
+
+### 分片十二：`pkg/strategy/pine` 的 order/object/security/tuple 契约族 27 行
+
+范围：`language_failure_contracts_test.go` 3、`object_collect_bounds_test.go` 3、`object_collect_reject_test.go` 1、`object_declaration_contracts_test.go` 2、`order_command_security_rejection_test.go` 2、`order_metadata_contracts_test.go` 1、`parse_benchmark_business_test.go` 1、`parse_test.go` 11（`:286`/`:317`/`:348`/`:390`/`:432`/`:448`/`:763`/`:790`/`:838`/`:903`/`:977`）、`request_security_ast_contracts_test.go` 2、`request_security_diagnostics_test.go` 1。
+owner：`crates/jftrade-strategy`（Pine 解析、语义诊断、降级元数据）与 `crates/jftrade-engine`（MCP spec leaf 与冻结兼容 payload）；对照方为 `workers/pineworker`。
+
+复核方式：先按文件读 Go 测试源码，再跑统一支持矩阵探针（`crates/jftrade-strategy/tests/zz_scratch_probe.rs`，逐例打印 ok、首个诊断码、全部诊断码与行号），最后把公共入口断言写成回归用例；Go 内部助手（`pineOrderMetadata`、`pineCloseAllMetadata`、`validateStrategyExitTriggers`、`lowerObjectMethodCalls`、`requestSecurityLoweredASTIsPure`、`pineBenchmarkCases` 等）只能给 partial 或 boundary。矩阵结论：订单元数据与传播两例、兼容注册表一例可升 `[x]`；对象/集合七例在 Rust 无执行面，归为边界；其余 17 例给出 partial 与逐条缺口。
+
+修复（6 处功能差异，全部先红后绿）：
+
+1. 订单元数据校验缺失：Rust 原先把 `disable_alert=maybe`、`immediately=true`（entry/order/exit）、`strategy.close()` 无 id、`strategy.close("Long", mystery=true)`、`strategy.close_all("maybe")`、`close_all` 第 5 个 positional、`strategy.cancel()` 参数个数错误全部编译通过。修复：`crates/jftrade-strategy/src/pine/semantic.rs::strategy_order_diagnostic` 拆出 `order_arity_diagnostic`、`order_close_all_positional_diagnostic`、`order_boolean_metadata_diagnostic`，按 Go 的 `rejectUnsupportedNamedArgs`/`pineOrderMetadata`/`pineCloseAllMetadata` 允许集与顺序（id/direction → OCA → 允许集 → close_all positional → Boolean 元数据 → qty 冲突 → exit 触发器）给出 `PINE_COMPILE_ERROR`/`PINE_ORDER_*` 码与同文案。
+2. `request.security` 纯度漏判：`strategy.position_size`、`close + strategy.position_size`、`log.info(...)`、`line.new(...)`、`values.push(close)` 原先全部通过（Go 一律 `PINE_REQUEST_SECURITY_SIDE_EFFECT`）。修复：`request_security_expression_has_side_effect` 对齐 `validate.go::requestSecurityExpressionHasSideEffect` 的文本 denylist（`strategy.`/`log.`/`table.` 成员根、`runtime.error`/`line.new`/`label.new`/`box.new`/绘图族调用、`.push`/`.set`/`.put` 等变异后缀），并把该诊断提前到内层调用诊断之前（`visit_call` 对 `request.security` 先判定再递归），与 Go 的行级顺序一致。
+3. 元组诊断码与文案不统一：`x = request.security(..., [close, open])` 原先被当成单值读取直接通过，`[only] = request.security(..., [close, open])` 报 `PINE_TUPLE_ALIAS_COUNT`、`[a, b] = request.security(..., [close])` 报 `PINE_TUPLE_WIDTH`。修复：`crates/jftrade-strategy/src/pine/parser.rs` 新增 `request_security_tuple_items`、`request_security_tuple_width_message`、`request_security_tuple_assignment_diagnostic`：非元组赋值遇到元组参数先按宽度（`PINE_REQUEST_SECURITY_TUPLE_UNSUPPORTED`「support 2 to 8 values」）再按赋值形态（`PINE_REQUEST_SECURITY_TUPLE_ASSIGNMENT`「must be assigned with matching tuple aliases」），元组赋值走 `PINE_REQUEST_SECURITY_TUPLE_MISMATCH`，文案与 Go 逐字一致。
+4. 单引号字符串被拒：Go 的 `parse_tokenize.go::stripInlineComment` 与 `parse_args.go::unquote` 都接受单引号字面量（`strategy.close_all(true, 'close comment', 'close alert', true)` 可编译），Rust lexer 报 `invalid character`。修复：`crates/jftrade-strategy/src/pine/lexer.rs` 把单引号纳入字符串定界符（同一转义扫描），`decode_string` 对单引号按 Go 的 `strconv.Unquote` 失败回退路径只剥定界符、不做转义处理。
+5. history 回看溢出被放过：`close[999999999999999999999999999999]` 原先编译通过，Go 的 `strconv.Atoi` 失败路径给出「history reference lookback must be a non-negative integer」。修复：`semantic.rs::report_history_reference_diagnostics` 把 `Number` 索引解析失败也映射为 `PINE_HISTORY_REF_UNSUPPORTED` 的 non-negative 文案，超过 500 的既有分支保持不变。
+6. `request.security` 合并参数只认具名形态：`request.security(syminfo.tickerid, "60", close, barmerge.gaps_off, barmerge.lookahead_on)` 与 `..., barmerge.gaps_on)` 原先通过。修复：合并参数判定改为对第 4 个及之后的每个实参做小写文本匹配（`barmerge.lookahead_on`/`barmerge.gaps_on`/`calc_bars_count=`），具名与 positional 两种形态同码同文案。
+
+新增证据：
+
+- `crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs`（7 用例：订单歧义矩阵、订单元数据传播、支持的位置参数与单引号解码、合并参数具名与 positional 拒绝、纯度副作用、元组诊断码、history 溢出）。
+- `crates/jftrade-engine/tests/strategy_pine_mcp_contract.rs::spec_leaf_and_frozen_payload_keep_the_go_compatibility_registry`（`scoreModelVersion`、`compatibilityScore`、5 个维度，以及冻结 payload 的 76 个注册表 id、2 个排除 id 与唯一性）。
+
+探针先红证据（修复前状态）：新增用例首轮 5/5 失败（`compile_rejects_ambiguous_order_metadata_and_missing_ids`、`compile_accepts_supported_order_positional_metadata`、`request_security_rejects_impure_member_and_visual_side_effects`、`request_security_tuple_diagnostics_match_go_codes`、`history_reference_overflow_is_rejected`），修复后 7/7 通过；`request_security_merge_flags_are_rejected_in_named_and_positional_form` 由第三轮探针（positional `barmerge.gaps_on`/`barmerge.lookahead_on` 与 `calc_bars_count=` 均 ok=true）复现先红。生产文件 shasum：`semantic.rs` `9f435e5c…` → `6d6d109f…`、`lexer.rs` `e570b4b0…` → `5eb838a3…`、`parser.rs` `c13a22ef…` → `609e8bf0…`。
+
+映射终值：3 条 `[x]`（`language_failure_contracts_test.go:239`、`order_command_security_rejection_test.go:11`、`parse_test.go:763`）、17 条 partial、7 条 boundary。`[x]` 由 1566 升至 1569，partial 2256 降至 2248，boundary 保持 629。
+
+缺口登记（本批新增）：
+
+1. **switch 解析缺失（P1）**：`signal = switch` 两条手臂与 `switch signal` 语句块在 Rust 均报 `PINE_SWITCH_ARMS_REQUIRED`，而 Go 把 switch 表达式重写为 `ifelse`、switch 语句落到 `IfStmt`（`parse_test.go:977`）；修复位置：`parser.rs`/`planner.rs` 补 switch 手臂降级，回归测试按该行 Go 断言（语句数、ifelse、then/else 分支）。
+2. **security 内 TA 白名单与高级指标参数校验缺失（P1）**：`ta.sum(close, 5)`、`ta.bb(close, 20)`、`ta.correlation(close, last_price, 20)`、`request.security(..., "D", ta.obv)` 在 Rust 编译通过，Go 分别报 `PINE_REQUEST_SECURITY_EXPRESSION_UNSUPPORTED` 与高级指标参数规则（`request_security_ast_contracts_test.go:26`、`request_security_diagnostics_test.go:8`）；修复位置：`semantic.rs` 的 security 纯度与白名单层，或 planner 的 security 指标表。
+3. **UDF 与循环只读诊断码不一致（P2）**：递归、嵌套与签名不匹配 UDF 在 Rust 走 `PINE_EXPRESSION_INVALID`（Go：`PINE_UDF_*_UNSUPPORTED`，行号 4/3/4），循环变量只读走 `PINE_STATEMENT_UNSUPPORTED`（Go：`PINE_LOOP_VARIABLE_READONLY`，行 4）（`parse_test.go:838`、`parse_test.go:903`）。
+4. **未闭合 `request.security` 诊断码（P2）**：Rust 报 `PINE_EXPRESSION_REQUIRED`，Go 报 `PINE_REQUEST_SECURITY_UNSUPPORTED`「call could not be parsed」（`order_command_security_rejection_test.go:82`）。
+5. **benchmark 语料未移植（P2）**：Go 的 6 条 `pineBenchmarkCases()` 未进 Rust corpus，`udf_static_for` 需先补 UDF/循环语义（`parse_benchmark_business_test.go:5`）。
+6. **`Compilation.features` 粗粒度（P2）**：Rust 仍返回 20 条能力 id，Go 的 `SupportedFeatureIDs()` 注册表（167 条）只在冻结兼容 payload 与 MCP support matrix 中体现（`parse_test.go:763`）。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 修复前先红 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --test pine_order_metadata_and_security_rejections --locked --no-fail-fast`（修复前状态） | 5/5 失败（断言落在「编译必须失败」与码、文案比对） |
+| 新增用例 | 同上（修复后） | 7/7 通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast` | 87/87 通过 |
+| 探针回滚校验 | `shasum -a 256 crates/jftrade-strategy/src/pine/semantic.rs crates/jftrade-strategy/src/pine/lexer.rs crates/jftrade-strategy/src/pine/parser.rs` | 修复前 `9f435e5c…`、`e570b4b0…`、`c13a22ef…`；修复后 `6d6d109f…`、`5eb838a3…`、`609e8bf0…` |
+| 映射写入 | payload `/tmp/s130l_payload.json` 经 `/tmp/b82_apply.py` 应用 | 27 行给出终值，`[x]` 1566 → 1569、partial 2256 → 2248、boundary 保持 629 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3255（Strategy 域 234） |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1597、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1895/1895 通过（首轮即绿） |
+| 兼容 replay 与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compatibility（3 平台档 / 6 link case / 10 facade / 4 event）、generated、ai-context（6 modules / 8 指令文件）通过；zero-go 见下方更正后通过（2950 tracked files）；`check:quick` 首轮失败于 4 条并行负载抖动用例，隔离复跑 4/4 通过、整轮 engine 1895/1895 后重跑通过（exit 0）；期间 `.rcgu.o` 达 53076 触发 target-health，确认无 Cargo 进程后执行 `pnpm run clean:rust:artifacts`（113006 files / 30.7GiB） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 沿用分片六至十一结论：cargo-deny advisories 阶段 8 条 `advisory-not-detected` 阻断（bans/licenses/sources ok，本分片未改动依赖） |
+
+分片十一更正（本批发现）：`crates/jftrade-strategy/tests/pine_expression_and_security_boundaries.rs:203` 的注释里出现 `Go test` 字样，命中 `scripts/check-zero-go.mjs` 的 active pattern（`\bgo\s+(?:run|build|test|generate|vet)\b`，大小写不敏感），导致分片十一记录为通过的 `check:zero-go` 实际会在该行失败。本批把该注释改写为 `reference case`，`check:zero-go` 复跑通过（exit 0）。后续分片在 Rust 源码与测试注释中不要书写 `Go test` 这类会命中 active pattern 的措辞。
+
+后续：分片十三继续 `pkg/strategy/pine` 剩余 29 行（`request_security_diagnostics_test.go:52`、`request_security_object_contracts_test.go` 2、`runtime_and_parser_boundaries_test.go` 5、`semantic_helper_boundaries_test.go` 4、`shared_structure_corpus_test.go` 1、`strategy_business_test.go` 3、`strategy_call_bounds_test.go` 3、`udf_expansion_contracts_test.go` 2、`validation_semantics_boundaries_test.go` 8 等），再到 `pkg/strategy/pineengine`、`pineworker` 与 `pinespec`，直至 `strategy_pine` 域清空。

@@ -200,8 +200,8 @@ fn request_security_rejects_unlisted_static_timeframe_strings() {
 /// Go's `pineWindowFunctionArgs` keeps the high/low defaults for the extrema
 /// calls, reads a lone argument as the period for `highest`/`lowest`, and reads
 /// it as the source with a 14-bar default for the momentum calls. Rust plans the
-/// same requirement keys; the TA string-rewrite helpers of that Go test have no
-/// Rust counterpart.
+/// same requirement keys; the TA string-rewrite helpers of that reference case
+/// have no Rust counterpart.
 #[test]
 fn window_family_defaults_keep_the_go_source_and_period() {
     assert_eq!(keys("value = ta.highest(10)"), vec!["highest:high:10"]);

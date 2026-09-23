@@ -350,6 +350,21 @@ impl Parser {
                     column: line.indent + 1,
                 });
             }
+            if !split.tuple
+                && let Some((code_name, message)) =
+                    request_security_tuple_assignment_diagnostic(&expression)
+            {
+                // Parity: pkg/strategy/pine/validate.go::requestSecurityUnsupportedDiagnostic:
+                // a tuple `request.security` call must be assigned with
+                // matching tuple aliases instead of being read as a single
+                // value, and its width must stay inside 2..=8.
+                return Err(ParseError {
+                    code_name,
+                    message,
+                    line: line.number,
+                    column: line.indent + 1,
+                });
+            }
             if split.tuple {
                 validate_tuple_assignment(&line, &split.names, &expression)?;
                 return Ok((
@@ -746,7 +761,13 @@ fn validate_tuple_assignment(
         line: line.number,
         column: line.indent + 1,
     };
-    if names.len() < 2 || names.len() > 8 {
+    if let Some(message) = request_security_tuple_width_message(expression) {
+        // Go checks the tuple width of a `request.security` call before it
+        // compares aliases, so a one-value tuple reports the request.security
+        // contract instead of the generic alias count.
+        return Err(error("PINE_REQUEST_SECURITY_TUPLE_UNSUPPORTED", message));
+    }
+    if request_security_tuple_items(expression).is_none() && (names.len() < 2 || names.len() > 8) {
         return Err(error(
             "PINE_TUPLE_ALIAS_COUNT",
             "tuple assignment supports 2 to 8 aliases".to_owned(),
@@ -777,17 +798,13 @@ fn validate_tuple_assignment(
         ExprKind::Call { callee, arguments } => {
             let callee = callee.to_ascii_lowercase();
             if callee == "request.security" {
-                if let Some(Expr {
-                    kind: ExprKind::Tuple { items },
-                    ..
-                }) = arguments.get(2)
-                    && items.len() != names.len()
+                if let Some(items) = request_security_tuple_items(expression)
+                    && items != names.len()
                 {
                     return Err(error(
-                        "PINE_TUPLE_WIDTH",
+                        "PINE_REQUEST_SECURITY_TUPLE_MISMATCH",
                         format!(
-                            "request.security tuple returns {} values but assignment has {} aliases",
-                            items.len(),
+                            "request.security() tuple returns {items} values but assignment has {} aliases",
                             names.len()
                         ),
                     ));
@@ -810,6 +827,47 @@ fn validate_tuple_assignment(
             TUPLE_SOURCE_UNSUPPORTED.to_owned(),
         )),
     }
+}
+
+/// `request.security` tuple expressions carry their width in the third
+/// argument; Go's whitelist accepts between two and eight values.
+fn request_security_tuple_items(expression: &Expr) -> Option<usize> {
+    let ExprKind::Call { callee, arguments } = &expression.kind else {
+        return None;
+    };
+    if !callee.eq_ignore_ascii_case("request.security") {
+        return None;
+    }
+    match arguments.get(2).map(|argument| &argument.kind) {
+        Some(ExprKind::Tuple { items }) => Some(items.len()),
+        _ => None,
+    }
+}
+
+fn request_security_tuple_width_message(expression: &Expr) -> Option<String> {
+    let items = request_security_tuple_items(expression)?;
+    (!(2..=8).contains(&items))
+        .then(|| "request.security() tuple expressions support 2 to 8 values".to_owned())
+}
+
+/// Go validates a tuple `request.security` call that is read as a single
+/// value with `PINE_REQUEST_SECURITY_TUPLE_UNSUPPORTED` for an out-of-range
+/// width and `PINE_REQUEST_SECURITY_TUPLE_ASSIGNMENT` otherwise.
+fn request_security_tuple_assignment_diagnostic(
+    expression: &Expr,
+) -> Option<(&'static str, String)> {
+    let items = request_security_tuple_items(expression)?;
+    if !(2..=8).contains(&items) {
+        return Some((
+            "PINE_REQUEST_SECURITY_TUPLE_UNSUPPORTED",
+            "request.security() tuple expressions support 2 to 8 values".to_owned(),
+        ));
+    }
+    Some((
+        "PINE_REQUEST_SECURITY_TUPLE_ASSIGNMENT",
+        "request.security() tuple expressions must be assigned with matching tuple aliases"
+            .to_owned(),
+    ))
 }
 
 const TUPLE_SOURCE_UNSUPPORTED: &str = "tuple assignment is supported only for ta.macd(...), ta.bb(...), ta.dmi(...), ta.supertrend(...), ta.kc(...), or whitelisted request.security tuples";

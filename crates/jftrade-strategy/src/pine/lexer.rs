@@ -94,7 +94,12 @@ fn lex_line(number: usize, raw: &str) -> Result<LexedLine, LexError> {
             break;
         }
         let column = cursor + 1;
-        if character == '"' {
+        if character == '"' || character == '\'' {
+            // Go's tokenizer treats single and double quotes as string
+            // delimiters (``stripInlineComment`` switches on both), so a
+            // single-quoted literal such as ``'close comment'`` is data, not
+            // an invalid character.
+            let delimiter = character;
             let start = cursor;
             cursor += 1;
             let mut escaped = false;
@@ -106,7 +111,7 @@ fn lex_line(number: usize, raw: &str) -> Result<LexedLine, LexError> {
                     escaped = false;
                 } else if current == '\\' {
                     escaped = true;
-                } else if current == '"' {
+                } else if current == delimiter {
                     terminated = true;
                     break;
                 }
@@ -241,6 +246,17 @@ fn lex_line(number: usize, raw: &str) -> Result<LexedLine, LexError> {
 }
 
 pub fn decode_string(token: &str) -> String {
+    // Go's ``unquote`` tries ``strconv.Unquote`` first and then falls back to
+    // stripping a matching pair of delimiters.  For single-quoted literals the
+    // fallback is what a strategy author observes (`'close comment'` becomes
+    // `close comment`), so Rust strips the delimiters without escape handling
+    // for that form.
+    if let Some(inner) = token
+        .strip_prefix('\'')
+        .and_then(|value| value.strip_suffix('\''))
+    {
+        return inner.to_owned();
+    }
     let inner = token
         .strip_prefix('"')
         .and_then(|value| value.strip_suffix('"'))

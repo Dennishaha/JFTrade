@@ -386,15 +386,27 @@ impl SemanticContext<'_> {
             return;
         }
         if let ExprKind::Number { value } = &index.kind {
-            let lookback = value.trim().parse::<u64>().ok();
-            if let Some(lookback) = lookback.filter(|value| *value > MAX_HISTORY_LOOKBACK) {
-                self.summary.diagnostics.push(Diagnostic::error(
-                    "PINE_HISTORY_REF_UNSUPPORTED",
-                    format!(
-                        "history reference lookback {lookback} exceeds JFTrade maximum {MAX_HISTORY_LOOKBACK}"
-                    ),
-                    line,
-                ));
+            match value.trim().parse::<u64>() {
+                Ok(lookback) if lookback > MAX_HISTORY_LOOKBACK => {
+                    self.summary.diagnostics.push(Diagnostic::error(
+                        "PINE_HISTORY_REF_UNSUPPORTED",
+                        format!(
+                            "history reference lookback {lookback} exceeds JFTrade maximum {MAX_HISTORY_LOOKBACK}"
+                        ),
+                        line,
+                    ));
+                }
+                Ok(_) => {}
+                // Go parses the lookback with `strconv.Atoi`; a value that
+                // overflows the integer type is reported as a non-negative
+                // integer violation instead of being accepted.
+                Err(_) => {
+                    self.summary.diagnostics.push(Diagnostic::error(
+                        "PINE_HISTORY_REF_UNSUPPORTED",
+                        "history reference lookback must be a non-negative integer",
+                        line,
+                    ));
+                }
             }
         }
     }
@@ -486,6 +498,18 @@ impl SemanticContext<'_> {
 
     fn visit_call(&mut self, callee: &str, arguments: &[Expr], range: SourceRange) -> ValueType {
         let lower = callee.to_ascii_lowercase();
+        // Go classifies `request.security` side effects from the whole line
+        // before it walks the inner calls, so the purity diagnostic must lead
+        // the diagnostics of the expression it wraps.
+        if lower == "request.security"
+            && let Some(diagnostic) = request_security_diagnostic(callee, arguments, range)
+        {
+            self.summary.diagnostics.push(diagnostic);
+            for argument in arguments {
+                self.visit_expr(argument);
+            }
+            return ValueType::Unknown;
+        }
         for argument in arguments {
             self.visit_expr(argument);
         }
@@ -524,10 +548,6 @@ impl SemanticContext<'_> {
             return ValueType::Unknown;
         }
         if lower == "request.security" {
-            if let Some(diagnostic) = request_security_diagnostic(callee, arguments, range) {
-                self.summary.diagnostics.push(diagnostic);
-                return ValueType::Unknown;
-            }
             return ValueType::Unknown;
         }
         if is_supported_call(&lower) {
@@ -862,23 +882,25 @@ fn request_security_diagnostic(
             "request.security() requires symbol, timeframe, and expression arguments",
         );
     }
+    // Go inspects every argument after the expression textually, so the merge
+    // flags are rejected in both the named (`gaps=barmerge.gaps_on`) and the
+    // positional (`request.security(..., barmerge.gaps_on)`) call forms.
     for argument in arguments.iter().skip(3) {
-        let (name, value) = request_security_named_argument(argument);
-        let lower_name = name.to_ascii_lowercase();
-        let lower_value = value.to_ascii_lowercase();
-        if lower_name == "lookahead" && lower_value.contains("lookahead_on") {
+        let lower = argument.to_string().to_ascii_lowercase();
+        if lower.contains("barmerge.lookahead_on") {
             return error(
                 "PINE_REQUEST_SECURITY_LOOKAHEAD",
                 "request.security() lookahead_on is not supported by JFTrade; use default lookahead_off",
             );
         }
-        if lower_name == "gaps" && lower_value.contains("gaps_on") {
+        if lower.contains("barmerge.gaps_on") {
             return error(
                 "PINE_REQUEST_SECURITY_GAPS",
                 "request.security() gaps_on is not supported by JFTrade; use default gaps_off",
             );
         }
-        if lower_name == "calc_bars_count" {
+        let (name, _) = request_security_named_argument(argument);
+        if lower.starts_with("calc_bars_count=") || name.eq_ignore_ascii_case("calc_bars_count") {
             return error(
                 "PINE_REQUEST_SECURITY_CALC_BARS_COUNT",
                 "request.security() calc_bars_count is not supported by JFTrade",
@@ -921,26 +943,80 @@ fn request_security_diagnostic(
     None
 }
 
+/// Argument lists Go accepts for each executable order call
+/// (`strategy_call_helpers.go`, `strategy_call_helpers.go::parseStrategyExit`).
+const ORDER_ENTRY_ALLOWED_ARGUMENTS: &[&str] = &[
+    "qty",
+    "qty_percent",
+    "limit",
+    "stop",
+    "oca_name",
+    "oca_type",
+    "comment",
+    "alert_message",
+    "disable_alert",
+    "when",
+];
+
+const ORDER_CLOSE_ALLOWED_ARGUMENTS: &[&str] = &[
+    "qty",
+    "qty_percent",
+    "limit",
+    "stop",
+    "comment",
+    "alert_message",
+    "immediately",
+    "disable_alert",
+    "when",
+];
+
+const ORDER_EXIT_ALLOWED_ARGUMENTS: &[&str] = &[
+    "from_entry",
+    "qty",
+    "qty_percent",
+    "profit",
+    "limit",
+    "loss",
+    "stop",
+    "trail_price",
+    "trail_points",
+    "trail_offset",
+    "oca_name",
+    "oca_type",
+    "comment",
+    "comment_profit",
+    "comment_loss",
+    "comment_trailing",
+    "alert_message",
+    "alert_profit",
+    "alert_loss",
+    "alert_trailing",
+    "disable_alert",
+    "when",
+];
+
+const ORDER_CLOSE_ALL_ALLOWED_ARGUMENTS: &[&str] =
+    &["immediately", "comment", "alert_message", "disable_alert"];
+
 /// Parity: `pkg/strategy/pine/analysis.go::diagnosticCodeForCompileMessage`
-/// plus `strategy_call_helpers.go` trigger validation.
+/// plus `strategy_call_helpers.go` arity, argument and trigger validation.
 ///
-/// Go rejects order calls that use OCA arguments, mix `qty` with
-/// `qty_percent`, combine a trail with a stop/limit bracket, or ask for an
-/// exit without any trigger. Rust surfaces the same stable codes and keeps
-/// the messages that the Go analysis layer matches on.
+/// Go rejects order calls that are missing their id/direction, use OCA
+/// arguments, mix `qty` with `qty_percent`, combine a trail with a stop/limit
+/// bracket, or ask for an exit without any trigger. It also rejects unknown
+/// named arguments, non-boolean `disable_alert`/`immediately` metadata and
+/// excess `strategy.close_all` positionals. Rust surfaces the same stable codes
+/// and keeps the messages that the Go analysis layer matches on.
 fn strategy_order_diagnostic(
     callee: &str,
     arguments: &[Expr],
     range: SourceRange,
 ) -> Option<Diagnostic> {
-    let mut names = Vec::new();
-    for argument in arguments {
-        let (name, value) = request_security_named_argument(argument);
-        if !name.is_empty() {
-            names.push((name.to_ascii_lowercase(), value));
-        }
-    }
+    let names = order_named_arguments(arguments);
     let has = |target: &str| names.iter().any(|(name, _)| name == target);
+    if let Some(diagnostic) = order_arity_diagnostic(callee, arguments, range) {
+        return Some(diagnostic);
+    }
     if has("oca_name") || has("oca_type") {
         return Some(Diagnostic::error(
             "PINE_ORDER_OCA_UNSUPPORTED",
@@ -948,19 +1024,28 @@ fn strategy_order_diagnostic(
             range.start_line,
         ));
     }
-    if callee == "strategy.close_all" {
+    let allowed = match callee {
+        "strategy.entry" | "strategy.order" => Some(ORDER_ENTRY_ALLOWED_ARGUMENTS),
+        "strategy.close" => Some(ORDER_CLOSE_ALLOWED_ARGUMENTS),
+        "strategy.exit" => Some(ORDER_EXIT_ALLOWED_ARGUMENTS),
+        "strategy.close_all" => Some(ORDER_CLOSE_ALL_ALLOWED_ARGUMENTS),
+        _ => None,
+    };
+    if let Some(allowed) = allowed {
         for (name, _) in &names {
-            if !matches!(
-                name.as_str(),
-                "immediately" | "comment" | "alert_message" | "disable_alert"
-            ) {
+            if !allowed.iter().any(|candidate| candidate == name) {
                 return Some(Diagnostic::error(
                     "PINE_COMPILE_ERROR",
-                    format!("strategy.close_all argument {name} is not supported by JFTrade"),
+                    format!("{callee} argument {name} is not supported by JFTrade"),
                     range.start_line,
                 ));
             }
         }
+    }
+    if callee == "strategy.close_all"
+        && let Some(diagnostic) = order_close_all_positional_diagnostic(arguments, &has, range)
+    {
+        return Some(diagnostic);
     }
     if callee == "strategy.cancel_all" && !arguments.is_empty() {
         return Some(Diagnostic::error(
@@ -968,6 +1053,9 @@ fn strategy_order_diagnostic(
             "strategy.cancel_all arguments are not supported by JFTrade yet",
             range.start_line,
         ));
+    }
+    if let Some(diagnostic) = order_boolean_metadata_diagnostic(callee, arguments, &has, range) {
+        return Some(diagnostic);
     }
     if has("qty") && has("qty_percent") {
         return Some(Diagnostic::error(
@@ -1004,6 +1092,147 @@ fn strategy_order_diagnostic(
         }
     }
     None
+}
+
+/// Go's parser entry points require ids and directions before any metadata is
+/// inspected, so the arity contract runs first.
+fn order_arity_diagnostic(
+    callee: &str,
+    arguments: &[Expr],
+    range: SourceRange,
+) -> Option<Diagnostic> {
+    let (message, violated) = match callee {
+        "strategy.entry" => (
+            "strategy.entry(id, direction, ...) requires at least two arguments",
+            arguments.len() < 2,
+        ),
+        "strategy.order" => (
+            "strategy.order(id, direction, ...) requires at least two arguments",
+            arguments.len() < 2,
+        ),
+        "strategy.close" => (
+            "strategy.close(id) requires an entry id",
+            arguments.is_empty(),
+        ),
+        "strategy.exit" => (
+            "strategy.exit(id, ...) requires an exit id",
+            arguments.is_empty(),
+        ),
+        "strategy.cancel" => (
+            "strategy.cancel(id) requires one order id",
+            arguments.len() != 1,
+        ),
+        _ => return None,
+    };
+    violated.then(|| Diagnostic::error("PINE_COMPILE_ERROR", message, range.start_line))
+}
+
+/// `strategy.close_all` reads its first four entries positionally and rejects
+/// every later positional argument, exactly like
+/// `pkg/strategy/pine/parse_order_metadata.go::pineCloseAllMetadata`.
+fn order_close_all_positional_diagnostic(
+    arguments: &[Expr],
+    has: &impl Fn(&str) -> bool,
+    range: SourceRange,
+) -> Option<Diagnostic> {
+    for (index, argument) in arguments.iter().enumerate() {
+        let named = !request_security_named_argument(argument).0.is_empty();
+        if index >= 4 {
+            if !named {
+                return Some(Diagnostic::error(
+                    "PINE_COMPILE_ERROR",
+                    "strategy.close_all supports positional immediately, comment, alert_message, and disable_alert only",
+                    range.start_line,
+                ));
+            }
+            continue;
+        }
+        if named {
+            continue;
+        }
+        let (keyword, field) = match index {
+            0 => ("immediately", "immediately"),
+            3 => ("disable_alert", "disable_alert"),
+            _ => continue,
+        };
+        if has(keyword) {
+            continue;
+        }
+        if !is_boolean_literal(argument) {
+            return Some(Diagnostic::error(
+                "PINE_COMPILE_ERROR",
+                format!("strategy.close_all {field} must be true or false"),
+                range.start_line,
+            ));
+        }
+    }
+    None
+}
+
+/// `disable_alert` must be a boolean literal everywhere, `immediately` is only
+/// executable for close calls, and its value must still be a boolean literal.
+fn order_boolean_metadata_diagnostic(
+    callee: &str,
+    arguments: &[Expr],
+    has: &impl Fn(&str) -> bool,
+    range: SourceRange,
+) -> Option<Diagnostic> {
+    if let Some(value) = named_argument_value(arguments, "disable_alert")
+        && !is_boolean_literal(value)
+    {
+        return Some(Diagnostic::error(
+            "PINE_COMPILE_ERROR",
+            format!("{callee} disable_alert must be true or false"),
+            range.start_line,
+        ));
+    }
+    if has("immediately") && !matches!(callee, "strategy.close" | "strategy.close_all") {
+        return Some(Diagnostic::error(
+            "PINE_COMPILE_ERROR",
+            format!("{callee} does not support immediately"),
+            range.start_line,
+        ));
+    }
+    if let Some(value) = named_argument_value(arguments, "immediately")
+        && !is_boolean_literal(value)
+    {
+        return Some(Diagnostic::error(
+            "PINE_COMPILE_ERROR",
+            format!("{callee} immediately must be true or false"),
+            range.start_line,
+        ));
+    }
+    None
+}
+
+fn order_named_arguments(arguments: &[Expr]) -> Vec<(String, String)> {
+    arguments
+        .iter()
+        .filter_map(|argument| {
+            let (name, value) = request_security_named_argument(argument);
+            (!name.is_empty()).then(|| (name.to_ascii_lowercase(), value))
+        })
+        .collect()
+}
+
+fn named_argument_value<'a>(arguments: &'a [Expr], name: &str) -> Option<&'a Expr> {
+    arguments.iter().find_map(|argument| match &argument.kind {
+        ExprKind::Binary {
+            left,
+            op: BinaryOp::Equal,
+            right,
+        } => match &left.kind {
+            ExprKind::Identifier { name: candidate } if candidate.eq_ignore_ascii_case(name) => {
+                Some(right.as_ref())
+            }
+            _ => None,
+        },
+        _ => None,
+    })
+}
+
+fn is_boolean_literal(expression: &Expr) -> bool {
+    matches!(expression.kind, ExprKind::Boolean { .. })
 }
 
 /// Named call arguments arrive from the expression parser as
@@ -1087,26 +1316,26 @@ fn split_top_level_arguments(inner: &str) -> Vec<String> {
     arguments
 }
 
+/// Parity: `pkg/strategy/pine/validate.go::requestSecurityExpressionHasSideEffect`.
+///
+/// Go rejects a `request.security` expression that reads trading state
+/// (`strategy.position_size`), logs, draws objects, or mutates a collection.
+/// The call denylist and the mutation suffixes below mirror that textual
+/// contract, and member reads are rejected by their root namespace.
 fn request_security_expression_has_side_effect(expression: &Expr) -> bool {
     match &expression.kind {
         ExprKind::Call { callee, arguments } => {
             let lower = callee.to_ascii_lowercase();
             if lower.starts_with("strategy.")
-                || matches!(
-                    lower.as_str(),
-                    "alert"
-                        | "alertcondition"
-                        | "plot"
-                        | "plotshape"
-                        | "plotchar"
-                        | "hline"
-                        | "bgcolor"
-                        | "barcolor"
-                        | "fill"
-                )
+                || lower.starts_with("log.")
+                || lower.starts_with("table.")
                 || lower.starts_with("array.")
                 || lower.starts_with("matrix.")
                 || lower.starts_with("map.")
+                || REQUEST_SECURITY_DENIED_CALLS.contains(&lower.as_str())
+                || REQUEST_SECURITY_MUTATOR_SUFFIXES
+                    .iter()
+                    .any(|suffix| lower.ends_with(suffix))
             {
                 return true;
             }
@@ -1137,7 +1366,42 @@ fn request_security_expression_has_side_effect(expression: &Expr) -> bool {
         ExprKind::Tuple { items } => items
             .iter()
             .any(request_security_expression_has_side_effect),
-        ExprKind::Member { object, .. } => request_security_expression_has_side_effect(object),
+        ExprKind::Member { object, .. } => {
+            request_security_expression_has_side_effect(object)
+                || matches!(
+                    &object.kind,
+                    ExprKind::Identifier { name }
+                        if REQUEST_SECURITY_DENIED_MEMBER_ROOTS
+                            .iter()
+                            .any(|root| name.eq_ignore_ascii_case(root))
+                )
+        }
         _ => false,
     }
 }
+
+/// Calls Go refuses inside a `request.security` expression.
+const REQUEST_SECURITY_DENIED_CALLS: &[&str] = &[
+    "alert",
+    "alertcondition",
+    "runtime.error",
+    "line.new",
+    "label.new",
+    "box.new",
+    "plot",
+    "plotshape",
+    "plotchar",
+    "hline",
+    "fill",
+    "bgcolor",
+    "barcolor",
+];
+
+/// Collection and drawing mutators Go refuses inside a `request.security`
+/// expression, matched as member-call suffixes (`.push(`, `.set(`, ...).
+const REQUEST_SECURITY_MUTATOR_SUFFIXES: &[&str] = &[
+    ".push", ".pop", ".shift", ".unshift", ".insert", ".remove", ".clear", ".set", ".fill", ".put",
+];
+
+/// Namespaces whose member reads carry trading, logging or rendering state.
+const REQUEST_SECURITY_DENIED_MEMBER_ROOTS: &[&str] = &["strategy", "log", "table"];
