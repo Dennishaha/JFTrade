@@ -2816,3 +2816,30 @@ owner：会话上下文投影与压缩由 ADK 会话上下文层承接，事件�
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected，RUSTSEC-2026-0285 无 crate 命中），与本分片无关 |
 
 后续：engine 第九片完成；队列进入 engine 第十片（账本 1392 起约 35 行），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片十九：`internal/assistant/engine` 第十片 35 行（0 翻转，无新增实现）
+
+范围（账本 inventory 1392-1426，按账本顺序）：`skill_recover_test.go:39/:114`、`skill_reg_fs_test.go:19/:48/:72/:89/:139/:209`、`skill_reg_test.go:21/:84/:115/:162/:235/:286/:361`、`skill_registry_archives_test.go:45`、`skill_registry_http_sources_test.go:19/:198`、`skillsruntime/install_boundary_test.go:14`、`skillsruntime/schema_market_index_constituents_test.go:8/:27`、`skillsruntime/schema_market_news_test.go:8/:49`、`skillsruntime/schema_test.go:9/:29/:48`、`sqlite_dialector_boundaries_test.go:14`、`sqlite_tools_test.go:35/:79/:145/:194/:333`、`store_approve_test.go:10/:41/:98`（35 行中 [x]0/partial31/boundary4）。
+
+owner：技能目录同步与安装由组装层承接，工具与 MCP schema 由 MCP 目录层承接，SQLite 方言由 Go GORM 持久化层承接（Rust 无对应层），审批存储语义由 SQLite ADK 存储层承接。
+
+复核方法：本片无 [x] 行，只核对 partial/boundary 结论与 Go 原文。35 行引用测试全部存在。抽查确认：`:194` 的 strategy.optimize 必填字段（definitionIds、market、symbol、startTime、endTime）与 Rust 回归测试逐项一致，其余 18 个工具待各自领域批次，partial 成立；`store_approve:10` 的返回原始 approved 记录字段级断言在 Rust 只有 CAS 拒绝路径的行级断言，partial 成立；`skill_reg_fs:72` 的未知工具 WARNING 与 Rust 的拒绝策略属已记录差异，partial 成立；`:115` 的多根歧义与文档大小上限在 Rust 无逐条断言，partial 成立；`:48` 的 zip 目录条目形态在 Rust 的压缩包 helper（只写文件条目）中无专门断言，partial 成立；4 条 boundary（GORM dialector 打开、AutoMigrate、类型映射、SQL 构造器与版本比较）确无 Rust 对应层。无升级候选，无过宽纠正。
+
+结论：0 verdict 翻转，无账本写入（b82 未跑），无新增证据，无探针。
+
+映射终值（35 行）：`[x]` 0、partial 31、boundary 4。全量：`[x]` 1583、partial 2231、boundary 637（合计 4451）；Rust 测试 3293 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条 partial/boundary 结论与 Go 原文抽查、引用测试存在性全查 | 0 verdict 问题，引用 35/35 存在 |
+| 账本写入 | 无变更 | `[x]` 1583 不变、partial 2231 不变、boundary 637 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 通过；0 条引用不存在 crate、0 条 `[x]` 缺 function_exact；缺锚点告警 157 不变；Rust 测试 3293 不变 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1681 不变、已记录 1631 不变、unrecorded 0、stale 0、unknown 50 不变 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | fmt exit 0、clippy exit 0、architecture 通过；本片无 Rust 代码改动 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1911/1911 passed，exit 0，一次通过无抖动（含两 launcher 集成测） |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compat/generated/ai-context/zero-go 均 exit 0；quick 全绿（workspace 1941/1941、pineworker 98/98，零失败签名） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected，RUSTSEC-2026-0285 无 crate 命中），与本分片无关 |
+
+后续：engine 第十片完成；队列进入 engine 第十一片（账本 1427 起约 35 行），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。
