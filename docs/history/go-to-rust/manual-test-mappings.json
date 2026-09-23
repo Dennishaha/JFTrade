@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T22:47:56Z",
+  "generatedAt": "2026-09-23T23:02:57Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -286338,9 +286338,9 @@
     },
     "internal/trading/risk_shape_boundaries_test.go:11:TestCommandRiskShapeRejectsSpoofedAndIncompatibleFields": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_combo_amount_mode_precedence_and_leg_bypass；crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_rejects_non_positive_quantity_in_units_mode",
-      "conclusion": "partial：Rust 覆盖组合金额模式优先级/腿旁路与非正数量拒绝；差异：Go 断言指令风控形状拒绝伪造与不兼容字段（字段组合矩阵），Rust 侧伪造字段矩阵未逐项断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked",
+      "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_combo_amount_mode_precedence_and_leg_bypass；crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::single_equity_rejects_event_only_fields；crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::risk_shape_event_contract_units_quantity_mode_rejected",
+      "conclusion": "partial：Rust 已覆盖 7 项中 4 项可迁移形状——event-contract units 拒收、event-contract 缺 amount 拒收、equity 带 amount 拒收、equity 带 predictionSide 拒收；残留 3 项为 wire 不可表达形状：product mismatch 与 quantity-mode mismatch 依赖 envelope 与 query 双源（Rust 单 wire 无此形状），NaN quantity 在 JSON wire 无表达（非有限数到不了 number_field），按边界保留。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
         "file": "internal/trading/risk_shape_boundaries_test.go",
@@ -286357,94 +286357,36 @@
             "goFile": "internal/trading/risk_shape_boundaries_test.go",
             "goLine": 11,
             "rustFile": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
-            "rustLine": 52
+            "rustLine": 53
           }
         },
         {
-          "file": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
-          "test": "pre_trade_risk_rejects_non_positive_quantity_in_units_mode",
-          "crate": "jftrade-trading",
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs",
+          "test": "single_equity_rejects_event_only_fields",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/trading/risk_shape_boundaries_test.go",
             "goLine": 11,
-            "rustFile": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
-            "rustLine": 52
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs",
+            "rustLine": 904
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs",
+          "test": "risk_shape_event_contract_units_quantity_mode_rejected",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/risk_shape_boundaries_test.go",
+            "goLine": 11,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs",
+            "rustLine": 904
           }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Rust 覆盖组合金额模式优先级/腿旁路与非正数量拒绝；差异：Go 断言指令风控形状拒绝伪造与不兼容字段（字段组合矩阵），Rust 侧伪造字段矩阵未逐项断言。"
-        ],
-        "source": "legacy-conclusion"
-      },
-      "verification": {
-        "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "-p",
-          "jftrade-trading",
-          "--all-targets",
-          "--locked"
-        ],
-        "testFilter": [
-          "pre_trade_risk_combo_amount_mode_precedence_and_leg_bypass",
-          "pre_trade_risk_rejects_non_positive_quantity_in_units_mode"
-        ],
-        "runnerVersion": null,
-        "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "receiptDigest": null
-      },
-      "risk": "normal",
-      "owner": "trading_broker",
-      "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
-      "waiverExpiresAt": null,
-      "coveredAssertions": [],
-      "uncoveredAssertions": [
-        "partial：Rust 覆盖组合金额模式优先级/腿旁路与非正数量拒绝；差异：Go 断言指令风控形状拒绝伪造与不兼容字段（字段组合矩阵），Rust 侧伪造字段矩阵未逐项断言。"
-      ],
-      "boundaryReason": null
-    },
-    "internal/trading/risk_shape_boundaries_test.go:78:TestExecutionProductAndPriceValidationBoundaries": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::event_single_rejects_negative_amount_and_invalid_prediction_side；crates/jftrade-trading/tests/order_risk_compatibility.rs::order_validation_rejects_non_positive_quantity_and_optional_price",
-      "conclusion": "partial：Rust 覆盖事件单负金额/非法预测侧拒绝与非正数量、可选价格校验；差异：Go 断言执行产品与价格校验边界（产品类型 × 价格必填性）矩阵，Rust 拆成两条测试，未逐组合对照。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
-      "source": {
-        "file": "internal/trading/risk_shape_boundaries_test.go",
-        "line": 78,
-        "test": "TestExecutionProductAndPriceValidationBoundaries",
-        "blobSha": "83f3611812539a87ac10d509f7427f489137c9e1"
-      },
-      "rustEvidence": [
-        {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs",
-          "test": "event_single_rejects_negative_amount_and_invalid_prediction_side",
-          "crate": "jftrade-engine",
-          "anchor": null
-        },
-        {
-          "file": "crates/jftrade-trading/tests/order_risk_compatibility.rs",
-          "test": "order_validation_rejects_non_positive_quantity_and_optional_price",
-          "crate": "jftrade-trading",
-          "anchor": null
-        }
-      ],
-      "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Rust 覆盖事件单负金额/非法预测侧拒绝与非正数量、可选价格校验；差异：Go 断言执行产品与价格校验边界（产品类型 × 价格必填性）矩阵，Rust 拆成两条测试，未逐组合对照。"
+          "partial：Rust 已覆盖 7 项中 4 项可迁移形状——event-contract units 拒收、event-contract 缺 amount 拒收、equity 带 amount 拒收、equity 带 predictionSide 拒收；残留 3 项为 wire 不可表达形状：product mismatch 与 quantity-mode mismatch 依赖 envelope 与 query 双源（Rust 单 wire 无此形状），NaN quantity 在 JSON wire 无表达（非有限数到不了 number_field），按边界保留。"
         ],
         "source": "legacy-conclusion"
       },
@@ -286461,8 +286403,9 @@
           "--locked"
         ],
         "testFilter": [
-          "event_single_rejects_negative_amount_and_invalid_prediction_side",
-          "order_validation_rejects_non_positive_quantity_and_optional_price"
+          "pre_trade_risk_combo_amount_mode_precedence_and_leg_bypass",
+          "single_equity_rejects_event_only_fields",
+          "risk_shape_event_contract_units_quantity_mode_rejected"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -286482,8 +286425,87 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Rust 覆盖事件单负金额/非法预测侧拒绝与非正数量、可选价格校验；差异：Go 断言执行产品与价格校验边界（产品类型 × 价格必填性）矩阵，Rust 拆成两条测试，未逐组合对照。"
+        "partial：Rust 已覆盖 7 项中 4 项可迁移形状——event-contract units 拒收、event-contract 缺 amount 拒收、equity 带 amount 拒收、equity 带 predictionSide 拒收；残留 3 项为 wire 不可表达形状：product mismatch 与 quantity-mode mismatch 依赖 envelope 与 query 双源（Rust 单 wire 无此形状），NaN quantity 在 JSON wire 无表达（非有限数到不了 number_field），按边界保留。"
       ],
+      "boundaryReason": null
+    },
+    "internal/trading/risk_shape_boundaries_test.go:78:TestExecutionProductAndPriceValidationBoundaries": {
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::risk_shape_event_contract_units_quantity_mode_rejected；crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::execution_optional_price_and_stop_price_reject_non_positive",
+      "conclusion": "function_exact：Go 的 3 个边界在 Rust parse_order 逐项断言——负 price 拒收、负 stopPrice 拒收、event-contract 用 units 模式拒收；与 Go validateExecutionPrices/normalizeExecutionProduct 逐组合对照，空值/非法输入形状已锁定。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "evidence_type": "function_exact",
+      "source": {
+        "file": "internal/trading/risk_shape_boundaries_test.go",
+        "line": 78,
+        "test": "TestExecutionProductAndPriceValidationBoundaries",
+        "blobSha": "83f3611812539a87ac10d509f7427f489137c9e1"
+      },
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs",
+          "test": "risk_shape_event_contract_units_quantity_mode_rejected",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/risk_shape_boundaries_test.go",
+            "goLine": 78,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs",
+            "rustLine": 905
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs",
+          "test": "execution_optional_price_and_stop_price_reject_non_positive",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/risk_shape_boundaries_test.go",
+            "goLine": 78,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs",
+            "rustLine": 905
+          }
+        }
+      ],
+      "assertionCoverage": {
+        "covered": [
+          "function_exact：Go 的 3 个边界在 Rust parse_order 逐项断言——负 price 拒收、负 stopPrice 拒收、event-contract 用 units 模式拒收；与 Go validateExecutionPrices/normalizeExecutionProduct 逐组合对照，空值/非法输入形状已锁定。"
+        ],
+        "uncovered": [],
+        "source": "legacy-conclusion"
+      },
+      "verification": {
+        "argv": [
+          "node",
+          "scripts/quality/cargo-nextest.mjs",
+          "run",
+          "-p",
+          "jftrade-engine",
+          "--all-targets",
+          "--locked"
+        ],
+        "testFilter": [
+          "risk_shape_event_contract_units_quantity_mode_rejected",
+          "execution_optional_price_and_stop_price_reject_non_positive"
+        ],
+        "runnerVersion": null,
+        "toolchain": null,
+        "status": "unverified",
+        "exitCode": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "receiptDigest": null
+      },
+      "risk": "normal",
+      "owner": "trading_broker",
+      "priority": "P2",
+      "nextAction": "record_receipt_and_review_assertions",
+      "blockedBy": [
+        "verification-receipt"
+      ],
+      "waiverExpiresAt": null,
+      "coveredAssertions": [
+        "function_exact：Go 的 3 个边界在 Rust parse_order 逐项断言——负 price 拒收、负 stopPrice 拒收、event-contract 用 units 模式拒收；与 Go validateExecutionPrices/normalizeExecutionProduct 逐组合对照，空值/非法输入形状已锁定。"
+      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/trading/risk_status_broker_boundaries_test.go:13:TestRiskDecisionAndHardStopBoundarySemantics": {
@@ -296655,13 +296677,20 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::event_single_rejects_negative_amount_and_invalid_prediction_side": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "pkg/futu/advanced_product_adapter_contracts_test.go:403:TestFutuTradeProductRequestAndReadLifecycleBranches",
+        "pkg/futu/advanced_product_adapter_contracts_test.go:403:TestFutuTradeProductRequestAndReadLifecycleBranches"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::execution_optional_price_and_stop_price_reject_non_positive": {
+      "referenceCount": 1,
+      "referenceKeys": [
         "internal/trading/risk_shape_boundaries_test.go:78:TestExecutionProductAndPriceValidationBoundaries"
       ],
-      "allowed": false,
-      "reviewStatus": "unreviewed"
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::execution_order_rejects_non_us_fill_outside_rth_and_normalizes_the_remark": {
       "referenceCount": 1,
@@ -296696,12 +296725,22 @@
       "allowed": true,
       "reviewStatus": "single"
     },
+    "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::risk_shape_event_contract_units_quantity_mode_rejected": {
+      "referenceCount": 2,
+      "referenceKeys": [
+        "internal/trading/risk_shape_boundaries_test.go:11:TestCommandRiskShapeRejectsSpoofedAndIncompatibleFields",
+        "internal/trading/risk_shape_boundaries_test.go:78:TestExecutionProductAndPriceValidationBoundaries"
+      ],
+      "allowed": false,
+      "reviewStatus": "unreviewed"
+    },
     "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::single_equity_rejects_event_only_fields": {
-      "referenceCount": 3,
+      "referenceCount": 4,
       "referenceKeys": [
         "internal/api/trading/execution_test.go:79:TestHandleExecutionPlaceRejectsEquityAmountModeSpoof",
         "internal/app/apiserver/servercoretest/broker_new_test.go:319:TestBrokerPlaceOrderInvalidPayload",
-        "internal/trading/execution_products_test.go:85:TestSingleNonEventOrderRejectsAmountAndPredictionFields"
+        "internal/trading/execution_products_test.go:85:TestSingleNonEventOrderRejectsAmountAndPredictionFields",
+        "internal/trading/risk_shape_boundaries_test.go:11:TestCommandRiskShapeRejectsSpoofedAndIncompatibleFields"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -310236,14 +310275,6 @@
       "allowed": true,
       "reviewStatus": "single"
     },
-    "crates/jftrade-trading/tests/order_risk_compatibility.rs::order_validation_rejects_non_positive_quantity_and_optional_price": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/trading/risk_shape_boundaries_test.go:78:TestExecutionProductAndPriceValidationBoundaries"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-trading/tests/order_risk_compatibility.rs::stored_status_and_terminal_classification_match_go_contract": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -310352,14 +310383,6 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/trading/execution_test.go:613:TestPreTradeRiskEnforcesAmountModeQuantityAndNotionalLimits"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_rejects_non_positive_quantity_in_units_mode": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/trading/risk_shape_boundaries_test.go:11:TestCommandRiskShapeRejectsSpoofedAndIncompatibleFields"
       ],
       "allowed": true,
       "reviewStatus": "single"

@@ -900,3 +900,58 @@ fn parsed_stop_order_carries_stop_price_into_pre_trade_risk_order() {
         Some(jftrade_kernel::Decimal::from_str("10").unwrap())
     );
 }
+
+// Parity: go:452dea11:internal/trading/risk_shape_boundaries_test.go:11 TestCommandRiskShapeRejectsSpoofedAndIncompatibleFields
+// Parity: go:452dea11:internal/trading/risk_shape_boundaries_test.go:78 TestExecutionProductAndPriceValidationBoundaries
+#[test]
+fn risk_shape_event_contract_units_quantity_mode_rejected() {
+    let units = single_order_payload();
+    let mut units = units;
+    units["productClass"] = serde_json::json!("event_contract");
+    units["quantityMode"] = serde_json::json!("units");
+    units["market"] = serde_json::json!("US");
+    units["symbol"] = serde_json::json!("US.EVENT");
+    let error = parse_order(&units).expect_err("event-contract units must be rejected");
+    assert!(
+        error.contains("quantityMode"),
+        "units error = {error:?}"
+    );
+
+    let mut missing_amount = single_order_payload();
+    missing_amount["productClass"] = serde_json::json!("event_contract");
+    missing_amount["quantityMode"] = serde_json::json!("amount");
+    missing_amount["market"] = serde_json::json!("US");
+    missing_amount["symbol"] = serde_json::json!("US.EVENT");
+    if let Some(obj) = missing_amount.as_object_mut() {
+        obj.remove("quantity");
+    }
+    let error = parse_order(&missing_amount).expect_err("event-contract missing amount must be rejected");
+    assert!(
+        error.contains("event-contract amount is required"),
+        "missing amount error = {error:?}"
+    );
+}
+
+// Parity: go:452dea11:internal/trading/risk_shape_boundaries_test.go:78 TestExecutionProductAndPriceValidationBoundaries
+#[test]
+fn execution_optional_price_and_stop_price_reject_non_positive() {
+    let mut negative_price = single_order_payload();
+    negative_price["price"] = serde_json::json!(-1.0);
+    let error = parse_order(&negative_price).expect_err("negative price must be rejected");
+    assert!(
+        error.contains("price must be greater than 0"),
+        "price error = {error:?}"
+    );
+
+    let mut negative_stop = single_order_payload();
+    negative_stop["orderType"] = serde_json::json!("MARKET");
+    if let Some(obj) = negative_stop.as_object_mut() {
+        obj.remove("price");
+    }
+    negative_stop["stopPrice"] = serde_json::json!(-1.0);
+    let error = parse_order(&negative_stop).expect_err("negative stop price must be rejected");
+    assert!(
+        error.contains("stopPrice must be greater than 0"),
+        "stop price error = {error:?}"
+    );
+}

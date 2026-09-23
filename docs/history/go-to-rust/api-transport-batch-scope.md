@@ -4609,3 +4609,31 @@ owner：能力目录与路由投影由 jftrade-engine 承接，市场规则与�
 | 快速门禁 | pnpm run check:quick | 通过 exit 0（engine 2579 用例、trading 87 用例、兼容 replay、web 与桌面检查全过）|
 
 后续：第 130 批分片四待定（trading 域余量或按对齐建议取 strategy 回测域）。
+
+### 第 130 批分片四：risk_shape_boundaries 11 与 78 行测收口（测试-only，无生产变更）
+
+范围：internal/trading/risk_shape_boundaries_test.go:11 TestCommandRiskShapeRejectsSpoofedAndIncompatibleFields 与 :78 TestExecutionProductAndPriceValidationBoundaries。owner：执行下单解析归 jftrade-engine 生产端口，风控形状判定归 jftrade-trading 领域，API 层不复制业务逻辑。
+
+缺口复述：Go :11 有 7 项子断言，Go :78 有 3 项子断言。Rust parse_order 已实现对应拒绝分支，但行测缺 4 项可迁移断言：event-contract 用 units 模式、event-contract 缺 amount、负 price、负 stopPrice。另有 3 项为 wire 不可表达形状：product mismatch 与 quantity-mode mismatch 依赖 envelope 与 query 双源（Rust 单 wire 无此形状），NaN quantity 在 JSON wire 无表达（非有限数到不了 number_field）。
+
+补测：validation_tests 新增 2 个用例。risk_shape_event_contract_units_quantity_mode_rejected 锁定 units 拒收与缺 amount 拒收，同时锚定 :11 与 :78。execution_optional_price_and_stop_price_reject_non_positive 锁定负 price 与负 stopPrice 拒收，锚定 :78。single_equity_rejects_event_only_fields 既有 equity amount 与 predictionSide 拒收，继续作为 :11 部分证据。
+
+探针：生产文件 shasum 前后均为 26dcca142cf7c2e952257ca6e9e334d19b04feaceed00d58ae43cf13b4f3851d，按字节回滚。探针把 quantityMode 错误文改坏后定向 25 用例中 2 个失败转红，恢复后 25/25 通过。
+
+映射终值：:78 由 partial 升 [x]，2 个新证据行间唯一且全锚定；:11 保留 partial，结论写清 4 项已覆盖加 3 项边界残留，不把引用存在当断言等价。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3306→3308（本批新增 2 个用例）。
+
+门禁说明：beb5174c 之后审计默认只写临时目录，本批使用带 --write-report 的写法刷新 report 与 inventory；另跑 check:migration-manifest 确认迁移证据门禁通过。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 回归先红后绿 | 探针改坏 quantityMode 文案后 2 个失败，恢复后 25/25 通过 | 红绿确认 |
+| Rust 定向测试 | jftrade-engine execution_order_validation_tests | 25/25 通过 |
+| 账本写入 | v2 写入器 2 行 | [x] 1565、partial 2248、boundary 638（合计 4451） |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过 exit 0；dup 校验通过；report/inventory 刷新；Rust 测试 3308 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1735、已记录 1689、unrecorded 0、stale 0、unknown 46 |
+| 文档门禁 | fmt、ai-context、migration-manifest、zero-go、diff check | 全过 |
+| 快速门禁 | pnpm run check:quick | 通过 exit 0（首轮与自查重叠跑并行导致 launcher 端到端 1 例抖动失败，隔离复跑一次失败一次通过确认为抖动；另遇 target-health rcgu 堆积，按规矩确认无 Cargo 进程后清理产物；清理后单实例整轮重跑通过）|
+
+后续：第 130 批分片五取 trading_broker 余量读失败可见性与上游失败分类（broker_boundaries 11/62 起）。
