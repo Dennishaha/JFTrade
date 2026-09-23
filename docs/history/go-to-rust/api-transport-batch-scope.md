@@ -3543,3 +3543,29 @@ owner：产品特性投影与服务路由、重试、密码哈希、系统状态
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick 完整计划 | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0 |
 
 后续：other 域收尾完成（余 0 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+
+### 第 129 批分片四十五：api_transport 域开头 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 3279-3313，按写入顺序）：system service:83/:142/:201/:212/:309/:345、floats funcs:9/:24/:29/:34、pivot:9、slice:12/:24/:35/:47/:56/:64、fixedpoint convert:10、dec_dnum:11/:17/:23、dec_legacy:9、dec:122/:132/:140/:157/:189/:200/:206/:231/:274/:317、expirable:12/:24/:32。初值 [x] 7、partial 12、boundary 16。
+
+owner：系统实盘状态与控制由 engine 领域 crate 承接；bbgo floats 序列算术与 fixedpoint 定点语义由 jftrade-backtest 指标、jftrade-kernel Fixed8 与 jftrade-marketdata 缓存按 Rust 架构分头承担，无双写。
+
+复核方法：35 条全量枚举引用有效性，[x] 逐条核对 Go 原文与 Rust 断言等价（含全文唯一性与锚点归属），partial 与 boundary 核对缺口诚实度。结论：引用全部有效，0 纠正、0 升级。
+
+抽查证据：system 五条 [x] 均有专用锚点且断言逐项一致（含 :212 不可用时逐操作失败、可恢复时重放的序列端口对照）；fixedpoint :206 解析归一（百分号、科学计数、空串、非有限）与 :231 八位文本加历史载荷由 kernel parity 用例覆盖；floats/fixedpoint/dnum/expirable 的 partial 与 boundary 缺口诚实（无独立 Slice 容器、无 prec 参数、无 dnum 双实现分支、无 ExpirableValue 值容器，均写清相邻覆盖与差异）；dup-x 为 0。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 7、partial 12、boundary 16。全量：[x] 1565、partial 2249、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加断言等价抽查 | 0 纠正、0 升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1565、partial 2249、boundary 637（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新基线，inventory 无变化；既有告警不变（缺锚点 120、空断言 helper 2） |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick 完整计划 | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0 |
+
+后续：api_transport 域本片完成 35 行（余约 404 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
