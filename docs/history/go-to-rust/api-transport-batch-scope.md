@@ -3681,3 +3681,31 @@ owner：尽力审计由 engine 模型运行时承接，图表归一化由 engine
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick 完整计划 | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0 |
 
 后续：api_transport 域继续（余约 229 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+
+### 第 129 批分片五十：rows 3419-3453 复核（与分片四十九同范围重核，1 处引用补齐）
+
+范围说明：本片 recon 切片与分片四十九重叠（账本 rows 3419-3453，trade_stat/trade/value_map/besteffort/chart/observability/catalog 共 35 行），属重复切分，作一次重核处理，不重复计数。初值 [x] 8、partial 15、boundary 12，终值不变。
+
+owner：定义归一化与目录由 jftrade-research 承接，尽力审计由 engine 模型运行时承接，图表归一化由 engine 回测解析与 pine worker 分头承接，可观测快照由 jftrade-api 承接，无双写。
+
+复核方法：35 条重新全量枚举引用有效性，[x] 逐条核对锚点与断言等价，partial 与 boundary 抽查缺口诚实度，并核查冻结语料的 sourceTest 归属。结论：1 处引用补齐、0 verdict 变更；分片四十九的 chart:5 纠正经重核确认有效。
+
+补齐证据：definition_edges :13 原 partial 条目 entry 为空（全账本约 77 处同类空 entry 之一）；核查冻结语料发现 inferred-set-operator / inferred-scalar-operator 两 case 的 sourceTest 即本 Go 用例，Rust 语料测试真实覆盖其中算子推断三形状，故补上共享引用（与 :249 的 [x] 行共享，partial 允许），verdict 保持 partial（FieldError nil 文本、cleanIDs、numericSlice 等仍无运行时入口）。
+
+抽查证据：定义参数与联合校验两条 [x] 的矩阵断言与 Go 逐项一致；目录展示语义、尽力审计、可观测快照 [x] 均有专用锚点；partial 缺口诚实；脚本工具链 boundary 成立；dup-x 为 0。
+
+新增证据：无 Rust 改动；账本 1 行 entry 补齐（evidence 0 到 1），无新增锚点。
+
+映射终值（35 行）：[x] 8、partial 15、boundary 12。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条重核引用有效性加断言等价抽查 | 1 引用补齐（:13 补语料测试）、0 verdict 变更；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2_writer 1 行 entry 补齐 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；inventory 与 report 同步；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick 完整计划 | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0 |
+
+后续：下一分片必须从 rows 3454 起取新范围（settings 家族），避免再次重叠；api_transport 域余约 194 行；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。

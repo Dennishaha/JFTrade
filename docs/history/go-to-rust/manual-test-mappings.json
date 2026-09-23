@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T19:27:36Z",
+  "generatedAt": "2026-09-23T19:29:02Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -225365,8 +225365,8 @@
     },
     "pkg/researchscreen/definition_edges_test.go:13:TestDefinitionHelperContractsCoverSupportedValueShapes": {
       "status": "[~]",
-      "rust_entry": "",
-      "conclusion": "部分覆盖：Go 直接断言 helper 契约——(*FieldError)(nil).Error() 文本、cleanIDs 的 trim+去重、inferOperator（map→between、slice→in、scalar→eq）、numericSlice（[]int64 与 []any{float64,json.Number}）与 numericJSONValue（六种数字类型接受、字符串拒绝）。Rust 无这些导出 helper：算子推断由语料 case inferred-set-operator / inferred-scalar-operator 覆盖三种形状；数值形状由 serde_json::Value 的类型系统承担（json.Number 在 serde_json 中不存在，数字一律 f64/i64）；FieldError 的 nil 文本、cleanIDs、numericSlice/numericJSONValue 属 Go 语言层 helper，无运行时入口。",
+      "rust_entry": "crates/jftrade-research/tests/definition_normalization_contracts.rs::normalization_and_field_errors_match_the_go_owner_corpus",
+      "conclusion": "部分覆盖：Go 直接断言 helper 契约——(*FieldError)(nil).Error() 文本、cleanIDs 的 trim+去重、inferOperator（map→between、slice→in、scalar→eq）、numericSlice（[]int64 与 []any{float64,json.Number}）与 numericJSONValue（六种数字类型接受、字符串拒绝）。Rust 无这些导出 helper：算子推断由冻结语料 case inferred-set-operator / inferred-scalar-operator 覆盖三种形状（sourceTest 即本 Go 用例，本条引用与 :249 的 [x] 行共享，partial 允许共享）；数值形状由 serde_json::Value 的类型系统承担（json.Number 在 serde_json 中不存在，数字一律 f64/i64）；FieldError 的 nil 文本、cleanIDs、numericSlice/numericJSONValue 属 Go 语言层 helper，无运行时入口。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-research --all-targets --locked -E 'test(normalization_and_field_errors_match_the_go_owner_corpus)'",
       "evidence_type": "partial",
       "source": {
@@ -225375,11 +225375,18 @@
         "test": "TestDefinitionHelperContractsCoverSupportedValueShapes",
         "blobSha": "dd64336944ae526b5f945a6599b4aa94e8a498c6"
       },
-      "rustEvidence": [],
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-research/tests/definition_normalization_contracts.rs",
+          "test": "normalization_and_field_errors_match_the_go_owner_corpus",
+          "crate": "jftrade-research",
+          "anchor": null
+        }
+      ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "部分覆盖：Go 直接断言 helper 契约——(*FieldError)(nil).Error() 文本、cleanIDs 的 trim+去重、inferOperator（map→between、slice→in、scalar→eq）、numericSlice（[]int64 与 []any{float64,json.Number}）与 numericJSONValue（六种数字类型接受、字符串拒绝）。Rust 无这些导出 helper：算子推断由语料 case inferred-set-operator / inferred-scalar-operator 覆盖三种形状；数值形状由 serde_json::Value 的类型系统承担（json.Number 在 serde_json 中不存在，数字一律 f64/i64）；FieldError 的 nil 文本、cleanIDs、numericSlice/numericJSONValue 属 Go 语言层 helper，无运行时入口。"
+          "部分覆盖：Go 直接断言 helper 契约——(*FieldError)(nil).Error() 文本、cleanIDs 的 trim+去重、inferOperator（map→between、slice→in、scalar→eq）、numericSlice（[]int64 与 []any{float64,json.Number}）与 numericJSONValue（六种数字类型接受、字符串拒绝）。Rust 无这些导出 helper：算子推断由冻结语料 case inferred-set-operator / inferred-scalar-operator 覆盖三种形状（sourceTest 即本 Go 用例，本条引用与 :249 的 [x] 行共享，partial 允许共享）；数值形状由 serde_json::Value 的类型系统承担（json.Number 在 serde_json 中不存在，数字一律 f64/i64）；FieldError 的 nil 文本、cleanIDs、numericSlice/numericJSONValue 属 Go 语言层 helper，无运行时入口。"
         ],
         "source": "legacy-conclusion"
       },
@@ -225395,7 +225402,9 @@
           "-E",
           "test(normalization_and_field_errors_match_the_go_owner_corpus)"
         ],
-        "testFilter": [],
+        "testFilter": [
+          "normalization_and_field_errors_match_the_go_owner_corpus"
+        ],
         "runnerVersion": null,
         "toolchain": null,
         "status": "unverified",
@@ -225414,7 +225423,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "部分覆盖：Go 直接断言 helper 契约——(*FieldError)(nil).Error() 文本、cleanIDs 的 trim+去重、inferOperator（map→between、slice→in、scalar→eq）、numericSlice（[]int64 与 []any{float64,json.Number}）与 numericJSONValue（六种数字类型接受、字符串拒绝）。Rust 无这些导出 helper：算子推断由语料 case inferred-set-operator / inferred-scalar-operator 覆盖三种形状；数值形状由 serde_json::Value 的类型系统承担（json.Number 在 serde_json 中不存在，数字一律 f64/i64）；FieldError 的 nil 文本、cleanIDs、numericSlice/numericJSONValue 属 Go 语言层 helper，无运行时入口。"
+        "部分覆盖：Go 直接断言 helper 契约——(*FieldError)(nil).Error() 文本、cleanIDs 的 trim+去重、inferOperator（map→between、slice→in、scalar→eq）、numericSlice（[]int64 与 []any{float64,json.Number}）与 numericJSONValue（六种数字类型接受、字符串拒绝）。Rust 无这些导出 helper：算子推断由冻结语料 case inferred-set-operator / inferred-scalar-operator 覆盖三种形状（sourceTest 即本 Go 用例，本条引用与 :249 的 [x] 行共享，partial 允许共享）；数值形状由 serde_json::Value 的类型系统承担（json.Number 在 serde_json 中不存在，数字一律 f64/i64）；FieldError 的 nil 文本、cleanIDs、numericSlice/numericJSONValue 属 Go 语言层 helper，无运行时入口。"
       ],
       "boundaryReason": null
     },
@@ -306863,12 +306872,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-research/tests/definition_normalization_contracts.rs::normalization_and_field_errors_match_the_go_owner_corpus": {
-      "referenceCount": 14,
+      "referenceCount": 15,
       "referenceKeys": [
         "pkg/researchscreen/catalog_embedded_test.go:80:TestEmbeddedCatalogValidationUseFlags",
         "pkg/researchscreen/catalog_embedded_test.go:99:TestNormalizeDefinitionV2AcceptsEmbeddedCatalog",
         "pkg/researchscreen/catalog_embedded_test.go:121:TestNormalizeDefinitionV2EmbeddedRejectsOutOfCatalogFactors",
         "pkg/researchscreen/catalog_embedded_test.go:149:TestNormalizeDefinitionV2FutuContractUnchanged",
+        "pkg/researchscreen/definition_edges_test.go:13:TestDefinitionHelperContractsCoverSupportedValueShapes",
         "pkg/researchscreen/definition_edges_test.go:132:TestConditionValueValidationCoversSetRangePositionAndPattern",
         "pkg/researchscreen/definition_edges_test.go:199:TestDefinitionNormalizationCoversPoolsSortsAndSecondFactors",
         "pkg/researchscreen/definition_edges_test.go:249:TestDefinitionNormalizationRejectsPoolSortAndIdentityErrors",
