@@ -3877,3 +3877,31 @@ owner：写协调与连接语义由 jftrade-owner-lock 的 WriterLease 与 jftra
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0（文档账本类改动，空受影响计划）；diff check 过 |
 
 后续：继续 35 行步调（rows 3664 起；尾部余 788 行）；队列按账本实际顺序推进（sqliteschema 余量、回测、存储、行情、集成、交易、设置）。
+
+### 第 129 批分片五十七：rows 3664-3698 schema 边界与策略存储 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 3664-3698，按写入顺序）：sqliteschema schema_boundaries:58/:85/:107/:115/:147/:170、schema_fault_driver:21/:33/:57、schema:14/:99、strategy persistence_contracts:15、strategy resource:10、strategy runtime_activity:39/:53/:85/:107/:218/:254、strategy store:130/:175/:251/:338/:382/:410/:477/:504/:545/:592/:621/:636/:662、trading broker_fill_reconciliation:11/:97/:144。初值 partial 30、boundary 5，终值不变。首键自检通过，无重叠。
+
+owner：schema 清单与迁移语义由 jftrade-store-sqlite 承接，策略定义与运行时存储由 jftrade-store-sqlite 承接（运行时活动分页断言位于 jftrade-engine 的 strategy_runtime_activity），成交对账由 jftrade-engine 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（20 个去重后引用全部指向真实 #[test]，0 缺失），[x] 为空无需断言等价核对，partial 与 boundary 逐条核对缺口诚实度。结论：引用全部有效，0 纠正、0 升级。
+
+抽查证据：空语句处理、延迟约束注入、行扫描故障注入、失败注入类缺口均诚实标注无对应断言；三处结构差异 boundary（Go 行集关闭错误合并、旧 JSON 迁移路径、旧运行时迁移分支）均说明 Rust 无同形实现；dup-x 为 0。
+
+提醒线程事项（本批收尾顺带处理）：提醒所述 HEAD e7d11a3d 的重复 [x]（runner_chat_test.go:423 与 store_test.go:792 共用 persist_success 用例）在当前工作区已不存在——store_test.go:792 早已降为 partial（不足断言：批准放行整条 resolving 路径缺端到端用例），不占用 [x] 唯一性；审计 exit 0 通过（dup 校验即原 :749  raise 未触发），映射校验通过后已重跑生成器：report 仅刷新基线到当前提交，inventory 无变化（与工作区一致，无半旧状态）。strategy/backtest 覆盖率提示属旁观信息，不改变本批排期。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 0、partial 30、boundary 5。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加缺口诚实度抽查 | 0 纠正、0 升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新基线，inventory 无变化；dup 校验通过 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 3699 起；尾部余 753 行）；队列按账本实际顺序推进（交易、存储、行情、集成、交易、设置）。
