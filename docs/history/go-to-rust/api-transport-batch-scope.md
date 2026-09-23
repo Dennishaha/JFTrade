@@ -2998,3 +2998,36 @@ owner：用量投影缺口保留在运行负载持久化语义，ADK 原生 agen
 | 已知失败（如实记录） | `check:rust:static`、`check:rust:policy` 本次均为 exit 0（advisories/bans/licenses/sources ok）；失败项不记为通过 | /tmp/s24_static.log、s24_policy.log |
 
 后续：engine 第十五片完成（626 行中 525 行）；队列进入 engine 余量约 101 行，随后 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片二十五：`internal/assistant/engine` 第十六片 35 行（5 处过宽降级，无新增实现）
+
+范围（账本 inventory 1602-1636，按账本顺序）：`workflow_goal_test.go:52/:81/:119/:222/:282/:342/:389/:457`、`workflow_helpers_provider_failures_test.go:10`、`workflow_observation_projection_test.go:11/:62`、`workflow_persistence_test.go:9`、`workflow_plan_boundaries_test.go:9`、`workflow_planner_runtime_test.go:12`、`workflow_reconcile_test.go:8/:49/:73/:128`、`workflow_resume_test.go:9/:65`、`workflow_store_boundaries_test.go:24`、`workflow_store_test.go:9`、`workflow_tools_test.go:28/:140/:206/:222/:230/:263/:285/:438/:474/:488/:559`、`workflowexec/executor_integration_test.go:56`、`workflowexec/goal_resume_failure_boundaries_test.go:26`。初值 `[x]` 7、partial 28。
+
+owner：目标暂停恢复缺口保留在暂停字段 CAS 与 pause/resume mutation，审批父子续跑缺口保留在决议暂存与运行时编排边界，工具错误包络已对齐，artifact 与 memory 工具面缺口保留在接口差异。
+
+复核方法：7 条原 [x] 逐条对照 Go 基线分支与 Rust 断言体，28 条 partial/boundary 抽查 Go 原文与缺口描述。保留的 2 条 [x] 分支相符：结构化工具错误助手函数（tools :230，空映射与成功不判失败、失败默认文案、trim、legacy 分支、nil 字面量、标量包装逐条对应）与错误包络重试分类（tools :263，超时可重试、取消不可重试、结构化元数据保留逐条对应）。
+
+结论：5 处 verdict 纠正（过宽降级）。其一是 `goal:119` 由 [x] 降为 partial：Rust 装配用例只覆盖暂停请求与恢复的字段迁移，PAUSED 终态形状、恢复后完成、恢复提醒与执行离场四分支无等价断言。其二是 `goal:222` 由 [x] 降为 partial：引用用例的陈旧写入者写的是 RUNNING 快照，没有完成与暂停竞态的优先断言，CompletedAt 为空与 complete 工具剪枝两分支无等价断言。其三是 `goal:342` 由 [x] 降为 partial：引用用例只覆盖 CANCELLED 与 COMPLETED 终态单调性，未覆盖 PAUSED；Rust 没有活动快照合并路径，暂停字段保留与工具调用合并无等价实现与断言。其四是 `reconcile:8` 由 [x] 降为 partial：原条目引用的用例只覆盖拒绝路径（与批准分支相反），条目扩展为拒绝加批准暂存双条目组合；父完成回填与执行一次两分支在运行时无等价断言。其五是 `reconcile:73` 由 [x] 降为 partial：计划步 BLOCKED、工作流暂停态、子向父同步方向三分支无等价断言，重开与审批镜像及重放围栏已覆盖。其余 28 条 partial/boundary 结论抽查相符（工具面三处边界均带无命中探针）。
+
+新增证据：无新增用例与生产改动；`reconcile:8` 条目由单引用扩展为双条目组合。
+
+映射终值（35 行）：`[x]` 2、partial 33、boundary 0。全量：`[x]` 1566、partial 2248、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+门禁说明：本分片落在 `beb5174c` 门禁优化之后，账本 v2 信封，写入用 v2 写入器；`--strict` 全仓未达标，保持既有约定不单立制式。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 7 条原 [x] 逐分支核对、28 条 partial/boundary 抽查 | 5 verdict 纠正（:119、:222、:342、reconcile :8、reconcile :73），2 条保留（tools :230、:263） |
+| 账本写入 | 5 行变更（v2 写入器），其余不动 | `[x]` 1571→1566、partial 2243→2248、boundary 637 不变（合计 4451）；全部引用测试存在且有锚点 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 通过（exit 0）；0 条引用不存在 crate、0 条 `[x]` 缺 function_exact；缺锚点告警 120 不变；重复 `[x]` 唯一性检查通 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1712、已记录 1664、unrecorded 0、stale 0、unknown 48 |
+| 报告刷新 | `python3 scripts/compatibility/audit_test_parity.py --write-report` | exit 0；inventory 跟随 5 行变更 |
+| 静态与格式 | `cargo fmt --all -- --check`（FMT_OK，本片无 Rust 改动）、`pnpm run check:clippy`（exit 0）、`check:rust:architecture`（passed） | /tmp/s25_clippy.log |
+| 受影响 nextest | sqlite 引用 6 用例定向 6/6（含批准暂存双路径、暂停字段、终态单调、重开围栏） | /tmp/s25_sqlite.log |
+| 整轮 nextest | engine 全轮 1911/1911 一次过，无抖动 | /tmp/s25_engine_full.log |
+| 兼容与门禁 | generated/ai-context/zero-go 均过；quick 为影响域裁剪（本片仅账本与文档，无 Rust 改动，planner 只跑 policy 9 项）exit 0；engine 整轮已显式全过 | /tmp/s25_quick.log、s25_gen.log、s25_aictx.log、s25_zerogo.log |
+| 已知失败（如实记录） | `check:rust:static`、`check:rust:policy` 本次均为 exit 0；失败项不记为通过 | /tmp/s25_static.log、s25_policy.log |
+
+后续：engine 第十六片完成（626 行中 560 行）；队列进入 engine 余量约 66 行，随后 apiserver 下 assistant/ADK 相关 14 行。
