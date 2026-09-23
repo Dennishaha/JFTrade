@@ -3440,3 +3440,28 @@ owner：快照与 K 线转换由 futu 基础报价与 engine 行情分页承接�
 | 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 |
 
 后续：other 域本片完成（余 147 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+### 第 129 批分片四十一：other 域 yfinance 与 live 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 3132-3166，按写入顺序）：yfinance provider_rankings:71/:92、provider_screen:16/:76/:120/:138/:163、provider:33/:66/:98/:163/:229/:254/:265/:287/:340/:379/:421、jftsettings validation:8/:18、types:8/:21/:39、live client:8/:47/:63、lifecycle:10/:38/:63、notification_delivery:5、publisher:11/:39/:57/:73/:108。初值 [x] 8、partial 21、boundary 6。
+
+owner：yfinance 提供商面由 helper 与 engine 研究面承接；日历设置校验由 settings 与 settings-file 承接；订阅归一与通知投递由 engine 与 api transport 承接；重放发布器由 LiveHub 架构替换承接。
+
+复核方法：35 条全量枚举引用有效性，8 条 [x] 逐条核对 Go 原文与 Rust 断言等价（含 Parity 锚点归属与全文唯一性）；partial 逐条核对缺口诚实度；boundary 抽查架构替换诚实度。结论：引用全部有效、缺口描述相符，0 纠正、0 升级。
+
+抽查证据：设置显式标记、订阅归一表、通知投递契约均逐项一致；重放窗口两条 boundary 如实登记为架构替换（序号连续不是 Rust 不变式）；dup-x 为 0。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 8、partial 21、boundary 6。全量：[x] 1566、partial 2248、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加断言等价抽查 | 0 纠正、0 升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1566、partial 2248、boundary 637（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新 Rust 基线，inventory 无变化 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 |
+
+后续：other 域本片完成（余 112 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
