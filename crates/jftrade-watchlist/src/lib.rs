@@ -222,7 +222,7 @@ mod tests {
 
     #[test]
     fn test_preview_import_rejects_invalid_derived_group_name() {
-        // Parity: internal/watchlist/quote_preview_boundaries_test.go:82 TestPreviewImportRejectsInvalidDerivedGroupName
+        // Parity: go:452dea11:internal/watchlist/quote_preview_boundaries_test.go:74 TestPreviewImportRejectsInvalidDerivedGroupName
         let oversized = "界".repeat(65);
         let err = normalize_group_name(&oversized);
         assert_eq!(err, Err(WatchlistError::GroupNameTooLong));

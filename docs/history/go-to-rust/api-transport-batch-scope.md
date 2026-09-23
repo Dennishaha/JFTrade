@@ -3763,3 +3763,34 @@ owner：设置各领域服务（security、mcp_server、broker、execution、onb
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick 完整计划 | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0 |
 
 后续：api_transport 域继续（rows 3524 起；余约 124 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+
+### 第 129 批分片五十三：rows 3524-3558 自选与回测存储 35 行（1 处锚点加结论纠正，无 verdict 变更）
+
+范围（账本 rows 3524-3558，按写入顺序）：quote_preview_boundaries:74、service_quotes:62/:100/:117/:145/:174/:210/:230/:270、watchlist service:220/:335/:386/:431/:508/:562/:645/:678、backtest adapter_lifecycle:18/:114/:140、kline_database:9、maintenance_concurrency:15/:57/:93/:106、resource:10、store_failure:15/:62/:97/:121/:140、store:12/:52/:138/:154。初值 [x] 3、partial 30、boundary 2，终值不变。首键自检通过，无重叠。
+
+owner：自选名额与快照由 jftrade-watchlist 与 engine 自选产品承接，回测运行存储由 jftrade-store-sqlite 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性，[x] 逐条核对锚点与断言等价，partial 与 boundary 抽查缺口诚实度，并核对锚点行号与基线。结论：1 处锚点加结论纠正、0 verdict 变更。
+
+纠正证据：quote_preview :74 的 Rust 测试锚点行号误写 :82（基线 452dea11 与 go 分支均为 :74），结论为占位写法；已修正锚点（含基线前缀归一化），结论改写为归一化层等价（65 字派生名拒收、空白拒收，经 plan 问号传播与 wire 通用映射向外），verdict 保持 [x]。jftrade-watchlist 全量 lib 测试 8 通过。
+
+抽查证据：provider 切换拒绝旧 flight、切换失败保藏、回测存储拒绝坏库与取消不改写等 [x] 与 partial 断言一致；single-flight 缺失、端到端批量断言缺失、路径派生链无断言等缺口诚实；dup-x 为 0。
+
+新增证据：锚点注释 1 行（jftrade-watchlist lib.rs）；账本 1 行结论改写；对账已记录 1676 到 1677、unknown 48 到 47。
+
+映射终值（35 行）：[x] 3、partial 30、boundary 2。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加断言等价抽查 | 1 锚点加结论纠正、0 verdict 变更；重复 [x] 全文唯一性检查通（0 重复） |
+| 受影响 crate | node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist --locked | 8 通过 |
+| 账本写入 | v2_writer 1 行结论改写 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；inventory 与 report 同步；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47 |
+| 文档门禁 | fmt、check:ai-context、migration-manifest、zero-go、quick 完整计划、受影响 crate 定向 | fmt（watchlist）过；ai-context 过；migration-manifest 过；zero-go 过；jftrade-watchlist 定向 8 通过；quick 整轮两轮均在同一时序敏感用例转红（见下），其余 1861 通过，不记为通过 |
+
+后续：api_transport 域继续（rows 3559 起；余约 89 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+
+抖动记录（未记为通过）：product_api_launcher_lifecycle::api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal 在两轮 quick 整轮中均失败（exit 状为被信号终止而非 Some(0)，30 秒超时未触发），隔离复跑该文件 2 通过；本片改动为注释加账本加文档，不触及 launcher 关闭路径，判定为高并行负载下时序抖动，留待低负载整轮复确认（日志见 /tmp/quick.log 与 /tmp/quick2.log，隔离通过见 /tmp/launcher.log）。

@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T19:31:24Z",
+  "generatedAt": "2026-09-23T19:35:08Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -229823,8 +229823,8 @@
     "internal/watchlist/quote_preview_boundaries_test.go:74:TestPreviewImportRejectsInvalidDerivedGroupName": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-watchlist/src/lib.rs::test_preview_import_rejects_invalid_derived_group_name",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist",
+      "conclusion": "function_exact：Go 断言 PreviewImport 对 65 字派生组名返回 ErrValidation。Rust 在归一化层等价拒绝：normalize_group_name 对超 64 字返回 GroupNameTooLong、对空白返回 MissingGroupName（本测试逐项断言 65 字界串与空白串），错误经 plan_membership_replace 的问号传播并由 wire 层通用 WatchlistError 映射向外。分片五十三纠正：原结论为占位写法，原锚点行号 :82 与基线 :74 对不齐，已修正锚点并经 jftrade-watchlist 全量 lib 测试（8 通过）。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist --locked",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/watchlist/quote_preview_boundaries_test.go",
@@ -229837,12 +229837,17 @@
           "file": "crates/jftrade-watchlist/src/lib.rs",
           "test": "test_preview_import_rejects_invalid_derived_group_name",
           "crate": "jftrade-watchlist",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/watchlist/quote_preview_boundaries_test.go",
+            "goLine": 74,
+            "rustFile": "crates/jftrade-watchlist/src/lib.rs",
+            "rustLine": 225
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据"
+          "function_exact：Go 断言 PreviewImport 对 65 字派生组名返回 ErrValidation。Rust 在归一化层等价拒绝：normalize_group_name 对超 64 字返回 GroupNameTooLong、对空白返回 MissingGroupName（本测试逐项断言 65 字界串与空白串），错误经 plan_membership_replace 的问号传播并由 wire 层通用 WatchlistError 映射向外。分片五十三纠正：原结论为占位写法，原锚点行号 :82 与基线 :74 对不齐，已修正锚点并经 jftrade-watchlist 全量 lib 测试（8 通过）。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -229853,7 +229858,8 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-watchlist"
+          "jftrade-watchlist",
+          "--locked"
         ],
         "testFilter": [
           "test_preview_import_rejects_invalid_derived_group_name"
@@ -229875,7 +229881,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据"
+        "function_exact：Go 断言 PreviewImport 对 65 字派生组名返回 ErrValidation。Rust 在归一化层等价拒绝：normalize_group_name 对超 64 字返回 GroupNameTooLong、对空白返回 MissingGroupName（本测试逐项断言 65 字界串与空白串），错误经 plan_membership_replace 的问号传播并由 wire 层通用 WatchlistError 映射向外。分片五十三纠正：原结论为占位写法，原锚点行号 :82 与基线 :74 对不齐，已修正锚点并经 jftrade-watchlist 全量 lib 测试（8 通过）。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
