@@ -2197,3 +2197,45 @@ owner：`crates/jftrade-engine`（策略运行时装配、写端口与状态投�
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
 
 后续：分片二十二进入 `internal/strategy/catalog` 余量 22 行（`activity_degraded_test.go` 1、`catalog_boundary_behavior_test.go` 5、`instance_lifecycle_business_test.go` 4、`plugin_normalization_business_test.go` 5、`repository_failure_business_test.go` 3、`runtime_reconciliation_business_test.go` 4）与 `internal/strategy/definition` 4 行，随后 strategy_pine 域清空，进入 assistant_workflow 560 行。
+
+### 分片二十二：`internal/strategy/catalog` 余量 22 行（strategy_pine 域收尾）+ 活动降级判定纠正
+
+范围：`activity_degraded_test.go:65`、`catalog_boundary_behavior_test.go` 5 行（`:34`/`:58`/`:84`/`:123`/`:192`）、`instance_lifecycle_business_test.go` 4 行（`:11`/`:89`/`:143`/`:189`）、`plugin_normalization_business_test.go` 5 行（`:13`/`:89`/`:99`/`:157`/`:186`）、`repository_failure_business_test.go` 3 行（`:11`/`:19`/`:126`）、`runtime_reconciliation_business_test.go` 4 行（`:12`/`:52`/`:80`/`:113`）。
+
+owner：`crates/jftrade-engine`（策略活动读取与分页、定义与插件路由、运行时端口与状态对账）、`crates/jftrade-strategy`（目录/实例/插件领域模型）、`crates/jftrade-store-sqlite`（策略定义与实例持久化、审计与日志）。
+
+队列说明：本分片是 strategy_pine 域的收尾复核。核对中发现先前把 `activity_degraded_test.go:65` 判成 `[x]` 过宽：参考实现要求活动存储在 nil 或报错时降级为“已知空页”（200、条目 0、total 0、hasMore false），而 Rust 的端口层在存储失败时返回 `StrategyReadSnapshotError::Unavailable`，API 映射为 500 `STRATEGY_FAILED`（`product_api_strategies.rs` 的 `strategy_read_snapshot_failure`），即失败关闭；引用的 Rust 用例只锁定分页辅助函数对空集合的输出。本分片把该行与同语义的 `catalog_boundary_behavior_test.go:34` 一并改回 partial 并写清修复位置。
+
+新增证据（本分片未新增测试）：无——本分片的工作是对 22 行逐条复核断言与现有证据的对应关系，纠正 1 行判定，并为其余 20 行写清缺口与修复位置（活动降级、定义同步状态、遗留快照归一、保存失败回滚、启动对账幂等、实例删除状态门等）。
+
+映射终值（22 行）：`[x]` 1 行（`runtime_reconciliation_business_test.go:52`，复核后保持）、partial 21 行；其中 `activity_degraded_test.go:65` 由 `[x]` 纠正为 partial。
+
+- **保持 `[x]`（1 行）**：`runtime_reconciliation_business_test.go:52`（运行失败只对 RUNNING 实例生效，双证据：端口失败收敛 + 运行时退出写审计）。
+- **纠正为 partial（1 行）**：`activity_degraded_test.go:65`——Rust 是失败关闭（500 STRATEGY_FAILED），不是降级空页。
+- **保持 partial（20 行）**：活动查询失败空页（`catalog_boundary_behavior_test.go:34`）、活动写失败不阻塞控制状态（`:58`）、定义同步状态（`:84`）、归一与克隆隔离（`:123`/`:192`）、实例生命周期（`instance_lifecycle_business_test.go` 4 行）、插件归一（`plugin_normalization_business_test.go` 5 行）、仓库失败（`repository_failure_business_test.go` 3 行）、运行时转换与启动对账（`runtime_reconciliation_business_test.go:12`/`:80`）、活动分页与观测富化（`:113`）。
+
+剩余缺口（本批新增/细化，按优先级）：
+
+1. **活动查询降级语义缺失（P1）**：活动存储不可用时参考实现返回已知空页（200/空/total 0），Rust 返回 500 `STRATEGY_FAILED`；修复位置 `crates/jftrade-engine/src/strategy_runtime_port.rs` 的 `logs`/`audit` 读取路径（保留告警），回归按 `activity_degraded_test.go:65` 与 `catalog_boundary_behavior_test.go:34`。
+2. **保存失败回滚缺故障注入（P1，回滚语义）**：参考实现逐操作断言保存失败后持久快照不变、内存态不提前生效（`repository_failure_business_test.go:19`）；Rust 依赖 SQLite 事务原子性，缺注入式回归。
+3. **定义同步状态缺失（P1，产品语义）**：`definitionSync`（IsLatest/CanApplyLatest/BlockedReason）在 Rust 无同形对象（`catalog_boundary_behavior_test.go:84`）。
+4. **实例删除状态门缺回归（P1，状态边界）**：删除需先停止（`instance_lifecycle_business_test.go:11`）。
+5. **启动对账幂等与计数缺回归（P1，恢复语义）**：RUNNING 也要重置、changed 计数、第二次调用不落盘（`runtime_reconciliation_business_test.go:80`）。
+6. **遗留快照归一缺回归（P1，迁移/兼容）**：旧版快照补默认字段并丢弃运行期字段（`plugin_normalization_business_test.go:99`）。
+7. **P2 级**：活动写失败容忍（`:58`）、归一/克隆调用方隔离（`:123`/`:192`）、实例操作错误分类（`instance_lifecycle_business_test.go:89`）、定义刷新与关联分类（`:143`/`:189`）、插件生命周期排序与未找到分类（`plugin_normalization_business_test.go:13`/`:89`/`:157`/`:186`）、仓库加载失败错误身份（`repository_failure_business_test.go:11`/`:126`）、转换计数（`runtime_reconciliation_business_test.go:12`）、活动与观测富化合并（`:113`）。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 映射写入 | 22 行 payload `/tmp/s128s22_payload.json` 经 `/tmp/b82_apply.py` 应用 | `[x]` 1592 → 1591、partial 2221 → 2222、boundary 638 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3290 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1633、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1909/1909 通过 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compatibility exit 0（desktop 3 平台档 6 link case 10 facade 4 event）；generated 未改动工作树；ai-context 6 模块 8 指令文件；zero-go 2953 files；`check:quick` exit 0 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
+
+**strategy_pine 域状态**：`internal/strategy`（catalog、instancebinding、instanceview、live_command_business_boundaries、liveruntime、pine_live_command、pine_live_executor、pineruntime、runtimecontrol、service、types、errors）与 `pkg/strategy`（definition、indicatorbinding、indicatorwarmup、ir、pine、pineengine、pinespec、pineworker）共 538 行全部持有终值并带结论（`[x]` 81、partial 383、boundary 74；module_only 0、missing 0、无缺 command 行）。其中 431 行的结论/证据在第 128 批被改写；本批 Rust 测试总数由 3204 增至 3290（+86），并落地 11 处生产修复（提交 014e66d6、f865e10a、d9155270、433405e3、4a8a92aa、3c0e10b1、e0313575、661dd659、61234727、cebff772、962d3a39、cbc7a4e5 中标注 fix 的部分）；余下 107 行的终值来自更早批次，本批对应分片（分片一、五、六、八~十七）已逐条复核并记为“保持终值”（见各分片小节，例如分片十七列出的 32 行保持项）。
+
+后续：下一批转入 `assistant_workflow` 域 560 行（`internal/assistant/*`、`internal/api/assistant/*`、ADK 审批与工作流租约、会话/工件/审批恢复等），仍按每分片一次提交、逐条终值、缺口登记与门禁全跑的标准推进。
