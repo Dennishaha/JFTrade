@@ -2965,3 +2965,36 @@ owner：过期回收与超时窗口由运行时 reconcile 承接，任务扇出�
 | 已知失败（如实记录） | `check:rust:static`、`check:rust:policy` 本次均为 exit 0（advisories/bans/licenses/sources ok，与既往 advisory-not-detected 失败预期不同） | /tmp/s23_static2.log、s23_policy2.log；失败项不记为通过 |
 
 后续：engine 第十四片完成（626 行中 490 行）；队列进入 engine 第十五片（账本 1567 起约 35 行：tools:837、usageprojection、workflow 族），随后 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片二十四：`internal/assistant/engine` 第十五片 35 行（5 处过宽降级 + 2 新增用例 + 1 断言补强 + 5 锚点，无生产实现改动）
+
+范围（账本 inventory 1567-1601，按账本顺序）：`tools_test.go:837`、`usageprojection/projection_test.go:10/:27/:41`、`workflow_agent_native_integration_test.go:22/:75/:122/:162`、`workflow_agent_runtime_branches_test.go:53`、`workflow_agent_test.go:21/:47/:81/:99/:118/:136/:176/:253/:274`、`workflow_approval_recovery_boundaries_test.go:8`、`workflow_approval_test.go:9`、`workflow_canvas_test.go:11/:60/:133/:167/:223`、`workflow_child_test.go:8/:79/:137`、`workflow_compiler_test.go:25/:51/:77/:97`、`workflow_execution_persistence_test.go:7`、`workflow_finalization_contracts_test.go:7`、`workflow_goal_test.go:13`。初值 `[x]` 10、partial 25。
+
+owner：用量投影缺口保留在运行负载持久化语义，ADK 原生 agent 形态缺口保留在接口差异（无 google-adk 对象迁移），审批恢复与父子调度缺口保留在运行时 reconcile 与调度边界，画布编译形状缺口待补断言。
+
+复核方法：10 条原 [x] 逐条对照 Go 基线分支与 Rust 断言体，25 条 partial 抽查 Go 原文与缺口描述（含高风险 approval_recovery :8 的暂停耐久与恢复上下文分支）。保留的 5 条 [x] 分支相符：流式 30 秒有界（:837）、扇入汇合顺序加前驱锁定（compiler :25，见下）、线性链默认顺序依赖（compiler :51）、未知依赖 400 拒绝（compiler :97）、模型后端不可用失败关闭加终局审计（canvas :223）。
+
+结论：5 处 verdict 纠正（过宽降级）+ 2 新增用例 + 1 断言补强 + 5 锚点。其一是 `canvas:11` 由 [x] 降为 partial：Go 断言编译产物形状（3 步骤、元数据、回退消息、扇入依赖与覆盖、指纹回退），Rust 多节点执行用例只覆盖执行与上下文传播，条目改为执行加菱形汇合双条目组合。其二是 `canvas:133` 由 [x] 降为 partial：Go 端到端断言运行 COMPLETED、DONE 计划、子运行派生与非空回复，原条目引用的编译顺序与错误跳过用例不断言成功执行，条目改指多节点执行用例并补 :133 锚点。其三是 `compiler:77` 由 [x] 降为 partial：原条目引用的非法输入用例不断言依赖去重；实现侧重复边已去重，本批新增去重用例锁定，空白依赖忽略无对应实现（画布边要求有效端点，属契约差异）。其四是 `canvas:60` 由 [x] 降为 partial：8 分支中缺画布分支无等价拒绝（Rust 对无画布工作流走 legacy 合成执行，属实现选择差异），其余 7 分支由 6 用例组合覆盖，本批新增空画布用例并补 4 处 :60 锚点。其五是 `canvas:167` 由 [x] 降为 partial：Go 的子运行派生、BLOCKED 计划、输入标识透传与图漂移守卫四分支无等价断言，挂起恢复与幂等键复用已覆盖。其六是 compiler :25 菱形用例补汇合前驱断言。其余 20 条 partial 结论抽查相符（引用存在不等于断言等价口径保持）。
+
+新增证据：2 新增用例（重复边去重、空画布无执行节点）加 1 汇合前驱断言，均在 `crates/jftrade-assistant/src/workflow_canvas.rs`；5 规范锚点（:133 归多节点执行用例，:60 归无执行节点加不可达代理加非法输入加空画布用例，:77 归去重用例）；`adk_workflow_canvas_contracts.rs` 加 :133 锚点 1 处。无生产实现改动。
+
+映射终值（35 行）：`[x]` 5、partial 30、boundary 0。全量：`[x]` 1571、partial 2243、boundary 637（合计 4451）；Rust 测试 3293 加 2（本批新增）。
+
+门禁说明：本分片落在 `beb5174c` 门禁优化之后，账本 v2 信封，写入用 v2 写入器；`--strict` 全仓未达标，保持既有约定不单立制式。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 10 条原 [x] 逐分支核对、25 条 partial 抽查 | 5 verdict 纠正（:11、:133、:77、:60、:167）加 2 新增用例加 1 断言补强加 5 锚点 |
+| 账本写入 | 5 行变更（v2 写入器），其余不动 | `[x]` 1576→1571、partial 2238→2243、boundary 637 不变（合计 4451）；全部引用测试存在且有锚点 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 通过（exit 0）；0 条引用不存在 crate、0 条 `[x]` 缺 function_exact；缺锚点告警 120 不变（新增锚点归 partial 行）；重复 `[x]` 唯一性检查通 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1712 不变（新增锚点指向已记录引用）、已记录 1664、unrecorded 0、stale 0、unknown 48 |
+| 报告刷新 | `python3 scripts/compatibility/audit_test_parity.py --write-report` | exit 0；inventory 跟随 5 行变更 |
+| 静态与格式 | `cargo fmt --all -- --check`（FMT_OK）、`pnpm run check:clippy`（exit 0）、`check:rust:architecture`（passed） | fmt/clippy/arch 全过，见 /tmp/s24_clippy2.log、s24_arch.log |
+| 受影响 nextest | assistant canvas 定向 10/10、engine 加 assistant 双 crate canvas 定向 16/16（含 2 新增用例与菱形汇合前驱补强） | /tmp/s24_canvas_a.log、s24_canvas_ea.log |
+| 整轮 nextest | engine 全轮 1911/1911 一次过，无抖动 | /tmp/s24_engine_full.log |
+| 兼容与门禁 | compat 7 项全过、generated（--check 不改工作树）过、ai-context 过、zero-go 过；quick exit 0（rust 1984/1984、pineworker 98/98、desktop 48/48，一次过无抖动） | /tmp/s24_quick.log、s24_gen.log、s24_aictx.log、s24_zerogo.log |
+| 已知失败（如实记录） | `check:rust:static`、`check:rust:policy` 本次均为 exit 0（advisories/bans/licenses/sources ok）；失败项不记为通过 | /tmp/s24_static.log、s24_policy.log |
+
+后续：engine 第十五片完成（626 行中 525 行）；队列进入 engine 余量约 101 行，随后 apiserver 下 assistant/ADK 相关 14 行。

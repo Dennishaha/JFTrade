@@ -420,6 +420,11 @@ mod tests {
         let compiler = CanvasCompiler::new(&graph).expect("compiler initialized");
         let order = compiler.compile().expect("compilation succeeds");
         assert_eq!(order, vec!["start", "agent-a", "agent-b", "monitor"]);
+        assert_eq!(
+            compiler.incoming_edges("monitor"),
+            &["agent-b".to_owned(), "agent-a".to_owned()],
+            "the join node converges both fan-in branches"
+        );
     }
 
     #[test]
@@ -457,6 +462,7 @@ mod tests {
         assert_eq!(err, CanvasCompilerError::SelfLoop("e1".to_owned()));
     }
 
+    // Parity: go:452dea11:internal/assistant/engine/workflow_canvas_test.go:60 TestWorkflowCanvasCompilerRejectsInvalidGraphs
     #[test]
     fn test_canvas_unreachable_agent() {
         let graph = WorkflowCanvasGraph {
@@ -480,6 +486,7 @@ mod tests {
         );
     }
 
+    // Parity: go:452dea11:internal/assistant/engine/workflow_canvas_test.go:60 TestWorkflowCanvasCompilerRejectsInvalidGraphs
     #[test]
     fn test_canvas_no_executable_nodes() {
         let graph = WorkflowCanvasGraph {
@@ -495,6 +502,7 @@ mod tests {
     }
 
     // Parity: go:452dea11:internal/assistant/engine/workflow_compiler_test.go:77 TestWorkflowCompilerDeduplicatesAndIgnoresBlankDependencies
+    // Parity: go:452dea11:internal/assistant/engine/workflow_canvas_test.go:60 TestWorkflowCanvasCompilerRejectsInvalidGraphs
     #[test]
     fn test_canvas_invalid_node_and_edge_inputs() {
         let empty_node = WorkflowCanvasGraph {
@@ -559,6 +567,59 @@ mod tests {
                 edge: "e1".to_owned(),
                 target_id: "unknown".to_owned(),
             }
+        );
+    }
+
+    // Parity: go:452dea11:internal/assistant/engine/workflow_compiler_test.go:77 TestWorkflowCompilerDeduplicatesAndIgnoresBlankDependencies
+    #[test]
+    fn test_canvas_duplicate_edges_are_deduplicated() {
+        let graph = WorkflowCanvasGraph {
+            version: "1.0".to_owned(),
+            nodes: vec![
+                make_node("start", "start"),
+                make_node("fetch", "agent"),
+                make_node("report", "agent"),
+            ],
+            edges: vec![
+                make_edge("e1", "start", "fetch"),
+                make_edge("e2", "start", "fetch"),
+                make_edge("e3", "fetch", "report"),
+                make_edge("e4", "fetch", "report"),
+            ],
+            viewport: None,
+        };
+
+        let compiler = CanvasCompiler::new(&graph).expect("compiler initialized");
+        let order = compiler.compile().expect("compilation succeeds");
+        assert_eq!(order, vec!["start", "fetch", "report"]);
+        assert_eq!(
+            compiler.incoming_edges("fetch"),
+            &["start".to_owned()],
+            "duplicate dependencies collapse to a single predecessor"
+        );
+        assert_eq!(
+            compiler.incoming_edges("report"),
+            &["fetch".to_owned()],
+            "duplicate dependencies collapse to a single predecessor"
+        );
+    }
+
+    // Parity: go:452dea11:internal/assistant/engine/workflow_canvas_test.go:60 TestWorkflowCanvasCompilerRejectsInvalidGraphs
+    #[test]
+    fn test_canvas_empty_graph_has_no_executable_nodes() {
+        let graph = WorkflowCanvasGraph {
+            version: "1.0".to_owned(),
+            nodes: Vec::new(),
+            edges: Vec::new(),
+            viewport: None,
+        };
+
+        let compiler = CanvasCompiler::new(&graph).expect("compiler initialized");
+        assert_eq!(
+            compiler
+                .compile()
+                .expect_err("empty canvas has no executable agent"),
+            CanvasCompilerError::NoExecutableNodes
         );
     }
 

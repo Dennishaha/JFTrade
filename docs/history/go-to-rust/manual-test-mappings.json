@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T16:44:44Z",
+  "generatedAt": "2026-09-23T17:26:15Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -104087,11 +104087,11 @@
       "boundaryReason": null
     },
     "internal/assistant/engine/workflow_canvas_test.go:11:TestWorkflowCanvasCompilerSequentialFanOutAndJoin": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_multi_node_execution_and_context_propagation",
-      "conclusion": "function_exact：Go 断言画布编译器把顺序/扇出/汇合图编译成可执行节点并正确传递上下文。Rust 的 test_canvas_workflow_multi_node_execution_and_context_propagation 断言多节点执行与上下文传播，逐条对应顺序/扇出/汇合编译结果。",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_multi_node_execution_and_context_propagation; crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_diamond_graph_deterministic_tie_breaking",
+      "conclusion": "partial（本批纠正过宽）：Go 断言画布编译器把顺序扇出汇合图编译成 3 个可执行步骤并逐字段断言步骤元数据（canvas来源、loop/chat模式）、fetch子代理与消息模板、risk零依赖与回退消息、report扇入依赖fetch加risk与provider加model覆盖、指纹回退。Rust 的多节点执行用例覆盖可达图成功执行、上下文插值与节点持久化，菱形用例覆盖扇出扇入汇合顺序与汇合前驱；编译产物形状（步骤数、依赖表、回退消息、覆盖、指纹回退）无同形断言。回归要求：补编译产物形状断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/workflow_canvas_test.go",
         "line": 11,
@@ -104109,13 +104109,219 @@
             "rustFile": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
             "rustLine": 186
           }
+        },
+        {
+          "file": "crates/jftrade-assistant/src/workflow_canvas.rs",
+          "test": "test_canvas_diamond_graph_deterministic_tie_breaking",
+          "crate": "jftrade-assistant",
+          "anchor": null
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言画布编译器把顺序/扇出/汇合图编译成可执行节点并正确传递上下文。Rust 的 test_canvas_workflow_multi_node_execution_and_context_propagation 断言多节点执行与上下文传播，逐条对应顺序/扇出/汇合编译结果。"
+        "covered": [],
+        "uncovered": [
+          "partial（本批纠正过宽）：Go 断言画布编译器把顺序扇出汇合图编译成 3 个可执行步骤并逐字段断言步骤元数据（canvas来源、loop/chat模式）、fetch子代理与消息模板、risk零依赖与回退消息、report扇入依赖fetch加risk与provider加model覆盖、指纹回退。Rust 的多节点执行用例覆盖可达图成功执行、上下文插值与节点持久化，菱形用例覆盖扇出扇入汇合顺序与汇合前驱；编译产物形状（步骤数、依赖表、回退消息、覆盖、指纹回退）无同形断言。回归要求：补编译产物形状断言后再升级。"
         ],
-        "uncovered": [],
+        "source": "legacy-conclusion"
+      },
+      "verification": {
+        "argv": [
+          "node",
+          "scripts/quality/cargo-nextest.mjs",
+          "run",
+          "-p",
+          "jftrade-engine",
+          "--all-targets",
+          "--locked"
+        ],
+        "testFilter": [
+          "test_canvas_workflow_multi_node_execution_and_context_propagation",
+          "test_canvas_diamond_graph_deterministic_tie_breaking"
+        ],
+        "runnerVersion": null,
+        "toolchain": null,
+        "status": "unverified",
+        "exitCode": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "receiptDigest": null
+      },
+      "risk": "normal",
+      "owner": "assistant_workflow",
+      "priority": "P2",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "blockedBy": [
+        "behavioral-parity-review"
+      ],
+      "waiverExpiresAt": null,
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（本批纠正过宽）：Go 断言画布编译器把顺序扇出汇合图编译成 3 个可执行步骤并逐字段断言步骤元数据（canvas来源、loop/chat模式）、fetch子代理与消息模板、risk零依赖与回退消息、report扇入依赖fetch加risk与provider加model覆盖、指纹回退。Rust 的多节点执行用例覆盖可达图成功执行、上下文插值与节点持久化，菱形用例覆盖扇出扇入汇合顺序与汇合前驱；编译产物形状（步骤数、依赖表、回退消息、覆盖、指纹回退）无同形断言。回归要求：补编译产物形状断言后再升级。"
+      ],
+      "boundaryReason": null
+    },
+    "internal/assistant/engine/workflow_canvas_test.go:60:TestWorkflowCanvasCompilerRejectsInvalidGraphs": {
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_cycle_detection_rejects_with_400; crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_self_loop_and_invalid_edges_rejected; crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_no_executable_nodes; crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_unreachable_agent; crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_invalid_node_and_edge_inputs; crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_empty_graph_has_no_executable_nodes",
+      "conclusion": "partial（本批纠正过宽并补测）：Go 8 分支拒非法图。Rust 覆盖环、自环、未知端点、无执行节点、不可达代理、非法类型与空节点；本批新增空画布用例锁定空图判无执行节点。缺画布（nil图）分支无等价拒绝，Rust 对无画布工作流走 legacy 合成执行，属实现选择差异。回归要求：缺画布语义若需拒绝，先定契约再补断言。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant --all-targets --locked --no-fail-fast -E 'test(canvas)'",
+      "evidence_type": "partial",
+      "source": {
+        "file": "internal/assistant/engine/workflow_canvas_test.go",
+        "line": 60,
+        "test": "TestWorkflowCanvasCompilerRejectsInvalidGraphs",
+        "blobSha": "dccd5f7270f3b4c3ff0bacb25a1f1cfb7635f79a"
+      },
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
+          "test": "test_canvas_workflow_cycle_detection_rejects_with_400",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/workflow_canvas_test.go",
+            "goLine": 60,
+            "rustFile": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
+            "rustLine": 425
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
+          "test": "test_canvas_workflow_self_loop_and_invalid_edges_rejected",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/workflow_canvas_test.go",
+            "goLine": 60,
+            "rustFile": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
+            "rustLine": 425
+          }
+        },
+        {
+          "file": "crates/jftrade-assistant/src/workflow_canvas.rs",
+          "test": "test_canvas_no_executable_nodes",
+          "crate": "jftrade-assistant",
+          "anchor": {
+            "goFile": "internal/assistant/engine/workflow_canvas_test.go",
+            "goLine": 60,
+            "rustFile": "crates/jftrade-assistant/src/workflow_canvas.rs",
+            "rustLine": 465
+          }
+        },
+        {
+          "file": "crates/jftrade-assistant/src/workflow_canvas.rs",
+          "test": "test_canvas_unreachable_agent",
+          "crate": "jftrade-assistant",
+          "anchor": {
+            "goFile": "internal/assistant/engine/workflow_canvas_test.go",
+            "goLine": 60,
+            "rustFile": "crates/jftrade-assistant/src/workflow_canvas.rs",
+            "rustLine": 465
+          }
+        },
+        {
+          "file": "crates/jftrade-assistant/src/workflow_canvas.rs",
+          "test": "test_canvas_invalid_node_and_edge_inputs",
+          "crate": "jftrade-assistant",
+          "anchor": {
+            "goFile": "internal/assistant/engine/workflow_canvas_test.go",
+            "goLine": 60,
+            "rustFile": "crates/jftrade-assistant/src/workflow_canvas.rs",
+            "rustLine": 465
+          }
+        },
+        {
+          "file": "crates/jftrade-assistant/src/workflow_canvas.rs",
+          "test": "test_canvas_empty_graph_has_no_executable_nodes",
+          "crate": "jftrade-assistant",
+          "anchor": {
+            "goFile": "internal/assistant/engine/workflow_canvas_test.go",
+            "goLine": 60,
+            "rustFile": "crates/jftrade-assistant/src/workflow_canvas.rs",
+            "rustLine": 465
+          }
+        }
+      ],
+      "assertionCoverage": {
+        "covered": [],
+        "uncovered": [
+          "partial（本批纠正过宽并补测）：Go 8 分支拒非法图。Rust 覆盖环、自环、未知端点、无执行节点、不可达代理、非法类型与空节点；本批新增空画布用例锁定空图判无执行节点。缺画布（nil图）分支无等价拒绝，Rust 对无画布工作流走 legacy 合成执行，属实现选择差异。回归要求：缺画布语义若需拒绝，先定契约再补断言。"
+        ],
+        "source": "legacy-conclusion"
+      },
+      "verification": {
+        "argv": [
+          "node",
+          "scripts/quality/cargo-nextest.mjs",
+          "run",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-assistant",
+          "--all-targets",
+          "--locked",
+          "--no-fail-fast",
+          "-E",
+          "test(canvas)"
+        ],
+        "testFilter": [
+          "test_canvas_workflow_cycle_detection_rejects_with_400",
+          "test_canvas_workflow_self_loop_and_invalid_edges_rejected",
+          "test_canvas_no_executable_nodes",
+          "test_canvas_unreachable_agent",
+          "test_canvas_invalid_node_and_edge_inputs",
+          "test_canvas_empty_graph_has_no_executable_nodes"
+        ],
+        "runnerVersion": null,
+        "toolchain": null,
+        "status": "unverified",
+        "exitCode": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "receiptDigest": null
+      },
+      "risk": "normal",
+      "owner": "assistant_workflow",
+      "priority": "P2",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "blockedBy": [
+        "behavioral-parity-review"
+      ],
+      "waiverExpiresAt": null,
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（本批纠正过宽并补测）：Go 8 分支拒非法图。Rust 覆盖环、自环、未知端点、无执行节点、不可达代理、非法类型与空节点；本批新增空画布用例锁定空图判无执行节点。缺画布（nil图）分支无等价拒绝，Rust 对无画布工作流走 legacy 合成执行，属实现选择差异。回归要求：缺画布语义若需拒绝，先定契约再补断言。"
+      ],
+      "boundaryReason": null
+    },
+    "internal/assistant/engine/workflow_canvas_test.go:133:TestRunCanvasWorkflowExecutesAReachableAgentGraph": {
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_multi_node_execution_and_context_propagation",
+      "conclusion": "partial（本批纠正过宽）：Go 端到端断言可达图运行落 COMPLETED、画布计划 DONE、1 条子运行、非空回复。Rust 的多节点执行用例断言可达图成功执行、上下文传播与节点持久化；原条目引用的菱形编译顺序与错误跳过下游两个用例不断言成功执行，更换引用。运行终局、DONE计划、子运行派生、回复非空四分支无等价断言。回归要求：补可达图运行终局与子运行断言后再升级。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "evidence_type": "partial",
+      "source": {
+        "file": "internal/assistant/engine/workflow_canvas_test.go",
+        "line": 133,
+        "test": "TestRunCanvasWorkflowExecutesAReachableAgentGraph",
+        "blobSha": "dccd5f7270f3b4c3ff0bacb25a1f1cfb7635f79a"
+      },
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
+          "test": "test_canvas_workflow_multi_node_execution_and_context_propagation",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/workflow_canvas_test.go",
+            "goLine": 133,
+            "rustFile": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
+            "rustLine": 188
+          }
+        }
+      ],
+      "assertionCoverage": {
+        "covered": [],
+        "uncovered": [
+          "partial（本批纠正过宽）：Go 端到端断言可达图运行落 COMPLETED、画布计划 DONE、1 条子运行、非空回复。Rust 的多节点执行用例断言可达图成功执行、上下文传播与节点持久化；原条目引用的菱形编译顺序与错误跳过下游两个用例不断言成功执行，更换引用。运行终局、DONE计划、子运行派生、回复非空四分支无等价断言。回归要求：补可达图运行终局与子运行断言后再升级。"
+        ],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -104142,178 +104348,23 @@
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言画布编译器把顺序/扇出/汇合图编译成可执行节点并正确传递上下文。Rust 的 test_canvas_workflow_multi_node_execution_and_context_propagation 断言多节点执行与上下文传播，逐条对应顺序/扇出/汇合编译结果。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（本批纠正过宽）：Go 端到端断言可达图运行落 COMPLETED、画布计划 DONE、1 条子运行、非空回复。Rust 的多节点执行用例断言可达图成功执行、上下文传播与节点持久化；原条目引用的菱形编译顺序与错误跳过下游两个用例不断言成功执行，更换引用。运行终局、DONE计划、子运行派生、回复非空四分支无等价断言。回归要求：补可达图运行终局与子运行断言后再升级。"
       ],
-      "uncoveredAssertions": [],
-      "boundaryReason": null
-    },
-    "internal/assistant/engine/workflow_canvas_test.go:60:TestWorkflowCanvasCompilerRejectsInvalidGraphs": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_cycle_detection_rejects_with_400; crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_self_loop_and_invalid_edges_rejected",
-      "conclusion": "function_exact：Go 断言非法图（环、自环、非法边）被编译器拒绝。Rust 的两条测试分别断言环检测返回 400 与自环/非法边被拒，逐条对应。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
-      "source": {
-        "file": "internal/assistant/engine/workflow_canvas_test.go",
-        "line": 60,
-        "test": "TestWorkflowCanvasCompilerRejectsInvalidGraphs",
-        "blobSha": "dccd5f7270f3b4c3ff0bacb25a1f1cfb7635f79a"
-      },
-      "rustEvidence": [
-        {
-          "file": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
-          "test": "test_canvas_workflow_cycle_detection_rejects_with_400",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/assistant/engine/workflow_canvas_test.go",
-            "goLine": 60,
-            "rustFile": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
-            "rustLine": 424
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
-          "test": "test_canvas_workflow_self_loop_and_invalid_edges_rejected",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/assistant/engine/workflow_canvas_test.go",
-            "goLine": 60,
-            "rustFile": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
-            "rustLine": 424
-          }
-        }
-      ],
-      "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言非法图（环、自环、非法边）被编译器拒绝。Rust 的两条测试分别断言环检测返回 400 与自环/非法边被拒，逐条对应。"
-        ],
-        "uncovered": [],
-        "source": "legacy-conclusion"
-      },
-      "verification": {
-        "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "-p",
-          "jftrade-engine",
-          "--all-targets",
-          "--locked"
-        ],
-        "testFilter": [
-          "test_canvas_workflow_cycle_detection_rejects_with_400",
-          "test_canvas_workflow_self_loop_and_invalid_edges_rejected"
-        ],
-        "runnerVersion": null,
-        "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "receiptDigest": null
-      },
-      "risk": "normal",
-      "owner": "assistant_workflow",
-      "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
-      "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言非法图（环、自环、非法边）被编译器拒绝。Rust 的两条测试分别断言环检测返回 400 与自环/非法边被拒，逐条对应。"
-      ],
-      "uncoveredAssertions": [],
-      "boundaryReason": null
-    },
-    "internal/assistant/engine/workflow_canvas_test.go:133:TestRunCanvasWorkflowExecutesAReachableAgentGraph": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_diamond_graph_deterministic_tie_breaking; crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_error_skips_downstream_nodes",
-      "conclusion": "function_exact：Go 断言运行可达 agent 图（节点按边执行）。Rust 的 test_canvas_diamond_graph_deterministic_tie_breaking 断言菱形图的确定性执行顺序，test_canvas_workflow_error_skips_downstream_nodes 断言错误节点跳过下游，合起来覆盖“可达图执行 + 收敛”。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant --all-targets --locked",
-      "evidence_type": "function_exact",
-      "source": {
-        "file": "internal/assistant/engine/workflow_canvas_test.go",
-        "line": 133,
-        "test": "TestRunCanvasWorkflowExecutesAReachableAgentGraph",
-        "blobSha": "dccd5f7270f3b4c3ff0bacb25a1f1cfb7635f79a"
-      },
-      "rustEvidence": [
-        {
-          "file": "crates/jftrade-assistant/src/workflow_canvas.rs",
-          "test": "test_canvas_diamond_graph_deterministic_tie_breaking",
-          "crate": "jftrade-assistant",
-          "anchor": {
-            "goFile": "internal/assistant/engine/workflow_canvas_test.go",
-            "goLine": 133,
-            "rustFile": "crates/jftrade-assistant/src/workflow_canvas.rs",
-            "rustLine": 398
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
-          "test": "test_canvas_workflow_error_skips_downstream_nodes",
-          "crate": "jftrade-engine",
-          "anchor": null
-        }
-      ],
-      "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言运行可达 agent 图（节点按边执行）。Rust 的 test_canvas_diamond_graph_deterministic_tie_breaking 断言菱形图的确定性执行顺序，test_canvas_workflow_error_skips_downstream_nodes 断言错误节点跳过下游，合起来覆盖“可达图执行 + 收敛”。"
-        ],
-        "uncovered": [],
-        "source": "legacy-conclusion"
-      },
-      "verification": {
-        "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "-p",
-          "jftrade-engine",
-          "-p",
-          "jftrade-assistant",
-          "--all-targets",
-          "--locked"
-        ],
-        "testFilter": [
-          "test_canvas_diamond_graph_deterministic_tie_breaking",
-          "test_canvas_workflow_error_skips_downstream_nodes"
-        ],
-        "runnerVersion": null,
-        "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "receiptDigest": null
-      },
-      "risk": "normal",
-      "owner": "assistant_workflow",
-      "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
-      "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言运行可达 agent 图（节点按边执行）。Rust 的 test_canvas_diamond_graph_deterministic_tie_breaking 断言菱形图的确定性执行顺序，test_canvas_workflow_error_skips_downstream_nodes 断言错误节点跳过下游，合起来覆盖“可达图执行 + 收敛”。"
-      ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/engine/workflow_canvas_test.go:167:TestRunCanvasWorkflowPausesForAChildInputRequest": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::approval_and_running_nodes_suspend_then_resume_the_same_durable_request",
-      "conclusion": "function_exact：Go 断言画布工作流为子节点输入请求挂起。Rust 的 approval_and_running_nodes_suspend_then_resume_the_same_durable_request 对 PENDING_APPROVAL/PENDING_INPUT/RUNNING 三种挂起逐一轮询：运行节点不完成、私有恢复态不外泄、恢复后同一幂等键复用且重复 resume 不产生新请求，覆盖“子输入请求挂起并可从原请求恢复”。",
+      "conclusion": "partial（本批纠正过宽）：Go 断言子输入请求挂起并可从原请求恢复。Rust 的挂起恢复用例覆盖三类挂起、私有恢复态不外泄、恢复后同一幂等键复用与重复恢复无新请求；子运行派生、BLOCKED计划、输入请求标识透传、图漂移恢复守卫四分支无等价断言。回归要求：补子运行挂起形状与漂移守卫断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/workflow_canvas_test.go",
         "line": 167,
@@ -104329,15 +104380,15 @@
             "goFile": "internal/assistant/engine/workflow_canvas_test.go",
             "goLine": 167,
             "rustFile": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
-            "rustLine": 317
+            "rustLine": 318
           }
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言画布工作流为子节点输入请求挂起。Rust 的 approval_and_running_nodes_suspend_then_resume_the_same_durable_request 对 PENDING_APPROVAL/PENDING_INPUT/RUNNING 三种挂起逐一轮询：运行节点不完成、私有恢复态不外泄、恢复后同一幂等键复用且重复 resume 不产生新请求，覆盖“子输入请求挂起并可从原请求恢复”。"
+        "covered": [],
+        "uncovered": [
+          "partial（本批纠正过宽）：Go 断言子输入请求挂起并可从原请求恢复。Rust 的挂起恢复用例覆盖三类挂起、私有恢复态不外泄、恢复后同一幂等键复用与重复恢复无新请求；子运行派生、BLOCKED计划、输入请求标识透传、图漂移恢复守卫四分支无等价断言。回归要求：补子运行挂起形状与漂移守卫断言后再升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -104364,15 +104415,15 @@
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言画布工作流为子节点输入请求挂起。Rust 的 approval_and_running_nodes_suspend_then_resume_the_same_durable_request 对 PENDING_APPROVAL/PENDING_INPUT/RUNNING 三种挂起逐一轮询：运行节点不完成、私有恢复态不外泄、恢复后同一幂等键复用且重复 resume 不产生新请求，覆盖“子输入请求挂起并可从原请求恢复”。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（本批纠正过宽）：Go 断言子输入请求挂起并可从原请求恢复。Rust 的挂起恢复用例覆盖三类挂起、私有恢复态不外泄、恢复后同一幂等键复用与重复恢复无新请求；子运行派生、BLOCKED计划、输入请求标识透传、图漂移恢复守卫四分支无等价断言。回归要求：补子运行挂起形状与漂移守卫断言后再升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/engine/workflow_canvas_test.go:223:TestRunCanvasWorkflowFailsClosedWhenTheChildProviderIsUnavailable": {
@@ -104763,11 +104814,11 @@
       "boundaryReason": null
     },
     "internal/assistant/engine/workflow_compiler_test.go:77:TestWorkflowCompilerDeduplicatesAndIgnoresBlankDependencies": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_invalid_node_and_edge_inputs",
-      "conclusion": "function_exact：Go 断言依赖去重并忽略空白依赖。Rust 的 test_canvas_invalid_node_and_edge_inputs 断言非法/空白节点与边输入的处理（去重、忽略空白），逐条对应。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
-      "evidence_type": "function_exact",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_invalid_node_and_edge_inputs; crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_duplicate_edges_are_deduplicated",
+      "conclusion": "partial（本批纠正过宽并补测）：Go 断言依赖去重并忽略空白依赖。原条目引用的非法输入用例只覆盖空节点、重复节点、非法类型与未知端点，不断言依赖去重。Rust 实现侧重复边已去重，本批新增去重用例锁定编译顺序与单前驱；空白依赖忽略无对应实现，画布边要求有效端点（空白端点判 InvalidEdge），属契约差异。回归要求：空白依赖语义若需对齐，先定契约再补断言。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked --no-fail-fast -E 'test(canvas)'",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/workflow_compiler_test.go",
         "line": 77,
@@ -104783,15 +104834,26 @@
             "goFile": "internal/assistant/engine/workflow_compiler_test.go",
             "goLine": 77,
             "rustFile": "crates/jftrade-assistant/src/workflow_canvas.rs",
-            "rustLine": 497
+            "rustLine": 504
+          }
+        },
+        {
+          "file": "crates/jftrade-assistant/src/workflow_canvas.rs",
+          "test": "test_canvas_duplicate_edges_are_deduplicated",
+          "crate": "jftrade-assistant",
+          "anchor": {
+            "goFile": "internal/assistant/engine/workflow_compiler_test.go",
+            "goLine": 77,
+            "rustFile": "crates/jftrade-assistant/src/workflow_canvas.rs",
+            "rustLine": 504
           }
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言依赖去重并忽略空白依赖。Rust 的 test_canvas_invalid_node_and_edge_inputs 断言非法/空白节点与边输入的处理（去重、忽略空白），逐条对应。"
+        "covered": [],
+        "uncovered": [
+          "partial（本批纠正过宽并补测）：Go 断言依赖去重并忽略空白依赖。原条目引用的非法输入用例只覆盖空节点、重复节点、非法类型与未知端点，不断言依赖去重。Rust 实现侧重复边已去重，本批新增去重用例锁定编译顺序与单前驱；空白依赖忽略无对应实现，画布边要求有效端点（空白端点判 InvalidEdge），属契约差异。回归要求：空白依赖语义若需对齐，先定契约再补断言。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -104802,10 +104864,14 @@
           "-p",
           "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "--no-fail-fast",
+          "-E",
+          "test(canvas)"
         ],
         "testFilter": [
-          "test_canvas_invalid_node_and_edge_inputs"
+          "test_canvas_invalid_node_and_edge_inputs",
+          "test_canvas_duplicate_edges_are_deduplicated"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -104818,15 +104884,15 @@
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言依赖去重并忽略空白依赖。Rust 的 test_canvas_invalid_node_and_edge_inputs 断言非法/空白节点与边输入的处理（去重、忽略空白），逐条对应。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（本批纠正过宽并补测）：Go 断言依赖去重并忽略空白依赖。原条目引用的非法输入用例只覆盖空节点、重复节点、非法类型与未知端点，不断言依赖去重。Rust 实现侧重复边已去重，本批新增去重用例锁定编译顺序与单前驱；空白依赖忽略无对应实现，画布边要求有效端点（空白端点判 InvalidEdge），属契约差异。回归要求：空白依赖语义若需对齐，先定契约再补断言。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/engine/workflow_compiler_test.go:97:TestWorkflowCompilerRejectsUnknownDependencies": {
@@ -289742,19 +289808,36 @@
     "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_diamond_graph_deterministic_tie_breaking": {
       "referenceCount": 2,
       "referenceKeys": [
-        "internal/assistant/engine/workflow_canvas_test.go:133:TestRunCanvasWorkflowExecutesAReachableAgentGraph",
+        "internal/assistant/engine/workflow_canvas_test.go:11:TestWorkflowCanvasCompilerSequentialFanOutAndJoin",
         "internal/assistant/engine/workflow_compiler_test.go:25:TestWorkflowCompilerBuildsJoinForFanIn"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
     },
-    "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_invalid_node_and_edge_inputs": {
+    "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_duplicate_edges_are_deduplicated": {
       "referenceCount": 1,
       "referenceKeys": [
         "internal/assistant/engine/workflow_compiler_test.go:77:TestWorkflowCompilerDeduplicatesAndIgnoresBlankDependencies"
       ],
       "allowed": true,
       "reviewStatus": "single"
+    },
+    "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_empty_graph_has_no_executable_nodes": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/workflow_canvas_test.go:60:TestWorkflowCanvasCompilerRejectsInvalidGraphs"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_invalid_node_and_edge_inputs": {
+      "referenceCount": 2,
+      "referenceKeys": [
+        "internal/assistant/engine/workflow_canvas_test.go:60:TestWorkflowCanvasCompilerRejectsInvalidGraphs",
+        "internal/assistant/engine/workflow_compiler_test.go:77:TestWorkflowCompilerDeduplicatesAndIgnoresBlankDependencies"
+      ],
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_linear_chain": {
       "referenceCount": 1,
@@ -289765,20 +289848,22 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_no_executable_nodes": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
+        "internal/assistant/engine/workflow_canvas_test.go:60:TestWorkflowCanvasCompilerRejectsInvalidGraphs",
         "internal/assistant/workflows_test.go:248:TestRunWorkflowWithoutCanvasGraphFailsInsteadOfChatFallback"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_unreachable_agent": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/assistant/engine/workflow_agent_test.go:253:TestGoogleADKWorkflowChildNodeUsesNativeAgentNodeConfiguration"
+        "internal/assistant/engine/workflow_agent_test.go:253:TestGoogleADKWorkflowChildNodeUsesNativeAgentNodeConfiguration",
+        "internal/assistant/engine/workflow_canvas_test.go:60:TestWorkflowCanvasCompilerRejectsInvalidGraphs"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::approval_resolution_is_idempotent_and_conflict_safe": {
       "referenceCount": 4,
@@ -301426,9 +301511,8 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_error_skips_downstream_nodes": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/assistant/engine/workflow_canvas_test.go:133:TestRunCanvasWorkflowExecutesAReachableAgentGraph",
         "internal/assistant/engine/workflow_child_test.go:79:TestCompletedChildReopensPendingParentWorkflowToRunning",
         "internal/assistant/workflows_test.go:276:TestRunWorkflowCanvasCompilesAndStoresNodeOutputs"
       ],
@@ -301436,11 +301520,12 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_multi_node_execution_and_context_propagation": {
-      "referenceCount": 3,
+      "referenceCount": 4,
       "referenceKeys": [
         "internal/api/assistant/workflow_routes_test.go:14:TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts",
         "internal/assistant/engine/canvas_provider_model_overrides_test.go:8:TestCanvasWorkflowAppliesExplicitProviderAndModelOverrides",
-        "internal/assistant/engine/workflow_canvas_test.go:11:TestWorkflowCanvasCompilerSequentialFanOutAndJoin"
+        "internal/assistant/engine/workflow_canvas_test.go:11:TestWorkflowCanvasCompilerSequentialFanOutAndJoin",
+        "internal/assistant/engine/workflow_canvas_test.go:133:TestRunCanvasWorkflowExecutesAReachableAgentGraph"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"

@@ -185,6 +185,7 @@ impl EngineTestCluster {
 
 // Parity: go:452dea11:internal/assistant/engine/workflow_canvas_test.go:11 TestWorkflowCanvasCompilerSequentialFanOutAndJoin
 // Parity: go:452dea11:internal/api/assistant/workflow_routes_test.go:14 TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts
+// Parity: go:452dea11:internal/assistant/engine/workflow_canvas_test.go:133 TestRunCanvasWorkflowExecutesAReachableAgentGraph
 #[test]
 fn test_canvas_workflow_multi_node_execution_and_context_propagation() {
     let cluster = EngineTestCluster::new();
