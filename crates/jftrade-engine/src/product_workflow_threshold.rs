@@ -319,6 +319,7 @@ mod tests {
     }
 
     // Parity: go:452dea11:internal/assistant/workflows_test.go:39 TestEvaluateMarketThresholdTriggerEdgesAndCooldown
+    // Parity: go:452dea11:internal/assistant/workflow/rules_test.go:40 TestEvaluateMarketThresholdTriggerEdgesAndCooldown
     #[test]
     fn evaluate_cross_up_transitions() {
         let mut config = json!({
@@ -396,6 +397,7 @@ mod tests {
     }
 
     // Parity: go:452dea11:internal/assistant/workflows_test.go:39 TestEvaluateMarketThresholdTriggerEdgesAndCooldown
+    // Parity: go:452dea11:internal/assistant/workflow/rules_test.go:40 TestEvaluateMarketThresholdTriggerEdgesAndCooldown
     #[test]
     fn evaluate_above_and_below_levels() {
         let mut config = json!({

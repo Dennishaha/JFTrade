@@ -12061,23 +12061,23 @@
     "evidence_type": "partial"
   },
   "internal/assistant/workflow/rules_test.go:12:TestNextScheduleRunUsesFiveFieldCronAndTimezone": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_workflow_cron.rs::parse_invalid_cron_expressions",
-    "conclusion": "partial：Go 断言五字段 cron 与指定时区的下次运行（工作日与周末跨越）并拒绝六字段。Rust 的 cron 用例断言非法表达式被拒绝（该用例覆盖六字段拒绝）；带时区的下次运行计算由 next_schedule_run_calculation_with_timezone 覆盖，Go 的周末跨越断言没有逐条枚举。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_workflow_cron.rs::next_schedule_run_calculation_with_timezone（带时区下次运行计算）；crates/jftrade-engine/src/product_workflow_cron.rs::next_schedule_run_skips_weekend_for_weekday_cron（规则层同值：工作日同日与周末跳周一）；crates/jftrade-engine/src/product_workflow_cron.rs::parse_invalid_cron_expressions（规则层同值：六字段拒绝）",
+    "conclusion": "function_exact：规则层复述与顶层参考同值，三组断言均有等价覆盖——带时区下次运行计算、工作日 1-5 同日与周五过点跳周一（相同取值）、六字段表达式被拒。三处锚点分别写在对应测试上方。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib --locked -E 'test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(next_schedule_run_calculation_with_timezone)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/workflow/rules_test.go:40:TestEvaluateMarketThresholdTriggerEdgesAndCooldown": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_workflow_threshold.rs::evaluate_above_and_below_levels",
-    "conclusion": "partial：Go 断言阈值边界：低于阈值只更新状态、上穿匹配一次、冷却期内不匹配、冷却后再次匹配。Rust 的阈值用例断言高于/低于水平判定（同一状态更新语义）；冷却窗口由调度契约用例 test_market_threshold_trigger_cross_up_and_cooldown 覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_workflow_threshold.rs::evaluate_cross_up_transitions（规则层同值：首事件只改状态、上穿匹配与负载字段）；crates/jftrade-engine/src/product_workflow_threshold.rs::evaluate_above_and_below_levels（规则层同值：显式大于首匹配、冷却抑制与复发）",
+    "conclusion": "function_exact：规则层复述与顶层参考同值，六组断言均有等价覆盖——cross_up 首事件无匹配但 changed、上穿一次匹配且负载含 instrumentId 与 edge、显式大于首匹配、冷却内抑制、冷却后复发。两处锚点分别写在对应测试上方。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib --locked -E 'test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels)'",
+    "evidence_type": "function_exact"
   },
   "internal/assistant/workflow/rules_test.go:89:TestEventRulesNormalizeAndValidate": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_workflow_threshold.rs::evaluate_cross_down_transitions",
-    "conclusion": "partial：Go 断言事件匹配归一与校验（层级不一致不匹配）、冷却允许的首/期/后三态。Rust 的阈值用例断言下穿转换（同一转变判定）；Go 的事件归一与冷却三态在 Rust 由阈值事件负载与冷却用例覆盖。",
+    "rust_entry": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs::test_market_threshold_trigger_cross_up_and_cooldown",
+    "conclusion": "partial：参考断言事件规则归一（源/类型/层级字段匹配）、事件冷却首/期/后三态、Normalize 系列回退与中文默认标题。Rust 没有 EventMatches 助手与事件触发器冷却三态的直接断言，Normalize 回退与 DefaultTriggerTitle 中文标题（事件触发/行情阈值）只有实现、无测试断言；仅阈值冷却语义由引用调度用例覆盖。缺口 P2：事件匹配与冷却三态、归一回退与默认标题断言。修复位置：调度事件路径与触发器写入投影。回归要求：补事件匹配三态与标题回退用例。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },

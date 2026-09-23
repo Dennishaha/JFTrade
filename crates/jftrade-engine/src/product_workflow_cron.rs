@@ -315,6 +315,7 @@ mod tests {
     }
 
     // Parity: go:452dea11:internal/assistant/workflows_test.go:11 TestNextWorkflowScheduleRunUsesFiveFieldCronAndTimezone
+    // Parity: go:452dea11:internal/assistant/workflow/rules_test.go:12 TestNextScheduleRunUsesFiveFieldCronAndTimezone
     #[test]
     fn parse_invalid_cron_expressions() {
         assert_eq!(
@@ -350,6 +351,8 @@ mod tests {
         ));
     }
 
+    // Parity: go:452dea11:internal/assistant/workflows_test.go:11 TestNextWorkflowScheduleRunUsesFiveFieldCronAndTimezone
+    // Parity: go:452dea11:internal/assistant/workflow/rules_test.go:12 TestNextScheduleRunUsesFiveFieldCronAndTimezone
     #[test]
     fn next_schedule_run_calculation_with_timezone() {
         // Daily at 09:30 Asia/Shanghai (= 01:30 UTC)
@@ -368,6 +371,7 @@ mod tests {
     }
 
     // Parity: go:452dea11:internal/assistant/workflows_test.go:11 TestNextWorkflowScheduleRunUsesFiveFieldCronAndTimezone
+    // Parity: go:452dea11:internal/assistant/workflow/rules_test.go:12 TestNextScheduleRunUsesFiveFieldCronAndTimezone
     // Weekday-range schedules stay on Friday evening and roll over the weekend.
     #[test]
     fn next_schedule_run_skips_weekend_for_weekday_cron() {

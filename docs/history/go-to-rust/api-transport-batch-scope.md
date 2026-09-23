@@ -2442,3 +2442,36 @@ owner：工作流运行、调度与后台任务的写入 owner 在领域 crate�
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
 
 后续：队列进入 `internal/assistant/workflow` 目录 5 行，随后 assembly 104、engine 626 与 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片六：`internal/assistant/workflow` 目录 5 行（2 行升级 + 1 处结论纠正）
+
+范围（按文件与行号升序）：`workflow/rules_test.go:12/:40/:89/:135/:207`。此前 5 行全部为 partial。
+
+owner：规则层是领域助手的纯函数面（cron 计算、阈值评估、事件匹配、触发器校验），实现在 `crates/jftrade-engine` 的工作流助手模块与 `crates/jftrade-assistant` 的画布模型，无状态写入，所有者即实现模块本身。
+
+复核方法：逐条用参考提交的 Go 源码核对测试定义行（5/5 行号签名一致），再核对账本引用可解析。发现规则层 `:12` 与 `:40` 和顶层参考同名同值（cron 缺了 Workflow 一词的命名差异除外，断言取值完全相同），直接复用分片五证据升级；`:89` 的引用用例与行为错位，按实现纠正。
+
+复核发现（命名核对）：规则层 cron 测试名为 `TestNextScheduleRunUsesFiveFieldCronAndTimezone`，顶层为 `TestNextWorkflowScheduleRunUsesFiveFieldCronAndTimezone`（多 Workflow 一词），断言取值相同，锚点按各自真实名称书写。
+
+新增证据：无新增测试用例，复用分片五的 1 条新用例与 3 处补强断言，另补 5 处同行锚点（cron 三测试、阈值两测试各挂规则层锚点；cron 计算测试同时补上此前漏挂的顶层锚点）。
+
+映射终值（5 行）：`[x]` 2（`rules_test.go:12/:40`）、partial 3、boundary 0。
+
+关键事实与缺口（本分片纠正，按优先级）：
+
+1. **事件匹配与冷却三态、归一回退与默认标题无断言（P2，规则助手）**：参考 `rules_test.go:89` 要求事件规则字段匹配、事件冷却首/期/后三态（含 nil 拒绝）、Normalize 系列回退与中文默认标题；Rust 没有 EventMatches 助手与事件触发器冷却三态的直接断言，Normalize 回退与中文标题只有实现、无测试断言。修复位置：调度事件路径与触发器写入投影。回归要求：补事件匹配三态与标题回退用例。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 复用证据 | engine cron 三测试与阈值两测试组合过滤 | 5/5 通过 |
+| 映射写入 | 3 行 payload 经账本写入脚本应用（2 升级 + 1 纠正） | `[x]` 1591 → 1593、partial 2226 不变、boundary 637 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；缺锚点告警 188 不变；Rust 测试 3293 不变 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1652 → 1654、unrecorded 0、stale 0、unknown 52 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 首轮 1911/1911 通过（本分片无抖动） |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compatibility 全 replay 通过；generated 未改动工作树；ai-context 6 模块 8 指令文件；zero-go 2953 files；`check:quick` 全过（nextest 1941/1941、node 98 pass，本分片无抖动） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
+
+后续：队列进入 `internal/assistant/assembly` 104 行，随后 engine 626 与 apiserver 下 assistant/ADK 相关 14 行。
