@@ -3339,3 +3339,29 @@ owner：日历解析与管理器由 integration-calendar 与 calendar 承接，�
 | 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 |
 
 后续：other 域本片完成（余 287 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+### 第 129 批分片三十七：other 域日历与前端资源 35 行（1 处结论补强，无 verdict 变更）
+
+范围（账本 rows 2992-3026，按写入顺序）：manager:543/:613/:670/:736/:751/:779/:811/:876/:890/:917、source_health:17/:98、source_json:10、frontendassets dev:7、release:14/:49/:96、akshare boundaries:19/:62/:131/:151/:188/:219/:268/:321/:356/:392/:487/:517/:580/:604、client_index:14/:45、client_news:41/:70。初值 [x] 14、partial 21、boundary 0。
+
+owner：日历告警与探针由 calendar 承接；前端资源由桌面壳构建模式承接；akshare 转换与客户端由 marketdata helper 与 engine 研究面承接。
+
+复核方法：35 条全量枚举引用有效性，14 条 [x] 逐条核对 Go 原文与 Rust 断言等价（含 Parity 锚点归属与全文唯一性）；partial 逐条核对缺口诚实度。结论：引用全部有效；1 处结论补强，无 verdict 变更、无升级。
+
+补强：2992行下游的 manager:876（快照缓存键市场本地年份）结论原为一句话证据说明，未记录可观测点差异；Rust 无字符串缓存键，同一规则由探针 fetch 窗口承担（UTC 午夜前后 US 本地 2025 与 2026 年窗口），HK 侧未直接覆盖已如实登记。verdict 保持 [x]（键格式为 Go 内部索引细节），证据与锚点不变（evidence=1 anchored=1）。
+
+新增证据：无 Rust 改动、无新增用例、无新增锚点；账本 1 行结论变更（v2 写入器）。
+
+映射终值（35 行）：[x] 14、partial 21、boundary 0。全量：[x] 1566、partial 2248、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加断言等价抽查 | 1 结论补强，无 verdict 变更、无升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 1 行结论变更（v2 写入器），其余不动 | [x] 1566 不变、partial 2248 不变、boundary 637 不变（合计 4451） |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 与 inventory 按校验后重生成落盘 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 受影响 nextest | calendar 探针年份用例定向 1/1 | 前台直跑 |
+| 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 |
+
+后续：other 域本片完成（余 252 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。

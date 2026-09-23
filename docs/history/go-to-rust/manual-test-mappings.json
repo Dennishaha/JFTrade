@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T19:02:16Z",
+  "generatedAt": "2026-09-23T19:12:30Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -196874,7 +196874,7 @@
     "internal/exchangecalendar/manager_test.go:876:TestSnapshotCacheKeyUsesMarketLocalYear": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-calendar/tests/fetch_window_timezone.rs::probe_uses_market_local_year_when_us_crosses_utc_new_year",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据：UTC 新年跨越时按 US 市场本地年份切换快照窗口，并固定 EST 边界",
+      "conclusion": "function_exact（同源规则，不同可观测点）：Go 断言内存缓存键恰为 source|HK|2026 与 source|US|2025，即市场本地年份推导。Rust 无字符串缓存键（快照按年缓存结构不同），同一规则由探针 fetch 窗口承担：UTC 午夜前后两次 probe 分别取到 US 本地 2025 与 2026 年窗口，EST 边界固定。差异：Rust 未逐字断言键格式，HK 侧未直接覆盖（同机制，US 侧已覆盖边界翻转）；键格式为 Go 内部索引细节，不属跨实现契约。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(probe_uses_market_local_year_when_us_crosses_utc_new_year)'",
       "evidence_type": "function_exact",
       "source": {
@@ -196898,7 +196898,7 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据：UTC 新年跨越时按 US 市场本地年份切换快照窗口，并固定 EST 边界"
+          "function_exact（同源规则，不同可观测点）：Go 断言内存缓存键恰为 source|HK|2026 与 source|US|2025，即市场本地年份推导。Rust 无字符串缓存键（快照按年缓存结构不同），同一规则由探针 fetch 窗口承担：UTC 午夜前后两次 probe 分别取到 US 本地 2025 与 2026 年窗口，EST 边界固定。差异：Rust 未逐字断言键格式，HK 侧未直接覆盖（同机制，US 侧已覆盖边界翻转）；键格式为 Go 内部索引细节，不属跨实现契约。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -196933,7 +196933,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据：UTC 新年跨越时按 US 市场本地年份切换快照窗口，并固定 EST 边界"
+        "function_exact（同源规则，不同可观测点）：Go 断言内存缓存键恰为 source|HK|2026 与 source|US|2025，即市场本地年份推导。Rust 无字符串缓存键（快照按年缓存结构不同），同一规则由探针 fetch 窗口承担：UTC 午夜前后两次 probe 分别取到 US 本地 2025 与 2026 年窗口，EST 边界固定。差异：Rust 未逐字断言键格式，HK 侧未直接覆盖（同机制，US 侧已覆盖边界翻转）；键格式为 Go 内部索引细节，不属跨实现契约。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
