@@ -134,6 +134,7 @@ fn run_gate_is_shared_across_runtime_facades() {
 
 /// Go's `SaveProvider` marks the first stored provider as default, and
 /// `NormalizeDefaultProviderSelection` repairs a table that lost the flag.
+/// Parity: go:452dea11:internal/assistant/engine/persistence/provider_selection_test.go:29 TestSortProvidersDefaultFirst
 #[test]
 fn provider_list_reports_the_repaired_default_selection() {
     let (_directory, store, _session_store) = initialized_stores();

@@ -2671,3 +2671,32 @@ owner：输入请求/续跑/幂等由 engine 输入端口与 ADK 认领层承接
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected），与本分片无关 |
 
 后续：engine 第四片完成；队列进入 engine 第五片（账本 1217 起约 35 行），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片十四：`internal/assistant/engine` 第五片 35 行（1 处缺失锚点补齐，无 verdict 翻转）
+
+范围（账本 inventory 1217-1251，按文件与行号升序）：`mcp_server_test.go:358/:367/:382/:440`、`normalize_test.go:5/:62`、`observability_test.go:10`、`persistence/approval_query_plan_test.go:9`、`persistence/composer_normalize_test.go:8`、`persistence/execution_claims_test.go:58/:93/:186/:229`、`persistence/google_artifact_test.go:19/:120/:186/:247/:420`、`persistence/provider_reasoning_test.go:10/:47`、`persistence/provider_selection_test.go:8/:29`、`persistence/secret_store_test.go:9`、`persistence/session_sqlite_boundaries_test.go:14`、`persistence/session_sqlite_schema_test.go:15/:49/:82/:127`、`persistence/session_sqlite_test.go:30/:58/:108/:138`、`persistence/store_run_test.go:11/:31`、`persistence/task_patch_test.go:8`（35 行中 [x]12/partial23，含 boundary 2）。
+
+owner：MCP 状态面由 MCP 生产执行器承接，租约/重放/崩溃策略由 assistant claims 层承接，provider 选择与工件/会话持久化由 `crates/jftrade-store-sqlite` 承接，provider reasoning 映射在 Rust 无对应面（两行记 boundary）。
+
+复核方法：35/35 参考行号签名一致；12 条 `[x]` 全部逐分支核对（MCP 订阅校验与执行器现解析、租约围栏、重放与崩溃策略、工件跨重启、provider 排序修复、会话库拒绝与重开）；11 条锚点名字逐个匹配，1 条缺失锚点在核对通过后补齐；partial 行抽查 Go 原文与结论对应关系（跨连接原子认领）。
+
+结论：0 verdict 翻转。1 处缺失锚点补齐：`persistence/provider_selection_test.go:29` 的引用测试（default 行在前、created_at ASC、恰好一个 default 且修复持久化，结论含 probe 转红证据）核对通过后补规范锚点；该行在 store 合约测试中的旧散文引用是 `:8` 行锚点的续行说明，不作该行证据。`:382`/`:440` 的结论本就按边界加等价不变式双写（无推送面但每次请求重投影、每次调用现解析执行器），与 verdict 一致。其余 `[x]` 行证据与锚点齐备。partial 行缺口均为真实结构差异（nil 切片归一、跨连接序列化、V1 无损迁移、reasoning 快照等 Go 专属面）。
+
+新增证据（注释 only）：1 行规范锚点（`product_adk_model_runtime_gate_tests.rs`），无生产实现改动，无探针。
+
+映射终值（35 行）：`[x]` 12、partial 21、boundary 2。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 自建校验（参考行号签名 35/35、`[x]` 断言逐分支、`[x]` 锚点名字 12/12）在位 | 35 行 0 verdict 问题，1 锚点补齐 |
+| 账本写入 | 本分片只改 Rust 注释与文档账本再生，不涉及 verdict 变更 | `[x]` 1587 不变、partial 2227 不变、boundary 637 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；缺锚点告警 176→175；Rust 测试 3293 不变 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1664→1665、已记录 1613→1614、unrecorded 0、stale 0、unknown 51 不变 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | fmt 通过、clippy exit 0、architecture 通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1911/1911 passed，exit 0 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compat/generated/ai-context/zero-go 均 exit 0；quick exit 0（nextest 1941/1941、pineworker 98/98） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected），与本分片无关 |
+
+后续：engine 第五片完成；队列进入 engine 第六片（账本 1252 起约 35 行），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。
