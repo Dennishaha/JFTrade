@@ -2561,3 +2561,30 @@ owner：末段覆盖产品/执行适配器、运行时生命周期、工具目�
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected），与本分片无关 |
 
 后续：assembly 收官；队列进入 `internal/assistant/engine` 626 行（需再分片），随后 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片十：`internal/assistant/engine` 首片 35 行（1 条过宽纠正）
+
+范围（账本 inventory 1077-1111，按文件与行号升序）：`adk22regression/native_runtime_test.go:24/:86/:155`、`adk_edges_test.go:25/:61/:105/:153/:203/:209/:237/:294/:351/:416/:532/:684`、`adk_runner_edges_test.go:14/:142/:234/:352`、`adk_schema_test.go:8/:42`、`adk_skill_edges_test.go:13`、`adk_store_edges_test.go:11/:82/:148/:193/:272/:303/:404/:437`、`adk_tool_edges_test.go:21/:77/:131/:165/:177`（35 行中 [x]13/partial22，复核后 [x]12/partial23）。
+
+owner：engine 运行时装配由 engine composition root 承接，存储契约由 `crates/jftrade-store-sqlite` 承接，MCP/工具目录由 MCP 生产执行器承接，任务图局部语义由 `crates/jftrade-assistant` 承接。
+
+复核方法：35/35 参考行号签名一致（每行落点与其 `func Test...` 名相符）；13 条 `[x]` 逐条核对 Go 断言与 Rust 用例对应关系；12 条锚点在位（含省略修订前缀形态放行），1 条 `[x]` 行全仓无任何形态锚点（`adk_runner_edges_test.go:142`）触发深入复核。
+
+结论：1 处 verdict 纠正——`adk_runner_edges_test.go:142 TestRunnerChatAndStoreAdditionalBoundaryBranches` 由 `[x]` 改为 partial。原因：原结论只覆盖 runSem 闸门与消息分支，而该 Go 测试另含 nil 接收者、非法 work mode、缺失 agent、CompleteChatRun 三态、DeleteSession 空 id、审批去重与批准后拒绝序列等分支，单条 Rust 用例（`run_gate_is_shared_across_runtime_facades`，且从未补过锚点）不能逐分支等价。已在结论中写明已覆盖分支的最近 Rust 证据、缺口分支与回归要求（engine 补 CompleteChatRun 三态表驱动用例、store-sqlite 补 confirmation 去重与批准后拒绝序列用例）。另 1 处结论收紧（verdict 不变）：`adk_edges_test.go:684` 保持 `[x]`，但结论明确其范围只到引擎/端口 fail-closed，wire 状态码差异（参考 502 对 Rust 404）仍由分片二 P1 缺口跟踪，本行不覆盖 wire。
+
+映射终值（35 行）：`[x]` 12、partial 23、boundary 0。本分片无 Rust 生产/测试代码改动，无新增锚点，无探针。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 自建校验（参考行号签名 35/35、`[x]` 断言对应、`[x]` 锚点在位 12/12 + 1 行纠正） | 35 行 1 纠正 0 遗留过宽 |
+| 账本写入 | `/tmp/s10_payload.json` 经 `/tmp/b82_apply.py` 应用 | `[x]` 1592（1593→1592）、partial 2221→2222、boundary 637 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；缺锚点告警 183→182；Rust 测试 3293 不变 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1658 不变、已记录 1607、unrecorded 0、stale 0、unknown 51 不变 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | 全过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（engine 整轮） | 首轮 1910/1911（`api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal` 抖动，隔离复跑 2/2 通过）→ 次轮 1911/1911 通过 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | 全过：compat exit 0、generated 未改动工作树、ai-context 6 模块 8 指令文件、zero-go 2953 files、quick exit 0（nextest 1941/1941、pineworker 98/98） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected，advisories FAILED 其余 ok），与本分片无关 |
+
+后续：engine 首片完成；队列进入 engine 第二片（账本 1112 起约 35 行：`adk_tool_edges` 余量与后续文件），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。
