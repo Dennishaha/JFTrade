@@ -4,7 +4,7 @@ use serde::Serialize;
 use thiserror::Error;
 
 use super::lower::{LoweredProgram, LoweredStatement};
-use super::parser::{Expr, ExprKind};
+use super::parser::{Expr, ExprKind, UnaryOp};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -316,6 +316,7 @@ pub fn plan_requirements(program: &LoweredProgram) -> Result<Requirements, Plann
     let mut context = PlannerContext {
         indicators: BTreeMap::new(),
         result: Requirements::default(),
+        aliases: BTreeMap::new(),
     };
     for hook in &program.hooks {
         for statement in &hook.statements {
@@ -329,9 +330,33 @@ pub fn plan_requirements(program: &LoweredProgram) -> Result<Requirements, Plann
 struct PlannerContext {
     indicators: BTreeMap<String, IndicatorRequirement>,
     result: Requirements,
+    /// Source aliases assigned by an earlier statement, keyed by their
+    /// lower-case name. Go resolves them before it reads an indicator source
+    /// (`resolveSourceAliases`), so `src = hl2` turns `ta.sma(src, 5)` into
+    /// `ma:SMA:5:hl2`. An assignment that is not a plain OHLCV source keeps an
+    /// empty value, which means "known local, value unknown".
+    aliases: BTreeMap<String, String>,
 }
 
 impl PlannerContext {
+    /// Resolves the source an assignment stands for: a plain OHLCV source
+    /// keeps its text, an alias of one follows the chain, and anything else
+    /// records an empty value so a later source argument that names it is kept
+    /// verbatim instead of being rejected.
+    fn resolve_alias(&self, expression: &Expr) -> String {
+        let text = planner_expression_text(expression);
+        let trimmed = text.trim();
+        if price_source(trimmed).is_some() {
+            return price_source(trimmed).unwrap_or_default();
+        }
+        if let ExprKind::Identifier { name } = &expression.kind
+            && let Some(resolved) = self.aliases.get(&name.to_ascii_lowercase())
+        {
+            return resolved.clone();
+        }
+        String::new()
+    }
+
     fn visit_statement(&mut self, statement: &LoweredStatement) -> Result<(), PlannerError> {
         match statement {
             LoweredStatement::Let {
@@ -339,11 +364,18 @@ impl PlannerContext {
             } => {
                 self.visit_expr(expression)?;
                 if let ExprKind::Call { callee, arguments } = &expression.kind
-                    && let Some(requirement) =
-                        requirement_for_call(callee, arguments, name, expression.range.start_line)?
+                    && let Some(requirement) = requirement_for_call(
+                        callee,
+                        arguments,
+                        name,
+                        expression.range.start_line,
+                        &self.aliases,
+                    )?
                 {
                     self.indicators.insert(requirement.key.clone(), requirement);
                 }
+                let resolved = self.resolve_alias(expression);
+                self.aliases.insert(name.to_ascii_lowercase(), resolved);
             }
             LoweredStatement::Tuple {
                 expression, names, ..
@@ -355,9 +387,14 @@ impl PlannerContext {
                         arguments,
                         names.first().map(String::as_str).unwrap_or_default(),
                         expression.range.start_line,
+                        &self.aliases,
                     )?
                 {
                     self.indicators.insert(requirement.key.clone(), requirement);
+                }
+                for name in names {
+                    self.aliases
+                        .insert(name.to_ascii_lowercase(), String::new());
                 }
             }
             LoweredStatement::Action {
@@ -420,7 +457,7 @@ impl PlannerContext {
             }
             _ => {}
         }
-        if let Some(requirement) = requirement_for_call(call, arguments, "", line)? {
+        if let Some(requirement) = requirement_for_call(call, arguments, "", line, &self.aliases)? {
             self.indicators.insert(requirement.key.clone(), requirement);
         }
         Ok(())
@@ -489,9 +526,13 @@ impl PlannerContext {
                 if expr_contains_equity(expression) {
                     self.result.requires_total_account_value = true;
                 }
-                if let Some(requirement) =
-                    requirement_for_call(callee, arguments, "", expression.range.start_line)?
-                {
+                if let Some(requirement) = requirement_for_call(
+                    callee,
+                    arguments,
+                    "",
+                    expression.range.start_line,
+                    &self.aliases,
+                )? {
                     self.indicators.insert(requirement.key.clone(), requirement);
                 }
             }
@@ -510,6 +551,7 @@ fn requirement_for_call(
     arguments: &[Expr],
     alias: &str,
     line: usize,
+    aliases: &BTreeMap<String, String>,
 ) -> Result<Option<IndicatorRequirement>, PlannerError> {
     let lower = callee.to_ascii_lowercase();
     if lower == "ta.crossover" || lower == "ta.crossunder" || lower == "ta.cross" {
@@ -525,7 +567,8 @@ fn requirement_for_call(
     let kind;
     match lower.as_str() {
         "ta.ema" | "ta.sma" | "ta.rma" | "ta.wma" | "ta.hma" | "ta.vwma" => {
-            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let source = ensure_price_source(line, callee, &requested, aliases)?;
             let length = argument_text(arguments.get(1))
                 .ok_or_else(|| invalid(line, format!("{callee} requires a length")))?;
             ensure_positive_period(line, callee, &length)?;
@@ -550,7 +593,13 @@ fn requirement_for_call(
             } else {
                 ("hlc3", "20")
             };
-            let (source, length) = source_length_arguments(arguments, defaults);
+            let requested = source_length_arguments(arguments, defaults);
+            let source = if arguments.len() >= 2 {
+                ensure_price_source(line, callee, &requested.0, aliases)?
+            } else {
+                requested.0
+            };
+            let length = requested.1;
             ensure_positive_period(line, callee, &length)?;
             kind = lower.strip_prefix("ta.").unwrap_or_default();
             key_parts.extend([source.clone(), length]);
@@ -567,7 +616,12 @@ fn requirement_for_call(
         }
         "ta.stdev" => {
             kind = "stdev";
-            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let source = if arguments.len() >= 2 {
+                ensure_price_source(line, callee, &requested, aliases)?
+            } else {
+                requested
+            };
             let length = argument_text(arguments.get(1))
                 .or_else(|| argument_text(arguments.first()))
                 .ok_or_else(|| invalid(line, format!("{callee} requires a length")))?;
@@ -587,6 +641,11 @@ fn requirement_for_call(
         }
         "ta.atr" | "ta.variance" | "ta.vwap" | "ta.mfi" => {
             kind = lower.strip_prefix("ta.").unwrap_or_default();
+            if matches!(kind, "vwap" | "mfi")
+                && let Some(source) = argument_text(arguments.first())
+            {
+                ensure_price_source(line, callee, &source, aliases)?;
+            }
             for argument in arguments {
                 key_parts
                     .push(argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()));
@@ -600,7 +659,13 @@ fn requirement_for_call(
             // planning: a lone argument is the source (except for
             // highest/lowest, where it is the period) and missing argument
             // lists fall back to the family defaults.
-            let (source, length) = window_arguments(kind, arguments);
+            let requested = window_arguments(kind, arguments);
+            let source = if arguments.len() >= 2 {
+                ensure_price_source(line, callee, &requested.0, aliases)?
+            } else {
+                requested.0
+            };
+            let length = requested.1;
             ensure_positive_period(line, callee, &length)?;
             key_parts.extend([source, length]);
         }
@@ -611,6 +676,8 @@ fn requirement_for_call(
         // `security_indicator_requirement`.
         "ta.linreg" => {
             kind = "linreg";
+            let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            ensure_price_source(line, callee, &requested, aliases)?;
             let mut parts = source_period_parts(callee, arguments, line, 2)?;
             let offset = argument_text(arguments.get(2))
                 .ok_or_else(|| invalid(line, "ta.linreg offset must be a non-negative integer"))?;
@@ -619,8 +686,8 @@ fn requirement_for_call(
         }
         "ta.obv" => {
             kind = "obv";
-            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
-            key_parts.push(source);
+            let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            key_parts.push(ensure_price_source(line, callee, &requested, aliases)?);
         }
         "ta.pivothigh" | "ta.pivotlow" => {
             kind = lower.strip_prefix("ta.").unwrap_or_default();
@@ -646,7 +713,8 @@ fn requirement_for_call(
         }
         "ta.kc" | "ta.kcw" => {
             kind = lower.strip_prefix("ta.").unwrap_or_default();
-            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let source = ensure_price_source(line, callee, &requested, aliases)?;
             let length = argument_text(arguments.get(1))
                 .ok_or_else(|| invalid(line, format!("{callee} length must be positive")))?;
             let multiplier = argument_text(arguments.get(2))
@@ -657,7 +725,8 @@ fn requirement_for_call(
         }
         "ta.alma" => {
             kind = "alma";
-            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let source = ensure_price_source(line, callee, &requested, aliases)?;
             let length = argument_text(arguments.get(1))
                 .ok_or_else(|| invalid(line, "ta.alma length must be positive"))?;
             let offset = argument_text(arguments.get(2))
@@ -668,11 +737,14 @@ fn requirement_for_call(
         }
         "ta.cmo" | "ta.dev" | "ta.median" | "ta.percentrank" => {
             kind = lower.strip_prefix("ta.").unwrap_or_default();
+            let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            ensure_price_source(line, callee, &requested, aliases)?;
             key_parts.extend(source_period_parts(callee, arguments, line, 2)?);
         }
         "ta.tsi" => {
             kind = "tsi";
-            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let source = ensure_price_source(line, callee, &requested, aliases)?;
             let short = argument_text(arguments.get(1))
                 .ok_or_else(|| invalid(line, "ta.tsi short length must be positive"))?;
             let long = argument_text(arguments.get(2))
@@ -681,16 +753,19 @@ fn requirement_for_call(
         }
         "ta.correlation" => {
             kind = "correlation";
-            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let source = ensure_price_source(line, callee, &requested, aliases)?;
             let second = argument_text(arguments.get(1))
                 .ok_or_else(|| invalid(line, "ta.correlation second source is required"))?;
+            let second = ensure_price_source(line, callee, &second, aliases)?;
             let length = argument_text(arguments.get(2))
                 .ok_or_else(|| invalid(line, "ta.correlation length must be positive"))?;
             key_parts.extend([source, second, length]);
         }
         "ta.percentile_linear_interpolation" | "ta.percentile_nearest_rank" => {
             kind = lower.strip_prefix("ta.").unwrap_or_default();
-            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let source = ensure_price_source(line, callee, &requested, aliases)?;
             let length = argument_text(arguments.get(1))
                 .ok_or_else(|| invalid(line, format!("{callee} length must be positive")))?;
             let percentage = argument_text(arguments.get(2)).ok_or_else(|| {
@@ -699,12 +774,18 @@ fn requirement_for_call(
                     format!("{callee} percentage must be between 0 and 100"),
                 )
             })?;
+            let percentage = percentile_percentage(line, callee, &percentage)?;
             key_parts.extend([source, length, percentage]);
         }
         // Go's `parseCumulativeBinding` keeps a single source (`cum:close`).
         "ta.cum" => {
             kind = "cum";
-            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let source = if arguments.is_empty() {
+                requested
+            } else {
+                ensure_price_source(line, callee, &requested, aliases)?
+            };
             key_parts.push(source);
         }
         // Go's `parseStochBinding` requires literal `high`/`low` arguments and
@@ -719,7 +800,12 @@ fn requirement_for_call(
                     ),
                 ));
             }
-            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let source = if arguments.is_empty() {
+                requested
+            } else {
+                stoch_price_source(line, &requested, aliases)?
+            };
             let high = argument_text(arguments.get(1)).unwrap_or_default();
             let low = argument_text(arguments.get(2)).unwrap_or_default();
             if !high.eq_ignore_ascii_case("high") || !low.eq_ignore_ascii_case("low") {
@@ -734,19 +820,19 @@ fn requirement_for_call(
             ensure_positive_period(line, callee, &length)?;
             key_parts.extend([source, length]);
             if let Some(unit) = argument_text(arguments.get(4)) {
-                let unit = indicator_time_unit(&unit).ok_or_else(|| {
+                let unit = dsl_time_unit(&unit).ok_or_else(|| {
                     invalid(
                         line,
                         format!("{callee} time unit {unit:?} is not supported"),
                     )
                 })?;
-                key_parts.push(unit.to_owned());
+                key_parts.push(unit);
             }
         }
         "ta.swma" => {
             kind = "swma";
-            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
-            key_parts.push(source);
+            let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            key_parts.push(ensure_price_source(line, callee, &requested, aliases)?);
         }
         "request.security" => {
             if arguments.len() < 3 {
@@ -817,11 +903,120 @@ fn indicator_time_unit(raw: &str) -> Option<String> {
         "D" => Some("day".to_owned()),
         "W" => Some("week".to_owned()),
         "M" => Some("month".to_owned()),
-        _ if clean.ends_with('m') && clean[..clean.len() - 1].parse::<u32>().is_ok() => {
-            Some(clean.to_ascii_lowercase())
+        _ => None,
+    }
+}
+
+/// Go reads a trailing time unit on a `ta.*` argument list through
+/// `indicatorbinding.ParseIndicatorTimeUnitValue`, which is wider than the
+/// static Pine timeframe whitelist: it accepts word forms, an `m` count
+/// suffix, and quoted inputs. `1m`/`60m` collapse onto the canonical
+/// `minute`/`hour` spellings the worker catalog uses.
+fn dsl_time_unit(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    let unquoted = trimmed
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+        .or_else(|| {
+            trimmed
+                .strip_prefix('\'')
+                .and_then(|rest| rest.strip_suffix('\''))
+        })
+        .unwrap_or(trimmed)
+        .trim();
+    match unquoted.to_ascii_lowercase().as_str() {
+        "" | "bar" | "bars" => Some(String::new()),
+        "m" | "min" | "mins" | "minute" | "minutes" => Some("minute".to_owned()),
+        "h" | "hr" | "hrs" | "hour" | "hours" => Some("hour".to_owned()),
+        "d" | "day" | "days" => Some("day".to_owned()),
+        "w" | "week" | "weeks" => Some("week".to_owned()),
+        "mo" | "mon" | "month" | "months" => Some("month".to_owned()),
+        _ => {
+            let lower = unquoted.to_ascii_lowercase();
+            let minutes = lower.strip_suffix('m')?.parse::<u32>().ok()?;
+            match minutes {
+                0 => None,
+                1 => Some("minute".to_owned()),
+                60 => Some("hour".to_owned()),
+                _ => Some(format!("{minutes}m")),
+            }
+        }
+    }
+}
+
+/// Go's `parsePercentileBinding` accepts a percentage between 0 and 100 and
+/// renders it canonically before it builds the key (`50.0` becomes `50`).
+fn percentile_percentage(line: usize, callee: &str, raw: &str) -> Result<String, PlannerError> {
+    raw.trim()
+        .parse::<f64>()
+        .ok()
+        .filter(|value| (0.0..=100.0).contains(value))
+        .map(|value| value.to_string())
+        .ok_or_else(|| {
+            invalid(
+                line,
+                format!("{callee} percentage must be between 0 and 100"),
+            )
+        })
+}
+
+/// Go's `indicatorbinding.ParsePriceSource` whitelist; every source-bearing
+/// indicator rejects anything outside it.
+fn price_source(raw: &str) -> Option<String> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "open" | "high" | "low" | "close" | "volume" | "hl2" | "hlc3" | "ohlc4" => {
+            Some(raw.trim().to_ascii_lowercase())
         }
         _ => None,
     }
+}
+
+/// Validates an indicator source against the Go whitelist. A name assigned by
+/// an earlier statement is kept verbatim: Go expands such aliases before it
+/// reads the source, so Rust cannot prove the value is invalid.
+fn ensure_price_source(
+    line: usize,
+    callee: &str,
+    raw: &str,
+    aliases: &BTreeMap<String, String>,
+) -> Result<String, PlannerError> {
+    if let Some(source) = price_source(raw) {
+        return Ok(source);
+    }
+    if let Some(resolved) = aliases.get(&raw.trim().to_ascii_lowercase()) {
+        return Ok(if resolved.is_empty() {
+            raw.trim().to_owned()
+        } else {
+            resolved.clone()
+        });
+    }
+    Err(invalid(
+        line,
+        format!(
+            "{callee} source {:?} is not supported; use open/high/low/close/volume/hl2/hlc3/ohlc4",
+            raw.trim()
+        ),
+    ))
+}
+
+/// `pkg/strategy/ir::planner_helpers.go::parseStochSource` drops `volume`
+/// from the shared whitelist even though the message still lists it.
+fn stoch_price_source(
+    line: usize,
+    raw: &str,
+    aliases: &BTreeMap<String, String>,
+) -> Result<String, PlannerError> {
+    let source = ensure_price_source(line, "ta.stoch", raw, aliases)?;
+    if source.eq_ignore_ascii_case("volume") {
+        return Err(invalid(
+            line,
+            format!(
+                "ta.stoch source {:?} is not supported; use open/high/low/close/hl2/hlc3/ohlc4",
+                raw.trim()
+            ),
+        ));
+    }
+    Ok(source)
 }
 
 /// Projects the supported `ta.<indicator>(...)` expression inside
@@ -968,7 +1163,31 @@ fn source_period_parts(
 }
 
 fn argument_text(expression: Option<&Expr>) -> Option<String> {
-    expression.map(ToString::to_string)
+    expression.map(planner_expression_text)
+}
+
+/// Go reads indicator arguments from the binding string, so a signed literal
+/// keeps its sign. The Rust parser represents `-3` as a negated number, whose
+/// default display form is `Negate3`; rendering the sign keeps requirement
+/// keys and planner messages identical to the Go binding text.
+fn planner_expression_text(expression: &Expr) -> String {
+    match &expression.kind {
+        ExprKind::Unary {
+            op: UnaryOp::Negate,
+            expression: inner,
+        } => match &inner.kind {
+            ExprKind::Number { value } => format!("-{value}"),
+            _ => expression.to_string(),
+        },
+        ExprKind::Unary {
+            op: UnaryOp::Positive,
+            expression: inner,
+        } => match &inner.kind {
+            ExprKind::Number { value } => value.clone(),
+            _ => expression.to_string(),
+        },
+        _ => expression.to_string(),
+    }
 }
 
 /// Go rejects a non-positive literal period while planning (`ma() period must
@@ -976,15 +1195,18 @@ fn argument_text(expression: Option<&Expr>) -> Option<String> {
 /// identifiers untouched and only rejects literal values it can prove are not
 /// positive integers.
 fn ensure_positive_period(line: usize, callee: &str, period: &str) -> Result<(), PlannerError> {
-    if let Ok(value) = period.trim().parse::<f64>()
-        && value <= 0.0
-    {
-        return Err(invalid(
-            line,
-            format!("{callee} period must be a positive integer"),
-        ));
+    let trimmed = period.trim();
+    let positive_integer = trimmed
+        .parse::<i64>()
+        .map(|value| value > 0)
+        .unwrap_or_else(|_| trimmed.parse::<f64>().is_err());
+    if positive_integer {
+        return Ok(());
     }
-    Ok(())
+    Err(invalid(
+        line,
+        format!("{callee} period must be a positive integer"),
+    ))
 }
 
 /// Mirror `pkg/strategy/pine/lower_ta.go::pineSourceLengthArgs`: a single
@@ -1110,13 +1332,20 @@ mod tests {
         assert_eq!(indicator_time_unit("d"), Some("day".to_owned()));
         assert_eq!(indicator_time_unit("W"), Some("week".to_owned()));
         assert_eq!(indicator_time_unit("M"), Some("month".to_owned()));
-        assert_eq!(indicator_time_unit(" 15m "), Some("15m".to_owned()));
         assert_eq!(indicator_time_unit("\"15\""), Some("15m".to_owned()));
-        assert_eq!(indicator_time_unit("60m"), Some("60m".to_owned()));
-        assert_eq!(indicator_time_unit("001m"), Some("001m".to_owned()));
+        // Go's `pineTimeframeUnit` only accepts the documented timeframe
+        // strings, so the `"<n>m"` aliases are rejected before planning.
+        assert_eq!(indicator_time_unit(" 15m "), None);
+        assert_eq!(indicator_time_unit("60m"), None);
+        assert_eq!(indicator_time_unit("001m"), None);
+        assert_eq!(indicator_time_unit("0m"), None);
+        assert_eq!(indicator_time_unit("1m"), None);
         assert_eq!(indicator_time_unit(""), None);
         assert_eq!(indicator_time_unit("badm"), None);
         assert_eq!(indicator_time_unit("1D"), None);
+        assert_eq!(indicator_time_unit("hour"), None);
+        assert_eq!(indicator_time_unit("minute"), None);
+        assert_eq!(indicator_time_unit("month"), None);
         assert_eq!(indicator_time_unit("year"), None);
     }
 

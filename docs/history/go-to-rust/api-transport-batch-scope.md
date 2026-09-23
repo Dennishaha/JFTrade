@@ -1824,3 +1824,55 @@ owner：`crates/jftrade-strategy`（Pine 词法、解析、语义与 planner）�
 | 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1895/1895 通过（首轮即绿） |
 
 后续：分片十四进入 `pkg/strategy/pine` 剩余族（`parse_request_test.go`、`parse_semantic_test.go`、`parse_object_test.go` 等）并越过 `pkg/strategy/pineengine`、`pineworker`、`pinespec`，随后按序推进 assistant_workflow 560 → other 503 → api_transport 439 等域，直至 4451 行清单全部给出终值。
+
+### 分片十四：`pkg/strategy/indicatorbinding` 二次核对与回填（27 行）
+
+范围：`parse_test.go` 22 行与 `parse_semantics_test.go` 5 行（键清单与分片五一致：`:8`/`:20`/`:46`/`:114`/`:155` 与 `:10`/`:93`/`:152`/`:176`/`:212`/`:235`/`:283`/`:304`/`:347`/`:384`/`:395`/`:425`/`:433`/`:467`/`:475`/`:501`/`:509`/`:542`/`:574`/`:609`/`:666`/`:720`）。
+owner：`crates/jftrade-strategy`（planner 与 Pine 校验）、`crates/jftrade-engine`（预览对齐夹具）。
+
+队列说明：该族在分片五已给出 27 行终值（17 partial + 10 boundary）。本分片按本批队列回到同族做二次核对，只闭合“分片五登记、当时未修”的缺口，并把新证据回填到对应行；其余 20 行保持分片五终值不变。
+
+修复（5 处功能差异，均先红后绿，统一落在 `crates/jftrade-strategy/src/pine/planner.rs`）：
+
+1. **非正整数周期被放行（对应 `parse_test.go:509`）**：`ta.sma(close, -3)` 产键 `ma:SMA:Negate3`（负号被渲染成 `Negate`），`ta.sma(close, 2.5)` 直接通过；参考实现的 `ParsePositiveInt` 拒绝 0、负数与非整数。修复：`ensure_positive_period` 由“仅拒非正数”收紧为“正整数或非字面量实参”，并新增 `planner_expression_text` 让带符号字面量按绑定文本渲染（`-3`）。
+2. **两张时间单位表被混用（对应 `parse_semantics_test.go:20`、`parse_test.go:235`/`:283`）**：`request.security(syminfo.tickerid, "15m", ...)` 原先被接受，而参考实现的 `pineTimeframeUnit` 只认 1/5/15/30/45/120/240/D/W/M。修复：`indicator_time_unit` 删除 m 后缀分支，静态周期改由参考实现同款白名单裁决；新增 `dsl_time_unit` 复刻 `ParseIndicatorTimeUnitValue` 供 `ta.stoch` 末尾单位使用（`"60m"`→hour、`"001m"`→minute、`"15m"`→15m、`"0m"`/`"15"`/`"1D"`/`"badm"` 拒绝、bar/bars 归空单位、大小写不敏感）。
+3. **价格源白名单缺失（对应 `parse_semantics_test.go:114`）**：`ta.rsi(typical, 14)`、`ta.kc(typical, 20, 2)` 等原先静默接受，参考实现的 `ParsePriceSource` 报源码不支持。修复：新增 `ensure_price_source`（open/high/low/close/volume/hl2/hlc3/ohlc4）并在 ma 族、rsi/cci、stdev、cum、window 族、vwap、mfi、obv、linreg、cog/cmo/dev/median/percentrank、kc/kcw、alma、tsi、correlation 与百分位族逐点校验；`ta.stoch` 按 `pkg/strategy/ir::parseStochSource` 额外排除 volume。
+4. **源别名未展开（对应 `parse_semantics_test.go:114`）**：`src = hl2` 后 `ta.sma(src, 5)` 原先产键 `ma:SMA:5:src`；参考实现的 `resolveSourceAliases` 会先展开 OHLCV 别名。修复：planner 记录简单赋值别名（支持 `base = close` 这类链式），建键时使用展开后的源；无法解析的局部变量保持原样，避免把参考实现接受的脚本误判为非法。
+5. **百分位百分比无校验（对应 `parse_test.go:542`/`:574`）**：`ta.percentile_linear_interpolation(close, 10, 101)` 原先通过、`50.0` 原样进键；参考实现的 `parsePercentileBinding` 要求 0–100 并把 `50.0` 规范化为 `50`。修复：新增 `percentile_percentage`（解析 f64 + 范围校验 + 规范化文本）。
+
+引擎夹具修正（对齐后才成立的契约）：`crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::test_strategy_preview_mtf_alignment_and_lower_timeframe_rejection` 原先用 `"1m"`/`"7m"`/`"15m"` 三个参考实现拒绝的静态周期构造低周期、未对齐、已对齐三例。改为白名单内且保留原意的 `"5"`（15m 图，低周期）、`"120"`（45m 图，未对齐）、`"15"`（5m 图，已对齐且预热 60 根），并新增第 4 段断言 `"7m"` 仍报 only static timeframe strings。
+
+新增证据：`crates/jftrade-strategy/tests/pine_indicator_binding_parity.rs`（7 条用例，逐条带 `// Parity: go:452dea11:...` 锚点）——
+`indicator_periods_require_positive_integer_literals`、`indicator_sources_follow_the_shared_ohlcv_whitelist`、
+`indicator_sources_resolve_local_ohlcv_aliases`、`trailing_indicator_time_units_follow_the_dsl_parser`、
+`trailing_indicator_time_units_accept_word_and_bar_forms`、`security_timeframes_use_the_static_pine_whitelist`、
+`percentile_percentage_is_bounded_and_canonicalized`。
+
+映射终值（27 行）：仍为 17 partial + 10 boundary。本分片不做状态升级——这些参考行测的是 Rust 已退役的指标绑定 DSL 助手，等价行为由 planner 分支承担；其中 7 行（`:20`、`:114`、`:235`、`:283`、`:509`、`:542`、`:574`）的结论与证据已刷新，其余 20 行保持分片五终值。
+
+剩余缺口：
+
+1. **数组形态 MTF 均线未展开（P2）**：`[a, b] = request.security(syminfo.tickerid, "15", [close, ta.ema(close, 5)])` 在 Rust 仍退化为不透明 security 键（分片五修复只覆盖单调用形态）。
+2. **均线类型表差异（P1）**：Rust 只识别 `ta.sma`/`ema`/`rma`/`wma`/`hma`/`vwma`，没有 MA/BOLL/TMA/EXPMA，也没有“未知类型→MA”归一。
+3. **`request.security` 表达式 TA 白名单（P1，分片十三登记）**：表达式里的 `ta.sum` 等白名单外调用仍被放行。
+4. **时间单位别名与 `%` 后缀（P2）**：`hr`/`hrs`/`mins`/`mon` 等 DSL 别名、`ParsePercentage` 的 `%` 后缀与 `quantityPct` 的 0–100 边界未逐项断言。
+5. **非法 source 的处置路径（已记录，不视为缺陷）**：参考实现在建键助手处静默丢弃非法源、在 planner 采集处抛错，Rust 统一取抛错路径。
+6. **DSL 助手族整体退役（boundary）**：函数调用解析、参数切分、函数名归一、参数元数契约、整数转字符串、保护窗口策略与四张归一缺省表在 Rust 无同形对象；升级路径仍为“若将来兼容导入该 DSL，按原表逐条移植并复刻拒绝形态”。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 修复前先红 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast --test pine_indicator_binding_parity`（工作树换回提交版本 planner） | 7/7 失败（104 条 97 通过 / 7 失败），失败点含 `ma:SMA:5:src`、`stoch:close:14:month`、`percentile_nearest_rank:hl2:10:50.0` 等 |
+| 新增用例 | 同一命令（修复版 planner） | 7/7 通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast` | 104/104 通过 |
+| 生产文件摘要 | `shasum -a 256 crates/jftrade-strategy/src/pine/planner.rs` | `b14edae2483c921b6cf008a7835fd4a8b635ee01c0affe2f75c96a77f2fe2d77`（先红探针前后一致） |
+| 映射写入 | 7 行 payload `/tmp/s128s14_payload.json` 经 `/tmp/b82_apply.py` 应用 | 7 行结论与证据刷新，`[x]` 1578 不变、partial 2235、boundary 638（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3272 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1609、unrecorded 0、stale 0、unknown 53 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 首轮 1894/1895（预览对齐用例用参考实现不接受的 `"1m"` 夹具失败），修正夹具后复跑 1895/1895 通过 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2952 files）、`pnpm run check:quick` | 见下方记录 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 失败 |
+
+后续：分片十五进入 `pkg/strategy/pineengine` 16 行与 `pkg/strategy/pinespec` 10 行（worker 客户端、payload/shadow、资产发现与规范章节/示例族）；随后按序推进 `pkg/strategy/pineworker`、`internal/strategy/pineruntime`/`service`/`runtimecontrol` 等子域，直至 strategy_pine 域清空，再进入 assistant_workflow 560 → other 503 → api_transport 439 → backtest_calendar 307 → storage_sqlite 196 → marketdata_quotes 161 → futu_opend 142 → trading_broker 56 → settings_watchlist 39。

@@ -489,37 +489,50 @@ fast = ta.sma(close, 10)"#;
 
 #[test]
 fn test_strategy_preview_mtf_alignment_and_lower_timeframe_rejection() {
-    // 1. Lower timeframe: "1m" target on "5m" chart -> rejected
+    // 1. Lower timeframe: 5m target on a 15m chart -> rejected
     let script_lower = r#"//@version=6
 strategy("MTF Lower", overlay=true)
-lower = request.security(syminfo.tickerid, "1m", ta.sma(close, 20))"#;
+lower = request.security(syminfo.tickerid, "5", ta.sma(close, 20))"#;
     let comp_lower = jftrade_strategy::pine::compile(script_lower);
     assert!(comp_lower.ok);
-    let lower_err = comp_lower.requirements.validate_timeframe_alignments("US.AAPL", "5m", false);
+    let lower_err = comp_lower.requirements.validate_timeframe_alignments("US.AAPL", "15m", false);
     assert!(lower_err.is_err());
     let err_msg = lower_err.unwrap_err();
-    assert!(err_msg.contains("lower than strategy interval 5m"));
+    assert!(err_msg.contains("lower than strategy interval 15m"));
 
-    // 2. Unaligned intraday: "7m" target on "5m" chart -> rejected
+    // 2. Unaligned intraday: 120m target on a 45m chart -> rejected
     let script_unaligned = r#"//@version=6
 strategy("MTF Unaligned", overlay=true)
-unaligned = request.security(syminfo.tickerid, "7m", ta.sma(close, 20))"#;
+unaligned = request.security(syminfo.tickerid, "120", ta.sma(close, 20))"#;
     let comp_unaligned = jftrade_strategy::pine::compile(script_unaligned);
     assert!(comp_unaligned.ok);
-    let unaligned_err = comp_unaligned.requirements.validate_timeframe_alignments("US.AAPL", "5m", false);
+    let unaligned_err = comp_unaligned.requirements.validate_timeframe_alignments("US.AAPL", "45m", false);
     assert!(unaligned_err.is_err());
     let unaligned_msg = unaligned_err.unwrap_err();
-    assert!(unaligned_msg.contains("not aligned with strategy interval 5m"));
+    assert!(unaligned_msg.contains("not aligned with strategy interval 45m"));
 
-    // 3. Aligned higher timeframe: "15m" target on "5m" chart alone
+    // 3. Aligned higher timeframe: 15m target on a 5m chart
     let script_valid = r#"//@version=6
 strategy("MTF Valid", overlay=true)
-higher = request.security(syminfo.tickerid, "15m", ta.sma(close, 20))"#;
+higher = request.security(syminfo.tickerid, "15", ta.sma(close, 20))"#;
     let comp_valid = jftrade_strategy::pine::compile(script_valid);
     assert!(comp_valid.ok);
     let valid_err = comp_valid.requirements.validate_timeframe_alignments("US.AAPL", "5m", false);
     assert!(valid_err.is_ok());
     assert_eq!(comp_valid.requirements.derived_warmup_bars_with_session("US.AAPL", "5m", false), 60);
+
+    // 4. Static timeframes outside the shared whitelist ("1m"/"7m") stay rejected
+    let script_whitelist = r#"//@version=6
+strategy("MTF Whitelist", overlay=true)
+rejected = request.security(syminfo.tickerid, "7m", ta.sma(close, 20))"#;
+    let comp_whitelist = jftrade_strategy::pine::compile(script_whitelist);
+    assert!(!comp_whitelist.ok);
+    assert!(
+        comp_whitelist
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("only static timeframe strings"))
+    );
 }
 
 #[test]
