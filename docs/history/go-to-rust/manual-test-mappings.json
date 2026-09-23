@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T20:16:43Z",
+  "generatedAt": "2026-09-23T20:20:36Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -271090,9 +271090,9 @@
     },
     "pkg/strategy/pine/public_lowering_test.go:64:TestPineMovingAverageTypeCoversNativeAliases": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::indicator_properties_stay_within_go_compatibility_bounds",
+      "rust_entry": "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds",
       "conclusion": "boundary（结构差异）：Go 断言 pineMovingAverageType 别名表（ema/SMA/rma 到 SMMA、wma 到 LWMA、HMA、vwma，kama 拒绝）。Rust 没有等价本地别名表（SMMA/LWMA/VWMA 不在 Rust 指标集内，别名与周期解析在 worker 与需求键层），指标属性用例只约束属性保持在 Go 兼容边界内。升级路径：若 Rust 新增 MA 别名归一化，再迁移该表。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
         "file": "pkg/strategy/pine/public_lowering_test.go",
@@ -271102,9 +271102,9 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs",
+          "file": "crates/jftrade-backtest/src/indicators.rs",
           "test": "indicator_properties_stay_within_go_compatibility_bounds",
-          "crate": "jftrade-strategy",
+          "crate": "jftrade-backtest",
           "anchor": null
         }
       ],
@@ -271121,7 +271121,7 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-strategy",
+          "jftrade-backtest",
           "--all-targets",
           "--locked"
         ],
@@ -289998,7 +289998,7 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds": {
-      "referenceCount": 9,
+      "referenceCount": 10,
       "referenceKeys": [
         "pkg/bbgo/datatype/floats/slice_test.go:47:TestSub",
         "pkg/bbgo/datatype/floats/slice_test.go:56:TestTruncate",
@@ -290008,7 +290008,8 @@
         "pkg/bbgo/types/indicator_test.go:152:TestAdd",
         "pkg/bbgo/types/indicator_test.go:160:TestDiv",
         "pkg/bbgo/types/indicator_test.go:169:TestMul",
-        "pkg/strategy/indicatorwarmup/spec_parse_invalid_test.go:137:TestMovingAverageAndRiskKeyParsingBoundaries"
+        "pkg/strategy/indicatorwarmup/spec_parse_invalid_test.go:137:TestMovingAverageAndRiskKeyParsingBoundaries",
+        "pkg/strategy/pine/public_lowering_test.go:64:TestPineMovingAverageTypeCoversNativeAliases"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -309649,14 +309650,6 @@
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
-    },
-    "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::indicator_properties_stay_within_go_compatibility_bounds": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "pkg/strategy/pine/public_lowering_test.go:64:TestPineMovingAverageTypeCoversNativeAliases"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
     },
     "crates/jftrade-strategy/tests/pine_planner_requirement_keys.rs::legacy_and_explicit_sources_keep_the_planned_keys": {
       "referenceCount": 5,

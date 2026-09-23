@@ -4261,3 +4261,33 @@ owner：Pine 解析语义由 jftrade-strategy 承接，无双写。
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 4154 起；尾部余 298 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
+
+### 第 129 批分片七十一：rows 4154-4188 Pine 解析恢复与请求 35 行（1 处引用纠正，无 verdict 变更）
+
+范围（账本 rows 4154-4188，按写入顺序）：strategy pine parse:763/:790/:838/:903/:977/:1014/:1029/:1044、parser_and_lowering_recovery:8/:19/:43/:119/:162/:206/:235、parser_helper_boundaries:11/:66/:110/:196、parser_loop_boundaries:10/:38/:63、parser_recovery_boundaries:12/:104/:151、public_lowering:10/:38/:64/:84/:130、request_security_ast_contracts:5/:26、request_security_diagnostics:8/:52、request_security_object_contracts:11。初值 [x] 5、partial 25、boundary 5，终值不变。首键自检通过，无重叠。
+
+owner：Pine 解析恢复与请求安全由 jftrade-strategy 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（24 个去重后引用逐个核对 #[test] 与嵌套模块归属），5 条 [x] 逐条核对锚点归属与断言等价（全部 function_exact 且带锚点），partial 与 boundary 抽查缺口诚实度。结论：1 处引用纠正，0 升级、0 降级。
+
+纠正：public_lowering:64 引用的指标属性用例实际位于 jftrade-backtest/src/indicators.rs（带 #[test]），而非 pine_planner_requirement_keys.rs；经 v2 写入器纠正文件路径与执行命令的 crate；verdict 保持 boundary（别名表本身无同形实现）。
+
+跨片观察（不改本片外行，登记待后续扫尾）：同一错误引用（pine_planner_requirement_keys.rs::indicator_properties…）还出现在约 8 行已提交分片的 partial 行（bbgo floats/slice、types indicator、spec_parse_invalid:137），结论缺口描述成立，仅引用文件需同式纠正，待收尾时统一处理。
+
+抽查证据：[x] 结论均为逐脚本/逐诊断码写法（含修复与升级记录）；partial 缺口诚实（含残差行归属语义）；dup-x 为 0。
+
+新增证据：无 Rust 改动；账本 1 行纠正；无新增锚点。
+
+映射终值（35 行）：[x] 5、partial 25、boundary 5。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（24 去重引用）加 [x] 断言等价核对 | 1 引用纠正；0 升级、0 降级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2 写入器 1 行 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；inventory 随纠正行更新，report 刷新基线；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 4189 起；尾部余 263 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
