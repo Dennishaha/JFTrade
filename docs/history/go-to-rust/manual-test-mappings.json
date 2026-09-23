@@ -7889,11 +7889,11 @@
     "evidence_type": "partial"
   },
   "internal/assistant/engine/exec_bounds_test.go:57:TestGoogleADKExecutionToolCallReuseAndCompletionBoundaries": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_failed_tool_result_is_persisted_on_the_call_not_the_run; crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::staging_a_tool_round_freezes_the_pre_tool_assistant_text",
-    "conclusion": "function_exact：Go 断言工具调用按 functionID 复用（不重复建调用）、缺失调用 ID 的 finishCall 不改变状态、成功完成写入摘要、超时完成标记 TIMED_OUT 且带错误、pre-tool 文本被冻结。Rust 的 a_failed_tool_result_is_persisted_on_the_call_not_the_run（失败落在调用而非运行）与 staging_a_tool_round_freezes_the_pre_tool_assistant_text（冻结 pre-tool 文本）逐条覆盖同一调用复用/完成契约。",
+    "conclusion": "partial（第 129 批分片十二由 [x] 纠正：原逐条覆盖不成立）。Go 覆盖调用创建、按 functionID 复用（不重复建调用）、pre-tool 缓冲冻结、缺失调用 finishCall 不改状态、成功完成写摘要、超时完成标 TIMED_OUT 且带错误。Rust 两条引用用例只覆盖其中两半：失败结果落在调用而非运行、pre-tool 文本冻结；调用复用去重、缺失完成 no-op、成功摘要写入、TIMED_OUT 错误分类无同形断言。nil 接收者分支在 Rust 无对应面（结构边界）。回归要求：在 jftrade-engine 为调用复用去重/缺失完成 no-op/成功摘要/TIMED_OUT 补表驱动端口或投影用例。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "function_exact"
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/exec_bounds_test.go:93:TestGoogleADKExecutionRunAndEventErrorBoundaries": {
     "status": "[~]",
@@ -7959,18 +7959,18 @@
     "evidence_type": "partial"
   },
   "internal/assistant/engine/execution_claim_failure_boundaries_test.go:39:TestExecutionClaimValidationAndReleaseLifecycle": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::run_lease_expiry_fencing_and_stale_release_are_rejected; crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::same_owner_heartbeat_renews_without_advancing_fence",
-    "conclusion": "function_exact：Go 断言非正 TTL 被拒（错误含 TTL）、空 run id 拒绝、空 lease 释放为 no-op、缺失 lease 读取为（空,false）、零时间领取自动补时间戳、心跳校验 TTL 且续租后 ExpiresAt>HeartbeatAt，最后释放当前 lease。Rust 的 run_lease_expiry_fencing_and_stale_release_are_rejected（过期/围栏/陈旧释放被拒）与 same_owner_heartbeat_renews_without_advancing_fence（同 owner 心跳续租）配合 claims 的 TTL>0 校验，逐条覆盖同一生命周期边界。",
+    "conclusion": "partial（第 129 批分片十二由 [x] 纠正：原逐条覆盖不成立）。Go 覆盖 nil store、非正 TTL 被拒（错误含 TTL）、空 run id 拒绝、空 lease 释放 no-op、缺失 lease 读取（空,false）、零时间领取自动补时间戳、非正心跳 TTL 被拒、零时间心跳接受、续租 ExpiresAt 推进、释放当前 lease。Rust 两条引用用例只覆盖围栏/接管/续租/陈旧释放被拒；TTL 非正拒绝、空 id、空释放、缺失读取、零时间自动戳均无测试断言（TTL>0 校验只在 claims.rs 生产代码与错误变体，无用例锁定）。nil store 分支在 Rust 无对应面（结构边界）。回归要求：在 jftrade-assistant claims 契约测试补输入校验表（非正 TTL、空 id、空释放、缺失读取、零时间戳）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
-    "evidence_type": "function_exact"
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/execution_claim_failure_boundaries_test.go:83:TestToolInvocationAbandonAndCorruptionBoundaries": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::fail_closed_expiry_becomes_indeterminate_and_keyed_expiry_can_take_over; crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::stale_tool_completion_is_rejected_after_keyed_takeover",
-    "conclusion": "function_exact：Go 断言非法 tool claim（空、TTL=0、不可编码输入）被拒、幂等键复用但输入不同报 reused with different、非正 TTL 心跳被拒、零时间心跳接受、不可编码输出报 encode 错误、Abandon 后可重复调用返回 ErrToolInvocationLost。Rust 的 fail_closed_expiry_becomes_indeterminate_and_keyed_expiry_can_take_over 与 stale_tool_completion_is_rejected_after_keyed_takeover 覆盖同一批失败关闭与失联语义。",
+    "conclusion": "partial（第 129 批分片十二由 [x] 纠正：原同批失败关闭表述不能等价本 Go 测试）。Go 覆盖非法 tool claim（空、TTL=0、不可编码输入）被拒、幂等键复用但输入不同报 reused with different、非正心跳 TTL 被拒、零时间心跳接受、不可编码输出报 encode 错误、Abandon 后重复调用报 ErrToolInvocationLost、损坏输出回放。Rust 两条引用用例只覆盖过期变 indeterminate 与 keyed 接管、陈旧完成被拒；复用键输入不一致、心跳 TTL、encode 错误、Abandon 后 Lost 序列无同形断言。回归要求：在 jftrade-assistant claims 契约测试补上述分支表。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
-    "evidence_type": "function_exact"
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/execution_claim_failure_boundaries_test.go:173:TestExecutionClaimUpdateResultFailures": {
     "status": "[~]",
@@ -7994,11 +7994,11 @@
     "evidence_type": "partial"
   },
   "internal/assistant/engine/execution_claims_test.go:108:TestFailedReadIsDurablyCompletedButProjectedAsFailedToolCall": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::fail_closed_expiry_becomes_indeterminate_and_keyed_expiry_can_take_over",
-    "conclusion": "function_exact：Go 断言读取类工具处理器报错时调用仍被持久标记为 completed（success=false 输出落库）。Rust 的 fail_closed_expiry_becomes_indeterminate_and_keyed_expiry_can_take_over 覆盖失败调用的持久终态与后续接管语义，与“失败读仍持久完成”契约同形。",
+    "conclusion": "partial（第 129 批分片十二由 [x] 纠正：引用用例的主题是过期接管，不是失败读投影）。Go 断言读取类工具报错时输出 success=false、持久调用标记 COMPLETED 且输出含 success:false、投影调用为 FAILED 且错误含 provider rejected。Rust 的 fail_closed 用例只断言过期变 indeterminate 与 keyed 接管 fencing，没有失败读持久完成加失败投影的成对断言；持久落在调用与信封回放分散在其它 [x] 行证据中，不可复用。回归要求：在 jftrade-assistant 或 engine 为失败调用的持久 COMPLETED 加投影 FAILED 成对语义补用例。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
-    "evidence_type": "function_exact"
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/execution_claims_test.go:167:TestGoogleADKToolRejectsStaleContextAfterLeaseTurnover": {
     "status": "[x]",
@@ -8024,7 +8024,7 @@
   "internal/assistant/engine/execution_claims_test.go:294:TestRuntimeRunLeaseHeartbeatPreventsPrematureTakeover": {
     "status": "[x]",
     "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::same_owner_heartbeat_renews_without_advancing_fence; crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::run_lease_expiry_fencing_and_stale_release_are_rejected",
-    "conclusion": "function_exact：Go 断言心跳把 ExpiresAt 推进到初始过期之后、心跳期间他人领取报 ErrRunLeaseHeld、释放后可接管且围栏 token 递增。Rust 的 same_owner_heartbeat_renews_without_advancing_fence 断言同 owner 心跳续租且围栏不推进，run_lease_expiry_fencing_and_stale_release_are_rejected 覆盖过期/接管围栏，合起来等价。",
+    "conclusion": "function_exact（第 129 批分片十二复核收紧：释放后接管分支单列）。Go 断言心跳把 ExpiresAt 推进到初始过期之后、心跳期间他人领取报 ErrRunLeaseHeld、释放后可接管且围栏 token 递增。Rust 的 same_owner_heartbeat_renews_without_advancing_fence 锁定续租与心跳期 Held，run_lease_expiry_fencing_and_stale_release_are_rejected 锁定过期接管围栏；自愿释放当前 lease 后接管且围栏递增无专用断言（既有用例只覆盖过期后接管与陈旧释放被拒），记为本行内缺口：回归要求在 claims 契约测试补释放后接管围栏递增断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
     "evidence_type": "function_exact"
   },
@@ -8071,11 +8071,11 @@
     "evidence_type": "partial"
   },
   "internal/assistant/engine/google_exec_concurrency_test.go:12:TestGoogleADKExecutionSerializesConcurrentToolCallbacks": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit",
-    "conclusion": "function_exact：Go 断言并发工具回调被串行化（delta 不重叠、最终回复只含一次文本、delta 计数为 1）。Rust 的围栏用例断言同一工具的重复执行被租约围栏阻断、陈旧提交不能生效（并发回调不会双写），对应“并发回调串行化/至多一次”契约。",
+    "conclusion": "partial（第 129 批分片十二由 [x] 纠正：引用用例证明至多一次执行，不能证明回调串行化）。Go 断言并发工具回调被串行化（delta 不重叠、最终回复只含一次文本）。Rust 的 fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit 断言重复执行被围栏阻断、陈旧提交不生效（至多一次执行），没有 delta 重叠检测与单次文本断言；即使回调重叠该用例仍可通过。回归要求：在 jftrade-engine 为并发回调补串行化用例（重叠检测加单次文本断言）。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "function_exact"
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/google_execution_replay_guards_test.go:13:TestGoogleExecutionEventReplayKeepsApprovalStateIdempotent": {
     "status": "[~]",

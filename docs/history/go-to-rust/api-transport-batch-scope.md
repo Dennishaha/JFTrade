@@ -2615,3 +2615,30 @@ owner：审批/续跑资格由 ADK 运行生命周期与端口错误分类承接
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected），与本分片无关 |
 
 后续：engine 第二片完成；队列进入 engine 第三片（账本 1147 起约 35 行），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片十二：`internal/assistant/engine` 第三片 35 行（5 条过宽纠正）
+
+范围（账本 inventory 1147-1181，按文件与行号升序）：`event_projection_reply_ordering_test.go:15`、`exec_bounds_test.go:14/:57/:93/:148/:175/:238/:275/:364`、`exec_state_bounds_test.go:9/:101/:171`、`execution_claim_failure_boundaries_test.go:39/:83/:173/:203`、`execution_claims_test.go:54/:108/:167/:214/:265/:294/:343`、`execution_state_projection_contracts_test.go:44/:103/:175/:234`、`goal_state_boundaries_test.go:9`、`google_exec_concurrency_test.go:12`、`google_execution_replay_guards_test.go:13/:67`、`google_memory_test.go:10/:77`、`google_runner_failure_diagnostics_test.go:8/:35`（35 行中 [x]9/partial26，复核后 [x]4/partial31）。
+
+owner：执行调用复用/完成与回调串行由模型运行时投影与围栏层承接，租约/认领生命周期由 `crates/jftrade-assistant` 的 ClaimStore 与 claims 契约测试承接，失败分类与恢复由运行时 failure/recovery 端口承接。
+
+复核方法：35/35 参考行号签名一致；9 条 `[x]` 全部打开 Go 断言逐分支核对（调用复用六分支、租约校验全表、工具认领失败表、失败读三段式、心跳接管三段式、并发回调）；9 条锚点全部在位。
+
+结论：5 处 verdict 纠正（均为 [x] 改 partial，原逐条覆盖不成立）。一是 `exec_bounds_test.go:57`：两条引用用例只覆盖失败落调用与 pre-tool 冻结，调用复用去重、缺失完成 no-op、成功摘要、TIMED_OUT 分类无同形断言。二是 `execution_claim_failure_boundaries_test.go:39`：两条引用用例只覆盖围栏接管续租，TTL 非正拒绝、空 id、空释放、缺失读取、零时间戳均无测试断言（TTL 校验只在生产代码）。三是 `execution_claim_failure_boundaries_test.go:83`：两条引用用例只覆盖过期接管，复用键输入不一致、心跳 TTL、encode 错误、Abandon 后 Lost 序列无同形断言。四是 `execution_claims_test.go:108`：引用用例主题是过期接管，没有失败读持久 COMPLETED 加投影 FAILED 的成对断言。五是 `google_exec_concurrency_test.go:12`：引用用例证明至多一次执行，不能证明回调串行化（无 delta 重叠检测）。另 1 处结论收紧（verdict 不变）：`execution_claims_test.go:294` 保持 `[x]`，自愿释放后接管围栏递增单列为行内缺口。`:148`（取消 join）与 `:167`（换手围栏）逐分支核对无误，保持 `[x]`。每条纠正均写明缺口分支与回归位置（engine 补调用复用与回调串行用例、assistant claims 补校验表与成对语义用例）。
+
+映射终值（35 行）：`[x]` 4、partial 31、boundary 0。本分片无 Rust 生产/测试代码改动，无新增锚点，无探针。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 自建校验（参考行号签名 35/35、`[x]` 断言逐分支、`[x]` 锚点在位 9/9） | 35 行 5 纠正 1 收紧 |
+| 账本写入 | `/tmp/s12_payload.json` 经 `/tmp/b82_apply.py` 应用 | `[x]` 1587（1592→1587）、partial 2222→2227、boundary 637 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；缺锚点告警 182 不变；Rust 测试 3293 不变 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1658 不变、已记录 1607、unrecorded 0、stale 0、unknown 51 不变 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | 全过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（engine 整轮） | 首轮 1911/1911 一次通过，无抖动 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | 全过：compat exit 0、generated 未改动工作树、ai-context 6 模块 8 指令文件、zero-go 2953 files、quick exit 0（nextest 1941/1941、pineworker 98/98） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected），与本分片无关 |
+
+后续：engine 第三片完成；队列进入 engine 第四片（账本 1182 起约 35 行），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。
