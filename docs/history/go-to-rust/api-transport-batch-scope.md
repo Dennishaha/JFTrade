@@ -4235,3 +4235,29 @@ owner：Pine 版本化语言面由 jftrade-strategy 承接，无双写。
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 4119 起；尾部余 333 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
+
+### 第 129 批分片七十：rows 4119-4153 Pine 解析语义 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 4119-4153，按写入顺序）：strategy pine parse_semantic:195/:230/:268/:287/:301/:340/:377/:401、parse:10/:54/:84/:113/:126/:145/:167/:186/:202/:232/:253/:286/:317/:348/:367/:390/:432/:448/:464/:488/:560/:587/:621/:651/:690/:718/:732。初值 [x] 21、partial 14、boundary 0，终值不变。首键自检通过，无重叠。
+
+owner：Pine 解析语义由 jftrade-strategy 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（25 个去重后引用逐个核对 #[test] 与嵌套模块归属，0 缺失），21 条 [x] 逐条核对锚点归属与断言等价（全部 function_exact 且带锚点），partial 抽查缺口诚实度。结论：0 纠正、0 升级、0 降级。
+
+抽查证据：[x] 结论均为逐值/逐诊断码写法（含修复记录）；partial 缺口诚实（含实测被拒诊断码与回归要求）；dup-x 为 0。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 21、partial 14、boundary 0。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（25 去重引用）加 [x] 断言等价核对 | 0 纠正、0 升级、0 降级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新基线，inventory 无变化；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 4154 起；尾部余 298 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
