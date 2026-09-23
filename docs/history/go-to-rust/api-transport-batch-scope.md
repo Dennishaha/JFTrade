@@ -3989,3 +3989,31 @@ owner：Pine 资产选择由 jftrade-integration-pine 与桌面发布校验承�
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 3804 起；尾部余 648 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
+
+### 第 129 批分片六十一：rows 3804-3838 策略绑定与实盘管理 35 行（1 处占位结论改写，无 verdict 变更）
+
+范围（账本 rows 3804-3838，按写入顺序）：strategy instancebinding binding:137/:143/:161/:202、instanceview runtime_projection:9、view:13/:28/:46/:62/:92、live_command_business_boundaries:14/:33/:57/:85/:127/:204/:362/:399/:468/:490/:545、liveruntime manager_boundaries:16/:54/:94/:116/:155/:182/:216/:241/:275/:302/:356、manager_close:86/:140/:188。初值 [x] 3、partial 28、boundary 4，终值不变。首键自检通过，无重叠。
+
+owner：绑定归一与错误分类由 jftrade-strategy 承接，实例视图/执行语义/实盘管理由 jftrade-engine 承接，市场规则由 jftrade-broker 承接，回测原子括号由 jftrade-backtest 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（27 个去重后引用逐个核对 #[test]，其一因文档注释超出检查窗口初判误报，人工确认 #[test] 有效，0 缺失），3 条 [x] 逐条核对锚点归属与断言等价（全部带锚点），partial 与 boundary 抽查缺口诚实度。结论：1 处占位结论改写，0 升级、0 降级。
+
+改写：binding:137 的结论为占位写法（已找到证据），Rust 用例实质三分支齐全且带本行锚点，verdict 保持 [x]，结论按子例改写为空输入/None/有效归一化三条。
+
+抽查证据：boundary 均为结构差异（含升级路径）；partial 缺口诚实（逐项报错、逐字段回填、告警聚合等未复刻）；dup-x 为 0。
+
+新增证据：无 Rust 改动；账本 1 行结论改写；无新增锚点。
+
+映射终值（35 行）：[x] 3、partial 28、boundary 4。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（27 去重引用）加 [x] 断言等价核对 | 1 占位结论改写；0 升级、0 降级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2 写入器 1 行 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；inventory 随改写行更新，report 刷新基线；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 3839 起；尾部余 613 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。

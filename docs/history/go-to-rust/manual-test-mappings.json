@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T20:05:41Z",
+  "generatedAt": "2026-09-23T20:08:16Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -247554,7 +247554,7 @@
     "internal/strategy/instancebinding/binding_test.go:137:TestNormalizeBrokerAccountDropsEmptyInput": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-strategy/src/model.rs::test_normalize_broker_account_drops_empty_input",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+      "conclusion": "function_exact：Go 断言经纪账户绑定归一化丢弃空输入。Rust 用例带本行 Parity 锚点，三分支逐条锁定：全空白字段输入返回 None；None 输入返回 None；有效输入去空白并归一化（broker_id/account_id 去空格转小写，trading_environment/market 去空格转大写）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy",
       "evidence_type": "function_exact",
       "source": {
@@ -247578,7 +247578,7 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据"
+          "function_exact：Go 断言经纪账户绑定归一化丢弃空输入。Rust 用例带本行 Parity 锚点，三分支逐条锁定：全空白字段输入返回 None；None 输入返回 None；有效输入去空白并归一化（broker_id/account_id 去空格转小写，trading_environment/market 去空格转大写）。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -247611,7 +247611,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据"
+        "function_exact：Go 断言经纪账户绑定归一化丢弃空输入。Rust 用例带本行 Parity 锚点，三分支逐条锁定：全空白字段输入返回 None；None 输入返回 None；有效输入去空白并归一化（broker_id/account_id 去空格转小写，trading_environment/market 去空格转大写）。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
